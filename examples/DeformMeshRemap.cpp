@@ -69,13 +69,13 @@ public:
   ErrorCode execute();
   
     //! add a set number
-  ErrorCode add_set_no(int fluid_or_solid, int set_no);
+  ErrorCode add_set_no(int m_or_s, int fluid_or_solid, int set_no);
   
     //! remove a set number
-  ErrorCode remove_set_no(int fluid_or_solid, int set_no);
+  ErrorCode remove_set_no(int m_or_s, int fluid_or_solid, int set_no);
   
     //! get the set numbers
-  ErrorCode get_set_nos(int fluid_or_solid, std::set<int> &set_nos) const;
+  ErrorCode get_set_nos(int m_or_s, int fluid_or_solid, std::set<int> &set_nos) const;
 
     //! get the xNew tag handle
   inline Tag x_new() const {return xNew;}
@@ -110,6 +110,9 @@ private:
     //! write the tag to the vertices, then save to the specified file
   ErrorCode write_and_save(Range &ents, EntityHandle seth, Tag tagh, const char *filename);
 
+    //! find fluid/solid sets from complement of solid/fluid sets 
+  ErrorCode find_other_sets(int m_or_s, EntityHandle file_set);
+  
     //! moab interface
   Interface *mbImpl;
 
@@ -118,11 +121,11 @@ private:
   ParallelComm *pcMaster, *pcSlave;
 #endif
   
-    //! material set numbers for fluid materials
-  std::set<int> fluidSetNos;
+    //! material set numbers for fluid materials, for master/slave
+  std::set<int> fluidSetNos[2];
 
-    //! material set numbers for solid materials
-  std::set<int> solidSetNos;
+    //! material set numbers for solid materials, for master/slave
+  std::set<int> solidSetNos[2];
 
     //! sets defining master/slave meshes
   EntityHandle masterSet, slaveSet;
@@ -150,14 +153,17 @@ private:
 };
 
   //! add a set number
-inline ErrorCode DeformMeshRemap::add_set_no(int f_or_s, int set_no) 
+inline ErrorCode DeformMeshRemap::add_set_no(int m_or_s, int f_or_s, int set_no) 
 {
   std::set<int> *this_set;
+  assert ((m_or_s == MASTER || m_or_s == SLAVE) && "m_or_s should be MASTER or SLAVE.");
+  if (m_or_s != MASTER && m_or_s != SLAVE) return MB_INDEX_OUT_OF_RANGE;
+  
   switch (f_or_s) {
     case FLUID:
-        this_set = &fluidSetNos; break;
+        this_set = &fluidSetNos[m_or_s]; break;
     case SOLID:
-        this_set = &solidSetNos; break;
+        this_set = &solidSetNos[m_or_s]; break;
     default:
         assert(false && "f_or_s should be FLUID or SOLID.");
         return MB_FAILURE;
@@ -169,14 +175,16 @@ inline ErrorCode DeformMeshRemap::add_set_no(int f_or_s, int set_no)
 }
   
   //! remove a set number
-inline ErrorCode DeformMeshRemap::remove_set_no(int f_or_s, int set_no) 
+inline ErrorCode DeformMeshRemap::remove_set_no(int m_or_s, int f_or_s, int set_no) 
 {
   std::set<int> *this_set;
+  assert ((m_or_s == MASTER || m_or_s == SLAVE) && "m_or_s should be MASTER or SLAVE.");
+  if (m_or_s != MASTER && m_or_s != SLAVE) return MB_INDEX_OUT_OF_RANGE;
   switch (f_or_s) {
     case FLUID:
-        this_set = &fluidSetNos; break;
+        this_set = &fluidSetNos[m_or_s]; break;
     case SOLID:
-        this_set = &solidSetNos; break;
+        this_set = &solidSetNos[m_or_s]; break;
     default:
         assert(false && "f_or_s should be FLUID or SOLID.");
         return MB_FAILURE;
@@ -191,14 +199,16 @@ inline ErrorCode DeformMeshRemap::remove_set_no(int f_or_s, int set_no)
 }
   
   //! get the set numbers
-inline ErrorCode DeformMeshRemap::get_set_nos(int f_or_s, std::set<int> &set_nos) const
+inline ErrorCode DeformMeshRemap::get_set_nos(int m_or_s, int f_or_s, std::set<int> &set_nos) const
 {
   const std::set<int> *this_set;
+  assert ((m_or_s == MASTER || m_or_s == SLAVE) && "m_or_s should be MASTER or SLAVE.");
+  if (m_or_s != MASTER && m_or_s != SLAVE) return MB_INDEX_OUT_OF_RANGE;
   switch (f_or_s) {
     case FLUID:
-        this_set = &fluidSetNos; break;
+        this_set = &fluidSetNos[m_or_s]; break;
     case SOLID:
-        this_set = &solidSetNos; break;
+        this_set = &solidSetNos[m_or_s]; break;
     default:
         assert(false && "f_or_s should be FLUID or SOLID.");
         return MB_FAILURE;
@@ -224,10 +234,18 @@ ErrorCode DeformMeshRemap::execute()
     // read master/slave files and get fluid/solid material sets
   ErrorCode rval = read_file(MASTER, masterFileName, masterSet);
   if (MB_SUCCESS != rval) return rval;
+
+  if (*solidSetNos[MASTER].begin() == -1 || *fluidSetNos[MASTER].begin() == -1) {
+    rval = find_other_sets(MASTER, masterSet); RR("Failed to find other sets in master mesh.");
+  }
   
   rval = read_file(SLAVE, slaveFileName, slaveSet);
   if (MB_SUCCESS != rval) return rval;
 
+  if (*solidSetNos[SLAVE].begin() == -1 || *fluidSetNos[SLAVE].begin() == -1) {
+    rval = find_other_sets(SLAVE, slaveSet); RR("Failed to find other sets in slave mesh.");
+  }
+  
   Range src_elems = solidElems[MASTER];
   src_elems.merge(fluidElems[MASTER]);
     // locate slave vertices in master, orig coords; do this with a data coupler, so you can
@@ -288,6 +306,50 @@ ErrorCode DeformMeshRemap::execute()
   return MB_SUCCESS;
 }
 
+ErrorCode DeformMeshRemap::find_other_sets(int m_or_s, EntityHandle file_set) 
+{
+    // solid or fluid sets are missing; find the other
+  Range *filled_sets = NULL, *unfilled_sets = NULL, *unfilled_elems = NULL;
+  
+  if (fluidSets[m_or_s].empty() && !solidSets[m_or_s].empty()) {
+    unfilled_sets = &fluidSets[m_or_s];
+    filled_sets = &solidSets[m_or_s];
+    unfilled_elems = &fluidElems[m_or_s];
+  }
+  else if (!fluidSets[m_or_s].empty() && solidSets[m_or_s].empty()) {
+    filled_sets = &fluidSets[m_or_s];
+    unfilled_sets = &solidSets[m_or_s];
+    unfilled_elems = &solidElems[m_or_s];
+  }
+  
+    // ok, we know the filled sets, now fill the unfilled sets, and the elems from those
+  Tag tagh;
+  ErrorCode rval = mbImpl->tag_get_handle(MATERIAL_SET_TAG_NAME, tagh); RR("Couldn't get material set tag name.");
+  Range matsets;
+  rval = mbImpl->get_entities_by_type_and_tag(file_set, MBENTITYSET, &tagh, NULL, 1, matsets);
+  if (matsets.empty()) rval = MB_FAILURE;
+  RR("Couldn't get any material sets.");
+  *unfilled_sets = subtract(matsets, *filled_sets);
+  if (unfilled_sets->empty()) {
+    rval = MB_FAILURE;
+    RR("Failed to find any unfilled material sets.");
+  }
+  Range tmp_range;
+  for (Range::iterator rit = unfilled_sets->begin(); rit != unfilled_sets->end(); rit++) {
+    rval = mbImpl->get_entities_by_handle(*rit, tmp_range, true);
+    RR("Failed to get entities in unfilled set.");
+  }
+  int dim = mbImpl->dimension_from_handle(*tmp_range.rbegin());
+  assert(dim > 0 && dim < 4);  
+  *unfilled_elems = tmp_range.subset_by_dimension(dim);
+  if (unfilled_elems->empty()) {
+    rval = MB_FAILURE;
+    RR("Failed to find any unfilled set entities.");
+  }
+  
+  return MB_SUCCESS;
+}
+
 std::string DeformMeshRemap::get_file_name(int m_or_s) const
 {
   switch (m_or_s) {
@@ -336,8 +398,10 @@ int main(int argc, char **argv) {
   po.addOpt<std::string> ("d1,", "Tag name for displacement x or xyz" );
   po.addOpt<std::string> ("d2,", "Tag name for displacement y" );
   po.addOpt<std::string> ("d3,", "Tag name for displacement z" );
-  po.addOpt<int> ("fluid,f", "Specify fluid material set number(s).");
-  po.addOpt<int> ("solid,s", "Specify fluid material set number(s).");
+  po.addOpt<int> ("fm,", "Specify master fluid material set number(s). If -1 specified, fluid sets derived from complement of solid sets.");
+  po.addOpt<int> ("fs,", "Specify master solid material set number(s). If -1 specified, fluid sets derived from complement of solid sets.");
+  po.addOpt<int> ("sm,", "Specify slave fluid material set number(s). If -1 specified, fluid sets derived from complement of solid sets.");
+  po.addOpt<int> ("ss,", "Specify slave solid material set number(s). If -1 specified, fluid sets derived from complement of solid sets.");
   
   po.parseCommandLine(argc, argv);
 
@@ -362,23 +426,44 @@ int main(int argc, char **argv) {
   dfr->set_file_name(DeformMeshRemap::SLAVE, slavef);
 
   std::vector<int> set_nos;
-  po.getOptAllArgs("fluid", set_nos);
+  po.getOptAllArgs("fm", set_nos);
   if (set_nos.empty()) {
-    rval = dfr->add_set_no(DeformMeshRemap::FLUID, FLUID_SETNO); RR("Failed to add solid set no.");
+    rval = dfr->add_set_no(DeformMeshRemap::MASTER, DeformMeshRemap::FLUID, FLUID_SETNO); 
+    RR("Failed to add solid set no.");
   }
   else {
     for (std::vector<int>::iterator vit = set_nos.begin(); vit != set_nos.end(); vit++) 
-      dfr->add_set_no(DeformMeshRemap::FLUID, *vit);
+      dfr->add_set_no(DeformMeshRemap::MASTER, DeformMeshRemap::FLUID, *vit);
   }
   set_nos.clear();
   
-  po.getOptAllArgs("solid", set_nos);
+  po.getOptAllArgs("fs", set_nos);
   if (set_nos.empty()) {
-    rval = dfr->add_set_no(DeformMeshRemap::SOLID, SOLID_SETNO); RR("Failed to add solid set no.");
+    rval = dfr->add_set_no(DeformMeshRemap::SLAVE, DeformMeshRemap::FLUID, FLUID_SETNO); 
+    RR("Failed to add solid set no.");
   }
   else {
     for (std::vector<int>::iterator vit = set_nos.begin(); vit != set_nos.end(); vit++) 
-      dfr->add_set_no(DeformMeshRemap::SOLID, *vit);
+      dfr->add_set_no(DeformMeshRemap::SLAVE, DeformMeshRemap::FLUID, *vit);
+  }
+  set_nos.clear();
+  
+  po.getOptAllArgs("sm", set_nos);
+  if (set_nos.empty()) {
+    rval = dfr->add_set_no(DeformMeshRemap::MASTER, DeformMeshRemap::SOLID, SOLID_SETNO); RR("Failed to add solid set no.");
+  }
+  else {
+    for (std::vector<int>::iterator vit = set_nos.begin(); vit != set_nos.end(); vit++) 
+      dfr->add_set_no(DeformMeshRemap::MASTER, DeformMeshRemap::SOLID, *vit);
+  }
+
+  po.getOptAllArgs("ss", set_nos);
+  if (set_nos.empty()) {
+    rval = dfr->add_set_no(DeformMeshRemap::SLAVE, DeformMeshRemap::SOLID, SOLID_SETNO); RR("Failed to add solid set no.");
+  }
+  else {
+    for (std::vector<int>::iterator vit = set_nos.begin(); vit != set_nos.end(); vit++) 
+      dfr->add_set_no(DeformMeshRemap::SLAVE, DeformMeshRemap::SOLID, *vit);
   }
 
   std::string tnames[3];
@@ -489,6 +574,7 @@ ErrorCode DeformMeshRemap::deform_master(Range &fluid_elems, Range &solid_elems,
     rval = mbImpl->tag_get_handle((tag_name ? tag_name : ""), 3, MB_TYPE_DOUBLE, 
                                   xDisp[0], MB_TAG_CREAT|MB_TAG_DENSE);
     RR("Failed to get xNew tag.");
+    xNew = xDisp[0];
   }
     
     // set the new tag to those coords
@@ -525,10 +611,12 @@ ErrorCode DeformMeshRemap::read_file(int m_or_s, string &fname, EntityHandle &se
   rval = mbImpl->load_file(fname.c_str(), &seth, ostr.str().c_str());
   RR("Couldn't load master/slave mesh.");
 
+  if (*solidSetNos[m_or_s].begin() == -1 || *fluidSetNos[m_or_s].begin() == -1) return MB_SUCCESS;
+  
     // get material sets for solid/fluid
   Tag tagh;
   rval = mbImpl->tag_get_handle(MATERIAL_SET_TAG_NAME, tagh); RR("Couldn't get material set tag name.");
-  for (std::set<int>::iterator sit = solidSetNos.begin(); sit != solidSetNos.end(); sit++) {
+  for (std::set<int>::iterator sit = solidSetNos[m_or_s].begin(); sit != solidSetNos[m_or_s].end(); sit++) {
     Range sets;
     int set_no = *sit;
     const void *setno_ptr = &set_no;
@@ -549,7 +637,7 @@ ErrorCode DeformMeshRemap::read_file(int m_or_s, string &fname, EntityHandle &se
   
   solidElems[m_or_s] = tmp_range.subset_by_dimension(dim);
 
-  for (std::set<int>::iterator sit = fluidSetNos.begin(); sit != fluidSetNos.end(); sit++) {
+  for (std::set<int>::iterator sit = fluidSetNos[m_or_s].begin(); sit != fluidSetNos[m_or_s].end(); sit++) {
     Range sets;
     int set_no = *sit;
     const void *setno_ptr = &set_no;
