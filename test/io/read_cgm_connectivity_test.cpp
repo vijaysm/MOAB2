@@ -30,14 +30,18 @@ void read_file( Interface* moab, const char* input_file );
 
 // List of tests in this file
 void read_cube_tris_test();
+void read_cube_connectivity_test();
 
+//Function used to match triangle connectivity and verts 
+void match_tri_connectivity( Range connectivity, 
+                             std::vector<EntityHandle> &reference_verts);
 
 
 int main(int /* argc */, char** /* argv */)
 {
   int result = 0;
  
-
+  RUN_TEST(read_cube_connectivity_test);
  
   return result;
 }
@@ -180,9 +184,57 @@ void read_cube_connectivity_test()
   Interface* mb = &moab;
   read_file( mb, input_cube );
 
+  //Get all vertex handles from the mesh
+  std::vector<EntityHandle> verts; 
+  rval = mb->get_entities_by_type( 0, MBVERTEX, verts);
+  CHECK_ERR(rval);
+  
+  //Duplicate the vertex handles to match the number of tris
+  //they should be connected to upon a correct load
+  std::vector<EntityHandle>  ref_verts=verts;
+  int copy_count = 0;
+  while (copy_count<4)
+    {
+      copy(verts.begin(),verts.end(),back_inserter(ref_verts));
+      copy_count++;
+    }
+  
+  //Make sure everything duplicated without a problem
+  if( ref_verts.size()!=40 ) CHECK_ERR(MB_FAILURE);
+
   //Get all triangles from the mesh
-  std::vector<EntityHandle> tris;
+  Range tris;
   rval = mb->get_entities_by_type( 0, MBTRI, tris);
   CHECK_ERR(rval);
 
+ 
+  //Test connectivity
+  for (Range::const_iterator i=tris.begin(); i!=tris.end(); i++)
+    {
+     //Get the connectivity of a triangle
+      Range connect;
+      rval = mb->get_connectivity( &(*i), 1, connect);
+      CHECK_ERR(rval);
+     
+      match_tri_connectivity( connect, ref_verts);
+      std::cout << "ref_verts size = " << ref_verts.size() << std::endl;
+    }
+  
+    
+}
+
+void match_tri_connectivity( Range connectivity, std::vector<EntityHandle> &reference_verts)
+{
+
+  for(Range::const_iterator i=connectivity.begin(); i!=connectivity.end(); i++)
+    {
+
+      for(unsigned int j=0; j<reference_verts.size(); j++)
+	{
+
+	  std::cout << "Triangle Vert Handle = " << *i << std::endl;
+          if( *i == reference_verts[j]) reference_verts.erase(reference_verts.begin()+j);
+             
+	}
+    }
 }
