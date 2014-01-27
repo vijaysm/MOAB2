@@ -354,50 +354,6 @@ ErrorCode DeformMeshRemap::execute()
   return MB_SUCCESS;
 }
 
-ErrorCode DeformMeshRemap::find_other_sets(int m_or_s, EntityHandle file_set) 
-{
-    // solid or fluid sets are missing; find the other
-  Range *filled_sets = NULL, *unfilled_sets = NULL, *unfilled_elems = NULL;
-  
-  if (fluidSets[m_or_s].empty() && !solidSets[m_or_s].empty()) {
-    unfilled_sets = &fluidSets[m_or_s];
-    filled_sets = &solidSets[m_or_s];
-    unfilled_elems = &fluidElems[m_or_s];
-  }
-  else if (!fluidSets[m_or_s].empty() && solidSets[m_or_s].empty()) {
-    filled_sets = &fluidSets[m_or_s];
-    unfilled_sets = &solidSets[m_or_s];
-    unfilled_elems = &solidElems[m_or_s];
-  }
-  
-    // ok, we know the filled sets, now fill the unfilled sets, and the elems from those
-  Tag tagh;
-  ErrorCode rval = mbImpl->tag_get_handle(MATERIAL_SET_TAG_NAME, tagh); RR("Couldn't get material set tag name.");
-  Range matsets;
-  rval = mbImpl->get_entities_by_type_and_tag(file_set, MBENTITYSET, &tagh, NULL, 1, matsets);
-  if (matsets.empty()) rval = MB_FAILURE;
-  RR("Couldn't get any material sets.");
-  *unfilled_sets = subtract(matsets, *filled_sets);
-  if (unfilled_sets->empty()) {
-    rval = MB_FAILURE;
-    RR("Failed to find any unfilled material sets.");
-  }
-  Range tmp_range;
-  for (Range::iterator rit = unfilled_sets->begin(); rit != unfilled_sets->end(); rit++) {
-    rval = mbImpl->get_entities_by_handle(*rit, tmp_range, true);
-    RR("Failed to get entities in unfilled set.");
-  }
-  int dim = mbImpl->dimension_from_handle(*tmp_range.rbegin());
-  assert(dim > 0 && dim < 4);  
-  *unfilled_elems = tmp_range.subset_by_dimension(dim);
-  if (unfilled_elems->empty()) {
-    rval = MB_FAILURE;
-    RR("Failed to find any unfilled set entities.");
-  }
-  
-  return MB_SUCCESS;
-}
-
 std::string DeformMeshRemap::get_file_name(int m_or_s) const
 {
   switch (m_or_s) {
