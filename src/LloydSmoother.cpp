@@ -39,6 +39,17 @@ ErrorCode LloydSmoother::perform_smooth()
 {
   ErrorCode rval;
 
+  if (myElems.empty()) {
+    rval = MB_FAILURE;
+    RR("No elements specified to Lloyd smoother.");
+  }
+  else if (mbImpl->dimension_from_handle(*myElems.begin()) != mbImpl->dimension_from_handle(*myElems.rbegin())) {
+    rval = MB_FAILURE;
+    RR("Elements of unequal dimension specified to Lloyd smoother.");
+  }    
+
+  int dim = mbImpl->dimension_from_handle(*myElems.begin());
+  
     // first figure out tolerance to use
   if (0 > absTol) {
       // no tolerance set - get one relative to bounding box around elements
@@ -140,7 +151,7 @@ ErrorCode LloydSmoother::perform_smooth()
       if (fix_tag[v]) continue;
         // vertex centroid = sum(cell centroids)/ncells
       adj_elems.clear();
-      rval = mbImpl->get_adjacencies(&(*vit), 1, 2, false, adj_elems); RR("Failed getting adjs.");
+      rval = mbImpl->get_adjacencies(&(*vit), 1, dim, false, adj_elems); RR("Failed getting adjs.");
       rval = mbImpl->tag_get_data(centroid, &adj_elems[0], adj_elems.size(), &fcentroids[0]); 
       RR("Failed to get elem centroid.");
       double vnew[] = {0.0, 0.0, 0.0};
