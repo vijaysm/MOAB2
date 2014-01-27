@@ -254,6 +254,8 @@ ErrorCode DeformMeshRemap::execute()
       rval = find_other_sets(SLAVE, slaveSet); RR("Failed to find other sets in slave mesh.");
     }
   }
+ 
+  if (debug) std::cout << "Constructing data coupler/search tree on master mesh..." << std::endl;
   
   Range src_elems = solidElems[MASTER];
   src_elems.merge(fluidElems[MASTER]);
@@ -271,6 +273,7 @@ ErrorCode DeformMeshRemap::execute()
     RR("Failed to get target verts.");
 
       // locate slave vertices, caching results in dc
+    if (debug) std::cout << "Locating slave vertices in master mesh..." << std::endl;
     rval = dc_master.locate_points(tgt_verts); RR("Point location of tgt verts failed.");
     int num_located = dc_master.spatial_locator()->local_num_located();
     if (num_located != (int)tgt_verts.size()) {
@@ -281,11 +284,13 @@ ErrorCode DeformMeshRemap::execute()
   }
   
     // deform the master's solid mesh, put results in a new tag
+  if (debug) std::cout << "Deforming fluid elements in master mesh..." << std::endl;
   rval = deform_master(fluidElems[MASTER], solidElems[MASTER], "xnew"); RR("");
 
   { // to isolate the lloyd smoother & delete when done
 
       // smooth the master mesh
+    if (debug) std::cout << "Smoothing fluid elements in master mesh..." << std::endl;
     LloydSmoother ll(mbImpl, NULL, fluidElems[MASTER], xNew);
     rval = ll.perform_smooth();
     RR("Failed in lloyd smoothing.");
@@ -293,13 +298,16 @@ ErrorCode DeformMeshRemap::execute()
   }
 
     // transfer xNew to coords, for master
+  if (debug) std::cout << "Transferring coords tag to vertex coordinates in master mesh..." << std::endl;
   rval = write_to_coords(fluidElems[MASTER], xNew); RR("Failed writing tag to master fluid verts.");
 
   if (have_slave) {
       // map new locations to slave
       // interpolate xNew to slave points
+    if (debug) std::cout << "Interpolating new coordinates to slave vertices..." << std::endl;
     rval = dc_master.interpolate((int)DataCoupler::VOLUME, "xnew"); RR("Failed to interpolate target solution.");
       // transfer xNew to coords, for slave
+    if (debug) std::cout << "Transferring coords tag to vertex coordinates in slave mesh..." << std::endl;
     rval = write_to_coords(tgt_verts, xNew); RR("Failed writing tag to slave verts.");
   }
 
@@ -309,6 +317,7 @@ ErrorCode DeformMeshRemap::execute()
     if (pcMaster && pcMaster->size() > 1) 
       str = "PARALLEL=WRITE_PART";
 #endif
+    if (debug) std::cout << "Writing smoothed_master.vtk..." << std::endl;
     rval = mbImpl->write_file("smoothed_master.vtk", NULL, str.c_str(), &masterSet, 1);
 
     if (have_slave) {
@@ -317,6 +326,7 @@ ErrorCode DeformMeshRemap::execute()
       if (pcSlave && pcSlave->size() > 1) 
         str = "PARALLEL=WRITE_PART";
 #endif
+      if (debug) std::cout << "Writing slave_interp.vtk..." << std::endl;
       rval = mbImpl->write_file("slave_interp.vtk", NULL, str.c_str(), &slaveSet, 1);
     } // if have_slave
   } // if debug
