@@ -264,6 +264,14 @@ namespace moab {
       if (!boxTag && create_if_missing) {
         assert(boxTagName.length() > 0);
         ErrorCode rval = moab()->tag_get_handle(boxTagName.c_str(), 6, MB_TYPE_DOUBLE, boxTag, MB_TAG_CREAT | MB_TAG_SPARSE);
+        if (MB_INVALID_SIZE == rval) {
+            // delete the tag and get it again, legacy file...
+          rval = moab()->tag_delete(boxTag);
+          if (MB_SUCCESS != rval) return 0;
+          boxTag = 0;
+          return get_box_tag(true);
+        }
+        
         if (MB_SUCCESS != rval) return 0;
       }
       
