@@ -19,6 +19,10 @@
 #include "MBTagConventions.hpp"
 #include "DataCoupler.hpp"
 
+#define IS_BUILDING_MB
+#include "moab/Error.hpp"
+#undef IS_BUILDING_MB
+
 #ifdef USE_MPI
 #  include "moab/ParallelComm.hpp"
 #endif
@@ -116,6 +120,8 @@ private:
     //! moab interface
   Interface *mbImpl;
 
+  Error *mError;
+  
 #ifdef USE_MPI
     //! ParallelComm for master, slave meshes
   ParallelComm *pcMaster, *pcSlave;
@@ -235,7 +241,7 @@ ErrorCode DeformMeshRemap::execute()
   ErrorCode rval = read_file(MASTER, masterFileName, masterSet);
   if (MB_SUCCESS != rval) return rval;
 
-  if (*solidSetNos[MASTER].begin() == -1 || *fluidSetNos[MASTER].begin() == -1) {
+  if (solidSetNos[MASTER].empty() || fluidSetNos[MASTER].empty()) {
     rval = find_other_sets(MASTER, masterSet); RR("Failed to find other sets in master mesh.");
   }
 
@@ -244,7 +250,7 @@ ErrorCode DeformMeshRemap::execute()
     rval = read_file(SLAVE, slaveFileName, slaveSet);
     if (MB_SUCCESS != rval) return rval;
 
-    if (*solidSetNos[SLAVE].begin() == -1 || *fluidSetNos[SLAVE].begin() == -1) {
+    if (solidSetNos[SLAVE].empty() || fluidSetNos[SLAVE].empty()) {
       rval = find_other_sets(SLAVE, slaveSet); RR("Failed to find other sets in slave mesh.");
     }
   }
@@ -318,50 +324,6 @@ ErrorCode DeformMeshRemap::execute()
   return MB_SUCCESS;
 }
 
-ErrorCode DeformMeshRemap::find_other_sets(int m_or_s, EntityHandle file_set) 
-{
-    // solid or fluid sets are missing; find the other
-  Range *filled_sets = NULL, *unfilled_sets = NULL, *unfilled_elems = NULL;
-  
-  if (fluidSets[m_or_s].empty() && !solidSets[m_or_s].empty()) {
-    unfilled_sets = &fluidSets[m_or_s];
-    filled_sets = &solidSets[m_or_s];
-    unfilled_elems = &fluidElems[m_or_s];
-  }
-  else if (!fluidSets[m_or_s].empty() && solidSets[m_or_s].empty()) {
-    filled_sets = &fluidSets[m_or_s];
-    unfilled_sets = &solidSets[m_or_s];
-    unfilled_elems = &solidElems[m_or_s];
-  }
-  
-    // ok, we know the filled sets, now fill the unfilled sets, and the elems from those
-  Tag tagh;
-  ErrorCode rval = mbImpl->tag_get_handle(MATERIAL_SET_TAG_NAME, tagh); RR("Couldn't get material set tag name.");
-  Range matsets;
-  rval = mbImpl->get_entities_by_type_and_tag(file_set, MBENTITYSET, &tagh, NULL, 1, matsets);
-  if (matsets.empty()) rval = MB_FAILURE;
-  RR("Couldn't get any material sets.");
-  *unfilled_sets = subtract(matsets, *filled_sets);
-  if (unfilled_sets->empty()) {
-    rval = MB_FAILURE;
-    RR("Failed to find any unfilled material sets.");
-  }
-  Range tmp_range;
-  for (Range::iterator rit = unfilled_sets->begin(); rit != unfilled_sets->end(); rit++) {
-    rval = mbImpl->get_entities_by_handle(*rit, tmp_range, true);
-    RR("Failed to get entities in unfilled set.");
-  }
-  int dim = mbImpl->dimension_from_handle(*tmp_range.rbegin());
-  assert(dim > 0 && dim < 4);  
-  *unfilled_elems = tmp_range.subset_by_dimension(dim);
-  if (unfilled_elems->empty()) {
-    rval = MB_FAILURE;
-    RR("Failed to find any unfilled set entities.");
-  }
-  
-  return MB_SUCCESS;
-}
-
 std::string DeformMeshRemap::get_file_name(int m_or_s) const
 {
   switch (m_or_s) {
@@ -390,6 +352,8 @@ void DeformMeshRemap::set_file_name(int m_or_s, const std::string &name)
 DeformMeshRemap::DeformMeshRemap(Interface *impl, ParallelComm *master, ParallelComm *slave)  
         : mbImpl(impl), pcMaster(master), pcSlave(slave), masterSet(0), slaveSet(0), xNew(0), xNewName("xnew") 
 {
+  mbImpl->query_interface(mError);
+  
   xDisp[0] = xDisp[1] = xDisp[2] = 0;
 
   if (!pcSlave && pcMaster)
@@ -398,6 +362,7 @@ DeformMeshRemap::DeformMeshRemap(Interface *impl, ParallelComm *master, Parallel
   
 DeformMeshRemap::~DeformMeshRemap() 
 {
+  mbImpl->release_interface(mError);
 }
 
 int main(int argc, char **argv) {
@@ -436,47 +401,29 @@ int main(int argc, char **argv) {
   if(!po.getOpt("worker", &slavef))
     slavef = string(MESH_DIR) + string("/rodtri.g");
   dfr->set_file_name(DeformMeshRemap::SLAVE, slavef);
+  if (slavef.empty()) {
+    std::cerr << "Empty slave file name; if no slave, use filename 'none' (no quotes)." << std::endl;
+    return 1;
+  }
 
   std::vector<int> set_nos;
   po.getOptAllArgs("fm", set_nos);
-  if (set_nos.empty()) {
-    rval = dfr->add_set_no(DeformMeshRemap::MASTER, DeformMeshRemap::FLUID, FLUID_SETNO); 
-    RR("Failed to add solid set no.");
-  }
-  else {
-    for (std::vector<int>::iterator vit = set_nos.begin(); vit != set_nos.end(); vit++) 
-      dfr->add_set_no(DeformMeshRemap::MASTER, DeformMeshRemap::FLUID, *vit);
-  }
+  for (std::vector<int>::iterator vit = set_nos.begin(); vit != set_nos.end(); vit++) 
+    dfr->add_set_no(DeformMeshRemap::MASTER, DeformMeshRemap::FLUID, *vit);
   set_nos.clear();
   
   po.getOptAllArgs("fs", set_nos);
-  if (set_nos.empty()) {
-    rval = dfr->add_set_no(DeformMeshRemap::SLAVE, DeformMeshRemap::FLUID, FLUID_SETNO); 
-    RR("Failed to add solid set no.");
-  }
-  else {
-    for (std::vector<int>::iterator vit = set_nos.begin(); vit != set_nos.end(); vit++) 
-      dfr->add_set_no(DeformMeshRemap::SLAVE, DeformMeshRemap::FLUID, *vit);
-  }
+  for (std::vector<int>::iterator vit = set_nos.begin(); vit != set_nos.end(); vit++) 
+    dfr->add_set_no(DeformMeshRemap::SLAVE, DeformMeshRemap::FLUID, *vit);
   set_nos.clear();
   
   po.getOptAllArgs("sm", set_nos);
-  if (set_nos.empty()) {
-    rval = dfr->add_set_no(DeformMeshRemap::MASTER, DeformMeshRemap::SOLID, SOLID_SETNO); RR("Failed to add solid set no.");
-  }
-  else {
-    for (std::vector<int>::iterator vit = set_nos.begin(); vit != set_nos.end(); vit++) 
-      dfr->add_set_no(DeformMeshRemap::MASTER, DeformMeshRemap::SOLID, *vit);
-  }
+  for (std::vector<int>::iterator vit = set_nos.begin(); vit != set_nos.end(); vit++) 
+    dfr->add_set_no(DeformMeshRemap::MASTER, DeformMeshRemap::SOLID, *vit);
 
   po.getOptAllArgs("ss", set_nos);
-  if (set_nos.empty()) {
-    rval = dfr->add_set_no(DeformMeshRemap::SLAVE, DeformMeshRemap::SOLID, SOLID_SETNO); RR("Failed to add solid set no.");
-  }
-  else {
-    for (std::vector<int>::iterator vit = set_nos.begin(); vit != set_nos.end(); vit++) 
-      dfr->add_set_no(DeformMeshRemap::SLAVE, DeformMeshRemap::SOLID, *vit);
-  }
+  for (std::vector<int>::iterator vit = set_nos.begin(); vit != set_nos.end(); vit++) 
+    dfr->add_set_no(DeformMeshRemap::SLAVE, DeformMeshRemap::SOLID, *vit);
 
   std::string tnames[3];
   po.getOpt("d1", &tnames[0]);
@@ -632,10 +579,13 @@ ErrorCode DeformMeshRemap::read_file(int m_or_s, string &fname, EntityHandle &se
     Range sets;
     int set_no = *sit;
     const void *setno_ptr = &set_no;
-    rval = mbImpl->get_entities_by_type_and_tag(seth, MBENTITYSET, &tagh, &setno_ptr, 1, sets);
-    if (sets.empty()) rval = MB_FAILURE;
-    RR("Couldn't get any solid sets.");
-    solidSets[m_or_s].merge(sets);
+    ErrorCode tmp_rval = mbImpl->get_entities_by_type_and_tag(seth, MBENTITYSET, &tagh, &setno_ptr, 1, sets);
+    if (sets.empty() || MB_SUCCESS != tmp_rval) {
+      rval = MB_FAILURE;
+      mError->set_last_error("Couldn't find solid set #%d.\n", *sit);
+    }
+    else
+      solidSets[m_or_s].merge(sets);
   }
 
     // get solid entities, and dimension
@@ -644,19 +594,26 @@ ErrorCode DeformMeshRemap::read_file(int m_or_s, string &fname, EntityHandle &se
     rval = mbImpl->get_entities_by_handle(*rit, tmp_range, true);
     RR("Failed to get entities in solid.");
   }
-  int dim = mbImpl->dimension_from_handle(*tmp_range.rbegin());
-  assert(dim > 0 && dim < 4);
-  
-  solidElems[m_or_s] = tmp_range.subset_by_dimension(dim);
+  if (!tmp_range.empty()) {
+    int dim = mbImpl->dimension_from_handle(*tmp_range.rbegin());
+    assert(dim > 0 && dim < 4);
+    solidElems[m_or_s] = tmp_range.subset_by_dimension(dim);
+  }
+
+  if (debug)
+    std::cout << "Read " << solidElems[m_or_s].size() << " solid elements from " << solidSets[m_or_s].size() << " sets in " << (m_or_s == MASTER ? "master" : "slave") << " mesh." << std::endl;    
 
   for (std::set<int>::iterator sit = fluidSetNos[m_or_s].begin(); sit != fluidSetNos[m_or_s].end(); sit++) {
     Range sets;
     int set_no = *sit;
     const void *setno_ptr = &set_no;
-    rval = mbImpl->get_entities_by_type_and_tag(seth, MBENTITYSET, &tagh, &setno_ptr, 1, sets);
-    if (sets.empty()) rval = MB_FAILURE;
-    RR("Couldn't get any fluid sets.");
-    fluidSets[m_or_s].merge(sets);
+    ErrorCode tmp_rval = mbImpl->get_entities_by_type_and_tag(seth, MBENTITYSET, &tagh, &setno_ptr, 1, sets);
+    if (sets.empty() || MB_SUCCESS != tmp_rval) {
+      rval = MB_FAILURE;
+      mError->set_last_error("Couldn't find fluid set #%d.\n", *sit);
+    }
+    else
+      fluidSets[m_or_s].merge(sets);
   }
 
     // get fluid entities, and dimension
@@ -665,8 +622,66 @@ ErrorCode DeformMeshRemap::read_file(int m_or_s, string &fname, EntityHandle &se
     rval = mbImpl->get_entities_by_handle(*rit, tmp_range, true);
     RR("Failed to get entities in fluid.");
   }
+  if (!tmp_range.empty()) {
+    int dim = mbImpl->dimension_from_handle(*tmp_range.rbegin());
+    assert(dim > 0 && dim < 4);
+    fluidElems[m_or_s] = tmp_range.subset_by_dimension(dim);
+  }
   
-  fluidElems[m_or_s] = tmp_range.subset_by_dimension(dim);
+  if (debug)
+    std::cout << "Read " << fluidElems[m_or_s].size() << " fluid elements from " << fluidSets[m_or_s].size() << " sets in " << (m_or_s == MASTER ? "master" : "slave") << " mesh." << std::endl;
+
+  return rval;
+}
+
+ErrorCode DeformMeshRemap::find_other_sets(int m_or_s, EntityHandle file_set) 
+{
+    // solid or fluid sets are missing; find the other
+  Range *filled_sets = NULL, *unfilled_sets = NULL, *unfilled_elems = NULL;
+  
+  if (fluidSets[m_or_s].empty() && !solidSets[m_or_s].empty()) {
+    unfilled_sets = &fluidSets[m_or_s];
+    filled_sets = &solidSets[m_or_s];
+    unfilled_elems = &fluidElems[m_or_s];
+    if (debug)
+      std::cout << "Finding unspecified fluid elements in " << (m_or_s == MASTER ? "master" : "slave") << " mesh...";
+  }
+  else if (!fluidSets[m_or_s].empty() && solidSets[m_or_s].empty()) {
+    filled_sets = &fluidSets[m_or_s];
+    unfilled_sets = &solidSets[m_or_s];
+    unfilled_elems = &solidElems[m_or_s];
+    if (debug)
+      std::cout << "Finding unspecified solid elements in " << (m_or_s == MASTER ? "master" : "slave") << " mesh...";
+  }
+  
+    // ok, we know the filled sets, now fill the unfilled sets, and the elems from those
+  Tag tagh;
+  ErrorCode rval = mbImpl->tag_get_handle(MATERIAL_SET_TAG_NAME, tagh); RR("Couldn't get material set tag name.");
+  Range matsets;
+  rval = mbImpl->get_entities_by_type_and_tag(file_set, MBENTITYSET, &tagh, NULL, 1, matsets);
+  if (matsets.empty()) rval = MB_FAILURE;
+  RR("Couldn't get any material sets.");
+  *unfilled_sets = subtract(matsets, *filled_sets);
+  if (unfilled_sets->empty()) {
+    rval = MB_FAILURE;
+    RR("Failed to find any unfilled material sets.");
+  }
+  Range tmp_range;
+  for (Range::iterator rit = unfilled_sets->begin(); rit != unfilled_sets->end(); rit++) {
+    rval = mbImpl->get_entities_by_handle(*rit, tmp_range, true);
+    RR("Failed to get entities in unfilled set.");
+  }
+  int dim = mbImpl->dimension_from_handle(*tmp_range.rbegin());
+  assert(dim > 0 && dim < 4);  
+  *unfilled_elems = tmp_range.subset_by_dimension(dim);
+  if (unfilled_elems->empty()) {
+    rval = MB_FAILURE;
+    RR("Failed to find any unfilled set entities.");
+  }
+
+  if (debug) 
+    std::cout << "found " << unfilled_sets->size() << " sets and " << unfilled_elems->size() << " elements." << std::endl;
   
   return MB_SUCCESS;
 }
+
