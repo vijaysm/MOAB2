@@ -29,7 +29,6 @@ static const char input_cube[] = "/io/cube.sat";
 void read_file( Interface* moab, const char* input_file );
 
 // List of tests in this file
-void read_cube_tris_test();
 void cube_verts_connectivity_test();
 void cube_tris_connectivity_test();
 
@@ -43,7 +42,6 @@ int main(int /* argc */, char** /* argv */)
   int result = 0;
  
   result += RUN_TEST(cube_verts_connectivity_test);
-  result += RUN_TEST(read_cube_tris_test);
   result += RUN_TEST(cube_tris_connectivity_test);
  
   return result;
@@ -59,25 +57,6 @@ void read_file( Interface* moab, const char* input_file )
   ErrorCode rval = moab->load_file( input_file );
   CHECK_ERR(rval);
 }
-
-void read_cube_tris_test()
-{
-  ErrorCode rval;
-  //Open the test file
-  Core moab;
-  Interface* mb = &moab;
-  read_file( mb, input_cube );
-   
-  int number_of_tris;
-
-  rval = mb->get_number_entities_by_type(0, MBTRI , number_of_tris);
-  std::cout << "Number of Triangles = " << number_of_tris << std::endl;
-  CHECK_ERR(rval);
-
-  CHECK_EQUAL( 12, number_of_tris);  
-
-}
-
 
 void cube_verts_connectivity_test()
 {
