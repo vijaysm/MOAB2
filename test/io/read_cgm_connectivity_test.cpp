@@ -32,10 +32,6 @@ void read_file( Interface* moab, const char* input_file );
 void cube_verts_connectivity_test();
 void cube_tris_connectivity_test();
 
-//Function used to match triangle connectivity and verts 
-//void match_tri_connectivity( Range connectivity, 
-//                             std::vector<EntityHandle> &reference_verts);
-
 
 int main(int /* argc */, char** /* argv */)
 {
