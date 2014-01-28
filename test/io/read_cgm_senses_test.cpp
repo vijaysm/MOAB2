@@ -32,9 +32,9 @@ void read_file( Interface* moab, const char* input_file );
 // Functions containing known sense data
 void load_curve_sense_data( Interface* moab, EntityHandle curve,  std::vector<int>& surf_ids_out, std::vector<int>& senses_out );
 void load_vol_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out );
+
 // Functions used to compare sense information found in 
 // the model to reference information
-
 void check_sense_data( Interface* moab, std::vector<EntityHandle> wrt_ents, std::vector<int> senses, 
                              std::vector<int> known_wrt_ids, std::vector<int> known_senses );
 
