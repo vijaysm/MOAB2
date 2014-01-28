@@ -10,7 +10,7 @@
 #include "MBTagConventions.hpp"
 #include "InitCGMA.hpp"
 #include "GeometryQueryTool.hpp"
-
+#include "moab/MeshTopoUtil.hpp"
 using namespace moab;
 
 #define CHKERR(A) do { if (MB_SUCCESS != (A)) { \
@@ -31,6 +31,7 @@ void read_file( Interface* moab, const char* input_file );
 // List of tests in this file
 void read_cube_tris_test();
 void cube_verts_connectivity_test();
+void cube_tris_connectivity_test();
 
 //Function used to match triangle connectivity and verts 
 //void match_tri_connectivity( Range connectivity, 
@@ -43,6 +44,7 @@ int main(int /* argc */, char** /* argv */)
  
   result += RUN_TEST(cube_verts_connectivity_test);
   result += RUN_TEST(read_cube_tris_test);
+  result += RUN_TEST(cube_tris_connectivity_test);
  
   return result;
 }
@@ -100,11 +102,34 @@ void cube_verts_connectivity_test()
       CHECK_ERR(rval);
 
       int adj_size = adj_tris.size();
-
       CHECK( adj_size >= 4 && adj_size <= 6);
-
     }
     
+}
+
+void cube_tris_connectivity_test()
+{
+    ErrorCode rval;
+  //Open the test file
+  Core moab;
+  Interface* mb = &moab;
+  read_file( mb, input_cube);
+
+  //Get triangles from the mesh
+  Range tris;
+  rval = mb->get_entities_by_type( 0, MBTRI, tris);
+  CHECK_ERR(rval);
+
+
+  for(Range::const_iterator i = tris.begin()+1; i!=tris.end(); i++)
+    {
+      Range adj_tris;
+      moab::MeshTopoUtil mu(mb);
+      rval = mu.get_bridge_adjacencies( *i, 1, 2, adj_tris);
+      CHECK_ERR(rval);
+      int number_of_adj_tris=adj_tris.size();      
+      CHECK_EQUAL( 3, number_of_adj_tris);
+    }
 
 }
 
