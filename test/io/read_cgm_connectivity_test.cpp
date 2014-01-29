@@ -108,10 +108,18 @@ void cube_tris_connectivity_test()
     {
       Range adj_tris;
       moab::MeshTopoUtil mu(mb);
+      //Use Triangle edges to get all adjacent triangles
       rval = mu.get_bridge_adjacencies( *i, 1, 2, adj_tris);
       CHECK_ERR(rval);
       int number_of_adj_tris=adj_tris.size();      
       CHECK_EQUAL( 3, number_of_adj_tris);
+      
+      //Check that the entities we found from bridge_adjacencies
+      //are triangles
+      Range adj_tri_test = adj_tris.subset_by_type(MBTRI);
+      int number_tris_in_adj_tris = adj_tri_test.size();
+      CHECK_EQUAL( number_of_adj_tris, number_tris_in_adj_tris);
+    
     }
 
 }
@@ -155,14 +163,11 @@ ErrorCode match_tri_edges_w_curve( Interface* moab, Range tri_edges, Range curve
 {
 
   ErrorCode rval;
-  int match_counter;
-  std::cout << "Size of curves = " << curves.size() << std::endl;
+  int match_counter=0;
   for(Range::const_iterator i=tri_edges.begin(); i!=tri_edges.end(); i++)
     {
       for(Range::const_iterator j=curves.begin(); j!=curves.end(); j++)
 	{
-	  std::cout << "Tri edge ID = " <<  *i << std::endl;
-	  std::cout << "Curve edge ID = " << *j << std::endl;
           if( *i  == *j  ) match_counter++;
 	}
     }
