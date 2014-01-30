@@ -77,22 +77,20 @@ void read_cube_curve_senses_test()
   
   //Get all curve handles
   Tag geom_tag;
-
   rval = mb->tag_get_handle( GEOM_DIMENSION_TAG_NAME, 1,
-				MB_TYPE_INTEGER, geom_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT );
+			MB_TYPE_INTEGER, geom_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT );
   CHECK_ERR(rval);
   
   // Check that the proper number of curves exist
-
   int dim = 1;
   void *val[] = {&dim};
   int number_of_curves;
   rval = mb->get_number_entities_by_type_and_tag( 0, MBENTITYSET, &geom_tag,
-	  					    val, 1, number_of_curves );
+    					          val, 1, number_of_curves );
   CHECK_ERR(rval);
   CHECK_EQUAL( 12 , number_of_curves );
   
-  // Get curve handles
+  //Get curve handles
   Range curves;
   rval = mb->get_entities_by_type_and_tag( 0, MBENTITYSET, &geom_tag,
 	  					    val, 1, curves );
@@ -100,6 +98,7 @@ void read_cube_curve_senses_test()
 
   // Establish GeomTopoTool instance needed to get curve data 
   moab::GeomTopoTool gt( mb, false );  
+  // Initialize vectors for sense checking
   std::vector<EntityHandle> surfs;
   std::vector<int> senses;  
   std::vector<int> known_surf_ids;
@@ -118,12 +117,11 @@ for(unsigned int i = 0; i < curves.size() ; i++)
    //Clear reference data from previous curve
    known_surf_ids.clear();
    known_senses.clear();
-   //Load known curve-sense data
+   //Load known curve-sense ID data
    load_curve_sense_data( mb, curves[i], known_surf_ids, known_senses );
-
+   //Check that each surf and sense has a match in the references
    check_sense_data( mb, surfs, senses, known_surf_ids, known_senses);
   }
-
 }
 
 
@@ -131,11 +129,11 @@ int geom_id_by_handle( Interface* moab, const EntityHandle set )
 {
     
     ErrorCode rval;
-
+    //Get the id_tag handle
     Tag id_tag;
     rval = moab->tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, id_tag, moab::MB_TAG_DENSE );
     assert( MB_SUCCESS==result || MB_ALREADY_ALLOCATED==result ); 
-                      
+    //Load the ID for the EntHandle given to the function                  
     int id;
     rval = moab->tag_get_data( id_tag, &set, 1, &id );                  
     CHECK_ERR(rval);                        
@@ -176,6 +174,7 @@ void check_sense_data( Interface* moab, std::vector<EntityHandle> wrt_ents, std:
 
 }
 
+//Loads two vectors with reference curve and curve_sense data
 void load_curve_sense_data( Interface* moab, EntityHandle curve, std::vector<int>& surf_ids_out, std::vector<int>& senses_out )
 {
 
@@ -263,7 +262,7 @@ void read_cube_surf_senses_test()
                              geom_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT );
   CHECK_ERR(rval);
   
-  // Check that the proper number of curves exist
+  // Check that the proper number of surfaces exist
   int dim = 2;
   void *val[] = {&dim};
   int number_of_curves;
@@ -272,13 +271,13 @@ void read_cube_surf_senses_test()
   CHECK_ERR(rval);
   CHECK_EQUAL( 6, number_of_curves );
   
-  // Get curve handles
+  // Get surface handles
   Range surfs;
   rval = mb->get_entities_by_type_and_tag( 0, MBENTITYSET, &geom_tag,
 	  					    val, 1, surfs );
   CHECK_ERR(rval);
 
-  // Establish GeomTopoTool instance needed to get curve data 
+  // Establish GeomTopoTool instance needed to get surf data 
   moab::GeomTopoTool gt( mb, false );  
   std::vector<EntityHandle> vols;
   std::vector<int> senses;  
@@ -294,10 +293,11 @@ for(unsigned int i = 0; i < surfs.size(); i++)
    // surface from the mesh
    gt.get_senses( surfs[i], vols, senses );
    CHECK_ERR(rval);
-
-   //Load known curve-sense data
+   //Clear previous reverence data
    known_vol_ids.clear();
    known_senses.clear();
+   // Load known surface-volume data 
+   // for this surface and check that it's correct
    load_vol_sense_data( mb, surfs[i], known_vol_ids, known_senses );
    // Check sense information from the loaded mesh against 
    // reference sense information
@@ -307,10 +307,10 @@ for(unsigned int i = 0; i < surfs.size(); i++)
 
 }
 
+//Loads reference surface to volume sense data into the reference vectors
 void load_vol_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out ){
 
   int surf_id = geom_id_by_handle( moab, surf );
-
   switch(surf_id)
   {
     case 1:
@@ -341,8 +341,8 @@ void load_vol_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& 
     case 6:
           vol_ids_out.push_back(1);
           senses_out.push_back(1); 
+
     break;
    }
-
 }
 
