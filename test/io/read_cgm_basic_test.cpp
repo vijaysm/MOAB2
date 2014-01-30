@@ -50,12 +50,12 @@ int main(int /* argc */, char** /* argv */)
 {
   int result = 0;
  
-  result += RUN_TEST( read_cube_verts_test );  
-  result += RUN_TEST( read_cube_curves_test );  
-  result += RUN_TEST( read_cube_tris_test );  
-  result += RUN_TEST( read_cube_surfs_test );  
-  result += RUN_TEST( read_cube_vols_test );  
-  result += RUN_TEST( read_cube_vertex_pos_test );  
+  result += RUN_TEST(read_cube_verts_test);  
+  result += RUN_TEST(read_cube_curves_test);  
+  result += RUN_TEST(read_cube_tris_test);  
+  result += RUN_TEST(read_cube_surfs_test);  
+  result += RUN_TEST(read_cube_vols_test);  
+  result += RUN_TEST(read_cube_vertex_pos_test);  
  
   return result;
 }
@@ -80,10 +80,10 @@ void read_cube_verts_test()
   read_file( mb, input_cube );
    
   int number_of_vertices;
-  rval = mb->get_number_entities_by_type(0, MBVERTEX, number_of_vertices);
+  rval = mb->get_number_entities_by_type( 0, MBVERTEX, number_of_vertices );
   CHECK_ERR(rval);
  
-  CHECK_EQUAL( 8, number_of_vertices);
+  CHECK_EQUAL( 8, number_of_vertices );
 }
 
 
@@ -97,11 +97,11 @@ void read_cube_tris_test()
    
   int number_of_tris;
 
-  rval = mb->get_number_entities_by_type(0, MBTRI , number_of_tris);
+  rval = mb->get_number_entities_by_type( 0, MBTRI , number_of_tris );
   std::cout << "Number of Triangles = " << number_of_tris << std::endl;
   CHECK_ERR(rval);
 
-  CHECK_EQUAL( 12, number_of_tris);  
+  CHECK_EQUAL( 12, number_of_tris );  
 
 }
 
@@ -127,7 +127,7 @@ void read_cube_curves_test()
 	  					    val, 1, number_of_curves );
   CHECK_ERR(rval);
 
-  CHECK_EQUAL( 12, number_of_curves);  
+  CHECK_EQUAL( 12, number_of_curves );  
 
 } 
 
@@ -151,7 +151,7 @@ void read_cube_surfs_test()
   int number_of_surfs;
   rval = mb->get_number_entities_by_type_and_tag( 0, MBENTITYSET, &geom_tag,
 	  					    val, 1, number_of_surfs );
-  CHECK_ERR( rval );
+  CHECK_ERR(rval);
   
 
   CHECK_EQUAL( 6, number_of_surfs );  
@@ -170,7 +170,7 @@ void read_cube_vols_test()
   Tag geom_tag;
   rval = mb->tag_get_handle( GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER, 
                              geom_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT );
-  CHECK_ERR( rval );
+  CHECK_ERR(rval);
   
   Range curves;
   int dim = 3;
@@ -178,7 +178,7 @@ void read_cube_vols_test()
   int number_of_vols;
   rval = mb->get_number_entities_by_type_and_tag( 0, MBENTITYSET, &geom_tag,
 	  					    val, 1, number_of_vols );
-  CHECK_ERR( rval );
+  CHECK_ERR(rval);
   
 
   CHECK_EQUAL( 1, number_of_vols );
@@ -197,7 +197,7 @@ void read_cube_vertex_pos_test()
   //First check that the correct number of vertices are present
   int number_of_verts;
   rval = mb->get_number_entities_by_type( 0, MBVERTEX, number_of_verts );
-  CHECK_ERR( rval );
+  CHECK_ERR(rval);
 
   CHECK_EQUAL( 8, number_of_verts );
 
@@ -211,7 +211,7 @@ void read_cube_vertex_pos_test()
   double y[verts.size()];
   double z[verts.size()];
   rval = mb-> get_coords( verts, &x[0], &y[0], &z[0] );
-  CHECK_ERR( rval );
+  CHECK_ERR(rval);
 
   //Check against known locations of the vertices
 
@@ -268,7 +268,7 @@ void read_cube_vertex_pos_test()
     {
       for (unsigned int j=0; j<x_ref.size(); j++)
 	{
-	  if( x[i]==x_ref[j] && y[i]==y_ref[j] && z[i]==z_ref[j])
+	  if( x[i]==x_ref[j] && y[i]==y_ref[j] && z[i]==z_ref[j] )
             {
               x_ref.erase( x_ref.begin()+j );
               y_ref.erase( y_ref.begin()+j );
@@ -279,7 +279,7 @@ void read_cube_vertex_pos_test()
     }
   
   int leftovers = x_ref.size();
-  CHECK_EQUAL(0, leftovers );
+  CHECK_EQUAL( 0, leftovers );
 
 }
 
@@ -304,7 +304,7 @@ void delete_mesh_test()
 	void *val[] = {&dim};
 	rval = mb->get_entities_by_type_and_tag( 0, MBENTITYSET, &geom_tag,
 	  					    val, 1, geom_sets[dim] );
-        CHECK_ERR( rval ); 
+        CHECK_ERR(rval); 
 
         if( geom_sets[dim].size() == 0 ) std::cout << "Warning: No geom sets to begin with" << std::endl;
 
@@ -318,11 +318,11 @@ void delete_mesh_test()
 	void *val_after[] = {&dim};
 	rval = mb->get_entities_by_type_and_tag( 0, MBENTITYSET, &geom_tag,
 	  					    val_after, 1, geom_sets_after[dim] );
-        CHECK_ERR( rval ); 
+        CHECK_ERR(rval); 
 
         if( 0 != geom_sets_after[dim].size() ) rval = MB_FAILURE;
 
-        CHECK_ERR( rval );
+        CHECK_ERR(rval);
  }
 
 }
