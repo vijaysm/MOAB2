@@ -43,7 +43,7 @@ void read_cube_tris_test();
 void read_cube_surfs_test();
 void read_cube_vols_test();
 void read_cube_vertex_pos_test();
-void delete_mesh_test();
+//void delete_mesh_test();
 
 
 int main(int /* argc */, char** /* argv */)
@@ -82,7 +82,7 @@ void read_cube_verts_test()
   int number_of_vertices;
   rval = mb->get_number_entities_by_type( 0, MBVERTEX, number_of_vertices );
   CHECK_ERR(rval);
- 
+  //For a cube there should be exactly 8 vertices 
   CHECK_EQUAL( 8, number_of_vertices );
 }
 
@@ -100,9 +100,8 @@ void read_cube_tris_test()
   rval = mb->get_number_entities_by_type( 0, MBTRI , number_of_tris );
   std::cout << "Number of Triangles = " << number_of_tris << std::endl;
   CHECK_ERR(rval);
-
+  //For a cube, there should be exactly 2 triangles per face
   CHECK_EQUAL( 12, number_of_tris );  
-
 }
 
 void read_cube_curves_test()
@@ -112,21 +111,19 @@ void read_cube_curves_test()
   Core moab;
   Interface* mb = &moab;
   read_file( mb, input_cube );
-   
+  //Get the geometry tag handle from the mesh   
   Tag geom_tag;
-
   rval = mb->tag_get_handle( GEOM_DIMENSION_TAG_NAME, 1,
 				MB_TYPE_INTEGER, geom_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT );
   CHECK_ERR(rval);
-  
-  Range curves;
+  //Get the curves from the mesh
   int dim = 1;
   void *val[] = {&dim};
   int number_of_curves;
   rval = mb->get_number_entities_by_type_and_tag( 0, MBENTITYSET, &geom_tag,
 	  					    val, 1, number_of_curves );
   CHECK_ERR(rval);
-
+  //For a cube, there should be exactly 12 curves loaded from the file
   CHECK_EQUAL( 12, number_of_curves );  
 
 } 
@@ -145,15 +142,14 @@ void read_cube_surfs_test()
                              geom_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT );
   CHECK_ERR(rval);
   
-  Range curves;
+  //Get the number of surface from the mesh geometry data
   int dim = 2;
   void *val[] = {&dim};
   int number_of_surfs;
   rval = mb->get_number_entities_by_type_and_tag( 0, MBENTITYSET, &geom_tag,
 	  					    val, 1, number_of_surfs );
   CHECK_ERR(rval);
-  
-
+  //For a cube, there should be exactly 6 surfaces  
   CHECK_EQUAL( 6, number_of_surfs );  
 
 }
@@ -172,17 +168,14 @@ void read_cube_vols_test()
                              geom_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT );
   CHECK_ERR(rval);
   
-  Range curves;
+  //Get the number of volumes from the mesh geometry data
   int dim = 3;
   void *val[] = {&dim};
   int number_of_vols;
   rval = mb->get_number_entities_by_type_and_tag( 0, MBENTITYSET, &geom_tag,
 	  					    val, 1, number_of_vols );
   CHECK_ERR(rval);
-  
-
   CHECK_EQUAL( 1, number_of_vols );
-
 }
 
 void read_cube_vertex_pos_test()
@@ -220,7 +213,6 @@ void read_cube_vertex_pos_test()
   std::vector<double> z_ref;
 
   // Vertex 1
-
   x_ref.push_back( 5 );
   y_ref.push_back( -5 );
   z_ref.push_back( 5 );
@@ -260,29 +252,34 @@ void read_cube_vertex_pos_test()
   y_ref.push_back( 5 );
   z_ref.push_back( -5 );
  
-
   std::cout << verts.size() << std::endl;
   std::cout << x_ref.size() << std::endl;
   
-  for (unsigned int i=0; i<verts.size(); i++)
+  for(unsigned int i=0; i<verts.size(); i++)
     {
-      for (unsigned int j=0; j<x_ref.size(); j++)
+      for(unsigned int j=0; j<x_ref.size(); j++)
 	{
 	  if( x[i]==x_ref[j] && y[i]==y_ref[j] && z[i]==z_ref[j] )
             {
               x_ref.erase( x_ref.begin()+j );
               y_ref.erase( y_ref.begin()+j );
               z_ref.erase( z_ref.begin()+j );
-              
             }
 	}
     }
   
+  //After looping through each vertex loaded from the mesh
+  //there should be no entities left in the reference vector
   int leftovers = x_ref.size();
   CHECK_EQUAL( 0, leftovers );
 
 }
 
+//Superfluous test for ReadCGM, but perhaps better 
+//than the test in place for moab::delete_geometry()
+
+
+/*
 void delete_mesh_test()
 {
  Core moab;
@@ -327,3 +324,4 @@ void delete_mesh_test()
 
 }
  
+*/
