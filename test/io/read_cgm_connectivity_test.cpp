@@ -77,7 +77,6 @@ void cube_verts_connectivity_test()
   CHECK_ERR(rval);
 
   //Check that each vertex connects to less than 4 triangles and no more than 6
-
   for(Range::const_iterator i = verts.begin(); i!=verts.end(); i++)
     {
       std::vector<EntityHandle> adj_tris;
@@ -149,29 +148,31 @@ void cube_tri_curve_coincidence_test()
       Range tri_edges;
       rval = mb->get_adjacencies( &(*i), 1, 1, false, tri_edges );
       CHECK_ERR(rval);
-
+      //Check that we've retrieved two edges from get_adjacencies
+      //For a this file (cube), each triangle should have two curve
+      //edges
       int num_of_tri_edges = tri_edges.size();
       CHECK_EQUAL( 2, num_of_tri_edges );
       rval = match_tri_edges_w_curve( mb, tri_edges, curves );
       CHECK_ERR(rval);
-  
-    }
-
+      }
 }
 
 ErrorCode match_tri_edges_w_curve( Interface* moab, Range tri_edges, Range curves )
 {
-
   ErrorCode rval;
   int match_counter=0;
   for(Range::const_iterator i=tri_edges.begin(); i!=tri_edges.end(); i++)
     {
       for(Range::const_iterator j=curves.begin(); j!=curves.end(); j++)
 	{
+          // If the edge handle matches a curve handle, increment the number
+          // matches
           if( *i  == *j  ) match_counter++;
 	}
     }
-
+  //Make sure that each edge returned from triangle edges
+  //has been matched to a curve
   int num_of_tri_edges = tri_edges.size();
   CHECK_EQUAL( num_of_tri_edges, match_counter );
   return MB_SUCCESS;
@@ -198,7 +199,7 @@ void cube_edge_adjacencies_test()
       CHECK_ERR(rval);
       
       int num_adj_tris = adj_tris.size();
-      //Ensure that an edge isn't adjacent to more than two triangles
+      //Ensure that no edge is adjacent to more than two triangles
       CHECK( num_adj_tris <= 2 );
     }
 
@@ -223,7 +224,8 @@ void cube_tri_vertex_test()
       Range verts;
       rval = mb->get_connectivity( &(*i), 1, verts );
       CHECK_ERR(rval);
-
+      //Make sure that each vertex making up
+      //the triangle is different
       int number_of_verts = verts.size();
       CHECK( 3 == number_of_verts );
       CHECK( verts[0]!=verts[1] );
