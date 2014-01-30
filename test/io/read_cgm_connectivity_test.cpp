@@ -232,5 +232,4 @@ void cube_tri_vertex_test()
       CHECK( verts[1]!=verts[2] );      
       CHECK( verts[2]!=verts[0] );
     } 
-
 }
