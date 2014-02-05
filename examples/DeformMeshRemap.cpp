@@ -564,7 +564,13 @@ ErrorCode DeformMeshRemap::deform_master(Range &fluid_elems, Range &solid_elems,
       double tmp_len = dx.length_squared();
       if (tmp_len > len) len = tmp_len;
     }
-    std::cout << "Max displacement = " << len << std::endl;
+    Range tmp_elems(fluid_elems);
+    tmp_elems.merge(solid_elems);
+    BoundBox box;
+    box.update(*mbImpl, tmp_elems);
+    double max_len = std::max(box.bMax[2]-box.bMin[2], std::max(box.bMax[1]-box.bMin[1], box.bMax[0]-box.bMin[0]));
+    
+    std::cout << "Max displacement = " << len << " (" << 100.0 * len / max_len << "% of max box length)" << std::endl;
   }
   
   if (!xNew) {
