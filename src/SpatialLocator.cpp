@@ -30,7 +30,9 @@ namespace moab
   
       myDim = mbImpl->dimension_from_handle(*elems.begin());
       myElems = elems;
-      return MB_SUCCESS;
+
+      ErrorCode rval = myTree->build_tree(myElems);
+      return rval;
     }
     
 #ifdef USE_MPI
