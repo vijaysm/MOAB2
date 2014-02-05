@@ -232,7 +232,7 @@ ErrorCode LloydSmoother::initialize()
     RR("Trouble getting vertices.");
     
       // mark them fixed
-    std::vector<unsigned char> marks(skin.size(), 0x1);
+    std::vector<unsigned char> marks(skin_verts.size(), 0x1);
     rval = mbImpl->tag_set_data(fixedTag, skin_verts, &marks[0]);
     RR("Unable to set tag on skin.");
   }

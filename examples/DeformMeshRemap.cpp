@@ -12,6 +12,7 @@
 
 #include "moab/Core.hpp"
 #include "moab/Range.hpp"
+#include "moab/Skinner.hpp"
 #include "moab/LloydSmoother.hpp"
 #include "moab/ProgOptions.hpp"
 #include "moab/BoundBox.hpp"
@@ -288,6 +289,22 @@ ErrorCode DeformMeshRemap::execute()
   rval = deform_master(fluidElems[MASTER], solidElems[MASTER], "xnew"); RR("");
 
   { // to isolate the lloyd smoother & delete when done
+    if (debug) {
+        // output the skin of smoothed elems, as a check
+        // get the skin; get facets, because we might need to filter on shared entities
+      Skinner skinner(mbImpl);
+      Range skin;
+      rval = skinner.find_skin(0, fluidElems[MASTER], false, skin); RR("Unable to find skin.");
+      EntityHandle skin_set;
+      std::cout << "Writing skin_mesh.g and fluid_mesh.g." << std::endl;
+      rval = mbImpl->create_meshset(MESHSET_SET, skin_set); RR("Failed to create skin set.");
+      rval = mbImpl->add_entities(skin_set, skin); RR("Failed to add skin entities to set.");
+      rval = mbImpl->write_file("skin_mesh.vtk", NULL, NULL, &skin_set, 1); RR("Failure to write skin set.");
+      rval = mbImpl->remove_entities(skin_set, skin); RR("Failed to remove skin entities from set.");
+      rval = mbImpl->add_entities(skin_set, fluidElems[MASTER]); RR("Failed to add fluid entities to set.");
+      rval = mbImpl->write_file("fluid_mesh.vtk", NULL, NULL, &skin_set, 1); RR("Failure to write fluid set.");
+      rval = mbImpl->delete_entities(&skin_set, 1); RR("Failed to delete skin set.");
+    }
 
       // smooth the master mesh
     if (debug) std::cout << "Smoothing fluid elements in master mesh..." << std::endl;
@@ -385,10 +402,10 @@ int main(int argc, char **argv) {
   po.addOpt<std::string> ("d1,", "Tag name for displacement x or xyz" );
   po.addOpt<std::string> ("d2,", "Tag name for displacement y" );
   po.addOpt<std::string> ("d3,", "Tag name for displacement z" );
-  po.addOpt<int> ("fm,", "Specify master fluid material set number(s). If -1 specified, fluid sets derived from complement of solid sets.");
-  po.addOpt<int> ("fs,", "Specify master solid material set number(s). If -1 specified, fluid sets derived from complement of solid sets.");
-  po.addOpt<int> ("sm,", "Specify slave fluid material set number(s). If -1 specified, fluid sets derived from complement of solid sets.");
-  po.addOpt<int> ("ss,", "Specify slave solid material set number(s). If -1 specified, fluid sets derived from complement of solid sets.");
+  po.addOpt<int> ("fm,", "Specify master fluid material set number(s). If none specified, fluid sets derived from complement of solid sets.");
+  po.addOpt<int> ("fs,", "Specify master solid material set number(s). If none specified, solid sets derived from complement of fluid sets.");
+  po.addOpt<int> ("sm,", "Specify slave fluid material set number(s). If none specified, fluid sets derived from complement of solid sets.");
+  po.addOpt<int> ("ss,", "Specify slave solid material set number(s). If none specified, solid sets derived from complement of fluid sets.");
   
   po.parseCommandLine(argc, argv);
 
@@ -500,7 +517,7 @@ ErrorCode DeformMeshRemap::deform_master(Range &fluid_elems, Range &solid_elems,
   Range verts;
   rval = mbImpl->get_adjacencies(solid_elems, 0, false, verts, Interface::UNION);
   RR("Failed to get vertices.");
-  std::vector<double> coords(3*verts.size());
+  std::vector<double> coords(3*verts.size()), new_coords(3*verts.size());
   rval = mbImpl->get_coords(verts, &coords[0]);
   RR("Failed to get vertex coords.");
   unsigned int num_verts = verts.size();
@@ -512,13 +529,14 @@ ErrorCode DeformMeshRemap::deform_master(Range &fluid_elems, Range &solid_elems,
     rval = mbImpl->tag_get_handle((tag_name ? tag_name : ""), 3, MB_TYPE_DOUBLE, xNew, MB_TAG_CREAT|MB_TAG_DENSE);
     RR("Failed to create xnew tag.");
     std::vector<double> disps(num_verts);
+    
     for (int i = 0; i < 3; i++) {
       rval = mbImpl->tag_get_handle(xDispNames[0].c_str(), 1, MB_TYPE_DOUBLE, xDisp[i]);
       RR("Failed to get xDisp tag.");
       rval = mbImpl->tag_get_data(xDisp[i], verts, &disps[0]);
       RR("Failed to get xDisp tag values.");
       for (unsigned int j = 0; j < num_verts; j++)
-        coords[3*j+i] = disps[j];
+        new_coords[3*j+i] = coords[3*j+i] + disps[j];
     }
   }
   else if (!xDispNames[0].empty()) {
@@ -528,7 +546,7 @@ ErrorCode DeformMeshRemap::deform_master(Range &fluid_elems, Range &solid_elems,
     std::vector<double> disps(3*num_verts);
     rval = mbImpl->tag_get_data(xDisp[0], verts, &disps[0]);
     for (unsigned int j = 0; j < 3*num_verts; j++)
-      coords[j] += disps[j];
+      new_coords[j] = coords[j] + disps[j];
   }
   else {
       // get the bounding box of the solid mesh
@@ -536,9 +554,19 @@ ErrorCode DeformMeshRemap::deform_master(Range &fluid_elems, Range &solid_elems,
     bbox.update(*mbImpl, solid_elems);
   
     for (unsigned int j = 0; j < num_verts; j++)
-      deform_func(bbox, &coords[3*j], &coords[3*j]);
+      deform_func(bbox, &coords[3*j], &new_coords[3*j]);
   }
 
+  if (debug) {
+    double len = 0.0;
+    for (unsigned int i = 0; i < num_verts; i++) {
+      CartVect dx = CartVect(&new_coords[3*i]) - CartVect(&coords[3*i]);
+      double tmp_len = dx.length_squared();
+      if (tmp_len > len) len = tmp_len;
+    }
+    std::cout << "Max displacement = " << len << std::endl;
+  }
+  
   if (!xNew) {
     rval = mbImpl->tag_get_handle((tag_name ? tag_name : ""), 3, MB_TYPE_DOUBLE, 
                                   xDisp[0], MB_TAG_CREAT|MB_TAG_DENSE);
