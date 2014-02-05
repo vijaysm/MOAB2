@@ -532,6 +532,7 @@ ErrorCode DeformMeshRemap::deform_master(Range &fluid_elems, Range &solid_elems,
     rval = mbImpl->tag_get_handle((tag_name ? tag_name : ""), 3, MB_TYPE_DOUBLE, xNew, MB_TAG_CREAT|MB_TAG_DENSE);
     RR("Failed to create xnew tag.");
     std::vector<double> disps(num_verts);
+    
     for (int i = 0; i < 3; i++) {
       rval = mbImpl->tag_get_handle(xDispNames[0].c_str(), 1, MB_TYPE_DOUBLE, xDisp[i]);
       RR("Failed to get xDisp tag.");
