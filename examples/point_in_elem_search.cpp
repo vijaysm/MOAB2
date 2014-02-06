@@ -27,7 +27,7 @@ int main(int argc, char **argv) {
 
   int num_queries = 1000000;
   
-  if (argc == 1) {
+  if (argc < 2 || argc > 3) {
     std::cout << "Usage: " << argv[0] << "<filename> [num_queries]" << std::endl;
     return 0;
   }
@@ -37,7 +37,7 @@ int main(int argc, char **argv) {
   moab::Core mb;
 
     // load the file
-  ErrorCode rval = mb.load_file(argv[argc-1]); ERR("Error loading file");
+  ErrorCode rval = mb.load_file(argv[1]); ERR("Error loading file");
   
     // get all 3d elements in the file
   Range elems;
@@ -66,7 +66,7 @@ int main(int argc, char **argv) {
   for (int i = 0; i < num_queries; i++) {
     pos = box.bMin + 
         CartVect(box_extents[0]*.01*(rand()%100), box_extents[1]*.01*(rand()%100), box_extents[2]*.01*(rand()%100));
-    ErrorCode tmp_rval = sl.locate_point(pos.array(), elem, params.array(), 0.0, 0.0, &is_inside);
+    ErrorCode tmp_rval = sl.locate_point(pos.array(), elem, params.array(), &is_inside, 0.0, 0.0);
     if (MB_SUCCESS != tmp_rval) rval = tmp_rval;
     if (is_inside) num_inside++;
   }

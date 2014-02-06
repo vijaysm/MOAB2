@@ -121,6 +121,12 @@ namespace moab {
                               const double inside_tol = 1.0e-6);
 #endif
 
+        /* locate a point */
+      ErrorCode locate_point(const double *pos, 
+                             EntityHandle &ent, double *params, bool *is_inside = NULL,
+                              const double rel_iter_tol = 1.0e-10, const double abs_iter_tol = 1.0e-10,
+                              const double inside_tol = 1.0e-6);
+
         /* return the tree */
       Tree *get_tree() {return myTree;}
 
@@ -150,12 +156,6 @@ namespace moab {
       void elem_eval(ElemEvaluator *eval) {elemEval = eval; if (myTree) myTree->set_eval(eval);}
       
   private:
-
-        /* locate a point */
-      ErrorCode locate_point(const double *pos, 
-                             EntityHandle &ent, double *params, bool *is_inside = NULL,
-                              const double rel_iter_tol = 1.0e-10, const double abs_iter_tol = 1.0e-10,
-                              const double inside_tol = 1.0e-6);
 
         /* MOAB instance */
       Interface* mbImpl;
