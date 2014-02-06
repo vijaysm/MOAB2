@@ -155,6 +155,7 @@ test/io/gmsh_test
 test/io/ideas_test
 test/io/nastran_test
 test/io/read_cgm_test
+test/io/read_mpas_nc
 test/io/read_nc
 test/io/read_ucd_nc
 test/io/readutil_test
@@ -176,7 +177,6 @@ test/obb/obb_time
 test/obb/obb_tree_tool
 test/obb_test
 test/oldinc/test_oldinc
-test/read_mpas_nc
 test/parallel/*.h5m
 test/parallel/mbparallelcomm_test
 test/parallel/mhdf_parallel
