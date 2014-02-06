@@ -960,6 +960,10 @@ ErrorCode enforce_convexity(Interface * mb, EntityHandle lset, int my_rank)
     rval = mb->get_connectivity(eh, verts, num_nodes);
     if (MB_SUCCESS != rval)
       return rval;
+    int nsides = num_nodes;
+    // account for possible padded polygons
+    while (verts[nsides-2]==verts[nsides-1] && nsides>3)
+      nsides--;
     EntityHandle corrHandle=0;
     if (corrTag)
     {
@@ -971,34 +975,34 @@ ErrorCode enforce_convexity(Interface * mb, EntityHandle lset, int my_rank)
     rval = mb->tag_get_data(gidTag, &eh, 1, &gid);
     if (MB_SUCCESS != rval)
       return rval;
-    coords.resize(3 * num_nodes);
-    if (num_nodes < 4)
+    coords.resize(3 * nsides);
+    if (nsides < 4)
       continue; // if already triangles, don't bother
        // get coordinates
-    rval = mb->get_coords(verts, num_nodes, &coords[0]);
+    rval = mb->get_coords(verts, nsides, &coords[0]);
     if (MB_SUCCESS != rval)
      return rval;
     // compute each angle
     bool alreadyBroken = false;
 
-    for (int i=0; i<num_nodes; i++)
+    for (int i=0; i<nsides; i++)
     {
       double * A = &coords[3*i];
-      double * B = &coords[3*((i+1)%num_nodes)];
-      double * C = &coords[3*((i+2)%num_nodes)];
+      double * B = &coords[3*((i+1)%nsides)];
+      double * C = &coords[3*((i+2)%nsides)];
       double angle = oriented_spherical_angle(A, B, C);
       if (angle-M_PI > 0.) // even almost reflex is bad; break it!
       {
         if (alreadyBroken)
         {
           mb->list_entities(&eh, 1);
-          mb->list_entities(verts, num_nodes);
-          double * D = &coords[3*((i+3)%num_nodes)];
+          mb->list_entities(verts, nsides);
+          double * D = &coords[3*((i+3)%nsides)];
           std::cout<< "ABC: " << angle << " \n";
           std::cout<< "BCD: " << oriented_spherical_angle( B, C, D) << " \n";
           std::cout<< "CDA: " << oriented_spherical_angle( C, D, A) << " \n";
           std::cout<< "DAB: " << oriented_spherical_angle( D, A, B)<< " \n";
-          std::cout << " this quad has at least 2 angles > 180, it has serious issues\n";
+          std::cout << " this cell has at least 2 angles > 180, it has serious issues\n";
 
           return MB_FAILURE;
         }
@@ -1009,15 +1013,15 @@ ErrorCode enforce_convexity(Interface * mb, EntityHandle lset, int my_rank)
         // break the next triangle, even though not optimal
         // so create the triangle i+1, i+2, i+3; remove i+2 from original list
         // even though not optimal in general, it is good enough.
-        EntityHandle conn3[3]={ verts[ (i+1)%num_nodes],
-            verts[ (i+2)%num_nodes],
-            verts[ (i+3)%num_nodes] };
+        EntityHandle conn3[3]={ verts[ (i+1)%nsides],
+            verts[ (i+2)%nsides],
+            verts[ (i+3)%nsides] };
         // create a polygon with num_nodes-1 vertices, and connectivity
         // verts[i+1], verts[i+3], (all except i+2)
-        std::vector<EntityHandle> conn(num_nodes-1);
-        for (int j=1; j<num_nodes; j++)
+        std::vector<EntityHandle> conn(nsides-1);
+        for (int j=1; j<nsides; j++)
         {
-          conn[j-1]=verts[(i+j+2)%num_nodes];
+          conn[j-1]=verts[(i+j+2)%nsides];
         }
         EntityHandle newElement;
         rval = mb->create_element(MBTRI, conn3, 3, newElement);
@@ -1036,7 +1040,7 @@ ErrorCode enforce_convexity(Interface * mb, EntityHandle lset, int my_rank)
         rval = mb->tag_set_data(gidTag, &newElement, 1, &gid);
         if (MB_SUCCESS != rval)
           return rval;
-        if (num_nodes == 4)
+        if (nsides == 4)
         {
           // create another triangle
           rval = mb->create_element(MBTRI, &conn[0], 3, newElement);
@@ -1046,7 +1050,7 @@ ErrorCode enforce_convexity(Interface * mb, EntityHandle lset, int my_rank)
         else
         {
           // create another polygon, and add it to the inputRange
-          rval = mb->create_element(MBPOLYGON, &conn[0], num_nodes-1, newElement);
+          rval = mb->create_element(MBPOLYGON, &conn[0], nsides-1, newElement);
           if (MB_SUCCESS != rval)
             return rval;
           newPolys.push(newElement); // because it has less number of edges, the

@@ -110,7 +110,10 @@ ErrorCode Intx2Mesh::GetOrderedNeighbors(EntityHandle set, EntityHandle cell,
   // first cell is for nodes 0, 1, second to 1, 2, third to 2, 3, last to nnodes-1,
   const EntityHandle * conn4;
   ErrorCode rval = mb->get_connectivity(cell, conn4, nnodes);
-  int nsides = nnodes; // just keep it for historical purposes; it is indeed nnodes
+  int nsides = nnodes;
+  // account for possible padded polygons
+  while (conn4[nsides-2]==conn4[nsides-1] && nsides>3)
+    nsides--;
   ERRORR(rval, "can't get connectivity on an element");
   for (int i = 0; i < nsides; i++)
   {

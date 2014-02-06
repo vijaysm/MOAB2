@@ -45,9 +45,12 @@ int Intx2MeshOnSphere::computeIntersectionBetweenRedAndBlue(EntityHandle red, En
   if (MB_SUCCESS != rval )
     return 1;
   nsRed = num_nodes;
+  // account for possible padded polygons
+  while (redConn[nsRed-2]==redConn[nsRed-1] && nsRed>3)
+    nsRed--;
 
   //CartVect coords[4];
-  rval = mb->get_coords(redConn, num_nodes, &(redCoords[0][0]));
+  rval = mb->get_coords(redConn, nsRed, &(redCoords[0][0]));
   if (MB_SUCCESS != rval)
     return 1;
   CartVect middle = redCoords[0];
@@ -61,6 +64,9 @@ int Intx2MeshOnSphere::computeIntersectionBetweenRedAndBlue(EntityHandle red, En
   if (MB_SUCCESS != rval )
     return 1;
   nsBlue = num_nodes;
+  // account for possible padded polygons
+  while (blueConn[nsBlue-2]==blueConn[nsBlue-1] && nsBlue>3)
+    nsBlue--;
   rval = mb->get_coords(blueConn, nsBlue, &(blueCoords[0][0]));
   if (MB_SUCCESS != rval)
     return 1;
@@ -202,7 +208,7 @@ int Intx2MeshOnSphere::findNodes(EntityHandle red, int nsRed, EntityHandle blue,
   int i = 0;
   for (i = 0; i < nsRed; i++)
   {
-    EntityHandle v[2] = { redConn[i], redConn[(i + 1) % nsRed] };
+    EntityHandle v[2] = { redConn[i], redConn[(i + 1) % nsRed] };// this is fine even for padded polygons
     std::vector<EntityHandle> adj_entities;
     ErrorCode rval = mb->get_adjacencies(v, 2, 1, false, adj_entities,
         Interface::INTERSECT);
