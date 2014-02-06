@@ -42,8 +42,8 @@ void check_sense_data( Interface* moab, std::vector<EntityHandle> wrt_ents, std:
 int geom_id_by_handle( Interface* moab, const EntityHandle set );
 
 // List of tests in this file
-void read_cube_curve_senses_test();
-void read_cube_surf_senses_test();
+void read_cylcube_curve_senses_test();
+void read_cylcube_surf_senses_test();
 void delete_mesh_test();
 
 
@@ -51,8 +51,8 @@ int main(int /* argc */, char** /* argv */)
 {
   int result = 0;
 
-  result += RUN_TEST(read_cube_curve_senses_test);  
-  result += RUN_TEST(read_cube_surf_senses_test);  
+  result += RUN_TEST(read_cylcube_curve_senses_test);  
+  result += RUN_TEST(read_cylcube_surf_senses_test);  
  
   return result;
 }
@@ -67,7 +67,7 @@ void read_file( Interface* moab, const char* input_file )
   CHECK_ERR(rval);
 }
 
-void read_cube_curve_senses_test()
+void read_cylcube_curve_senses_test()
 {
   ErrorCode rval;
   //Open the test file
@@ -248,7 +248,7 @@ void load_curve_sense_data( Interface* moab, EntityHandle curve, std::vector<int
 }
 
 ///SURFACE SENSE CHECKING
-void read_cube_surf_senses_test()
+void read_cylcube_surf_senses_test()
 {
   ErrorCode rval;
   //Open the test file
@@ -265,11 +265,11 @@ void read_cube_surf_senses_test()
   // Check that the proper number of surfaces exist
   int dim = 2;
   void *val[] = {&dim};
-  int number_of_curves;
+  int number_of_surfs;
   rval = mb->get_number_entities_by_type_and_tag( 0, MBENTITYSET, &geom_tag,
-	  					    val, 1, number_of_curves );
+	  					    val, 1, number_of_surfs );
   CHECK_ERR(rval);
-  CHECK_EQUAL( 6, number_of_curves );
+  CHECK_EQUAL( 6, number_of_surfs );
   
   // Get surface handles
   Range surfs;
