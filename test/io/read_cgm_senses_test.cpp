@@ -12,6 +12,9 @@
 #include "InitCGMA.hpp"
 #include "GeometryQueryTool.hpp"
 
+#define SENSE_FORWARD 1
+#define SENSE_REVERSE -1 
+#define SENSE_UNKNOWN 0
 using namespace moab;
 
 #define CHKERR(A) do { if (MB_SUCCESS != (A)) { \
@@ -185,72 +188,72 @@ void load_curve_sense_data( Interface* moab, EntityHandle curve, std::vector<int
   {
     case 1:
           surf_ids_out.push_back(1); surf_ids_out.push_back(6);
-          senses_out.push_back(1); senses_out.push_back(-1);
+          senses_out.push_back(SENSE_FORWARD); senses_out.push_back(SENSE_REVERSE);
           break;
 
     case 2:
           surf_ids_out.push_back(1); surf_ids_out.push_back(5);
-          senses_out.push_back(1); senses_out.push_back(-1);
+          senses_out.push_back(SENSE_FORWARD); senses_out.push_back(SENSE_REVERSE);
           break;
 
     case 3:
           surf_ids_out.push_back(1); surf_ids_out.push_back(4);
-          senses_out.push_back(1); senses_out.push_back(-1);
+          senses_out.push_back(SENSE_FORWARD); senses_out.push_back(SENSE_REVERSE);
           break;
 
     case 4:
           surf_ids_out.push_back(1); surf_ids_out.push_back(3);
-          senses_out.push_back(1); senses_out.push_back(-1);
+          senses_out.push_back(SENSE_FORWARD); senses_out.push_back(SENSE_REVERSE);
           break;
 
     case 5:
           surf_ids_out.push_back(2); surf_ids_out.push_back(6);
-          senses_out.push_back(1); senses_out.push_back(-1);
+          senses_out.push_back(SENSE_FORWARD); senses_out.push_back(SENSE_REVERSE);
           break;
 
     case 6:
           surf_ids_out.push_back(2); surf_ids_out.push_back(3);
-          senses_out.push_back(1); senses_out.push_back(-1);
+          senses_out.push_back(SENSE_FORWARD); senses_out.push_back(SENSE_REVERSE);
           break;
 
     case 7:
           surf_ids_out.push_back(2); surf_ids_out.push_back(4);
-          senses_out.push_back(1); senses_out.push_back(-1);
+          senses_out.push_back(SENSE_FORWARD); senses_out.push_back(SENSE_REVERSE);
           break;
 
     case 8:
           surf_ids_out.push_back(2); surf_ids_out.push_back(5);
-          senses_out.push_back(1); senses_out.push_back(-1);
+          senses_out.push_back(SENSE_FORWARD); senses_out.push_back(SENSE_REVERSE);
           break;
 
     case 9:
           surf_ids_out.push_back(3); surf_ids_out.push_back(4);
-          senses_out.push_back(1); senses_out.push_back(-1);
+          senses_out.push_back(SENSE_FORWARD); senses_out.push_back(SENSE_REVERSE);
           break;
 
     case 10:
           surf_ids_out.push_back(3); surf_ids_out.push_back(6);
-          senses_out.push_back(-1); senses_out.push_back(1);
+          senses_out.push_back(SENSE_REVERSE); senses_out.push_back(SENSE_FORWARD);
           break;
 
     case 11:
           surf_ids_out.push_back(4); surf_ids_out.push_back(5);
-          senses_out.push_back(1); senses_out.push_back(-1);
+          senses_out.push_back(SENSE_FORWARD); senses_out.push_back(SENSE_REVERSE);
           break;
 
     case 12:
           surf_ids_out.push_back(5); surf_ids_out.push_back(6);
-          senses_out.push_back(1); senses_out.push_back(-1);
+          senses_out.push_back(SENSE_FORWARD); senses_out.push_back(SENSE_REVERSE);
           break;
 
     case 13:
       surf_ids_out.push_back(7); surf_ids_out.push_back(8);
-      senses_out.push_back(-1); senses_out.push_back(1);
+      senses_out.push_back(SENSE_REVERSE); senses_out.push_back(SENSE_FORWARD);
       break;
 
     case 14:
       surf_ids_out.push_back(7); surf_ids_out.push_back(9);
-      senses_out.push_back(-1); senses_out.push_back(1);
+      senses_out.push_back(SENSE_REVERSE); senses_out.push_back(SENSE_FORWARD);
       break;
   } 
 
@@ -324,47 +327,47 @@ void load_vol_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& 
   {
     case 1:
           vol_ids_out.push_back(1);
-          senses_out.push_back(1); 
+          senses_out.push_back(SENSE_FORWARD); 
           break;
 
     case 2:
           vol_ids_out.push_back(1);
-          senses_out.push_back(1); 
+          senses_out.push_back(SENSE_FORWARD); 
           break;
 
     case 3:
           vol_ids_out.push_back(1);
-          senses_out.push_back(1); 
+          senses_out.push_back(SENSE_FORWARD); 
           break;
 
     case 4:
           vol_ids_out.push_back(1);
-          senses_out.push_back(1); 
+          senses_out.push_back(SENSE_FORWARD); 
           break;
 
     case 5:
           vol_ids_out.push_back(1);
-          senses_out.push_back(1); 
+          senses_out.push_back(SENSE_FORWARD); 
           break;
 
     case 6:
           vol_ids_out.push_back(1);
-          senses_out.push_back(1); 
+          senses_out.push_back(SENSE_FORWARD); 
           break;
 
     case 7:
           vol_ids_out.push_back(2);
-          senses_out.push_back(1);
+          senses_out.push_back(SENSE_FORWARD);
           break;
   
     case 8:
           vol_ids_out.push_back(2);
-          senses_out.push_back(1);
+          senses_out.push_back(SENSE_FORWARD);
           break;
 
     case 9:
           vol_ids_out.push_back(2);
-          senses_out.push_back(1);
+          senses_out.push_back(SENSE_FORWARD);
           break;
    }
 }
