@@ -88,7 +88,7 @@ void read_cylcube_curve_senses_test()
   rval = mb->get_number_entities_by_type_and_tag( 0, MBENTITYSET, &geom_tag,
     					          val, 1, number_of_curves );
   CHECK_ERR(rval);
-  CHECK_EQUAL( 12 , number_of_curves );
+  CHECK_EQUAL( 14, number_of_curves );
   
   //Get curve handles
   Range curves;
@@ -186,63 +186,72 @@ void load_curve_sense_data( Interface* moab, EntityHandle curve, std::vector<int
     case 1:
           surf_ids_out.push_back(1); surf_ids_out.push_back(6);
           senses_out.push_back(1); senses_out.push_back(-1);
+          break;
 
-    break;
     case 2:
           surf_ids_out.push_back(1); surf_ids_out.push_back(5);
           senses_out.push_back(1); senses_out.push_back(-1);
+          break;
 
-    break;
     case 3:
           surf_ids_out.push_back(1); surf_ids_out.push_back(4);
           senses_out.push_back(1); senses_out.push_back(-1);
+          break;
 
-    break;
     case 4:
           surf_ids_out.push_back(1); surf_ids_out.push_back(3);
           senses_out.push_back(1); senses_out.push_back(-1);
+          break;
 
-    break;
     case 5:
           surf_ids_out.push_back(2); surf_ids_out.push_back(6);
           senses_out.push_back(1); senses_out.push_back(-1);
+          break;
 
-    break;
     case 6:
           surf_ids_out.push_back(2); surf_ids_out.push_back(3);
           senses_out.push_back(1); senses_out.push_back(-1);
+          break;
 
-    break;
     case 7:
           surf_ids_out.push_back(2); surf_ids_out.push_back(4);
           senses_out.push_back(1); senses_out.push_back(-1);
+          break;
 
-    break;
     case 8:
           surf_ids_out.push_back(2); surf_ids_out.push_back(5);
           senses_out.push_back(1); senses_out.push_back(-1);
+          break;
 
-    break;
     case 9:
           surf_ids_out.push_back(3); surf_ids_out.push_back(4);
           senses_out.push_back(1); senses_out.push_back(-1);
+          break;
 
-    break;
     case 10:
           surf_ids_out.push_back(3); surf_ids_out.push_back(6);
           senses_out.push_back(-1); senses_out.push_back(1);
+          break;
 
-    break;
     case 11:
           surf_ids_out.push_back(4); surf_ids_out.push_back(5);
           senses_out.push_back(1); senses_out.push_back(-1);
+          break;
 
-    break;
     case 12:
           surf_ids_out.push_back(5); surf_ids_out.push_back(6);
           senses_out.push_back(1); senses_out.push_back(-1);
+          break;
 
-    break;
+    case 13:
+      surf_ids_out.push_back(7); surf_ids_out.push_back(8);
+      senses_out.push_back(-1); senses_out.push_back(1);
+      break;
+
+    case 14:
+      surf_ids_out.push_back(7); surf_ids_out.push_back(9);
+      senses_out.push_back(-1); senses_out.push_back(1);
+      break;
   } 
 
 }
@@ -269,7 +278,7 @@ void read_cylcube_surf_senses_test()
   rval = mb->get_number_entities_by_type_and_tag( 0, MBENTITYSET, &geom_tag,
 	  					    val, 1, number_of_surfs );
   CHECK_ERR(rval);
-  CHECK_EQUAL( 6, number_of_surfs );
+  CHECK_EQUAL( 9, number_of_surfs );
   
   // Get surface handles
   Range surfs;
@@ -316,33 +325,47 @@ void load_vol_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& 
     case 1:
           vol_ids_out.push_back(1);
           senses_out.push_back(1); 
+          break;
 
-    break;
     case 2:
           vol_ids_out.push_back(1);
           senses_out.push_back(1); 
-
-    break;
+          break;
 
     case 3:
           vol_ids_out.push_back(1);
           senses_out.push_back(1); 
+          break;
 
-    break;
     case 4:
           vol_ids_out.push_back(1);
           senses_out.push_back(1); 
+          break;
 
-    break;
     case 5:
           vol_ids_out.push_back(1);
           senses_out.push_back(1); 
-    break;
+          break;
+
     case 6:
           vol_ids_out.push_back(1);
           senses_out.push_back(1); 
+          break;
 
-    break;
+    case 7:
+          vol_ids_out.push_back(2);
+          senses_out.push_back(1);
+          break;
+  
+    case 8:
+          vol_ids_out.push_back(2);
+          senses_out.push_back(1);
+          break;
+
+    case 9:
+          vol_ids_out.push_back(2);
+          senses_out.push_back(1);
+          break;
    }
 }
 
