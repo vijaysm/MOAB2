@@ -21,9 +21,9 @@ using namespace moab;
 
 
 #ifdef MESHDIR
-static const char input_cube[] = STRINGIFY(MESHDIR) "/io/cube.sat";
+static const char input_cube[] = STRINGIFY(MESHDIR) "/io/cylcube.sat";
 #else
-static const char input_cube[] = "/io/cube.sat";
+static const char input_cube[] = "/io/cylcube.sat";
 #endif
 
 // Function used to load the test file
