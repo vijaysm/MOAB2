@@ -89,7 +89,7 @@ void read_cylcube_groups_test()
   void* val[] = {&query};
   rval = mb->get_entities_by_type_and_tag( 0, MBENTITYSET, &category_tag, val, 1, group_sets);
   CHECK_ERR(rval);
-
+  //Get group names and IDs
   std::vector<int> g_ids;
   std::vector<std::string> g_names;
   std::vector<int> g_ent_ids;
@@ -105,18 +105,16 @@ void read_cylcube_groups_test()
       //Store group name
       std::string temp(group_name);
       g_names.push_back(temp);
-      //Ensure the group is named correctly
-      CHECK( strcmp( group_name, "Group 2") || strcmp(group_name, "Group 3"));
       //Get all entities in the group
       Range group_ents;
-      rval = mb->get_entities_by_type( *i, MBENTITYSET, group_ents, false);
+      rval = mb->get_entities_by_type( *i, MBENTITYSET, group_ents, false );
       CHECK_ERR(rval);
       if( group_ents.size() != 1) CHECK(false);
       int grp_ent_id = geom_id_by_handle( mb, group_ents[0] );
       g_ent_ids.push_back(grp_ent_id);
   
     }
-  check_group_data(g_ids, g_names, g_ent_ids);
+  check_group_data( g_ids, g_names, g_ent_ids );
 }
 
 
@@ -131,7 +129,7 @@ void check_group_data(std::vector<int> group_ids, std::vector<std::string> group
 
   // check that the correct number of entities were found
   CHECK_EQUAL ( group_ref_ids.size(), group_ids.size() );
-  //  CHECK_EQUAL ( group_ref_names.size(), group_names.size() );  
+  CHECK_EQUAL ( group_ref_names.size(), group_names.size() );  
   CHECK_EQUAL ( group_ref_ent_ids.size(), group_ent_ids.size() );
 
   //now make sure that each group has a matching group
