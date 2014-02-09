@@ -25,7 +25,7 @@ else
 endif
 
 if HAVE_CGM
-  CGM_TEST = read_cgm_test
+  CGM_TEST = read_cgm_load_test read_cgm_basic_test
 else
   CGM_TEST = 
 endif
