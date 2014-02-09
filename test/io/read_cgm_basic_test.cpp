@@ -7,6 +7,7 @@
 #include "TestUtil.hpp"
 #include "Internals.hpp"
 #include "moab/Core.hpp"
+#include "MBTagConventions.hpp"
 
 using namespace moab;
 
@@ -29,21 +30,40 @@ static const char input_file[] = "dum.sat";
 #endif
 #endif
 
-void read_multiple_test() 
+#ifdef MESHDIR
+static const char input_cube[] = STRINGIFY(MESHDIR) "/io/cube.sat";
+#else
+static const char input_cube[] = "/io/cube.sat";
+#endif
+
+
+void read_cube_test()
 {
   Core mb;
+ 
+  ErrorCode rval = mb.load_file(input_cube); CHECK_ERR(rval);
 
-  ErrorCode rval = mb.load_file(input_file);
+  Tag geom_tag;
+
+  rval = mb.tag_get_handle( GEOM_DIMENSION_TAG_NAME, 1, MB_TYPE_INTEGER,
+                                  geom_tag, MB_TAG_SPARSE|MB_TAG_CREAT); 
   CHECK_ERR(rval);
-  // second load
-  rval = mb.load_file(input_file);
+   
+  int number_of_tris;
+
+  rval = mb.get_number_entities_by_type(0, MBTRI , number_of_tris);
+  std::cout << "Number of Triangles = " << number_of_tris << std::endl;
   CHECK_ERR(rval);
 
+  if( number_of_tris != 12) rval = MB_FAILURE; CHECK_ERR(rval);
+   
 }
   
 int main(int /* argc */, char** /* argv */)
 {
-  int result = RUN_TEST( read_multiple_test );
-
+  int result = 0;
+  
+  result += RUN_TEST( read_cube_test );
+      
   return result;
 }
