@@ -18,11 +18,18 @@ using namespace moab;
 
 
 #ifdef MESHDIR
-static const char input_cube[] = STRINGIFY(MESHDIR) "/io/cube.sat";
+#ifdef HAVE_OCC_STEP
+static const char input_cube[] = STRINGIFY(MESHDIR) "/io/cube.stp";
 #else
-static const char input_cube[] = "/io/cube.sat";
+static const char input_cube[] = STRINGIFY(MESHDIR) "/io/cube.sat";
 #endif
-
+#else
+#ifdef HAVE_OCC_STEP
+static const char input_cube[] = "cube.stp";
+#else
+static const char input_cube[] = "cube.sat";
+#endif
+#endif
 
 void read_cube_test()
 {
