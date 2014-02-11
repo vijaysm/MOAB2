@@ -1,4 +1,4 @@
-LDADD = $(top_builddir)/src/libMOAB.la $(top_builddir)/src/dagmc.la
+LDADD = $(top_builddir)/src/libMOAB.la $(top_builddir)/tools/dagmc/DagMC.lo
 
 MESHDIR = $(top_srcdir)/MeshFiles/unittest
 
@@ -16,6 +16,6 @@ TESTS = dagmc_test
 check_PROGRAMS = $(TESTS)
 
 dagmc_test_SOURCES = $(srcdir)/../TestUtil.hpp dagmc_test.cpp
-dagmc_test_CXXFLAGS = $(DAGMC_FLAGS)  $(CXXFLAGS)
+dagmc_test_CXXFLAGS = $(CGM_CPPFLAGS) $(CXXFLAGS) -lcgm -lcubiti19
 
 
