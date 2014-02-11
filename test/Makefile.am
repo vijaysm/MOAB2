@@ -1,4 +1,4 @@
-SUBDIRS = . io dual obb perf
+SUBDIRS = . io dual obb perf dagmc
 if HDF5_FILE
   SUBDIRS += h5file
 endif
