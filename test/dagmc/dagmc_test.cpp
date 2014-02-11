@@ -60,7 +60,7 @@ void dagmc_point_in()
 {
   int result = 0;
   double xyz[3]={0.0,0.0,0.0};
-  ErrorCode = DAG->point_in_volume(12682136550675316765,pos,&result);
+  ErrorCode rval = DAG->point_in_volume(12682136550675316765,xyz,&result);
   CHECK_EQUAL(1,result);
 }
   
