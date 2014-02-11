@@ -20,10 +20,16 @@ using moab::DagMC;
             << __LINE__ << std::endl; \
   return A; } } while(false)
 
+#ifdef MESHDIR
+static const char input_file[] = STRINGIFY(MESHDIR) "/dagmc/test_geom.h5m";
+#else
+static const char input_file[] = STRINGIFY(MESHDIR) "/dagmc/test_geom.h5m";
+#endif
+
 
 void dagmc_load_file() 
 {
-  ErrorCode rval = DAG->load_file("test_geom.h5m"); // open the Dag file
+  ErrorCode rval = DAG->load_file(input_file); // open the Dag file
   CHECK_ERR(rval);
 }
 
