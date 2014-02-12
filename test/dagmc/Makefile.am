@@ -11,11 +11,17 @@ AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
                -I$(top_srcdir)/src/parallel \
                -I$(top_srcdir)/tools/dagmc 
 
-TESTS = dagmc_test
+TESTS = dagmc_simple_test \
+        dagmc_rayfire_test \
+        dagmc_pointinvol_test
 
 check_PROGRAMS = $(TESTS)
 
-dagmc_test_SOURCES = $(srcdir)/../TestUtil.hpp dagmc_test.cpp
-dagmc_test_CXXFLAGS = $(CGM_CPPFLAGS) $(CXXFLAGS) -lcgm -lcubiti19
+dagmc_simple_test_SOURCES = $(srcdir)/../TestUtil.hpp dagmc_simple_test.cpp
+dagmc_simple_test_CXXFLAGS = $(CGM_CPPFLAGS) $(CXXFLAGS) -lcgm -lcubiti19
+dagmc_rayfire_test_SOURCES = $(srcdir)/../TestUtil.hpp dagmc_rayfire_test.cpp
+dagmc_rayfire_test_CXXFLAGS = $(CGM_CPPFLAGS) $(CXXFLAGS) -lcgm -lcubiti19
+dagmc_pointinvol_test_SOURCES = $(srcdir)/../TestUtil.hpp dagmc_pointinvol_test.cpp
+dagmc_pointinvol_test_CXXFLAGS = $(CGM_CPPFLAGS) $(CXXFLAGS) -lcgm -lcubiti19
 
 
