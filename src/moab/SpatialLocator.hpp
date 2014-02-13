@@ -157,6 +157,18 @@ namespace moab {
       
   private:
 
+        /* locate a point */
+      ErrorCode locate_point(const double *pos, 
+                             EntityHandle &ent, double *params, bool *is_inside = NULL,
+                              const double rel_iter_tol = 1.0e-10, const double abs_iter_tol = 1.0e-10,
+                              const double inside_tol = 1.0e-6);
+
+        /** Create a tree
+         * Tree type depends on what's in myElems: if empty or all vertices, creates a kdtree,
+         * otherwise creates a BVHTree.
+         */
+      void create_tree();
+      
         /* MOAB instance */
       Interface* mbImpl;
 

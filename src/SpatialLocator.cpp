@@ -2,6 +2,7 @@
 #include "moab/Interface.hpp"
 #include "moab/ElemEvaluator.hpp"
 #include "moab/AdaptiveKDTree.hpp"
+#include "moab/BVHTree.hpp"
 
 bool debug = true;
 
@@ -11,15 +12,27 @@ namespace moab
     SpatialLocator::SpatialLocator(Interface *impl, Range &elems, Tree *tree, ElemEvaluator *eval) 
             : mbImpl(impl), myElems(elems), myDim(-1), myTree(tree), elemEval(eval), iCreatedTree(false)
     {
-      if (!myTree) {
-        myTree = new AdaptiveKDTree(impl);
-        iCreatedTree = true;
-      }
+      create_tree();
+      
       if (!elems.empty()) {
         myDim = mbImpl->dimension_from_handle(*elems.rbegin());
         ErrorCode rval = myTree->build_tree(myElems);
         if (MB_SUCCESS != rval) throw rval;
       }
+    }
+
+    void SpatialLocator::create_tree() 
+    {
+      if (myTree) return;
+      
+      if (myElems.empty() || mbImpl->type_from_handle(*myElems.rbegin()) == MBVERTEX) 
+          // create a kdtree if only vertices
+        myTree = new AdaptiveKDTree(mbImpl);
+      else
+          // otherwise a BVHtree, since it performs better for elements
+        myTree = new BVHTree(mbImpl);
+
+      iCreatedTree = true;
     }
 
     ErrorCode SpatialLocator::add_elems(Range &elems) 
