@@ -33,6 +33,11 @@ Intx2Mesh::Intx2Mesh(Interface * mbimpl): mb(mbimpl), parcomm(NULL), remote_cell
 Intx2Mesh::~Intx2Mesh()
 {
   // TODO Auto-generated destructor stub
+  if (remote_cells)
+  {
+    delete remote_cells;
+    remote_cells=NULL;
+  }
 }
 void Intx2Mesh::createTags()
 {
