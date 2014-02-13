@@ -548,11 +548,11 @@ int create_mesh( const char* filename, int num_parts )
     // create vertices
   int vl_pos = 0;
   for (int i = 0; i <= num_cols; ++i) {
-    double coords[15] = { i, 0, 0,
-                          i, 1, 0,
-                          i, 2, 0,
-                          i, 3, 0,
-                          i, 4, 0 };
+    double coords[15] = { static_cast<double>(i), 0, 0,
+                          static_cast<double>(i), 1, 0,
+                          static_cast<double>(i), 2, 0,
+                          static_cast<double>(i), 3, 0,
+                          static_cast<double>(i), 4, 0 };
     iBase_EntityHandle* ptr = vertices[i];
     const int n = (num_full_cols == num_cols || i <= num_full_cols) ? 5 : 3;
     int junk1 = n, junk2 = n;

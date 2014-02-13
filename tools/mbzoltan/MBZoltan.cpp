@@ -362,8 +362,12 @@ ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
                                         const int part_dim,
                                         const int obj_weight,
                                         const int edge_weight,
+#ifdef CGM
                                         const bool part_surf,
                                         const bool ghost,
+#else
+                                        const bool, const bool,
+#endif
                                         const bool print_time,
                                         const bool spherical_coords)
 {

@@ -214,7 +214,8 @@ void create_simple_grid( Interface& moab, unsigned x, unsigned y, unsigned z )
   for (unsigned k = 0; k < z; ++k)
     for (unsigned j = 0; j < y; ++j)
       for (unsigned i = 0; i < x; ++i) {
-        const double coords[3] = { i, j, k };
+        const double coords[3] = { static_cast<double>(i), static_cast<double>(j), 
+                                   static_cast<double>(k) };
         rval = moab.create_vertex( coords, verts[x*y*k + x*j + i] );
         CHECK_ERR(rval);
       }
