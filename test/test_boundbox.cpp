@@ -35,7 +35,7 @@ void test_bound_box()
     // test for contains point failure
   bool result = box.contains_point(vec.array(), tol);
   CHECK(!result);
-  result = box.contains_box(other_box, tol);
+  result = box.intersects_box(other_box, tol);
   CHECK(!result);
   
   box = other_box;
@@ -44,7 +44,7 @@ void test_bound_box()
     // test for success
   result = box.contains_point(&vals[0], tol);
   CHECK(result);
-  result = box.contains_box(other_box, tol);
+  result = box.intersects_box(other_box, tol);
   CHECK(result);
   
     // check update functions
@@ -54,9 +54,9 @@ void test_bound_box()
   CHECK(result);
   result = box.contains_point((three*1.1).array(), tol);
   CHECK(!result);
-  result = box.contains_box(BoundBox(three, three), tol);
+  result = box.intersects_box(BoundBox(three, three), tol);
   CHECK(result);
-  result = box.contains_box(BoundBox(three, 1.1*three), tol);
+  result = box.intersects_box(BoundBox(1.1*three, 3.0*three), tol);
   CHECK(!result);
   
   CartVect negthree(-3.0);
@@ -65,9 +65,9 @@ void test_bound_box()
   CHECK(result);
   result = box.contains_point((negthree*1.1).array(), tol);
   CHECK(!result);
-  result = box.contains_box(BoundBox(negthree, negthree), tol);
+  result = box.intersects_box(BoundBox(negthree, negthree), tol);
   CHECK(result);
-  result = box.contains_box(BoundBox(1.1*negthree, negthree), tol);
+  result = box.intersects_box(BoundBox(3.0*negthree, 1.1*negthree), tol);
   CHECK(!result);
   
   for (int i = 0; i < 3; i++) {
@@ -78,9 +78,9 @@ void test_bound_box()
   CHECK(result);
   result = box.contains_point((CartVect(&vals[0])*1.1).array(), tol);
   CHECK(!result);
-  result = box.contains_box(BoundBox(&vals[0]), tol);
+  result = box.intersects_box(BoundBox(&vals[0]), tol);
   CHECK(result);
-  result = box.contains_box(BoundBox(1.1*CartVect(&vals[0]), CartVect(&vals[3])), tol);
+  result = box.intersects_box(BoundBox(1.2*CartVect(&vals[0]), 1.1*CartVect(&vals[0])), tol);
   CHECK(!result);
   
     // check length functions

@@ -348,6 +348,9 @@ ErrorCode DeformMeshRemap::execute()
     } // if have_slave
   } // if debug
 
+  if (debug) 
+    dc_master.spatial_locator()->get_tree()->tree_stats().print();
+
   return MB_SUCCESS;
 }
 
