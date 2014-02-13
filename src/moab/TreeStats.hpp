@@ -59,6 +59,7 @@ namespace moab
       unsigned int leavesVisited;
       unsigned int numTraversals;
       unsigned int leafObjectTests;
+      unsigned int boxElemTests;
 
   private:
       ErrorCode traverse(Interface *impl, EntityHandle node, unsigned int &depth);
@@ -68,6 +69,8 @@ namespace moab
     inline ErrorCode TreeStats::compute_stats(Interface *impl, EntityHandle root_node) 
     {
       maxDepth = 0;
+      numNodes = 0;
+      numLeaves = 0;
       return traverse(impl, root_node, maxDepth);
     }
       
@@ -111,21 +114,27 @@ namespace moab
       leavesVisited = 0;
       numTraversals = 0;
       leafObjectTests = 0;
+      boxElemTests = 0;
     }
     
     inline void TreeStats::print() const {
       std::cout << "Tree initialization time = " << initTime << " seconds" << std::endl;
       
+      std::cout << "Num nodes         = " << numNodes << std::endl;
+      std::cout << "Num leaves        = " << numLeaves << std::endl;
+      std::cout << "Max depth         = " << maxDepth << std::endl << std::endl;
+
       std::cout << "NodesVisited      = " << nodesVisited << std::endl;
       std::cout << "LeavesVisited     = " << leavesVisited << std::endl;
       std::cout << "Num Traversals    = " << numTraversals << std::endl;
       std::cout << "Leaf Object Tests = " << leafObjectTests << std::endl;
+      std::cout << "Box-Element Tests = " << boxElemTests << std::endl;
     }
 
     inline void TreeStats::output() const 
     {
-      std::cout << initTime << " " << nodesVisited << " " << leavesVisited << " " << numTraversals << " " << leafObjectTests
-                << " # initTime, nodesVisited, leavesVisited, numTraversals, leafObjectTests" << std::endl;
+      std::cout << initTime << " " << nodesVisited << " " << leavesVisited << " " << numTraversals << " " << leafObjectTests << " " << boxElemTests
+                << " # initTime, nodesVisited, leavesVisited, numTraversals, leafObjectTests, boxElemTests" << std::endl;
     }
 }
 

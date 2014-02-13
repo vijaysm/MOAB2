@@ -176,7 +176,6 @@ namespace moab {
         else {
           rval = iter.step();
           if (MB_ENTITY_NOT_FOUND == rval) {
-            treeStats.reset();
             rval = treeStats.compute_stats(mbImpl, myRoot);
             treeStats.initTime = cp.time_elapsed();
             return rval;  // at end
@@ -807,8 +806,7 @@ namespace moab {
                                           t_enter, t_exit );
     }
 
-    static ErrorCode intersect_children_with_elems(
-        AdaptiveKDTree* tool,
+    ErrorCode AdaptiveKDTree::intersect_children_with_elems(
         const Range& elems,
         AdaptiveKDTree::Plane plane,
         double eps,
@@ -823,15 +821,16 @@ namespace moab {
       right_tris.clear();
       both_tris.clear();
       CartVect coords[16];
-      Interface *const moab = tool->moab();
   
         // get extents of boxes for left and right sides
-      CartVect right_min( box_min ), left_max( box_max );
-      right_min[plane.norm] = left_max[plane.norm] = plane.coord;
-      const CartVect left_cen = 0.5*(left_max + box_min);
-      const CartVect left_dim = 0.5*(left_max - box_min);
-      const CartVect right_cen = 0.5*(box_max + right_min);
-      const CartVect right_dim = 0.5*(box_max - right_min);
+      BoundBox left_box(box_min, box_max), right_box(box_min, box_max);
+      right_box.bMin = box_min;
+      left_box.bMax = box_max;
+      right_box.bMin[plane.norm] = left_box.bMax[plane.norm] = plane.coord;
+      const CartVect left_cen = 0.5*(left_box.bMax + box_min);
+      const CartVect left_dim = 0.5*(left_box.bMax - box_min);
+      const CartVect right_cen = 0.5*(box_max + right_box.bMin);
+      const CartVect right_dim = 0.5*(box_max - right_box.bMin);
       const CartVect dim = box_max - box_min;
       const double max_tol = std::max(dim[0], std::max(dim[1], dim[2]))/10;
   
@@ -851,8 +850,8 @@ namespace moab {
   
         // vertices
       for (i = elems.begin(); i != elem_begin; ++i) {
-        tool->tree_stats().leafObjectTests++;
-        rval = moab->get_coords( &*i, 1, coords[0].array() );
+        tree_stats().leafObjectTests++;
+        rval = moab()->get_coords( &*i, 1, coords[0].array() );
         if (MB_SUCCESS != rval)
           return rval;
     
@@ -873,13 +872,13 @@ namespace moab {
         // non-polyhedron elements
       std::vector<EntityHandle> dum_vector;
       for (i = elem_begin; i != poly_begin; ++i) {
-        tool->tree_stats().leafObjectTests++;
-        rval = moab->get_connectivity( *i, conn, count, true, &dum_vector);
+        tree_stats().leafObjectTests++;
+        rval = moab()->get_connectivity( *i, conn, count, true, &dum_vector);
         if (MB_SUCCESS != rval) 
           return rval;
         if (count > (int)(sizeof(coords)/sizeof(coords[0])))
           return MB_FAILURE;
-        rval = moab->get_coords( &conn[0], count, coords[0].array() );
+        rval = moab()->get_coords( &conn[0], count, coords[0].array() );
         if (MB_SUCCESS != rval) return rval;
     
         bool lo = false, ro = false;
@@ -894,12 +893,16 @@ namespace moab {
           // identified that leaf, then we're done.  If triangle is on both
           // sides of plane, do more precise test to ensure that it is really
           // in both.
+//        BoundBox box;
+//        box.update(*moab(), *i);
         if (lo && ro) {
           double tol = eps;
           lo = ro = false;
           while (!lo && !ro && tol <= max_tol) {
-            lo = GeomUtil::box_elem_overlap( coords, TYPE_FROM_HANDLE(*i), left_cen, left_dim+CartVect(tol) );
-            ro = GeomUtil::box_elem_overlap( coords, TYPE_FROM_HANDLE(*i),right_cen,right_dim+CartVect(tol) );
+            tree_stats().boxElemTests+= 2;
+            lo = GeomUtil::box_elem_overlap( coords, TYPE_FROM_HANDLE(*i), left_cen, left_dim+CartVect(tol));
+            ro = GeomUtil::box_elem_overlap( coords, TYPE_FROM_HANDLE(*i), right_cen, right_dim+CartVect(tol));
+            
             tol *= 10.0;
           }
         }
@@ -913,20 +916,20 @@ namespace moab {
   
         // polyhedra
       for (i = poly_begin; i != set_begin; ++i) {
-        tool->tree_stats().leafObjectTests++;
-        rval = moab->get_connectivity( *i, conn, count, true );
+        tree_stats().leafObjectTests++;
+        rval = moab()->get_connectivity( *i, conn, count, true );
         if (MB_SUCCESS != rval) 
           return rval;
       
           // just check the bounding box of the polyhedron
         bool lo = false, ro = false;
         for (int j = 0; j < count; ++j) {
-          rval = moab->get_connectivity( conn[j], conn2, count2, true );
+          rval = moab()->get_connectivity( conn[j], conn2, count2, true );
           if (MB_SUCCESS != rval)
             return rval;
       
           for (int k = 0; k < count2; ++k) {
-            rval = moab->get_coords( conn2 + k, 1, coords[0].array() );
+            rval = moab()->get_coords( conn2 + k, 1, coords[0].array() );
             if (MB_SUCCESS != rval)
               return rval;
             if (coords[0][plane.norm] <= plane.coord)
@@ -947,8 +950,8 @@ namespace moab {
         // sets
       BoundBox tbox;
       for (i = set_begin; i != elems.end(); ++i) {
-        tool->tree_stats().leafObjectTests++;
-        rval = tbox.update(*tool->moab(), *i);
+        tree_stats().leafObjectTests++;
+        rval = tbox.update(*moab(), *i);
         if (MB_SUCCESS != rval)
           return rval;
     
@@ -1005,8 +1008,7 @@ namespace moab {
           AdaptiveKDTree::Plane plane = { box_min[axis] + (p/(1.0+plane_count)) * diff[axis], axis };
           Range left, right, both;
           double val;
-          r = intersect_children_with_elems( iter.tool(),
-                                             entities, plane, eps,
+          r = intersect_children_with_elems( entities, plane, eps,
                                              box_min, box_max,
                                              left, right, both, 
                                              val );
@@ -1057,32 +1059,38 @@ namespace moab {
       if (MB_SUCCESS != r)
         return r;
 
-      tmp_data.resize( vertices.size() );
+      unsigned int nverts = vertices.size();
+      tmp_data.resize( 3*nverts);
+      r = iter.tool()->moab()->get_coords( vertices, &tmp_data[0], &tmp_data[nverts], &tmp_data[2*nverts] );
+      if (MB_SUCCESS != r)
+        return r;
+  
       for (int axis = 0; axis < 3; ++axis) {
         int plane_count = num_planes;
+
+          // if num_planes results in width < eps, reset the plane count
         if ((num_planes+1)*eps >= diff[axis])
           plane_count = (int)(diff[axis] / eps) - 1;
 
-        double *ptrs[] = { 0, 0, 0 };
-        ptrs[axis] = &tmp_data[0];
-        r = iter.tool()->moab()->get_coords( vertices, ptrs[0], ptrs[1], ptrs[2] );
-        if (MB_SUCCESS != r)
-          return r;
-  
         for (int p = 1; p <= plane_count; ++p) {
+
+            // coord of this plane on axis
           double coord = box_min[axis] + (p/(1.0+plane_count)) * diff[axis];
-          double closest_coord = tmp_data[0];
-          for (unsigned i = 1; i < tmp_data.size(); ++i) 
-            if (fabs(coord-tmp_data[i]) < fabs(coord-closest_coord))
-              closest_coord = tmp_data[i];
+
+            // find closest vertex coordinate to this plane position
+          unsigned int istrt = axis*nverts;
+          double closest_coord = tmp_data[istrt];
+          for (unsigned i = 1; i < nverts; ++i) 
+            if (fabs(coord-tmp_data[istrt+i]) < fabs(coord-closest_coord))
+              closest_coord = tmp_data[istrt+i];
           if (closest_coord - box_min[axis] <= eps || box_max[axis] - closest_coord <= eps)
             continue;
           
+            // seprate elems into left/right/both, and compute separating metric
           AdaptiveKDTree::Plane plane = { closest_coord, axis };
           Range left, right, both;
           double val;
-          r = intersect_children_with_elems( iter.tool(),
-                                             entities, plane, eps,
+          r = intersect_children_with_elems( entities, plane, eps,
                                              box_min, box_max,
                                              left, right, both, 
                                              val );
@@ -1160,8 +1168,7 @@ namespace moab {
           AdaptiveKDTree::Plane plane = { *citer, axis };
           Range left, right, both;
           double val;
-          r = intersect_children_with_elems( iter.tool(),
-                                             entities, plane, eps,
+          r = intersect_children_with_elems( entities, plane, eps,
                                              box_min, box_max,
                                              left, right, both, 
                                              val );
@@ -1276,8 +1283,7 @@ namespace moab {
           AdaptiveKDTree::Plane plane = { coords[indices[p]], axis };
           Range left, right, both;
           double val;
-          r = intersect_children_with_elems( iter.tool(),
-                                             entities, plane, eps,
+          r = intersect_children_with_elems( entities, plane, eps,
                                              box_min, box_max,
                                              left, right, both, 
                                              val );
