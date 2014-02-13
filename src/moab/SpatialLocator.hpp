@@ -277,6 +277,7 @@ namespace moab {
       return locate_points(pos, 1, &ent, params, is_inside, rel_iter_tol, abs_iter_tol, inside_tol);
     }
 
+#ifdef USE_MPI
     inline ErrorCode SpatialLocator::get_point_ijk(const CartVect &point, const double abs_iter_tol, int *ijk) const
     {
       for (int i = 0; i < 3; i++) {
@@ -305,6 +306,7 @@ namespace moab {
       
       return ijk[2] * regNums[0]*regNums[1] + ijk[1] * regNums[0] + ijk[0];
     }
+#endif
     
 } // namespace moab 
 
