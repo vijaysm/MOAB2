@@ -26,6 +26,8 @@
 #include <H5FDmpi.h>
 #include <H5FDmpio.h>
 
+#ifdef H5_HAVE_PARALLEL
+
 const char filename[] = "mhdf_ll.h5m";
 const char proc_tag_name[] = "proc_id";
 const char elem_handle[] = "Hex";
@@ -280,9 +282,12 @@ static herr_t handle_hdf5_error( void* data )
   assert(0);
   return result;
 }
+
+#endif // #ifdef H5_HAVE_PARALLEL
  
 int main( int argc, char* argv[] )
 {
+#ifdef H5_HAVE_PARALLEL
   int rval;
   void* data;
   herr_t err;
@@ -321,5 +326,6 @@ int main( int argc, char* argv[] )
   write_file_data();
   
   MPI_Finalize();
+#endif
   return 0;
 }

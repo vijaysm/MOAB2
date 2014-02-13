@@ -397,17 +397,28 @@ ErrorCode compute_tracer_case1(Interface * mb, Intx2MeshOnSphere & worker, Entit
   // if in parallel, we have to move some elements to another proc, and receive other cells
   // from other procs
   // lagr and euler are preserved
+  if (writeFiles) // so if need to write lagr files too
+  {
+
+  }
   EntityHandle covering_set;
   rval = worker.create_departure_mesh_3rd_alg(lagr_set, covering_set);
   if (writeFiles) // so if write
   {
+    std::stringstream departureMesh;
+    departureMesh << "Departure" << rank << "_" << tStep << ".vtk";
+    rval = mb->write_file(departureMesh.str().c_str(), 0, 0, &lagr_set, 1);
+    CHECK_ERR(rval);
+
     std::stringstream newTracer;
     newTracer << "Tracer" << rank << "_" << tStep << ".vtk";
     rval = mb->write_file(newTracer.str().c_str(), 0, 0, &euler_set, 1);
+    CHECK_ERR(rval);
 
     std::stringstream lagr_cover;
     lagr_cover << "Cover" << rank << "_" << tStep << ".vtk";
     rval = mb->write_file(lagr_cover.str().c_str(), 0, 0, &covering_set, 1);
+    CHECK_ERR(rval);
 
   }
   // so we have now the departure at the previous time

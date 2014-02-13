@@ -185,10 +185,11 @@ int main(int argc, char **argv)
 
   if (argc < 3)
   {
-    std::cout << " usage: create_dp <input> <output> -t <time>  -dt <delta_t> -h \n";
+    std::cout << " usage: create_dp <input> <output> -t <time>  -dt <delta_t> [-skipdp] -f <field> -h \n";
     return 1;
   }
 
+  bool skip= false;
   double dt=0.1;
   double t=0.1; // corresponding to diffusion first step
 
@@ -208,8 +209,17 @@ int main(int argc, char **argv)
 
     if (!strcmp(argv[index], "-h"))
     {
-      std::cout << " usage: create_dp <input> <output> -t <time>  -dt <delta_t> -h \n";
+      std::cout << " usage: create_dp <input> <output> -t <time>  -dt <delta_t>  [-skipdp] -f <field>  -h \n";
       return 1;
+    }
+    if (!strcmp(argv[index], "-f")) // delete partition sets
+    {
+      field_type = atoi(argv[++index]);
+    }
+
+    if (!strcmp(argv[index], "-skipdp") )
+    {
+      skip = true;
     }
     index++;
   }
@@ -224,42 +234,49 @@ int main(int argc, char **argv)
   std::cout  << " -t " << t <<  " -dt " << dt << " input: " << input_mesh1 <<
       "  output: " << output << "\n";
 
-  Range verts;
-  rval = mb.get_entities_by_dimension(0, 0, verts);
-  if (MB_SUCCESS != rval)
-    return 1;
-
-  double *x_ptr, *y_ptr, *z_ptr;
-  int count;
-  rval = mb.coords_iterate(verts.begin(), verts.end(), x_ptr, y_ptr, z_ptr, count);
-  if (MB_SUCCESS != rval)
-      return 1;
-  assert(count == (int) verts.size()); // should end up with just one contiguous chunk of vertices
-
-  Tag tagh = 0;
-  std::string tag_name("DP");
-  rval = mb.tag_get_handle(tag_name.c_str(), 3, MB_TYPE_DOUBLE, tagh, MB_TAG_DENSE | MB_TAG_CREAT);
-  CHECK_ERR(rval);
-  void *data; // pointer to the LOC in memory, for each vertex
-  int count_tag;
-
-  rval = mb.tag_iterate(tagh, verts.begin(), verts.end(), count_tag, data);
-  CHECK_ERR(rval);
-  // here we are checking contiguity
-  assert(count_tag == (int) verts.size());
-  double * ptr_DP=(double*)data;
-
-  for (int v = 0; v < count; v++) {
-     //EntityHandle v = verts[v];
-     CartVect pos( x_ptr[v], y_ptr[v] , z_ptr[v]);
-     CartVect newPos;
-     departure_point_case1(pos, t, dt, newPos);
-     ptr_DP[0]=newPos[0];
-     ptr_DP[1]=newPos[1];
-     ptr_DP[2]=newPos[2];
-     ptr_DP+=3; // increment to the next vertex
+  // skip if we need for DP (already existing)
+  if (skip)
+  {
+    std::cout<<" do not add DP tag \n";
   }
+  else
+  {
+    Range verts;
+    rval = mb.get_entities_by_dimension(0, 0, verts);
+    if (MB_SUCCESS != rval)
+      return 1;
 
+    double *x_ptr, *y_ptr, *z_ptr;
+    int count;
+    rval = mb.coords_iterate(verts.begin(), verts.end(), x_ptr, y_ptr, z_ptr, count);
+    if (MB_SUCCESS != rval)
+        return 1;
+    assert(count == (int) verts.size()); // should end up with just one contiguous chunk of vertices
+
+    Tag tagh = 0;
+    std::string tag_name("DP");
+    rval = mb.tag_get_handle(tag_name.c_str(), 3, MB_TYPE_DOUBLE, tagh, MB_TAG_DENSE | MB_TAG_CREAT);
+    CHECK_ERR(rval);
+    void *data; // pointer to the LOC in memory, for each vertex
+    int count_tag;
+
+    rval = mb.tag_iterate(tagh, verts.begin(), verts.end(), count_tag, data);
+    CHECK_ERR(rval);
+    // here we are checking contiguity
+    assert(count_tag == (int) verts.size());
+    double * ptr_DP=(double*)data;
+
+    for (int v = 0; v < count; v++) {
+       //EntityHandle v = verts[v];
+       CartVect pos( x_ptr[v], y_ptr[v] , z_ptr[v]);
+       CartVect newPos;
+       departure_point_case1(pos, t, dt, newPos);
+       ptr_DP[0]=newPos[0];
+       ptr_DP[1]=newPos[1];
+       ptr_DP[2]=newPos[2];
+       ptr_DP+=3; // increment to the next vertex
+    }
+  }
 
   rval = add_field_value(mb);
 

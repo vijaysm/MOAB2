@@ -178,7 +178,6 @@ test/obb/obb_time
 test/obb/obb_tree_tool
 test/obb_test
 test/oldinc/test_oldinc
-test/read_mpas_nc
 test/parallel/*.h5m
 test/parallel/mbparallelcomm_test
 test/parallel/mhdf_parallel

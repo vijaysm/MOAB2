@@ -25,7 +25,7 @@ else
 endif
 
 if HAVE_CGM
-  CGM_TEST = read_cgm_test
+  CGM_TEST = read_cgm_load_test read_cgm_basic_test
 else
   CGM_TEST = 
 endif
@@ -70,8 +70,10 @@ ideas_test_SOURCES = $(srcdir)/../TestUtil.hpp ideas_test.cc
 stl_test_SOURCES = $(srcdir)/../TestUtil.hpp stl_test.cc
 smf_test_SOURCES = $(srcdir)/../TestUtil.hpp smf_test.cc
 ccmio_test_SOURCES = $(srcdir)/../TestUtil.hpp ccmio_test.cpp
-read_cgm_test_SOURCES = $(srcdir)/../TestUtil.hpp read_cgm_test.cpp
-read_cgm_test_CXXFLAGS = $(CGM_CPPFLAGS)  $(CXXFLAGS)
+read_cgm_load_test_SOURCES = $(srcdir)/../TestUtil.hpp read_cgm_load_test.cpp
+read_cgm_load_test_CXXFLAGS = $(CGM_CPPFLAGS)  $(CXXFLAGS)
+read_cgm_basic_test_SOURCES = $(srcdir)/../TestUtil.hpp read_cgm_basic_test.cpp
+read_cgm_basic_test_CXXFLAGS = $(CGM_CPPFLAGS)  $(CXXFLAGS)
 readutil_test_SOURCES = $(srcdir)/../TestUtil.hpp readutil_test.cpp
 cgns_test_SOURCES=$(srcdir)/../TestUtil.hpp cgns_test.cpp
 

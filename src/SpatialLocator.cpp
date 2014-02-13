@@ -319,7 +319,7 @@ namespace moab
       locTable.enableWriteAccess();
 
         // pass storage directly into locate_points, since we know those arrays are contiguous
-      ErrorCode rval = locate_points(pos, num_points, locTable.vul_wr, locTable.vr_wr, NULL, rel_iter_tol, abs_iter_tol,
+      ErrorCode rval = locate_points(pos, num_points, (EntityHandle*)locTable.vul_wr, locTable.vr_wr, NULL, rel_iter_tol, abs_iter_tol,
                                      inside_tol);
       std::fill(locTable.vi_wr, locTable.vi_wr+num_points, 0);
       locTable.set_n(num_points);

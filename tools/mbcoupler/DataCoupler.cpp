@@ -15,8 +15,6 @@
 
 namespace moab {
 
-bool debug = false;
-
 DataCoupler::DataCoupler(Interface *impl,
                          ParallelComm *pc,
                          Range &source_ents,

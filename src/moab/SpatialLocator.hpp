@@ -133,6 +133,12 @@ namespace moab {
          */
       Interface* moab() { return mbImpl; }
 
+        /* locate a point */
+      ErrorCode locate_point(const double *pos, 
+                             EntityHandle &ent, double *params, bool *is_inside = NULL,
+                              const double rel_iter_tol = 1.0e-10, const double abs_iter_tol = 1.0e-10,
+                              const double inside_tol = 1.0e-6);
+
         /* return the tree */
       Tree *get_tree() {return myTree;}
 

@@ -8,8 +8,10 @@ using namespace moab;
 
 #ifdef MESHDIR
 static const char example[] = STRINGIFY(MESHDIR) "/io/homme26x3458.t.3.nc";
+static const char conn_fname[] = STRINGIFY(MESHDIR) "/io/HommeMapping.nc";
 #else
 static const char example[] = "/io/homme26x3458.t.3.nc";
+static const char conn_fname[] = "io/HommeMapping.nc";
 #endif
 
 #ifdef USE_MPI
@@ -24,6 +26,7 @@ void test_read_nomesh();
 void test_read_novars();
 void test_read_dim_vars(); // Test reading dimension variables
 void test_gather_onevar(); // Test gather set with one variable
+void test_read_conn(); // Test reading connectivity file only
 
 void get_options(std::string& opts);
 
@@ -46,6 +49,7 @@ int main(int argc, char* argv[])
   result += RUN_TEST(test_read_novars);
   result += RUN_TEST(test_read_dim_vars);
   result += RUN_TEST(test_gather_onevar);
+  result += RUN_TEST(test_read_conn);
 
 #ifdef USE_MPI
   fail = MPI_Finalize();
@@ -395,6 +399,39 @@ void test_gather_onevar()
     CHECK_REAL_EQUAL(234.0416, T0_val[3 * 26], eps); // Last vert
   }
 #endif
+}
+
+void test_read_conn()
+{
+  Core moab;
+  Interface& mb = moab;
+
+  std::string opts;
+  get_options(opts);
+
+  ErrorCode rval = mb.load_file(conn_fname, NULL, opts.c_str());
+  CHECK_ERR(rval);
+
+  int procs = 1;
+#ifdef USE_MPI
+  ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
+  procs = pcomm->proc_config().proc_size();
+#endif
+
+  // Make check runs this test on one processor
+  if (1 == procs) {
+    // Get vertices
+    Range verts;
+    rval = mb.get_entities_by_type(0, MBVERTEX, verts);
+    CHECK_ERR(rval);
+    CHECK_EQUAL((size_t)3458, verts.size());
+
+    // Get cells
+    Range cells;
+    rval = mb.get_entities_by_type(0, MBQUAD, cells);
+    CHECK_ERR(rval);
+    CHECK_EQUAL((size_t)3456, cells.size());
+  }
 }
 
 void get_options(std::string& opts)
