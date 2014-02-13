@@ -193,6 +193,12 @@ namespace moab {
       ErrorCode register_src_with_intermediate_procs(ParallelComm *pc, double abs_iter_tol, TupleList &TLreg_o);
       
 #endif
+
+        /** Create a tree
+         * Tree type depends on what's in myElems: if empty or all vertices, creates a kdtree,
+         * otherwise creates a BVHTree.
+         */
+      void create_tree();
       
         /* MOAB instance */
       Interface* mbImpl;
