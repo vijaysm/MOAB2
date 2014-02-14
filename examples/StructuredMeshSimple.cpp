@@ -25,6 +25,9 @@
 #include "moab/ScdInterface.hpp"
 #include "moab/ProgOptions.hpp"
 #include "moab/CN.hpp"
+#ifdef USE_MPI
+#include "moab_mpi.h"
+#endif
 #include <iostream>
 #include <vector>
 
@@ -33,6 +36,10 @@ using namespace moab;
 int main(int argc, char **argv) 
 {
   int N = 10, dim = 3;
+
+#ifdef USE_MPI
+  MPI_Init(&argc, &argv);
+#endif
 
   ProgOptions opts;
   opts.addOpt<int>(std::string("dim,d"), std::string("Dimension of mesh (default=3)"),
@@ -105,6 +112,10 @@ int main(int argc, char **argv)
     // 5. Release the structured mesh interface and destroy the MOAB instance
   mb->release_interface(scdiface); // tell MOAB we're done with the ScdInterface
   delete mb;
-  
+
+#ifdef USE_MPI
+  MPI_Finalize();
+#endif
+
   return 0;
 }

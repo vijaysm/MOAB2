@@ -26,9 +26,9 @@
 
 using namespace moab;
 
-int main(int argv, char **argv) 
+int main(int argc, char **argv) 
 {
-  int N;
+  int I, J, K;
     // progoptions?
   std::cout << "Enter I, J, K... " << std::endl;
   std::cin >> I >> J >> K;

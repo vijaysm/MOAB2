@@ -7,7 +7,7 @@ include ${MOAB_DIR}/lib/iMesh-Defs.inc
 # MESH_DIR is the directory containing mesh files that come with MOAB source
 MESH_DIR="../MeshFiles/unittest"
 
-EXAMPLES = HelloMOAB GetEntities SetsNTags StructuredMeshSimple DirectAccessWithHoles DirectAccessNoHoles 
+EXAMPLES = HelloMOAB GetEntities SetsNTags structuredmesh StructuredMeshSimple DirectAccessWithHoles DirectAccessNoHoles 
 PAREXAMPLES = HelloParMOAB ReduceExchangeTags LloydRelaxation
 F90EXAMPLES = DirectAccessNoHolesF90 PushParMeshIntoMoabF90
 EXOIIEXAMPLES = TestExodusII
@@ -25,6 +25,9 @@ SetsNTags: SetsNTags.o ${MOAB_LIBDIR}/libMOAB.la
 
 LloydRelaxation: LloydRelaxation.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+structuredmesh : structuredmesh.o ${MOAB_LIBDIR}/libMOAB.la
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} 
 
 StructuredMeshSimple : StructuredMeshSimple.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} 
@@ -62,6 +65,6 @@ clean:
 .cpp.o :
 	${MOAB_CXX} ${CXXFLAGS} ${MOAB_CXXFLAGS} ${MOAB_CPPFLAGS} ${MOAB_INCLUDES} -DMESH_DIR=\"${MESH_DIR}\" -c $<
 
- .F90.o :
+.F90.o :
 	${IMESH_FC} ${FCFLAGS} ${IMESH_FCFLAGS} ${MOAB_CPPFLAGS} ${IMESH_INCLUDES} ${IMESH_FCDEFS} -DMESH_DIR=\"${MESH_DIR}\" -c $<
 
