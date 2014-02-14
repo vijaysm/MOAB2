@@ -135,7 +135,7 @@ namespace moab {
 
         /* locate a point */
       ErrorCode locate_point(const double *pos, 
-                             EntityHandle &ent, double *params, bool *is_inside = NULL,
+                             EntityHandle &ent, double *params, int *is_inside = NULL,
                               const double rel_iter_tol = 1.0e-10, const double abs_iter_tol = 1.0e-10,
                               const double inside_tol = 1.0e-6);
 
@@ -168,12 +168,6 @@ namespace moab {
       void elem_eval(ElemEvaluator *eval) {elemEval = eval; if (myTree) myTree->set_eval(eval);}
       
   private:
-
-        /* locate a point */
-      ErrorCode locate_point(const double *pos, 
-                             EntityHandle &ent, double *params, int *is_inside = NULL,
-                              const double rel_iter_tol = 1.0e-10, const double abs_iter_tol = 1.0e-10,
-                              const double inside_tol = 1.0e-6);
 
 #ifdef USE_MPI
         /* MPI_ReduceAll source mesh bounding boxes to get global source mesh bounding box

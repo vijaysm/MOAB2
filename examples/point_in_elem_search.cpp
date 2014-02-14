@@ -53,14 +53,13 @@ int main(int argc, char **argv) {
   SpatialLocator sl(&mb, elems, &tree);
   
     // get the box extents
-  BoundBox box;
   CartVect box_extents, pos;
-  rval = sl.get_bounding_box(box); ERR("Problem getting tree bounding box");
+  BoundBox box = sl.local_box();
   box_extents = box.bMax - box.bMin;
   
     // query at random places in the tree
   CartVect params;
-  bool is_inside;
+  int is_inside = 0;
   int num_inside = 0;
   EntityHandle elem;
   for (int i = 0; i < num_queries; i++) {
@@ -78,9 +77,3 @@ int main(int argc, char **argv) {
   std::cout << "Queries inside box = " << num_inside << "/" << num_queries << " = " 
             << 100.0*((double)num_inside)/num_queries << "%" << std::endl;
 }
-
-    
-  
-  
-  
-
