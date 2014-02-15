@@ -24,17 +24,28 @@ using namespace moab;
 
 
 #ifdef MESHDIR
-static const char input_cube[] = STRINGIFY(MESHDIR) "/io/cylcube.sat";
+#ifdef HAVE_OCC_STEP
+static const char input_cylcube[] = STRINGIFY(MESHDIR) "/io/cylcube.stp";
 #else
-static const char input_cube[] = "/io/cylcube.sat";
+static const char input_cylcube[] = STRINGIFY(MESHDIR) "/io/cylcube.sat";
 #endif
+#else
+#ifdef HAVE_OCC_STEP
+static const char input_cylcube[] = "cylcube.stp";
+#else
+static const char input_cylcube[] = "cylcube.sat";
+#endif
+#endif
+
 
 // Function used to load the test file
 void read_file( Interface* moab, const char* input_file );
 
 // Functions containing known sense data
 void load_curve_sense_data( Interface* moab, EntityHandle curve,  std::vector<int>& surf_ids_out, std::vector<int>& senses_out );
-void load_vol_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out );
+void load_cubit_vol_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out );
+void load_cubit_vol_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out );
+void load_occ_vol_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out );
 
 // Functions used to compare sense information found in 
 // the model to reference information
@@ -76,7 +87,7 @@ void read_cylcube_curve_senses_test()
   //Open the test file
   Core moab;
   Interface* mb = &moab;
-  read_file( mb, input_cube );
+  read_file( mb, input_cylcube );
   
   //Get all curve handles
   Tag geom_tag;
@@ -91,8 +102,15 @@ void read_cylcube_curve_senses_test()
   rval = mb->get_number_entities_by_type_and_tag( 0, MBENTITYSET, &geom_tag,
     					          val, 1, number_of_curves );
   CHECK_ERR(rval);
+  //Step format adds a surface on the barrel of the cylinder.
+  //This created 4 extra surfaces in comparison to the .sat format from Cubit. 
+  //(New surface breaks the barrel of the cylinder into two half-pipes)
+#ifdef HAVE_OCC_STEP
+  CHECK_EQUAL( 18, number_of_curves );
+#else
   CHECK_EQUAL( 14, number_of_curves );
-  
+#endif
+
   //Get curve handles
   Range curves;
   rval = mb->get_entities_by_type_and_tag( 0, MBENTITYSET, &geom_tag,
@@ -266,7 +284,7 @@ void read_cylcube_surf_senses_test()
   //Open the test file
   Core moab;
   Interface* mb = &moab;
-  read_file( mb, input_cube );
+  read_file( mb, input_cylcube );
   
   //Get geometry tag for gathering surface information from the mesh
   Tag geom_tag;
@@ -281,8 +299,13 @@ void read_cylcube_surf_senses_test()
   rval = mb->get_number_entities_by_type_and_tag( 0, MBENTITYSET, &geom_tag,
 	  					    val, 1, number_of_surfs );
   CHECK_ERR(rval);
+  //Step format adds a surface on barrel of the cylinder.
+  // (Breaks it into two half-pipes)
+#ifdef HAVE_OCC_STEP
+  CHECK_EQUAL( 10, number_of_surfs );
+#else
   CHECK_EQUAL( 9, number_of_surfs );
-  
+#endif
   // Get surface handles
   Range surfs;
   rval = mb->get_entities_by_type_and_tag( 0, MBENTITYSET, &geom_tag,
@@ -310,7 +333,11 @@ for(unsigned int i = 0; i < surfs.size(); i++)
    known_senses.clear();
    // Load known surface-volume data 
    // for this surface and check that it's correct
-   load_vol_sense_data( mb, surfs[i], known_vol_ids, known_senses );
+#ifdef HAV_OCC_STEP
+   load_occ_vol_sense_data( mb, surfs[i], known_vol_ids, known_senses );
+#else
+   load_cubit_vol_sense_data( mb, surfs[i], known_vol_ids, known_senses );
+#endif
    // Check sense information from the loaded mesh against 
    // reference sense information
    check_sense_data( mb, vols, senses, known_vol_ids, known_senses );
@@ -320,7 +347,7 @@ for(unsigned int i = 0; i < surfs.size(); i++)
 }
 
 //Loads reference surface to volume sense data into the reference vectors
-void load_vol_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out ){
+void load_cubit_vol_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out ){
 
   int surf_id = geom_id_by_handle( moab, surf );
   switch(surf_id)
@@ -366,6 +393,64 @@ void load_vol_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& 
           break;
 
     case 9:
+          vol_ids_out.push_back(2);
+          senses_out.push_back(SENSE_FORWARD);
+          break;
+   }
+}
+
+//Loads reference surface to volume sense data into the reference vectors
+void load_occ_vol_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out ){
+
+  int surf_id = geom_id_by_handle( moab, surf );
+  switch(surf_id)
+  {
+    case 1:
+          vol_ids_out.push_back(1);
+          senses_out.push_back(SENSE_FORWARD); 
+          break;
+
+    case 2:
+          vol_ids_out.push_back(1);
+          senses_out.push_back(SENSE_FORWARD); 
+          break;
+
+    case 3:
+          vol_ids_out.push_back(1);
+          senses_out.push_back(SENSE_FORWARD); 
+          break;
+
+    case 4:
+          vol_ids_out.push_back(1);
+          senses_out.push_back(SENSE_FORWARD); 
+          break;
+
+    case 5:
+          vol_ids_out.push_back(1);
+          senses_out.push_back(SENSE_FORWARD); 
+          break;
+
+    case 6:
+          vol_ids_out.push_back(1);
+          senses_out.push_back(SENSE_FORWARD); 
+          break;
+
+    case 7:
+          vol_ids_out.push_back(2);
+          senses_out.push_back(SENSE_FORWARD);
+          break;
+  
+    case 8:
+          vol_ids_out.push_back(2);
+          senses_out.push_back(SENSE_FORWARD);
+          break;
+
+    case 9:
+          vol_ids_out.push_back(2);
+          senses_out.push_back(SENSE_FORWARD);
+          break;
+
+    case 10:
           vol_ids_out.push_back(2);
           senses_out.push_back(SENSE_FORWARD);
           break;
