@@ -42,8 +42,8 @@ static const char input_cylcube[] = "cylcube.sat";
 void read_file( Interface* moab, const char* input_file );
 
 // Functions containing known sense data
-void load_curve_sense_data( Interface* moab, EntityHandle curve,  std::vector<int>& surf_ids_out, std::vector<int>& senses_out );
-void load_cubit_surf_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out );
+void load_sat_curve_sense_data( Interface* moab, EntityHandle curve,  std::vector<int>& surf_ids_out, std::vector<int>& senses_out );
+void load_sat_surf_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out );
 void load_occ_surf_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out );
 
 // Functions used to compare sense information found in 
@@ -138,7 +138,7 @@ for(unsigned int i = 0; i < curves.size() ; i++)
    known_surf_ids.clear();
    known_senses.clear();
    //Load known curve-sense ID data
-   load_curve_sense_data( mb, curves[i], known_surf_ids, known_senses );
+   load_sat_curve_sense_data( mb, curves[i], known_surf_ids, known_senses );
    //Check that each surf and sense has a match in the references
    check_sense_data( mb, surfs, senses, known_surf_ids, known_senses);
   }
@@ -195,7 +195,7 @@ void check_sense_data( Interface* moab, std::vector<EntityHandle> wrt_ents, std:
 }
 
 //Loads two vectors with reference curve and curve_sense data
-void load_curve_sense_data( Interface* moab, EntityHandle curve, std::vector<int>& surf_ids_out, std::vector<int>& senses_out )
+void load_sat_curve_sense_data( Interface* moab, EntityHandle curve, std::vector<int>& surf_ids_out, std::vector<int>& senses_out )
 {
 
   int curve_id = geom_id_by_handle( moab, curve );
@@ -335,7 +335,7 @@ for(unsigned int i = 0; i < surfs.size(); i++)
 #ifdef HAV_OCC_STEP
    load_occ_surf_sense_data( mb, surfs[i], known_vol_ids, known_senses );
 #else
-   load_cubit_surf_sense_data( mb, surfs[i], known_vol_ids, known_senses );
+   load_sat_surf_sense_data( mb, surfs[i], known_vol_ids, known_senses );
 #endif
    // Check sense information from the loaded mesh against 
    // reference sense information
@@ -346,7 +346,7 @@ for(unsigned int i = 0; i < surfs.size(); i++)
 }
 
 //Loads reference surface to volume sense data into the reference vectors
-void load_cubit_surf_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out ){
+void load_sat_surf_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out ){
 
   int surf_id = geom_id_by_handle( moab, surf );
   switch(surf_id)
