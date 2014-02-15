@@ -42,10 +42,10 @@ static const char input_cylcube[] = "cylcube.sat";
 void read_file( Interface* moab, const char* input_file );
 
 // Functions containing known sense data
-void load_sat_curve_sense_data( Interface* moab, EntityHandle curve,  std::vector<int>& surf_ids_out, std::vector<int>& senses_out );
-void load_stp_curve_sense_data( Interface* moab, EntityHandle curve,  std::vector<int>& surf_ids_out, std::vector<int>& senses_out );
-void load_sat_surf_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out );
-void load_stp_surf_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out );
+ErrorCode load_sat_curve_sense_data( Interface* moab, EntityHandle curve,  std::vector<int>& surf_ids_out, std::vector<int>& senses_out );
+ErrorCode load_stp_curve_sense_data( Interface* moab, EntityHandle curve,  std::vector<int>& surf_ids_out, std::vector<int>& senses_out );
+ErrorCode load_sat_surf_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out );
+ErrorCode load_stp_surf_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out );
 
 // Functions used to compare sense information found in 
 // the model to reference information
@@ -140,9 +140,11 @@ for(unsigned int i = 0; i < curves.size() ; i++)
    known_senses.clear();
    //Load known curve-sense ID data
 #ifdef HAVE_OCC_STEP
-   load_stp_curve_sense_data( mb, curves[i], known_surf_ids, known_senses );
+   rval = load_stp_curve_sense_data( mb, curves[i], known_surf_ids, known_senses );
+   CHECK_ERR(rval);
 #else
-   load_sat_curve_sense_data( mb, curves[i], known_surf_ids, known_senses );
+   rval = load_sat_curve_sense_data( mb, curves[i], known_surf_ids, known_senses );
+   CHECK_ERR(rval);
 #endif
 
    //Check that each surf and sense has a match in the references
@@ -201,12 +203,10 @@ void check_sense_data( Interface* moab, std::vector<EntityHandle> wrt_ents, std:
 }
 
 //Loads two vectors with reference curve and curve_sense data
-void load_sat_curve_sense_data( Interface* moab, EntityHandle curve, std::vector<int>& surf_ids_out, std::vector<int>& senses_out )
+ErrorCode load_sat_curve_sense_data( Interface* moab, EntityHandle curve, std::vector<int>& surf_ids_out, std::vector<int>& senses_out )
 {
 
   int curve_id = geom_id_by_handle( moab, curve );
-
-
   switch(curve_id)
   {
     case 1:
@@ -278,17 +278,18 @@ void load_sat_curve_sense_data( Interface* moab, EntityHandle curve, std::vector
       surf_ids_out.push_back(7); surf_ids_out.push_back(9);
       senses_out.push_back(SENSE_REVERSE); senses_out.push_back(SENSE_FORWARD);
       break;
-  } 
+    default:
+          return MB_FAILURE;
 
+  } 
+  return MB_SUCCESS;
 }
 
 //Loads two vectors with reference curve and curve_sense data
-void load_stp_curve_sense_data( Interface* moab, EntityHandle curve, std::vector<int>& surf_ids_out, std::vector<int>& senses_out )
+ErrorCode load_stp_curve_sense_data( Interface* moab, EntityHandle curve, std::vector<int>& surf_ids_out, std::vector<int>& senses_out )
 {
 
   int curve_id = geom_id_by_handle( moab, curve );
-
-
   switch(curve_id)
   {
     case 1:
@@ -376,8 +377,11 @@ void load_stp_curve_sense_data( Interface* moab, EntityHandle curve, std::vector
       surf_ids_out.push_back(8); surf_ids_out.push_back(9);
       senses_out.push_back(SENSE_REVERSE); senses_out.push_back(SENSE_FORWARD);
       break;
-  } 
+    default:
+          return MB_FAILURE;
 
+  } 
+  return MB_SUCCESS;
 }
 
 ///SURFACE SENSE CHECKING
@@ -436,10 +440,12 @@ for(unsigned int i = 0; i < surfs.size(); i++)
    known_senses.clear();
    // Load known surface-volume data 
    // for this surface and check that it's correct
-#ifdef HAV_OCC_STEP
-   load_stp_surf_sense_data( mb, surfs[i], known_vol_ids, known_senses );
+#ifdef HAVE_OCC_STEP
+   rval = load_stp_surf_sense_data( mb, surfs[i], known_vol_ids, known_senses );
+   CHECK_ERR(rval);
 #else
-   load_sat_surf_sense_data( mb, surfs[i], known_vol_ids, known_senses );
+   rval = load_sat_surf_sense_data( mb, surfs[i], known_vol_ids, known_senses );
+   CHECK_ERR(rval);
 #endif
    // Check sense information from the loaded mesh against 
    // reference sense information
@@ -450,7 +456,7 @@ for(unsigned int i = 0; i < surfs.size(); i++)
 }
 
 //Loads reference surface to volume sense data into the reference vectors
-void load_sat_surf_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out ){
+ErrorCode load_sat_surf_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out ){
 
   int surf_id = geom_id_by_handle( moab, surf );
   switch(surf_id)
@@ -499,11 +505,15 @@ void load_sat_surf_sense_data( Interface* moab, EntityHandle surf, std::vector<i
           vol_ids_out.push_back(2);
           senses_out.push_back(SENSE_FORWARD);
           break;
+    default:
+          return MB_FAILURE;
+
    }
+  return MB_SUCCESS;
 }
 
 //Loads reference surface to volume sense data into the reference vectors
-void load_stp_surf_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out ){
+ErrorCode load_stp_surf_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out ){
 
   int surf_id = geom_id_by_handle( moab, surf );
   switch(surf_id)
@@ -557,6 +567,10 @@ void load_stp_surf_sense_data( Interface* moab, EntityHandle surf, std::vector<i
           vol_ids_out.push_back(2);
           senses_out.push_back(SENSE_FORWARD);
           break;
+    default:
+      std::cout << "Failure to find surface sense reference data. Returning failure..." << std::endl;
+          return MB_FAILURE;
    }
+  return MB_SUCCESS;
 }
 
