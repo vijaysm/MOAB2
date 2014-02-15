@@ -190,14 +190,14 @@ void check_sense_data( Interface* moab, std::vector<EntityHandle> wrt_ents, std:
           CHECK_EQUAL( senses[i], known_senses[j] );
           //Once a wrt entity is matched with a known entity,
           // remove it from the list
-          known_wrt_ids.erase( known_wrt_ids.begin()+j );
-          known_senses.erase( known_senses.begin()+j );
+          wrt_ent_ids.erase( wrt_ent_ids.begin()+i );
+          senses.erase( senses.begin()+i );
          }
      }
   }
 
   // After both loops are complete, known_wrt_ents should be empty 
-  int leftovers = known_wrt_ids.size();
+  int leftovers = wrt_ent_ids.size();
   CHECK_EQUAL( leftovers, 0 );
 
 }
