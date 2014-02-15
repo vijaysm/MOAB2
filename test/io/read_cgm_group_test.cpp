@@ -20,9 +20,17 @@ using namespace moab;
 
 
 #ifdef MESHDIR
-static const char input_cylcube[] = STRINGIFY(MESHDIR) "/io/cylcube.sat";
+#ifdef HAVE_OCC_STEP
+static const char input_cylcube[] = STRINGIFY(MESHDIR) "/io/cylcube.stp";
 #else
-static const char input_cylcube[] = "/io/cylcube.sat";
+static const char input_cylcube[] = STRINGIFY(MESHDIR) "/io/cylcube.sat";
+#endif
+#else
+#ifdef HAVE_OCC_STEP
+static const char input_cylcube[] = "cylcube.stp";
+#else
+static const char input_cylcube[] = "cylcube.sat";
+#endif
 #endif
 
 // Function used to load the test file
@@ -121,6 +129,17 @@ void read_cylcube_groups_test()
 void check_group_data(std::vector<int> group_ids, std::vector<std::string> group_names, std::vector<int> group_ent_ids )
 {
 
+  // Step files do not contain group data, MOAB shouldn't return errors when trying to access
+  // this data but there shouldn't be any found.
+#ifdef HAVE_OCC_STEP
+  int num_g_ids = group_ids.size();
+  int num_g_names = group_names.size();
+
+  CHECK_EQUAL( 0, num_g_ids );
+  CHECK_EQUAL( 0, num_g_names );
+#else
+
+
   //Initialize reference data
   std::vector<int> group_ref_ids;
   std::vector<std::string> group_ref_names;
@@ -157,6 +176,7 @@ void check_group_data(std::vector<int> group_ids, std::vector<std::string> group
   CHECK_EQUAL( 0, leftovers );
   leftovers = group_ref_ent_ids.size();
   CHECK_EQUAL( 0, leftovers );
+#endif
 }
 
 void load_group_references( std::vector<int>& ids, std::vector<std::string>& names, std::vector<int>& ent_ids )
