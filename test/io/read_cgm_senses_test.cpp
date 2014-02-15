@@ -43,8 +43,8 @@ void read_file( Interface* moab, const char* input_file );
 
 // Functions containing known sense data
 void load_curve_sense_data( Interface* moab, EntityHandle curve,  std::vector<int>& surf_ids_out, std::vector<int>& senses_out );
-void load_cubit_vol_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out );
-void load_occ_vol_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out );
+void load_cubit_surf_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out );
+void load_occ_surf_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out );
 
 // Functions used to compare sense information found in 
 // the model to reference information
@@ -333,9 +333,9 @@ for(unsigned int i = 0; i < surfs.size(); i++)
    // Load known surface-volume data 
    // for this surface and check that it's correct
 #ifdef HAV_OCC_STEP
-   load_occ_vol_sense_data( mb, surfs[i], known_vol_ids, known_senses );
+   load_occ_surf_sense_data( mb, surfs[i], known_vol_ids, known_senses );
 #else
-   load_cubit_vol_sense_data( mb, surfs[i], known_vol_ids, known_senses );
+   load_cubit_surf_sense_data( mb, surfs[i], known_vol_ids, known_senses );
 #endif
    // Check sense information from the loaded mesh against 
    // reference sense information
@@ -346,7 +346,7 @@ for(unsigned int i = 0; i < surfs.size(); i++)
 }
 
 //Loads reference surface to volume sense data into the reference vectors
-void load_cubit_vol_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out ){
+void load_cubit_surf_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out ){
 
   int surf_id = geom_id_by_handle( moab, surf );
   switch(surf_id)
@@ -399,7 +399,7 @@ void load_cubit_vol_sense_data( Interface* moab, EntityHandle surf, std::vector<
 }
 
 //Loads reference surface to volume sense data into the reference vectors
-void load_occ_vol_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out ){
+void load_occ_surf_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out ){
 
   int surf_id = geom_id_by_handle( moab, surf );
   switch(surf_id)
