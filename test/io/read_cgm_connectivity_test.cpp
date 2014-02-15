@@ -20,10 +20,19 @@ using namespace moab;
 
 
 #ifdef MESHDIR
-static const char input_cube[] = STRINGIFY(MESHDIR) "/io/cube.sat";
+#ifdef HAVE_OCC_STEP
+static const char input_cylcube[] = STRINGIFY(MESHDIR) "/io/cylcube.stp";
 #else
-static const char input_cube[] = "/io/cube.sat";
+static const char input_cylcube[] = STRINGIFY(MESHDIR) "/io/cylcube.sat";
 #endif
+#else
+#ifdef HAVE_OCC_STEP
+static const char input_cylcube[] = "cylcube.stp";
+#else
+static const char input_cylcube[] = "cylcube.sat";
+#endif
+#endif
+
 
 // Function used to load the test file
 void read_file( Interface* moab, const char* input_file );
@@ -69,7 +78,7 @@ void cube_verts_connectivity_test()
   //Open the test file
   Core moab;
   Interface* mb = &moab;
-  read_file( mb, input_cube );
+  read_file( mb, input_cylcube );
 
   //Get all vertex handles from the mesh
   Range verts;
@@ -95,7 +104,7 @@ void cube_tris_connectivity_test()
   //Open the test file
   Core moab;
   Interface* mb = &moab;
-  read_file( mb, input_cube );
+  read_file( mb, input_cylcube );
 
   //Get triangles from the mesh
   Range tris;
@@ -130,7 +139,7 @@ void cube_tri_curve_coincidence_test()
   //Open the test file
   Core moab;
   Interface* mb = &moab;
-  read_file( mb, input_cube );
+  read_file( mb, input_cylcube );
 
   //Get curves from the mesh
   Range curves;
@@ -184,7 +193,7 @@ void cube_edge_adjacencies_test()
   //Open the test file
   Core moab;
   Interface* mb = &moab;
-  read_file( mb, input_cube );
+  read_file( mb, input_cylcube );
 
   //Get the curves 
   Range curves;
@@ -211,7 +220,7 @@ void cube_tri_vertex_test()
   //Open the test file
   Core moab;
   Interface* mb = &moab;
-  read_file( mb, input_cube );
+  read_file( mb, input_cylcube );
  
   //Get all triangles
   Range tris;
