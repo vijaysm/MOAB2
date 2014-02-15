@@ -44,7 +44,6 @@ void read_file( Interface* moab, const char* input_file );
 // Functions containing known sense data
 void load_curve_sense_data( Interface* moab, EntityHandle curve,  std::vector<int>& surf_ids_out, std::vector<int>& senses_out );
 void load_cubit_vol_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out );
-void load_cubit_vol_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out );
 void load_occ_vol_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out );
 
 // Functions used to compare sense information found in 
