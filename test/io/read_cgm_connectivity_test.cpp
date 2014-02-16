@@ -54,7 +54,6 @@ int main(int /* argc */, char** /* argv */)
   result += RUN_TEST(cube_verts_connectivity_test);
   result += RUN_TEST(cube_tris_connectivity_test);
   result += RUN_TEST(cube_tri_curve_coincidence_test);
-  result += RUN_TEST(cube_tri_curve_coincidence_test);
   result += RUN_TEST(cube_tri_vertex_test);
  
   return result;
