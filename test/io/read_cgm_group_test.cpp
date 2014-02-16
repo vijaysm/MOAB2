@@ -92,7 +92,7 @@ void read_cylcube_groups_test()
 
   //Get the group entity handles
   Range group_sets;
-  char query[] = "Group\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";   
+  char query[CATEGORY_TAG_SIZE] = "Group\0";   
   //Has to be this way because of the way tags are created
   void* val[] = {&query};
   rval = mb->get_entities_by_type_and_tag( 0, MBENTITYSET, &category_tag, val, 1, group_sets);
