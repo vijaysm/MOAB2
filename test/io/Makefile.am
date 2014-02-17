@@ -25,7 +25,8 @@ else
 endif
 
 if HAVE_CGM
-  CGM_TEST = read_cgm_load_test read_cgm_basic_test
+  CGM_TEST = read_cgm_load_test read_cgm_basic_test read_cgm_senses_test read_cgm_connectivity_test \
+             read_cgm_group_test
 else
   CGM_TEST = 
 endif
@@ -73,7 +74,13 @@ ccmio_test_SOURCES = $(srcdir)/../TestUtil.hpp ccmio_test.cpp
 read_cgm_load_test_SOURCES = $(srcdir)/../TestUtil.hpp read_cgm_load_test.cpp
 read_cgm_load_test_CXXFLAGS = $(CGM_CPPFLAGS)  $(CXXFLAGS)
 read_cgm_basic_test_SOURCES = $(srcdir)/../TestUtil.hpp read_cgm_basic_test.cpp
-read_cgm_basic_test_CXXFLAGS = $(CGM_CPPFLAGS)  $(CXXFLAGS)
+read_cgm_basic_test_CXXFLAGS = $(CGM_CPPFLAGS) $(CGM_LIBS)  $(CXXFLAGS)
+read_cgm_senses_test_SOURCES = $(srcdir)/../TestUtil.hpp read_cgm_senses_test.cpp
+read_cgm_senses_test_CXXFLAGS = $(CGM_CPPFLAGS) $(CGM_LIBS)  $(CXXFLAGS)
+read_cgm_connectivity_test_SOURCES = $(srcdir)/../TestUtil.hpp read_cgm_connectivity_test.cpp
+read_cgm_connectivity_test_CXXFLAGS = $(CGM_CPPFLAGS) $(CGM_LIBS)  $(CXXFLAGS)
+read_cgm_group_test_SOURCES = $(srcdir)/../TestUtil.hpp read_cgm_group_test.cpp
+read_cgm_group_test_CXXFLAGS = $(CGM_CPPFLAGS) $(CGM_LIBS)  $(CXXFLAGS)
 readutil_test_SOURCES = $(srcdir)/../TestUtil.hpp readutil_test.cpp
 cgns_test_SOURCES=$(srcdir)/../TestUtil.hpp cgns_test.cpp
 

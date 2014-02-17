@@ -33,16 +33,17 @@ void read_multiple_test()
 {
   Core mb;
 
-  ErrorCode rval = mb.load_file(input_file);
+  ErrorCode rval = mb.load_file( input_file );
   CHECK_ERR(rval);
   // second load
-  rval = mb.load_file(input_file);
+  rval = mb.load_file( input_file );
   CHECK_ERR(rval);
 
 }
   
 int main(int /* argc */, char** /* argv */)
 {
+  
   int result = RUN_TEST( read_multiple_test );
 
   return result;
