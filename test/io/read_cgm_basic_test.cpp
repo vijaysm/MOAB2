@@ -199,10 +199,12 @@ void read_cube_vertex_pos_test()
   rval = mb->get_entities_by_type( 0, MBVERTEX, verts );
   CHECK_ERR( rval );
 
+  number_of_verts = verts.size();
+  CHECK_EQUAL( 8, number_of_verts );
   //Get the vertex coordinates
-  double x[verts.size()];
-  double y[verts.size()];
-  double z[verts.size()];
+  double x[8];
+  double y[8];
+  double z[8];
   rval = mb-> get_coords( verts, &x[0], &y[0], &z[0] );
   CHECK_ERR(rval);
 
