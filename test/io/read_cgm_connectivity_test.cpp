@@ -45,7 +45,7 @@ void cube_edge_adjacencies_test();
 void cube_tri_vertex_test();
 
 //Other functions
-ErrorCode match_tri_edges_w_curve( Interface* moab, Range tri_edges, Range curves );
+void match_tri_edges_w_curve( Interface* moab, Range tri_edges, Range curves );
 
 int main(int /* argc */, char** /* argv */)
 {
@@ -162,14 +162,13 @@ void cube_tri_curve_coincidence_test()
       //edges
       int num_of_tri_edges = tri_edges.size();
       CHECK_EQUAL( 2, num_of_tri_edges );
-      rval = match_tri_edges_w_curve( mb, tri_edges, curves );
+      match_tri_edges_w_curve( mb, tri_edges, curves );
       CHECK_ERR(rval);
       }
 }
 
-ErrorCode match_tri_edges_w_curve( Interface* moab, Range tri_edges, Range curves )
+void match_tri_edges_w_curve( Interface* moab, Range tri_edges, Range curves )
 {
-  ErrorCode rval;
   int match_counter=0;
   for(Range::const_iterator i=tri_edges.begin(); i!=tri_edges.end(); i++)
     {
@@ -184,7 +183,6 @@ ErrorCode match_tri_edges_w_curve( Interface* moab, Range tri_edges, Range curve
   //has been matched to a curve
   int num_of_tri_edges = tri_edges.size();
   CHECK_EQUAL( num_of_tri_edges, match_counter );
-  return MB_SUCCESS;
 } 
 
 void cube_edge_adjacencies_test()
