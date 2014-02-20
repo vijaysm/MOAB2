@@ -483,10 +483,21 @@ ErrorCode Intx2Mesh::build_processor_euler_boxes(EntityHandle euler_set, Range &
   }
 
    // now communicate to get all boxes
-   // use "in place" option
-  int mpi_err = MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
-                               &allBoxes[0], 6, MPI_DOUBLE,
-                               parcomm->proc_config().proc_comm());
+  int mpi_err;
+#if (MPI_VERSION >= 2)
+    // use "in place" option
+  mpi_err = MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
+                          &allBoxes[0], 6, MPI_DOUBLE, 
+                          parcomm->proc_config().proc_comm());
+#else
+  {
+    std::vector<double> allBoxes_tmp(6*parcomm->proc_config().proc_size());
+    mpi_err = MPI_Allgather( &allBoxes[6*my_rank], 6, MPI_DOUBLE,
+                             &allBoxes_tmp[0], 6, MPI_DOUBLE, 
+                             parcomm->proc_config().proc_comm());
+    allBoxes = allBoxes_tmp;
+  }
+#endif
   if (MPI_SUCCESS != mpi_err) return MB_FAILURE;
 
   // also process the max number of vertices per cell (4 for quads, but could be more for polygons)
