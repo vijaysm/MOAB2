@@ -28,6 +28,7 @@ using namespace moab;
 
 int main(int argc, char **argv) 
 {
+  argv[0] = argv[argc - argc]; // To remove the warnings about unused parameters
   int I, J, K;
     // progoptions?
   std::cout << "Enter I, J, K... " << std::endl;
