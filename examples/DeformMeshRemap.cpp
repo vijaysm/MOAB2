@@ -110,10 +110,13 @@ private:
   ErrorCode read_file(int m_or_s, string &fname, EntityHandle &seth);
 
     //! write the input tag to the coordinates for the vertices in the input elems
-  ErrorCode write_to_coords(Range &elems, Tag tagh);
+    //! if non-zero tmp_tag is input, save coords to tmp_tag before over-writing with tag value
+  ErrorCode write_to_coords(Range &elems, Tag tagh, Tag tmp_tag = 0);
 
     //! write the tag to the vertices, then save to the specified file
-  ErrorCode write_and_save(Range &ents, EntityHandle seth, Tag tagh, const char *filename);
+    //! if restore_coords is true, coords are restored to their initial state after file is written
+  ErrorCode write_and_save(Range &ents, EntityHandle seth, Tag tagh, const char *filename,
+                           bool restore_coords = false);
 
     //! find fluid/solid sets from complement of solid/fluid sets 
   ErrorCode find_other_sets(int m_or_s, EntityHandle file_set);
@@ -262,7 +265,7 @@ ErrorCode DeformMeshRemap::execute()
   src_elems.merge(fluidElems[MASTER]);
 
     // initialize data coupler on source elements
-  DataCoupler dc_master(mbImpl, NULL, src_elems, 0);
+  DataCoupler dc_master(mbImpl, src_elems, 0, NULL);
 
   Range tgt_verts;
   if (have_slave) {
@@ -316,6 +319,7 @@ ErrorCode DeformMeshRemap::execute()
 
     // transfer xNew to coords, for master
   if (debug) std::cout << "Transferring coords tag to vertex coordinates in master mesh..." << std::endl;
+  rval = write_to_coords(solidElems[MASTER], xNew); RR("Failed writing tag to master fluid verts.");
   rval = write_to_coords(fluidElems[MASTER], xNew); RR("Failed writing tag to master fluid verts.");
 
   if (have_slave) {
@@ -334,8 +338,8 @@ ErrorCode DeformMeshRemap::execute()
     if (pcMaster && pcMaster->size() > 1) 
       str = "PARALLEL=WRITE_PART";
 #endif
-    if (debug) std::cout << "Writing smoothed_master.vtk..." << std::endl;
-    rval = mbImpl->write_file("smoothed_master.vtk", NULL, str.c_str(), &masterSet, 1);
+    if (debug) std::cout << "Writing smoothed_master.h5m..." << std::endl;
+    rval = mbImpl->write_file("smoothed_master.h5m", NULL, str.c_str(), &masterSet, 1);
 
     if (have_slave) {
 #ifdef USE_MPI
@@ -343,8 +347,8 @@ ErrorCode DeformMeshRemap::execute()
       if (pcSlave && pcSlave->size() > 1) 
         str = "PARALLEL=WRITE_PART";
 #endif
-      if (debug) std::cout << "Writing slave_interp.vtk..." << std::endl;
-      rval = mbImpl->write_file("slave_interp.vtk", NULL, str.c_str(), &slaveSet, 1);
+      if (debug) std::cout << "Writing slave_interp.h5m..." << std::endl;
+      rval = mbImpl->write_file("slave_interp.h5m", NULL, str.c_str(), &slaveSet, 1);
     } // if have_slave
   } // if debug
 
@@ -470,20 +474,38 @@ int main(int argc, char **argv) {
   return rval;
 }
 
-ErrorCode DeformMeshRemap::write_and_save(Range &ents, EntityHandle seth, Tag tagh, const char *filename) 
+ErrorCode DeformMeshRemap::write_and_save(Range &ents, EntityHandle seth, Tag tagh, const char *filename,
+                                          bool restore_coords) 
 {
-  ErrorCode rval = write_to_coords(ents, tagh); RR("");
+  Tag tmp_tag = 0;
+  ErrorCode rval;
+  if (restore_coords)
+    rval = mbImpl->tag_get_handle("", 3, MB_TYPE_DOUBLE, tmp_tag, MB_TAG_CREAT|MB_TAG_DENSE);
+
+  rval = write_to_coords(ents, tagh, tmp_tag); RR("");
   rval = mbImpl->write_file(filename, NULL, NULL, &seth, 1); RR("");
+  if (restore_coords) {
+    rval = write_to_coords(ents, tmp_tag); RR("");
+    rval = mbImpl->tag_delete(tmp_tag);
+  }
+  
   return rval;
 }
   
-ErrorCode DeformMeshRemap::write_to_coords(Range &elems, Tag tagh) 
+ErrorCode DeformMeshRemap::write_to_coords(Range &elems, Tag tagh, Tag tmp_tag) 
 {
     // write the tag to coordinates
   Range verts;
   ErrorCode rval = mbImpl->get_adjacencies(elems, 0, false, verts, Interface::UNION);
   RR("Failed to get adj vertices.");
   std::vector<double> coords(3*verts.size());
+
+  if (tmp_tag) {
+      // save the coords to tmp_tag first
+    rval = mbImpl->get_coords(verts, &coords[0]); RR("Failed to get tmp copy of coords.");
+    rval = mbImpl->tag_set_data(tmp_tag, verts, &coords[0]); RR("Failed to save tmp copy of coords.");
+  }
+  
   rval = mbImpl->tag_get_data(tagh, verts, &coords[0]);
   RR("Failed to get tag data.");
   rval = mbImpl->set_coords(verts, &coords[0]);
@@ -503,7 +525,6 @@ void deform_func(const BoundBox &bbox, double *xold, double *xnew)
   xnew[0] = xold[0] + yfrac * delx;
   xnew[1] = xold[1] + yfrac * (1.0 + xfrac) * 0.05;
 */
-
 /* Deformation function based on fraction of bounding box dimension in each direction */
   double frac = 0.01; // taken from approximate relative deformation from LLNL Diablo of XX09 assys
   CartVect *xo = reinterpret_cast<CartVect*>(xold), *xn = reinterpret_cast<CartVect*>(xnew);
@@ -517,13 +538,13 @@ ErrorCode DeformMeshRemap::deform_master(Range &fluid_elems, Range &solid_elems,
   ErrorCode rval;
 
     // get all the vertices and coords in the solid
-  Range verts;
-  rval = mbImpl->get_adjacencies(solid_elems, 0, false, verts, Interface::UNION);
+  Range solid_verts, fluid_verts;
+  rval = mbImpl->get_adjacencies(solid_elems, 0, false, solid_verts, Interface::UNION);
   RR("Failed to get vertices.");
-  std::vector<double> coords(3*verts.size()), new_coords(3*verts.size());
-  rval = mbImpl->get_coords(verts, &coords[0]);
+  std::vector<double> coords(3*solid_verts.size()), new_coords(3*solid_verts.size());
+  rval = mbImpl->get_coords(solid_verts, &coords[0]);
   RR("Failed to get vertex coords.");
-  unsigned int num_verts = verts.size();
+  unsigned int num_verts = solid_verts.size();
 
     // get or create the tag
 
@@ -536,7 +557,7 @@ ErrorCode DeformMeshRemap::deform_master(Range &fluid_elems, Range &solid_elems,
     for (int i = 0; i < 3; i++) {
       rval = mbImpl->tag_get_handle(xDispNames[0].c_str(), 1, MB_TYPE_DOUBLE, xDisp[i]);
       RR("Failed to get xDisp tag.");
-      rval = mbImpl->tag_get_data(xDisp[i], verts, &disps[0]);
+      rval = mbImpl->tag_get_data(xDisp[i], solid_verts, &disps[0]);
       RR("Failed to get xDisp tag values.");
       for (unsigned int j = 0; j < num_verts; j++)
         new_coords[3*j+i] = coords[3*j+i] + disps[j];
@@ -547,7 +568,7 @@ ErrorCode DeformMeshRemap::deform_master(Range &fluid_elems, Range &solid_elems,
     RR("Failed to get first xDisp tag.");
     xNew = xDisp[0];
     std::vector<double> disps(3*num_verts);
-    rval = mbImpl->tag_get_data(xDisp[0], verts, &disps[0]);
+    rval = mbImpl->tag_get_data(xDisp[0], solid_verts, &disps[0]);
     for (unsigned int j = 0; j < 3*num_verts; j++)
       new_coords[j] = coords[j] + disps[j];
   }
@@ -584,18 +605,26 @@ ErrorCode DeformMeshRemap::deform_master(Range &fluid_elems, Range &solid_elems,
   }
     
     // set the new tag to those coords
-  rval = mbImpl->tag_set_data(xNew, verts, &coords[0]);
+  rval = mbImpl->tag_set_data(xNew, solid_verts, &new_coords[0]);
   RR("Failed to set tag data.");
   
     // get all the vertices and coords in the fluid, set xnew to them
-  verts.clear();
-  rval = mbImpl->get_adjacencies(fluid_elems, 0, false, verts, Interface::UNION);
+  rval = mbImpl->get_adjacencies(fluid_elems, 0, false, fluid_verts, Interface::UNION);
   RR("Failed to get vertices.");
-  coords.resize(3*verts.size());
-  rval = mbImpl->get_coords(verts, &coords[0]);
+  fluid_verts = subtract(fluid_verts, solid_verts);
+  
+  if (coords.size() < 3*fluid_verts.size()) coords.resize(3*fluid_verts.size());
+  rval = mbImpl->get_coords(fluid_verts, &coords[0]);
   RR("Failed to get vertex coords.");
-  rval = mbImpl->tag_set_data(xNew, verts, &coords[0]);
+  rval = mbImpl->tag_set_data(xNew, fluid_verts, &coords[0]);
   RR("Failed to set xnew tag on fluid verts.");
+ 
+  if (debug) {
+      // save deformed mesh coords to new file for visualizing
+    Range tmp_range(fluidElems[MASTER]);
+    tmp_range.merge(solidElems[MASTER]);
+    rval = write_and_save(tmp_range, masterSet, xNew, "deformed_master.h5m", true); RR("");
+  }
     
   return MB_SUCCESS;
 }
