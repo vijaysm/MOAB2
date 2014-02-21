@@ -17,7 +17,7 @@
  *      -# Get the coordinates of the vertices comprising that element
  *    -# Release the structured mesh interface and destroy the MOAB instance
  *
- * <b> To run: </b> ./structuredmesh [d [N] ] \n
+ * <b> To run: </b> ./StructuredMeshSimple [d [N] ] \n
  * (default values so can run w/ no user interaction)
  */
 
