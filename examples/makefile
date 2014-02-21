@@ -62,6 +62,9 @@ PushParMeshIntoMoabF90: PushParMeshIntoMoabF90.o
 DeformMeshRemap: DeformMeshRemap.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} -lmbcoupler ${MOAB_LIBS_LINK}
 
+LoadPartial: LoadPartial.o ${MOAB_LIBDIR}/libMOAB.la
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} ${MOAB_LIBS_LINK}
+
 clean:
 	rm -rf *.o *.mod ${EXAMPLES} ${PAREXAMPLES} ${EXOIIEXAMPLES} ${F90EXAMPLES}
 
