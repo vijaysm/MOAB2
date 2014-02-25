@@ -339,6 +339,13 @@ ErrorCode ScdInterface::create_box_set(const HomCoord low, const HomCoord high,
 
 Tag ScdInterface::box_periodic_tag(bool create_if_missing) 
 {
+  // Reset boxPeriodicTag in case it has been deleted (e.g. by Core::clean_up_failed_read)
+  if (boxPeriodicTag) {
+    std::string tag_name;
+    if (MB_TAG_NOT_FOUND == mbImpl->tag_get_name(boxPeriodicTag, tag_name))
+      boxPeriodicTag = NULL;
+  }
+
   if (boxPeriodicTag || !create_if_missing) return boxPeriodicTag;
 
   ErrorCode rval = mbImpl->tag_get_handle("BOX_PERIODIC", 3, MB_TYPE_INTEGER, 
@@ -349,6 +356,13 @@ Tag ScdInterface::box_periodic_tag(bool create_if_missing)
 
 Tag ScdInterface::box_dims_tag(bool create_if_missing) 
 {
+  // Reset boxDimsTag in case it has been deleted (e.g. by clean_up_failed_read)
+  if (boxDimsTag) {
+    std::string tag_name;
+    if (MB_TAG_NOT_FOUND == mbImpl->tag_get_name(boxDimsTag, tag_name))
+      boxDimsTag = NULL;
+  }
+
   if (boxDimsTag || !create_if_missing) return boxDimsTag;
 
   ErrorCode rval = mbImpl->tag_get_handle("BOX_DIMS", 6, MB_TYPE_INTEGER, 
@@ -359,6 +373,13 @@ Tag ScdInterface::box_dims_tag(bool create_if_missing)
 
 Tag ScdInterface::global_box_dims_tag(bool create_if_missing) 
 {
+  // Reset globalBoxDimsTag in case it has been deleted (e.g. by Core::clean_up_failed_read)
+  if (globalBoxDimsTag) {
+    std::string tag_name;
+    if (MB_TAG_NOT_FOUND == mbImpl->tag_get_name(globalBoxDimsTag, tag_name))
+      globalBoxDimsTag = NULL;
+  }
+
   if (globalBoxDimsTag || !create_if_missing) return globalBoxDimsTag;
 
   ErrorCode rval = mbImpl->tag_get_handle("GLOBAL_BOX_DIMS", 6, MB_TYPE_INTEGER, 
@@ -369,6 +390,13 @@ Tag ScdInterface::global_box_dims_tag(bool create_if_missing)
 
 Tag ScdInterface::part_method_tag(bool create_if_missing) 
 {
+  // Reset partMethodTag in case it has been deleted (e.g. by Core::clean_up_failed_read)
+  if (partMethodTag) {
+    std::string tag_name;
+    if (MB_TAG_NOT_FOUND == mbImpl->tag_get_name(partMethodTag, tag_name))
+      partMethodTag = NULL;
+  }
+
   if (partMethodTag || !create_if_missing) return partMethodTag;
 
   ErrorCode rval = mbImpl->tag_get_handle("PARTITION_METHOD", 1, MB_TYPE_INTEGER, 
@@ -379,6 +407,13 @@ Tag ScdInterface::part_method_tag(bool create_if_missing)
 
 Tag ScdInterface::box_set_tag(bool create_if_missing) 
 {
+  // Reset boxSetTag in case it has been deleted (e.g. by Core::clean_up_failed_read)
+  if (boxSetTag) {
+    std::string tag_name;
+    if (MB_TAG_NOT_FOUND == mbImpl->tag_get_name(boxSetTag, tag_name))
+      boxSetTag = NULL;
+  }
+
   if (boxSetTag || !create_if_missing) return boxSetTag;
 
   ErrorCode rval = mbImpl->tag_get_handle("__BOX_SET", sizeof(ScdBox*), MB_TYPE_OPAQUE,
