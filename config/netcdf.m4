@@ -85,33 +85,47 @@ if test "xno" != "x$NETCDF_ARG"; then
       NETCDF_CPPFLAGS="-I${NETCDF_ARG}"
     fi
   fi
-  
+ 
+  AC_PATH_PROG([NC_CONFIG], [nc-config], [no], [${NETCDF_ARG}/bin])
+  if test "$NC_CONFIG" != "no" ; then
+    NETCDF_CPPFLAGS="`$NC_CONFIG --cflags`"
+    NETCDF_LDFLAGS="`$NC_CONFIG --libs`"
+    NETCDF_VERSION="`$NC_CONFIG --version`"
+    AC_SUBST([NETCDF_CPPFLAGS])
+    AC_SUBST([NETCDF_LDFLAGS])
+    AC_SUBST([NETCDF_VERSION])
+  else
+    HAVE_NETCDF=no
+    AC_MSG_WARN("NetCDF configuration utility not found")
+  fi
+   
   old_CPPFLAGS="$CPPFLAGS"
   CPPFLAGS="$NETCDF_CPPFLAGS $CPPFLAGS"
   old_LDFLAGS="$LDFLAGS"
-  LDFLAGS="$NETCDF_LDFLAGS $HDF5_LDFLAGS $LDFLAGS"
+  LDFLAGS="$NETCDF_LDFLAGS $LDFLAGS"
   
    # Check for C library
   AC_LANG_PUSH([C])
   AC_CHECK_HEADERS( [netcdf.h], 
                     [FATHOM_CHECK_NETCDF_LIMITS([$1],[$2],[netcdf.h],[NETCDF_SUFFICIENT_DIM_VARS])], 
                     [AC_MSG_WARN([[NetCDF header not found.]]); HAVE_NETCDF=no] )
-  
+
       # Check if netcdf is usable by itself
+  # AC_CHECK_LIB( [netcdf], [nc_create], [NETCDF_LIBS="-lnetcdf"], [NETCDF_LIBS=${NETCDF_LDFLAGS}] )
   AC_CHECK_LIB( [netcdf], [nc_create], [NETCDF_LIBS="-lnetcdf"], [
-      # Check if netcdf is usable with HDF5
+     # Check if netcdf is usable with HDF5
     unset ac_cv_lib_netcdf
     unset ac_cv_lib_netcdf_nc_create
-      # If we haven't already looked for HDF5 libraries, again now incase
-      # they're in the NetCDF lib directory.
+    # If we haven't already looked for HDF5 libraries, again now incase
+    # they're in the NetCDF lib directory.
     FATHOM_DETECT_HDF5_LIBS
     LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"
-    AC_CHECK_LIB( [netcdf], [nc_create], [NETCDF_LIBS="-lnetcdf -lhdf5_hl"], [
+    AC_CHECK_LIB( [netcdf], [nc_create], [NETCDF_LIBS="-lnetcdf -lhdf5_hl $HDF5_LIBS"], [
       # Try one more time with HDF5 and libcurl
       unset ac_cv_lib_netcdf
       unset ac_cv_lib_netcdf_nc_create
-      AC_CHECK_LIB( [netcdf], [nc_create], [NETCDF_LIBS="-lnetcdf -lhdf5_hl -lcurl"], 
-        [HAVE_NETCDF=no], [-lhdf5_hl $HDF5_LIBS -lcurl] )],
+      AC_CHECK_LIB( [netcdf], [nc_create], [NETCDF_LIBS="-lnetcdf -lhdf5_hl -lcurl "],
+        [HAVE_NETCDF=no], [-lhdf5_hl $HDF5_LIBS -lcurl ] )],
       [-lhdf5_hl $HDF5_LIBS] )],
     )
   
