@@ -174,6 +174,8 @@ void cube_tri_curve_coincidence_test()
 void match_tri_edges_w_curve( Range tri_edges, Range curves )
 {
   int match_counter=0;
+  int num_of_tri_edges = tri_edges.size();
+  CHECK(num_of_tri_edges);
   for(Range::const_iterator i=tri_edges.begin(); i!=tri_edges.end(); i++)
     {
       for(Range::const_iterator j=curves.begin(); j!=curves.end(); j++)
@@ -185,7 +187,6 @@ void match_tri_edges_w_curve( Range tri_edges, Range curves )
     }
   //Make sure that each edge returned from triangle edges
   //has been matched to a curve
-  int num_of_tri_edges = tri_edges.size();
   CHECK_EQUAL( num_of_tri_edges, match_counter );
 } 
 
