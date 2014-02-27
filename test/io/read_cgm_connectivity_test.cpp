@@ -211,6 +211,7 @@ void cube_edge_adjacencies_test()
 
 }
 
+// Checks, for each triangle, that none of the verices are the same
 void cube_tri_vertex_test()
 {
   ErrorCode rval;

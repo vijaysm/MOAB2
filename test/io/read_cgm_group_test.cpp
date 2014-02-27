@@ -69,6 +69,10 @@ void read_file( Interface* moab, const char* input_file )
   CHECK_ERR(rval);
 }
 
+// Checks that group information is being read correctly if MOAB is 
+// being build with CGM. If MOAB is built with OCC, it makes sure
+// no erroneous group data is loaded as STEP files do not hold 
+// information about groups.
 void read_cylcube_groups_test()
 {
 
