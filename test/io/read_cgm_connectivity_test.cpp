@@ -110,6 +110,7 @@ void cube_tris_connectivity_test()
   rval = mb->get_entities_by_type( 0, MBTRI, tris );
   CHECK_ERR(rval);
 
+  int expected_num_of_adj_tris = 3;
 
   for(Range::const_iterator i = tris.begin()+1; i!=tris.end(); i++)
     {
@@ -118,14 +119,12 @@ void cube_tris_connectivity_test()
       //Use Triangle edges to get all adjacent triangles
       rval = mu.get_bridge_adjacencies( *i, 1, 2, adj_tris );
       CHECK_ERR(rval);
-      int number_of_adj_tris=adj_tris.size();      
-      CHECK_EQUAL( 3, number_of_adj_tris );
+      CHECK_EQUAL( expected_num_of_adj_tris, (int)adj_tris.size() );
       
       //Check that the entities we found from bridge_adjacencies
       //are triangles
       Range adj_tri_test = adj_tris.subset_by_type( MBTRI );
-      int number_tris_in_adj_tris = adj_tri_test.size();
-      CHECK_EQUAL( number_of_adj_tris, number_tris_in_adj_tris );
+      CHECK_EQUAL( (int)adj_tris.size(), (int) adj_tri_test.size() );
     
     }
 
