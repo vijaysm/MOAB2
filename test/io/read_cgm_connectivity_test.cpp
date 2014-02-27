@@ -97,6 +97,8 @@ void cube_verts_connectivity_test()
     
 }
 
+// Check that each triangle in the mesh is adjacent to
+// exactly three other triangles
 void cube_tris_connectivity_test()
 {
   ErrorCode rval;
@@ -130,6 +132,9 @@ void cube_tris_connectivity_test()
 
 }
 
+
+// Takes triangle edges and makes sure they match the EntityHandles of 
+// curves in the case of a cube mesh
 void cube_tri_curve_coincidence_test()
 {
 
