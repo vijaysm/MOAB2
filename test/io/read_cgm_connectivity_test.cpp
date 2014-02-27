@@ -84,7 +84,7 @@ void cube_verts_connectivity_test()
   rval = mb->get_entities_by_type( 0, MBVERTEX, verts );
   CHECK_ERR(rval);
 
-  //Check that each vertex connects to less than 4 triangles and no more than 6
+  //Check that each vertex connects to at least 4 and no more than 6 triangles
   for(Range::const_iterator i = verts.begin(); i!=verts.end(); i++)
     {
       std::vector<EntityHandle> adj_tris;
