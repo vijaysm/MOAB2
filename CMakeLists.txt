@@ -3,9 +3,6 @@ cmake_policy( SET CMP0003 NEW )
 cmake_policy(SET CMP0020 NEW)
 project( MOAB )
 
-# Always build tests
-#enable_testing()
-
 #Add our Cmake directory to the module search path
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/config ${CMAKE_MODULE_PATH})
 
