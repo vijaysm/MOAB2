@@ -20,9 +20,17 @@ using namespace moab;
 
 
 #ifdef MESHDIR
-static const char input_cylcube[] = STRINGIFY(MESHDIR) "/io/cylcube.sat";
+#ifdef HAVE_OCC_STEP
+static const char input_cylcube[] = STRINGIFY(MESHDIR) "/io/cylcube.stp";
 #else
-static const char input_cylcube[] = "/io/cylcube.sat";
+static const char input_cylcube[] = STRINGIFY(MESHDIR) "/io/cylcube.sat";
+#endif
+#else
+#ifdef HAVE_OCC_STEP
+static const char input_cylcube[] = "cylcube.stp";
+#else
+static const char input_cylcube[] = "cylcube.sat";
+#endif
 #endif
 
 // Function used to load the test file
@@ -61,6 +69,10 @@ void read_file( Interface* moab, const char* input_file )
   CHECK_ERR(rval);
 }
 
+// Checks that group information is being read correctly if MOAB is 
+// being build with CGM. If MOAB is built with OCC, it makes sure
+// no erroneous group data is loaded as STEP files do not hold 
+// information about groups.
 void read_cylcube_groups_test()
 {
 
@@ -84,7 +96,7 @@ void read_cylcube_groups_test()
 
   //Get the group entity handles
   Range group_sets;
-  char query[] = "Group\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";   
+  char query[CATEGORY_TAG_SIZE] = "Group\0";   
   //Has to be this way because of the way tags are created
   void* val[] = {&query};
   rval = mb->get_entities_by_type_and_tag( 0, MBENTITYSET, &category_tag, val, 1, group_sets);
@@ -93,7 +105,7 @@ void read_cylcube_groups_test()
   std::vector<int> g_ids;
   std::vector<std::string> g_names;
   std::vector<int> g_ent_ids;
-  int j = 0;
+
   for(Range::iterator i=group_sets.begin(); i!=group_sets.end(); i++)
     {
       int group_id = geom_id_by_handle( mb, *i );
@@ -120,6 +132,17 @@ void read_cylcube_groups_test()
 
 void check_group_data(std::vector<int> group_ids, std::vector<std::string> group_names, std::vector<int> group_ent_ids )
 {
+
+  // Step files do not contain group data, MOAB shouldn't return errors when trying to access
+  // this data but there shouldn't be any found.
+#ifdef HAVE_OCC_STEP
+  int num_g_ids = group_ids.size();
+  int num_g_names = group_names.size();
+
+  CHECK_EQUAL( 0, num_g_ids );
+  CHECK_EQUAL( 0, num_g_names );
+#else
+
 
   //Initialize reference data
   std::vector<int> group_ref_ids;
@@ -157,6 +180,7 @@ void check_group_data(std::vector<int> group_ids, std::vector<std::string> group
   CHECK_EQUAL( 0, leftovers );
   leftovers = group_ref_ent_ids.size();
   CHECK_EQUAL( 0, leftovers );
+#endif
 }
 
 void load_group_references( std::vector<int>& ids, std::vector<std::string>& names, std::vector<int>& ent_ids )
@@ -174,7 +198,7 @@ int geom_id_by_handle( Interface* moab, const EntityHandle set )
     //Get the id_tag handle
     Tag id_tag;
     rval = moab->tag_get_handle( GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, id_tag, moab::MB_TAG_DENSE );
-    assert( MB_SUCCESS==result || MB_ALREADY_ALLOCATED==result ); 
+    CHECK_ERR(rval);
     //Load the ID for the EntHandle given to the function                  
     int id;
     rval = moab->tag_get_data( id_tag, &set, 1, &id );                  

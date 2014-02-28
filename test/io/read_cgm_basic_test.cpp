@@ -187,22 +187,17 @@ void read_cube_vertex_pos_test()
   Interface* mb = &moab;
   read_file( mb, input_cube );
 
-  //First check that the correct number of vertices are present
-  int number_of_verts;
-  rval = mb->get_number_entities_by_type( 0, MBVERTEX, number_of_verts );
-  CHECK_ERR(rval);
-
-  CHECK_EQUAL( 8, number_of_verts );
-
   //Retrieve all vertex handles from the mesh
   Range verts;
   rval = mb->get_entities_by_type( 0, MBVERTEX, verts );
   CHECK_ERR( rval );
 
+  int number_of_verts = verts.size();
+  CHECK_EQUAL( 8, number_of_verts );
   //Get the vertex coordinates
-  double x[verts.size()];
-  double y[verts.size()];
-  double z[verts.size()];
+  double x[8];
+  double y[8];
+  double z[8];
   rval = mb-> get_coords( verts, &x[0], &y[0], &z[0] );
   CHECK_ERR(rval);
 
@@ -323,4 +318,5 @@ void delete_mesh_test()
  }
 
 }
+ 
 */

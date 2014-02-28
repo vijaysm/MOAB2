@@ -20,10 +20,19 @@ using namespace moab;
 
 
 #ifdef MESHDIR
-static const char input_cube[] = STRINGIFY(MESHDIR) "/io/cube.sat";
+#ifdef HAVE_OCC_STEP
+static const char input_cube[] = STRINGIFY(MESHDIR) "/io/cube.stp";
 #else
-static const char input_cube[] = "/io/cube.sat";
+static const char input_cube[] = STRINGIFY(MESHDIR) "/io/cube.sat";
 #endif
+#else
+#ifdef HAVE_OCC_STEP
+static const char input_cube[] = "cube.stp";
+#else
+static const char input_cube[] = "cube.sat";
+#endif
+#endif
+
 
 // Function used to load the test file
 void read_file( Interface* moab, const char* input_file );
@@ -36,7 +45,7 @@ void cube_edge_adjacencies_test();
 void cube_tri_vertex_test();
 
 //Other functions
-ErrorCode match_tri_edges_w_curve( Interface* moab, Range tri_edges, Range curves );
+void match_tri_edges_w_curve( Range tri_edges, Range curves );
 
 int main(int /* argc */, char** /* argv */)
 {
@@ -44,7 +53,6 @@ int main(int /* argc */, char** /* argv */)
  
   result += RUN_TEST(cube_verts_connectivity_test);
   result += RUN_TEST(cube_tris_connectivity_test);
-  result += RUN_TEST(cube_tri_curve_coincidence_test);
   result += RUN_TEST(cube_tri_curve_coincidence_test);
   result += RUN_TEST(cube_tri_vertex_test);
  
@@ -76,7 +84,7 @@ void cube_verts_connectivity_test()
   rval = mb->get_entities_by_type( 0, MBVERTEX, verts );
   CHECK_ERR(rval);
 
-  //Check that each vertex connects to less than 4 triangles and no more than 6
+  //Check that each vertex connects to at least 4 and no more than 6 triangles
   for(Range::const_iterator i = verts.begin(); i!=verts.end(); i++)
     {
       std::vector<EntityHandle> adj_tris;
@@ -89,6 +97,8 @@ void cube_verts_connectivity_test()
     
 }
 
+// Check that each triangle in the mesh is adjacent to
+// exactly three other triangles
 void cube_tris_connectivity_test()
 {
   ErrorCode rval;
@@ -102,6 +112,7 @@ void cube_tris_connectivity_test()
   rval = mb->get_entities_by_type( 0, MBTRI, tris );
   CHECK_ERR(rval);
 
+  int expected_num_of_adj_tris = 3;
 
   for(Range::const_iterator i = tris.begin()+1; i!=tris.end(); i++)
     {
@@ -110,19 +121,20 @@ void cube_tris_connectivity_test()
       //Use Triangle edges to get all adjacent triangles
       rval = mu.get_bridge_adjacencies( *i, 1, 2, adj_tris );
       CHECK_ERR(rval);
-      int number_of_adj_tris=adj_tris.size();      
-      CHECK_EQUAL( 3, number_of_adj_tris );
+      CHECK_EQUAL( expected_num_of_adj_tris, (int)adj_tris.size() );
       
       //Check that the entities we found from bridge_adjacencies
       //are triangles
       Range adj_tri_test = adj_tris.subset_by_type( MBTRI );
-      int number_tris_in_adj_tris = adj_tri_test.size();
-      CHECK_EQUAL( number_of_adj_tris, number_tris_in_adj_tris );
+      CHECK_EQUAL( (int)adj_tris.size(), (int) adj_tri_test.size() );
     
     }
 
 }
 
+
+// Takes triangle edges and makes sure they match the EntityHandles of 
+// curves in the case of a cube mesh
 void cube_tri_curve_coincidence_test()
 {
 
@@ -136,6 +148,7 @@ void cube_tri_curve_coincidence_test()
   Range curves;
   rval = mb->get_entities_by_type( 0, MBEDGE, curves );
   CHECK_ERR(rval);
+  curves.print();
 
   //Get triangles from the mesh
   Range tris;
@@ -153,15 +166,16 @@ void cube_tri_curve_coincidence_test()
       //edges
       int num_of_tri_edges = tri_edges.size();
       CHECK_EQUAL( 2, num_of_tri_edges );
-      rval = match_tri_edges_w_curve( mb, tri_edges, curves );
+      match_tri_edges_w_curve( tri_edges, curves );
       CHECK_ERR(rval);
       }
 }
 
-ErrorCode match_tri_edges_w_curve( Interface* moab, Range tri_edges, Range curves )
+void match_tri_edges_w_curve( Range tri_edges, Range curves )
 {
-  ErrorCode rval;
   int match_counter=0;
+  int num_of_tri_edges = tri_edges.size();
+  CHECK(num_of_tri_edges);
   for(Range::const_iterator i=tri_edges.begin(); i!=tri_edges.end(); i++)
     {
       for(Range::const_iterator j=curves.begin(); j!=curves.end(); j++)
@@ -173,9 +187,7 @@ ErrorCode match_tri_edges_w_curve( Interface* moab, Range tri_edges, Range curve
     }
   //Make sure that each edge returned from triangle edges
   //has been matched to a curve
-  int num_of_tri_edges = tri_edges.size();
   CHECK_EQUAL( num_of_tri_edges, match_counter );
-  return MB_SUCCESS;
 } 
 
 void cube_edge_adjacencies_test()
@@ -205,6 +217,7 @@ void cube_edge_adjacencies_test()
 
 }
 
+// Checks, for each triangle, that none of the verices are the same
 void cube_tri_vertex_test()
 {
   ErrorCode rval;

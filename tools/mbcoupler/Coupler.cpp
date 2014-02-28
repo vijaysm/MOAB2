@@ -113,11 +113,22 @@ ErrorCode Coupler::initialize_tree()
   box.bMax.get(&allBoxes[6*my_rank+3]);
   
     // now communicate to get all boxes
-    // use "in place" option
   if (myPc) {
-    int mpi_err = MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
+    int mpi_err;
+#if (MPI_VERSION >= 2)
+      // use "in place" option
+    mpi_err = MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
                                 &allBoxes[0], 6, MPI_DOUBLE, 
                                 myPc->proc_config().proc_comm());
+#else
+    {
+      std::vector<double> allBoxes_tmp(6*myPc->proc_config().proc_size());
+      mpi_err = MPI_Allgather( &allBoxes[6*my_rank], 6, MPI_DOUBLE,
+                                   &allBoxes_tmp[0], 6, MPI_DOUBLE, 
+                                   myPc->proc_config().proc_comm());
+      allBoxes = allBoxes_tmp;
+    }
+#endif
     if (MPI_SUCCESS != mpi_err) return MB_FAILURE;
   }
 
