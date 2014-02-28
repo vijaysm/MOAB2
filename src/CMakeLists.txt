@@ -22,6 +22,7 @@ string( REGEX REPLACE "#undef" "#cmakedefine" outstring2 "${infile2}" )
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/moab/EntityHandle.hpp.in" "${outstring2}")
 configure_file(${CMAKE_CURRENT_BINARY_DIR}/moab/EntityHandle.hpp.in ${CMAKE_CURRENT_BINARY_DIR}/moab/EntityHandle.hpp)
 
+
 #generate the Version.h file
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/moab/Version.h.cmake.in "${CMAKE_CURRENT_BINARY_DIR}/moab/Version.h" @ONLY)
 
@@ -39,7 +40,6 @@ ADD_CUSTOM_COMMAND(
           -Dprefix:STRING=MBCN
           -P ${CMAKE_SOURCE_DIR}/config/ITAPSFortranMangling.cmake
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/MBCN.h )
-
 
 set(MOAB_LIB_SOURCES
         AdaptiveKDTree.cpp
@@ -106,6 +106,7 @@ set(MOAB_LIB_SOURCES
         SysUtil.hpp               SysUtil.cpp
         TagCompare.hpp
         TagInfo.hpp               TagInfo.cpp
+        TupleList.cpp
         Tree.cpp
         Types.cpp
         TypeSequenceManager.hpp   TypeSequenceManager.cpp
@@ -134,7 +135,6 @@ set( MOAB_INSTALL_HEADERS
         moab/GeomTopoTool.hpp
         moab/HigherOrderFactory.hpp
         moab/HomXform.hpp
-        moab/EigenDecomp.hpp
         moab/EntityType.hpp
         ${CMAKE_CURRENT_BINARY_DIR}/moab/EntityHandle.hpp
         moab/FBEngine.hpp

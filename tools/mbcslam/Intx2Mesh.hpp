@@ -34,7 +34,6 @@ namespace moab {
 
 // forward declarations
 class ParallelComm;
-class AdaptiveKDTree;
 class TupleList;
 
 class Intx2Mesh
@@ -68,27 +67,17 @@ public:
   ErrorCode GetOrderedNeighbors(EntityHandle set, EntityHandle quad,
       EntityHandle neighbors[MAXEDGES]);
 
-  void SetErrorTolerance(double eps) { epsilon_1=eps;}
+  void SetErrorTolerance(double eps) { epsilon_1=eps; epsilon_area = eps*eps/2;}
 
   //void SetEntityType (EntityType tp) { type=tp;}
 
   // clean some memory allocated
   void clean();
 
-  ErrorCode initialize_local_kdtree(EntityHandle euler_set);
-
-  // this will work in parallel
-  ErrorCode locate_departure_points(EntityHandle euler_set); // get the points and elements from the local set
-  ErrorCode locate_departure_points(Range & local_verts);
-  ErrorCode test_local_box(double *xyz, int from_proc, int remote_index, TupleList *tl);
-  ErrorCode inside_entities(double xyz[3], std::vector<EntityHandle> &entities);
-
   // this will depend on the problem and element type; return true if on the border edge too
   virtual bool is_inside_element(double xyz[3], EntityHandle eh) = 0;
   void set_box_error(double berror)
    {box_error = berror;}
-
-  ErrorCode create_departure_mesh(EntityHandle & covering_lagr_set);
 
   ErrorCode create_departure_mesh_2nd_alg(EntityHandle & euler_set, EntityHandle & covering_lagr_set);
 
@@ -107,7 +96,8 @@ public:
 
   ErrorCode correct_intersection_points_positions();
 
-  void enable_debug() {dbg_1=1;};
+  void enable_debug()  {dbg_1 = 1;}
+  void disable_debug() {dbg_1 = 0;}
 protected: // so it can be accessed in derived classes, InPlane and OnSphere
   Interface * mb;
 
@@ -149,10 +139,10 @@ protected: // so it can be accessed in derived classes, InPlane and OnSphere
   std::vector<std::vector<EntityHandle> *> extraNodesVec;
 
   double epsilon_1;
+  double epsilon_area;
 
   ParallelComm * parcomm;
 
-  AdaptiveKDTree *myTree;
   std::vector<double> allBoxes;
   double box_error;
   /* \brief Local root of the kdtree */

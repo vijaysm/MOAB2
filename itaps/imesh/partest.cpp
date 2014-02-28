@@ -1,4 +1,4 @@
-#include <iostream>
+
 #include <stdio.h>
 #include <string.h>
 #include "moab_mpi.h"
@@ -7,6 +7,8 @@
 
 #define IMESH_ASSERT(ierr) if (ierr!=0) printf("imesh assert\n");
 #define IMESH_NULL 0
+#define STRINGIFY_(X) #X
+#define STRINGIFY(X) STRINGIFY_(X)
 
 int main(int argc, char* argv[]){
   MPI_Init(&argc, &argv);
@@ -26,8 +28,11 @@ int main(int argc, char* argv[]){
   iMeshP_createPartitionAll(imesh, MPI_COMM_WORLD, &partn, &ierr);
   IMESH_ASSERT(ierr);
 
-  const char options[] = ";PARTITION=MATERIAL_SET";
-  const char filename[] = "64bricks_1mhex.h5m";
+  const char options[] = " moab:PARALLEL=READ_PART "
+                         " moab:PARTITION=PARALLEL_PARTITION "
+                         " moab:PARALLEL_RESOLVE_SHARED_ENTS "
+                         " moab:PARTITION_DISTRIBUTE ";
+  const char * filename = STRINGIFY(MESHDIR) "/64bricks_1khex.h5m";;
 
   iMeshP_loadAll(imesh,
               partn,

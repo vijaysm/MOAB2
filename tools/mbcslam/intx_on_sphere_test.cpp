@@ -69,10 +69,12 @@ int main(int argc, char* argv[])
     return 1;
 
   Intx2MeshOnSphere  worker(mb);
-  double radius= 6. * sqrt(3.) / 2; // input
-  worker.SetErrorTolerance(radius*1.e-8);
+
+  worker.SetErrorTolerance(R*1.e-8);
   //worker.SetEntityType(moab::MBQUAD);
-  worker.SetRadius(radius);
+  worker.SetRadius(R);
+  //worker.enable_debug();
+
   rval = worker.intersect_meshes(sf1, sf2, outputSet);
   //compute total area with 2 methods
 
@@ -81,11 +83,15 @@ int main(int argc, char* argv[])
   rval = mb->write_mesh(newFile, &outputSet, 1);
   if (MB_SUCCESS != rval)
     return 1;
-  double area_method1 = area_on_sphere_lHuiller(mb, outputSet, radius);
-  double area_method2 = area_on_sphere(mb, outputSet, radius);
+  double initial_area = area_on_sphere_lHuiller(mb, sf1, R);
+  double area_method1 = area_on_sphere_lHuiller(mb, outputSet, R);
+  double area_method2 = area_on_sphere(mb, outputSet, R);
 
+  std::cout << "initial area: " << initial_area << "\n";
   std::cout<< " area with l'Huiller: " << area_method1 << " with Girard: " << area_method2<< "\n";
-  std::cout << " relative difference: " << fabs(area_method1-area_method2)/area_method1 << "\n";
+  std::cout << " relative difference areas " << fabs(area_method1-area_method2)/area_method1 << "\n";
+  std::cout << " relative error " << fabs(area_method1-initial_area)/area_method1 << "\n";
+
   return 0;
 
 }

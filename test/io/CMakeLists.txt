@@ -20,10 +20,6 @@ if(MOAB_USE_CCMIO)
   set( TESTS ${TESTS} ccmio_test.cpp )
 endif()
 
-if( MOAB_USE_CGM )
-  set( TESTS ${TESTS} read_cgm_test.cpp )
-endif()
-
 if( MOAB_USE_CGNS )
   set( TESTS ${TESTS} cgns_test.cpp )
 endif()

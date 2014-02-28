@@ -4,61 +4,73 @@ include ${MOAB_DIR}/lib/iMesh-Defs.inc
 
 .SUFFIXES: .o .cpp .F90
 
-# MESH_DIR is the top-level MOAB source directory, used to locate mesh files that come with MOAB source
+# MESH_DIR is the directory containing mesh files that come with MOAB source
 MESH_DIR="../MeshFiles/unittest"
 
-EXAMPLES = HelloMOAB GetEntities SetsNTags StructuredMeshSimple DirectAccessWithHoles DirectAccessNoHoles 
-PAREXAMPLES = HelloParMOAB ReduceExchangeTags LloydRelaxation
-F90EXAMPLES = DirectAccessNoHolesF90 PushParMeshIntoMoabF90
+EXAMPLES = HelloMOAB GetEntities SetsNTags LoadPartial structuredmesh StructuredMeshSimple DirectAccessWithHoles DirectAccessNoHoles point_in_elem_search DeformMeshRemap
+PAREXAMPLES = HelloParMOAB ReduceExchangeTags LloydRelaxation CrystalRouterExample
 EXOIIEXAMPLES = TestExodusII
+F90EXAMPLES = DirectAccessNoHolesF90 PushParMeshIntoMoabF90
 
-default: ${EXAMPLES}
+default: ${EXAMPLES} ${PAREXAMPLES} ${EXOIIEXAMPLES} ${F90EXAMPLES}
 
-HelloMOAB : HelloMOAB.o
+HelloMOAB: HelloMOAB.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
-GetEntities: GetEntities.o
+GetEntities: GetEntities.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
-SetsNTags: SetsNTags.o
+SetsNTags: SetsNTags.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
-LloydRelaxation: LloydRelaxation.o
+LloydRelaxation: LloydRelaxation.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
-StructuredMeshSimple : StructuredMeshSimple.o
-	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} 
+LoadPartial: LoadPartial.o ${MOAB_LIBDIR}/libMOAB.la
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} ${MOAB_LIBS_LINK}
 
-DirectAccessWithHoles: DirectAccessWithHoles.o
+structuredmesh: structuredmesh.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
-DirectAccessNoHoles: DirectAccessNoHoles.o
+StructuredMeshSimple: StructuredMeshSimple.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
-DirectAccessNoHolesF90: DirectAccessNoHolesF90.o
-	${MOAB_CXX} -o $@ $< ${IMESH_LIBS}
-
-ReduceExchangeTags : ReduceExchangeTags.o
+DirectAccessWithHoles: DirectAccessWithHoles.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
-HelloParMOAB: HelloParMOAB.o
-	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} 
-
-TestExodusII: TestExodusII.o
+DirectAccessNoHoles: DirectAccessNoHoles.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
-point_in_elem_search: point_in_elem_search.o
+DirectAccessNoHolesF90: DirectAccessNoHolesF90.o ${MOAB_LIBDIR}/libMOAB.la
+	${MOAB_FC} -o $@ $< ${IMESH_LIBS}
+
+ReduceExchangeTags: ReduceExchangeTags.o ${MOAB_LIBDIR}/libMOAB.la
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+HelloParMOAB: HelloParMOAB.o ${MOAB_LIBDIR}/libMOAB.la
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+CrystalRouterExample: CrystalRouterExample.o ${MOAB_LIBDIR}/libMOAB.la
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+TestExodusII: TestExodusII.o ${MOAB_LIBDIR}/libMOAB.la
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+point_in_elem_search: point_in_elem_search.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
 PushParMeshIntoMoabF90: PushParMeshIntoMoabF90.o
-	${MOAB_CXX} -o $@ $< ${IMESH_LIBS} -lgfortran -L/usr/lib/openmpi/lib -lmpi_f90 -lmpi_f77 -lmpi -lopen-rte -lopen-pal -ldl 
+	${MOAB_FC} -o $@ $< ${IMESH_LIBS}
+
+DeformMeshRemap: DeformMeshRemap.o ${MOAB_LIBDIR}/libMOAB.la
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} -lmbcoupler ${MOAB_LIBS_LINK}
 
 clean:
-	rm -rf *.o ${EXAMPLES} ${PAREXAMPLES} ${EXOIIEXAMPLES}
+	rm -rf *.o *.mod *.h5m ${EXAMPLES} ${PAREXAMPLES} ${EXOIIEXAMPLES} ${F90EXAMPLES}
 
-.cpp.o :
-	${MOAB_CXX} ${CXXFLAGS} ${MOAB_CXXFLAGS} ${MOAB_INCLUDES} -DMESH_DIR=\"${MESH_DIR}\" -c $<
+.cpp.o:
+	${MOAB_CXX} ${CXXFLAGS} ${MOAB_CXXFLAGS} ${MOAB_CPPFLAGS} ${MOAB_INCLUDES} -DMESH_DIR=\"${MESH_DIR}\" -c $<
 
-.F90.o :
-	${IMESH_FC} ${FCFLAGS} ${IMESH_FCFLAGS} ${IMESH_INCLUDES} ${IMESH_FCDEFS} -DMESH_DIR=\"${MESH_DIR}\" -c $<
+.F90.o:
+	${IMESH_FC} ${FCFLAGS} ${IMESH_FCFLAGS} ${MOAB_CPPFLAGS} ${IMESH_INCLUDES} ${IMESH_FCDEFS} -DMESH_DIR=\"${MESH_DIR}\" -c $<
 

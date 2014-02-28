@@ -3,7 +3,6 @@
 option ( MOAB_BUILD_MBCONVERT    "Build the MOAB mesh converter tool?"  ON )
 option ( MOAB_BUILD_HEXMODOPS    "Build the hexahedral modops tool?"    ON )
 option ( MOAB_BUILD_MBCHACO      "Build MOAB Chaco interface?"          OFF )
-option ( MOAB_BUILD_MBPERF       "Build the MOAB performance tool?"     ON )
 option ( MOAB_BUILD_QVDUAL       "Build the qvdual application?"        OFF )
 option ( MOAB_BUILD_MBSIZE       "Build the mbsize tool?"               ON )
 option ( MOAB_BUILD_MBMEM        "Build the mbmem tool?"                ON )
@@ -11,7 +10,6 @@ option ( MOAB_BUILD_MBSKIN       "Build the mbskin tool?"               ON )
 option ( MOAB_BUILD_MBDEPTH      "Build the mbdepth tool?"              ON )
 option ( MOAB_BUILD_MBTAGPROP    "Build the mbtagprop tool?"            ON )
 option ( MOAB_BUILD_MBGSETS      "Build the mbgsets tool?"              ON )
-option ( MOAB_BUILD_MBCONVERT    "Build the mbconvert tool?"            ON )
 option ( MOAB_BUILD_SPHEREDECOMP "Build the sphere decomposition tool?" ON )
 option ( MOAB_BUILD_MBSURFPLOT   "Build the mbsurfplot application?"    ON )
 option ( MOAB_BUILD_MBZOLTAN     "Build the mbzoltan partitioner?"      OFF )
@@ -23,9 +21,9 @@ if ( MOAB_USE_MPI AND MPI_FOUND )
 endif ( )
 
 include_directories(
-  #${CMAKE_BINARY_DIR}
+  ${CMAKE_BINARY_DIR}
   ${CMAKE_BINARY_DIR}/src
-  #${CMAKE_BINARY_DIR}/src/parallel
+  ${CMAKE_BINARY_DIR}/src/parallel
   ${CMAKE_SOURCE_DIR}/src
   ${CMAKE_SOURCE_DIR}/src/parallel
   ${CMAKE_CURRENT_SOURCE_DIR}
@@ -140,15 +138,4 @@ if( MOAB_BUILD_HEXMODOPS )
   install(TARGETS hexmodops RUNTIME DESTINATION bin
                             LIBRARY DESTINATION lib
                             ARCHIVE DESTINATION lib )
-endif()
-
-#spheredecomp
-if( MOAB_BUILD_SPHEREDECOMP )
-  add_executable( spheredecomp SphereDecomp.hpp 
-                               SphereDecomp.cpp 
-                               sphere_decomp.cpp )
-  target_link_libraries( spheredecomp MOAB )
-  install(TARGETS spheredecomp RUNTIME DESTINATION bin
-                               LIBRARY DESTINATION lib
-                               ARCHIVE DESTINATION lib )
 endif()

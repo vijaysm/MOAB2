@@ -18,7 +18,7 @@
 
 namespace moab {
 
-Intx2Mesh::Intx2Mesh(Interface * mbimpl):mb(mbimpl), parcomm(NULL), myTree(NULL), remote_cells(NULL)
+Intx2Mesh::Intx2Mesh(Interface * mbimpl): mb(mbimpl), parcomm(NULL), remote_cells(NULL)
 {
   dbg_1=0;
   box_error=0;
@@ -33,6 +33,11 @@ Intx2Mesh::Intx2Mesh(Interface * mbimpl):mb(mbimpl), parcomm(NULL), myTree(NULL)
 Intx2Mesh::~Intx2Mesh()
 {
   // TODO Auto-generated destructor stub
+  if (remote_cells)
+  {
+    delete remote_cells;
+    remote_cells=NULL;
+  }
 }
 void Intx2Mesh::createTags()
 {
@@ -110,7 +115,10 @@ ErrorCode Intx2Mesh::GetOrderedNeighbors(EntityHandle set, EntityHandle cell,
   // first cell is for nodes 0, 1, second to 1, 2, third to 2, 3, last to nnodes-1,
   const EntityHandle * conn4;
   ErrorCode rval = mb->get_connectivity(cell, conn4, nnodes);
-  int nsides = nnodes; // just keep it for historical purposes; it is indeed nnodes
+  int nsides = nnodes;
+  // account for possible padded polygons
+  while (conn4[nsides-2]==conn4[nsides-1] && nsides>3)
+    nsides--;
   ERRORR(rval, "can't get connectivity on an element");
   for (int i = 0; i < nsides; i++)
   {
@@ -430,647 +438,7 @@ void Intx2Mesh::clean()
   localEnts.clear();*/
 
 }
-ErrorCode Intx2Mesh::initialize_local_kdtree(EntityHandle euler_set)
-{
-  if (myTree)
-    return MB_SUCCESS;
-  // get the DP tag, and values for each node in the euler set
-    // get forst all entities in the set
-  parcomm = ParallelComm::get_pcomm(mb, 0);
-  if (NULL==parcomm)
-    return MB_FAILURE;
 
-  Range local_ents;
-  ErrorCode rval = mb->get_entities_by_dimension(euler_set, 2, local_ents);
-  ERRORR(rval, "can't get ents by dimension");
-
-    //get entities on the local part
-  ErrorCode result = MB_SUCCESS;
-
-      // build the tree for local processor
-  int numIts = 3;
-  int max_per_leaf = 6;
-  for (int i = 0; i < numIts; i++) {
-    std::ostringstream ostr;
-    ostr << "CANDIDATE_PLANE_SET=SUBDIVISION;MAX_PER_LEAF=" << max_per_leaf;
-    FileOptions opts(ostr.str().c_str());
-    myTree = new AdaptiveKDTree(mb);
-    result = myTree->build_tree(local_ents, &localRoot, &opts);
-    if (MB_SUCCESS != result) {
-      std::cout << "Problems building tree";
-      if (numIts != i) {
-        delete myTree;
-        max_per_leaf *= 2;
-        std::cout << "; increasing elements/leaf to "
-                  << max_per_leaf << std::endl;;
-      }
-      else {
-        std::cout << "; exiting" << std::endl;
-        return result;
-      }
-    }
-    else
-      break; // get out of tree building
-  }
-
-    // get the bounding box for local tree
-  if (parcomm)
-    allBoxes.resize(6*parcomm->proc_config().proc_size());
-  else allBoxes.resize(6);
-  my_rank = (parcomm ? parcomm->proc_config().proc_rank() : 0);
-  BoundBox box;
-  result = myTree->get_bounding_box(box);
-  if (MB_SUCCESS != result) return result;
-  box.bMin.get(&allBoxes[6*my_rank]);
-  box.bMax.get(&allBoxes[6*my_rank+3]);
-
-    // now communicate to get all boxes
-    // use "in place" option
-  if (parcomm) {
-    int mpi_err = MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
-                                &allBoxes[0], 6, MPI_DOUBLE,
-                                parcomm->proc_config().proc_comm());
-    if (MPI_SUCCESS != mpi_err) return MB_FAILURE;
-  }
-
-
-  #ifndef NDEBUG
-    double min[3] = {0,0,0}, max[3] = {0,0,0};
-    unsigned int dep;
-    myTree->get_info(localRoot, min, max, dep);
-    std::cout << "Proc " << my_rank << ": box min/max, tree depth = ("
-              << min[0] << "," << min[1] << "," << min[2] << "), ("
-              << max[0] << "," << max[1] << "," << max[2] << "), "
-              << dep << std::endl;
-  #endif
-
-  return MB_SUCCESS;
-}
-// this will work in parallel only
-ErrorCode Intx2Mesh::locate_departure_points(EntityHandle euler_set)
-{
-  // get the par comm ...
-  // create local search tree if not created yet
-  ErrorCode  rval = initialize_local_kdtree(euler_set);
-  if (MB_SUCCESS!=rval)
-    return rval;
-  // get the DP tag, and values for each node in the euler set
-  // get first all entities in the set
-  localEnts.clear(); // just to make sure :)
-  rval = mb->get_entities_by_dimension(euler_set, 2, localEnts);
-  ERRORR(rval, "can't get ents by dimension");
-
-  // get all the owned nodes on this euler set
-  Range local_verts;
-  rval = mb->get_connectivity(localEnts, local_verts);
-  Range all_local_verts=local_verts;
-  if (parcomm)
-  {
-    // get only those that are owned by this proc
-    rval = parcomm->filter_pstatus(local_verts, PSTATUS_NOT_OWNED, PSTATUS_NOT);
-    ERRORR(rval, "can't filter verts");
-    rval = parcomm->filter_pstatus(localEnts, PSTATUS_NOT_OWNED, PSTATUS_NOT);
-    ERRORR(rval, "can't filter elements");
-    // just in case we do not have global ids for vertices and elements :)
-    rval = parcomm->check_global_ids(euler_set, 2);
-    ERRORR(rval, "can't get global ids for elements and vertices");
-  }
-
-  rval = locate_departure_points(local_verts);
-  ERRORR(rval, "can't locate departure points");
-  // experience the exchange tags;
-  // the LOC tag should be set on the owned nodes only, but try to
-  if(parcomm)
-  {
-    Tag loctag;
-    rval = mb->tag_get_handle("LOC", 2, MB_TYPE_INTEGER, loctag, MB_TAG_DENSE);
-    ERRORR(rval, "can't get LOC tag");
-    std::vector<Tag> tags;
-    tags.push_back(loctag);
-
-    rval = parcomm->exchange_tags(tags, tags, all_local_verts);
-    ERRORR(rval, "can't exchange tags");
-    /*for (Range::iterator it=all_local_verts.begin(); it!=all_local_verts.end(); it++)
-    {
-      int loc[2];
-      EntityHandle vert=*it;
-      rval = mb->tag_get_data(loctag, &vert, 1, loc);
-      if (rval==MB_SUCCESS)
-      {
-        std::cout<< " after: vertex: "<< vert << " loc: "<< loc[0] << " " << loc[1]<< " \n";
-      }
-    }*/
-  }
-  return MB_SUCCESS;
-}
-// store
-ErrorCode Intx2Mesh::locate_departure_points(Range & local_verts)
-{
-  // get the DP tag , and get the departure points
-  Tag tagh = 0;
-  std::string tag_name("DP");
-  ErrorCode rval = mb->tag_get_handle(tag_name.c_str(), 3, MB_TYPE_DOUBLE, tagh, MB_TAG_DENSE);
-  ERRORR(rval, "can't get DP tag");
-  int num_owned_verts = (int)local_verts.size();
-
-  std::vector<double> dep_points(3*num_owned_verts);
-  rval = mb->tag_get_data(tagh, local_verts, (void*)&dep_points[0]);
-  ERRORR(rval, "can't get DP tag values");
-
-  // create LOC tag
-  std::string loc_tag("LOC");
-  Tag tag_loc = 0;
-  int def_val[2]={-1,-1};
-  rval = mb->tag_get_handle(loc_tag.c_str(), 2, MB_TYPE_INTEGER, tag_loc, MB_TAG_DENSE|MB_TAG_CREAT, (void*)def_val);
-  ERRORR(rval, "can't create LOC tag");
-
-  // replicate some of coupler algorithm locate_points
-  // differences: work in 2d, so we will be interested in interior or boundary of a quad/triangle
-  // we will not store yet the parametric position; sphere geometry involves gnomonic projection
-    // target_pts: TL(to_proc, tgt_index, x, y, z): tuples sent to source mesh procs representing pts to be located
-    // source_pts: TL(from_proc, tgt_index, src_index): results of source mesh proc point location, ready to send
-    //             back to tgt procs; src_index of -1 indicates point not located (arguably not useful...)
-  TupleList target_pts;
-  target_pts.initialize(2, 0, 0, 3, num_owned_verts);
-  target_pts.enableWriteAccess();
-
-  TupleList source_pts;
-
-  // store the remote handle (element) where the point is located in
-  // we do not need another array like mappedPts or locs
-  source_pts.initialize(3, 0, 0, 0, target_pts.get_max());
-  source_pts.enableWriteAccess();
-
-  source_pts.set_n(0);
-  ErrorCode result;
-
-    // for each point, find box(es) containing the point,
-    // appending results to tuple_list;
-    // keep local points separately, in local_pts, which has pairs
-    // of <local_index, mapped_index>, where mapped_index is the index
-    // of <local_index, mapped_index>, where mapped_index is the index
-    // into the locs list of elements where the points were located
-
-  //my_rank = (parcomm ? parcomm->proc_config().proc_rank() : 0);
-
-
-  for (int i = 0; i < 3*num_owned_verts; i+=3)
-  {
-    for (unsigned int j = 0; j < (parcomm ? parcomm->proc_config().proc_size() : 0); j++)
-    {
-        // test if point is in proc's box
-      if ( (allBoxes[6*j] <= dep_points[i] + box_error) && ( dep_points[i] <= allBoxes[6*j+3]+ box_error) &&
-           (allBoxes[6*j+1] <= dep_points[i+1]+ box_error) && (dep_points[i+1] <= allBoxes[6*j+4]+ box_error) &&
-           (allBoxes[6*j+2] <= dep_points[i+2]+ box_error) && (dep_points[i+2] <= allBoxes[6*j+5]+ box_error))
-      {
-          // if in this proc's box, will send to proc to test further
-          // check size, grow if we're at max
-        if (target_pts.get_n() == target_pts.get_max())
-          target_pts.resize(std::max(10.0, 1.5*target_pts.get_max()));
-
-        target_pts.vi_wr[2*target_pts.get_n()] = j; // send to processor j, because its box has the point
-        target_pts.vi_wr[2*target_pts.get_n()+1] = i/3; // index in the local_verts range
-        target_pts.vr_wr[3*target_pts.get_n()] = dep_points[i];  // departure position, of the node local_verts[i]
-        target_pts.vr_wr[3*target_pts.get_n()+1] = dep_points[i+1];
-        target_pts.vr_wr[3*target_pts.get_n()+2] = dep_points[i+2];
-        target_pts.inc_n();
-      }
-      else
-      {
-        continue;
-      }
-    }
-  }
-
-  int num_to_me = 0;
-  for (unsigned int i = 0; i < target_pts.get_n(); i++)
-    if (target_pts.vi_rd[2*i] == (int)my_rank) num_to_me++;
-
-  printf("rank: %d local points: %d, nb sent target pts: %d  num to me: %d \n",
-         my_rank, num_owned_verts, target_pts.get_n(), num_to_me);
-    // perform scatter/gather, to gather points to source mesh procs
-  if (parcomm) {
-    (parcomm->proc_config().crystal_router())->gs_transfer(1, target_pts, 0);
-
-    int num_from_me = 0;
-    for (unsigned int i = 0; i < target_pts.get_n(); i++)
-      if (target_pts.vi_rd[2*i] == (int)my_rank) num_from_me++;
-
-    printf("rank: %d after first gs nb received_pts: %d; num_from_me = %d\n",
-           my_rank, target_pts.get_n(), num_from_me);
-      // after scatter/gather:
-      // target_pts.set_n( # points local proc has to map );
-      // target_pts.vi_wr[3*i] = proc sending point i
-      // target_pts.vi_wr[3*i+1] = index of point i on sending proc
-      // target_pts.vr_wr[3*i..3*i+2] = xyz of point i
-      //
-      // Mapping builds the tuple list:
-      // source_pts.set_n (target_pts.get_n() )
-      // source_pts.vi_wr[3*i] = target_pts.vi_wr[2*i] = sending proc
-      // source_pts.vi_wr[3*i+1] = index of point i on sending proc
-      // source_pts.vi_wr[3*i+2] = index of element in localEnts (-1 if not found)
-      //
-
-      // test target points against my elements
-    for (unsigned i = 0; i < target_pts.get_n(); i++)
-    {
-      // now, for each point, see if we have a local element that has it
-      result = test_local_box(target_pts.vr_wr+3*i, // position of point to be located on local proc
-                              target_pts.vi_rd[2*i], // proc sending point i; we will send back the info about the entity it was located in
-                              target_pts.vi_rd[2*i+1], // index of point i on sending proc
-                              &source_pts);
-      if (MB_SUCCESS != result) return result;
-    }
-
-      // no longer need target_pts
-    target_pts.reset();
-
-    printf("rank: %d nb sent source pts: %d\n",
-           my_rank, source_pts.get_n() );
-      // send target points back to target procs
-    (parcomm->proc_config().crystal_router())->gs_transfer(1, source_pts, 0);
-
-    printf("rank: %d nb received source pts: %d\n",
-           my_rank, source_pts.get_n());
-  }
-  // so now, after second router call, source_pts contain:
-  // proc were it was located, index of the point in the local_list (remote index is now again local)
-  // and the index of the element in the locs array it was located in
-  // if this last index is -1, it means the point was not located on the proc it was sent to
-  // we should order by the local index first, and see if we have one point that was not located
-  int max_size = 3*source_pts.get_n();
-  TupleList::buffer sort_buffer;
-  sort_buffer.buffer_init(max_size);
-  //source_pts.print("print1");
-  source_pts.sort(1, &sort_buffer);// this is the local index; for each point we need at least one element and one proc
-  //source_pts.print("print2");
-
-  // now, on each of the local points, find the first location, and set it
-  // now, we have one each target point, the proc and corresponding element local handle
-  // source_pts.get_n( #  );/ we will also get 0 in el handle, which is not good
-  // after sorting by index in the local_verts, we loop the source_pts
-  int N=(int)source_pts.get_n();
-  Range found_points;
-  for (int i=0; i<N; i++)
-  {
-    // we will look at the first point
-    int index_in_el_range=source_pts.vi_rd[3*i+2];
-    if (-1==index_in_el_range)
-      continue;
-
-    int location[2]={source_pts.vi_rd[3*i], index_in_el_range};// processor, index in local range
-    EntityHandle local_vert=local_verts[source_pts.vi_rd[3*i+1]];
-    rval = mb->tag_set_data(tag_loc, &local_vert, 1, (void*)location);
-    ERRORR(rval, "can't set the location tag");
-    found_points.insert(local_vert);
-  }
-  printf("found points on this proc: %d\n", (int)found_points.size());
-    // done
-  return MB_SUCCESS;
-}
-
-ErrorCode Intx2Mesh::test_local_box(double *xyz,
-                                      int from_proc, int remote_index,
-                                  TupleList *tl)
-{
-  std::vector<EntityHandle> entities;
-
-  ErrorCode result = inside_entities(xyz, entities);
-  if (MB_SUCCESS != result) return result;
-
-    // if we didn't find any ents and we're looking locally, nothing more to do
-  if (entities.empty())
-  {
-    if (tl->get_n() == tl->get_max())
-      tl->resize(std::max(10.0, 1.5*tl->get_max()));
-
-    tl->vi_wr[3 * tl->get_n()] = from_proc;
-    tl->vi_wr[3 * tl->get_n() + 1] = remote_index;
-    tl->vi_wr[3 * tl->get_n() + 2] = -1 ;
-    tl->inc_n();
-
-    return MB_SUCCESS;
-  }
-
-  std::vector<EntityHandle>::iterator eit = entities.begin();
-
-  for (; eit != entities.end(); eit++) {
-
-    if (tl->get_n() == tl->get_max())
-      tl->resize(std::max(10.0, 1.5*tl->get_max()));
-
-      // store in tuple source_pts ; send back to source processor:
-    //  remote_index, which is the index of the original point in the local list
-    // and the index in the locs vector, which is actually locations (elements)
-    tl->vi_wr[3*tl->get_n()] = from_proc;// send it back to the processor that send this point
-    tl->vi_wr[3*tl->get_n()+1] = remote_index;
-    EntityHandle eh=*eit;
-    Range::iterator it = localEnts.find(eh);
-    if (it == localEnts.end())
-    {
-      ERRORR(MB_FAILURE, "can't find the element in local entities");
-    }
-    tl->vi_wr[3* tl->get_n() + 2] = (int) (it-localEnts.begin());// so this will be the element in that has the point
-    tl->inc_n();
-  }
-
-  //point_located = true;
-
-  return MB_SUCCESS;
-}
-
-ErrorCode Intx2Mesh::inside_entities(double xyz[3],
-                                 std::vector<EntityHandle> &entities)
-{
-  double epsilon = this->box_error;//1.e-10; try to get some close boxes, because of the
-  // the curvature that can appear on a sphere
-  std::vector<EntityHandle> leaves;
-  ErrorCode result;
-  if (epsilon) {
-    std::vector<double> dists;
-
-    result = myTree->distance_search(xyz, epsilon, leaves, 0.0, &dists);
-    if (leaves.empty())
-      // not found returns success here, with empty list, just like case with no epsilon
-      return MB_SUCCESS;
-
-  }
-  else {
-    EntityHandle leaf;
-    result = myTree->point_search(xyz, leaf);
-    if(MB_ENTITY_NOT_FOUND==result) //point is outside of myTree's bounding box
-      return MB_SUCCESS;
-    else if (MB_SUCCESS != result) {
-      std::cout << "Problems getting leaf \n";
-      return result;
-    }
-    leaves.push_back(leaf);
-  }
-
-  Range range_leaf;
-  for (unsigned int i=0; i< leaves.size(); i++)
-  {
-    // add to the range_leaf all candidates
-    result = mb->get_entities_by_dimension(leaves[i], 2, range_leaf, false);
-    if(result != MB_SUCCESS) std::cout << "Problem getting leaf in a range" << std::endl;
-  }
-
-  // loop over the range_leaf
-  for(Range::iterator iter = range_leaf.begin(); iter != range_leaf.end(); iter++)
-  {
-    //test to find out in which entity the point is
-    //get the EntityType and create the appropriate Element::Map subtype
-    // if spectral, do not need coordinates, just the GL points
-    EntityHandle eh=*iter;
-    if (is_inside_element(xyz, eh))
-    {
-      entities.push_back(eh);
-    }
-
-  }
-
-  //didn't find any elements containing the point
-  return MB_SUCCESS;
-}
-ErrorCode Intx2Mesh::create_departure_mesh(EntityHandle & covering_lagr_set)
-{
-  // the elements are already in localEnts; get all vertices, and DP and LOC tag
-  // get the DP tag , and get the departure points
-  std::map<int, EntityHandle> globalID_to_handle;
-/*  std::map<int, EntityHandle> globalID_to_eh;*/
-  std::map<int, Range> rs;
-  std::set<int> ps; // processors working with my_rank
-  Tag dpTag = 0;
-  std::string tag_name("DP");
-  ErrorCode rval = mb->tag_get_handle(tag_name.c_str(), 3, MB_TYPE_DOUBLE, dpTag, MB_TAG_DENSE);
-  ERRORR(rval, "can't get DP tag");
-  // get all local verts
-  Range local_verts;
-  rval = mb->get_connectivity(localEnts, local_verts);
-  int num_local_verts = (int) local_verts.size();
-  ERRORR(rval, "can't get local vertices");
-  int num_owned_verts = (int)local_verts.size();
-  std::vector<double> dep_points(3*num_owned_verts);
-  rval = mb->tag_get_data(dpTag, local_verts, (void*)&dep_points[0]);
-  ERRORR(rval, "can't get DP tag values");
-
-  // get LOC tag, that was created before
-  std::string loc_tag("LOC");
-  Tag locTag = 0;
-  rval = mb->tag_get_handle(loc_tag.c_str(), 2, MB_TYPE_INTEGER, locTag, MB_TAG_DENSE);
-  ERRORR(rval, "can't get LOC tag");
-
-  Tag gid;
-  rval = mb->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid, MB_TAG_DENSE);
-  ERRORR(rval,"can't get global ID tag" );
-  // create vertices for DP points in this rank
-  // count how many to send; if LOC(0) != rank, we have to send to other LOC(0)
-  unsigned int v_to_send =0, q_to_send =0;
-  my_rank = 0;
-  std::vector<int> locs(num_local_verts*2);// fill it with loc info for vertex
-  if (this->parcomm)
-  {
-    //my_rank = parcomm->proc_config().proc_rank();
-    rval = mb->tag_get_data(locTag, local_verts, &locs[0]);
-    ERRORR(rval, "can't get value for LOC tag");
-
-    // look at every owned quad
-    for (Range::iterator itq=localEnts.begin(); itq!=localEnts.end(); itq++ )
-    {
-      const EntityHandle * conn4;
-      EntityHandle q=*itq;
-      int num_nodes;
-      std::set<int> ptmp;
-      rval = mb->get_connectivity(q, conn4, num_nodes);
-      ERRORR(rval, "can't get connectivity for quad");
-      for (int i=0; i<num_nodes; i++)
-      {
-        int v=conn4[i];
-        int index = (int)(local_verts.find(v)-local_verts.begin());
-        int proc = locs[2*index]; // where it was located
-        ptmp.insert(proc);
-      }
-      for (std::set<int>::iterator sit=ptmp.begin(); sit!=ptmp.end(); sit++)
-      {
-        int proc = *sit;
-        rs[proc].insert(q);
-        std::copy(conn4, conn4+num_nodes, range_inserter(rs[proc]) );
-
-      }
-      ps.insert(ptmp.begin(), ptmp.end());
-    }
-  }
-  std::vector<int> gids(num_local_verts);
-  rval = mb->tag_get_data(gid, local_verts, &gids[0]);
-  ERRORR(rval, "can't get gid tag");
-  // count now how many vertices and quads are to be sent to other processors
-  for (std::set<int>::iterator st=ps.begin(); st!=ps.end(); st++)
-  {
-    int to_proc=*st;
-    if ((int)my_rank==to_proc)
-      continue;
-    Range & procRange = rs[to_proc];
-    v_to_send += procRange.num_of_type( MBVERTEX);
-    q_to_send += procRange.num_of_type(MBQUAD);
-  }
-  TupleList TLv;
-  TupleList TLq;
-  TLv.initialize(2, 0, 0, 3, v_to_send); // to proc, GLOBAL ID, DP points
-  TLv.enableWriteAccess();
-
-  TLq.initialize(6, 0, 0, 0, q_to_send); // to proc, elem GLOBAL ID, connectivity[4] (global ID v)
-  TLq.enableWriteAccess();
-  // is the global ID of the element needed? maybe not...
-  // at least one of the nodes is in the interior of the proc area, so the whole element needs
-  // to be copied on that processor ...
-  if (parcomm)
-  {
-    Range local=rs[my_rank];
-    Range local_dp_verts = local.subset_by_type(MBVERTEX);
-    for (Range::iterator it=local_dp_verts.begin(); it!=local_dp_verts.end(); it++)
-    {
-      int lv = *it;
-      unsigned int i = local_verts.find(lv)-local_verts.begin();
-      double posDP[3]={dep_points[3*i], dep_points[3*i+1], dep_points[3*i+2] };
-
-      // create a vertex at DP point
-      EntityHandle new_vert;
-      rval = mb->create_vertex(posDP, new_vert);
-      ERRORR(rval, "can't create new vertex");
-      globalID_to_handle[gids[i]]=new_vert;
-
-    }
-  }
-  else
-  {
-    // need to send everything to local proc; why worry about nothing?
-  }
-  if (parcomm)
-  {
-    for (std::set<int>::iterator st=ps.begin(); st!=ps.end(); st++)
-    {
-      int to_proc=*st;
-      if (to_proc==(int)my_rank)
-        continue;
-      Range & procRange = rs[to_proc];
-      Range V = procRange.subset_by_type(MBVERTEX);
-
-      for (Range::iterator it=V.begin(); it!=V.end(); it++)
-      {
-        EntityHandle v=*it;
-        unsigned int index = local_verts.find(v)-local_verts.begin();
-        int n=TLv.get_n();
-        TLv.vi_wr[2*n] = to_proc; // send to processor
-        TLv.vi_wr[2*n+1] = gids[index]; // global id needs index in the local_verts range
-        TLv.vr_wr[3*n] = dep_points[3*index];  // departure position, of the node local_verts[i]
-        TLv.vr_wr[3*n+1] = dep_points[3*index+1];
-        TLv.vr_wr[3*n+2] = dep_points[3*index+2];
-        TLv.inc_n();
-      }
-      // also, prep the quad for sending ...
-      Range Q = procRange.subset_by_type(MBQUAD);
-      for (Range::iterator it=Q.begin(); it!=Q.end(); it++)
-      {
-        EntityHandle q=*it;
-        int global_id;
-        rval = mb->tag_get_data(gid, &q, 1, &global_id);
-        ERRORR(rval, "can't get gid for quad");
-        int n=TLq.get_n();
-        TLq.vi_wr[6*n] = to_proc; //
-        TLq.vi_wr[6*n+1] = global_id; // global id of element, used to identify it ...
-        const EntityHandle * conn4;
-        int num_nodes;
-        rval = mb->get_connectivity(q, conn4, num_nodes);
-        ERRORR(rval, "can't get connectivity for quad");
-        for (int i=0; i<num_nodes; i++)
-        {
-          EntityHandle v = conn4[i];
-          unsigned int index = local_verts.find(v)-local_verts.begin();
-          TLq.vi_wr[6*n+2+i] = gids[index];
-        }
-        TLq.inc_n();
-
-      }
-
-    }
-    // now we are done populating the tuples; route them to the appropriate processors
-    (parcomm->proc_config().crystal_router())->gs_transfer(1, TLv, 0);
-    (parcomm->proc_config().crystal_router())->gs_transfer(1, TLq, 0);
-    // now, look at every TLv, and see if we have to create a vertex there or not
-    int n=TLv.get_n();// the size of the points received
-    for (int i=0; i<n; i++)
-    {
-      int globalId = TLv.vi_rd[2*i+1];
-      if (globalID_to_handle.find(globalId)==globalID_to_handle.end())
-      {
-        EntityHandle new_vert;
-        double coords[3]= {TLv.vr_wr[3*i], TLv.vr_wr[3*i+1],  TLv.vr_wr[3*i+2]};
-        rval = mb->create_vertex(coords, new_vert);
-        ERRORR(rval, "can't create new vertex ");
-        globalID_to_handle[globalId]= new_vert;
-      }
-    }
-    // now, all dep points should be at their place (procs)
-    // look in the local list of q for this proc, and create all those quads
-    Range local=rs[my_rank];
-    Range local_q = local.subset_by_type(MBQUAD);
-    // the local should have all the vertices by now
-    for (Range::iterator it=local_q.begin(); it!=local_q.end(); it++)
-    {
-      EntityHandle q=*it;
-      int nnodes;
-      const EntityHandle * conn4;
-      rval = mb->get_connectivity(q, conn4, nnodes);
-      ERRORR(rval, "can't get connectivity of local q ");
-      EntityHandle new_conn[4];
-      for (int i=0; i<nnodes; i++)
-      {
-        EntityHandle v1=conn4[i];
-        unsigned int index = local_verts.find(v1)-local_verts.begin();
-        assert(globalID_to_handle.find(gids[index])!=globalID_to_handle.end());
-        new_conn[i] = globalID_to_handle[gids[index]];
-      }
-      EntityHandle new_quad;
-      rval = mb->create_element(MBQUAD, new_conn, 4, new_quad);
-      ERRORR(rval, "can't create new quad ");
-      rval = mb->add_entities(covering_lagr_set, &new_quad, 1);
-      ERRORR(rval, "can't add new quad to dep set");
-      int gid_el;
-      // get the global ID of the initial quad
-      rval=mb->tag_get_data(gid, &q, 1, &gid_el);
-      ERRORR(rval, "can't get element global ID ");
-      globalID_to_eh[gid_el]=new_quad;
-    }
-    // now look at all quads received through; we do not want to duplicate them
-    n=TLq.get_n();// number of quads received by this processor
-    for (int i=0; i<n; i++)
-    {
-      int globalIdEl = TLq.vi_rd[6*i+1];
-      // do we already have a quad with this global ID, represented?
-      if (globalID_to_eh.find(globalIdEl)==globalID_to_eh.end())
-      {
-        // construct the conn quad
-        EntityHandle new_conn[4];
-        for (int j=0; j<4; j++)
-        {
-          int vgid = TLq.vi_rd[6*i+2+j];// vertex global ID
-          assert(globalID_to_handle.find(vgid)!=globalID_to_handle.end());
-          new_conn[j]=globalID_to_handle[vgid];
-        }
-        EntityHandle new_quad;
-        rval = mb->create_element(MBQUAD, new_conn, 4, new_quad);
-        ERRORR(rval, "can't create new quad ");
-        globalID_to_eh[globalIdEl]=new_quad;
-        rval = mb->add_entities(covering_lagr_set, &new_quad, 1);
-        ERRORR(rval, "can't add new quad to dep set");
-      }
-    }
-  }
-  // send global ID of the euler vertex and DP position
-
-
-  return MB_SUCCESS;
-}
 ErrorCode Intx2Mesh::build_processor_euler_boxes(EntityHandle euler_set, Range & local_verts)
 {
   localEnts.clear();
@@ -1115,10 +483,21 @@ ErrorCode Intx2Mesh::build_processor_euler_boxes(EntityHandle euler_set, Range &
   }
 
    // now communicate to get all boxes
-   // use "in place" option
-  int mpi_err = MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
-                               &allBoxes[0], 6, MPI_DOUBLE,
-                               parcomm->proc_config().proc_comm());
+  int mpi_err;
+#if (MPI_VERSION >= 2)
+    // use "in place" option
+  mpi_err = MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
+                          &allBoxes[0], 6, MPI_DOUBLE, 
+                          parcomm->proc_config().proc_comm());
+#else
+  {
+    std::vector<double> allBoxes_tmp(6*parcomm->proc_config().proc_size());
+    mpi_err = MPI_Allgather( &allBoxes[6*my_rank], 6, MPI_DOUBLE,
+                             &allBoxes_tmp[0], 6, MPI_DOUBLE, 
+                             parcomm->proc_config().proc_comm());
+    allBoxes = allBoxes_tmp;
+  }
+#endif
   if (MPI_SUCCESS != mpi_err) return MB_FAILURE;
 
   // also process the max number of vertices per cell (4 for quads, but could be more for polygons)
@@ -1164,6 +543,13 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
   std::string tag_name("DP");
   rval = mb->tag_get_handle(tag_name.c_str(), 3, MB_TYPE_DOUBLE, dpTag, MB_TAG_DENSE);
   ERRORR(rval, "can't get DP tag");
+
+  EntityHandle dum=0;
+  Tag corrTag;
+  rval = mb->tag_get_handle(CORRTAGNAME,
+                                           1, MB_TYPE_HANDLE, corrTag,
+                                           MB_TAG_DENSE|MB_TAG_CREAT, &dum);
+  ERRORR(rval, "can't get CORR tag");
   // get all local verts
   Range local_verts;
   rval = mb->get_connectivity(localEnts, local_verts);
@@ -1245,7 +631,7 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
   TLv.enableWriteAccess();
 
   int sizeTuple = 2+max_edges; // determined earlier
-  TLq.initialize(2+max_edges, 0, 0, 0, numq); // to proc, elem GLOBAL ID, connectivity[10] (global ID v)
+  TLq.initialize(2+max_edges, 0, 1, 0, numq); // to proc, elem GLOBAL ID, connectivity[10] (global ID v), local eh
   TLq.enableWriteAccess();
   std::cout << "from proc " << my_rank << " send " << numv << " vertices and " << numq << " elements\n";
 
@@ -1295,6 +681,8 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
       {
         TLq.vi_wr[sizeTuple*n+2+k] = 0; // fill the rest of node ids with 0; we know that the node ids start from 1!
       }
+      TLq.vul_wr[n]=q; // save here the entity handle, it will be communicated back
+      // mabe we should forget about global ID
       TLq.inc_n();
 
     }
@@ -1372,12 +760,23 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
     rval=mb->tag_get_data(gid, &q, 1, &gid_el);
     ERRORR(rval, "can't get element global ID ");
     globalID_to_eh[gid_el]=new_element;
+    // is this redundant or not?
+    rval = mb->tag_set_data(corrTag, &new_element, 1, &q);
+    ERRORR(rval, "can't set corr tag on new el");
+    // set the global id on new elem
+    rval = mb->tag_set_data(gid, &new_element, 1, &gid_el);
+    ERRORR(rval, "can't set global id tag on new el");
   }
   // now look at all elements received through; we do not want to duplicate them
   n=TLq.get_n();// number of elements received by this processor
+  // form the remote cells, that will be used to send the tracer info back to the originating proc
+  remote_cells = new TupleList();
+  remote_cells->initialize(2, 0, 1, 1, n);
+  remote_cells->enableWriteAccess();
   for (int i=0; i<n; i++)
   {
     int globalIdEl = TLq.vi_rd[sizeTuple*i+1];
+    int from_proc =  TLq.vi_wr[sizeTuple*i];
     // do we already have a quad with this global ID, represented?
     if (globalID_to_eh.find(globalIdEl)==globalID_to_eh.end())
     {
@@ -1408,8 +807,24 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
       globalID_to_eh[globalIdEl]=new_element;
       rval = mb->add_entities(covering_lagr_set, &new_element, 1);
       ERRORR(rval, "can't add new element to dep set");
+     /* rval = mb->tag_set_data(corrTag, &new_element, 1, &q);
+      ERRORR(rval, "can't set corr tag on new el");*/
+      remote_cells->vi_wr[2*i]=from_proc;
+      remote_cells->vi_wr[2*i+1]=globalIdEl;
+      remote_cells->vr_wr[i] = 0.; // no contribution yet sent back
+      remote_cells->vul_wr[i]= TLq.vul_rd[i];// this is the corresponding red cell (arrival)
+      remote_cells->inc_n();
+      // set the global id on new elem
+      rval = mb->tag_set_data(gid, &new_element, 1, &globalIdEl);
+      ERRORR(rval, "can't set global id tag on new el");
     }
   }
+  // order the remote cells tuple list, with the global id, because we will search in it
+  //remote_cells->print("remote_cells before sorting");
+  moab::TupleList::buffer sort_buffer;
+  sort_buffer.buffer_init(n);
+  remote_cells->sort(1, &sort_buffer);
+  sort_buffer.reset();
   return MB_SUCCESS;
 }
 

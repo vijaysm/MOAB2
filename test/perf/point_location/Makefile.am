@@ -2,7 +2,6 @@
 AM_CPPFLAGS += -I$(top_srcdir)/src \
                -I$(top_srcdir)/src/io/mhdf/include \
                -I$(top_builddir)/ \
-               -I$(top_builddir)/include \
                -I$(top_srcdir)/src/LocalDiscretization/ \
                -I$(top_srcdir)/tools/mbcoupler \
                -I$(top_srcdir)/src/moab/point_locator/lotte \

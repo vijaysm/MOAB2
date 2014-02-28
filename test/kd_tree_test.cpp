@@ -377,9 +377,9 @@ void test_point_search()
   }
   
     // compare leaf search to iterator search
-  rval = tool.point_search(right.array(), leaf, 0.0, NULL, const_cast<EntityHandle*>(&root));
+  rval = tool.point_search(right.array(), leaf, 0.0, 0.0, NULL, const_cast<EntityHandle*>(&root));
   CHECK_ERR(rval);
-  rval = tool.point_search(right.array(), iter, 0.0, NULL, const_cast<EntityHandle*>(&root));
+  rval = tool.point_search(right.array(), iter, 0.0, 0.0, NULL, const_cast<EntityHandle*>(&root));
   CHECK_ERR(rval);
   assert( iter.handle() == leaf );
   

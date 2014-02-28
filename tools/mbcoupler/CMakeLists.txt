@@ -16,7 +16,8 @@ set( MBCOUPLER_INCLUDE_SRCS Coupler.hpp
                             ElemUtil.hpp )
 
 set_source_files_properties( ${MBCOUPLER_SRCS}
-  COMPILE_FLAGS "${MOAB_DEFINES}" )
+  COMPILE_FLAGS "${MOAB_DEFINES} -DIS_BUILDING_MB"
+)
 
 add_library( mbcoupler
   ${MBCOUPLER_SRCS}
@@ -36,13 +37,6 @@ install(TARGETS mbcoupler RUNTIME DESTINATION bin
                           ARCHIVE DESTINATION lib )
 install(FILES ${MBCOUPLER_INCLUDE_SRCS} DESTINATION includes)
 
-# A test for the coupler library
-add_executable( findpt_test findpt_test.cpp )
-target_link_libraries( findpt_test mbcoupler MOAB )
-if ( MOAB_USE_MPI )
-  target_link_libraries( findpt_test MOABpar )
-endif ( MOAB_USE_MPI )
-add_test( TestMBCouplerFindPt ${EXECUTABLE_OUTPUT_PATH}/findpt_test )
 
 if ( MOAB_USE_MPI )
   # Exercise the coupler and not just findpt:

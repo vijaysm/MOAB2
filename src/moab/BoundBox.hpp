@@ -27,6 +27,7 @@ namespace moab {
       void update_min(const double *coords);
       void update_max(const BoundBox &other_box);
       void update_max(const double *coords);
+      ErrorCode get(double *coords);
 
         /** \brief Return the diagonal length of this box
          */
@@ -121,6 +122,13 @@ namespace moab {
       bMax[0] = std::max(bMax[0], coords[0]);
       bMax[1] = std::max(bMax[1], coords[1]);
       bMax[2] = std::max(bMax[2], coords[2]);
+    }
+
+    inline ErrorCode BoundBox::get(double *coords)
+    {
+      bMin.get(coords);
+      bMax.get(coords+3);
+      return MB_SUCCESS;
     }
 
     inline void BoundBox::compute_center(CartVect &center){

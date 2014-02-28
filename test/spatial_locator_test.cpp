@@ -103,20 +103,20 @@ void test_bvh_tree()
 void test_locator(SpatialLocator *sl) 
 {
   CartVect box_del, test_pt, test_res;
-  BoundBox box;
-  ErrorCode rval = sl->get_bounding_box(box); CHECK_ERR(rval);
+  BoundBox box = sl->local_box();
   box_del = box.bMax - box.bMin;
 
   double denom = 1.0 / (double)RAND_MAX;
-  bool is_in;
+  int is_in;
   EntityHandle ent;
+  ErrorCode rval;
   for (int i = 0; i < npoints; i++) {    
       // generate a small number of random point to test
     double rx = (double)rand() * denom, ry = (double)rand() * denom, rz = (double)rand() * denom;
     test_pt = box.bMin + CartVect(rx*box_del[0], ry*box_del[1], rz*box_del[2]);
 
     // call spatial locator to locate points
-    rval = sl->locate_points(test_pt.array(), 1, &ent, test_res.array(), 0.0, 0.0, &is_in); CHECK_ERR(rval);
+    rval = sl->locate_points(test_pt.array(), 1, &ent, test_res.array(), &is_in); CHECK_ERR(rval);
 
     // verify that the point was found
     CHECK_EQUAL(is_in, true);

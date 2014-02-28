@@ -107,7 +107,7 @@ void create_mesh( const char* filename )
   
   
   for (size_t i = 0; i < NUM_VERT; ++i) {
-    double coords[] = { i % 9, i / 9, Z };
+    double coords[] = { static_cast<double>(i % 9), static_cast<double>(i / 9), static_cast<double>(Z) };
     rval = mb.create_vertex( coords, verts[i] );
     CHECK_ERR(rval);
   }

@@ -6,7 +6,6 @@ set( moab_PARALLEL_SRCS
   ReadParallel.hpp      ReadParallel.cpp
   SharedSetData.hpp     SharedSetData.cpp
   gs.cpp
-  TupleList.cpp
 )
 
 set(moab_PARALLEL_INSTALL_HDRS moab/gs.hpp
@@ -16,8 +15,7 @@ set(moab_PARALLEL_INSTALL_HDRS moab/gs.hpp
                                moab/ParallelMergeMesh.hpp
                                moab/ProcConfig.hpp
                                moab/ParallelData.hpp
-                               MBParallelConventions.h
-                               moab/TupleList.hpp )
+                               MBParallelConventions.h )
 
 include_directories(
     ${MOAB_SOURCE_DIR}/src

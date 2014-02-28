@@ -73,7 +73,8 @@ CartVect SpectralHex::evaluate( const CartVect& params ) const
   return result;
 }
   // replicate the functionality of hex_findpt
-bool SpectralHex::evaluate_reverse(CartVect const & xyz, CartVect &params, double tol, const CartVect &init) const
+    bool SpectralHex::evaluate_reverse(CartVect const & xyz, CartVect &params, double iter_tol, const double inside_tol,
+                                       const CartVect &init) const
 {
   params = init;
       
@@ -92,7 +93,7 @@ bool SpectralHex::evaluate_reverse(CartVect const & xyz, CartVect &params, doubl
     //copy parametric coords back
   params = r;
 
-  return is_inside(params, tol);
+  return is_inside(params, inside_tol);
 }
 Matrix3  SpectralHex::jacobian(const CartVect& params) const
 {
@@ -179,7 +180,7 @@ void SpectralHex::integrate_vector(const double *field_values, int num_tuples, d
     //std::cout << "volume: " << volume << "\n";
 }
 
-    bool SpectralHex::insideFcn(const double *params, const int ndim, const double tol) 
+    int SpectralHex::insideFcn(const double *params, const int ndim, const double tol) 
     {
       return EvalSet::inside(params, ndim, tol);
     }

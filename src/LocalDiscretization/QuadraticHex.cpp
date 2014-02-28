@@ -107,13 +107,15 @@ namespace moab
 
     ErrorCode QuadraticHex::reverseEvalFcn(EvalFcn eval, JacobianFcn jacob, InsideFcn ins, 
                                            const double *posn, const double *verts, const int nverts, const int ndim,
-                                           const double tol, double *work, double *params, bool *is_inside) 
+                                           const double iter_tol, const double inside_tol, double *work, 
+                                           double *params, int *is_inside) 
     {
       assert(posn && verts);
-      return EvalSet::evaluate_reverse(eval, jacob, ins, posn, verts, nverts, ndim, tol, work, params, is_inside);
+      return EvalSet::evaluate_reverse(eval, jacob, ins, posn, verts, nverts, ndim, iter_tol, inside_tol, 
+                                       work, params, is_inside);
     } 
 
-    bool QuadraticHex::insideFcn(const double *params, const int ndim, const double tol) 
+    int QuadraticHex::insideFcn(const double *params, const int ndim, const double tol) 
     {
       return EvalSet::inside_function(params, ndim, tol);
     }

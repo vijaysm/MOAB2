@@ -74,27 +74,29 @@ namespace moab
     
     ErrorCode LinearTet::reverseEvalFcn(EvalFcn eval, JacobianFcn jacob, InsideFcn ins, 
                                         const double *posn, const double *verts, const int nverts, const int ndim,
-                                        const double tol, double *work, double *params, bool *is_inside) 
+                                        const double iter_tol, const double inside_tol, double *work, 
+                                        double *params, int *is_inside) 
     {
       assert(posn && verts);
-      return evaluate_reverse(eval, jacob, ins, posn, verts, nverts, ndim, tol, work, params, is_inside);
+      return evaluate_reverse(eval, jacob, ins, posn, verts, nverts, ndim, iter_tol, inside_tol, 
+                              work, params, is_inside);
     } 
 
-    bool LinearTet::insideFcn(const double *params, const int , const double tol) 
+    int LinearTet::insideFcn(const double *params, const int , const double tol) 
     {
       return (params[0] >= -1.0-tol && params[1] >= -1.0-tol && params[2] >= -1.0-tol && 
-              params[0] + params[1] + params[2] <= -1.0+tol);
+              params[0] + params[1] + params[2] <= 1.0+tol);
       
     }
     
     ErrorCode LinearTet::evaluate_reverse(EvalFcn eval, JacobianFcn jacob, InsideFcn inside_f,
                                           const double *posn, const double *verts, const int nverts, 
-                                          const int ndim, const double tol, double *work, 
-                                          double *params, bool *inside) {
+                                          const int ndim, const double iter_tol, const double inside_tol,
+                                          double *work, double *params, int *inside) {
         // TODO: should differentiate between epsilons used for
         // Newton Raphson iteration, and epsilons used for curved boundary geometry errors
         // right now, fix the tolerance used for NR
-      const double error_tol_sqr = tol*tol;
+      const double error_tol_sqr = iter_tol*iter_tol;
       CartVect *cvparams = reinterpret_cast<CartVect*>(params);
       const CartVect *cvposn = reinterpret_cast<const CartVect*>(posn);
 
@@ -138,7 +140,7 @@ namespace moab
       }
 
       if (inside)
-        *inside = (*inside_f)(params, ndim, tol);
+        *inside = (*inside_f)(params, ndim, inside_tol);
 
       return MB_SUCCESS;
     }// Map::evaluate_reverse()

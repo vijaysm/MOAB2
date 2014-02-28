@@ -16,6 +16,8 @@ program PushParMeshIntoMoab
   use ISO_C_BINDING
   implicit none
 
+#include "mpif.h"
+
 #ifdef USE_MPI
 #  include "iMeshP_f.h"
 #else
@@ -49,7 +51,7 @@ program PushParMeshIntoMoab
 #ifdef USE_MPI
   ! local variables for parallel runs
   iMeshP_PartitionHandle imeshp
-  integer MPI_COMM_WORLD
+!    integer MPI_COMM_WORLD
 #endif
 
   ! vertex positions, latlon coords, (lat, lon, lev), fortran ordering

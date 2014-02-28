@@ -45,9 +45,12 @@ int Intx2MeshOnSphere::computeIntersectionBetweenRedAndBlue(EntityHandle red, En
   if (MB_SUCCESS != rval )
     return 1;
   nsRed = num_nodes;
+  // account for possible padded polygons
+  while (redConn[nsRed-2]==redConn[nsRed-1] && nsRed>3)
+    nsRed--;
 
   //CartVect coords[4];
-  rval = mb->get_coords(redConn, num_nodes, &(redCoords[0][0]));
+  rval = mb->get_coords(redConn, nsRed, &(redCoords[0][0]));
   if (MB_SUCCESS != rval)
     return 1;
   CartVect middle = redCoords[0];
@@ -61,6 +64,9 @@ int Intx2MeshOnSphere::computeIntersectionBetweenRedAndBlue(EntityHandle red, En
   if (MB_SUCCESS != rval )
     return 1;
   nsBlue = num_nodes;
+  // account for possible padded polygons
+  while (blueConn[nsBlue-2]==blueConn[nsBlue-1] && nsBlue>3)
+    nsBlue--;
   rval = mb->get_coords(blueConn, nsBlue, &(blueCoords[0][0]));
   if (MB_SUCCESS != rval)
     return 1;
@@ -124,7 +130,7 @@ int Intx2MeshOnSphere::computeIntersectionBetweenRedAndBlue(EntityHandle red, En
     return 1; // some unforeseen error
 
   int side[MAXEDGES] = { 0 };// this refers to what side? blue or red?
-  int extraPoints = borderPointsOfXinY2(blueCoords2D, nsBlue, redCoords2D, nsRed, &(P[2 * nP]), side);
+  int extraPoints = borderPointsOfXinY2(blueCoords2D, nsBlue, redCoords2D, nsRed, &(P[2 * nP]), side, epsilon_area);
   if (extraPoints >= 1)
   {
     for (int k = 0; k < nsBlue; k++)
@@ -144,7 +150,7 @@ int Intx2MeshOnSphere::computeIntersectionBetweenRedAndBlue(EntityHandle red, En
   }
   nP += extraPoints;
 
-  extraPoints = borderPointsOfXinY2(redCoords2D, nsRed, blueCoords2D, nsBlue, &(P[2 * nP]), side);
+  extraPoints = borderPointsOfXinY2(redCoords2D, nsRed, blueCoords2D, nsBlue, &(P[2 * nP]), side, epsilon_area);
   if (extraPoints >= 1)
   {
     for (int k = 0; k < nsRed; k++)
@@ -202,7 +208,7 @@ int Intx2MeshOnSphere::findNodes(EntityHandle red, int nsRed, EntityHandle blue,
   int i = 0;
   for (i = 0; i < nsRed; i++)
   {
-    EntityHandle v[2] = { redConn[i], redConn[(i + 1) % nsRed] };
+    EntityHandle v[2] = { redConn[i], redConn[(i + 1) % nsRed] };// this is fine even for padded polygons
     std::vector<EntityHandle> adj_entities;
     ErrorCode rval = mb->get_adjacencies(v, 2, 1, false, adj_entities,
         Interface::INTERSECT);
@@ -370,10 +376,11 @@ int Intx2MeshOnSphere::findNodes(EntityHandle red, int nsRed, EntityHandle blue,
 
       std::stringstream fff;
       fff << "file0" <<  count<< ".vtk";
-          mb->write_mesh(fff.str().c_str(), &outSet, 1);
+         mb->write_mesh(fff.str().c_str(), &outSet, 1);
     }
 
   }
+  disable_debug();
   delete[] foundIds;
   foundIds = NULL;
   return 0;

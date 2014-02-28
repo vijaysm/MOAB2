@@ -22,6 +22,7 @@
 #include "moab/ParallelComm.hpp"
 
 #include "CslamUtils.hpp"
+#include <time.h>
 
 #ifdef MESHDIR
 std::string TestDir( STRINGIFY(MESHDIR) );
@@ -43,6 +44,7 @@ double radius = 1.;// in m:  6371220.
 
 double t = 0.1, delta_t = 0.05; // check the script
 bool Verbose = false;
+double rot= M_PI/10;
 
 ErrorCode manufacture_lagrange_mesh_on_sphere(Interface * mb,
     EntityHandle euler_set)
@@ -84,7 +86,7 @@ ErrorCode manufacture_lagrange_mesh_on_sphere(Interface * mb,
   //int vix=0; // vertex index in new array
   double T=5;// check the script
 
-  double rot= M_PI/10;
+
   for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); vit++ )
   {
     EntityHandle oldV=*vit;
@@ -152,12 +154,23 @@ int main(int argc, char **argv)
       if (!strcmp(argv[index], "-FF"))
       {
         flux_form= true;
-        index++;
       }
       if (!strcmp(argv[index], "-v"))
       {
         Verbose = true;
-        index++;
+      }
+      if (!strcmp(argv[index], "-t"))
+      {
+        t = atof(argv[++index]);
+      }
+      if (!strcmp(argv[index], "-t"))
+      {
+        t = atof(argv[++index]);
+      }
+      if (!strcmp(argv[index], "-rot"))
+      {
+        rot = atof(argv[++index]);
+        rot = M_PI/rot; // so rot 50 means rotate with M_PI/50 radians
       }
 
       index++;
@@ -165,7 +178,7 @@ int main(int argc, char **argv)
   }
   // start copy
   std::string opts = std::string("PARALLEL=READ_PART;PARTITION_METHOD=RCBZOLTAN")+
-            std::string(";PARALLEL_RESOLVE_SHARED_ENTS;VARIABLE=;")+extra_read_opts;
+            std::string(";PARALLEL_RESOLVE_SHARED_ENTS;VARIABLE=;NO_EDGES;")+extra_read_opts;
   Core moab;
   Interface & mb = moab;
   EntityHandle euler_set;
@@ -173,20 +186,30 @@ int main(int argc, char **argv)
   rval = mb.create_meshset(MESHSET_SET, euler_set);
   CHECK_ERR(rval);
 
+  clock_t tt = clock();
 
   rval = mb.load_file(filename_mesh1, &euler_set, opts.c_str());
+  CHECK_ERR(rval);
 
   ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
   CHECK_ERR(rval);
 
-  rval = pcomm->check_all_shared_handles();
-  CHECK_ERR(rval);
+  /*rval = pcomm->check_all_shared_handles();
+  CHECK_ERR(rval);*/
   // end copy
   int rank = pcomm->proc_config().proc_rank();
+  int procs = pcomm->proc_config().proc_size();
 
   if (0==rank)
     std::cout << " case 1: use -gtol " << gtol << " -dt " << delta_t <<
-        " -R " << radius << " -input " << filename_mesh1 << "\n";
+        " -R " << radius << " -input " << filename_mesh1 << " -t " << t << " -rot " << rot <<  "\n";
+
+  if (0==rank)
+  {
+      std::cout << "load mesh from " << filename_mesh1 << "\n  on " << procs << " processors in "
+            << (clock() - tt) / (double) CLOCKS_PER_SEC << " seconds" << std::endl;
+      tt = clock();
+  }
 
   rval = manufacture_lagrange_mesh_on_sphere(&mb, euler_set);
   if (MB_SUCCESS != rval)
@@ -208,15 +231,27 @@ int main(int argc, char **argv)
   //double radius = 1.; // input
 
   worker.SetRadius(radius);
-
+  if (0==rank)
+  {
+     std::cout << "manufacture departure mesh " << filename_mesh1 << "\n  on " << procs << " processors in "
+              << (clock() - tt) / (double) CLOCKS_PER_SEC << " seconds" << std::endl;
+     tt = clock();
+  }
   worker.SetErrorTolerance(gtol);
   rval = worker.create_departure_mesh_2nd_alg(euler_set, covering_lagr_set);
   CHECK_ERR(rval);
 
+  if (0==rank)
+  {
+     std::cout << "communicate covering mesh on " << procs << " processors in "
+              << (clock() - tt) / (double) CLOCKS_PER_SEC << " seconds" << std::endl;
+     tt = clock();
+  }
+
   if (Verbose)
   {
     std::stringstream lagrIni;
-    lagrIni<<"def0" << rank<<".h5m";
+    lagrIni<<"lagr0" << rank<<".h5m";
     rval = mb.write_file(lagrIni.str().c_str(), 0, 0, &covering_lagr_set, 1);
   }
 
@@ -226,7 +261,7 @@ int main(int argc, char **argv)
   if (Verbose)
   {
     std::stringstream ste;
-    ste<<"lagr0" << rank<<".h5m";
+    ste<<"euler0" << rank<<".h5m";
     rval = mb.write_file(ste.str().c_str(), 0, 0, &euler_set, 1);
   }
 
@@ -240,8 +275,13 @@ int main(int argc, char **argv)
   rval = worker.intersect_meshes(covering_lagr_set, euler_set, outputSet);
   if (MB_SUCCESS != rval)
     return 1;
-
-  if (rank<=4)
+  if (0==rank)
+  {
+     std::cout << "intersect meshes in " << procs << " processors in "
+              << (clock() - tt) / (double) CLOCKS_PER_SEC << " seconds" << std::endl;
+     tt = clock();
+  }
+  if (Verbose && rank<=4)
   {
     std::string opts_write("");
     std::stringstream outf;
@@ -250,11 +290,15 @@ int main(int argc, char **argv)
     if (MB_SUCCESS != rval)
       std::cout << "can't write output\n";
   }
-  double intx_area = area_on_sphere_lHuiller(&mb, outputSet, radius);
-  double arrival_area = area_on_sphere_lHuiller(&mb, euler_set, radius);
-  std::cout << " Arrival area: " << arrival_area
-      << "  intersection area:" << intx_area << " rel error: "
-      << fabs((intx_area - arrival_area) / arrival_area) << "\n";
+
+  if (rank <= 4)
+  {
+    double intx_area = area_on_sphere_lHuiller(&mb, outputSet, radius);
+    double arrival_area = area_on_sphere_lHuiller(&mb, euler_set, radius);
+    std::cout << "On proc " << rank << "  arrival area: " << arrival_area
+        << "  intersection area:" << intx_area << " rel error: "
+        << fabs((intx_area - arrival_area) / arrival_area) << "\n";
+  }
 
   MPI_Finalize();
   if (MB_SUCCESS != rval)

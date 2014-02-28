@@ -5,8 +5,10 @@ EXTRA_DIST = HommeMapping.nc \
              camEul26x48x96.t3.nc \
              fv26x46x72.t.3.nc \
 	     cubtest12.cub \
+	     cubtest14.cub \
 	     cubtest.jou \
 	     dum.sat \
+	     dum.stp \
 	     gmsh2.msh \
 	     hex_2x2x2_ss.exo \
              ho_test.g \

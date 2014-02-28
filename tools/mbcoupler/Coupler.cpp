@@ -113,11 +113,22 @@ ErrorCode Coupler::initialize_tree()
   box.bMax.get(&allBoxes[6*my_rank+3]);
   
     // now communicate to get all boxes
-    // use "in place" option
   if (myPc) {
-    int mpi_err = MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
+    int mpi_err;
+#if (MPI_VERSION >= 2)
+      // use "in place" option
+    mpi_err = MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
                                 &allBoxes[0], 6, MPI_DOUBLE, 
                                 myPc->proc_config().proc_comm());
+#else
+    {
+      std::vector<double> allBoxes_tmp(6*myPc->proc_config().proc_size());
+      mpi_err = MPI_Allgather( &allBoxes[6*my_rank], 6, MPI_DOUBLE,
+                                   &allBoxes_tmp[0], 6, MPI_DOUBLE, 
+                                   myPc->proc_config().proc_comm());
+      allBoxes = allBoxes_tmp;
+    }
+#endif
     if (MPI_SUCCESS != mpi_err) return MB_FAILURE;
   }
 
@@ -654,7 +665,7 @@ ErrorCode Coupler::nat_param(double xyz[3],
   if (epsilon) {
     std::vector<double> dists;
     std::vector<EntityHandle> leaves;
-    result = myTree->distance_search(xyz, epsilon, leaves, 0.0, &dists, NULL, &localRoot);
+    result = myTree->distance_search(xyz, epsilon, leaves, 1.0e-10, 1.0e-6, &dists, NULL, &localRoot);
     if (leaves.empty()) 
       // not found returns success here, with empty list, just like case with no epsilon
       return MB_SUCCESS;
@@ -671,7 +682,7 @@ ErrorCode Coupler::nat_param(double xyz[3],
     }
   }
   else {
-    result = myTree->point_search(xyz, treeiter, 0.0, NULL, &localRoot);
+    result = myTree->point_search(xyz, treeiter, 1.0e-10, 1.0e-6, NULL, &localRoot);
     if(MB_ENTITY_NOT_FOUND==result) //point is outside of myTree's bounding box
       return MB_SUCCESS; 
     else if (MB_SUCCESS != result) {

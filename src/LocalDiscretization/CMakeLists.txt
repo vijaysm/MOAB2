@@ -2,12 +2,14 @@ set( MOAB_LOC_DSCR_SRCS ElemEvaluator.cpp
                         LinearHex.cpp
                         LinearQuad.cpp
                         LinearTet.cpp
+                        LinearTri.cpp
                         QuadraticHex.cpp )
 
 set( MOAB_LOCALDSRC_Install_Headers moab/ElemEvaluator.hpp
                                     moab/LinearHex.hpp
                                     moab/LinearQuad.hpp
 	                                  moab/LinearTet.hpp
+                                    moab/LinearTri.hpp
                                     moab/QuadraticHex.hpp )
 
 add_library( moab_loc_discr OBJECT ${MOAB_LOC_DSCR_SRCS}
