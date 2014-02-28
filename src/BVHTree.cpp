@@ -443,7 +443,7 @@ namespace moab
       const TreeNode &node = myTree[index];
       treeStats.nodesVisited++;
       CartVect params;
-      bool is_inside;
+      int is_inside;
       ErrorCode rval = MB_SUCCESS;
       if(node.dim == 3){
         treeStats.leavesVisited++;

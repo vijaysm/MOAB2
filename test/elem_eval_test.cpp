@@ -50,7 +50,7 @@ void test_eval(ElemEvaluator &ee, bool test_integrate)
 {
   
   CartVect params, posn, params2;
-  bool is_inside;
+  int is_inside;
   Matrix3 jacob;
   ErrorCode rval;
   int ent_dim = ee.get_moab()->dimension_from_handle(ee.get_ent_handle());

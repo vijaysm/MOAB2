@@ -283,7 +283,7 @@ static herr_t handle_hdf5_error( void* data )
   return result;
 }
 
-#endif // #ifdef H5_HAVE_PARALLEL
+#endif /* #ifdef H5_HAVE_PARALLEL */
  
 int main( int argc, char* argv[] )
 {

@@ -7,14 +7,14 @@ include ${MOAB_DIR}/lib/iMesh-Defs.inc
 # MESH_DIR is the directory containing mesh files that come with MOAB source
 MESH_DIR="../MeshFiles/unittest"
 
-EXAMPLES = HelloMOAB GetEntities SetsNTags StructuredMeshSimple DirectAccessWithHoles DirectAccessNoHoles 
-PAREXAMPLES = HelloParMOAB ReduceExchangeTags LloydRelaxation
-F90EXAMPLES = DirectAccessNoHolesF90 PushParMeshIntoMoabF90
+EXAMPLES = HelloMOAB GetEntities SetsNTags LoadPartial structuredmesh StructuredMeshSimple DirectAccessWithHoles DirectAccessNoHoles point_in_elem_search DeformMeshRemap
+PAREXAMPLES = HelloParMOAB ReduceExchangeTags LloydRelaxation CrystalRouterExample
 EXOIIEXAMPLES = TestExodusII
+F90EXAMPLES = DirectAccessNoHolesF90 PushParMeshIntoMoabF90
 
-default: ${EXAMPLES}
+default: ${EXAMPLES} ${PAREXAMPLES} ${EXOIIEXAMPLES} ${F90EXAMPLES}
 
-HelloMOAB : HelloMOAB.o ${MOAB_LIBDIR}/libMOAB.la
+HelloMOAB: HelloMOAB.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
 GetEntities: GetEntities.o ${MOAB_LIBDIR}/libMOAB.la
@@ -26,8 +26,14 @@ SetsNTags: SetsNTags.o ${MOAB_LIBDIR}/libMOAB.la
 LloydRelaxation: LloydRelaxation.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
-StructuredMeshSimple : StructuredMeshSimple.o ${MOAB_LIBDIR}/libMOAB.la
-	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} 
+LoadPartial: LoadPartial.o ${MOAB_LIBDIR}/libMOAB.la
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} ${MOAB_LIBS_LINK}
+
+structuredmesh: structuredmesh.o ${MOAB_LIBDIR}/libMOAB.la
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+StructuredMeshSimple: StructuredMeshSimple.o ${MOAB_LIBDIR}/libMOAB.la
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
 DirectAccessWithHoles: DirectAccessWithHoles.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
@@ -38,11 +44,14 @@ DirectAccessNoHoles: DirectAccessNoHoles.o ${MOAB_LIBDIR}/libMOAB.la
 DirectAccessNoHolesF90: DirectAccessNoHolesF90.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_FC} -o $@ $< ${IMESH_LIBS}
 
-ReduceExchangeTags : ReduceExchangeTags.o ${MOAB_LIBDIR}/libMOAB.la
+ReduceExchangeTags: ReduceExchangeTags.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
 HelloParMOAB: HelloParMOAB.o ${MOAB_LIBDIR}/libMOAB.la
-	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} 
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+CrystalRouterExample: CrystalRouterExample.o ${MOAB_LIBDIR}/libMOAB.la
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
 TestExodusII: TestExodusII.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
@@ -54,14 +63,14 @@ PushParMeshIntoMoabF90: PushParMeshIntoMoabF90.o
 	${MOAB_FC} -o $@ $< ${IMESH_LIBS}
 
 DeformMeshRemap: DeformMeshRemap.o ${MOAB_LIBDIR}/libMOAB.la
-	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} -lmbcoupler ${MOAB_LIBS_LINK} 
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} -lmbcoupler ${MOAB_LIBS_LINK}
 
 clean:
-	rm -rf *.o ${EXAMPLES} ${PAREXAMPLES} ${EXOIIEXAMPLES}
+	rm -rf *.o *.mod *.h5m ${EXAMPLES} ${PAREXAMPLES} ${EXOIIEXAMPLES} ${F90EXAMPLES}
 
-.cpp.o :
+.cpp.o:
 	${MOAB_CXX} ${CXXFLAGS} ${MOAB_CXXFLAGS} ${MOAB_CPPFLAGS} ${MOAB_INCLUDES} -DMESH_DIR=\"${MESH_DIR}\" -c $<
 
- .F90.o :
+.F90.o:
 	${IMESH_FC} ${FCFLAGS} ${IMESH_FCFLAGS} ${MOAB_CPPFLAGS} ${IMESH_INCLUDES} ${IMESH_FCDEFS} -DMESH_DIR=\"${MESH_DIR}\" -c $<
 

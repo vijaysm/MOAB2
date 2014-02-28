@@ -3,6 +3,13 @@
 #include "moab/ElemEvaluator.hpp"
 #include "moab/AdaptiveKDTree.hpp"
 
+// include ScdInterface for box partitioning
+#include "moab/ScdInterface.hpp"
+
+#ifdef USE_MPI
+#include "moab/ParallelComm.hpp"
+#endif
+
 bool debug = true;
 
 namespace moab 
@@ -19,6 +26,9 @@ namespace moab
         myDim = mbImpl->dimension_from_handle(*elems.rbegin());
         ErrorCode rval = myTree->build_tree(myElems);
         if (MB_SUCCESS != rval) throw rval;
+
+        rval = myTree->get_bounding_box(localBox);
+        if (MB_SUCCESS != rval) throw rval;
       }
     }
 
@@ -34,21 +44,258 @@ namespace moab
     }
     
 #ifdef USE_MPI
-    ErrorCode SpatialLocator::par_locate_points(Range &/*vertices*/,
+    ErrorCode SpatialLocator::initialize_intermediate_partition(ParallelComm *pc) 
+    {
+      if (!pc) return MB_FAILURE;
+      
+      BoundBox gbox;
+      
+        //step 2
+        // get the global bounding box
+      double sendbuffer[6];
+      double rcvbuffer[6];
+
+      localBox.get(sendbuffer); //fill sendbuffer with local box, max values in [0:2] min values in [3:5]
+      sendbuffer[0] *= -1;
+      sendbuffer[1] *= -1; //negate Xmin,Ymin,Zmin to get their minimum using MPI_MAX
+      sendbuffer[2] *= -1; //to avoid calling MPI_Allreduce again with MPI_MIN
+
+      int mpi_err = MPI_Allreduce(sendbuffer, rcvbuffer, 6, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+      if (MPI_SUCCESS != mpi_err)	return MB_FAILURE;
+
+      rcvbuffer[0] *= -1;
+      rcvbuffer[1] *= -1;  //negate Xmin,Ymin,Zmin again to get original values
+      rcvbuffer[2] *= -1;
+
+      globalBox.update_max(&rcvbuffer[3]); //saving values in globalBox
+      globalBox.update_min(&rcvbuffer[0]);
+
+        // compute the alternate decomposition; use ScdInterface::compute_partition_sqijk for this
+      ScdParData spd;
+      spd.partMethod = ScdParData::SQIJK;
+      spd.gPeriodic[0] = spd.gPeriodic[1] = spd.gPeriodic[2] = 0;
+      double lg = log10((localBox.bMax - localBox.bMin).length());
+      double mfactor = pow(10.0, 6 - lg);
+      int ldims[3], lper[3];
+      double dgijk[6];
+      localBox.get(dgijk);
+      for (int i = 0; i < 6; i++) spd.gDims[i] = dgijk[i] * mfactor;
+      ErrorCode rval = ScdInterface::compute_partition(pc->size(), pc->rank(), spd,
+                                                       ldims, lper, regNums);
+      if (MB_SUCCESS != rval) return rval;
+        // all we're really interested in is regNums[i], #procs in each direction
+      
+      for (int i = 0; i < 3; i++)
+        regDeltaXYZ[i] = (globalBox.bMax[i] - globalBox.bMin[i])/double(regNums[i]); //size of each region
+
+      return MB_SUCCESS;
+    }
+
+//this function sets up the TupleList TLreg_o containing the registration messages
+// and sends it
+    ErrorCode SpatialLocator::register_src_with_intermediate_procs(ParallelComm *pc, double abs_iter_tol, TupleList &TLreg_o)
+    {
+      int corner_ijk[6];
+
+        // step 3: compute ijks of local box corners in intermediate partition
+        // get corner ijk values for my box
+      ErrorCode rval = get_point_ijk(localBox.bMin-CartVect(abs_iter_tol), abs_iter_tol, corner_ijk);
+      if (MB_SUCCESS != rval) return rval;
+      rval = get_point_ijk(localBox.bMax+CartVect(abs_iter_tol), abs_iter_tol, corner_ijk+3);
+      if (MB_SUCCESS != rval) return rval;
+
+        //step 4
+        //set up TLreg_o
+      TLreg_o.initialize(1,0,0,6,0);
+        // TLreg_o (int destProc, real Xmin, Ymin, Zmin, Xmax, Ymax, Zmax)
+
+      int dest;
+      double boxtosend[6];
+
+      localBox.get(boxtosend);
+
+        //iterate over all regions overlapping with my bounding box using the computerd corner IDs
+      for (int k = corner_ijk[2]; k <= corner_ijk[5]; k++) {
+        for (int j = corner_ijk[1]; j <= corner_ijk[4]; j++) {
+          for (int i = corner_ijk[0]; i <= corner_ijk[3]; i++) {
+            dest = k * regNums[0]*regNums[1] + j * regNums[0] + i;
+            TLreg_o.push_back(&dest, NULL, NULL, boxtosend);
+          }
+        }
+      }
+	
+        //step 5
+        //send TLreg_o, receive TLrequests_i
+      if (pc) pc->proc_config().crystal_router()->gs_transfer(1, TLreg_o, 0);
+
+        //step 6
+        //Read registration requests from TLreg_o and add to list of procs to forward to
+        //get number of tuples sent to me
+
+        //read tuples and fill processor list;
+      int NN = TLreg_o.get_n();
+      for (int i=0; i < NN; i++)
+          //TLreg_o is now TLrequests_i
+        srcProcBoxes[TLreg_o.vi_rd[i]] = BoundBox(TLreg_o.vr_rd+6*i);
+
+      return MB_SUCCESS;
+    }
+
+    ErrorCode SpatialLocator::par_locate_points(ParallelComm */*pc*/,
+                                                Range &/*vertices*/,
                                                 const double /*rel_iter_tol*/, const double /*abs_iter_tol*/,
                                                 const double /*inside_tol*/)
     {
       return MB_UNSUPPORTED_OPERATION;
     }
 
-    ErrorCode SpatialLocator::par_locate_points(const double */*pos*/, int /*num_points*/,
-                                                const double /*rel_iter_tol*/, const double /*abs_iter_tol*/,
-                                                const double /*inside_tol*/)
-    {
-      return MB_UNSUPPORTED_OPERATION;
-    }
-#endif
+    bool is_neg(int i) {return (i == -1);}
       
+    ErrorCode SpatialLocator::par_locate_points(ParallelComm *pc,
+                                                const double *pos, int num_points,
+                                                const double rel_iter_tol, const double abs_iter_tol,
+                                                const double inside_tol)
+    {
+      ErrorCode rval;
+        //TUpleList used for communication 
+      TupleList TLreg_o;   //TLregister_outbound
+      TupleList TLquery_o; //TLquery_outbound
+      TupleList TLforward_o; //TLforward_outbound
+      TupleList TLsearch_results_o; //TLsearch_results_outbound
+
+      
+        // steps 1-2 - initialize the alternative decomposition box from global box
+      rval = initialize_intermediate_partition(pc);
+      
+        //steps 3-6 - set up TLreg_o, gs_transfer, gather registrations
+      rval = register_src_with_intermediate_procs(pc, abs_iter_tol, TLreg_o);
+      if (rval != MB_SUCCESS) return rval;
+
+        // actual parallel point location using intermediate partition
+
+        // target_pts: TL(to_proc, tgt_index, x, y, z): tuples sent to source mesh procs representing pts to be located
+        // source_pts: TL(from_proc, tgt_index, src_index): results of source mesh proc point location, ready to send
+        //             back to tgt procs; src_index of -1 indicates point not located (arguably not useful...)
+
+      unsigned int my_rank = (pc? pc->proc_config().proc_rank() : 0);
+
+        //TLquery_o: Tuples sent to forwarder proc 
+        //TL (toProc, OriginalSourceProc, targetIndex, X,Y,Z)
+
+        //TLforw_req_i: Tuples to forward to corresponding procs (forwarding requests)
+        //TL (sourceProc, OriginalSourceProc, targetIndex, X,Y,Z)
+
+      TLquery_o.initialize(3,0,0,3,0);
+
+      int iargs[3];
+
+      for (int pnt=0; pnt < 3*num_points; pnt+=3)
+      {
+        int forw_id = proc_from_point(pos+pnt, abs_iter_tol); //get ID of proc resonsible of the region the proc is in
+
+        iargs[0] = forw_id; 	//toProc
+        iargs[1] = my_rank; 	//originalSourceProc
+        iargs[2] = pnt/3;    	//targetIndex 	
+
+        TLquery_o.push_back(iargs, NULL, NULL, const_cast<double*>(pos+pnt));
+      }
+
+        //send point search queries to forwarders
+      if (pc)
+        pc->proc_config().crystal_router()->gs_transfer(1, TLquery_o, 0);
+
+        //now read forwarding requests and forward to corresponding procs
+        //TLquery_o is now TLforw_req_i
+
+        //TLforward_o: query messages forwarded to corresponding procs
+        //TL (toProc, OriginalSourceProc, targetIndex, X,Y,Z)
+
+      TLforward_o.initialize(3,0,0,3,0);
+
+      int NN = TLquery_o.get_n();
+
+      for (int i=0; i < NN; i++) {
+        iargs[1] = TLquery_o.vi_rd[3*i+1];	//get OriginalSourceProc
+        iargs[2] = TLquery_o.vi_rd[3*i+2];	//targetIndex
+        CartVect tmp_pnt(TLquery_o.vr_rd+3*i);
+
+          //compare coordinates to list of bounding boxes
+        for (std::map<int, BoundBox>::iterator mit = srcProcBoxes.begin(); mit != srcProcBoxes.end(); mit++) {
+          if ((*mit).second.contains_point(tmp_pnt.array(), abs_iter_tol)) {
+            iargs[0] = (*mit).first;
+            TLforward_o.push_back(iargs, NULL, NULL, tmp_pnt.array());
+          }
+        }
+
+      }
+
+      if (pc)
+        pc->proc_config().crystal_router()->gs_transfer(1, TLforward_o, 0);
+
+        //step 12
+        //now read Point Search requests
+        //TLforward_o is now TLsearch_req_i
+        //TLsearch_req_i: (sourceProc, OriginalSourceProc, targetIndex, X,Y,Z)
+							  
+      NN = TLforward_o.get_n();
+
+        //TLsearch_results_o
+        //TL: (OriginalSourceProc, targetIndex, sourceIndex, U,V,W);
+      TLsearch_results_o.initialize(3,0,0,0,0);
+
+        //step 13 is done in test_local_box
+
+      std::vector<double> params(3*NN);
+      std::vector<int> is_inside(NN, 0);
+      std::vector<EntityHandle> ents(NN, 0);
+      
+      rval = locate_points(TLforward_o.vr_rd, TLforward_o.get_n(), 
+                           &ents[0], &params[0], &is_inside[0], 
+                           rel_iter_tol, abs_iter_tol, inside_tol);
+      if (MB_SUCCESS != rval)
+        return rval;
+      
+      locTable.initialize(1, 0, 1, 3, 0);
+      locTable.enableWriteAccess();
+      for (int i = 0; i < NN; i++) {
+        if (is_inside[i]) {
+          iargs[0] = TLforward_o.vi_rd[3*i+1];
+          iargs[1] = TLforward_o.vi_rd[3*i+2];
+          iargs[2] = locTable.get_n();
+          TLsearch_results_o.push_back(iargs, NULL, NULL, NULL);
+          locTable.push_back(const_cast<int*>(&TLforward_o.vi_rd[3*i+1]), NULL, &ents[i], &params[3*i]);
+        }
+      }
+      locTable.disableWriteAccess();
+
+        //step 14: send TLsearch_results_o and receive TLloc_i
+      if (pc)
+        pc->proc_config().crystal_router()->gs_transfer(1, TLsearch_results_o, 0);
+
+
+        // store proc/index tuples in parLocTable
+      parLocTable.initialize(2, 0, 0, 0, num_points);
+      parLocTable.enableWriteAccess();
+      std::fill(parLocTable.vi_wr, parLocTable.vi_wr + 2*num_points, -1);
+      
+      for (unsigned int i = 0; i < TLsearch_results_o.get_n(); i++) {
+        int idx = TLsearch_results_o.vi_rd[3*i+1];
+        parLocTable.vi_wr[2*idx] = TLsearch_results_o.vi_rd[3*i];
+        parLocTable.vi_wr[2*idx+1] = TLsearch_results_o.vi_rd[3*i+2];
+      }
+
+      if (debug) {
+        int num_found = num_points - 0.5 * 
+            std::count_if(parLocTable.vi_wr, parLocTable.vi_wr + 2*num_points, is_neg);
+        std::cout << "Points found = " << num_found << "/" << num_points 
+                  << " (" << 100.0*((double)num_found/num_points) << "%)" << std::endl;
+      }
+      
+      return MB_SUCCESS;
+    }
+
+#endif
+
     ErrorCode SpatialLocator::locate_points(Range &verts,
                                             const double rel_iter_tol, const double abs_iter_tol, 
                                             const double inside_tol) 
@@ -82,7 +329,7 @@ namespace moab
     }
       
     ErrorCode SpatialLocator::locate_points(Range &verts,
-                                            EntityHandle *ents, double *params, bool *is_inside,
+                                            EntityHandle *ents, double *params, int *is_inside,
                                             const double rel_iter_tol, const double abs_iter_tol, 
                                             const double inside_tol)
     {
@@ -94,16 +341,14 @@ namespace moab
     }
 
     ErrorCode SpatialLocator::locate_points(const double *pos, int num_points,
-                                            EntityHandle *ents, double *params, bool *is_inside,
+                                            EntityHandle *ents, double *params, int *is_inside,
                                             const double rel_iter_tol, const double abs_iter_tol, 
                                             const double inside_tol)
     {
       double tmp_abs_iter_tol = abs_iter_tol;
       if (rel_iter_tol && !tmp_abs_iter_tol) {
           // relative epsilon given, translate to absolute epsilon using box dimensions
-        BoundBox box;
-        myTree->get_bounding_box(box);
-        tmp_abs_iter_tol = rel_iter_tol * box.diagonal_length();
+        tmp_abs_iter_tol = rel_iter_tol * localBox.diagonal_length();
       }
   
       EntityHandle closest_leaf;
@@ -154,8 +399,8 @@ namespace moab
         if(rval != MB_SUCCESS) return rval;
 
           // loop over the range_leaf
-        bool tmp_inside;
-        bool *is_ptr = (is_inside ? is_inside+i : &tmp_inside);      
+        int tmp_inside;
+        int *is_ptr = (is_inside ? is_inside+i : &tmp_inside);      
         *is_ptr = false;
         EntityHandle ent = 0;
         for(Range::iterator rit = range_leaf.begin(); rit != range_leaf.end(); rit++)

@@ -352,7 +352,7 @@ void create()
   Tag itag;
   if (MB_SUCCESS != iface->tag_get_handle( intname, 2, MB_TYPE_INTEGER, itag, MB_TAG_SPARSE|MB_TAG_EXCL ))
     moab_error( "tag_get_handle(MB_TYPE_INT)" );
-  int idata[] = { 0xDEADBEEF, 0xDEFACED };
+  int idata[] = { static_cast<int>(0xDEADBEEF), static_cast<int>(0xDEFACED) };
   if (MB_SUCCESS != iface->tag_set_data( itag, &dodec, 1, idata ))
     moab_error( "tag_set_data(itag)" );
   

@@ -141,14 +141,12 @@ int main(int argc, char **argv)
 
 ErrorCode test_locator(SpatialLocator &sl, int npoints, double rtol, double &cpu_time, double &percent_outside) 
 {
-  BoundBox box;
-  ErrorCode rval = sl.get_bounding_box(box);
-  if (MB_SUCCESS != rval) return rval;
+  BoundBox box = sl.local_box();
   CartVect box_del = box.bMax - box.bMin;
 
   std::vector<CartVect> test_pts(npoints), test_res(npoints);
   std::vector<EntityHandle> ents(npoints);
-  bool *is_in = new bool[npoints];
+  int *is_in = new int[npoints];
 
   double denom = 1.0 / (double)RAND_MAX;
   for (int i = 0; i < npoints; i++) {    
@@ -160,7 +158,7 @@ ErrorCode test_locator(SpatialLocator &sl, int npoints, double rtol, double &cpu
   CpuTimer ct;
   
     // call spatial locator to locate points
-  rval = sl.locate_points(test_pts[0].array(), npoints, &ents[0], test_res[0].array(), &is_in[0], rtol, 0.0);
+  ErrorCode rval = sl.locate_points(test_pts[0].array(), npoints, &ents[0], test_res[0].array(), &is_in[0], rtol, 0.0);
   if (MB_SUCCESS != rval) return rval;
 
   cpu_time = ct.time_elapsed();

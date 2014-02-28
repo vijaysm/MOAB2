@@ -79,7 +79,6 @@ MCNPError McnpData::read_mcnpfile(bool skip_mesh) {
 
       MCNPError result;
       moab::ErrorCode MBresult;
-      int nelems;
       moab::CartVect tvect;
 
       std::vector<double> xvec[3];
@@ -142,7 +141,6 @@ MCNPError McnpData::read_mcnpfile(bool skip_mesh) {
                   }
 
                   // Make the elements and vertices
-                  nelems = (nv[0] - 1) * (nv[1] - 1) * (nv[2] - 1);
                   result = make_elements(xvec, nv);
                   if (result == MCNP_FAILURE) return MCNP_FAILURE;
             break;
@@ -266,8 +264,6 @@ MCNPError McnpData::make_elements(std::vector<double> x[3], int* n) {
       // double v[3];
       // MBEntityHandle dumhandle;
       // MBEntityHandle vstart, vijk;
-      moab::ErrorCode MBresult;
-
       unsigned int num_verts = n[0]*n[1]*n[2];
       double       *coords;
       coords = new double [ 3 * num_verts ]; 
@@ -306,7 +302,7 @@ MCNPError McnpData::make_elements(std::vector<double> x[3], int* n) {
             }
       }
 
-      MBresult = MBI->create_vertices(coords, num_verts, vert_handles);
+      MBI->create_vertices(coords, num_verts, vert_handles);
       
 
       delete coords;
@@ -315,10 +311,8 @@ MCNPError McnpData::make_elements(std::vector<double> x[3], int* n) {
 
 MCNPError McnpData::initialize_tags() {
 
-      moab::ErrorCode rval;
-
-      rval = MBI->tag_get_handle(TALLY_TAG, 1, moab::MB_TYPE_DOUBLE, tally_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT);
-      rval = MBI->tag_get_handle(ERROR_TAG, 1, moab::MB_TYPE_DOUBLE, relerr_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT);
+      MBI->tag_get_handle(TALLY_TAG, 1, moab::MB_TYPE_DOUBLE, tally_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT);
+      MBI->tag_get_handle(ERROR_TAG, 1, moab::MB_TYPE_DOUBLE, relerr_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT);
 
       return MCNP_SUCCESS;
 

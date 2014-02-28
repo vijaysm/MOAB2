@@ -790,7 +790,8 @@ void create_input_file( const char* file_name,
     for (int j = 0; j < iv; ++j) {
       int start = idx;
       for (int k = 0; k < iv; ++k) {
-        const double coords[3] = {i, j, k};
+        const double coords[3] = {static_cast<double>(i), static_cast<double>(j), 
+                                  static_cast<double>(k)};
         rval = mb.create_vertex( coords, verts[idx] );
         CHECK_ERR(rval);
         if (ijk_vert_tag) {
@@ -1279,7 +1280,7 @@ void test_write_different_element_types()
   const int nvert = verts[rank%ntypes];
   std::vector<EntityHandle> conn(nvert);
   for (int i = 0; i < nvert; ++i) {
-    const double coords[] = { rank, i, 0 };
+    const double coords[] = { static_cast<double>(rank), static_cast<double>(i), 0 };
     rval = mb.create_vertex( coords, conn[i] );
     CHECK_ERR(rval);
   }
@@ -1323,8 +1324,10 @@ Tag get_tag( Interface& mb, int rank, bool create )
   std::ostringstream name;
   name << "TestTag" << rank;
   const void* defval = 0;
-  const int defint[] = { rank, rank/2, rank+1, rank-1 };
-  const double defreal[] = { 0.1*rank, 1.0/rank, -rank, rank };
+  const int defint[] = { static_cast<int>(rank), static_cast<int>(rank/2), 
+                         static_cast<int>(rank+1), static_cast<int>(rank-1) };
+  const double defreal[] = { 0.1*rank, 1.0/rank, 
+                             static_cast<double>(-rank), static_cast<double>(rank) };
   const int defhandle[] = { 0, 0, 0, 0 };
   const unsigned char defbit = 0x1;
   const char defopq[] = "Jason";
@@ -1384,14 +1387,14 @@ void test_write_polygons()
   
     // create a polygon on each process
   const double r = 0.70710678118654757;
-  const double points[8][3] = { { 1, 0, rank },
-                                { r, r, rank },
-                                { 0, 1, rank },
-                                {-r, r, rank },
-                                {-1, 0, rank },
-                                {-r,-r, rank },
-                                { 0,-1, rank },
-                                { r,-r, rank } };
+  const double points[8][3] = { { 1, 0, static_cast<double>(rank) },
+                                { static_cast<double>(r), static_cast<double>(r), static_cast<double>(rank) },
+                                { 0, 1, static_cast<double>(rank) },
+                                {static_cast<double>(-r), static_cast<double>(r), static_cast<double>(rank) },
+                                {-1, 0, static_cast<double>(rank) },
+                                {static_cast<double>(-r),static_cast<double>(-r), static_cast<double>(rank) },
+                                { 0,-1, static_cast<double>(rank) },
+                                { static_cast<double>(r),static_cast<double>(-r), static_cast<double>(rank) } };
   const int nvtx = rank % 4 + 5;
   std::vector<EntityHandle> conn(nvtx);
   for (int i = 0; i < nvtx; ++i) {
@@ -1468,10 +1471,10 @@ void test_write_unbalanced()
 
     // create a quad on every odd processor
   if (rank % 2) {
-    const double coords[4][3] = { { rank,   0, 0 },
-                                  { rank+2, 0, 0 },
-                                  { rank+2, 2, 0 },
-                                  { rank,   2, 0 } };
+    const double coords[4][3] = { { static_cast<double>(rank),   0, 0 },
+                                  { static_cast<double>(rank+2), 0, 0 },
+                                  { static_cast<double>(rank+2), 2, 0 },
+                                  { static_cast<double>(rank),   2, 0 } };
     EntityHandle conn[4], quad;
     for (int i = 0; i < 4; ++i)
       mb.create_vertex( coords[i], conn[i] );

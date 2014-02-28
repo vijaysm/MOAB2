@@ -102,9 +102,6 @@ void test_hex_nat_coords()
         result_xi = hex2.ievaluate(pt, EPS1/10);
         double dum = EPS1/10;
         valid = hex2.inside_nat_space(result_xi, dum);
-        if (!valid) {
-          double d1 = 0;
-        }
         CHECK(valid);
         CHECK_REAL_EQUAL( xi[0], result_xi[0], EPS1 );
         CHECK_REAL_EQUAL( xi[1], result_xi[1], EPS1 );

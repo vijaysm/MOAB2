@@ -33,6 +33,11 @@ Intx2Mesh::Intx2Mesh(Interface * mbimpl): mb(mbimpl), parcomm(NULL), remote_cell
 Intx2Mesh::~Intx2Mesh()
 {
   // TODO Auto-generated destructor stub
+  if (remote_cells)
+  {
+    delete remote_cells;
+    remote_cells=NULL;
+  }
 }
 void Intx2Mesh::createTags()
 {
@@ -110,7 +115,10 @@ ErrorCode Intx2Mesh::GetOrderedNeighbors(EntityHandle set, EntityHandle cell,
   // first cell is for nodes 0, 1, second to 1, 2, third to 2, 3, last to nnodes-1,
   const EntityHandle * conn4;
   ErrorCode rval = mb->get_connectivity(cell, conn4, nnodes);
-  int nsides = nnodes; // just keep it for historical purposes; it is indeed nnodes
+  int nsides = nnodes;
+  // account for possible padded polygons
+  while (conn4[nsides-2]==conn4[nsides-1] && nsides>3)
+    nsides--;
   ERRORR(rval, "can't get connectivity on an element");
   for (int i = 0; i < nsides; i++)
   {
@@ -475,10 +483,21 @@ ErrorCode Intx2Mesh::build_processor_euler_boxes(EntityHandle euler_set, Range &
   }
 
    // now communicate to get all boxes
-   // use "in place" option
-  int mpi_err = MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
-                               &allBoxes[0], 6, MPI_DOUBLE,
-                               parcomm->proc_config().proc_comm());
+  int mpi_err;
+#if (MPI_VERSION >= 2)
+    // use "in place" option
+  mpi_err = MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
+                          &allBoxes[0], 6, MPI_DOUBLE, 
+                          parcomm->proc_config().proc_comm());
+#else
+  {
+    std::vector<double> allBoxes_tmp(6*parcomm->proc_config().proc_size());
+    mpi_err = MPI_Allgather( &allBoxes[6*my_rank], 6, MPI_DOUBLE,
+                             &allBoxes_tmp[0], 6, MPI_DOUBLE, 
+                             parcomm->proc_config().proc_comm());
+    allBoxes = allBoxes_tmp;
+  }
+#endif
   if (MPI_SUCCESS != mpi_err) return MB_FAILURE;
 
   // also process the max number of vertices per cell (4 for quads, but could be more for polygons)

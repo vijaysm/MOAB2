@@ -96,7 +96,7 @@ CartVect SpectralQuad::evalFcn(const double *params, const double *field, const 
   // replicate the functionality of hex_findpt
 bool SpectralQuad::reverseEvalFcn(const double *posn, const double *verts, const int nverts, const int ndim,
                                   const double iter_tol, const double inside_tol, double *work, 
-                                  double *params, bool *is_inside)
+                                  double *params, int *is_inside)
 {
   params = init;
 
@@ -147,10 +147,10 @@ void SpectralQuad:: integrate_vector(const double *field, const double *verts, c
     // not implemented
 }
 
-    bool SpectralQuad::insideFcn(const double *params, const int ndim, const double tol) 
-    {
-      return EvalSet::inside(params, ndim, tol);
-    }
+int SpectralQuad::insideFcn(const double *params, const int ndim, const double tol) 
+{
+  return EvalSet::inside(params, ndim, tol);
+}
 
   // something we don't do for spectral hex; we do it here because
   //       we do not store the position of gl points in a tag yet

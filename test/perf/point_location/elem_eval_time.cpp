@@ -155,7 +155,7 @@ ErrorCode time_reverse_eval(Interface *mbi, int method, Range &elems,
     ElemEvaluator eeval(mbi);
     eeval.set_eval_set(*elems.begin());
     eeval.set_tag_handle(0, 0); // indicates coordinates as the field to evaluate    
-    bool ins;
+    int ins;
     for (rit = elems.begin(), i = 0; rit != elems.end(); rit++, i++) {
       eeval.set_ent_handle(*rit);
       rval = eeval.reverse_eval(coords[i].array(), 1.0e-10, 1.0e-6, params[i].array(), &ins);
