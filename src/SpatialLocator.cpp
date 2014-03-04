@@ -263,7 +263,9 @@ namespace moab
           iargs[1] = TLforward_o.vi_rd[3*i+2];
           iargs[2] = locTable.get_n();
           TLsearch_results_o.push_back(iargs, NULL, NULL, NULL);
-          locTable.push_back(const_cast<int*>(&TLforward_o.vi_rd[3*i+1]), NULL, &ents[i], &params[3*i]);
+          ulong ent_ulong=(ulong)ents[i];
+          sint forward= (sint)TLforward_o.vi_rd[3*i+1];
+          locTable.push_back(&forward, NULL, &ent_ulong, &params[3*i]);
         }
       }
       locTable.disableWriteAccess();
