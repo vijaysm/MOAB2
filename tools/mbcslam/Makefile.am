@@ -20,7 +20,7 @@ AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
 lib_LTLIBRARIES = libmbcslam.la
 libmbcslam_la_LIBADD = $(top_builddir)/src/libMOAB.la $(top_builddir)/itaps/imesh/libiMesh.la 
          
-LDADD = $(top_builddir)/src/libMOAB.la libmbcslam.la 
+LDADD = libmbcslam.la  $(top_builddir)/src/libMOAB.la 
 
 libmbcslam_la_SOURCES = \
    Intx2Mesh.cpp Intx2Mesh.hpp Intx2MeshOnSphere.cpp Intx2MeshOnSphere.hpp \
@@ -52,8 +52,10 @@ intx_mpas_SOURCES = intx_mpas.cpp
 cslam_par_test_SOURCES = cslam_par_test.cpp
 proj1_SOURCES = proj1.cpp
 intx_imesh_SOURCES = intx_imesh.cpp
+intx_imesh_LDADD = $(LDADD) $(top_builddir)/itaps/imesh/libiMesh.la
 create_dp_SOURCES = create_dp.cpp
 advection_SOURCES = advection.F90
+advection_LDADD = $(LDADD) $(top_builddir)/itaps/imesh/libiMesh.la
 
 EXTRA_DIST  = lagrangeHomme.vtk  \
               eulerHomme.vtk \
