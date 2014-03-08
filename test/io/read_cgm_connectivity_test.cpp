@@ -70,6 +70,8 @@ void read_file( Interface* moab, const char* input_file )
   CHECK_ERR(rval);
 }
 
+// Checks the adjacency of each vertex entity in a simple cube file load
+// to make sure it isn't adjacent to too many or too few triangles.
 void cube_verts_connectivity_test()
 {
 
@@ -190,6 +192,8 @@ void match_tri_edges_w_curve( Range tri_edges, Range curves )
   CHECK_EQUAL( num_of_tri_edges, match_counter );
 } 
 
+// Ensures that each triangle edge is adjacent to no more than
+// two triangles.
 void cube_edge_adjacencies_test()
 {
   ErrorCode rval;

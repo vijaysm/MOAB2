@@ -81,6 +81,10 @@ void read_file( Interface* moab, const char* input_file )
   CHECK_ERR(rval);
 }
 
+// Gets the sense data for each curve from a file 
+// containing a cube and a cylinder. It then checks
+// that this sense data matches the reference
+// sense data from prior file reads.
 void read_cylcube_curve_senses_test()
 {
   ErrorCode rval;
@@ -384,7 +388,11 @@ ErrorCode load_stp_curve_sense_data( Interface* moab, EntityHandle curve, std::v
   return MB_SUCCESS;
 }
 
-///SURFACE SENSE CHECKING
+// SURFACE SENSE CHECKING
+// Gets the sense data for each surface from a file 
+// containing a cube and a cylinder. It then checks
+// that this sense data matches the reference
+// sense data from prior file reads.
 void read_cylcube_surf_senses_test()
 {
   ErrorCode rval;

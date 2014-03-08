@@ -71,6 +71,8 @@ void read_file( Interface* moab, const char* input_file )
   CHECK_ERR(rval);
 }
 
+// Gets the vertex entities from a simple cube file load and checks that the
+// correct number of them exist.
 void read_cube_verts_test()
 {
   ErrorCode rval;
@@ -86,7 +88,8 @@ void read_cube_verts_test()
   CHECK_EQUAL( 8, number_of_vertices );
 }
 
-
+// Gets the triangle entities from a simple cube file load and checks that the
+// correct number of them exist.
 void read_cube_tris_test()
 {
   ErrorCode rval;
@@ -104,6 +107,8 @@ void read_cube_tris_test()
   CHECK_EQUAL( 12, number_of_tris );  
 }
 
+// Gets the curve entities from a simple cube file load and checks that the
+// correct number of them exist.
 void read_cube_curves_test()
 {
   ErrorCode rval;
@@ -128,6 +133,8 @@ void read_cube_curves_test()
 
 } 
 
+// Gets the surface entities from a simple cube file load and checks that the
+// correct number of them exist.
 void read_cube_surfs_test()
 {
   ErrorCode rval;
@@ -178,6 +185,8 @@ void read_cube_vols_test()
   CHECK_EQUAL( 1, number_of_vols );
 }
 
+// Gets the vertex eitities from a simple cube file load and checks that 
+// they are in the correct locations.
 void read_cube_vertex_pos_test()
 {
   

@@ -29,6 +29,7 @@ static const char input_file[] = "dum.sat";
 #endif
 #endif
 
+// Checks that a file can be loaded twice without errors
 void read_multiple_test() 
 {
   Core mb;
