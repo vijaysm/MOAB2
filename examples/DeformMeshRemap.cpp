@@ -546,7 +546,6 @@ ErrorCode DeformMeshRemap::deform_master(Range &fluid_elems, Range &solid_elems,
   unsigned int num_verts = solid_verts.size();
 
     // get or create the tag
-
   if (!xDispNames[0].empty() && !xDispNames[1].empty() && !xDispNames[2].empty()) {
       // 3 tags, specifying xyz individual data, integrate into one tag
     rval = mbImpl->tag_get_handle((tag_name ? tag_name : ""), 3, MB_TYPE_DOUBLE, xNew, MB_TAG_CREAT|MB_TAG_DENSE);
