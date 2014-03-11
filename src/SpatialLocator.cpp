@@ -35,12 +35,12 @@ namespace moab
     {
       if (myTree) return;
       
-//      if (myElems.empty() || mbImpl->type_from_handle(*myElems.rbegin()) == MBVERTEX) 
+      if (myElems.empty() || mbImpl->type_from_handle(*myElems.rbegin()) == MBVERTEX) 
           // create a kdtree if only vertices
         myTree = new AdaptiveKDTree(mbImpl);
-//      else
+      else
           // otherwise a BVHtree, since it performs better for elements
-//        myTree = new BVHTree(mbImpl);
+        myTree = new BVHTree(mbImpl);
 
       iCreatedTree = true;
     }
