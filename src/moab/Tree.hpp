@@ -236,7 +236,7 @@ namespace moab {
 
     inline Tree::Tree(Interface* iface) 
             : mbImpl(iface), maxPerLeaf(6), maxDepth(30), treeDepth(-1), minWidth(1.0e-10),
-              meshsetFlags(0), cleanUp(true), myRoot(0), boxTag(0)
+              meshsetFlags(0), cleanUp(true), myRoot(0), boxTag(0), myEval(0)
     {}
 
     inline Tree::~Tree() 
