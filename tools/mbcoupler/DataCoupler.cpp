@@ -1,24 +1,27 @@
 #include "DataCoupler.hpp"
-#include "moab/ParallelComm.hpp"
 #include "moab/Tree.hpp"
 #include "moab/TupleList.hpp"
 #include "moab/SpatialLocator.hpp"
 #include "moab/ElemEvaluator.hpp"
 #include "moab/Error.hpp"
 
+#ifdef USE_MPI
+#include "moab/ParallelComm.hpp"
+#endif
+
 #include "iostream"
-#include <stdio.h>
 #include <algorithm>
 #include <sstream>
 
+#include <stdio.h>
 #include "assert.h"
 
 namespace moab {
 
 DataCoupler::DataCoupler(Interface *impl,
-                         ParallelComm *pc,
                          Range &source_ents,
                          int coupler_id,
+                         ParallelComm *pc,
                          bool init_locator,
                          int dim)
         : mbImpl(impl), myPcomm(pc), myId(coupler_id), myDim(dim)
@@ -64,7 +67,12 @@ ErrorCode DataCoupler::locate_points(Range &targ_ents,
                                      const double inside_tol)
 {
   targetEnts = targ_ents;
-  
+
+#ifdef USE_MPI
+  if (myPcomm && myPcomm->size() > 1) 
+    return myLocator->par_locate_points(myPcomm, targ_ents, rel_iter_tol, abs_iter_tol, inside_tol);
+#endif
+
   return myLocator->locate_points(targ_ents, rel_iter_tol, abs_iter_tol, inside_tol);
 }
 
@@ -72,6 +80,11 @@ ErrorCode DataCoupler::locate_points(double *xyz, int num_points,
                                      const double rel_iter_tol, const double abs_iter_tol,
                                      const double inside_tol)
 {
+#ifdef USE_MPI
+  if (myPcomm && myPcomm->size() > 1) 
+    return myLocator->par_locate_points(myPcomm, xyz, num_points, rel_iter_tol, abs_iter_tol, inside_tol);
+#endif
+
   return myLocator->locate_points(xyz, num_points, rel_iter_tol, abs_iter_tol, inside_tol);
 }
 
@@ -95,7 +108,7 @@ ErrorCode DataCoupler::interpolate(/*DataCoupler::Method*/ int method,
   return interpolate(method, tag, interp_vals, point_indices, normalize);
 }
   
-ErrorCode DataCoupler::interpolate(/*DataCoupler::Method*/ int *methods,
+ErrorCode DataCoupler::interpolate(/*DataCoupler::Method*/ int */* methods */,
                                    Tag *tags,
                                    int *points_per_method,
                                    int num_methods,
@@ -111,7 +124,12 @@ ErrorCode DataCoupler::interpolate(/*DataCoupler::Method*/ int *methods,
   for (int i = 0; i < num_methods; i++) pts_total += (points_per_method ? points_per_method[i] : targetEnts.size());
 
   unsigned int num_indices = (point_indices ? point_indices->size() : targetEnts.size());
+    // # points and indices should be identical
+  if (pts_total != num_indices)
+    return MB_FAILURE;
 
+    // since each tuple contains one interpolated tag, if we're interpolating multiple tags, every tuple
+    // needs to be able to store up to max tag size
   int max_tsize = -1;
   for (int i = 0; i < num_methods; i++) {
     int tmp_tsize;
@@ -120,75 +138,82 @@ ErrorCode DataCoupler::interpolate(/*DataCoupler::Method*/ int *methods,
     max_tsize = std::max(max_tsize, tmp_tsize);
   }
 
-    // if tl was passed in non-NULL, just have those points, otherwise have targetPts plus
-    // locally mapped pts
-  if (pts_total != num_indices)
-    return MB_FAILURE;
-
-  if (myPcomm) {
-      // TL to send interpolation indices to target procs
-      // Tuple structure: (pto_i, ridx_i, lidx_i, meth_i, tagidx_i, interp_val[max_tsize]_d)
-    TupleList tinterp;
-    tinterp.initialize(5, 0, 0, max_tsize, num_indices);
-    int t = 0;
-    tinterp.enableWriteAccess();
-    for (int i = 0; i < num_methods; i++) {
-      int num_points = (points_per_method ? points_per_method[i] : targetEnts.size());
+  if (myPcomm && myPcomm->size() > 1) {
+      // build up the tuple list to distribute from my target points; assume that
+      // all procs use same method/tag input
+    TupleList TLob; // TLob structure: (pto_i, ridx_i, lidx_i, meth_tagidx_i)
+    TLob.initialize(4, 0, 0, 0, num_indices);
+    int tn = 0; // the tuple number we're currently on
+    TLob.enableWriteAccess();
+    for (int m = 0; m < num_methods; m++) {
+      int num_points = (points_per_method ? points_per_method[m] : targetEnts.size());
       for (int j = 0; j < num_points; j++) {
-        int idx = (point_indices ? (*point_indices)[j] : j);
+        int idx = (point_indices ? (*point_indices)[j] : j); // the index in my targetEnts for this interpolation point
 
           // remote proc/idx from myLocator->parLocTable
-        tinterp.vi_wr[5*t]   = myLocator->par_loc_table().vi_rd[2*idx]; // proc
-        tinterp.vi_wr[5*t+1] = myLocator->par_loc_table().vi_rd[2*idx+1]; // remote idx
+        TLob.vi_wr[4*tn]   = myLocator->par_loc_table().vi_rd[2*idx]; // proc
+        TLob.vi_wr[4*tn+1] = myLocator->par_loc_table().vi_rd[2*idx+1]; // remote idx
   
           // local entity index, tag/method index from my data
-        tinterp.vi_wr[5*t+2] = idx;
-        tinterp.vi_wr[5*t+3] = methods[i];
-        tinterp.vi_wr[5*t+4] = i;
-        tinterp.inc_n();
-        t++;
+        TLob.vi_wr[4*tn+2] = idx;
+        TLob.vi_wr[4*tn+3] = m;
+        TLob.inc_n();
+        tn++;
       }
     }
 
       // scatter/gather interpolation points
-    myPcomm->proc_config().crystal_router()->gs_transfer(1, tinterp, 0);
+    myPcomm->proc_config().crystal_router()->gs_transfer(1, TLob, 0);
 
-      // perform interpolation on local source mesh; put results into
-      // tinterp.vr_wr
+      // perform interpolation on local source mesh; put results into TLinterp
+    TupleList TLinterp; // TLinterp structure: (pto_i, ridx_i, vals[max_tsize]_d)
+    TLinterp.initialize(2, 0, 0, max_tsize, TLob.get_n());
+    TLinterp.set_n(TLob.get_n()); // set the size right away
+    TLinterp.enableWriteAccess();
 
-    for (unsigned int i = 0; i < tinterp.get_n(); i++) {
-      int lidx = tinterp.vi_rd[5*i+1];
-//    /*Method*/ int method = (/*Method*/ int)tinterp.vi_rd[5*i+3];
-      Tag tag = tags[tinterp.vi_rd[5*i+4]];
+    for (unsigned int i = 0; i < TLob.get_n(); i++) {
+      int lidx = TLob.vi_rd[4*i+1]; // index into myLocator's local table
+        // method and tag indexed with same index
+//      /*Method*/ int method = methods[TLob.vi_rd[4*i+3]];
+      Tag tag = tags[TLob.vi_rd[4*i+3]];
+        // copy proc/remote index from TLob
+      TLinterp.vi_wr[2*i] = TLob.vi_rd[4*i];
+      TLinterp.vi_wr[2*i+1] = TLob.vi_rd[4*i+2]; 
 
+        // set up the evaluator for the tag and entity, then interpolate, putting result in TLinterp
       myLocator->elem_eval()->set_tag_handle(tag);
       myLocator->elem_eval()->set_ent_handle(myLocator->loc_table().vul_rd[lidx]);
-      result = myLocator->elem_eval()->eval(myLocator->loc_table().vr_rd+3*lidx, tinterp.vr_rd+i*max_tsize);
+      result = myLocator->elem_eval()->eval(myLocator->loc_table().vr_rd+3*lidx, TLinterp.vr_rd+i*max_tsize);
       if (MB_SUCCESS != result) return result;
     }
 
       // scatter/gather interpolation data
-    myPcomm->proc_config().crystal_router()->gs_transfer(1, tinterp, 0);
+    myPcomm->proc_config().crystal_router()->gs_transfer(1, TLinterp, 0);
 
       // copy the interpolated field as a unit
-    std::copy(tinterp.vr_rd, tinterp.vr_rd+tinterp.get_n()*max_tsize, interp_vals);
+    std::copy(TLinterp.vr_rd, TLinterp.vr_rd+TLinterp.get_n()*max_tsize, interp_vals);
   }
   else {
+      // if called serially, interpolate directly from local locations/entities,
+      // into either interp_vals or by setting data directly on tags on those entities
     std::vector<double> tmp_vals;
     std::vector<EntityHandle> tmp_ents;
     double *tmp_dbl = interp_vals;
     for (int i = 0; i < num_methods; i++) {
       int num_points = (points_per_method ? points_per_method[i] : targetEnts.size());
 
-        // interpolated data is tsize long, which is either max size (if data passed back to caller in tinterp)
+        // interpolated data is tsize long, which is either max size (if data passed back to caller in interp_vals)
         // or tag size (if data will be set on entities, in which case it shouldn't have padding)
+        // set sizes here, inside loop over methods, to reduce memory usage
       int tsize = max_tsize, tsize_bytes = 0;
       if (!interp_vals) {
         tmp_vals.resize(num_points*max_tsize);
         tmp_dbl = &tmp_vals[0];
         tmp_ents.resize(num_points);
         result = mbImpl->tag_get_length(tags[i], tsize);
+        if (MB_SUCCESS != result) return result;
         result = mbImpl->tag_get_bytes(tags[i], tsize_bytes);
+        if (MB_SUCCESS != result) return result;
       }
       
       for (int j = 0; j < num_points; j++) {
@@ -206,7 +231,7 @@ ErrorCode DataCoupler::interpolate(/*DataCoupler::Method*/ int *methods,
         result = myLocator->elem_eval()->eval(myLocator->loc_table().vr_rd+3*lidx, tmp_dbl);
         tmp_dbl += tsize;
         if (MB_SUCCESS != result) return result;
-      } // for j
+      } // for j over points
 
       if (!interp_vals) {
           // set tags on tmp_ents; data is already w/o padding, due to tsize setting above
@@ -214,7 +239,7 @@ ErrorCode DataCoupler::interpolate(/*DataCoupler::Method*/ int *methods,
         if (MB_SUCCESS != result) return result;
       }
 
-    } // for i
+    } // for i over methods
   } // if myPcomm
   
       // done

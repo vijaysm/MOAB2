@@ -339,8 +339,13 @@ namespace moab {
       std::vector<EntityHandle> dum_vec;
       ErrorCode rval = mbImpl->get_connectivity(ent, vertHandles, numVerts, false, &dum_vec);
       if (MB_SUCCESS != rval) return rval;
+
+      if (!evalSets[entType].evalFcn)
+        EvalSet::get_eval_set(entType, numVerts, evalSets[entType]);
+
       rval = mbImpl->get_coords(vertHandles, numVerts, vertPos[0].array());
       if (MB_SUCCESS != rval) return rval;
+
       if (tagHandle) {
         rval = set_tag_handle(tagHandle);
         if (MB_SUCCESS != rval) return rval;
