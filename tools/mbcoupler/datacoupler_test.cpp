@@ -148,8 +148,8 @@ int main(int argc, char **argv)
   if (!dbgFile.empty()) {
     std::stringstream dfname;
     dfname << dbgFile << rank << ".txt";
-    std::freopen(dfname.str().c_str(), "a", stdout);
-    std::freopen(dfname.str().c_str(), "a", stderr);
+    if (!std::freopen(dfname.str().c_str(), "a", stdout)) return false;
+    if (!std::freopen(dfname.str().c_str(), "a", stderr)) return false;
   }
 
   // create MOAB instance based on that
@@ -546,17 +546,17 @@ ErrorCode get_file_options(int argc, char **argv,
 ErrorCode test_interpolation(Interface *mbImpl, 
                              DataCoupler::Method method,
                              std::string &interpTag,
-                             std::string &gNormTag,
-                             std::string &ssNormTag,
-                             std::vector<const char *> &ssTagNames,
-                             std::vector<const char *> &ssTagValues,
-                             iBase_EntitySetHandle *roots,
+                             std::string &/*gNormTag*/,
+                             std::string &/*ssNormTag*/,
+                             std::vector<const char *> &/*ssTagNames*/,
+                             std::vector<const char *> &/*ssTagValues*/,
+                             iBase_EntitySetHandle */*roots*/,
                              std::vector<ParallelComm *> &pcs,
                              double &instant_time,
                              double &pointloc_time,
                              double &interp_time,
-                             double &gnorm_time,
-                             double &ssnorm_time,
+                             double &/*gnorm_time*/,
+                             double &/*ssnorm_time*/,
                              double & toler)
 {
   assert(method >= DataCoupler::CONSTANT && method <= DataCoupler::SPECTRAL);
@@ -572,7 +572,7 @@ ErrorCode test_interpolation(Interface *mbImpl,
   DataCoupler dc(mbImpl, src_elems, 0, pcs[0]);
 
   // initialize spectral elements, if they exist
-  bool specSou=false, specTar = false;
+  // bool specSou=false, specTar = false;
 //  result =  mbc.initialize_spectral_elements((EntityHandle)roots[0], (EntityHandle)roots[1], specSou, specTar);
 
   instant_time = timer.time_since_birth();
