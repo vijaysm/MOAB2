@@ -782,7 +782,7 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
     {
       // construct the conn quad
       EntityHandle new_conn[MAXEDGES];
-      int nnodes;
+      int nnodes = -1;
       for (int j=0; j<max_edges; j++)
       {
         int vgid = TLq.vi_rd[sizeTuple*i+2+j];// vertex global ID
@@ -1072,7 +1072,7 @@ ErrorCode Intx2Mesh::create_departure_mesh_3rd_alg(EntityHandle & lagr_set,
     {
       // construct the conn quad
       EntityHandle new_conn[MAXEDGES];
-      int nnodes;
+      int nnodes = -1;
       for (int j = 0; j < max_edges; j++)
       {
         int vgid = TLq.vi_rd[sizeTuple * i + 2 + j]; // vertex global ID

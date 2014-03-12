@@ -483,10 +483,13 @@ ErrorCode Coupler::test_local_box(double *xyz,
 {
   std::vector<EntityHandle> entities;
   std::vector<CartVect> nat_coords;
-  bool canWrite;
+  bool canWrite = false;
   if (tl) {
     canWrite = tl->get_writeEnabled();
-    if(!canWrite) tl->enableWriteAccess();
+    if(!canWrite) {
+      tl->enableWriteAccess();
+      canWrite = true;
+    }
   }
 
   if (rel_eps && !abs_eps) {
@@ -833,7 +836,7 @@ ErrorCode Coupler::interp_field(EntityHandle elem,
   else
   {
     double vfields[27]; // will work for linear hex, quadratic hex or Tets
-    moab::Element::Map *elemMap;
+    moab::Element::Map *elemMap = NULL;
     int num_verts = 0;
     // get the EntityType
     // get the tag values at the vertices
@@ -1533,7 +1536,7 @@ int Coupler::get_group_integ_vals(std::vector< std::vector<iBase_EntityHandle> >
       iMesh_getEntTopo(iMeshInst, (*iter_j), &topo_type, &err);
       ERRORR("Failed to get topology for entity.", err);
 
-      moab::Element::Map *elemMap;
+      moab::Element::Map *elemMap = NULL;
       int num_verts = 0;
       if (topo_type == iMesh_HEXAHEDRON) {
         elemMap = new moab::Element::LinearHex();
