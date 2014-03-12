@@ -272,7 +272,6 @@ namespace moab {
       
       Range entityHandles;
       std::vector<TreeNode> myTree;
-      ElemEvaluator *myEval;
       int splitsPerDir;
       EntityHandle startSetHandle;
       static const char *treeName;
@@ -305,7 +304,7 @@ namespace moab {
     }
 
     inline BVHTree::BVHTree(Interface *impl) : 
-            Tree(impl), myEval(NULL), splitsPerDir(3), startSetHandle(0) {boxTagName = treeName;}
+            Tree(impl), splitsPerDir(3), startSetHandle(0) {boxTagName = treeName;}
 
     inline unsigned int BVHTree::set_interval(BoundBox &interval, 
                                               std::vector<Bucket>::const_iterator begin, 

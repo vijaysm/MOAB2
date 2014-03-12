@@ -2,6 +2,7 @@
 #include "moab/Interface.hpp"
 #include "moab/ElemEvaluator.hpp"
 #include "moab/AdaptiveKDTree.hpp"
+#include "moab/BVHTree.hpp"
 
 // include ScdInterface for box partitioning
 #include "moab/ScdInterface.hpp"
@@ -18,10 +19,8 @@ namespace moab
     SpatialLocator::SpatialLocator(Interface *impl, Range &elems, Tree *tree, ElemEvaluator *eval) 
             : mbImpl(impl), myElems(elems), myDim(-1), myTree(tree), elemEval(eval), iCreatedTree(false)
     {
-      if (!myTree) {
-        myTree = new AdaptiveKDTree(impl);
-        iCreatedTree = true;
-      }
+      create_tree();
+      
       if (!elems.empty()) {
         myDim = mbImpl->dimension_from_handle(*elems.rbegin());
         ErrorCode rval = myTree->build_tree(myElems);
@@ -32,6 +31,20 @@ namespace moab
       }
     }
 
+    void SpatialLocator::create_tree() 
+    {
+      if (myTree) return;
+      
+      if (myElems.empty() || mbImpl->type_from_handle(*myElems.rbegin()) == MBVERTEX) 
+          // create a kdtree if only vertices
+        myTree = new AdaptiveKDTree(mbImpl);
+      else
+          // otherwise a BVHtree, since it performs better for elements
+        myTree = new BVHTree(mbImpl);
+
+      iCreatedTree = true;
+    }
+
     ErrorCode SpatialLocator::add_elems(Range &elems) 
     {
       if (elems.empty() ||
@@ -40,7 +53,9 @@ namespace moab
   
       myDim = mbImpl->dimension_from_handle(*elems.begin());
       myElems = elems;
-      return MB_SUCCESS;
+
+      ErrorCode rval = myTree->build_tree(myElems);
+      return rval;
     }
     
 #ifdef USE_MPI
@@ -352,90 +367,29 @@ namespace moab
           // relative epsilon given, translate to absolute epsilon using box dimensions
         tmp_abs_iter_tol = rel_iter_tol * localBox.diagonal_length();
       }
-  
-      EntityHandle closest_leaf;
-      std::vector<double> dists;
-      std::vector<EntityHandle> leaves;
-      ErrorCode rval = MB_SUCCESS;
 
+      if (elemEval && myTree->get_eval() != elemEval)
+        myTree->set_eval(elemEval);
+      
+      ErrorCode rval = MB_SUCCESS;
       for (int i = 0; i < num_points; i++) {
         int i3 = 3*i;
-        ents[i] = 0;
-        if (tmp_abs_iter_tol) {
-          rval = myTree->distance_search(pos+i3, tmp_abs_iter_tol, leaves, tmp_abs_iter_tol, inside_tol, &dists);
-          if (MB_SUCCESS != rval) return rval;
-          if (!leaves.empty()) {
-              // get closest leaf
-            double min_dist = *dists.begin();
-            closest_leaf = *leaves.begin();
-            std::vector<EntityHandle>::iterator vit = leaves.begin()+1;
-            std::vector<double>::iterator dit = dists.begin()+1;
-            for (; vit != leaves.end() && min_dist; vit++, dit++) {
-              if (*dit < min_dist) {
-                min_dist = *dit;
-                closest_leaf = *vit;
-              }
-            }
-            dists.clear();
-            leaves.clear();
-          }
-        }
-        else {
-          rval = myTree->point_search(pos+i3, closest_leaf);
-          if (MB_ENTITY_NOT_FOUND == rval) closest_leaf = 0;
-          else if (MB_SUCCESS != rval) return rval;
-        }
-
-          // if no ElemEvaluator, just return the box
-        if (!elemEval) {
-          ents[i] = closest_leaf;
-          params[i3] = params[i3+1] = params[i3+2] = -2;
-          if (is_inside && closest_leaf) is_inside[i] = true;
+        ErrorCode tmp_rval = myTree->point_search(pos+i3, ents[i], abs_iter_tol, inside_tol, NULL, NULL, 
+                                                  (CartVect*)(params+i3));
+        if (MB_SUCCESS != tmp_rval) {
+          rval = tmp_rval;
           continue;
         }
-    
-          // find natural coordinates of point in element(s) in that leaf
-        CartVect tmp_nat_coords; 
-        Range range_leaf;
-        rval = mbImpl->get_entities_by_dimension(closest_leaf, myDim, range_leaf, false);
-        if(rval != MB_SUCCESS) return rval;
 
-          // loop over the range_leaf
-        int tmp_inside;
-        int *is_ptr = (is_inside ? is_inside+i : &tmp_inside);      
-        *is_ptr = false;
-        EntityHandle ent = 0;
-        for(Range::iterator rit = range_leaf.begin(); rit != range_leaf.end(); rit++)
-        {
-          rval = elemEval->set_ent_handle(*rit); 
-          if (MB_SUCCESS != rval) return rval;
-          rval = elemEval->reverse_eval(pos+i3, tmp_abs_iter_tol, inside_tol, params+i3, is_ptr);
-          if (MB_SUCCESS != rval) return rval;
-          if (*is_ptr) {
-            ent = *rit;
-            break;
-          }
-        }
-        if (debug && !ent) {
+        if (debug && !ents[i]) {
           std::cout << "Point " << i << " not found; point: (" 
                     << pos[i3] << "," << pos[i3+1] << "," << pos[i3+2] << ")" << std::endl;
-          std::cout << "Source element candidates: " << std::endl;
-          range_leaf.print("   ");
-          for(Range::iterator rit = range_leaf.begin(); rit != range_leaf.end(); rit++)
-          {
-            std::cout << "Candidate " << CN::EntityTypeName(mbImpl->type_from_handle(*rit)) << " " << mbImpl->id_from_handle(*rit) << ": ";
-            rval = elemEval->set_ent_handle(*rit); 
-            if (MB_SUCCESS != rval) return rval;
-            rval = elemEval->reverse_eval(pos+i3, tmp_abs_iter_tol, inside_tol, params+i3, is_ptr);
-            if (MB_SUCCESS != rval) return rval;
-            std::cout << "Parameters: (" << params[i3] << "," << params[i3+1] << "," << params[i3+2] << ")" 
-                      << " inside = " << *is_ptr << std::endl;
-          }
         }
-        ents[i] = ent;
-      }
 
-      return MB_SUCCESS;
+        if (is_inside) is_inside[i] = (ents[i] ? true : false);
+      }
+      
+      return rval;
     }
     
         /* Count the number of located points in locTable
