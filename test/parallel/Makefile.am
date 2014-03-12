@@ -115,4 +115,6 @@ MOSTLYCLEANFILES = mhdf_ll.h5m tmp0.h5m tmp1.h5m tmp2.h5m tmp3.h5m \
                    initial1.vtk \
                    test_mpas.h5m \
                    dum.h5m \
-                   test_mpas_no_mixed_elements.h5m
+                   test_mpas_no_mixed_elements.h5m \
+                   test_mpas_rcbzoltan.h5m \
+                   test_mpas_rcbzoltan_no_mixed_elements.h5m
