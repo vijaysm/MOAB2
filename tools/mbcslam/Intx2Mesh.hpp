@@ -32,9 +32,11 @@ namespace moab {
 #define ERRORV(rval, str) \
     if (MB_SUCCESS != rval) {std::cout << str << "\n"; return ;}
 
+#ifdef USE_MPI
 // forward declarations
 class ParallelComm;
 class TupleList;
+#endif
 
 class Intx2Mesh
 {
@@ -93,9 +95,9 @@ public:
   ErrorCode build_processor_euler_boxes(EntityHandle euler_set, Range & local_verts);
 
   void correct_polygon(EntityHandle * foundIds, int & nP);
-
+#ifdef USE_MPI
   ErrorCode correct_intersection_points_positions();
-
+#endif
   void enable_debug()  {dbg_1 = 1;}
   void disable_debug() {dbg_1 = 0;}
 protected: // so it can be accessed in derived classes, InPlane and OnSphere
@@ -141,20 +143,21 @@ protected: // so it can be accessed in derived classes, InPlane and OnSphere
   double epsilon_1;
   double epsilon_area;
 
-  ParallelComm * parcomm;
-
   std::vector<double> allBoxes;
   double box_error;
   /* \brief Local root of the kdtree */
   EntityHandle localRoot;
   Range localEnts;// this range is for local elements of interest, euler cells
-
   unsigned int my_rank;
 
-  int max_edges; // maximum number of edges in the euler set
-
+#ifdef USE_MPI
+  ParallelComm * parcomm;
   TupleList * remote_cells;
   std::map<int, EntityHandle> globalID_to_eh;// needed for parallel, mostly
+#endif
+  int max_edges; // maximum number of edges in the euler set
+
+
 
 };
 

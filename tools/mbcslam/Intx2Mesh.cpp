@@ -5,8 +5,9 @@
  */
 
 #include "Intx2Mesh.hpp"
-//#include "Coupler.hpp"
+#ifdef USE_MPI
 #include "moab/ParallelComm.hpp"
+#endif /* USE_MPI */
 #include "moab/AdaptiveKDTree.hpp"
 #include "MBParallelConventions.h"
 #include "MBTagConventions.hpp"
@@ -18,7 +19,10 @@
 
 namespace moab {
 
-Intx2Mesh::Intx2Mesh(Interface * mbimpl): mb(mbimpl), parcomm(NULL), remote_cells(NULL)
+Intx2Mesh::Intx2Mesh(Interface * mbimpl): mb(mbimpl)
+#ifdef USE_MPI
+   , parcomm(NULL), remote_cells(NULL)
+#endif
 {
   dbg_1=0;
   box_error=0;
@@ -33,11 +37,13 @@ Intx2Mesh::Intx2Mesh(Interface * mbimpl): mb(mbimpl), parcomm(NULL), remote_cell
 Intx2Mesh::~Intx2Mesh()
 {
   // TODO Auto-generated destructor stub
+#ifdef USE_MPI
   if (remote_cells)
   {
     delete remote_cells;
     remote_cells=NULL;
   }
+#endif
 }
 void Intx2Mesh::createTags()
 {
@@ -404,11 +410,13 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
   // before cleaning up , we need to settle the position of the intersection points
   // on the boundary edges
   // this needs to be collective, so we should maybe wait something
+#ifdef USE_MPI
   rval = correct_intersection_points_positions();
   if (rval!=MB_SUCCESS)
   {
     std::cout << "can't correct position, Intx2Mesh.cpp \n";
   }
+#endif
   clean();
   return MB_SUCCESS;
 }
@@ -438,7 +446,38 @@ void Intx2Mesh::clean()
   localEnts.clear();*/
 
 }
-
+// this method will reduce number of nodes, collapse edges that are of length 0
+  // so a polygon like 428 431 431 will become a line 428 431
+  // or something like 428 431 431 531 -> 428 431 531
+void Intx2Mesh::correct_polygon(EntityHandle * nodes, int & nP)
+{
+  int i = 0;
+  while(i<nP)
+  {
+    int nextIndex = (i+1)%nP;
+    if (nodes[i]==nodes[nextIndex])
+    {
+      // we need to reduce nP, and collapse nodes
+      if (dbg_1)
+      {
+        std::cout<<" nodes duplicated in list: " ;
+        for (int j=0; j<nP; j++)
+          std::cout<<nodes[j] << " " ;
+        std::cout<<"\n";
+        std::cout<<" node " << nodes[i] << " at index " << i << " is duplicated" << "\n";
+      }
+      // this will work even if we start from 1 2 3 1; when i is 3, we find nextIndex is 0, then next thing does nothing
+      //  (nP-1 is 3, so k is already >= nP-1); it will result in nodes -> 1, 2, 3
+      for (int k=i; k<nP-1; k++)
+        nodes[k] = nodes[k+1];
+      nP--; // decrease the number of nodes; also, decrease i, just if we may need to check again
+      i--;
+    }
+    i++;
+  }
+  return;
+}
+#if USE_MPI
 ErrorCode Intx2Mesh::build_processor_euler_boxes(EntityHandle euler_set, Range & local_verts)
 {
   localEnts.clear();
@@ -1119,37 +1158,6 @@ ErrorCode Intx2Mesh::create_departure_mesh_3rd_alg(EntityHandle & lagr_set,
   return MB_SUCCESS;
   //end copy
 }
-// this method will reduce number of nodes, collapse edges that are of length 0
-  // so a polygon like 428 431 431 will become a line 428 431
-  // or something like 428 431 431 531 -> 428 431 531
-void Intx2Mesh::correct_polygon(EntityHandle * nodes, int & nP)
-{
-  int i = 0;
-  while(i<nP)
-  {
-    int nextIndex = (i+1)%nP;
-    if (nodes[i]==nodes[nextIndex])
-    {
-      // we need to reduce nP, and collapse nodes
-      if (dbg_1)
-      {
-        std::cout<<" nodes duplicated in list: " ;
-        for (int j=0; j<nP; j++)
-          std::cout<<nodes[j] << " " ;
-        std::cout<<"\n";
-        std::cout<<" node " << nodes[i] << " at index " << i << " is duplicated" << "\n";
-      }
-      // this will work even if we start from 1 2 3 1; when i is 3, we find nextIndex is 0, then next thing does nothing
-      //  (nP-1 is 3, so k is already >= nP-1); it will result in nodes -> 1, 2, 3
-      for (int k=i; k<nP-1; k++)
-        nodes[k] = nodes[k+1];
-      nP--; // decrease the number of nodes; also, decrease i, just if we may need to check again
-      i--;
-    }
-    i++;
-  }
-  return;
-}
 
 ErrorCode Intx2Mesh::correct_intersection_points_positions()
 {
@@ -1169,4 +1177,5 @@ ErrorCode Intx2Mesh::correct_intersection_points_positions()
   }
   return MB_SUCCESS;
 }
+#endif /* USE_MPI */
 } /* namespace moab */

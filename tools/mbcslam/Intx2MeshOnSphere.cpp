@@ -7,8 +7,10 @@
 #include "Intx2MeshOnSphere.hpp"
 #include "moab/GeomUtil.hpp"
 #include "MBTagConventions.hpp"
-#include "moab/ParallelComm.hpp"
 #include <queue>
+#ifdef USE_MPI
+#include "moab/ParallelComm.hpp"
+#endif
 
 namespace moab {
 
@@ -481,6 +483,7 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
     rval = mb->tag_get_data(corrTag, &blue, 1, &redArr);
     if (0==redArr || MB_TAG_NOT_FOUND==rval)
     {
+#ifdef USE_MPI
       if (!remote_cells)
         ERRORR( MB_FAILURE, "no remote cells, failure\n");
       // maybe the element is remote, from another processor
@@ -492,6 +495,7 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
       if (index_in_remote==-1)
         ERRORR( MB_FAILURE, "can't find the global id element in remote cells\n");
       remote_cells->vr_wr[index_in_remote] += currentVals[redIndex]*areap;
+#endif
     }
     else if (MB_SUCCESS==rval)
     {
@@ -506,6 +510,7 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
   }
   // now, send back the remote_cells to the processors they came from, with the updated values for
   // the tracer mass in a cell
+#ifdef USE_MPI
   if (remote_cells)
   {
     // so this means that some cells will be sent back with tracer info to the procs they were sent from
@@ -522,7 +527,7 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
       newValues[arrRedIndex] += remote_cells->vr_rd[j];
     }
   }
-
+#endif /* USE_MPI */
   // now divide by red area (current)
   int j=0;
   Range::iterator iter = rs2.begin();
@@ -543,6 +548,8 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
   rval = mb->tag_set_data(tagElem, rs2, &newValues[0]);
   ERRORR(rval, "can't set new values tag");
 
+
+#ifdef USE_MPI
   double total_mass=0.;
   double total_intx_area =0;
   int mpi_err = MPI_Reduce(&total_mass_local, &total_mass, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
@@ -553,7 +560,7 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
   if (my_rank==0)
   {
     std::cout <<"total mass now:" << total_mass << "\n";
-    std::cout <<"check: total intersection area: (4 * M_PI * R^2): " << total_intx_area << "\n";
+    std::cout <<"check: total intersection area: (4 * M_PI * R^2): " << 4 * M_PI * R*R << " " << total_intx_area << "\n";
   }
 
   if (remote_cells)
@@ -561,6 +568,10 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
     delete remote_cells;
     remote_cells=NULL;
   }
+#else
+  std::cout <<"total mass now:" << total_mass_local << "\n";
+  std::cout <<"check: total intersection area: (4 * M_PI * R^2): "  << 4 * M_PI * R*R << " " << check_intx_area << "\n";
+#endif
   return MB_SUCCESS;
 }
 } /* namespace moab */
