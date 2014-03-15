@@ -126,10 +126,15 @@ namespace moab
 
       int iters=0;
         // while |res| larger than tol
+      int dum, *tmp_inside = (inside ? inside : &dum);
       while (res % res > error_tol_sqr) {
-        if(++iters>25)
-          return MB_FAILURE;
-
+        if(++iters>25) {
+            // if we haven't converged but we're outside, that's defined as success
+          *tmp_inside = (*inside_f)(params, ndim, inside_tol);
+          if (!(*tmp_inside)) return MB_SUCCESS;
+          else return MB_INDEX_OUT_OF_RANGE;
+        }
+        
           // new params tries to eliminate residual
         *cvparams -= Ji * res;
 

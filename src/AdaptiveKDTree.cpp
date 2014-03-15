@@ -798,7 +798,7 @@ namespace moab {
                                             double& t_enter, 
                                             double& t_exit ) const
     {
-      treeTool->treeStats.leafObjectTests++;
+      treeTool->treeStats.traversalLeafObjectTests++;
       return GeomUtil::ray_box_intersect( CartVect(box_min()),
                                           CartVect(box_max()),
                                           CartVect(ray_point),
@@ -850,7 +850,7 @@ namespace moab {
   
         // vertices
       for (i = elems.begin(); i != elem_begin; ++i) {
-        tree_stats().leafObjectTests++;
+        tree_stats().constructLeafObjectTests++;
         rval = moab()->get_coords( &*i, 1, coords[0].array() );
         if (MB_SUCCESS != rval)
           return rval;
@@ -872,7 +872,7 @@ namespace moab {
         // non-polyhedron elements
       std::vector<EntityHandle> dum_vector;
       for (i = elem_begin; i != poly_begin; ++i) {
-        tree_stats().leafObjectTests++;
+        tree_stats().constructLeafObjectTests++;
         rval = moab()->get_connectivity( *i, conn, count, true, &dum_vector);
         if (MB_SUCCESS != rval) 
           return rval;
@@ -916,7 +916,7 @@ namespace moab {
   
         // polyhedra
       for (i = poly_begin; i != set_begin; ++i) {
-        tree_stats().leafObjectTests++;
+        tree_stats().constructLeafObjectTests++;
         rval = moab()->get_connectivity( *i, conn, count, true );
         if (MB_SUCCESS != rval) 
           return rval;
@@ -950,7 +950,7 @@ namespace moab {
         // sets
       BoundBox tbox;
       for (i = set_begin; i != elems.end(); ++i) {
-        tree_stats().leafObjectTests++;
+        tree_stats().constructLeafObjectTests++;
         rval = tbox.update(*moab(), *i);
         if (MB_SUCCESS != rval)
           return rval;
@@ -1354,7 +1354,7 @@ namespace moab {
       treeStats.leavesVisited++;
       if (myEval && params) {
         rval = myEval->find_containing_entity(node, point, iter_tol, inside_tol,
-                                              leaf_out, params->array(), &treeStats.leafObjectTests);
+                                              leaf_out, params->array(), &treeStats.traversalLeafObjectTests);
         if (MB_SUCCESS != rval) return rval;
       }
       else 
@@ -1494,7 +1494,7 @@ namespace moab {
             EntityHandle ent;
             CartVect params;
             rval = myEval->find_containing_entity(node.handle, from_point, iter_tol, inside_tol,
-                                                  ent, params.array(), &treeStats.leafObjectTests);
+                                                  ent, params.array(), &treeStats.traversalLeafObjectTests);
             if (MB_SUCCESS != rval) return rval;
             else if (ent) {
               result_list.push_back(ent);

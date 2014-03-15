@@ -151,6 +151,7 @@ namespace moab
         const BoundBox &box = i->myBox;
         for (unsigned int dim = 0; dim < 3; ++dim){
           const unsigned int index = Bucket::bucket_index(splitsPerDir, box, interval, dim);
+          assert(index < buckets[dim].size());
           Bucket &bucket = buckets[dim][index];
           if (bucket.mySize > 0)
             bucket.boundingBox.update(box);
@@ -452,7 +453,7 @@ namespace moab
         if (MB_SUCCESS != rval) return rval;
         
         for(Range::iterator i = entities.begin(); i != entities.end(); i++) {
-          treeStats.leafObjectTests++;
+          treeStats.traversalLeafObjectTests++;
           myEval->set_ent_handle(*i);
           myEval->reverse_eval(&point[0], iter_tol, inside_tol, params.array(), &is_inside);
           if (is_inside) {
@@ -518,7 +519,7 @@ namespace moab
           EntityHandle entity = 0;
           treeStats.leavesVisited++;
           ErrorCode rval = myEval->find_containing_entity(startSetHandle+i, point, iter_tol, inside_tol,
-                                                          entity, params.array(), &treeStats.leafObjectTests);
+                                                          entity, params.array(), &treeStats.traversalLeafObjectTests);
           if (entity) return entity;
           else if (MB_SUCCESS != rval) return 0;
         }
@@ -584,7 +585,7 @@ namespace moab
         }
         else if (myTree[ind].dim == 3 && myEval && params) {
           rval = myEval->find_containing_entity(startSetHandle+ind, point, iter_tol, inside_tol,
-                                                leaf_out, params->array(), &treeStats.leafObjectTests);
+                                                leaf_out, params->array(), &treeStats.traversalLeafObjectTests);
           if (leaf_out || MB_SUCCESS != rval) return rval;
         }
         else {
@@ -657,7 +658,7 @@ namespace moab
           EntityHandle ent;
           CartVect params;
           rval = myEval->find_containing_entity(startSetHandle+ind, from_point, iter_tol, inside_tol,
-                                                ent, params.array(), &treeStats.leafObjectTests);
+                                                ent, params.array(), &treeStats.traversalLeafObjectTests);
           if (MB_SUCCESS != rval) return rval;
           else if (ent) {
             result_list.push_back(ent);

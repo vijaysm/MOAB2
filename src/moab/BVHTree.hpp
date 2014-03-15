@@ -260,6 +260,7 @@ namespace moab {
                            const int index, const BoundBox &box, 
                            const int depth=0);
 
+        // builds up vector of HandleData, which caches elements' bounding boxes
       ErrorCode construct_element_vec(std::vector<HandleData> &handle_data_vec,
                                       const Range &elements, 
                                       BoundBox & bounding_box);
@@ -300,7 +301,8 @@ namespace moab {
       std::cout << "index: " << std::ceil(center/length)-1 << std::endl;
 #endif
 #endif
-      return std::ceil(center/length)-1;
+      unsigned int cl = std::ceil(center/length);
+      return (cl > 0 ? cl-1 : 0);
     }
 
     inline BVHTree::BVHTree(Interface *impl) : 

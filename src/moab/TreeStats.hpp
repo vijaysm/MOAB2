@@ -43,8 +43,11 @@ namespace moab
         //! print the contents of this structure
       void print() const ;
 
-        //! output the contents of this structure on a single line
-      void output() const ;
+        //! output all the contents of this structure on a single line
+      void output_all_stats(const bool with_endl = true) const ;
+
+        //! output just the traversal stats of this structure on a single line
+      void output_trav_stats(const bool with_endl = true) const ;
 
         // times
       double initTime;
@@ -53,13 +56,18 @@ namespace moab
       unsigned int maxDepth;
       unsigned int numNodes;
       unsigned int numLeaves;
+      double avgObjPerLeaf;
+      unsigned int minObjPerLeaf;
+      unsigned int maxObjPerLeaf;
+      
 
         // traversal statistics
-      unsigned int nodesVisited;
-      unsigned int leavesVisited;
-      unsigned int numTraversals;
-      unsigned int leafObjectTests;
-      unsigned int boxElemTests;
+      unsigned int nodesVisited; // number of tree nodes visited since last reset
+      unsigned int leavesVisited; // number of tree leaves visited since last reset
+      unsigned int numTraversals; // number of tree traversals since last reset
+      unsigned int constructLeafObjectTests; // during construction, number of tests of objects (e.g. elements)
+      unsigned int traversalLeafObjectTests; // during traversals, number of tests of objects (e.g. elements)
+      unsigned int boxElemTests; // during construction, number of calls to GeomUtil::box_elem_overlap (KD tree only)
 
   private:
       ErrorCode traverse(Interface *impl, EntityHandle node, unsigned int &depth);
@@ -71,7 +79,13 @@ namespace moab
       maxDepth = 0;
       numNodes = 0;
       numLeaves = 0;
-      return traverse(impl, root_node, maxDepth);
+      avgObjPerLeaf = 0.0;
+      minObjPerLeaf = 0;
+      maxObjPerLeaf = 0;
+      
+      ErrorCode rval = traverse(impl, root_node, maxDepth);
+      avgObjPerLeaf = (avgObjPerLeaf > 0 ? avgObjPerLeaf/(double)numLeaves : 0.0);
+      return rval;
     }
       
     inline ErrorCode TreeStats::traverse(Interface *impl, EntityHandle node, unsigned int &depth) 
@@ -84,6 +98,11 @@ namespace moab
       if (MB_SUCCESS != rval) return rval;
       if (children.empty()) {
         numLeaves++;
+        rval = impl->get_entities_by_handle(node, children);
+        if (MB_SUCCESS != rval) return rval;
+        avgObjPerLeaf += children.size();
+        minObjPerLeaf = std::min((unsigned int)children.size(), minObjPerLeaf);
+        maxObjPerLeaf = std::max((unsigned int)children.size(), maxObjPerLeaf);
         return MB_SUCCESS;
       }
       else {
@@ -104,6 +123,11 @@ namespace moab
       maxDepth = 0;
       numNodes = 0;
       numLeaves = 0;
+      constructLeafObjectTests = 0;
+      boxElemTests = 0;
+      avgObjPerLeaf = 0.0;
+      minObjPerLeaf = 0.0;
+      maxObjPerLeaf = 0.0;
       
       reset_trav_stats();
     }
@@ -113,8 +137,7 @@ namespace moab
       nodesVisited = 0;
       leavesVisited = 0;
       numTraversals = 0;
-      leafObjectTests = 0;
-      boxElemTests = 0;
+      traversalLeafObjectTests = 0;
     }
     
     inline void TreeStats::print() const {
@@ -124,17 +147,32 @@ namespace moab
       std::cout << "Num leaves        = " << numLeaves << std::endl;
       std::cout << "Max depth         = " << maxDepth << std::endl << std::endl;
 
+      std::cout << "Avg objs per leaf = " << avgObjPerLeaf << std::endl;
+      std::cout << "Min objs per leaf = " << minObjPerLeaf << std::endl;
+      std::cout << "Max objs per leaf = " << maxObjPerLeaf << std::endl;
+
+      std::cout << "Construction Leaf Object Tests = " << constructLeafObjectTests << std::endl;
+      std::cout << "Box-Element Tests = " << boxElemTests << std::endl;
+
       std::cout << "NodesVisited      = " << nodesVisited << std::endl;
       std::cout << "LeavesVisited     = " << leavesVisited << std::endl;
       std::cout << "Num Traversals    = " << numTraversals << std::endl;
-      std::cout << "Leaf Object Tests = " << leafObjectTests << std::endl;
-      std::cout << "Box-Element Tests = " << boxElemTests << std::endl;
+      std::cout << "Traversal Leaf Object Tests = " << traversalLeafObjectTests << std::endl;
     }
 
-    inline void TreeStats::output() const 
+    inline void TreeStats::output_all_stats(const bool with_endl) const 
     {
-      std::cout << initTime << " " << nodesVisited << " " << leavesVisited << " " << numTraversals << " " << leafObjectTests << " " << boxElemTests
-                << " # initTime, nodesVisited, leavesVisited, numTraversals, leafObjectTests, boxElemTests" << std::endl;
+      std::cout << initTime << " " << numNodes << " " << numLeaves << " " << maxDepth << " " 
+                << avgObjPerLeaf << " " << minObjPerLeaf << " " << maxObjPerLeaf << " "
+                << constructLeafObjectTests << " " << boxElemTests << " "
+                << nodesVisited << " " << leavesVisited << " " << numTraversals << " " << traversalLeafObjectTests << " ";
+      if (with_endl) std::cout << std::endl;
+    }
+
+    inline void TreeStats::output_trav_stats(const bool with_endl) const 
+    {
+      std::cout << nodesVisited << " " << leavesVisited << " " << numTraversals << " " << traversalLeafObjectTests << " ";
+      if (with_endl) std::cout << std::endl;
     }
 }
 
