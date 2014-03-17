@@ -11,13 +11,14 @@
 #include "moab/ParallelComm.hpp"
 #endif
 
-bool debug = true;
+bool debug = false;
 
 namespace moab 
 {
 
     SpatialLocator::SpatialLocator(Interface *impl, Range &elems, Tree *tree, ElemEvaluator *eval) 
-            : mbImpl(impl), myElems(elems), myDim(-1), myTree(tree), elemEval(eval), iCreatedTree(false)
+            : mbImpl(impl), myElems(elems), myDim(-1), myTree(tree), elemEval(eval), iCreatedTree(false),
+              timerInitialized(false)
     {
       create_tree();
       
@@ -178,13 +179,19 @@ namespace moab
       TupleList TLforward_o; //TLforward_outbound
       TupleList TLsearch_results_o; //TLsearch_results_outbound
 
+        // initialize timer 
+      myTimer.time_elapsed();
+      timerInitialized = true;
       
         // steps 1-2 - initialize the alternative decomposition box from global box
       rval = initialize_intermediate_partition(pc);
+      if (rval != MB_SUCCESS) return rval;
       
         //steps 3-6 - set up TLreg_o, gs_transfer, gather registrations
       rval = register_src_with_intermediate_procs(pc, abs_iter_tol, TLreg_o);
       if (rval != MB_SUCCESS) return rval;
+
+      myTimes.slTimes[SpatialLocatorTimes::INTMED_INIT] = myTimer.time_elapsed();
 
         // actual parallel point location using intermediate partition
 
@@ -219,6 +226,8 @@ namespace moab
       if (pc)
         pc->proc_config().crystal_router()->gs_transfer(1, TLquery_o, 0);
 
+      myTimes.slTimes[SpatialLocatorTimes::INTMED_SEND] = myTimer.time_elapsed();
+
         //now read forwarding requests and forward to corresponding procs
         //TLquery_o is now TLforw_req_i
 
@@ -244,9 +253,17 @@ namespace moab
 
       }
 
+      myTimes.slTimes[SpatialLocatorTimes::INTMED_SEARCH] = myTimer.time_elapsed();
+
       if (pc)
         pc->proc_config().crystal_router()->gs_transfer(1, TLforward_o, 0);
 
+      myTimes.slTimes[SpatialLocatorTimes::SRC_SEND] = myTimer.time_elapsed();
+
+        // cache time here, because locate_points also calls elapsed functions and we want to account
+        // for tuple list initialization here
+      double tstart = myTimer.time_since_birth();
+      
         //step 12
         //now read Point Search requests
         //TLforward_o is now TLsearch_req_i
@@ -285,10 +302,14 @@ namespace moab
       }
       locTable.disableWriteAccess();
 
+      myTimes.slTimes[SpatialLocatorTimes::SRC_SEARCH] =  myTimer.time_since_birth() - tstart;
+      myTimer.time_elapsed(); // call this to reset last time called
+
         //step 14: send TLsearch_results_o and receive TLloc_i
       if (pc)
         pc->proc_config().crystal_router()->gs_transfer(1, TLsearch_results_o, 0);
 
+      myTimes.slTimes[SpatialLocatorTimes::TARG_RETURN] = myTimer.time_elapsed();
 
         // store proc/index tuples in parLocTable
       parLocTable.initialize(2, 0, 0, 0, num_points);
@@ -308,6 +329,8 @@ namespace moab
                   << " (" << 100.0*((double)num_found/num_points) << "%)" << std::endl;
       }
       
+      myTimes.slTimes[SpatialLocatorTimes::TARG_STORE] = myTimer.time_elapsed();
+
       return MB_SUCCESS;
     }
 
@@ -317,6 +340,13 @@ namespace moab
                                             const double rel_iter_tol, const double abs_iter_tol, 
                                             const double inside_tol) 
     {
+      bool i_initialized = false;
+      if (!timerInitialized) {
+        myTimer.time_elapsed();
+        timerInitialized = true;
+        i_initialized = true;
+      }
+      
       assert(!verts.empty() && mbImpl->type_from_handle(*verts.rbegin()) == MBVERTEX);
       std::vector<double> pos(3*verts.size());
       ErrorCode rval = mbImpl->get_coords(verts, &pos[0]);
@@ -324,6 +354,10 @@ namespace moab
       rval = locate_points(&pos[0], verts.size(), rel_iter_tol, abs_iter_tol, inside_tol);
       if (MB_SUCCESS != rval) return rval;
       
+        // only call this if I'm the top-level function, since it resets the last time called
+      if (i_initialized) 
+        myTimes.slTimes[SpatialLocatorTimes::SRC_SEARCH] =  myTimer.time_elapsed();
+
       return MB_SUCCESS;
     }
     
@@ -331,6 +365,12 @@ namespace moab
                                             const double rel_iter_tol, const double abs_iter_tol, 
                                             const double inside_tol) 
     {
+      bool i_initialized = false;
+      if (!timerInitialized) {
+        myTimer.time_elapsed();
+        timerInitialized = true;
+        i_initialized = true;
+      }
         // initialize to tuple structure (p_ui, hs_ul, r[3]_d) (see header comments for locTable)
       locTable.initialize(1, 0, 1, 3, num_points);
       locTable.enableWriteAccess();
@@ -341,7 +381,12 @@ namespace moab
       std::fill(locTable.vi_wr, locTable.vi_wr+num_points, 0);
       locTable.set_n(num_points);
       if (MB_SUCCESS != rval) return rval;
+
       
+        // only call this if I'm the top-level function, since it resets the last time called
+      if (i_initialized) 
+        myTimes.slTimes[SpatialLocatorTimes::SRC_SEARCH] =  myTimer.time_elapsed();
+
       return MB_SUCCESS;
     }
       
@@ -350,11 +395,24 @@ namespace moab
                                             const double rel_iter_tol, const double abs_iter_tol, 
                                             const double inside_tol)
     {
+      bool i_initialized = false;
+      if (!timerInitialized) {
+        myTimer.time_elapsed();
+        timerInitialized = true;
+        i_initialized = true;
+      }
+
       assert(!verts.empty() && mbImpl->type_from_handle(*verts.rbegin()) == MBVERTEX);
       std::vector<double> pos(3*verts.size());
       ErrorCode rval = mbImpl->get_coords(verts, &pos[0]);
       if (MB_SUCCESS != rval) return rval;
-      return locate_points(&pos[0], verts.size(), ents, params, is_inside, rel_iter_tol, abs_iter_tol, inside_tol);
+      rval = locate_points(&pos[0], verts.size(), ents, params, is_inside, rel_iter_tol, abs_iter_tol, inside_tol);
+
+        // only call this if I'm the top-level function, since it resets the last time called
+      if (i_initialized) 
+        myTimes.slTimes[SpatialLocatorTimes::SRC_SEARCH] =  myTimer.time_elapsed();
+
+      return rval;
     }
 
     ErrorCode SpatialLocator::locate_points(const double *pos, int num_points,
@@ -362,6 +420,13 @@ namespace moab
                                             const double rel_iter_tol, const double abs_iter_tol, 
                                             const double inside_tol)
     {
+      bool i_initialized = false;
+      if (!timerInitialized) {
+        myTimer.time_elapsed();
+        timerInitialized = true;
+        i_initialized = true;
+      }
+
       double tmp_abs_iter_tol = abs_iter_tol;
       if (rel_iter_tol && !tmp_abs_iter_tol) {
           // relative epsilon given, translate to absolute epsilon using box dimensions
@@ -389,6 +454,10 @@ namespace moab
         if (is_inside) is_inside[i] = (ents[i] ? true : false);
       }
       
+        // only call this if I'm the top-level function, since it resets the last time called
+      if (i_initialized) 
+        myTimes.slTimes[SpatialLocatorTimes::SRC_SEARCH] =  myTimer.time_elapsed();
+
       return rval;
     }
     
