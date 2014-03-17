@@ -140,7 +140,7 @@ void test_locator(SpatialLocator *sl)
   }
 
   std::cout << "Traversal stats:" << std::endl;
-  sl->get_tree()->tree_stats().output();
+  sl->get_tree()->tree_stats().output_trav_stats();
 
   if (print_tree) {
     std::cout << "Tree information: " << std::endl;
