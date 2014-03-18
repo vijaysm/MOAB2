@@ -141,7 +141,7 @@ void test_locator(SpatialLocator *sl)
     std::cout << "Number of points inside an element = " << npoints-num_out << "/" << npoints 
               << " (" << 100.0*((double)npoints-num_out)/npoints << "%)" << std::endl;
     std::cout << "Traversal stats:" << std::endl;
-    sl->get_tree()->tree_stats().output();
+    sl->get_tree()->tree_stats().output_trav_stats();
 
     if (print_tree) {
       std::cout << "Tree information: " << std::endl;
