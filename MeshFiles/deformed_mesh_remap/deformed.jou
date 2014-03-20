@@ -1,0 +1,105 @@
+#{DOMAINSIZE=1.0}
+#{RODWIDTH=.2}
+#{RODHEIGHT=.5}
+#{FLUIDSIZE=.25}
+#{RODSIZE=.1}
+# domain verts
+create vertex {-.5*DOMAINSIZE} 0 0
+create vertex {.5*DOMAINSIZE} 0 0
+create vertex {.5*DOMAINSIZE} {DOMAINSIZE} 0
+create vertex {-.5*DOMAINSIZE} {DOMAINSIZE} 0
+create surf vertex {Id("Vertex")-3} to {Id("Vertex")}
+surface {Id("Surface")} name "tmpvol"
+# rod verts
+create vertex {-.5*RODWIDTH} 0 0
+create vertex {.5*RODWIDTH} 0 0
+create vertex {.5*RODWIDTH} {RODHEIGHT} 0
+create vertex {-.5*RODWIDTH} {RODHEIGHT} 0
+create surf vertex {Id("Vertex")-3} to {Id("Vertex")}
+surface {Id("Surface")} name "rodsurf"
+subtract vol in rodsurf from vol in tmpvol keep
+delete vol in tmpvol
+surface {Id("Surface")} name "fluidsurf"
+merge all
+color fluidsurf white
+color rodsurf magenta
+block 100 surf rodsurf
+block 200 surf fluidsurf
+#
+# meshing
+# MESH 1: COARSE
+# tris first
+fluidsurf size {FLUIDSIZE}
+rodsurf size {RODSIZE}
+surf all scheme trimesh
+mesh surf all
+block 100 200 element type tri3
+export gen 'rodtri-coarse.g' overwrite
+delete mesh
+#
+# then quads
+# want a pair of free nodes in fluid above rod
+curve with x_coord < {-.49*DOMAINSIZE} int {RODHEIGHT/RODSIZE + 2}
+fluidsurf rodsurf scheme submap
+mesh fluidsurf rodsurf
+block 100 200 element type quad4
+export gen 'rodquad-coarse.g' overwrite
+delete mesh
+#
+# MESH 2: FINE
+# tris first
+fluidsurf size {.5*FLUIDSIZE}
+rodsurf size {.5*RODSIZE}
+surf all scheme trimesh
+mesh surf all
+block 100 200 element type tri3
+export gen 'rodtri-fine.g' overwrite
+delete mesh
+#
+# then quads
+# want a pair of free nodes in fluid above rod
+curve with x_coord < {-.49*DOMAINSIZE} int {2*(RODHEIGHT/RODSIZE + 2)}
+fluidsurf rodsurf scheme submap
+mesh fluidsurf rodsurf
+block 100 200 element type quad4
+export gen 'rodquad-fine.g' overwrite
+delete mesh
+#
+# MESH 3: FINER
+# tris first
+fluidsurf size {.25*FLUIDSIZE}
+rodsurf size {.25*RODSIZE}
+surf all scheme trimesh
+mesh surf all
+block 100 200 element type tri3
+export gen 'rodtri-finer.g' overwrite
+delete mesh
+#
+# then quads
+# want a pair of free nodes in fluid above rod
+curve with x_coord < {-.49*DOMAINSIZE} int {4*(RODHEIGHT/RODSIZE + 2)}
+fluidsurf rodsurf scheme submap
+mesh fluidsurf rodsurf
+block 100 200 element type quad4
+export gen 'rodquad-finer.g' overwrite
+delete mesh
+#
+# MESH 4: FINEST
+# tris first
+fluidsurf size {.125*FLUIDSIZE}
+rodsurf size {.125*RODSIZE}
+surf all scheme trimesh
+mesh surf all
+block 100 200 element type tri3
+export gen 'rodtri-finest.g' overwrite
+delete mesh
+#
+# then quads
+delete mesh
+# want a pair of free nodes in fluid above rod
+curve with x_coord < {-.49*DOMAINSIZE} int {8*(RODHEIGHT/RODSIZE + 2)}
+fluidsurf rodsurf scheme submap
+mesh fluidsurf rodsurf
+block 100 200 element type quad4
+export gen 'rodquad-finest.g' overwrite
+delete mesh
