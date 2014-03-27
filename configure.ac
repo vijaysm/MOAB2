@@ -1223,6 +1223,7 @@ AC_CONFIG_FILES([Makefile
                  src/parallel/Makefile
                  src/oldinc/Makefile
                  test/Makefile
+		 test/dagmc/Makefile
                  test/h5file/Makefile
                  test/dual/Makefile
                  test/obb/Makefile
