@@ -10,11 +10,12 @@ AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
                -I$(top_srcdir)/src/io \
                -I$(top_srcdir)/src/parallel \
                -I$(top_srcdir)/tools/dagmc 
-
-TESTS = dagmc_simple_test \
+TESTS = 
+if HDF5_FILE
+ TESTS += dagmc_simple_test \
         dagmc_rayfire_test \
         dagmc_pointinvol_test
-
+endif
 check_PROGRAMS = $(TESTS)
 
 dagmc_simple_test_SOURCES = $(srcdir)/../TestUtil.hpp dagmc_simple_test.cpp
