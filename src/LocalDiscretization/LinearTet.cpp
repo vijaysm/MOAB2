@@ -75,14 +75,14 @@ namespace moab
     ErrorCode LinearTet::reverseEvalFcn(EvalFcn eval, JacobianFcn jacob, InsideFcn ins, 
                                         const double *posn, const double *verts, const int nverts, const int ndim,
                                         const double iter_tol, const double inside_tol, double *work, 
-                                        double *params, bool *is_inside) 
+                                        double *params, int *is_inside) 
     {
       assert(posn && verts);
       return evaluate_reverse(eval, jacob, ins, posn, verts, nverts, ndim, iter_tol, inside_tol, 
                               work, params, is_inside);
     } 
 
-    bool LinearTet::insideFcn(const double *params, const int , const double tol) 
+    int LinearTet::insideFcn(const double *params, const int , const double tol) 
     {
       return (params[0] >= -1.0-tol && params[1] >= -1.0-tol && params[2] >= -1.0-tol && 
               params[0] + params[1] + params[2] <= 1.0+tol);
@@ -92,7 +92,7 @@ namespace moab
     ErrorCode LinearTet::evaluate_reverse(EvalFcn eval, JacobianFcn jacob, InsideFcn inside_f,
                                           const double *posn, const double *verts, const int nverts, 
                                           const int ndim, const double iter_tol, const double inside_tol,
-                                          double *work, double *params, bool *inside) {
+                                          double *work, double *params, int *inside) {
         // TODO: should differentiate between epsilons used for
         // Newton Raphson iteration, and epsilons used for curved boundary geometry errors
         // right now, fix the tolerance used for NR
@@ -126,10 +126,15 @@ namespace moab
 
       int iters=0;
         // while |res| larger than tol
+      int dum, *tmp_inside = (inside ? inside : &dum);
       while (res % res > error_tol_sqr) {
-        if(++iters>25)
-          return MB_FAILURE;
-
+        if(++iters>25) {
+            // if we haven't converged but we're outside, that's defined as success
+          *tmp_inside = (*inside_f)(params, ndim, inside_tol);
+          if (!(*tmp_inside)) return MB_SUCCESS;
+          else return MB_INDEX_OUT_OF_RANGE;
+        }
+        
           // new params tries to eliminate residual
         *cvparams -= Ji * res;
 

@@ -4,7 +4,9 @@
 #include "moab/HomXform.hpp"
 #include "moab/ScdInterface.hpp"
 #include "moab/CartVect.hpp"
+#include "moab/AdaptiveKDTree.hpp"
 #include "moab/BVHTree.hpp"
+#include "moab/ElemEvaluator.hpp"
 #include "moab/ProgOptions.hpp"
 #include "moab/CpuTimer.hpp"
 
@@ -69,9 +71,19 @@ void test_kd_tree()
   Range elems;
   rval = create_hex_mesh(mb, elems, ints, 3); CHECK_ERR(rval);
 
-    // initialize spatial locator with the elements and the default tree type
-  SpatialLocator *sl = new SpatialLocator(&mb, elems);
+    // initialize spatial locator with the elements and KDtree
+  AdaptiveKDTree kd(&mb);
+  std::ostringstream opts;
+  opts << "MAX_DEPTH=" << max_depth << ";MAX_PER_LEAF=" << leaf;
+  FileOptions fo(opts.str().c_str());
+  rval = kd.parse_options(fo);
+  SpatialLocator *sl = new SpatialLocator(&mb, elems, &kd);
 
+  test_locator(sl);
+
+    // test with an evaluator
+  ElemEvaluator eval(&mb);
+  kd.set_eval(&eval);
   test_locator(sl);
 
     // destroy spatial locator, and tree along with it
@@ -96,6 +108,11 @@ void test_bvh_tree()
   SpatialLocator *sl = new SpatialLocator(&mb, elems, &bvh);
   test_locator(sl);
   
+    // test with an evaluator
+  ElemEvaluator eval(&mb);
+  bvh.set_eval(&eval);
+  test_locator(sl);
+
     // destroy spatial locator, and tree along with it
   delete sl;
 }
@@ -103,13 +120,13 @@ void test_bvh_tree()
 void test_locator(SpatialLocator *sl) 
 {
   CartVect box_del, test_pt, test_res;
-  BoundBox box;
-  ErrorCode rval = sl->get_bounding_box(box); CHECK_ERR(rval);
+  BoundBox box = sl->local_box();
   box_del = box.bMax - box.bMin;
 
   double denom = 1.0 / (double)RAND_MAX;
-  bool is_in;
+  int is_in;
   EntityHandle ent;
+  ErrorCode rval;
   for (int i = 0; i < npoints; i++) {    
       // generate a small number of random point to test
     double rx = (double)rand() * denom, ry = (double)rand() * denom, rz = (double)rand() * denom;
@@ -123,7 +140,7 @@ void test_locator(SpatialLocator *sl)
   }
 
   std::cout << "Traversal stats:" << std::endl;
-  sl->get_tree()->tree_stats().output();
+  sl->get_tree()->tree_stats().output_trav_stats();
 
   if (print_tree) {
     std::cout << "Tree information: " << std::endl;

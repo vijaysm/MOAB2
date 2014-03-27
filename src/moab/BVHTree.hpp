@@ -260,6 +260,7 @@ namespace moab {
                            const int index, const BoundBox &box, 
                            const int depth=0);
 
+        // builds up vector of HandleData, which caches elements' bounding boxes
       ErrorCode construct_element_vec(std::vector<HandleData> &handle_data_vec,
                                       const Range &elements, 
                                       BoundBox & bounding_box);
@@ -272,7 +273,6 @@ namespace moab {
       
       Range entityHandles;
       std::vector<TreeNode> myTree;
-      ElemEvaluator *myEval;
       int splitsPerDir;
       EntityHandle startSetHandle;
       static const char *treeName;
@@ -301,11 +301,12 @@ namespace moab {
       std::cout << "index: " << std::ceil(center/length)-1 << std::endl;
 #endif
 #endif
-      return std::ceil(center/length)-1;
+      unsigned int cl = std::ceil(center/length);
+      return (cl > 0 ? cl-1 : 0);
     }
 
     inline BVHTree::BVHTree(Interface *impl) : 
-            Tree(impl), myEval(NULL), splitsPerDir(3), startSetHandle(0) {boxTagName = treeName;}
+            Tree(impl), splitsPerDir(3), startSetHandle(0) {boxTagName = treeName;}
 
     inline unsigned int BVHTree::set_interval(BoundBox &interval, 
                                               std::vector<Bucket>::const_iterator begin, 

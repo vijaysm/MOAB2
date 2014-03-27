@@ -39,21 +39,23 @@ class DataCoupler
 {
 public:
 
+  enum Method {CONSTANT, LINEAR_FE, QUADRATIC_FE, SPECTRAL} ;
+
   enum IntegType {VOLUME};
 
     /* constructor
      * Constructor, which also optionally initializes the coupler
+     * \param source_ents Elements in the source mesh
+     * \param coupler_id Id of this coupler, should be the same over all procs
      * \param pc ParallelComm object to be used with this coupler, representing the union
      *    of processors containing source and target meshes
-     * \param source_elems Elements in the source mesh
-     * \param coupler_id Id of this coupler, should be the same over all procs
      * \param init_locator If true, initializes a spatial locator inside the constructor
      * \param dim Dimension of entities to be coupled; if -1, get from source_elems
      */
   DataCoupler(Interface *impl,
-              ParallelComm *pc,
               Range &source_ents,
               int coupler_id,
+              ParallelComm *pc = NULL,
               bool init_locator = true,
               int dim = -1);
 

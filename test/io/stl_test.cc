@@ -229,9 +229,9 @@ void check_mesh_is_tet( Interface& moab )
     CHECK_EQUAL( 3, len );
     
     int conn_idx[3] = { 
-      std::find( vert_handles, vert_handles + 4, conn[0] ) - vert_handles,
-      std::find( vert_handles, vert_handles + 4, conn[1] ) - vert_handles,
-      std::find( vert_handles, vert_handles + 4, conn[2] ) - vert_handles };
+        static_cast<int>(std::find( vert_handles, vert_handles + 4, conn[0] ) - vert_handles),
+        static_cast<int>(std::find( vert_handles, vert_handles + 4, conn[1] ) - vert_handles),
+        static_cast<int>(std::find( vert_handles, vert_handles + 4, conn[2] ) - vert_handles) };
     CHECK( conn_idx[0] != 4 );
     CHECK( conn_idx[1] != 4 );
     CHECK( conn_idx[2] != 4 );

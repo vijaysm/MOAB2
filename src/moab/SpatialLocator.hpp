@@ -34,15 +34,20 @@
 #include "moab/Tree.hpp"
 #include "moab/Range.hpp"
 #include "moab/TupleList.hpp"
+#include "moab/BoundBox.hpp"
+#include "moab/SpatialLocatorTimes.hpp"
+#include "moab/CpuTimer.hpp"
 
 #include <string>
 #include <vector>
+#include <map>
 #include <math.h>
 
 namespace moab {
 
     class Interface;
     class ElemEvaluator;
+    class ParallelComm;
 
     class SpatialLocator
     {
@@ -57,17 +62,20 @@ namespace moab {
       ErrorCode add_elems(Range &elems);
       
         /* get bounding box of this locator */
-      ErrorCode get_bounding_box(BoundBox &box);
+      BoundBox &local_box() {return localBox;}
+      
+        /* get bounding box of this locator */
+      const BoundBox &local_box() const {return localBox;}
       
         /* locate a set of vertices, Range variant */
       ErrorCode locate_points(Range &vertices,
-                              EntityHandle *ents, double *params, bool *is_inside = NULL,
+                              EntityHandle *ents, double *params, int *is_inside = NULL,
                               const double rel_iter_tol = 1.0e-10, const double abs_iter_tol = 1.0e-10,
                               const double inside_tol = 1.0e-6);
       
         /* locate a set of points */
       ErrorCode locate_points(const double *pos, int num_points,
-                              EntityHandle *ents, double *params, bool *is_inside = NULL,
+                              EntityHandle *ents, double *params, int *is_inside = NULL,
                               const double rel_iter_tol = 1.0e-10, const double abs_iter_tol = 1.0e-10,
                               const double inside_tol = 1.0e-6);
       
@@ -107,19 +115,31 @@ namespace moab {
          * variables (TupleList) locTable and parLocTable (see comments on locTable and parLocTable for 
          * structure of those tuples).
          */
-      ErrorCode par_locate_points(Range &vertices,
-                              const double rel_iter_tol = 1.0e-10, const double abs_iter_tol = 1.0e-10,
-                              const double inside_tol = 1.0e-6);
+      ErrorCode par_locate_points(ParallelComm *pc,
+                                  Range &vertices,
+                                  const double rel_iter_tol = 1.0e-10, const double abs_iter_tol = 1.0e-10,
+                                  const double inside_tol = 1.0e-6);
       
         /* locate a set of points, storing results on TupleList in this class
          * Locate a set of points, storing the detailed results in member 
          * variables (TupleList) locTable and parLocTable (see comments on locTable and parLocTable for 
          * structure of those tuples).
          */
-      ErrorCode par_locate_points(const double *pos, int num_points,
+      ErrorCode par_locate_points(ParallelComm *pc,
+                                  const double *pos, int num_points,
+                                  const double rel_iter_tol = 1.0e-10, const double abs_iter_tol = 1.0e-10,
+                                  const double inside_tol = 1.0e-6);
+#endif
+
+        /** \brief Return the MOAB interface associated with this locator
+         */
+      Interface* moab() { return mbImpl; }
+
+        /* locate a point */
+      ErrorCode locate_point(const double *pos, 
+                             EntityHandle &ent, double *params, int *is_inside = NULL,
                               const double rel_iter_tol = 1.0e-10, const double abs_iter_tol = 1.0e-10,
                               const double inside_tol = 1.0e-6);
-#endif
 
         /* return the tree */
       Tree *get_tree() {return myTree;}
@@ -148,15 +168,46 @@ namespace moab {
       
         /* set elemEval */
       void elem_eval(ElemEvaluator *eval) {elemEval = eval; if (myTree) myTree->set_eval(eval);}
+
+        /** \brief Get spatial locator times object */
+      SpatialLocatorTimes &sl_times() {return myTimes;}
       
+        /** \brief Get spatial locator times object */
+      const SpatialLocatorTimes &sl_times() const {return myTimes;}
+        
   private:
 
-        /* locate a point */
-      ErrorCode locate_point(const double *pos, 
-                             EntityHandle &ent, double *params, bool *is_inside = NULL,
-                              const double rel_iter_tol = 1.0e-10, const double abs_iter_tol = 1.0e-10,
-                              const double inside_tol = 1.0e-6);
+#ifdef USE_MPI
+        /* MPI_ReduceAll source mesh bounding boxes to get global source mesh bounding box
+         */
+      ErrorCode initialize_intermediate_partition(ParallelComm *pc);
+      
+        /* for a given point in space, compute its ijk location in the intermediate decomposition; tolerance is
+         * used only to test proximity to global box extent, not for local box test
+         */
+      inline ErrorCode get_point_ijk(const CartVect &point, const double abs_iter_tol, int *ijk) const;
 
+        /* given an ijk location in the intermediate partition, return the proc rank for that location 
+         */
+      inline int proc_from_ijk(const int *ijk) const;
+
+        /* given a point in space, return the proc responsible for that point from the intermediate decomp; no tolerances
+         * applied here, so first proc in lexicographic ijk ordering is returned
+         */
+      inline int proc_from_point(const double *pos, const double abs_iter_tol) const;
+      
+        /* register my source mesh with intermediate decomposition procs
+         */
+      ErrorCode register_src_with_intermediate_procs(ParallelComm *pc, double abs_iter_tol, TupleList &TLreg_o);
+      
+#endif
+
+        /** Create a tree
+         * Tree type depends on what's in myElems: if empty or all vertices, creates a kdtree,
+         * otherwise creates a BVHTree.
+         */
+      void create_tree();
+      
         /* MOAB instance */
       Interface* mbImpl;
 
@@ -197,6 +248,39 @@ namespace moab {
          * The indexing of parLocTable corresponds to that of the points/entities passed in.
          */
       TupleList parLocTable;
+
+        /* \brief Local bounding box, duplicated from tree
+         */
+      BoundBox localBox;
+
+        /* \brief Global bounding box, used in parallel spatial location
+         */
+      BoundBox globalBox;
+
+        /* \brief Regional delta xyz, used in parallel spatial location
+         */
+      CartVect regDeltaXYZ;
+
+        /* \brief Number of regions in each of 3 directions
+         */
+      int regNums[3];
+
+        /* \brief Map from source processor to bounding box of that proc's source mesh
+         *
+         */
+      std::map<int, BoundBox> srcProcBoxes;
+
+        /* \brief Timing object for spatial location
+         */
+      SpatialLocatorTimes myTimes;
+
+        /* \brief Timer object to manage overloaded search functions
+         */
+      CpuTimer myTimer;
+      
+        /* \brief Flag to manage initialization of timer for overloaded search functions
+         */
+      bool timerInitialized;
     };
 
     inline SpatialLocator::~SpatialLocator() 
@@ -205,18 +289,44 @@ namespace moab {
     }
     
     inline ErrorCode SpatialLocator::locate_point(const double *pos, 
-                                                  EntityHandle &ent, double *params, bool *is_inside, 
+                                                  EntityHandle &ent, double *params, int *is_inside, 
                                                   const double rel_iter_tol, const double abs_iter_tol,
                                                   const double inside_tol)
     {
       return locate_points(pos, 1, &ent, params, is_inside, rel_iter_tol, abs_iter_tol, inside_tol);
     }
 
-    inline ErrorCode SpatialLocator::get_bounding_box(BoundBox &box) 
+#ifdef USE_MPI
+    inline ErrorCode SpatialLocator::get_point_ijk(const CartVect &point, const double abs_iter_tol, int *ijk) const
     {
-      return myTree->get_bounding_box(box);
+      for (int i = 0; i < 3; i++) {
+        if (point[i] < globalBox.bMin[i]-abs_iter_tol || point[i] > globalBox.bMax[i]+abs_iter_tol)
+          ijk[i] = -1;
+        else {
+          ijk[i] = point[i] - globalBox.bMin[i] / regDeltaXYZ[i];
+          if (ijk[i] >= regNums[i] && point[i] <= globalBox.bMax[i]+abs_iter_tol)
+            ijk[i] = regNums[i]-1;
+        }
+      }
+      
+      return (ijk[0] >= 0 && ijk[1] >= 0 && ijk[2] >= 0 ? MB_SUCCESS : MB_FAILURE);;
     }
 
+    inline int SpatialLocator::proc_from_ijk(const int *ijk) const
+    {
+      return ijk[2] * regNums[0]*regNums[1] + ijk[1] * regNums[0] + ijk[0];
+    }
+    
+    inline int SpatialLocator::proc_from_point(const double *pos, const double abs_iter_tol) const
+    {
+      int ijk[3];
+      ErrorCode rval = get_point_ijk(CartVect(pos), abs_iter_tol, ijk);
+      if (MB_SUCCESS != rval) return -1;
+      
+      return ijk[2] * regNums[0]*regNums[1] + ijk[1] * regNums[0] + ijk[0];
+    }
+#endif
+    
 } // namespace moab 
 
 #endif

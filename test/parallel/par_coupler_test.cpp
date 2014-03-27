@@ -139,8 +139,8 @@ int main(int argc, char **argv)
   if (!dbgFile.empty()) {
     std::stringstream dfname;
     dfname << dbgFile << rank << ".txt";
-    std::freopen(dfname.str().c_str(), "a", stdout);
-    std::freopen(dfname.str().c_str(), "a", stderr);
+    if (!std::freopen(dfname.str().c_str(), "a", stdout)) return false;
+    if (!std::freopen(dfname.str().c_str(), "a", stderr)) return false;
   }
 
   // create MOAB instance based on that

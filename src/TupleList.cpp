@@ -50,7 +50,7 @@ void TupleList::buffer::buffer_reserve_(size_t min, const char *file)
       newSize = min;
     void *res = realloc(ptr, newSize);
     if (!res && newSize > 0)
-      fail("%s: allocation of %d bytes failed\n", file, (int) this->buffSize);
+      fail("%s: reallocation of %d bytes failed\n", file, newSize);
     ptr = (char*) res;
     this->buffSize = newSize;
   }

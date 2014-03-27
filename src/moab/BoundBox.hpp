@@ -17,7 +17,7 @@ namespace moab {
       ~BoundBox() {}
 
       bool contains_point(const double *point, const double tol = 0.0) const;
-      bool contains_box(const BoundBox &b, const double tol = 0.0) const;
+      bool intersects_box(const BoundBox &b, const double tol = 0.0) const;
       void compute_center(CartVect &center);
       void update(const BoundBox &other_box);
       void update(const double *coords);
@@ -27,6 +27,7 @@ namespace moab {
       void update_min(const double *coords);
       void update_max(const BoundBox &other_box);
       void update_max(const double *coords);
+      ErrorCode get(double *coords);
 
         /** \brief Return the diagonal length of this box
          */
@@ -74,10 +75,10 @@ namespace moab {
       else return true;
     }
 
-    inline bool BoundBox::contains_box(const BoundBox &b, const double tol) const {
-      if (b.bMin[0] < bMin[0]-tol || b.bMax[0] > bMax[0]+tol ||
-          b.bMin[1] < bMin[1]-tol || b.bMax[1] > bMax[1]+tol ||
-          b.bMin[2] < bMin[2]-tol || b.bMax[2] > bMax[2]+tol) 
+    inline bool BoundBox::intersects_box(const BoundBox &b, const double tol) const {
+      if (b.bMax[0] < bMin[0]-tol || b.bMin[0] > bMax[0]+tol ||
+          b.bMax[1] < bMin[1]-tol || b.bMin[1] > bMax[1]+tol ||
+          b.bMax[2] < bMin[2]-tol || b.bMin[2] > bMax[2]+tol) 
         return false;
 
       else return true;
@@ -121,6 +122,13 @@ namespace moab {
       bMax[0] = std::max(bMax[0], coords[0]);
       bMax[1] = std::max(bMax[1], coords[1]);
       bMax[2] = std::max(bMax[2], coords[2]);
+    }
+
+    inline ErrorCode BoundBox::get(double *coords)
+    {
+      bMin.get(coords);
+      bMax.get(coords+3);
+      return MB_SUCCESS;
     }
 
     inline void BoundBox::compute_center(CartVect &center){

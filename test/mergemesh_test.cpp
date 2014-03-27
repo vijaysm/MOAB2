@@ -11,7 +11,7 @@ using namespace moab;
 const char* meshfile = STRINGIFY(MESHDIR) "/16_unmerged_hex.h5m";
 
 
-int main( int argc, char* argv[] )
+int main( int , char** )
 {
     Core moab_core;
     ErrorCode rval;

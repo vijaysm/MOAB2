@@ -113,11 +113,22 @@ ErrorCode Coupler::initialize_tree()
   box.bMax.get(&allBoxes[6*my_rank+3]);
   
     // now communicate to get all boxes
-    // use "in place" option
   if (myPc) {
-    int mpi_err = MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
+    int mpi_err;
+#if (MPI_VERSION >= 2)
+      // use "in place" option
+    mpi_err = MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,
                                 &allBoxes[0], 6, MPI_DOUBLE, 
                                 myPc->proc_config().proc_comm());
+#else
+    {
+      std::vector<double> allBoxes_tmp(6*myPc->proc_config().proc_size());
+      mpi_err = MPI_Allgather( &allBoxes[6*my_rank], 6, MPI_DOUBLE,
+                                   &allBoxes_tmp[0], 6, MPI_DOUBLE, 
+                                   myPc->proc_config().proc_comm());
+      allBoxes = allBoxes_tmp;
+    }
+#endif
     if (MPI_SUCCESS != mpi_err) return MB_FAILURE;
   }
 
@@ -472,10 +483,13 @@ ErrorCode Coupler::test_local_box(double *xyz,
 {
   std::vector<EntityHandle> entities;
   std::vector<CartVect> nat_coords;
-  bool canWrite;
+  bool canWrite = false;
   if (tl) {
     canWrite = tl->get_writeEnabled();
-    if(!canWrite) tl->enableWriteAccess();
+    if(!canWrite) {
+      tl->enableWriteAccess();
+      canWrite = true;
+    }
   }
 
   if (rel_eps && !abs_eps) {
@@ -822,7 +836,7 @@ ErrorCode Coupler::interp_field(EntityHandle elem,
   else
   {
     double vfields[27]; // will work for linear hex, quadratic hex or Tets
-    moab::Element::Map *elemMap;
+    moab::Element::Map *elemMap = NULL;
     int num_verts = 0;
     // get the EntityType
     // get the tag values at the vertices
@@ -1522,7 +1536,7 @@ int Coupler::get_group_integ_vals(std::vector< std::vector<iBase_EntityHandle> >
       iMesh_getEntTopo(iMeshInst, (*iter_j), &topo_type, &err);
       ERRORR("Failed to get topology for entity.", err);
 
-      moab::Element::Map *elemMap;
+      moab::Element::Map *elemMap = NULL;
       int num_verts = 0;
       if (topo_type == iMesh_HEXAHEDRON) {
         elemMap = new moab::Element::LinearHex();

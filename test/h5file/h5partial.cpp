@@ -416,7 +416,7 @@ void create_mesh( bool create_element_sets,
     // create elements
   EntityHandle verts[MBQUAD_INT+1][MBQUAD_INT+1], quads[MBQUAD_INT][MBQUAD_INT];
   for (int i = 0; i <= MBQUAD_INT; ++i) for(int j = 0; j <= MBQUAD_INT; ++j) {
-    double coords[3] = { i, j, 0 };
+      double coords[3] = { static_cast<double>(i), static_cast<double>(j), 0 };
     rval = mb.create_vertex( coords, verts[j][i] );
     CHECK_ERR(rval);
     int logical[2] = { i, j };
@@ -1350,7 +1350,7 @@ void test_read_adjacencies()
   for (int k = 0; k < 2; ++k) {
     for (int j = 0; j < 3; ++j) {
       for (int i = 0; i < 3; ++i) {
-        double coords[] = { i, j, k };
+        double coords[] = { static_cast<double>(i), static_cast<double>(j), static_cast<double>(k) };
         rval = mb.create_vertex( coords, verts[i][j][k] );
         CHECK_ERR(rval);
       }
@@ -1445,7 +1445,7 @@ void test_read_sides()
   EntityHandle verts[INT+1][INT+1];
   for (int j = 0; j <= INT; ++j) {
     for (int i = 0; i <= INT; ++i) {
-      double coords[3] = { i, j, 0 };
+      double coords[3] = { static_cast<double>(i), static_cast<double>(j), 0 };
       rval = mb.create_vertex( coords, verts[INT-j][i] );
       CHECK_ERR(rval);
     }

@@ -48,7 +48,7 @@ namespace moab
 
 #ifndef NDEBUG
       for(std::vector<HandleData>::const_iterator i = handle_data_vec.begin(); i != handle_data_vec.end(); ++i) {
-        if(!boundBox.contains_box(i->myBox, 0)){
+        if(!boundBox.intersects_box(i->myBox, 0)){
           std::cerr << "BB:" << boundBox << "EB:" << i->myBox << std::endl;
           return MB_FAILURE;
         }
@@ -151,6 +151,7 @@ namespace moab
         const BoundBox &box = i->myBox;
         for (unsigned int dim = 0; dim < 3; ++dim){
           const unsigned int index = Bucket::bucket_index(splitsPerDir, box, interval, dim);
+          assert(index < buckets[dim].size());
           Bucket &bucket = buckets[dim][index];
           if (bucket.mySize > 0)
             bucket.boundingBox.update(box);
@@ -168,16 +169,16 @@ namespace moab
         for (unsigned int dim = 0; dim < 3; ++dim){
           const unsigned int index = Bucket::bucket_index(splitsPerDir, box, interval, dim);
           Bucket &bucket = buckets[dim][index];
-          if(!bucket.boundingBox.contains_box(box))
+          if(!bucket.boundingBox.intersects_box(box))
             std::cerr << "Buckets not covering elements!" << std::endl;
         }
       }
-      if(!elt_union.contains_box(interval) ){
+      if(!elt_union.intersects_box(interval) ){
         std::cout << "element union: " << std::endl << elt_union; 
         std::cout << "intervals: " << std::endl << interval;
         std::cout << "union of elts does not contain original box!" << std::endl;
       }
-      if (!interval.contains_box(elt_union) ){
+      if (!interval.intersects_box(elt_union) ){
         std::cout << "original box does not contain union of elts" << std::endl;
         std::cout << interval << std::endl << elt_union << std::endl;
       }
@@ -193,9 +194,9 @@ namespace moab
         for(unsigned int i = 0; i < nonempty.size(); ++i)
           test_box.update(buckets_[nonempty[i]].boundingBox);
 
-        if(!test_box.contains_box(interval) )
+        if(!test_box.intersects_box(interval) )
           std::cout << "union of buckets in dimension: " << d << "does not contain original box!" << std::endl;
-        if (!interval.contains_box(test_box) ) {
+        if (!interval.intersects_box(test_box) ) {
           std::cout << "original box does " << "not contain union of buckets" 
                     << "in dimension: " << d << std::endl;
           std::cout << interval << std::endl << test_box << std::endl;
@@ -234,7 +235,7 @@ namespace moab
             s != splits_end; ++s, ++left_end) {
           BoundBox test_box = s->leftBox;
           test_box.update(s->rightBox);
-          if(!data.boundingBox.contains_box(test_box)) {
+          if(!data.boundingBox.intersects_box(test_box)) {
             std::cout << "nr: " << s->nr << std::endl;
             std::cout << "Test box: " << std::endl << 
                 test_box;
@@ -247,7 +248,7 @@ namespace moab
             std::cout << "Split boxes larger than bb" 
                       << std::endl;
           }
-          if(!test_box.contains_box(data.boundingBox)) {
+          if(!test_box.intersects_box(data.boundingBox)) {
             std::cout << "bb larger than union of split boxes" << std::endl;
           }         	
         }
@@ -288,7 +289,7 @@ namespace moab
       data.Lmax = data.leftBox.bMax[data.dim];
 #ifndef NDEBUG
       BoundBox test_box(data.rightBox);
-      if(!data.boundingBox.contains_box(test_box)) {
+      if(!data.boundingBox.intersects_box(test_box)) {
         std::cerr << "MEDIAN: BB Does not contain splits" << std::endl;
         std::cerr << "test_box:         " << test_box << std::endl;
         std::cerr << "data.boundingBox: " << data.boundingBox << std::endl;
@@ -335,7 +336,7 @@ namespace moab
           else {
             right_box.update(i->myBox);
           }
-          if(!right_box.contains_box(i->myBox)) {
+          if(!right_box.intersects_box(i->myBox)) {
             if(!issue) {
               std::cerr << "Bounding right box issue!" 
                         << std::endl;
@@ -352,7 +353,7 @@ namespace moab
           else {
             left_box.update(i->myBox);
           }
-          if(!data.leftBox.contains_box(i->myBox)) {
+          if(!data.leftBox.intersects_box(i->myBox)) {
             if(!issue) {
               std::cerr << "Bounding left box issue!" 
                         << std::endl;
@@ -367,13 +368,13 @@ namespace moab
           }
         }
       }
-      if(!left_box.contains_box(data.leftBox)) 
+      if(!left_box.intersects_box(data.leftBox)) 
         std::cout << "left elts do not contain left box" << std::endl;
-      if(!data.leftBox.contains_box(left_box)) 
+      if(!data.leftBox.intersects_box(left_box)) 
         std::cout << "left box does not contain left elts" << std::endl;
-      if(!right_box.contains_box(data.rightBox))
+      if(!right_box.intersects_box(data.rightBox))
         std::cout << "right elts do not contain right box" << std::endl;
-      if(!data.rightBox.contains_box(right_box))
+      if(!data.rightBox.intersects_box(right_box))
         std::cout << "right box do not contain right elts" << std::endl;
 
       if(count_left != data.nl || count_right != data.nr) {
@@ -400,7 +401,7 @@ namespace moab
     {
 #ifndef NDEBUG
       for(HandleDataVec::const_iterator i = begin; i != end; ++i) {
-        if(!box.contains_box(i->myBox, 0)) {
+        if(!box.intersects_box(i->myBox, 0)) {
           std::cerr << "depth: " << depth << std::endl;
           std::cerr << "BB:" << box << "EB:" << i->myBox << std::endl;
           std::exit(-1);
@@ -443,7 +444,7 @@ namespace moab
       const TreeNode &node = myTree[index];
       treeStats.nodesVisited++;
       CartVect params;
-      bool is_inside;
+      int is_inside;
       ErrorCode rval = MB_SUCCESS;
       if(node.dim == 3){
         treeStats.leavesVisited++;
@@ -452,7 +453,7 @@ namespace moab
         if (MB_SUCCESS != rval) return rval;
         
         for(Range::iterator i = entities.begin(); i != entities.end(); i++) {
-          treeStats.leafObjectTests++;
+          treeStats.traversalLeafObjectTests++;
           myEval->set_ent_handle(*i);
           myEval->reverse_eval(&point[0], iter_tol, inside_tol, params.array(), &is_inside);
           if (is_inside) {
@@ -518,7 +519,7 @@ namespace moab
           EntityHandle entity = 0;
           treeStats.leavesVisited++;
           ErrorCode rval = myEval->find_containing_entity(startSetHandle+i, point, iter_tol, inside_tol,
-                                                          entity, params.array(), &treeStats.leafObjectTests);
+                                                          entity, params.array(), &treeStats.traversalLeafObjectTests);
           if (entity) return entity;
           else if (MB_SUCCESS != rval) return 0;
         }
@@ -584,7 +585,7 @@ namespace moab
         }
         else if (myTree[ind].dim == 3 && myEval && params) {
           rval = myEval->find_containing_entity(startSetHandle+ind, point, iter_tol, inside_tol,
-                                                leaf_out, params->array(), &treeStats.leafObjectTests);
+                                                leaf_out, params->array(), &treeStats.traversalLeafObjectTests);
           if (leaf_out || MB_SUCCESS != rval) return rval;
         }
         else {
@@ -657,7 +658,7 @@ namespace moab
           EntityHandle ent;
           CartVect params;
           rval = myEval->find_containing_entity(startSetHandle+ind, from_point, iter_tol, inside_tol,
-                                                ent, params.array(), &treeStats.leafObjectTests);
+                                                ent, params.array(), &treeStats.traversalLeafObjectTests);
           if (MB_SUCCESS != rval) return rval;
           else if (ent) {
             result_list.push_back(ent);
