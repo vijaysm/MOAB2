@@ -12,7 +12,7 @@ AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
 
 if NETCDF_FILE
   EXODUS_TEST = exodus_test
-  NC_TEST = read_nc read_ucd_nc read_mpas_nc
+  NC_TEST = read_nc read_ucd_nc read_mpas_nc write_nc
 else
   EXODUS_TEST = 
   NC_TEST = 
