@@ -1,65 +1,63 @@
-#ifndef __smoab_MixedCellConnectivity_h
-#define __smoab_MixedCellConnectivity_h
+#ifndef __smoab_LinearCellConnectivity_h
+#define __smoab_LinearCellConnectivity_h
 
-#include "vtkCellType.h"
+#include "CellTypeToType.h"
+#include "ContinousCellInfo.h"
+
 #include <algorithm>
+#include <vector>
 
-namespace
+namespace smoab { namespace detail {
+
+namespace internal
 {
-
-template<int N> struct QuadratricOrdering{};
-
-template<> struct QuadratricOrdering<VTK_QUADRATIC_WEDGE>
-{
-  static const int NUM_VERTS = 15;
-  void reorder(vtkIdType* connectivity) const
+  //we want a subset of the real connetivity array,
+  //this does that for use with a super easy wrapper
+  struct SubsetArray
   {
-    std::swap_ranges(connectivity+9,connectivity+12,connectivity+12);
-  }
-};
-
-template<> struct QuadratricOrdering<VTK_TRIQUADRATIC_HEXAHEDRON>
-{
-  static const int NUM_VERTS = 27;
-  void reorder(vtkIdType* connectivity) const
-  {
-    std::swap_ranges(connectivity+12,connectivity+16,connectivity+16);
-
-    //move 20 to 22
-    //move 22 to 23
-    //move 23 to 20
-
-    //swap 20 with 22
-    std::swap(connectivity[20],connectivity[23]);
-
-    //swap 22 with 23
-    std::swap(connectivity[22],connectivity[23]);
-  }
-};
-
-template<typename QuadraticOrdering>
-void FixQuadraticIdOrdering(vtkIdType* connectivity, vtkIdType numCells,
-                            QuadraticOrdering& ordering)
-{
-  //skip the first index that holds the length of the cells
-  //if we skip it once here, and than properly increment it makes the code
-  //far easier
-  connectivity+=1;
-  for(vtkIdType i=0; i < numCells; ++i)
+    SubsetArray(EntityHandle* realConn,
+                int numCells,
+                int currentVertsPerCell,
+                int newVertsPerCell):
+      Array()
     {
-    ordering.reorder(connectivity);
-    connectivity += ordering.NUM_VERTS + 1;
+      const int size = numCells*newVertsPerCell;
+      this->Array.reserve(size);
+      if(currentVertsPerCell == newVertsPerCell)
+        {
+        std::copy(realConn,realConn+size, std::back_inserter(this->Array));
+        }
+      else
+        {
+        //skip copy only the first N points which we want
+        //since moab stores linear points first per cell
+        EntityHandle *pos = realConn;
+        for(int i=0; i < numCells;++i)
+          {
+          std::copy(pos,pos+newVertsPerCell,std::back_inserter(this->Array));
+          pos += currentVertsPerCell;
+          }
+        }
     }
-}
+    typedef std::vector<EntityHandle>::const_iterator const_iterator;
+    typedef std::vector<EntityHandle>::iterator iterator;
+
+    const_iterator begin() const { return this->Array.begin(); }
+    iterator begin() { return this->Array.begin(); }
+
+    const_iterator end() const { return this->Array.end(); }
+    iterator end(){ return this->Array.end(); }
+
+  private:
+    std::vector<EntityHandle> Array;
+  };
 }
 
-namespace smoab
-{
-
-class MixedCellConnectivity
+class LinearCellConnectivity
 {
 public:
-  MixedCellConnectivity(smoab::Range const& cells, moab::Interface* moab):
+
+  LinearCellConnectivity(smoab::Range const& cells, moab::Interface* moab):
     Connectivity(),
     UniquePoints(),
     Info()
@@ -86,15 +84,16 @@ public:
       //store that along with the connectivity in a temp storage vector
       const moab::EntityType type = moab->type_from_handle(*cells.begin()+count);
 
-      //while all these cells are contiously of the same type,
-      //quadric hexs in vtk have 20 points, but moab has 21 so we
-      //need to store this difference
-      int numVTKVerts = numVerts;
-      int vtkCellType = smoab::vtkCellType(type,numVTKVerts);
+      int vtkNumVerts;
+      int vtkCellType = smoab::detail::vtkLinearCellType(type,vtkNumVerts);
 
-      RunLengthInfo info = { vtkCellType, numVerts, (numVerts-numVTKVerts), iterationCount };
+      ContinousCellInfo info = { vtkCellType, vtkNumVerts, 0, iterationCount };
       this->Info.push_back(info);
-      this->Connectivity.push_back(connectivity);
+
+
+      //we need to copy only a subset of the connectivity array
+      internal::SubsetArray conn(connectivity,iterationCount,numVerts,vtkNumVerts);
+      this->Connectivity.push_back(conn);
 
       count += iterationCount;
       }
@@ -156,34 +155,15 @@ public:
       //remember our Connectivity is a vector of pointers whose
       //length is held in the info vector.
       const int numUnusedPoints = (*i).numUnusedVerts;
-      if(numUnusedPoints==0)
-        {
-        const int connLength = (*i).numCells * (*i).numVerts;
-        std::copy(*c,*c+connLength,std::back_inserter(output));
-        }
-      else
-        {
-        //we have cell connectivity that we need to skip,
-        //so we have to manual copy each cells connectivity
-        const int size = (*i).numCells;
-        const int numPoints = (*i).numVerts;
-        for(int i=0; i < size; ++i)
-          {
-          std::copy(*c,*c+numPoints,std::back_inserter(output));
-          }
-        c+=numPoints + (*i).numUnusedVerts;
-        }
-
+      const int connLength = (*i).numCells * (*i).numVerts;
+      std::copy(c->begin(),c->end(),std::back_inserter(output));
       }
     }
 
   //copy the information from this contianer to a vtk cell array, and
   //related lookup information
-  void copyToVtkCellInfo(vtkIdType* cellArray,
-                         vtkIdType* cellLocations,
-                         unsigned char* cellTypes) const
+  void copyToVtkCellInfo(vtkIdType* cellArray) const
     {
-    vtkIdType currentVtkConnectivityIndex = 0;
     ConnConstIterator c = this->Connectivity.begin();
     for(InfoConstIterator i = this->Info.begin();
         i != this->Info.end();
@@ -193,20 +173,15 @@ public:
       const int numCells = (*i).numCells;
       const int numVerts = (*i).numVerts;
 
-      std::fill_n(cellTypes,
-                  numCells,
-                  static_cast<unsigned char>((*i).type));
-
       //for each cell in this collection that have the same type
       //grab the raw array now, so we can properly increment for each vert in each cell
-      EntityHandle* moabConnectivity = *c;
+      internal::SubsetArray::const_iterator moabConnectivity = c->begin();
       for(int j=0;j < numCells; ++j)
         {
-        cellLocations[j]= currentVtkConnectivityIndex;
-
         //cell arrays start and end are different, since we
         //have to account for element that states the length of each cell
         cellArray[0]=numVerts;
+
 
         for(int k=0; k < numVerts; ++k, ++moabConnectivity )
           {
@@ -224,48 +199,21 @@ public:
                                             result);
           cellArray[k+1] = static_cast<vtkIdType>(newId);
           }
-
-        //skip any extra unused points, which is currnetly only
-        //the extra center point in moab quadratic hex
-        moabConnectivity+=(*i).numUnusedVerts;
-
-        currentVtkConnectivityIndex += numVerts+1;
         cellArray += numVerts+1;
         }
-
-      //For Tri-Quadratic-Hex and Quadratric-Wedge Moab and VTK
-      //Differ on the order of the edge ids. For wedge we need to swap
-      //indices 9,10,11 with 12,13,14 for each cell. For Hex we sawp
-      //12,13,14,15 with 16,17,18,19
-      int vtkCellType = (*i).type;
-      vtkIdType* connectivity = cellArray - (numCells * (numVerts+1));
-      if(vtkCellType == VTK_TRIQUADRATIC_HEXAHEDRON)
-        {
-        ::QuadratricOrdering<VTK_TRIQUADRATIC_HEXAHEDRON> newOrdering;
-        ::FixQuadraticIdOrdering(connectivity, numCells, newOrdering);
-        }
-      else if(vtkCellType == VTK_QUADRATIC_WEDGE)
-        {
-        ::QuadratricOrdering<VTK_QUADRATIC_WEDGE> newOrdering;
-        ::FixQuadraticIdOrdering(connectivity, numCells, newOrdering);
-        }
-
-      cellLocations += numCells;
-      cellTypes += numCells;
       }
-
     }
 
 private:
-  std::vector<EntityHandle*> Connectivity;
+  std::vector<internal::SubsetArray> Connectivity;
   std::vector<EntityHandle> UniquePoints;
 
-  struct RunLengthInfo{ int type; int numVerts; int numUnusedVerts; int numCells; };
-  std::vector<RunLengthInfo> Info;
+  std::vector<detail::ContinousCellInfo> Info;
 
   typedef std::vector<EntityHandle>::const_iterator EntityConstIterator;
-  typedef std::vector<EntityHandle*>::const_iterator ConnConstIterator;
-  typedef std::vector<RunLengthInfo>::const_iterator InfoConstIterator;
+  typedef std::vector<internal::SubsetArray>::const_iterator ConnConstIterator;
+  typedef std::vector<detail::ContinousCellInfo>::const_iterator InfoConstIterator;
 };
-}
-#endif // __smoab_MixedCellConnectivity_h
+} }  //namespace smoab::detail
+
+#endif // __smoab_LinearCellConnectivity_h
