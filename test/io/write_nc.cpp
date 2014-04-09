@@ -54,24 +54,12 @@ void test_read_write_T_gw()
   ErrorCode rval = get_options(orig);
   CHECK_ERR(rval);
 
-  // We will have to read without mesh and without var first, to create some conventional tags that we need
-  // later when we write
-  std::string opts;
-  opts = orig + std::string(";DEBUG_IO=3;NOMESH;VARIABLE=");
-
-  // Need a set for nomesh to work right
-  // This set will have as tags a lot of header information, that will be used for writing back the file
   EntityHandle set;
   rval = mb.create_meshset(MESHSET_SET, set);
   CHECK_ERR(rval);
 
-  // Load header info only (no mesh, no variables)
-  // This will create some conventional tags
-  rval = mb.load_file(example_eul, &set, opts.c_str());
-  CHECK_ERR(rval);
-
   // Load non-set variable T, set variable gw, and the mesh
-  opts= orig + std::string(";DEBUG_IO=3;VARIABLE=T,gw");
+  std::string opts = orig + std::string(";DEBUG_IO=3;VARIABLE=T,gw");
   rval = mb.load_file(example_eul, &set, opts.c_str());
   CHECK_ERR(rval);
 
