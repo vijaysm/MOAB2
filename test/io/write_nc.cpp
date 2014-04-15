@@ -45,7 +45,7 @@ int main(int argc, char* argv[])
   result += RUN_TEST(test_eul_read_write_T);
   result += RUN_TEST(test_eul_check_T);
   result += RUN_TEST(test_homme_read_write_T);
-  //result += RUN_TEST(test_homme_check_T);
+  result += RUN_TEST(test_homme_check_T);
 
 #ifdef USE_MPI
   fail = MPI_Finalize();
@@ -57,7 +57,7 @@ int main(int argc, char* argv[])
 }
 
 // We also read and write set variable gw, which is required to create the mesh
-// In test_eul_check_T_values(), we need to load the output file with mesh
+// In test_eul_check_T(), we need to load the output file with mesh
 void test_eul_read_write_T()
 {
   Core moab;
@@ -150,7 +150,7 @@ void test_eul_check_T()
 }
 
 // We also read and write set variables lat and lon, which are are required to create the mesh
-// In test_homme_check_T_values(), we need to load the output file with mesh
+// In test_homme_check_T(), we need to load the output file with mesh
 void test_homme_read_write_T()
 {
   Core moab;
