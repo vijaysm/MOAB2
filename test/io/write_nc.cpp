@@ -71,13 +71,13 @@ void test_eul_read_write_T()
   CHECK_ERR(rval);
 
   // Load non-set variable T, set variable gw, and the mesh
-  std::string opts = orig + std::string(";DEBUG_IO=3;VARIABLE=T,gw");
+  std::string opts = orig + std::string(";DEBUG_IO=0;VARIABLE=T,gw");
   rval = mb.load_file(example_eul, &set, opts.c_str());
   CHECK_ERR(rval);
 
   // Write variables T and gw
   std::string writeopts;
-  writeopts = std::string(";;VARIABLE=T,gw;DEBUG_IO=2;");
+  writeopts = std::string(";;VARIABLE=T,gw;DEBUG_IO=0;");
   rval = mb.write_file("test_eul_T.nc", 0, writeopts.c_str(), &set, 1);
   CHECK_ERR(rval);
 }
