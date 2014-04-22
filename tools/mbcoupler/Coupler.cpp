@@ -758,38 +758,53 @@ ErrorCode Coupler::nat_param(double xyz[3],
         std::cout << "Problems getting coordinates of vertices\n";
         return result;
       }
-
+      CartVect  pos(xyz);
       if (etype == MBHEX) {
         if (8==num_connect)
         {
           Element::LinearHex hexmap(coords_vert);
-          tmp_nat_coords = hexmap.ievaluate(CartVect(xyz), epsilon);
-          bool inside = hexmap.inside_nat_space(tmp_nat_coords, epsilon);
-          if (!inside)
+          if (!hexmap.inside_box( pos, epsilon))
             continue;
+          try {
+            tmp_nat_coords = hexmap.ievaluate(pos, epsilon);
+            bool inside = hexmap.inside_nat_space(tmp_nat_coords, epsilon);
+            if (!inside) continue;
+          }
+          catch (Element::Map::EvaluationError) {
+            continue;
+          }
         }
         else if (27==num_connect)
         {
           Element::QuadraticHex hexmap(coords_vert);
-          tmp_nat_coords = hexmap.ievaluate(CartVect(xyz), epsilon);
-          bool inside = hexmap.inside_nat_space(tmp_nat_coords, epsilon);
-          if (!inside)
-            continue;
+         if (!hexmap.inside_box( pos, epsilon))
+           continue;
+         try {
+           tmp_nat_coords = hexmap.ievaluate(pos, epsilon);
+           bool inside = hexmap.inside_nat_space(tmp_nat_coords, epsilon);
+           if (!inside) continue;
+         }
+         catch (Element::Map::EvaluationError) {
+           continue;
+         }
         }
         else // TODO this case not treated yet, no interpolation
           continue;
       }
       else if (etype == MBTET){
         Element::LinearTet tetmap(coords_vert);
-        tmp_nat_coords = tetmap.ievaluate(CartVect(xyz));
+        // this is just a linear solve; unless degenerate, will not except
+        tmp_nat_coords = tetmap.ievaluate(pos);
         bool inside = tetmap.inside_nat_space(tmp_nat_coords, epsilon);
         if (!inside)
           continue;
       }
       else if (etype == MBQUAD){
         Element::LinearQuad quadmap(coords_vert);
+        if (!quadmap.inside_box( pos, epsilon))
+          continue;
         try {
-          tmp_nat_coords = quadmap.ievaluate(CartVect(xyz), epsilon);
+          tmp_nat_coords = quadmap.ievaluate(pos, epsilon);
           bool inside = quadmap.inside_nat_space(tmp_nat_coords, epsilon);
           if (!inside) continue;
         }
