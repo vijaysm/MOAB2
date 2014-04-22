@@ -74,6 +74,12 @@ void test_eul_read_write_T()
   MPI_Comm_size(MPI_COMM_WORLD, &procs);
 #endif
 
+// We will not test NC writer in parallel without pnetcdf support
+#ifndef PNETCDF_FILE
+  if (procs > 1)
+    return;
+#endif
+
   Core moab;
   Interface& mb = moab;
 
@@ -111,6 +117,12 @@ void test_eul_check_T()
 #ifdef USE_MPI
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &procs);
+#endif
+
+// We will not test NC writer in parallel without pnetcdf support
+#ifndef PNETCDF_FILE
+  if (procs > 1)
+    return;
 #endif
 
   Core moab;
@@ -212,6 +224,12 @@ void test_fv_read_write_T()
   MPI_Comm_size(MPI_COMM_WORLD, &procs);
 #endif
 
+// We will not test NC writer in parallel without pnetcdf support
+#ifndef PNETCDF_FILE
+  if (procs > 1)
+    return;
+#endif
+
   Core moab;
   Interface& mb = moab;
 
@@ -248,6 +266,12 @@ void test_fv_check_T()
 #ifdef USE_MPI
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &procs);
+#endif
+
+// We will not test NC writer in parallel without pnetcdf support
+#ifndef PNETCDF_FILE
+  if (procs > 1)
+    return;
 #endif
 
   Core moab;
@@ -327,6 +351,13 @@ void test_homme_read_write_T()
 #ifdef USE_MPI
   MPI_Comm_size(MPI_COMM_WORLD, &procs);
 #endif
+
+// We will not test NC writer in parallel without pnetcdf support
+#ifndef PNETCDF_FILE
+  if (procs > 1)
+    return;
+#endif
+
   // Only test serial case for the time being
   if (procs > 1)
     return;
@@ -360,6 +391,13 @@ void test_homme_check_T()
 #ifdef USE_MPI
   MPI_Comm_size(MPI_COMM_WORLD, &procs);
 #endif
+
+// We will not test NC writer in parallel without pnetcdf support
+#ifndef PNETCDF_FILE
+  if (procs > 1)
+    return;
+#endif
+
   // Only test serial case for the time being
   if (procs > 1)
     return;
