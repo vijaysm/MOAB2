@@ -209,6 +209,7 @@ test/parallel/structured3
 test/parallel/uber_parallel_test
 test/parallel/ucdtrvpart
 test/parallel/*.vtk
+test/parallel/write_nc_par
 test/perf/adj_time
 test/perf/perf
 test/perf/perftool
