@@ -14,6 +14,15 @@ namespace moab {
       BoundBox(const CartVect &min, const CartVect &max) : 
               bMin(min), bMax(max) {}
       BoundBox(const double *corners);
+      // constructor used in element maps
+      BoundBox(std::vector<CartVect> points): bMin(DBL_MAX), bMax(-DBL_MAX)
+      {
+        for (size_t i=0; i<points.size(); i++)
+        {
+          update_min( points[i].array() );
+          update_max( points[i].array() );
+        }
+      }
       ~BoundBox() {}
 
       bool contains_point(const double *point, const double tol = 0.0) const;

@@ -109,7 +109,10 @@ bool SpectralQuad::reverseEvalFcn(const double *posn, const double *verts, const
   double dist = opt_findpt_2(&_data, (const double **)_xyz, x_star, r, &c);
     // if it did not converge, get out with throw...
   if (dist > 0.9e+30)
-    throw Map::EvaluationError();
+  {
+    std::vector<CartVect> dummy;
+    throw Map::EvaluationError(CartVect(x_star), dummy);
+  }
     //c tells us if we landed inside the element or exactly on a face, edge, or node
     // also, dist shows the distance to the computed point.
     //copy parametric coords back

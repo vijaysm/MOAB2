@@ -127,6 +127,9 @@ test/bsp_tree_test
 test/CMakeLists.txt
 test/coords_connect_iterate
 test/cropvol_test
+test/dagmc/dagmc_pointinvol_test
+test/dagmc/dagmc_rayfire_test
+test/dagmc/dagmc_simple_test
 test/dual/dual_test
 test/elem_eval_test
 test/file_options_test
@@ -153,8 +156,10 @@ test/io/gmsh_test
 test/io/ideas_test
 test/io/nastran_test
 test/io/read_cgm_basic_test
+test/io/read_cgm_connectivity_test
+test/io/read_cgm_group_test
 test/io/read_cgm_load_test
-test/io/read_cgm_test
+test/io/read_cgm_senses_test
 test/io/read_mpas_nc
 test/io/read_nc
 test/io/read_ucd_nc
