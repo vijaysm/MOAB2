@@ -446,7 +446,12 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
   for (int i = 0; i < num_points; i++) 
   {
     if (tl_tmp->vi_rd[3*i+1] == -1)
+    {
       missing_pts++;
+#ifndef NDEBUG
+      printf(" %f %f %f\n", xyz[3*i], xyz[3*i+1], xyz[3*i+2] );
+#endif
+    }
     else
       if (tl_tmp->vi_rd[3*i]==(int)my_rank)
         local_pts++;
@@ -668,7 +673,11 @@ ErrorCode Coupler::nat_param(double xyz[3],
   if (epsilon) {
     std::vector<double> dists;
     std::vector<EntityHandle> leaves;
-    result = myTree->distance_search(xyz, epsilon, leaves, 1.0e-10, 1.0e-6, &dists, NULL, &localRoot);
+    // two tolerances
+    result = myTree->distance_search(xyz, epsilon, leaves,
+        /*iter_tol*/  epsilon,
+        /*inside_tol*/ 10*epsilon,
+        &dists, NULL, &localRoot);
     if (leaves.empty()) 
       // not found returns success here, with empty list, just like case with no epsilon
       return MB_SUCCESS;
