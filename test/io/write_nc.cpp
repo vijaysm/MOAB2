@@ -106,6 +106,7 @@ void test_eul_read_write_T()
     rval = mb.write_file("test_par_eul_T.nc", 0, write_opts.c_str(), &set, 1);
   else
     rval = mb.write_file("test_eul_T.nc", 0, write_opts.c_str(), &set, 1);
+  CHECK_ERR(rval);
 }
 
 // Check non-set variable T on some quads
@@ -256,6 +257,7 @@ void test_fv_read_write_T()
     rval = mb.write_file("test_par_fv_T.nc", 0, write_opts.c_str(), &set, 1);
   else
     rval = mb.write_file("test_fv_T.nc", 0, write_opts.c_str(), &set, 1);
+  CHECK_ERR(rval);
 }
 
 // Check non-set variable T on some quads
@@ -358,10 +360,6 @@ void test_homme_read_write_T()
     return;
 #endif
 
-  // Only test serial case for the time being
-  if (procs > 1)
-    return;
-
   Core moab;
   Interface& mb = moab;
 
@@ -374,12 +372,21 @@ void test_homme_read_write_T()
 
   // Load non-set variable T, set variable lat, set variable lon, and the mesh
   read_opts += ";DEBUG_IO=0;VARIABLE=T,lat,lon";
+  if (procs > 1)
+    read_opts += ";PARALLEL_RESOLVE_SHARED_ENTS";
   rval = mb.load_file(example_homme, &set, read_opts.c_str());
   CHECK_ERR(rval);
 
   // Write variables T, lat and lon
   std::string write_opts = ";;VARIABLE=T,lat,lon;DEBUG_IO=0;";
-  rval = mb.write_file("test_homme_T.nc", 0, write_opts.c_str(), &set, 1);
+#ifdef USE_MPI
+  // Use parallel options
+  write_opts += std::string(";PARALLEL=WRITE_PART");
+#endif
+  if (procs > 1)
+    rval = mb.write_file("test_par_homme_T.nc", 0, write_opts.c_str(), &set, 1);
+  else
+    rval = mb.write_file("test_homme_T.nc", 0, write_opts.c_str(), &set, 1);
   CHECK_ERR(rval);
 }
 
@@ -387,8 +394,10 @@ void test_homme_read_write_T()
 // Also check set variables lat and lon
 void test_homme_check_T()
 {
+  int rank = 0;
   int procs = 1;
 #ifdef USE_MPI
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &procs);
 #endif
 
@@ -397,10 +406,6 @@ void test_homme_check_T()
   if (procs > 1)
     return;
 #endif
-
-  // Only test serial case for the time being
-  if (procs > 1)
-    return;
 
   Core moab;
   Interface& mb = moab;
@@ -416,8 +421,13 @@ void test_homme_check_T()
   read_opts += ";VARIABLE=T,lat,lon";
   read_opts += ";CONN=";
   read_opts += example_homme_mapping;
-  rval = mb.load_file("test_homme_T.nc", &set, read_opts.c_str());
+  if (procs > 1)
+    rval = mb.load_file("test_par_homme_T.nc", &set, read_opts.c_str());
+  else
+    rval = mb.load_file("test_homme_T.nc", &set, read_opts.c_str());
   CHECK_ERR(rval);
+
+  double eps = 1e-10;
 
   if (1 == procs) {
     // Get tag lat
@@ -432,7 +442,6 @@ void test_homme_check_T()
     CHECK_ERR(rval);
     CHECK_EQUAL(3458, var_len);
     double* lat_val = (double*)var_data;
-    double eps = 1e-10;
     CHECK_REAL_EQUAL(-35.2643896827547, lat_val[0], eps);
     CHECK_REAL_EQUAL(23.8854752772335, lat_val[1728], eps);
     CHECK_REAL_EQUAL(29.8493120043874, lat_val[1729], eps);
@@ -453,32 +462,48 @@ void test_homme_check_T()
     CHECK_REAL_EQUAL(202.5, lon_val[1728], eps);
     CHECK_REAL_EQUAL(194.359423525313, lon_val[1729], eps);
     CHECK_REAL_EQUAL(135, lon_val[3457], eps);
+  }
 
-    // Get tag T0
-    Tag Ttag0;
-    rval = mb.tag_get_handle("T0", 26, MB_TYPE_DOUBLE, Ttag0);
-    CHECK_ERR(rval);
+  // Get tag T0
+  Tag Ttag0;
+  rval = mb.tag_get_handle("T0", 26, MB_TYPE_DOUBLE, Ttag0);
+  CHECK_ERR(rval);
 
-    // Get vertices
-    Range verts;
-    rval = mb.get_entities_by_type(0, MBVERTEX, verts);
-    CHECK_ERR(rval);
+  // Get vertices
+  Range verts;
+  rval = mb.get_entities_by_type(0, MBVERTEX, verts);
+  CHECK_ERR(rval);
+
+  // Get all values of tag T0
+  int count;
+  void* Tbuf;
+  rval = mb.tag_iterate(Ttag0, verts.begin(), verts.end(), count, Tbuf);
+  CHECK_ERR(rval);
+  CHECK_EQUAL((size_t)count, verts.size());
+
+  double* data = (double*) Tbuf;
+  eps = 0.0001;
+
+  if (1 == procs) {
     CHECK_EQUAL((size_t)3458, verts.size());
-
-    // Get all values of tag T0
-    int count;
-    void* Tbuf;
-    rval = mb.tag_iterate(Ttag0, verts.begin(), verts.end(), count, Tbuf);
-    CHECK_ERR(rval);
-    CHECK_EQUAL((size_t)count, verts.size());
-
-    // Check some values of tag T0 on first level
-    eps = 0.0001;
-    double* data = (double*) Tbuf;
     CHECK_REAL_EQUAL(233.1136, data[0 * 26], eps); // First vert
     CHECK_REAL_EQUAL(236.1505, data[1728 * 26], eps); // Median vert
     CHECK_REAL_EQUAL(235.7722, data[1729 * 26], eps); // Median vert
     CHECK_REAL_EQUAL(234.0416, data[3457 * 26], eps); // Last vert
+  }
+  else if (2 == procs) {
+    if (0 == rank) {
+      CHECK_EQUAL((size_t)1825, verts.size());
+      CHECK_REAL_EQUAL(233.1136, data[0 * 26], eps); // First vert
+      CHECK_REAL_EQUAL(237.1977, data[912 * 26], eps); // Median vert
+      CHECK_REAL_EQUAL(234.9711, data[1824 * 26], eps); // Last vert
+    }
+    else if (1 == rank) {
+      CHECK_EQUAL((size_t)1825, verts.size());
+      CHECK_REAL_EQUAL(233.1136, data[0 * 26], eps); // First vert
+      CHECK_REAL_EQUAL(231.0446, data[912 * 26], eps); // Median vert
+      CHECK_REAL_EQUAL(234.0416, data[1824 * 26], eps); // Last vert
+    }
   }
 }
 
