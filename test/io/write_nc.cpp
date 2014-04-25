@@ -9,16 +9,28 @@ static const char example_eul[] = STRINGIFY(MESHDIR) "/io/camEul26x48x96.t3.nc";
 static const char example_fv[] = STRINGIFY(MESHDIR) "/io/fv26x46x72.t.3.nc";
 static const char example_homme[] = STRINGIFY(MESHDIR) "/io/homme26x3458.t.3.nc";
 static const char example_homme_mapping[] = STRINGIFY(MESHDIR) "/io/HommeMapping.nc";
+static const char example_mpas[] = STRINGIFY(MESHDIR) "/io/mpasx1.642.t.2.nc";
 #else
 static const char example_eul[] = "/io/camEul26x48x96.t3.nc";
 static const char example_fv[] = "/io/fv26x46x72.t.3.nc";
 static const char example_homme[] = "/io/homme26x3458.t.3.nc";
 static const char example_homme_mapping[] = "/io/HommeMapping.nc";
+static const char example_mpas[] = "/io/mpasx1.642.t.2.nc";
 #endif
 
 #ifdef USE_MPI
 #include "moab_mpi.h"
 #include "moab/ParallelComm.hpp"
+#endif
+
+#ifdef PNETCDF_FILE
+#include "pnetcdf.h"
+#define NCFUNC(func) ncmpi_ ## func
+#define NCDF_SIZE MPI_Offset
+#else
+#include "netcdf.h"
+#define NCFUNC(func) nc_ ## func
+#define NCDF_SIZE size_t
 #endif
 
 // CAM-EUL
@@ -33,9 +45,14 @@ void test_fv_check_T();
 void test_homme_read_write_T();
 void test_homme_check_T();
 
+// MPAS
+void test_mpas_read_write_vars();
+void test_mpas_check_vars();
+
 void get_eul_read_options(std::string& opts);
 void get_fv_read_options(std::string& opts);
 void get_homme_read_options(std::string& opts);
+void get_mpas_read_options(std::string& opts);
 
 int main(int argc, char* argv[])
 {
@@ -55,6 +72,8 @@ int main(int argc, char* argv[])
   result += RUN_TEST(test_fv_check_T);
   result += RUN_TEST(test_homme_read_write_T);
   result += RUN_TEST(test_homme_check_T);
+  //result += RUN_TEST(test_mpas_read_write_vars);
+  //result += RUN_TEST(test_mpas_check_vars);
 
 #ifdef USE_MPI
   fail = MPI_Finalize();
@@ -507,6 +526,115 @@ void test_homme_check_T()
   }
 }
 
+void test_mpas_read_write_vars()
+{
+  int procs = 1;
+#ifdef USE_MPI
+  MPI_Comm_size(MPI_COMM_WORLD, &procs);
+#endif
+
+// We will not test NC writer in parallel without pnetcdf support
+#ifndef PNETCDF_FILE
+  if (procs > 1)
+    return;
+#endif
+
+  Core moab;
+  Interface& mb = moab;
+
+  std::string read_opts;
+  get_mpas_read_options(read_opts);
+
+  EntityHandle set;
+  ErrorCode rval = mb.create_meshset(MESHSET_SET, set);
+  CHECK_ERR(rval);
+
+  // Load non-set variable u, non-set variable ke, non-set variable vorticity, and the mesh
+  read_opts += ";DEBUG_IO=0;VARIABLE=u,ke,vorticity";
+  if (procs > 1)
+    read_opts += ";PARALLEL_RESOLVE_SHARED_ENTS";
+  rval = mb.load_file(example_mpas, &set, read_opts.c_str());
+  CHECK_ERR(rval);
+
+  // Write variables u, ke and vorticity (no mesh information)
+  std::string write_opts = ";;VARIABLE=u,ke,vorticity;DEBUG_IO=0;";
+#ifdef USE_MPI
+  // Use parallel options
+  write_opts += std::string(";PARALLEL=WRITE_PART");
+#endif
+  if (procs > 1)
+    rval = mb.write_file("test_par_mpas_vars.nc", 0, write_opts.c_str(), &set, 1);
+  else
+    rval = mb.write_file("test_mpas_vars.nc", 0, write_opts.c_str(), &set, 1);
+  CHECK_ERR(rval);
+}
+
+// Check variables without using NC reader (the output file does not contain mesh information)
+// For the time being, we only check cell variable ke
+void test_mpas_check_vars()
+{
+  int rank = 0;
+  int procs = 1;
+#ifdef USE_MPI
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &procs);
+#endif
+
+// We will not test NC writer in parallel without pnetcdf support
+#ifndef PNETCDF_FILE
+  if (procs > 1)
+    return;
+#endif
+
+  if (0 == rank) {
+    int ncid, varid;
+    int success;
+    const double eps = 1e-10;
+
+    std::string filename;
+    if (procs > 1)
+      filename = "test_mpas_vars.nc";
+    else
+      filename = "test_par_mpas_vars.nc";
+
+#ifdef PNETCDF_FILE
+    success = NCFUNC(open)(MPI_COMM_SELF, filename.c_str(), NC_NOWRITE, MPI_INFO_NULL, &ncid);
+#else
+    success = NCFUNC(open)(filename.c_str(), NC_NOWRITE, &ncid);
+#endif
+    CHECK_EQUAL(0, success);
+
+    success = NCFUNC(inq_varid)(ncid, "ke", &varid);
+    CHECK_EQUAL(0, success);
+
+#ifdef PNETCDF_FILE
+    // Enter independent I/O mode
+    success = NCFUNC(begin_indep_data)(ncid);
+    CHECK_EQUAL(0, success);
+#endif
+
+    NCDF_SIZE start[] = {0, 0, 0};
+    NCDF_SIZE count[] = {1, 642, 1};
+    double vals[642];
+    success = NCFUNC(get_vara_double)(ncid, varid, start, count, vals);
+    CHECK_EQUAL(0, success);
+
+#ifdef PNETCDF_FILE
+    // End independent I/O mode
+    success = NCFUNC(end_indep_data)(ncid);
+    CHECK_EQUAL(0, success);
+#endif
+
+    CHECK_REAL_EQUAL(15.001, vals[0], eps);
+    CHECK_REAL_EQUAL(15.012, vals[11], eps);
+    CHECK_REAL_EQUAL(16.013, vals[12], eps);
+    CHECK_REAL_EQUAL(16.642, vals[641], eps);
+
+    success = NCFUNC(close)(ncid);
+    CHECK_EQUAL(0, success);
+  }
+}
+
 void get_eul_read_options(std::string& opts)
 {
 #ifdef USE_MPI
@@ -532,6 +660,20 @@ void get_homme_read_options(std::string& opts)
 #ifdef USE_MPI
   // Use parallel options
   opts = ";;PARALLEL=READ_PART;PARTITION_METHOD=TRIVIAL";
+#else
+  opts = ";;";
+#endif
+}
+
+void get_mpas_read_options(std::string& opts)
+{
+#ifdef USE_MPI
+  // Use parallel options
+#ifdef HAVE_ZOLTAN
+  opts = ";;PARALLEL=READ_PART;PARTITION_METHOD=RCBZOLTAN";
+#else
+  opts = ";;PARALLEL=READ_PART;PARTITION_METHOD=TRIVIAL";
+#endif
 #else
   opts = ";;";
 #endif

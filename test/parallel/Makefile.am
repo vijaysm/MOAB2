@@ -123,4 +123,5 @@ MOSTLYCLEANFILES = mhdf_ll.h5m tmp0.h5m tmp1.h5m tmp2.h5m tmp3.h5m \
                    test_mpas_rcbzoltan_no_mixed_elements.h5m \
                    test_par_eul_T.nc \
                    test_par_fv_T.nc \
-                   test_par_homme_T.nc
+                   test_par_homme_T.nc \
+                   test_par_mpas_vars.nc
