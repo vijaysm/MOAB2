@@ -261,7 +261,7 @@ void test_eul_read_write_append()
   CHECK_ERR(rval);
 
   // Load non-set variable T, set variable gw, and the mesh
-  read_opts += ";DEBUG_IO=0;VARIABLE=T,U,gw";
+  read_opts += ";DEBUG_IO=0;VARIABLE=T,U,V,gw";
   rval = mb.load_file(example_eul, &set, read_opts.c_str());
   CHECK_ERR(rval);
 
@@ -288,6 +288,19 @@ void test_eul_read_write_append()
     rval = mb.write_file("test_par_eul_TU.nc", 0, write_opts2.c_str(), &set, 1);
   else
     rval = mb.write_file("test_eul_TU.nc", 0, write_opts2.c_str(), &set, 1);
+  CHECK_ERR(rval);
+
+  // append to the file variable V, renamed to VNEWNAME
+  std::string write_opts3;
+  write_opts3 = std::string(";;VARIABLE=V;RENAME=VNEWNAME;DEBUG_IO=0;APPEND");
+#ifdef USE_MPI
+  // Use parallel options
+  write_opts3 += std::string(";PARALLEL=WRITE_PART");
+#endif
+  if (procs > 1)
+    rval = mb.write_file("test_par_eul_TU.nc", 0, write_opts3.c_str(), &set, 1);
+  else
+    rval = mb.write_file("test_eul_TU.nc", 0, write_opts3.c_str(), &set, 1);
   CHECK_ERR(rval);
 }
 
