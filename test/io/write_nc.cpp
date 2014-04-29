@@ -36,6 +36,7 @@ static const char example_mpas[] = "/io/mpasx1.642.t.2.nc";
 // CAM-EUL
 void test_eul_read_write_T();
 void test_eul_check_T();
+void test_eul_read_write_append();
 
 // CAM-FV
 void test_fv_read_write_T();
@@ -68,12 +69,12 @@ int main(int argc, char* argv[])
 
   result += RUN_TEST(test_eul_read_write_T);
   result += RUN_TEST(test_eul_check_T);
+  result += RUN_TEST(test_eul_read_write_append);
   result += RUN_TEST(test_fv_read_write_T);
-  result += RUN_TEST(test_fv_check_T);
   result += RUN_TEST(test_homme_read_write_T);
   result += RUN_TEST(test_homme_check_T);
-  //result += RUN_TEST(test_mpas_read_write_vars);
-  //result += RUN_TEST(test_mpas_check_vars);
+ // result += RUN_TEST(test_mpas_read_write_vars);
+ // result += RUN_TEST(test_mpas_check_vars);
 
 #ifdef USE_MPI
   fail = MPI_Finalize();
@@ -233,6 +234,61 @@ void test_eul_check_T()
       CHECK_REAL_EQUAL(200.6828, val[3 * 26], eps); // Last local quad, last global quad
     }
   }
+}
+// We read and write variables T and U; U after we write T, so we append
+// we will also write gw, just to test the file after writing
+void test_eul_read_write_append()
+{
+  int procs = 1;
+#ifdef USE_MPI
+  MPI_Comm_size(MPI_COMM_WORLD, &procs);
+#endif
+
+// We will not test NC writer in parallel without pnetcdf support
+#ifndef PNETCDF_FILE
+  if (procs > 1)
+    return;
+#endif
+
+  Core moab;
+  Interface& mb = moab;
+
+  std::string read_opts;
+  get_eul_read_options(read_opts);
+
+  EntityHandle set;
+  ErrorCode rval = mb.create_meshset(MESHSET_SET, set);
+  CHECK_ERR(rval);
+
+  // Load non-set variable T, set variable gw, and the mesh
+  read_opts += ";DEBUG_IO=0;VARIABLE=T,U,gw";
+  rval = mb.load_file(example_eul, &set, read_opts.c_str());
+  CHECK_ERR(rval);
+
+  // Write variables T and gw
+  std::string write_opts;
+  write_opts = std::string(";;VARIABLE=T,gw;DEBUG_IO=0");
+#ifdef USE_MPI
+  // Use parallel options
+  write_opts += std::string(";PARALLEL=WRITE_PART");
+#endif
+  if (procs > 1)
+    rval = mb.write_file("test_par_eul_TU.nc", 0, write_opts.c_str(), &set, 1);
+  else
+    rval = mb.write_file("test_eul_TU.nc", 0, write_opts.c_str(), &set, 1);
+  CHECK_ERR(rval);
+  // append to the file variable U
+  std::string write_opts2;
+  write_opts2 = std::string(";;VARIABLE=U;DEBUG_IO=0;APPEND");
+#ifdef USE_MPI
+  // Use parallel options
+  write_opts2 += std::string(";PARALLEL=WRITE_PART");
+#endif
+  if (procs > 1)
+    rval = mb.write_file("test_par_eul_TU.nc", 0, write_opts2.c_str(), &set, 1);
+  else
+    rval = mb.write_file("test_eul_TU.nc", 0, write_opts2.c_str(), &set, 1);
+  CHECK_ERR(rval);
 }
 
 // We also write coordinate variables slat and slon to the output file, so that
