@@ -71,10 +71,11 @@ int main(int argc, char* argv[])
   result += RUN_TEST(test_eul_check_T);
   result += RUN_TEST(test_eul_read_write_append);
   result += RUN_TEST(test_fv_read_write_T);
+  result += RUN_TEST(test_fv_check_T);
   result += RUN_TEST(test_homme_read_write_T);
   result += RUN_TEST(test_homme_check_T);
- // result += RUN_TEST(test_mpas_read_write_vars);
- // result += RUN_TEST(test_mpas_check_vars);
+  result += RUN_TEST(test_mpas_read_write_vars);
+  result += RUN_TEST(test_mpas_check_vars);
 
 #ifdef USE_MPI
   fail = MPI_Finalize();
@@ -235,6 +236,7 @@ void test_eul_check_T()
     }
   }
 }
+
 // We read and write variables T and U; U after we write T, so we append
 // we will also write gw, just to test the file after writing
 void test_eul_read_write_append()
@@ -453,7 +455,7 @@ void test_homme_read_write_T()
   CHECK_ERR(rval);
 
   // Write variables T, lat and lon
-  std::string write_opts = ";;VARIABLE=T,lat,lon;DEBUG_IO=0;";
+  std::string write_opts = ";;VARIABLE=T,lat,lon;DEBUG_IO=0";
 #ifdef USE_MPI
   // Use parallel options
   write_opts += std::string(";PARALLEL=WRITE_PART");
@@ -613,7 +615,7 @@ void test_mpas_read_write_vars()
   CHECK_ERR(rval);
 
   // Write variables u, ke and vorticity (no mesh information)
-  std::string write_opts = ";;VARIABLE=u,ke,vorticity;DEBUG_IO=0;";
+  std::string write_opts = ";;VARIABLE=u,ke,vorticity;DEBUG_IO=0";
 #ifdef USE_MPI
   // Use parallel options
   write_opts += std::string(";PARALLEL=WRITE_PART");
@@ -649,9 +651,9 @@ void test_mpas_check_vars()
 
     std::string filename;
     if (procs > 1)
-      filename = "test_mpas_vars.nc";
-    else
       filename = "test_par_mpas_vars.nc";
+    else
+      filename = "test_mpas_vars.nc";
 
 #ifdef PNETCDF_FILE
     success = NCFUNC(open)(MPI_COMM_SELF, filename.c_str(), NC_NOWRITE, MPI_INFO_NULL, &ncid);
