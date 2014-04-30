@@ -111,13 +111,20 @@ void test_eul_read_write_T()
   ErrorCode rval = mb.create_meshset(MESHSET_SET, set);
   CHECK_ERR(rval);
 
+#ifdef USE_MPI
   read_opts = "PARALLEL=READ_PART;PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;PARALLEL_GHOSTS=2.0.1;PARTITION_METHOD=SQIJ;VARIABLE=";
   rval = mb.load_file(example_eul, &set, read_opts.c_str());
   CHECK_ERR(rval);
 
-  read_opts = "PARALLEL=READ_PART;PARTITION;PARTITION_METHOD=SQIJ;VARIABLE=T,gw;NOMESH;";
+  read_opts = "PARALLEL=READ_PART;PARTITION;PARTITION_METHOD=SQIJ;VARIABLE=T,gw;NOMESH";
   rval = mb.load_file(example_eul, &set, read_opts.c_str());
   CHECK_ERR(rval);
+#else
+  read_opts += ";DEBUG_IO=0;VARIABLE=T,gw";
+  rval = mb.load_file(example_eul, &set, read_opts.c_str());
+  CHECK_ERR(rval);
+#endif
+
   // Write variables T and gw
   std::string write_opts;
   write_opts = std::string(";;VARIABLE=T,gw;DEBUG_IO=0");
