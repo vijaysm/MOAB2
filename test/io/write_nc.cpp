@@ -46,6 +46,10 @@ void test_homme_check_T();
 void test_mpas_read_write_vars();
 void test_mpas_check_vars();
 
+// Test timestep option
+void test_eul_read_write_timestep();
+void test_eul_check_timestep();
+
 // Test append option
 void test_eul_read_write_append();
 void test_eul_check_append();
@@ -84,6 +88,9 @@ int main(int argc, char* argv[])
 
   result += RUN_TEST(test_mpas_read_write_vars);
   result += RUN_TEST(test_mpas_check_vars);
+
+  result += RUN_TEST(test_eul_read_write_timestep);
+  result += RUN_TEST(test_eul_check_timestep);
 
   result += RUN_TEST(test_eul_read_write_append);
   result += RUN_TEST(test_eul_check_append);
@@ -702,6 +709,118 @@ void test_mpas_check_vars()
     CHECK_REAL_EQUAL(25.012, ke_vals[11 + 642], eps);
     CHECK_REAL_EQUAL(26.013, ke_vals[12 + 642], eps);
     CHECK_REAL_EQUAL(26.642, ke_vals[641 + 642], eps);
+
+    success = NCFUNC(close)(ncid);
+    CHECK_EQUAL(0, success);
+  }
+}
+
+// Read non-set variable T on all 3 timesteps, and write only timestep 2
+void test_eul_read_write_timestep()
+{
+  int procs = 1;
+#ifdef USE_MPI
+  MPI_Comm_size(MPI_COMM_WORLD, &procs);
+#endif
+
+// We will not test NC writer in parallel without pnetcdf support
+#ifndef PNETCDF_FILE
+  if (procs > 1)
+    return;
+#endif
+
+  Core moab;
+  Interface& mb = moab;
+
+  std::string read_opts;
+  get_eul_read_options(read_opts);
+
+  EntityHandle set;
+  ErrorCode rval = mb.create_meshset(MESHSET_SET, set);
+  CHECK_ERR(rval);
+
+  // Read non-set variable T
+  read_opts += ";VARIABLE=T;DEBUG_IO=0";
+  rval = mb.load_file(example_eul, &set, read_opts.c_str());
+  CHECK_ERR(rval);
+
+  // Write variable T on timestep 2
+  std::string write_opts = ";;VARIABLE=T;TIMESTEP=2;DEBUG_IO=0";
+#ifdef USE_MPI
+  // Use parallel options
+  write_opts += ";PARALLEL=WRITE_PART";
+#endif
+  if (procs > 1)
+    rval = mb.write_file("test_par_eul_T2.nc", 0, write_opts.c_str(), &set, 1);
+  else
+    rval = mb.write_file("test_eul_T2.nc", 0, write_opts.c_str(), &set, 1);
+  CHECK_ERR(rval);
+}
+
+void test_eul_check_timestep()
+{
+  int rank = 0;
+  int procs = 1;
+#ifdef USE_MPI
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &procs);
+#endif
+
+// We will not test NC writer in parallel without pnetcdf support
+#ifndef PNETCDF_FILE
+  if (procs > 1)
+    return;
+#endif
+
+  if (0 == rank) {
+    int ncid;
+    int success;
+
+    std::string filename;
+    if (procs > 1)
+      filename = "test_par_eul_T2.nc";
+    else
+      filename = "test_eul_T2.nc";
+
+#ifdef PNETCDF_FILE
+    success = NCFUNC(open)(MPI_COMM_SELF, filename.c_str(), NC_NOWRITE, MPI_INFO_NULL, &ncid);
+#else
+    success = NCFUNC(open)(filename.c_str(), NC_NOWRITE, &ncid);
+#endif
+    CHECK_EQUAL(0, success);
+
+    int T_id;
+    success = NCFUNC(inq_varid)(ncid, "T", &T_id);
+    CHECK_EQUAL(0, success);
+
+#ifdef PNETCDF_FILE
+    // Enter independent I/O mode
+    success = NCFUNC(begin_indep_data)(ncid);
+    CHECK_EQUAL(0, success);
+#endif
+
+    NCDF_SIZE start[] = {0, 0, 0, 0};
+    NCDF_SIZE count[] = {1, 1, 48, 96}; // Read one timestep and one level
+
+    // Read variable T on 48 * 96 quads (first level)
+    double T_vals_lev1[48 * 96];
+    success = NCFUNC(get_vara_double)(ncid, T_id, start, count, T_vals_lev1);
+    CHECK_EQUAL(0, success);
+
+#ifdef PNETCDF_FILE
+    // End independent I/O mode
+    success = NCFUNC(end_indep_data)(ncid);
+    CHECK_EQUAL(0, success);
+#endif
+
+    double eps = 0.0001;
+
+    // Check T values at some strategically chosen places (first level)
+    // Timestep 2
+    CHECK_REAL_EQUAL(224.1966, T_vals_lev1[0], eps); // First quad
+    CHECK_REAL_EQUAL(236.1357, T_vals_lev1[2303], eps); // Median quad
+    CHECK_REAL_EQUAL(235.9430, T_vals_lev1[2304], eps); // Median quad
+    CHECK_REAL_EQUAL(218.7719, T_vals_lev1[4607], eps); // Last quad
 
     success = NCFUNC(close)(ncid);
     CHECK_EQUAL(0, success);

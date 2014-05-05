@@ -93,5 +93,6 @@ MOSTLYCLEANFILES = dumped_acis.sat \
                    test_fv_T.nc \
                    test_homme_T.nc \
                    test_mpas_vars.nc \
+                   test_eul_T2.nc \
                    test_eul_append.nc \
                    test_eul_ghosting.nc
