@@ -70,7 +70,7 @@ if PARALLEL
   cslam_par_test_SOURCES = cslam_par_test.cpp
   intx_mpas_SOURCES = intx_mpas.cpp
   advection_SOURCES = advection.F90
-  advection_LDADD = $(LDADD) $(top_builddir)/itaps/imesh/libiMesh.la
+  advection_LDADD = $(LDADD) $(top_builddir)/itaps/imesh/libiMesh.la -lstdc++ 
 endif 
 
 EXTRA_DIST  = lagrangeHomme.vtk  \
