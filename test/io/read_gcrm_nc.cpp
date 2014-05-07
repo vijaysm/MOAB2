@@ -41,11 +41,11 @@ int main(int argc, char* argv[])
   argv[0] = argv[argc - argc]; // To remove the warnings in serial mode about unused variables
 #endif
 
-  //result += RUN_TEST(test_read_all);
+  result += RUN_TEST(test_read_all);
   //result += RUN_TEST(test_read_onevar);
   //result += RUN_TEST(test_read_onetimestep);
   //result += RUN_TEST(test_read_nomesh);
-  result += RUN_TEST(test_read_novars);
+  //result += RUN_TEST(test_read_novars);
   //result += RUN_TEST(test_read_no_mixed_elements);
   //result += RUN_TEST(test_read_no_edges);
   //result += RUN_TEST(test_gather_onevar);
@@ -66,11 +66,14 @@ void test_read_all()
 
   std::string opts;
   get_options(opts);
+  opts+=";DEBUG_IO=2";
 
   // Read mesh and read all variables at all timesteps
-  ErrorCode rval = mb.load_file(example, NULL, opts.c_str());
+  ErrorCode rval = mb.load_file(example, 0, opts.c_str());
   CHECK_ERR(rval);
 
+  mb.write_file("gcrm.h5m");
+#if 0
   int procs = 1;
 #ifdef USE_MPI
   ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
@@ -164,6 +167,7 @@ void test_read_all()
     CHECK_REAL_EQUAL(25.001, val[0], eps);
     CHECK_REAL_EQUAL(26.013, val[1], eps);
   }
+#endif
 }
 
 void test_read_onevar()
