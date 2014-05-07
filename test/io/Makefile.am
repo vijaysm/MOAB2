@@ -12,7 +12,7 @@ AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
 
 if NETCDF_FILE
   EXODUS_TEST = exodus_test
-  NC_TEST = read_nc read_ucd_nc read_mpas_nc write_nc
+  NC_TEST = read_nc read_ucd_nc read_mpas_nc write_nc read_gcrm_nc
 else
   EXODUS_TEST = 
   NC_TEST = 
@@ -67,6 +67,7 @@ nastran_test_SOURCES = $(srcdir)/../TestUtil.hpp nastran_test.cc
 read_nc_SOURCES = $(srcdir)/../TestUtil.hpp read_nc.cpp
 read_ucd_nc_SOURCES = $(srcdir)/../TestUtil.hpp read_ucd_nc.cpp
 read_mpas_nc_SOURCES = $(srcdir)/../TestUtil.hpp read_mpas_nc.cpp
+read_gcrm_nc_SOURCES = $(srcdir)/../TestUtil.hpp read_gcrm_nc.cpp
 write_nc_SOURCES = $(srcdir)/../TestUtil.hpp write_nc.cpp
 ideas_test_SOURCES = $(srcdir)/../TestUtil.hpp ideas_test.cc
 stl_test_SOURCES = $(srcdir)/../TestUtil.hpp stl_test.cc
