@@ -58,7 +58,7 @@ int main(int argc, char* argv[])
   result += RUN_TEST(test_read_mesh_parallel_trivial);
   //result += RUN_TEST(test_read_mesh_parallel_trivial_no_mixed_elements);
 #if defined(USE_MPI) && defined(HAVE_ZOLTAN)
-  //result += RUN_TEST(test_read_mesh_parallel_rcbzoltan);
+  result += RUN_TEST(test_read_mesh_parallel_rcbzoltan);
   //result += RUN_TEST(test_read_mesh_parallel_rcbzoltan_no_mixed_elements);
 #endif
 
