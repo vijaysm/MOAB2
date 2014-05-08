@@ -43,5 +43,5 @@ target_link_libraries( test_mesh_refiner MOAB MOABrefiner )
 add_test( TestMeshRefiner
   ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 4 ${MPIEXEC_PREFLAGS}
   ${EXECUTABLE_OUTPUT_PATH}/test_mesh_refiner ${MPIEXEC_POSTFLAGS}
-  ${MOAB_SOURCE_DIR}/refiner/fourVolsBare.cub )
+  ${MOAB_SOURCE_DIR}/tools/refiner/fourVolsBare.cub )
 

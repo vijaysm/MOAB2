@@ -34,7 +34,7 @@ project( MOAB )
   endif ( DEFINED PATCH_VERSION )
 
   set ( EXECUTABLE_OUTPUT_PATH ${MOAB_BINARY_DIR}/bin CACHE PATH "Path to executables" FORCE )
-  set ( LIBRARY_OUTPUT_PATH    ${MOAB_BINARY_DIR}/bin CACHE PATH "Path to libraries"   FORCE )
+  set ( LIBRARY_OUTPUT_PATH    ${MOAB_BINARY_DIR}/lib CACHE PATH "Path to libraries"   FORCE )
   mark_as_advanced(
     EXECUTABLE_OUTPUT_PATH
     LIBRARY_OUTPUT_PATH
