@@ -65,6 +65,15 @@ PushParMeshIntoMoabF90: PushParMeshIntoMoabF90.o
 DeformMeshRemap: DeformMeshRemap.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} -lmbcoupler ${MOAB_LIBS_LINK}
 
+VisTags: VisTags.o ${MOAB_LIBDIR}/libMOAB.la
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} 
+
+ReadWriteTest: ReadWriteTest.o ${MOAB_LIBDIR}/libMOAB.la
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} 
+	
+ptest: ptest.o ${MOAB_LIBDIR}/libMOAB.la
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
 clean:
 	rm -rf *.o *.mod *.h5m ${EXAMPLES} ${PAREXAMPLES} ${EXOIIEXAMPLES} ${F90EXAMPLES}
 
