@@ -102,8 +102,8 @@ int main(int argc, char **argv) {
   // Create an ofstream to write output.  One file each for each proc.
   std::stringstream fname;
   fname << argv[0] << rank << ".out";
-  std::freopen(fname.str().c_str(), "a", stdout);
-  std::freopen(fname.str().c_str(), "a", stderr);
+  if (!std::freopen(fname.str().c_str(), "a", stdout)) return false;
+  if (!std::freopen(fname.str().c_str(), "a", stderr)) return false;
 
   // Create the moab instance
   Interface *mbi = new Core();

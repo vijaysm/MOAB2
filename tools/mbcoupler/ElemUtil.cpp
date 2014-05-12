@@ -3,6 +3,7 @@
 #include <assert.h>
 
 #include "ElemUtil.hpp"
+#include "moab/BoundBox.hpp"
 
 namespace moab {
 namespace ElemUtil {
@@ -433,6 +434,15 @@ namespace Element {
         this->vertex = v;
       }
 
+  bool Map::inside_box(const CartVect & xi, double & tol) const
+  {
+    // bail out early, before doing an expensive NR iteration
+    // compute box
+    BoundBox box(this->vertex);
+    return box.contains_point(xi.array(), tol);
+
+  }
+
   //
   CartVect Map::ievaluate(const CartVect& x, double tol, const CartVect& x0) const {
     // TODO: should differentiate between epsilons used for
@@ -448,12 +458,12 @@ namespace Element {
     int iters=0;
     while (delta % delta > error_tol_sqr) {
       if(++iters>10)
-        throw Map::EvaluationError();
+        throw Map::EvaluationError(x, vertex);
 
       J = jacobian(xi);
       det = J.determinant();
       if (det < std::numeric_limits<double>::epsilon())
-        throw Map::EvaluationError();
+        throw Map::EvaluationError(x, vertex);
       xi -= J.inverse(1.0/det) * delta;
       delta = evaluate( xi ) - x;
     }
@@ -896,7 +906,10 @@ namespace Element {
     real dist = opt_findpt_3(&_data, (const real **)_xyz, x_star, r, &c);
     // if it did not converge, get out with throw...
     if (dist > 0.9e+30)
-      throw Map::EvaluationError();
+    {
+      std::vector<CartVect> dummy;
+      throw Map::EvaluationError(xyz, dummy);
+    }
     //c tells us if we landed inside the element or exactly on a face, edge, or node
     // also, dist shows the distance to the computed point.
     //copy parametric coords back
@@ -1184,7 +1197,11 @@ namespace Element {
     real dist = opt_findpt_2(&_data, (const real **)_xyz, x_star, r, &c);
     // if it did not converge, get out with throw...
     if (dist > 0.9e+30)
-      throw Map::EvaluationError();
+    {
+      std::vector<CartVect> dummy;
+      throw Map::EvaluationError(xyz, dummy);
+    }
+
     //c tells us if we landed inside the element or exactly on a face, edge, or node
     // also, dist shows the distance to the computed point.
     //copy parametric coords back

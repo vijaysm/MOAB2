@@ -118,6 +118,7 @@ const char* mpi_err_str( int errorcode ) {
 
 template <typename T> inline 
 void VALGRIND_MAKE_VEC_UNDEFINED( std::vector<T>& v ) {
+  if (v.size()) {}
     VALGRIND_MAKE_MEM_UNDEFINED( &v[0], v.size() * sizeof(T) );
 }
 

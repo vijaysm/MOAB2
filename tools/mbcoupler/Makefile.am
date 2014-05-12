@@ -40,7 +40,8 @@ libmbcoupler_la_includedir = $(includedir)
 # check that only libraries are going in $(libdir)
 cfgdir = $(libdir)
 
-TESTS = elem_util_test element_test
+TESTS = elem_util_test element_test datacoupler_test
+datacoupler_test_SOURCES = datacoupler_test.cpp
 check_PROGRAMS = $(TESTS) 
 elem_util_test_SOURCES = ElemUtilTest.cpp
 element_test_SOURCES = ElementTest.cpp

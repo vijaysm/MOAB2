@@ -1,4 +1,4 @@
-SUBDIRS = io
+SUBDIRS = io dagmc iGeom
 
 EXTRA_DIST  = 125hex.g \
               16_unmerged_hex.h5m \
