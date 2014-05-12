@@ -33,6 +33,14 @@ set ( MOAB_IMESH_LIB_INCLUDES
 if ( MOAB_USE_MPI )
   include_directories( ${CMAKE_SOURCE_DIR}/src/parallel )
   ADD_CUSTOM_COMMAND(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/iMeshP_extensions_protos.h
+    COMMAND ${CMAKE_COMMAND}
+            -Dinput_file:STRING=${CMAKE_CURRENT_SOURCE_DIR}/iMeshP_extensions.h
+            -Doutput_file:STRING=${CMAKE_CURRENT_BINARY_DIR}/iMeshP_extensions_protos.h
+            -Dprefix:STRING=iMesh
+            -P ${CMAKE_SOURCE_DIR}/config/ITAPSFortranMangling.cmake
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/iMesh_extensions.h)
+  ADD_CUSTOM_COMMAND(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/iMeshP_protos.h
     COMMAND ${CMAKE_COMMAND}
             -DDEF:STRING=MOAB
@@ -41,7 +49,6 @@ if ( MOAB_USE_MPI )
             -Dprefix:STRING=iMeshP
             -P ${CMAKE_SOURCE_DIR}/config/ITAPSFortranMangling.cmake
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/iMeshP.h )
-
   set(MOAB_IMESH_SRCS ${MOAB_IMESH_SRCS}
                       iMeshP_MOAB.cpp)
   set(MOAB_IMESH_LIB_INCLUDES
@@ -54,6 +61,7 @@ include_directories( ${CMAKE_CURRENT_SOURCE_DIR}
                      ${CMAKE_BINARY_DIR}/src
                      ${CMAKE_SOURCE_DIR}/src
                      ${CMAKE_SOURCE_DIR}/itaps
+                     ${CMAKE_BINARY_DIR}/itaps
                      ${CMAKE_SOURCE_DIR}/itaps/imesh )
 
 if ( MOAB_USE_HDF5 AND HDF5_FOUND )

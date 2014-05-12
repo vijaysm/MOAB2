@@ -38,6 +38,13 @@ namespace moab {
 
       ~AdaptiveKDTree();
 
+        /** \brief Parse options for tree creation
+         * \param options Options passed in by application
+         * \return Failure is returned if any options were passed in and not interpreted; could mean
+         * inappropriate options for a particular tree type
+         */
+      ErrorCode parse_options(FileOptions &options);
+
         /** Build the tree
          * Build a tree with the entities input.  If a non-NULL tree_root_set pointer is input, 
          * use the pointed-to set as the root of this tree (*tree_root_set!=0) otherwise construct 
@@ -251,15 +258,7 @@ namespace moab {
       virtual ErrorCode print();
       
   private:
-
       friend class AdaptiveKDTreeIter;
-
-        /** \brief Parse options for tree creation
-         * \param options Options passed in by application
-         * \return Failure is returned if any options were passed in and not interpreted; could mean
-         * inappropriate options for a particular tree type
-         */
-      ErrorCode parse_options(FileOptions &options);
 
       ErrorCode init();
   
@@ -273,7 +272,18 @@ namespace moab {
                           DataType type, int count, void* default_val, Tag& tag_handle,
                           std::vector<Tag>& created_tags );
   
-      static ErrorCode best_subdivision_snap_plane( int num_planes,
+      ErrorCode intersect_children_with_elems(
+          const Range& elems,
+          AdaptiveKDTree::Plane plane,
+          double eps,
+          CartVect box_min,
+          CartVect box_max,
+          Range& left_tris,
+          Range& right_tris,
+          Range& both_tris,
+          double& metric_value );
+
+      ErrorCode best_subdivision_snap_plane( int num_planes,
                                                     const AdaptiveKDTreeIter& iter,
                                                     Range& best_left,
                                                     Range& best_right,
@@ -282,7 +292,7 @@ namespace moab {
                                                     std::vector<double>& tmp_data,
                                                     double eps );
   
-      static ErrorCode best_subdivision_plane( int num_planes,
+      ErrorCode best_subdivision_plane( int num_planes,
                                                const AdaptiveKDTreeIter& iter,
                                                Range& best_left,
                                                Range& best_right,
@@ -290,7 +300,7 @@ namespace moab {
                                                AdaptiveKDTree::Plane& best_plane,
                                                double eps );
   
-      static ErrorCode best_vertex_median_plane( int num_planes,
+      ErrorCode best_vertex_median_plane( int num_planes,
                                                  const AdaptiveKDTreeIter& iter,
                                                  Range& best_left,
                                                  Range& best_right,
@@ -299,7 +309,7 @@ namespace moab {
                                                  std::vector<double>& coords,
                                                  double eps);
   
-      static ErrorCode best_vertex_sample_plane( int num_planes,
+      ErrorCode best_vertex_sample_plane( int num_planes,
                                                  const AdaptiveKDTreeIter& iter,
                                                  Range& best_left,
                                                  Range& best_right,

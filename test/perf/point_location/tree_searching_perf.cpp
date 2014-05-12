@@ -111,7 +111,7 @@ int main(int argc, char **argv)
                     << cpu_time << " "
                     << perc_outside << " ";
 
-          tree->tree_stats().output();
+          tree->tree_stats().output_all_stats();
 
         } // tree_tp
 

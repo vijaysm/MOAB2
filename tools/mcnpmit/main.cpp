@@ -136,7 +136,7 @@ int main(int argc, char **argv) {
   char line[10000];
 
   // Used only when reading a mesh file to get vertex info
-  double *cfd_coords;
+  double *cfd_coords = NULL;
   moab::Range::iterator cfd_iter;
   moab::EntityHandle meshset;
 

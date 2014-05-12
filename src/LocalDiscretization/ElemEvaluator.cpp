@@ -57,7 +57,7 @@ namespace moab {
         if (det < std::numeric_limits<double>::epsilon()) {
           *tmp_inside = (*inside_f)(params, ndim, inside_tol);
           if (!(*tmp_inside)) return MB_SUCCESS;
-          else return MB_FAILURE;
+          else return MB_INDEX_OUT_OF_RANGE;
         }
 
           // new params tries to eliminate residual

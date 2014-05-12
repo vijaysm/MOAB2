@@ -103,10 +103,22 @@ namespace ElemUtil {
       /**\brief Set vertices.      */
       virtual void set_vertices(const std::vector<CartVect>& v);
 
+      // will look at the box formed by vertex coordinates, and before doing any NR, bail out if necessary
+      virtual bool inside_box(const CartVect & xi, double & tol) const;
+
       /* Exception thrown when an evaluation fails (e.g., ievaluate fails to converge). */
       class EvaluationError {
       public:
-        EvaluationError(){};
+        EvaluationError(const CartVect & x, const std::vector<CartVect> & verts): p(x), vertices(verts){
+#ifndef NDEBUG
+          std::cout << "p:" << p << "\n vertices.size() " <<vertices.size() << "\n";
+          for (size_t i=0; i<vertices.size(); i++)
+            std::cout << vertices[i] << "\n";
+#endif
+        };
+      private:
+        CartVect p;
+        std::vector<CartVect> vertices;
       };// class EvaluationError
 
       /* Exception thrown when a bad argument is encountered. */

@@ -35,6 +35,8 @@
 #include "moab/Range.hpp"
 #include "moab/TupleList.hpp"
 #include "moab/BoundBox.hpp"
+#include "moab/SpatialLocatorTimes.hpp"
+#include "moab/CpuTimer.hpp"
 
 #include <string>
 #include <vector>
@@ -166,7 +168,13 @@ namespace moab {
       
         /* set elemEval */
       void elem_eval(ElemEvaluator *eval) {elemEval = eval; if (myTree) myTree->set_eval(eval);}
+
+        /** \brief Get spatial locator times object */
+      SpatialLocatorTimes &sl_times() {return myTimes;}
       
+        /** \brief Get spatial locator times object */
+      const SpatialLocatorTimes &sl_times() const {return myTimes;}
+        
   private:
 
 #ifdef USE_MPI
@@ -193,6 +201,12 @@ namespace moab {
       ErrorCode register_src_with_intermediate_procs(ParallelComm *pc, double abs_iter_tol, TupleList &TLreg_o);
       
 #endif
+
+        /** Create a tree
+         * Tree type depends on what's in myElems: if empty or all vertices, creates a kdtree,
+         * otherwise creates a BVHTree.
+         */
+      void create_tree();
       
         /* MOAB instance */
       Interface* mbImpl;
@@ -256,6 +270,17 @@ namespace moab {
          */
       std::map<int, BoundBox> srcProcBoxes;
 
+        /* \brief Timing object for spatial location
+         */
+      SpatialLocatorTimes myTimes;
+
+        /* \brief Timer object to manage overloaded search functions
+         */
+      CpuTimer myTimer;
+      
+        /* \brief Flag to manage initialization of timer for overloaded search functions
+         */
+      bool timerInitialized;
     };
 
     inline SpatialLocator::~SpatialLocator() 

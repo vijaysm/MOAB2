@@ -48,14 +48,16 @@ else
 endif
 
 if NETCDF_FILE
-  NETCDF_TESTS = scdpart read_nc_par ucdtrvpart mpastrvpart
+  NETCDF_TESTS = scdpart read_nc_par ucdtrvpart mpastrvpart gcrm_par
 else
   NETCDF_TESTS = 
 endif
 
 if PNETCDF_FILE
 if !NETCDF_FILE
-  NETCDF_TESTS += scdpart read_nc_par ucdtrvpart mpastrvpart
+  NETCDF_TESTS += scdpart read_nc_par ucdtrvpart mpastrvpart write_nc_par
+else
+  NETCDF_TESTS += write_nc_par
 endif
 endif
 
@@ -90,6 +92,8 @@ scdpart_SOURCES = scdpart.cpp
 read_nc_par_SOURCES = ../io/read_nc.cpp
 ucdtrvpart_SOURCES = ucdtrvpart.cpp
 mpastrvpart_SOURCES = mpastrvpart.cpp
+gcrm_par_SOURCES = gcrm_par.cpp
+write_nc_par_SOURCES = ../io/write_nc.cpp
 par_spatial_locator_test_SOURCES = par_spatial_locator_test.cpp
 
 if ENABLE_mbcoupler
@@ -115,4 +119,13 @@ MOSTLYCLEANFILES = mhdf_ll.h5m tmp0.h5m tmp1.h5m tmp2.h5m tmp3.h5m \
                    initial1.vtk \
                    test_mpas.h5m \
                    dum.h5m \
-                   test_mpas_no_mixed_elements.h5m
+                   test_mpas_no_mixed_elements.h5m \
+                   test_mpas_rcbzoltan.h5m \
+                   test_mpas_rcbzoltan_no_mixed_elements.h5m \
+                   test_par_eul_T.nc \
+                   test_par_fv_T.nc \
+                   test_par_homme_T.nc \
+                   test_par_mpas_vars.nc \
+                   test_par_eul_T2.nc \
+                   test_par_eul_append.nc \
+                   test_par_eul_ghosting.nc

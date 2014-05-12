@@ -118,8 +118,8 @@ namespace moab {
   public:
         /** \brief Constructor 
          * \param impl MOAB instance
-         * \param ent Entity handle to cache on the evaluator
-         * \param tag Tag to cache on the evaluator
+         * \param ent Entity handle to cache on the evaluator; if non-zero, calls set_ent_handle, which does some other stuff.
+         * \param tag Tag to cache on the evaluator; if non-zero, calls set_tag_handle, which does some other stuff too.
          * \param tagged_ent_dim Dimension of entities to be tagged to cache on the evaluator
          */
       ElemEvaluator(Interface *impl, EntityHandle ent = 0, Tag tag = 0, int tagged_ent_dim = -1);
@@ -339,8 +339,13 @@ namespace moab {
       std::vector<EntityHandle> dum_vec;
       ErrorCode rval = mbImpl->get_connectivity(ent, vertHandles, numVerts, false, &dum_vec);
       if (MB_SUCCESS != rval) return rval;
+
+      if (!evalSets[entType].evalFcn)
+        EvalSet::get_eval_set(entType, numVerts, evalSets[entType]);
+
       rval = mbImpl->get_coords(vertHandles, numVerts, vertPos[0].array());
       if (MB_SUCCESS != rval) return rval;
+
       if (tagHandle) {
         rval = set_tag_handle(tagHandle);
         if (MB_SUCCESS != rval) return rval;
