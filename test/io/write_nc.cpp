@@ -8,11 +8,13 @@ static const char example_eul[] = STRINGIFY(MESHDIR) "/io/camEul26x48x96.t3.nc";
 static const char example_fv[] = STRINGIFY(MESHDIR) "/io/fv26x46x72.t.3.nc";
 static const char example_homme[] = STRINGIFY(MESHDIR) "/io/homme26x3458.t.3.nc";
 static const char example_mpas[] = STRINGIFY(MESHDIR) "/io/mpasx1.642.t.2.nc";
+static const char example_gcrm[] = STRINGIFY(MESHDIR) "/io/gcrm_r3.nc";
 #else
 static const char example_eul[] = "/io/camEul26x48x96.t3.nc";
 static const char example_fv[] = "/io/fv26x46x72.t.3.nc";
 static const char example_homme[] = "/io/homme26x3458.t.3.nc";
 static const char example_mpas[] = "/io/mpasx1.642.t.2.nc";
+static const char example_gcrm[] =  "/io/gcrm_r3.nc";
 #endif
 
 #ifdef USE_MPI
@@ -45,6 +47,11 @@ void test_homme_check_T();
 // MPAS
 void test_mpas_read_write_vars();
 void test_mpas_check_vars();
+
+
+// GCRM
+void test_gcrm_read_write_vars();
+//void test_gcrm_check_vars();
 
 // Test timestep option
 void test_eul_read_write_timestep();
@@ -88,6 +95,9 @@ int main(int argc, char* argv[])
 
   result += RUN_TEST(test_mpas_read_write_vars);
   result += RUN_TEST(test_mpas_check_vars);
+
+  result += RUN_TEST(test_gcrm_read_write_vars);
+  //result += RUN_TEST(test_gcrm_check_vars);
 
   result += RUN_TEST(test_eul_read_write_timestep);
   result += RUN_TEST(test_eul_check_timestep);
@@ -713,6 +723,51 @@ void test_mpas_check_vars()
     success = NCFUNC(close)(ncid);
     CHECK_EQUAL(0, success);
   }
+}
+
+// Write vertex variable vorticity, edge variable u and cell veriable ke
+void test_gcrm_read_write_vars()
+{
+  int procs = 1;
+#ifdef USE_MPI
+  MPI_Comm_size(MPI_COMM_WORLD, &procs);
+#endif
+
+// We will not test NC writer in parallel without pnetcdf support
+#ifndef PNETCDF_FILE
+  if (procs > 1)
+    return;
+#endif
+
+  Core moab;
+  Interface& mb = moab;
+
+  std::string read_opts;
+  // we can use the same base options as mpas, because the zoltan can apply too
+  get_mpas_read_options(read_opts);
+
+  EntityHandle set;
+  ErrorCode rval = mb.create_meshset(MESHSET_SET, set);
+  CHECK_ERR(rval);
+
+  // Read non-set variables vorticity (cells) and u (corners)
+  read_opts += ";VARIABLE=vorticity,u;DEBUG_IO=0";
+  if (procs > 1)
+    read_opts += ";PARALLEL_RESOLVE_SHARED_ENTS";
+  rval = mb.load_file(example_gcrm, &set, read_opts.c_str());
+  CHECK_ERR(rval);
+
+  // Write variables vorticity, u
+  std::string write_opts = ";;VARIABLE=vorticity,u;DEBUG_IO=0";
+#ifdef USE_MPI
+  // Use parallel options
+  write_opts += ";PARALLEL=WRITE_PART";
+#endif
+  if (procs > 1)
+    rval = mb.write_file("test_par_gcrm_vars.nc", 0, write_opts.c_str(), &set, 1);
+  else
+    rval = mb.write_file("test_gcrm_vars.nc", 0, write_opts.c_str(), &set, 1);
+  CHECK_ERR(rval);
 }
 
 // Read non-set variable T on all 3 timesteps, and write only timestep 2
