@@ -87,11 +87,13 @@ readutil_test_SOURCES = $(srcdir)/../TestUtil.hpp readutil_test.cpp
 cgns_test_SOURCES=$(srcdir)/../TestUtil.hpp cgns_test.cpp
 
 MOSTLYCLEANFILES = dumped_acis.sat \
+                   gcrm.h5m \
                    mb_write.g \
                    mb_write2.g \
                    singlecyl_tmp.ccmg \
                    test_eul_T.nc \
                    test_fv_T.nc \
+                   test_gcrm_vars.nc \
                    test_homme_T.nc \
                    test_mpas_vars.nc \
                    test_eul_T2.nc \
