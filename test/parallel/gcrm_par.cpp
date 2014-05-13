@@ -281,8 +281,10 @@ void read_mesh_parallel(bool rcbzoltan, bool no_mixed_elements)
   CHECK_ERR(rval);
 
   ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
+#if 0
   int procs = pcomm->proc_config().proc_size();
   int rank = pcomm->proc_config().proc_rank();
+#endif
 
   rval = pcomm->check_all_shared_handles();
   CHECK_ERR(rval);
@@ -292,8 +294,9 @@ void read_mesh_parallel(bool rcbzoltan, bool no_mixed_elements)
   rval = mb.get_entities_by_type(0, MBVERTEX, local_verts);
   CHECK_ERR(rval);
 
-  int verts_num = local_verts.size();
 #if 0
+  int verts_num = local_verts.size();
+
   if (2 == procs) {
     if (rcbzoltan) {
       if (0 == rank)
