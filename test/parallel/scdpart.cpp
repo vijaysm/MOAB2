@@ -8,9 +8,9 @@
 using namespace moab;
 
 #ifdef MESHDIR
-static const char example[] = STRINGIFY(MESHDIR) "/io/camEul26x48x96.t3.nc";
+static const char example[] = STRINGIFY(MESHDIR) "/io/eul26x48x96.t.3.nc";
 #else
-static const char example[] = "/io/camEul26x48x96.t3.nc";
+static const char example[] = "/io/eul26x48x96.t.3.nc";
 #endif
 
 void test_read_parallel(int nverts);
