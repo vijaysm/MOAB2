@@ -91,11 +91,12 @@ MOSTLYCLEANFILES = dumped_acis.sat \
                    mb_write.g \
                    mb_write2.g \
                    singlecyl_tmp.ccmg \
+                   test_eul_across_files.nc \
+                   test_eul_append.nc \
+                   test_eul_ghosting.nc \
+                   test_eul_T2.nc \
                    test_eul_T.nc \
                    test_fv_T.nc \
                    test_gcrm_vars.nc \
                    test_homme_T.nc \
-                   test_mpas_vars.nc \
-                   test_eul_T2.nc \
-                   test_eul_append.nc \
-                   test_eul_ghosting.nc
+                   test_mpas_vars.nc
