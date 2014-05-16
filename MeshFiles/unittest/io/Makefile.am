@@ -2,7 +2,10 @@ EXTRA_DIST = HommeMapping.nc \
              brick_cubit10.1.cub \
              brick_cubit10.2.cub \
              brick_cubit10.cub \
-             camEul26x48x96.t3.nc \
+             eul26x48x96.t0.nc \
+             eul26x48x96.t1.nc \
+             eul26x48x96.t2.nc \
+             eul26x48x96.t.3.nc \ 
              fv26x46x72.t.3.nc \
 	     cubtest12.cub \
 	     cubtest14.cub \
