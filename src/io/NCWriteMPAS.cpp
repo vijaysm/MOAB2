@@ -117,9 +117,9 @@ ErrorCode NCWriteMPAS::collect_mesh_info()
   return MB_SUCCESS;
 }
 
-ErrorCode NCWriteMPAS::collect_variable_data(std::vector<std::string>& var_names)
+ErrorCode NCWriteMPAS::collect_variable_data(std::vector<std::string>& var_names, std::vector<int>& tstep_nums)
 {
-  NCWriteHelper::collect_variable_data(var_names);
+  NCWriteHelper::collect_variable_data(var_names, tstep_nums);
 
   std::vector<std::string>& dimNames = _writeNC->dimNames;
   std::vector<int>& dimLens = _writeNC->dimLens;
@@ -157,13 +157,13 @@ ErrorCode NCWriteMPAS::collect_variable_data(std::vector<std::string>& var_names
       ERRORR(MB_FAILURE, "Can't find one variable.");
 
     WriteNC::VarData& currentVarData = vit->second;
+    std::vector<int>& varDims = currentVarData.varDims;
 
     // Skip edge variables, if there are no edges
     if (localEdgesOwned.empty() && currentVarData.entLoc == WriteNC::ENTLOCEDGE)
       continue;
 
     // If nVertLevels dimension is not found, try other optional levels such as nVertLevelsP1
-    std::vector<int>& varDims = currentVarData.varDims;
     if (std::find(varDims.begin(), varDims.end(), levDim) == varDims.end()) {
       for (unsigned int j = 0; j < opt_lev_dims.size(); j++) {
         if (std::find(varDims.begin(), varDims.end(), opt_lev_dims[j]) != varDims.end()) {
@@ -173,243 +173,216 @@ ErrorCode NCWriteMPAS::collect_variable_data(std::vector<std::string>& var_names
       }
     }
 
+    // Skip set variables, which were already processed in NCWriteHelper::collect_variable_data()
+    if (WriteNC::ENTLOCSET == currentVarData.entLoc)
+      continue;
+
+    // Set up writeStarts and writeCounts (maximum number of dimensions is 3)
+    currentVarData.writeStarts.resize(3);
+    currentVarData.writeCounts.resize(3);
+    unsigned int dim_idx = 0;
+
+    // First: Time
     if (currentVarData.has_tsteps) {
-      // Support non-set variables with 3 dimensions like (Time, nCells, nVertLevels), or
+      // Non-set variables with timesteps
+      // 3 dimensions like (Time, nCells, nVertLevels)
       // 2 dimensions like (Time, nCells)
       assert(3 == varDims.size() || 2 == varDims.size());
 
       // Time should be the first dimension
       assert(tDim == varDims[0]);
 
-      // Set up writeStarts and writeCounts
-      currentVarData.writeStarts.resize(3);
-      currentVarData.writeCounts.resize(3);
+      currentVarData.writeStarts[dim_idx] = 0; // This value is timestep dependent, will be set later
+      currentVarData.writeCounts[dim_idx] = 1;
+      dim_idx++;
+    }
+    else {
+      // Non-set variables without timesteps
+      // 2 dimensions like (nCells, nVertLevels)
+      // 1 dimension like (nCells)
+      assert(2 == varDims.size() || 1 == varDims.size());
+    }
 
-      // First: Time
-      currentVarData.writeStarts[0] = 0; // This value is timestep dependent, will be set later
-      currentVarData.writeCounts[0] = 1;
+    // Next: nVertices / nCells / nEdges
+    switch (currentVarData.entLoc) {
+      case WriteNC::ENTLOCVERT:
+        // Vertices
+        // Start from the first localGidVerts
+        // Actually, this will be reset later for writing
+        currentVarData.writeStarts[dim_idx] = localGidVertsOwned[0] - 1;
+        currentVarData.writeCounts[dim_idx] = localGidVertsOwned.size();
+        break;
+      case WriteNC::ENTLOCFACE:
+        // Faces
+        // Start from the first localGidCells
+        // Actually, this will be reset later for writing
+        currentVarData.writeStarts[dim_idx] = localGidCellsOwned[0] - 1;
+        currentVarData.writeCounts[dim_idx] = localGidCellsOwned.size();
+        break;
+      case WriteNC::ENTLOCEDGE:
+        // Edges
+        // Start from the first localGidEdges
+        // Actually, this will be reset later for writing
+        currentVarData.writeStarts[dim_idx] = localGidEdgesOwned[0] - 1;
+        currentVarData.writeCounts[dim_idx] = localGidEdgesOwned.size();
+        break;
+      default:
+        ERRORR(MB_FAILURE, "Unexpected entity location type for MPAS non-set variable.");
+    }
+    dim_idx++;
 
-      // Next: nVertices / nCells / nEdges
-      switch (currentVarData.entLoc) {
-        case WriteNC::ENTLOCVERT:
-          // Vertices
-          // Start from the first localGidVerts
-          // Actually, this will be reset later for writing
-          currentVarData.writeStarts[1] = localGidVertsOwned[0] - 1;
-          currentVarData.writeCounts[1] = localGidVertsOwned.size();
-          break;
-        case WriteNC::ENTLOCFACE:
-          // Faces
-          // Start from the first localGidCells
-          // Actually, this will be reset later for writing
-          currentVarData.writeStarts[1] = localGidCellsOwned[0] - 1;
-          currentVarData.writeCounts[1] = localGidCellsOwned.size();
-          break;
-        case WriteNC::ENTLOCEDGE:
-          // Edges
-          // Start from the first localGidEdges
-          // Actually, this will be reset later for writing
-          currentVarData.writeStarts[1] = localGidEdgesOwned[0] - 1;
-          currentVarData.writeCounts[1] = localGidEdgesOwned.size();
-          break;
-        default:
-          ERRORR(MB_FAILURE, "Unexpected entity location type for MPAS non-set variable.");
-      }
+    // Finally: nVertLevels or other optional levels, it is possible that there is no
+    // level dimension (numLev is 0) for this non-set variable, e.g. (Time, nCells)
+    if (currentVarData.numLev > 0) {
+      // Non-set variables with levels
+      // 3 dimensions like (Time, nCells, nVertLevels)
+      // 2 dimensions like (nCells, nVertLevels)
+      assert(3 == varDims.size() || 2 == varDims.size());
 
-      // Finally: nVertLevels or other optional levels, it is possible that there
-      // is no level dimension for this non-set variable
-      currentVarData.writeStarts[2] = 0;
-      currentVarData.writeCounts[2] = currentVarData.numLev;
+      currentVarData.writeStarts[dim_idx] = 0;
+      currentVarData.writeCounts[dim_idx] = currentVarData.numLev;
+      dim_idx++;
+    }
+    else {
+      // Non-set variables without levels
+      // 2 dimensions like (Time, nCells)
+      // 1 dimension like (nCells)
+      assert(2 == varDims.size() || 1 == varDims.size());
     }
 
     // Get variable size
     currentVarData.sz = 1;
-    for (std::size_t idx = 0; idx != currentVarData.writeCounts.size(); idx++)
+    for (std::size_t idx = 0; idx < dim_idx; idx++)
       currentVarData.sz *= currentVarData.writeCounts[idx];
   }
 
   return MB_SUCCESS;
 }
 
-ErrorCode NCWriteMPAS::write_values(std::vector<std::string>& var_names)
+ErrorCode NCWriteMPAS::write_nonset_variables(std::vector<WriteNC::VarData>& vdatas, std::vector<int>& tstep_nums)
 {
   Interface*& mbImpl = _writeNC->mbImpl;
-  std::set<std::string>& usedCoordinates = _writeNC->usedCoordinates;
-  std::set<std::string>& dummyVarNames = _writeNC->dummyVarNames;
-  std::map<std::string, WriteNC::VarData>& varInfo = _writeNC->varInfo;
 
   int success;
-  Range* pLocalEntsOwned = NULL;
-  Range* pLocalGidEntsOwned = NULL;
 
-  // Now look at requested var_names; if they have time, we will have a list, and write one at a time
   // For each variable tag in the indexed lists, write a time step data
-  // Assume the first dimension is time (need to check); if not, just write regularly
-  for (size_t i = 0; i < var_names.size(); i++) {
-    std::map<std::string, WriteNC::VarData>::iterator vit = varInfo.find(var_names[i]);
-    if (vit == varInfo.end())
-      ERRORR(MB_FAILURE, "Can't find variable requested.");
-
-    WriteNC::VarData& variableData = vit->second;
+  for (unsigned int i = 0; i < vdatas.size(); i++) {
+    WriteNC::VarData& variableData = vdatas[i];
 
     // Skip edge variables, if there are no edges
     if (localEdgesOwned.empty() && variableData.entLoc == WriteNC::ENTLOCEDGE)
       continue;
 
+    // Get local owned entities of this variable
+    Range* pLocalEntsOwned = NULL;
+    Range* pLocalGidEntsOwned = NULL;
+    switch (variableData.entLoc) {
+      case WriteNC::ENTLOCVERT:
+        // Vertices
+        pLocalEntsOwned = &localVertsOwned;
+        pLocalGidEntsOwned = &localGidVertsOwned;
+        break;
+      case WriteNC::ENTLOCEDGE:
+        // Edges
+        pLocalEntsOwned = &localEdgesOwned;
+        pLocalGidEntsOwned = &localGidEdgesOwned;
+        break;
+      case WriteNC::ENTLOCFACE:
+        // Cells
+        pLocalEntsOwned = &localCellsOwned;
+        pLocalGidEntsOwned = &localGidCellsOwned;
+        break;
+      default:
+        ERRORR(MB_FAILURE, "Unexpected entity location type for MPAS non-set variable.");
+    }
+
+    unsigned int num_timesteps;
+    unsigned int ents_idx = 0;
     if (variableData.has_tsteps) {
-      // Time should be the first dimension
-      assert(tDim == variableData.varDims[0]);
-
-      // Get local owned entities of this variable
-      switch (variableData.entLoc) {
-        case WriteNC::ENTLOCVERT:
-          // Vertices
-          pLocalEntsOwned = &localVertsOwned;
-          pLocalGidEntsOwned = &localGidVertsOwned;
-          break;
-        case WriteNC::ENTLOCEDGE:
-          // Edges
-          pLocalEntsOwned = &localEdgesOwned;
-          pLocalGidEntsOwned = &localGidEdgesOwned;
-          break;
-        case WriteNC::ENTLOCFACE:
-          // Cells
-          pLocalEntsOwned = &localCellsOwned;
-          pLocalGidEntsOwned = &localGidCellsOwned;
-          break;
-        default:
-          ERRORR(MB_FAILURE, "Unexpected entity location type for MPAS non-set variable.");
-      }
-
-      // A typical variable has 3 dimensions as (Time, nCells, nVertLevels)
-      // FIXME: Should use tstep_nums (from writing options) later
-      int numTimeSteps = (int)variableData.varTags.size();
-      for (int j = 0; j < numTimeSteps; j++) {
-        // We will write one time step, and count will be one; start will be different
-        // Use tag_get_data instead of tag_iterate to get values, as localEntsOwned
-        // might not be contiguous.
-        variableData.writeStarts[0] = j; // This is time, again
-        std::vector<double> tag_data(pLocalEntsOwned->size() * variableData.numLev);
-        ErrorCode rval = mbImpl->tag_get_data(variableData.varTags[j], *pLocalEntsOwned, &tag_data[0]);
-        ERRORR(rval, "Trouble getting tag data on owned vertices.");
-
-#ifdef PNETCDF_FILE
-        size_t nb_writes = pLocalGidEntsOwned->psize();
-        std::vector<int> requests(nb_writes), statuss(nb_writes);
-        size_t idxReq = 0;
-#endif
-
-        // Now write from memory directly
-        switch (variableData.varDataType) {
-          case NC_DOUBLE: {
-            size_t indexInDoubleArray = 0;
-            size_t ic = 0;
-            for (Range::pair_iterator pair_iter = pLocalGidEntsOwned->pair_begin();
-                pair_iter != pLocalGidEntsOwned->pair_end(); ++pair_iter, ic++) {
-              EntityHandle starth = pair_iter->first;
-              EntityHandle endh = pair_iter->second;
-              variableData.writeStarts[1] = (NCDF_SIZE)(starth - 1);
-              variableData.writeCounts[1] = (NCDF_SIZE)(endh - starth + 1);
-
-              // Do a partial write, in each subrange
-#ifdef PNETCDF_FILE
-              // Wait outside this loop
-              success = NCFUNCREQP(_vara_double)(_fileId, variableData.varId,
-                  &(variableData.writeStarts[0]), &(variableData.writeCounts[0]),
-                             &(tag_data[indexInDoubleArray]), &requests[idxReq++]);
-#else
-              success = NCFUNCAP(_vara_double)(_fileId, variableData.varId,
-                  &(variableData.writeStarts[0]), &(variableData.writeCounts[0]),
-                             &(tag_data[indexInDoubleArray]));
-#endif
-              ERRORS(success, "Failed to read double data in loop");
-              // We need to increment the index in double array for the
-              // next subrange
-              indexInDoubleArray += (endh - starth + 1) * variableData.numLev;
-            }
-            assert(ic == pLocalGidEntsOwned->psize());
-#ifdef PNETCDF_FILE
-            success = ncmpi_wait_all(_fileId, requests.size(), &requests[0], &statuss[0]);
-            ERRORS(success, "Failed on wait_all.");
-#endif
-            break;
-          }
-          default:
-            ERRORR(MB_FAILURE, "Not implemented yet.");
-        }
-      }
-    } // if (variableData.has_tsteps)
+      // Non-set variables with timesteps
+      // 3 dimensions like (Time, nCells, nVertLevels)
+      // 2 dimensions like (Time, nCells)
+      num_timesteps = tstep_nums.size();
+      ents_idx++;
+    }
     else {
+      // Non-set variables without timesteps
+      // 2 dimensions like (nCells, nVertLevels)
+      // 1 dimension like (nCells)
+      num_timesteps = 1;
+    }
+
+    unsigned int num_lev;
+    if (variableData.numLev > 0) {
+      // Non-set variables with levels
+      // 3 dimensions like (Time, nCells, nVertLevels)
+      // 2 dimensions like (nCells, nVertLevels)
+      num_lev = variableData.numLev;
+    }
+    else {
+      // Non-set variables without levels
+      // 2 dimensions like (Time, nCells)
+      // 1 dimension like (nCells)
+      num_lev = 1;
+    }
+
+    for (unsigned int t = 0; t < num_timesteps; t++) {
+      // We will write one time step, and count will be one; start will be different
+      // Use tag_get_data instead of tag_iterate to copy tag data, as localEntsOwned
+      // might not be contiguous.
+      if (tDim == variableData.varDims[0])
+        variableData.writeStarts[0] = t; // This is start for time
+      std::vector<double> tag_data(pLocalEntsOwned->size() * num_lev);
+      ErrorCode rval = mbImpl->tag_get_data(variableData.varTags[t], *pLocalEntsOwned, &tag_data[0]);
+      ERRORR(rval, "Trouble getting tag data on owned entities.");
+
+#ifdef PNETCDF_FILE
+      size_t nb_writes = pLocalGidEntsOwned->psize();
+      std::vector<int> requests(nb_writes), statuss(nb_writes);
+      size_t idxReq = 0;
+#endif
+
+      // Now write copied tag data
+      // Use nonblocking put (request aggregation)
       switch (variableData.varDataType) {
-        case NC_DOUBLE:
-          success = NCFUNCAP(_vara_double)(_fileId, variableData.varId, &variableData.writeStarts[0],
-                    &variableData.writeCounts[0], (double*)(variableData.memoryHogs[0]));
-          ERRORS(success, "Failed to write double data.");
+        case NC_DOUBLE: {
+          size_t indexInDoubleArray = 0;
+          size_t ic = 0;
+          for (Range::pair_iterator pair_iter = pLocalGidEntsOwned->pair_begin();
+              pair_iter != pLocalGidEntsOwned->pair_end(); ++pair_iter, ic++) {
+            EntityHandle starth = pair_iter->first;
+            EntityHandle endh = pair_iter->second;
+            variableData.writeStarts[ents_idx] = (NCDF_SIZE)(starth - 1);
+            variableData.writeCounts[ents_idx] = (NCDF_SIZE)(endh - starth + 1);
+
+            // Do a partial write, in each subrange
+#ifdef PNETCDF_FILE
+            // Wait outside this loop
+            success = NCFUNCREQP(_vara_double)(_fileId, variableData.varId,
+                &(variableData.writeStarts[0]), &(variableData.writeCounts[0]),
+                           &(tag_data[indexInDoubleArray]), &requests[idxReq++]);
+#else
+            success = NCFUNCAP(_vara_double)(_fileId, variableData.varId,
+                &(variableData.writeStarts[0]), &(variableData.writeCounts[0]),
+                           &(tag_data[indexInDoubleArray]));
+#endif
+            ERRORS(success, "Failed to read double data in loop");
+            // We need to increment the index in double array for the
+            // next subrange
+            indexInDoubleArray += (endh - starth + 1) * num_lev;
+          }
+          assert(ic == pLocalGidEntsOwned->psize());
+#ifdef PNETCDF_FILE
+          success = ncmpi_wait_all(_fileId, requests.size(), &requests[0], &statuss[0]);
+          ERRORS(success, "Failed on wait_all.");
+#endif
           break;
+        }
         default:
-          ERRORR(MB_FAILURE, "Not implemented yet.");
+          ERRORR(MB_NOT_IMPLEMENTED, "Writing with current data type not implemented yet.");
       }
     }
   }
-
-  // Write coordinates used by requested var_names
-  // Use independent I/O mode put, since this write is only for the root processor
-  // CAUTION: if the NetCDF ID is from a previous call to ncmpi_create rather than ncmpi_open,
-  // all processors need to call ncmpi_begin_indep_data(). If only the root processor does so,
-  // ncmpi_begin_indep_data() call will be blocked forever :(
-#ifdef PNETCDF_FILE
-  // Enter independent I/O mode
-  success = NCFUNC(begin_indep_data)(_fileId);
-  ERRORS(success, "Failed to begin independent I/O mode.");
-#endif
-
-  int rank = 0;
-#ifdef USE_MPI
-  bool& isParallel = _writeNC->isParallel;
-  if (isParallel) {
-    ParallelComm*& myPcomm = _writeNC->myPcomm;
-    rank = myPcomm->proc_config().proc_rank();
-  }
-#endif
-  if (0 == rank) {
-    for (std::set<std::string>::iterator setIt = usedCoordinates.begin();
-        setIt != usedCoordinates.end(); ++setIt) {
-      const std::string& coordName = *setIt;
-
-      // Skip dummy coordinate variables (e.g. ncol)
-      if (dummyVarNames.find(coordName) != dummyVarNames.end())
-        continue;
-
-      std::map<std::string, WriteNC::VarData>::iterator vit = varInfo.find(coordName);
-      if (vit == varInfo.end())
-        ERRORR(MB_FAILURE, "Can't find one coordinate variable.");
-
-      WriteNC::VarData& varCoordData = vit->second;
-
-      switch (varCoordData.varDataType) {
-        case NC_DOUBLE:
-          // Independent I/O mode put
-          success = NCFUNCP(_vara_double)(_fileId, varCoordData.varId, &varCoordData.writeStarts[0],
-                    &varCoordData.writeCounts[0], (double*)(varCoordData.memoryHogs[0]));
-          ERRORS(success, "Failed to write double data.");
-          break;
-        case NC_INT:
-          // Independent I/O mode put
-          success = NCFUNCP(_vara_int)(_fileId, varCoordData.varId, &varCoordData.writeStarts[0],
-                    &varCoordData.writeCounts[0], (int*)(varCoordData.memoryHogs[0]));
-          ERRORS(success, "Failed to write int data.");
-          break;
-        default:
-          ERRORR(MB_FAILURE, "Not implemented yet.");
-      }
-    }
-  }
-
-#ifdef PNETCDF_FILE
-  // End independent I/O mode
-  success = NCFUNC(end_indep_data)(_fileId);
-  ERRORS(success, "Failed to end independent I/O mode.");
-#endif
 
   return MB_SUCCESS;
 }
