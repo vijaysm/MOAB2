@@ -24,7 +24,7 @@ void test_read_onevar();
 void test_read_onetimestep();
 void test_read_nomesh();
 void test_read_novars();
-void test_read_dim_vars(); // Test reading dimension variables
+void test_read_coord_vars(); // Test reading coordinate variables
 void test_gather_onevar(); // Test gather set with one variable
 void test_read_conn(); // Test reading connectivity file only
 
@@ -47,7 +47,7 @@ int main(int argc, char* argv[])
   result += RUN_TEST(test_read_onetimestep);
   result += RUN_TEST(test_read_nomesh);
   result += RUN_TEST(test_read_novars);
-  result += RUN_TEST(test_read_dim_vars);
+  result += RUN_TEST(test_read_coord_vars);
   result += RUN_TEST(test_gather_onevar);
   result += RUN_TEST(test_read_conn);
 
@@ -234,7 +234,7 @@ void test_read_novars()
   CHECK_ERR(rval);
 }
 
-void test_read_dim_vars()
+void test_read_coord_vars()
 {
   Core moab;
   Interface& mb = moab;
@@ -255,7 +255,7 @@ void test_read_dim_vars()
   Tag var_tag;
   const void* var_data;
 
-  // Check tag for regular dimension variable lev
+  // Check tag for regular coordinate variable lev
   tag_name = "lev";
   var_len = 0;
   rval = mb.tag_get_handle(tag_name.c_str(), var_len, MB_TYPE_OPAQUE, var_tag, MB_TAG_SPARSE | MB_TAG_VARLEN);
@@ -272,7 +272,7 @@ void test_read_dim_vars()
   CHECK_REAL_EQUAL(3.54463800000002, lev_val[0], eps);
   CHECK_REAL_EQUAL(992.556100000005, lev_val[25], eps);
 
-  // Check tag for dummy dimension variable ncol
+  // Check tag for dummy coordinate variable ncol
   tag_name = "ncol";
   var_len = 0;
   rval = mb.tag_get_handle(tag_name.c_str(), var_len, MB_TYPE_OPAQUE, var_tag, MB_TAG_SPARSE | MB_TAG_VARLEN);
@@ -296,7 +296,7 @@ void test_read_dim_vars()
   rval = mb.load_file(example, &file_set2, opts.c_str());
   CHECK_ERR(rval);
 
-  // Check tag for regular dimension variable lev
+  // Check tag for regular coordinate lev
   tag_name = "lev";
   var_len = 0;
   rval = mb.tag_get_handle(tag_name.c_str(), var_len, MB_TYPE_OPAQUE, var_tag, MB_TAG_SPARSE | MB_TAG_VARLEN);
@@ -312,7 +312,7 @@ void test_read_dim_vars()
   CHECK_REAL_EQUAL(3.54463800000002, lev_val[0], eps);
   CHECK_REAL_EQUAL(992.556100000005, lev_val[25], eps);
 
-  // Check tag for dummy dimension variable ncol
+  // Check tag for dummy coordinate variable ncol
   tag_name = "ncol";
   var_len = 0;
   rval = mb.tag_get_handle(tag_name.c_str(), var_len, MB_TYPE_OPAQUE, var_tag, MB_TAG_SPARSE | MB_TAG_VARLEN);
