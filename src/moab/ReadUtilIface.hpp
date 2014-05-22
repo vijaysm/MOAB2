@@ -13,10 +13,8 @@
  * 
  */
 
-
 #ifndef MOAB_READ_UTIL_IFACE_HPP
 #define MOAB_READ_UTIL_IFACE_HPP
-
 
 #include <vector>
 #include <string>
@@ -94,7 +92,7 @@ public:
   virtual ErrorCode gather_related_ents(Range &partition,
                                         Range &related_ents,
                                         EntityHandle *file_set = NULL) = 0;
-  
+
   virtual ErrorCode create_entity_sets(
     EntityID num_sets,
     const unsigned* set_flags,
@@ -118,8 +116,6 @@ public:
     const EntityHandle* conn_array
     ) = 0;
 
-
-  
   /**\brief Re-order incomming element connectivity
    *
    * Permute the connectivity of each element such that the node
@@ -155,12 +151,18 @@ public:
     //! Assign sequential IDS to entities in range and store IDs in tag
   virtual ErrorCode assign_ids( Tag id_tag, const Range& ents, 
                                   int start = 0 ) = 0;
-  
+
     //! Assign to each entity in an array the ID that is its position
     //! in the array plus the value of 'start'.  For any non-zero handles
     //! in the array, store the ID value in the passed tag.
   virtual ErrorCode assign_ids( Tag id_tag, const EntityHandle* ents, 
                                   size_t num_ents, int start = 0 ) = 0;
+
+  //! Create a new gather set with tag GATHER_SET
+  virtual ErrorCode create_gather_set(EntityHandle& gather_set) = 0;
+
+  //! Get entity handle of an existing gather set
+  virtual ErrorCode get_gather_set(EntityHandle& gather_set) = 0;
 };
 
 inline 

@@ -3,7 +3,7 @@
 #include <assert.h>
 
 #include "ElemUtil.hpp"
-#include "types.h"
+#include "moab/BoundBox.hpp"
 
 namespace moab {
 namespace ElemUtil {
@@ -420,18 +420,29 @@ bool integrate_trilinear_hex(const CartVect* hex_corners,
 
 namespace Element {
 
+    Map::~Map() 
+    {}
+    
+    inline const std::vector<CartVect>& Map::get_vertices() {
+        return this->vertex;
+      }
+        //
+      void Map::set_vertices(const std::vector<CartVect>& v) {
+        if(v.size() != this->vertex.size()) {
+          throw ArgError();
+        }
+        this->vertex = v;
+      }
 
+  bool Map::inside_box(const CartVect & xi, double & tol) const
+  {
+    // bail out early, before doing an expensive NR iteration
+    // compute box
+    BoundBox box(this->vertex);
+    return box.contains_point(xi.array(), tol);
 
-  inline const std::vector<CartVect>& Map::get_vertices() {
-    return this->vertex;
   }
-  //
-  void Map::set_vertices(const std::vector<CartVect>& v) {
-    if(v.size() != this->vertex.size()) {
-      throw ArgError();
-    }
-    this->vertex = v;
-  }// Map::set_vertices()
+
   //
   CartVect Map::ievaluate(const CartVect& x, double tol, const CartVect& x0) const {
     // TODO: should differentiate between epsilons used for
@@ -447,18 +458,17 @@ namespace Element {
     int iters=0;
     while (delta % delta > error_tol_sqr) {
       if(++iters>10)
-        throw Map::EvaluationError();
+        throw Map::EvaluationError(x, vertex);
 
       J = jacobian(xi);
       det = J.determinant();
       if (det < std::numeric_limits<double>::epsilon())
-        throw Map::EvaluationError();
+        throw Map::EvaluationError(x, vertex);
       xi -= J.inverse(1.0/det) * delta;
       delta = evaluate( xi ) - x;
     }
     return xi;
   }// Map::ievaluate()
-
 
 // filescope for static member data that is cached
   const double LinearEdge::corner[2][3] = {  { -1, 0, 0 },
@@ -539,6 +549,8 @@ namespace Element {
 
   }// LinearHex::LinearHex()
 
+    LinearHex::~LinearHex() 
+    {}
   /* For each point, its weight and location are stored as an array.
      Hence, the inner dimension is 2, the outer dimension is gauss_count.
      We use a one-point Gaussian quadrature, since it integrates linear functions exactly.
@@ -654,6 +666,8 @@ namespace Element {
   QuadraticHex::QuadraticHex():Map(0) {
   }
 
+    QuadraticHex::~QuadraticHex() 
+    {}
   double SH(const int i, const double xi)
   {
     switch (i)
@@ -749,6 +763,9 @@ namespace Element {
 
   }// LinearTet::LinearTet()
 
+
+    LinearTet::~LinearTet() 
+    {}
 
   void LinearTet::set_vertices(const std::vector<CartVect>& v) {
     this->Map::set_vertices(v);
@@ -889,7 +906,10 @@ namespace Element {
     real dist = opt_findpt_3(&_data, (const real **)_xyz, x_star, r, &c);
     // if it did not converge, get out with throw...
     if (dist > 0.9e+30)
-      throw Map::EvaluationError();
+    {
+      std::vector<CartVect> dummy;
+      throw Map::EvaluationError(xyz, dummy);
+    }
     //c tells us if we landed inside the element or exactly on a face, edge, or node
     // also, dist shows the distance to the computed point.
     //copy parametric coords back
@@ -1003,6 +1023,9 @@ namespace Element {
 
   }// LinearQuad::LinearQuad()
 
+    LinearQuad::~LinearQuad() 
+    {}
+    
   /* For each point, its weight and location are stored as an array.
      Hence, the inner dimension is 2, the outer dimension is gauss_count.
      We use a one-point Gaussian quadrature, since it integrates linear functions exactly.
@@ -1174,7 +1197,11 @@ namespace Element {
     real dist = opt_findpt_2(&_data, (const real **)_xyz, x_star, r, &c);
     // if it did not converge, get out with throw...
     if (dist > 0.9e+30)
-      throw Map::EvaluationError();
+    {
+      std::vector<CartVect> dummy;
+      throw Map::EvaluationError(xyz, dummy);
+    }
+
     //c tells us if we landed inside the element or exactly on a face, edge, or node
     // also, dist shows the distance to the computed point.
     //copy parametric coords back

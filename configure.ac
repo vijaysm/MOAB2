@@ -41,6 +41,7 @@ else
   AM_SILENT_RULES(no)
 fi
 ])
+AC_C_BIGENDIAN
 
 # Check if platform is BlueGene
 AC_MSG_CHECKING([if platform is IBM BlueGene])
@@ -65,14 +66,6 @@ AM_CPPFLAGS="$AM_CPPFLAGS $TEMPLATE_SPECIALIZATION $TEMPLATE_FUNC_SPECIALIZATION
 FATHOM_CHECK_CXX_WORKS([], [AC_MSG_ERROR([Cannot build without C++ compiler])])
 if test "xyes" = "x$ENABLE_FORTRAN" && test "x" != "x$FC"; then
   AC_FC_WRAPPERS
-fi
-
-if test "xyes" = "x$ENABLE_FORTRAN" && test "x" != "x$FLIBS"; then
-   LIBS="$LIBS $FLIBS"
-fi
-
-if test "xyes" = "x$ENABLE_FORTRAN" && test "x" != "x$FCLIBS"; then
-   LIBS="$LIBS $FCLIBS"
 fi
 
 ################################################################################
@@ -453,26 +446,45 @@ AM_CPPFLAGS="$PNETCDF_CPPFLAGS $AM_CPPFLAGS"
 EXPORT_LDFLAGS="$PNETCDF_LDFLAGS $EXPORT_LDFLAGS"
 AC_SUBST(PNETCDF_LIBS)
 
+################################################################################
+#                             CGNS OPTIONS
+################################################################################
+
+old_LDFLAGS="$LDFLAGS"
+LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"
+FATHOM_CHECK_CGNS
+LDFLAGS="$old_LDFLAGS"
+if test "xno" != "x$HAVE_CGNS"; then
+  AM_CPPFLAGS="$AM_CPPFLAGS -DCGNS_FILE"
+fi
+AM_CONDITIONAL(CGNS_FILE, [test "xno" != "x$HAVE_CGNS"])
+AM_CPPFLAGS="$CGNS_CPPFLAGS $AM_CPPFLAGS"
+EXPORT_LDFLAGS="$CGNS_LDFLAGS $EXPORT_LDFLAGS"
+AC_SUBST(CGNS_LIBS)
+
 
 #################################################################################
 #                             Documentation
 #################################################################################
-AC_ARG_ENABLE([doxygen],
-[AC_HELP_STRING([[--enable-doxygen@<:@=DIR@:>@]],[Specify directory where Doxygen program is installed])
-AC_HELP_STRING([--disable-doxygen],[Do not generate API documentation (default)])],
-                        [ENABLE_DOXYGEN="$enableval"],[ENABLE_DOXYGEN=no] )
-if test "x$ENABLE_DOXYGEN" = "xyes"; then
-  AC_PATH_PROG( [DOXYGEN], [doxygen], [no] )
-elif test "x$ENABLE_DOXYGEN" != "xno"; then
-  AC_PATH_PROG( [DOXYGEN], [doxygen], [no], [$ENABLE_DOXYGEN] )
+AC_ARG_ENABLE([docs],
+[AC_HELP_STRING([--enable-docs],[indicate to check for doxygen installation])],
+                        [ENABLE_DOCS=yes],[ENABLE_DOCS=no] )
+AC_ARG_WITH([doxygen],
+[AC_HELP_STRING([--with-doxygen=DIR], [Specify directory where Doxygen program is installed. By default, it is /usr/bin])],
+[WITH_DOXYGEN="$withval"], [WITH_DOXYGEN=no])
+
+if test "x$WITH_DOXYGEN" != "xno"; then
+  AC_PATH_PROGS( [DOXYGEN], [doxygen], [no],[$WITH_DOXYGEN] )
+else
+  AC_PATH_PROGS( [DOXYGEN], [doxygen], [no],[$PATH])
 fi
-if test "x$ENABLE_DOXYGEN" != "xno"; then
+if test "x$ENABLE_DOCS" = "xyes"; then
   if test "x$DOXYGEN" = "xno"; then
     AC_MSG_ERROR("Doxygen executable not found.")
   fi
 fi
 AC_SUBST([DOXYGEN])
-AM_CONDITIONAL([ENABLE_DOXYGEN],[test "x$ENABLE_DOXYGEN" != "xno"])
+AM_CONDITIONAL([ENABLE_DOCS],[test "x$ENABLE_DOCS" != "xno"])
 
 
 ################################################################################
@@ -561,8 +573,6 @@ AC_ARG_WITH([parmetis],
 		 ;;
                esac] )
 
-
-
 ################################################################################
 #                            Optional Libraries
 ################################################################################
@@ -583,13 +593,14 @@ AC_ARG_WITH( [vtk-lib-suffix],
              [case "x$withval" in
                xyes)
                  AC_MSG_ERROR([Must specify a non-empty suffix!])
-		 VTK_LIB_SUFFIX=
+		             VTK_LIB_SUFFIX=
                  ;;
                xno)
-		 VTK_LIB_SUFFIX=
+                 AC_MSG_ERROR([Must specify a non-empty suffix!])
+		             VTK_LIB_SUFFIX=
                  ;;
                x*)
-		 VTK_LIB_SUFFIX="$withval"
+		             VTK_LIB_SUFFIX="$withval"
                  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-vtk-lib-suffix=\"${withval}\""
                  ;;
                esac],[VTK_LIB_SUFFIX=] )
@@ -627,7 +638,6 @@ AC_HELP_STRING([--disable-tools],[Disable all tools by default])],
                          [ENABLE_TOOLS=$enableval],[ENABLE_TOOLS=] )
   # Individual tools
 MB_OPTIONAL_TOOL([mbconvert],    [yes])
-MB_OPTIONAL_TOOL([pointsearch],  [no])
 MB_OPTIONAL_TOOL([hexmodops],    [yes])
 MB_OPTIONAL_TOOL([qvdual],       [no] )
 MB_OPTIONAL_TOOL([vtkMOABReader],[${VTKMOAB_DEFAULT}] )
@@ -705,7 +715,7 @@ if test "xyes" = "x$WITH_ZOLTAN"; then
                   [#include <stdlib.h>])
   CPPFLAGS="$old_CPPFLAGS"
   AC_LANG_POP([C++])
-  
+
     # Build LDFLAGS for Zoltan
   found=no
   if test "x" != "x$ZOLTAN_DIR"; then
@@ -727,7 +737,7 @@ if test "xyes" = "x$WITH_ZOLTAN"; then
       ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$ZOLTAN_DIR"
     fi
   fi
-  
+
     # Test for Zoltan library, possibly requiring parmetis
   old_LDFLAGS="$LDFLAGS"
   LDFLAGS="$LDFLAGS $ZOLTAN_LIB_FLAGS"
@@ -738,12 +748,50 @@ if test "xyes" = "x$WITH_ZOLTAN"; then
                   [AC_MSG_ERROR([zoltan library not found or not usable.  Perhaps you need to specify --with-parmetis=@<:@DIR@:>@?])],
                   [-lparmetis -lmetis])])
   LDFLAGS="$old_LDFLAGS"
-  
+
+    # Define macro HAVE_ZOLTAN
+  AM_CPPFLAGS="$AM_CPPFLAGS -DHAVE_ZOLTAN"  
 fi
 
 AC_SUBST(ZOLTAN_LIBS)
 AC_SUBST(ZOLTAN_LIB_FLAGS)
 AC_SUBST(ZOLTAN_INC_FLAGS)
+
+EXPORT_LDFLAGS="$ZOLTAN_LIB_FLAGS $EXPORT_LDFLAGS"
+
+  
+dnl Define a function that checks for the existence of a library
+dnl and if it exists, prepends the corresponding link flag to a 
+dnl sepecified variable
+dnl Arguments:
+dnl  - The library name
+dnl  - The name of the variable to which to prepend the library link flag
+dnl  - List of extra libraries required for link test
+dnl  - Optional library path linker argument (e.g. -L/opt/foo)
+  AC_DEFUN([FATHOM_CHECK_LIB_LIST],[
+    old_LIBS="$LIBS"
+    LIBS="$5 ${$3} $old_LIBS"
+    AC_HAVE_LIBRARY([$1],[$3="-l$1 ${$3}"],[],[$4])
+    LIBS="$old_LIBS"
+  ])
+  
+dnl Define a function that checks for the existence of a library
+dnl and if it exists, prepends the corresponding link flag to a 
+dnl sepecified variable
+dnl Arguments:
+dnl  - The library name
+dnl  - The name of the variable to which to prepend the library link flag
+dnl  - List of extra libraries required for link test
+dnl  - Optional library path linker argument (e.g. -L/opt/foo)
+  AC_DEFUN([FATHOM_CHECK_VTK_LIB_LIST],[
+    old_LIBS="$LIBS"
+    LIBS="$5 ${$3} $old_LIBS"
+    AC_CHECK_LIB([$1$VTK_LIB_SUFFIX], main, 
+       [$3="-l$1$VTK_LIB_SUFFIX ${$3}"],
+       [],[$4])dnl
+    LIBS="$old_LIBS"
+  ])
+  
 
 ################################################################################
 #                    VTK for qvdual and/or vtkMOABReader
@@ -773,7 +821,6 @@ if test "xno" != "x$WITH_VTK" -a "x" != "x$WITH_VTK"; then
   AC_LANG_CPLUSPLUS
 
   VTK_INCLUDES=  
-  VTK_LIB_SUFFIX=-pv3.98
   case "x$WITH_VTK" in
     xyes|x)
       VTK_LIB_DIR=
@@ -793,9 +840,7 @@ if test "xno" != "x$WITH_VTK" -a "x" != "x$WITH_VTK"; then
       for dir in /usr/lib/vtk /usr/lib /usr/bin /usr; do
         if test "x" = "x$VTK_LIB_DIR"; then
           LIBS="$old_LIBS -L$dir"
-          unset ac_cv_lib_vtkCommon
-	  unset ac_cv_lib_vtkCommon_main
-          AC_HAVE_LIBRARY([vtkCommonCore$VTK_LIB_SUFFIX],[VTK_LIB_DIR=$dir])
+          FATHOM_CHECK_VTK_LIB_LIST([vtkCommonCore],[$VTK_LIB_SUFFIX], [VTK_LIB_DIR],[],[-L$dir])
         fi
       done
       if test "x" = "x$VTK_LIB_DIR"; then
@@ -815,15 +860,15 @@ if test "xno" != "x$WITH_VTK" -a "x" != "x$WITH_VTK"; then
         # Check for non-installed VTK source
         AC_CHECK_FILE([vtkUnstructuredGrid.h],[
           for subdir in . Common Common/DataModel Filtering GenericFiltering Graphics Hybrid Imaging Parallel Patented Rendering Utilities Utilities/vtkexpat Utilities/expat Utilities/DICOMParser Utilties/vtkpng Utilities/vtkzlib Utilities/freetype/include/freetype Wrapping; do
-  	  AC_MSG_CHECKING([for directory ${WITH_VTK}/$subdir])
-  	  if test -d ${WITH_VTK}/$subdir; then
-  	    VTK_INC_DIR="$VTK_INC_DIR -I${WITH_VTK}/$subdir"
-  	    AC_MSG_RESULT([yes])
-  	  else
-  	    AC_MSG_RESULT([no])
-  	  fi
-  	done
-  	],[AC_MSG_ERROR([VTK includes not found])]
+        	  AC_MSG_CHECKING([for directory ${WITH_VTK}/$subdir])
+        	  if test -d ${WITH_VTK}/$subdir; then
+        	    VTK_INC_DIR="$VTK_INC_DIR -I${WITH_VTK}/$subdir"
+        	    AC_MSG_RESULT([yes])
+        	  else
+        	    AC_MSG_RESULT([no])
+        	  fi
+        	done
+        	],[AC_MSG_ERROR([VTK includes not found])]
         )
       fi
       VTK_INCLUDES="$VTK_INC_DIR"
@@ -831,7 +876,7 @@ if test "xno" != "x$WITH_VTK" -a "x" != "x$WITH_VTK"; then
       for dir in ${WITH_VTK}/lib ${WITH_VTK}/lib/vtk ${VTK_DIR}/bin ${WITH_VTK}/bin ${WITH_VTK}; do
         if test "x" = "x$VTK_LIB_DIR"; then
           LIBS="$old_LIBS -L$dir"
-          AC_HAVE_LIBRARY([vtkCommonCore$VTK_LIB_SUFFIX],[VTK_LIB_DIR=$dir])
+          FATHOM_CHECK_VTK_LIB_LIST([vtkCommonCore],[$VTK_LIB_SUFFIX], [VTK_LIB_DIR],[],[-L$dir])
         fi
       done
       if test "x" = "x$VTK_LIB_DIR"; then
@@ -840,22 +885,7 @@ if test "xno" != "x$WITH_VTK" -a "x" != "x$WITH_VTK"; then
       LIBS="$old_LIBS"
       ;;
   esac
-  
-dnl Define a function that checks for the existence of a library
-dnl and if it exists, prepends the corresponding link flag to a 
-dnl sepecified variable
-dnl Arguments:
-dnl  - The library name
-dnl  - The name of the variable to which to prepend the library link flag
-dnl  - List of extra libraries required for link test
-dnl  - Optional library path linker argument (e.g. -L/opt/foo)
-  AC_DEFUN([FATHOM_CHECK_LIB_LIST],[
-    old_LIBS="$LIBS"
-    LIBS="$5 ${$3} $old_LIBS"
-    AC_HAVE_LIBRARY([$1$2],[$3="-l$1$2 ${$3}"],[],[$4])
-    LIBS="$old_LIBS"
-  ])
-  
+
    # These are ordered such that a given library depends only on those libraries
    # that preceed it in the list.
   FATHOM_CHECK_LIB_LIST([pthread],[],[vtk_sys_libs])
@@ -870,27 +900,28 @@ dnl  - Optional library path linker argument (e.g. -L/opt/foo)
   FATHOM_CHECK_LIB_LIST([GL],[],  [vtk_x_libs],[$x_libs_arg],[-L$x_libraries]) 
   FATHOM_CHECK_LIB_LIST([GLU],[], [vtk_x_libs],[$x_libs_arg],[-L$x_libraries]) 
   vtk_libs_arg="-L$x_libraries $vtk_x_libs $X_EXTRA_LIBS -lX11 $X_PRE_LIBS $vtk_sys_libs"
-  FATHOM_CHECK_LIB_LIST([vtksys],[$VTK_LIB_SUFFIX],        [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkCommonCore],[$VTK_LIB_SUFFIX],     [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkDICOMParser],[$VTK_LIB_SUFFIX],[vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkfreetype],[$VTK_LIB_SUFFIX],   [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkexpat],[$VTK_LIB_SUFFIX],      [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkzlib],[$VTK_LIB_SUFFIX],       [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkpng],[$VTK_LIB_SUFFIX],        [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkjpeg],[$VTK_LIB_SUFFIX],       [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtktiff],[$VTK_LIB_SUFFIX],       [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkftgl],[$VTK_LIB_SUFFIX],       [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkFiltering],[$VTK_LIB_SUFFIX],  [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkImaging],[$VTK_LIB_SUFFIX],    [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([verdict],[$VTK_LIB_SUFFIX],       [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkGraphics],[$VTK_LIB_SUFFIX],   [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkNetCDF],[$VTK_LIB_SUFFIX],     [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkexoIIc],[$VTK_LIB_SUFFIX],     [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkmetaio],[$VTK_LIB_SUFFIX],     [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkIO],[$VTK_LIB_SUFFIX],         [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkRendering],[$VTK_LIB_SUFFIX],  [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkParallel],[$VTK_LIB_SUFFIX],   [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
-  FATHOM_CHECK_LIB_LIST([vtkHybrid],[$VTK_LIB_SUFFIX],     [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  
+  FATHOM_CHECK_VTK_LIB_LIST([vtksys],[$VTK_LIB_SUFFIX],        [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_VTK_LIB_LIST([vtkCommonCore],[$VTK_LIB_SUFFIX], [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_VTK_LIB_LIST([vtkDICOMParser],[$VTK_LIB_SUFFIX],[vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_VTK_LIB_LIST([vtkfreetype],[$VTK_LIB_SUFFIX],   [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_VTK_LIB_LIST([vtkexpat],[$VTK_LIB_SUFFIX],      [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_VTK_LIB_LIST([vtkzlib],[$VTK_LIB_SUFFIX],       [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_VTK_LIB_LIST([vtkpng],[$VTK_LIB_SUFFIX],        [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_VTK_LIB_LIST([vtkjpeg],[$VTK_LIB_SUFFIX],       [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_VTK_LIB_LIST([vtktiff],[$VTK_LIB_SUFFIX],       [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_VTK_LIB_LIST([vtkftgl],[$VTK_LIB_SUFFIX],       [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_VTK_LIB_LIST([vtkFiltersCore],[$VTK_LIB_SUFFIX],  [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_VTK_LIB_LIST([vtkImagingCore],[$VTK_LIB_SUFFIX],    [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_VTK_LIB_LIST([verdict],[$VTK_LIB_SUFFIX],       [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_VTK_LIB_LIST([vtkGraphics],[$VTK_LIB_SUFFIX],   [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_VTK_LIB_LIST([vtkNetCDF],[$VTK_LIB_SUFFIX],     [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_VTK_LIB_LIST([vtkexoIIc],[$VTK_LIB_SUFFIX],     [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_VTK_LIB_LIST([vtkmetaio],[$VTK_LIB_SUFFIX],     [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_VTK_LIB_LIST([vtkIOCore],[$VTK_LIB_SUFFIX],         [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_VTK_LIB_LIST([vtkRenderingCore],[$VTK_LIB_SUFFIX],  [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  FATHOM_CHECK_VTK_LIB_LIST([vtkParallelCore],[$VTK_LIB_SUFFIX],   [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
+  #FATHOM_CHECK_VTK_LIB_LIST([vtkHybrid],[$VTK_LIB_SUFFIX],     [vtk_libs],[$vtk_libs_arg],[-L$VTK_LIB_DIR])
   
    # Make sure we found at least vtkCommonCore and vtkRendering
   if ! echo "x $vtk_libs" | grep lvtkCommonCore >/dev/null; then
@@ -1150,6 +1181,7 @@ AC_SUBST(CGM_CPPFLAGS)
 AC_SUBST(CGM_LDFLAGS)
 AC_SUBST(CGM_LTFLAGS)
 AC_SUBST(CGM_LIBS)
+AC_SUBST(CGM_DIR)
 
 AM_CONDITIONAL( HAVE_CGM, [test "x$CGM_MISSING" = "xno"] )
 
@@ -1187,13 +1219,16 @@ AC_CONFIG_FILES([Makefile
                  src/Makefile
                  src/io/Makefile
                  src/io/mhdf/Makefile
+		 src/LocalDiscretization/Makefile
                  src/parallel/Makefile
                  src/oldinc/Makefile
                  test/Makefile
+		 test/dagmc/Makefile
                  test/h5file/Makefile
                  test/dual/Makefile
                  test/obb/Makefile
                  test/perf/Makefile
+                 test/perf/point_location/Makefile
                  test/io/Makefile
                  test/parallel/Makefile
                  test/oldinc/Makefile
@@ -1216,11 +1251,12 @@ AC_CONFIG_FILES([Makefile
 		 tools/vtkMOABReaderNew/CMakeLists.txt
                  doc/Makefile
                  doc/user.dox
-                 doc/dev.dox
                  doc/config.tex
                  MeshFiles/Makefile
                  MeshFiles/unittest/Makefile
                  MeshFiles/unittest/io/Makefile
+                 MeshFiles/unittest/iGeom/Makefile
+                 MeshFiles/unittest/dagmc/Makefile
                  ])
 AC_CONFIG_COMMANDS([src/MOAB_FCDefs.h],
   [sed -e "s/FC_FUNC/MOAB_FC_FUNC/" src/FCDefs.h >src/MOAB_FCDefs.h])
@@ -1230,10 +1266,10 @@ AC_OUTPUT
 AC_MSG_RESULT([C:   $CC $CFLAGS $CPPFLAGS])
 AC_MSG_RESULT([C++: $CXX $CXXFLAGS $CPPFLAGS])
 if test "x" != "x$FC"; then
-  AC_MSG_RESULT([Fortran: $FC $FCFLAGS])
+  AC_MSG_RESULT([Fortran90: $FC $FCFLAGS])
 fi
 if test "x" != "x$F77"; then
-  AC_MSG_RESULT([Fortran: $F77 $FFLAGS])
+  AC_MSG_RESULT([Fortran77: $F77 $FFLAGS])
 fi
 
 if test "x$HAVE_HDF5" = "xno"; then

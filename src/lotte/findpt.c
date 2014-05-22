@@ -5,12 +5,10 @@
 #include <float.h>
 #include <string.h>  /* for memcpy */
 
-#include "errmem.h"
-#include "types.h"
-#include "minmax.h"
-#include "poly.h"
-#include "tensor.h"
-#include "extrafindpt.h"
+#include "moab/FindPtFuncs.h"
+
+const unsigned opt_no_constraints_2 = 3+1;
+const unsigned opt_no_constraints_3 = 9+3+1;
 
 /*--------------------------------------------------------------------------
    Lobatto Polynomial Bounds
@@ -484,14 +482,6 @@ static void obbox_free_3(obbox_data_3 *p)
   free(p);
 }
 
-typedef struct {
-  real x[2], A[4], axis_bnd[4];
-} obbox_2;
-
-typedef struct {
-  real x[3], A[9], axis_bnd[6];
-} obbox_3;
-
 int obbox_axis_test_2(const obbox_2 *p, const real x[2])
 {
   return (x[0]<p->axis_bnd[0] || x[0]>p->axis_bnd[1] ||
@@ -766,34 +756,6 @@ void obbox_calc_3(const obbox_data_3 *p, real tol,
      hash_free_3(&data);
      
   --------------------------------------------------------------------------*/
-
-typedef struct {
-  unsigned hash_n;
-  real bnd[4]; /* bounds for all elements */
-  real fac[2]; /* fac[i] = hash_n / (bnd[2*i+1]-bnd[2*i]) */
-  obbox_2 *obb; /* obb[nel] -- bounding box info for each element */
-  uint *offset; /* hash table -- for cell i,j:
-                         uint index = j*hash_n+i,
-                                  b = offset[index  ],
-                                  e = offset[index+1];
-                         elements in cell are
-                           offset[b], offset[b+1], ..., offset[e-1] */
-  unsigned max; /* maximum # of elements in any cell */
-} hash_data_2;
-
-typedef struct {
-  unsigned hash_n;
-  real bnd[6]; /* bounds for all elements */
-  real fac[3]; /* fac[i] = hash_n / (bnd[2*i+1]-bnd[2*i]) */
-  obbox_3 *obb; /* obb[nel] -- bounding box info for each element */
-  uint *offset; /* hash table -- for cell i,j,k:
-                         uint index = (k*hash_n+j)*hash_n+i,
-                                  b = offset[index  ],
-                                  e = offset[index+1];
-                         elements in cell are
-                           offset[b], offset[b+1], ..., offset[e-1] */
-  unsigned max; /* maximum # of elements in any cell */
-} hash_data_3;
 
 static int ifloor(real x)
 {
@@ -1885,12 +1847,6 @@ double opt_findpt_2(opt_data_2 *p, const real *const elx[2],
      
   --------------------------------------------------------------------------*/
 
-typedef struct {
-  uint el;
-  real r[3];
-  real dist;
-} findpt_listel;
-
 /* heap sort on A[0:n-1] with key A[i]->dist
    precondition: n!=0 */
 static void findpt_list_sort(findpt_listel **A, unsigned n)
@@ -1924,34 +1880,6 @@ static void findpt_list_sort(findpt_listel **A, unsigned n)
     A[hole] = item;
   }
 }
-
-typedef struct {
-  const real *xw[2];   /* geometry data */
-  real *z[2];          /* lobatto nodes */
-  lagrange_data ld[2]; /* interpolation, derivative weights & data */
-  unsigned nptel;      /* nodes per element */
-  hash_data_2 *hash;   /* geometric hashing data */
-  findpt_listel *list, **sorted, **end; /* pre-allocated list of elements to
-                                           check (found by hashing), and
-                                           pre-allocated list of pointers into
-                                           the first list for sorting */
-  opt_data_2 *od; /* data for the optimization algorithm */
-  real *od_work;
-} findpt_data_2;
-
-typedef struct {
-  const real *xw[3];   /* geometry data */
-  real *z[3];          /* lobatto nodes */
-  lagrange_data ld[3]; /* interpolation, derivative weights & data */
-  unsigned nptel;      /* nodes per element */
-  hash_data_3 *hash;   /* geometric hashing data */
-  findpt_listel *list, **sorted, **end; /* pre-allocated list of elements to
-                                           check (found by hashing), and
-                                           pre-allocated list of pointers into
-                                           the first list for sorting */
-  opt_data_3 *od; /* data for the optimization algorithm */
-  real *od_work;
-} findpt_data_3;
 
 findpt_data_2 *findpt_setup_2(
           const real *const xw[2], const unsigned n[2], uint nel,

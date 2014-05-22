@@ -8,12 +8,12 @@ typedef MBProcConfig Foo3;
 #include "MBEntityHandle.h"
 MBEntityHandle handle = 0;
 #include "MBTypes.h"
-MBEntityType type = MBVERTEX;
-MBTag tag = 0;
+MBEntityType tp = MBVERTEX;
+MBTag tg = 0;
 MBErrorCode code = MB_SUCCESS;
-int i = MB_VARIABLE_LENGTH;
+int it = MB_VARIABLE_LENGTH;
 MBTagType tagtype = MB_TAG_DENSE;
-MBDataType datatype = MB_TYPE_HANDLE;
+MBDataType dttype = MB_TYPE_HANDLE;
 MBEntitySetProperty prop = MESHSET_SET;
 
   // test version info

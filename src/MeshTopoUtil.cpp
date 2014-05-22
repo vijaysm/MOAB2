@@ -468,24 +468,40 @@ ErrorCode MeshTopoUtil::get_bridge_adjacencies(const EntityHandle from_entity,
 
   if (bridge_dim < from_dim) {
       // looping over each sub-entity of dimension bridge_dim...
-    EntityHandle bridge_verts[MAX_SUB_ENTITIES];
-    int bridge_indices[MAX_SUB_ENTITIES];
-    for (int i = 0; i < CN::NumSubEntities(from_type, bridge_dim); i++) {
+    if (MBPOLYGON == from_type)
+    {
+      for (int i=0; i<num_connect; i++)
+      {
+        // loop over edges, and get the vertices
+        EntityHandle verts_on_edge[2]={connect[i], connect[(i+1)%num_connect]};
+        to_ents.clear();
+        ErrorCode tmp_result = mbImpl->get_adjacencies(verts_on_edge, 2,
+                        to_dim, false, to_ents, Interface::INTERSECT);
+        if (MB_SUCCESS != tmp_result) result = tmp_result;
+        to_adjs.merge(to_ents);
+      }
+    }
+    else
+    {
+      EntityHandle bridge_verts[MAX_SUB_ENTITIES];
+      int bridge_indices[MAX_SUB_ENTITIES];
+      for (int i = 0; i < CN::NumSubEntities(from_type, bridge_dim); i++) {
 
-        // get the vertices making up this sub-entity
-      int num_bridge_verts = CN::VerticesPerEntity( CN::SubEntityType( from_type, bridge_dim, i ) );
-      CN::SubEntityVertexIndices( from_type, bridge_dim, i, bridge_indices );
-      for (int j = 0; j < num_bridge_verts; ++j)
-        bridge_verts[j]= connect[bridge_indices[j]];
-      //CN::SubEntityConn(connect, from_type, bridge_dim, i, &bridge_verts[0], num_bridge_verts);
-    
-        // get the to_dim entities adjacent
-      to_ents.clear();
-      ErrorCode tmp_result = mbImpl->get_adjacencies(bridge_verts, num_bridge_verts,
-                                                       to_dim, false, to_ents, Interface::INTERSECT);
-      if (MB_SUCCESS != tmp_result) result = tmp_result;
-    
-      to_adjs.merge(to_ents);
+          // get the vertices making up this sub-entity
+        int num_bridge_verts = CN::VerticesPerEntity( CN::SubEntityType( from_type, bridge_dim, i ) );
+        CN::SubEntityVertexIndices( from_type, bridge_dim, i, bridge_indices );
+        for (int j = 0; j < num_bridge_verts; ++j)
+          bridge_verts[j]= connect[bridge_indices[j]];
+        //CN::SubEntityConn(connect, from_type, bridge_dim, i, &bridge_verts[0], num_bridge_verts);
+
+          // get the to_dim entities adjacent
+        to_ents.clear();
+        ErrorCode tmp_result = mbImpl->get_adjacencies(bridge_verts, num_bridge_verts,
+                                                         to_dim, false, to_ents, Interface::INTERSECT);
+        if (MB_SUCCESS != tmp_result) result = tmp_result;
+
+        to_adjs.merge(to_ents);
+      }
     }
 
   }

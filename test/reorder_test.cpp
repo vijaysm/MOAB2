@@ -185,7 +185,8 @@ void build_mesh( )
       rval = mb->tag_set_data( gid, &h, 1, &tagval );
       CHECK_ERR(rval);
       
-      int ids[4] = { n0, n1, n2, n3 };
+      int ids[4] = { static_cast<int>(n0), static_cast<int>(n1), 
+                     static_cast<int>(n2), static_cast<int>(n3) };
       rval = mb->tag_set_data( conn_ids, &h, 1, ids );
       CHECK_ERR(rval);
       

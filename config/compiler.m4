@@ -138,8 +138,6 @@ fi
 if test "xno" != "x$CHECK_FC"; then
   AC_PROG_FC
   AC_PROG_F77
-  AC_F77_LIBRARY_LDFLAGS
-  AC_FC_LIBRARY_LDFLAGS
 fi
 
 ]) # FATHOM_CHECK_COMPILERS
@@ -224,6 +222,14 @@ if test "xyes" = "x$enable_debug"; then
   CFLAGS="$CFLAGS -g"
   FCFLAGS="$FCFLAGS -g"
   FFLAGS="$FFLAGS -g"
+  # Add -fstack-protector-all option for g++ in debug mode
+  if test "x$cxx_compiler" = "xGNU"; then
+    CXXFLAGS="$CXXFLAGS -fstack-protector-all"
+  fi
+  # Add -fstack-protector-all option for gcc in debug mode
+  if test "x$cc_compiler" = "xGNU"; then
+    CFLAGS="$CFLAGS -fstack-protector-all"
+  fi
 fi
 if test "xyes" = "x$enable_cxx_optimize"; then
   CXXFLAGS="$CXXFLAGS -O2 -DNDEBUG"
@@ -535,7 +541,15 @@ case "$cc_compiler:$host_cpu" in
     case "$target_vendor" in
       bgp)
         FATHOM_CC_32BIT=-q32
+	FATHOM_CC_64BIT=-q64
+	AR="ar"
+	NM="nm -B"
+        ;;
+      bgq)
+        FATHOM_CC_32BIT=-q32
         FATHOM_CC_64BIT=-q64
+	FATHOM_CC_SPECIAL=-qarch=qp
+	FATHOM_CXX_SPECIAL="-qarch=qp -qpic=large -qmaxmem=-1"
         AR="ar"
         NM="nm -B"
         ;;

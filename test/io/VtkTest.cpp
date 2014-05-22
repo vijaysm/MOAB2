@@ -108,7 +108,7 @@ DECLARE_TEST(unstructured_field)
 
 int main( int argc, char* argv[] )
 {
-  int *test_indices = (int*)malloc( sizeof(int) * num_tests );
+  int *test_indices = (int*)malloc(sizeof(int) * num_tests);
   int test_count;
     // if no arguments, do all tests
   if (argc == 1) {
@@ -126,8 +126,7 @@ int main( int argc, char* argv[] )
   }
   
   int fail_count = 0;
-  for (int i = 0; i < test_count; ++i)
-  {
+  for (int i = 0; i < test_count; ++i) {
     test_data& test = test_array[test_indices[i]];
     printf("Testing %s...\n", test.name );
     if (!(test.result = test.test()))
@@ -137,23 +136,23 @@ int main( int argc, char* argv[] )
   printf("\n\n");
   if (fail_count) {
     printf("FAILED TESTS:\n");
-    for (int i = 0; i < test_count; ++i)
-    {
+    for (int i = 0; i < test_count; ++i) {
       test_data& test = test_array[test_indices[i]];
       if (!test.result)
         printf("\t%s\n", test.name);
     }
   }
-    
-  
+
   if (test_count == 0)
     printf("0 VTK tests run\n");
   else if (fail_count == 0)
     printf("%d tests passed\n", test_count );
   else
-    printf("%d of %d tests failed\n", fail_count, test_count );
+    printf("%d of %d tests failed\n", fail_count, test_count);
   printf("\n");
-  
+
+  free(test_indices);
+
   return fail_count;
 }
 
@@ -179,7 +178,6 @@ static inline bool is_error( ErrorCode b )
 bool read_file( Interface* iface, const char* file );
 bool write_and_read( Interface* iface1, Interface* iface2 );
 
-
 bool test_read_write_element( const double* coords, unsigned num_coords,
                               const int* vtk_conn, const int* moab_conn,
                               unsigned num_conn,
@@ -203,8 +201,7 @@ bool test_edge2()
       
   return test_read_write_element( coords, 5, conn, conn, 10, 5, 3, MBEDGE );
 }
-  
-  
+
 bool test_edge3()
 {
   const double coords[] =
@@ -242,7 +239,6 @@ bool test_tri3()
   
   return test_read_write_element( coords, 5, conn, conn, 12, 4, 5, MBTRI );
 }
-
 
 bool test_tri6()
 {
@@ -428,7 +424,6 @@ bool test_tet10()
   
   return test_read_write_element( coords, 14, conn, conn, 20, 2, 24, MBTET );
 }
-
 
 const double grid_2x2x2[] =
   { 0, 0, 0,
@@ -904,7 +899,6 @@ bool test_vector_attrib_double()
   return test_vector_attrib("double", MB_TYPE_DOUBLE);
 }
 
-
 bool test_tensor_attrib_uchar()
 {
   return test_tensor_attrib("unsigned_char", MB_TYPE_INTEGER);
@@ -954,9 +948,6 @@ bool test_tensor_attrib_double()
 {
   return test_tensor_attrib("double", MB_TYPE_DOUBLE);
 }
-
-
-
 
 bool read_file( Interface* iface, const char* file )
 {
@@ -1086,7 +1077,6 @@ bool match_vertices_and_elements( Interface* iface,
   return true;
 }
 
-
 bool check_elements( Interface* iface,
                      EntityType moab_type, unsigned num_elem, unsigned vert_per_elem,
                      const double* coords, unsigned num_vert, 
@@ -1099,8 +1089,6 @@ bool check_elements( Interface* iface,
   CHECK(rval);
   return true;
 }
-      
-                     
 
 bool test_read_write_element( const double* coords, unsigned num_verts,
                               const int* vtk_conn, const int* moab_conn,
@@ -1295,7 +1283,6 @@ bool check_tag_values( Interface* iface,
   return true;
 }
 
-
 bool check_tag_values( Interface* iface, DataType type, int vals_per_ent )
 {
   EntityHandle vert_handles[6], elem_handles[2];
@@ -1369,7 +1356,7 @@ bool test_tensor_attrib( const char* vtk_type, DataType mb_type )
   return check_tag_data( file, mb_type, 9 );
 } 
 
-bool test_subset( )
+bool test_subset()
 {
   Core moab_inst;
   Interface& moab = moab_inst;

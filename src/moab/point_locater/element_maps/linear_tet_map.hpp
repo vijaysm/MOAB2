@@ -18,14 +18,17 @@ class Linear_tet_map {
     //Natural coordinates
     template< typename Moab, typename Points, typename Point>
     std::pair< bool, Point> operator()( const Moab & moab,
-					const Entity_handle eh, 
+					const Entity_handle _eh,
 				        const Points & v, 
 					const Point & p, 
 					const double tol=1e-6) {
-	set_tet( eh, v); 
-	//TODO: Make sure this is correct
-	Point result = Tinv*p;
-	return std::make_pair( is_contained( result, tol), result);
+      // Remove the warning about unused parameter
+      if (NULL != &moab) {}
+
+      set_tet( _eh, v);
+      //TODO: Make sure this is correct
+      Point result = Tinv*p;
+      return std::make_pair( is_contained( result, tol), result);
     }
   
     private:

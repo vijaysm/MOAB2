@@ -18,15 +18,15 @@ namespace moab {
     class nonlocal_info
     {
     public:
-      uint np;           /* number of processors to communicate with          */
-      uint *target;      /* int target[np]: array of processor ids to comm w/ */
-      uint *nshared;     /* nshared[i] = number of points shared w/ target[i] */
-      uint *sh_ind;      /* list of shared point indices                      */
-      slong *slabels;    /* list of signed long labels (not including gid)    */
-      ulong *ulabels;    /* list of unsigned long labels                      */
-      MPI_Request *reqs; /* pre-allocated for MPI calls                       */
-      realType *buf;         /* pre-allocated buffer to receive data              */
-      uint maxv;         /* maximum vector size                               */
+      uint _np;           /* number of processors to communicate with          */
+      uint *_target;      /* int target[np]: array of processor ids to comm w/ */
+      uint *_nshared;     /* nshared[i] = number of points shared w/ target[i] */
+      uint *_sh_ind;      /* list of shared point indices                      */
+      slong *_slabels;    /* list of signed long labels (not including gid)    */
+      ulong *_ulabels;    /* list of unsigned long labels                      */
+      MPI_Request *_reqs; /* pre-allocated for MPI calls                       */
+      realType *_buf;         /* pre-allocated buffer to receive data              */
+      uint _maxv;         /* maximum vector size                               */
     
       /**Constructor for nonlocal_info; takes all arguments and initializes 
        * nonlocal_info
@@ -110,8 +110,8 @@ namespace moab {
       crystal_buf buffers[3];
       //crystal_buf provides buffer space for communications
       crystal_buf *all, *keep, *send;
-      MPI_Comm comm;
-      uint num, id;
+      MPI_Comm _comm;
+      uint _num, _id;
 
       /**Default constructor (Note:  moab_crystal_data must be initialized
        * before use!)
@@ -167,7 +167,7 @@ namespace moab {
     sint *local_cm; /* local condense map */
 #ifdef USE_MPI
     nonlocal_info *nlinfo;
-    MPI_Comm comm;
+    MPI_Comm _comm;
 #endif
 
     /**Constructor for moab_gs_data:  takes all arguments and initializes

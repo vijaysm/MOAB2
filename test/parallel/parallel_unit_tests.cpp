@@ -1,7 +1,7 @@
 #include "moab/ParallelComm.hpp"
 #include "MBParallelConventions.h"
 #include "ReadParallel.hpp"
-#include "FileOptions.hpp"
+#include "moab/FileOptions.hpp"
 #include "MBTagConventions.hpp"
 #include "moab/Core.hpp"
 #include "moab_mpi.h"
@@ -1407,15 +1407,15 @@ ErrorCode test_shared_sets( const char* )
       continue;
     }
     
-    Range expected;
+    Range expected_range;
     for (size_t j = 0; j < 3; ++j)
       if (set_owners[j] == i)
-        expected.insert( set_arr[j] );
+        expected_range.insert( set_arr[j] );
     
-    if (expected != sets) {
+    if (expected_range != sets) {
       std::cerr << __FILE__ << ":" << __LINE__ << " rank " << rank 
                 << " has incorrect shared set list for sets owned by rank " 
-                << set_owners[i] << std::endl << "Expected: " << expected << std::endl
+                << set_owners[i] << std::endl << "Expected: " << expected_range << std::endl
                 << "Actual: " << sets << std::endl;
       ok = MB_FAILURE;
     }
@@ -1445,10 +1445,11 @@ template <typename T> ErrorCode check_shared_ents(ParallelComm &pcomm, Tag tagh,
   for (rit = shared_ents.begin(); rit != shared_ents.end(); rit++, i++) {
     rval = pcomm.get_sharing_data(*rit, &shprocs[0], &shhandles[0], pstatus, np); CHKERR(rval);
     if (1 == np && shprocs[0] != (int) pcomm.proc_config().proc_rank()) np++;
+    bool with_root = std::find(&shprocs[0], &shprocs[np], 0)-&shprocs[0] != np || !pcomm.rank();
     if      (mpi_op == MPI_SUM) {if (dum_vals[i] != fact*np) return MB_FAILURE;}
     else if (mpi_op == MPI_PROD) {if (dum_vals[i] != pow(fact, np)) return MB_FAILURE;}
-    else if (mpi_op == MPI_MAX) {if (dum_vals[i] != fact) return MB_FAILURE;}
-    else if (mpi_op == MPI_MIN) {if (dum_vals[i] != fact) return MB_FAILURE;}
+    else if (mpi_op == MPI_MAX) {if (with_root && dum_vals[i] != fact) return MB_FAILURE;}
+    else if (mpi_op == MPI_MIN) {if (with_root && dum_vals[i] != fact) return MB_FAILURE;}
     else return MB_FAILURE;
   }
   

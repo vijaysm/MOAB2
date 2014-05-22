@@ -17,7 +17,8 @@ static const char sample[] = STRINGIFY(MESHDIR) "/io/sample.stl";
 static const char sample[] = "sample.stl";
 #endif
 
-const char* tmp_file = "test.stl";
+// Use static keyword so that tmp_file can only be accessed within this file
+static const char* tmp_file = "test.stl";
 
 void test_read_ascii();
 void test_write_ascii();
@@ -228,9 +229,9 @@ void check_mesh_is_tet( Interface& moab )
     CHECK_EQUAL( 3, len );
     
     int conn_idx[3] = { 
-      std::find( vert_handles, vert_handles + 4, conn[0] ) - vert_handles,
-      std::find( vert_handles, vert_handles + 4, conn[1] ) - vert_handles,
-      std::find( vert_handles, vert_handles + 4, conn[2] ) - vert_handles };
+        static_cast<int>(std::find( vert_handles, vert_handles + 4, conn[0] ) - vert_handles),
+        static_cast<int>(std::find( vert_handles, vert_handles + 4, conn[1] ) - vert_handles),
+        static_cast<int>(std::find( vert_handles, vert_handles + 4, conn[2] ) - vert_handles) };
     CHECK( conn_idx[0] != 4 );
     CHECK( conn_idx[1] != 4 );
     CHECK( conn_idx[2] != 4 );

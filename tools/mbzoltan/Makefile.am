@@ -11,14 +11,15 @@ AM_CPPFLAGS += $(CGM_CPPFLAGS)
 endif
 
 AM_LDFLAGS += $(ZOLTAN_LIB_FLAGS)
-lib_LTLIBRARIES = libmbzoltan.la
-libmbzoltan_la_LIBADD = $(top_builddir)/src/libMOAB.la $(ZOLTAN_LIBS)
-libmbzoltan_la_includedir = $(includedir)
-libmbzoltan_la_SOURCES = MBZoltan.cpp
-libmbzoltan_la_include_HEADERS = MBZoltan.hpp
+# lib_LTLIBRARIES = libmbzoltan.la
+# libmbzoltan_la_LIBADD = $(top_builddir)/src/libMOAB.la $(ZOLTAN_LIBS)
+# libmbzoltan_la_includedir = $(includedir)
+# libmbzoltan_la_SOURCES = MBZoltan.cpp
+# libmbzoltan_la_include_HEADERS = MBZoltan.hpp
 
 bin_PROGRAMS = mbpart
-LDADD = libmbzoltan.la
+# LDADD = libmbzoltan.la
 mbpart_SOURCES = mbpart.cpp
-mbpart_LDADD = libmbzoltan.la 
+# mbpart_LDADD = libmbzoltan.la 
+mbpart_LDADD = $(top_builddir)/src/libMOAB.la $(ZOLTAN_LIBS)
 

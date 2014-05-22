@@ -45,7 +45,7 @@ bool operator()(const Value & a, const Value & b){
 template< typename Data>
 struct Split_comparator {
   //we minimizes ||left| - |right|| + |middle|^2 
-  const double split_objective( const Data & a) const {
+  double split_objective( const Data & a) const {
 	if (a.second.sizes[ 2]==0 || a.second.sizes[ 0] == 0){
 		return std::numeric_limits< std::size_t>::max();
 	}

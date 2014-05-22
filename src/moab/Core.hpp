@@ -216,20 +216,21 @@ public:
   
       //! Gets the connectivity for an element EntityHandle. 
       /** For non-element handles (ie, MeshSets), 
-          returns an error. Connectivity data is copied from the database into the vector 
-          <em>connectivity</em>. The nodes in <em>connectivity</em> are properly ordered.
-          \param entity_handle EntityHandle to get connectivity of.
-          \param connectivity Vector in which connectivity of <em>entity_handle</em> is returned.  
-          Should contain MeshVertices.
-          \param topological_connectivity If true, higher order nodes are ignored. 
-
-          Example: \code 
-          std::vector<EntityHandle> conn;
-          get_connectivity( entity_handle, conn ); \endcode */
+       * returns an error. Connectivity data is copied from the database into the vector 
+       *   <em>connectivity</em>. The nodes in <em>connectivity</em> are properly ordered.
+       *  \param entity_handle EntityHandle to get connectivity of.
+       *  \param connectivity Vector in which connectivity of <em>entity_handle</em> is returned.  
+       *   Should contain MeshVertices.
+       *  \param corners_only If true, returns only corner vertices, otherwise returns all of them (including any higher-order vertices)
+       *
+       *   Example: \code 
+       *   std::vector<EntityHandle> conn;
+       *   get_connectivity( entity_handle, conn ); \endcode 
+       */
     virtual ErrorCode  get_connectivity(const EntityHandle *entity_handles, 
                                         const int num_handles,
                                         std::vector<EntityHandle> &connectivity, 
-                                        bool topological_connectivity = false,
+                                        bool corners_only = false,
                                         std::vector<int> *offsets = NULL) const;
  
     //! Gets the connectivity for a vector of elements
@@ -238,14 +239,14 @@ public:
   virtual ErrorCode  get_connectivity(const EntityHandle *entity_handles, 
                                         const int num_handles,
                                         Range &connectivity, 
-                                        bool topological_connectivity = false) const;
+                                        bool corners_only = false) const;
 
     //! Gets the connectivity for elements
     /** Same as vector-based version except range is returned (unordered!)
     */
   virtual ErrorCode get_connectivity( const Range& entity_handles, 
                                         Range &connectivity, 
-                                        bool topological_connectivity = false) const;
+                                        bool corners_only = false) const;
  
     //! Gets a pointer to constant connectivity data of <em>entity_handle</em> 
       /** Sets <em>number_nodes</em> equal to the number of nodes of the <em> 
@@ -273,7 +274,7 @@ public:
     virtual ErrorCode  get_connectivity( const EntityHandle entity_handle, 
                                            const EntityHandle *&connectivity, 
                                            int &num_nodes, 
-                                           bool topological_connectivity = false,
+                                           bool corners_only = false,
                                            std::vector<EntityHandle>* storage = 0
                                           ) const;
 
@@ -1134,6 +1135,8 @@ public:
   void print(const EntityHandle handle, const char *prefix,
              bool first_call = true) const;
 
+  ErrorCode print_entity_tags(std::string indent_prefix, const EntityHandle handle, TagType tp) const;
+  
   virtual ErrorCode get_last_error(std::string& info) const;
 
   virtual std::string get_error_string(const ErrorCode code) const;

@@ -3,6 +3,7 @@
 #include "MBTagConventions.hpp"
 #include "moab/CN.hpp"
 #include "moab/Range.hpp"
+#include "moab/GeomTopoTool.hpp"
 #include <math.h>
 #include <algorithm>
 
@@ -80,10 +81,12 @@ using namespace moab;
 static const char input_file_1[] = STRINGIFY(MESHDIR) "/io/test.cub";
 static const char ho_file[] = STRINGIFY(MESHDIR) "/io/ho_test.cub";
 static const char cubit12_file[] = STRINGIFY(MESHDIR) "/io/cubtest12.cub";
+static const char cubit14_file[] = STRINGIFY(MESHDIR) "/io/cubtest14.cub";
 #else
 static const char input_file_1[] = "test.cub";
 static const char ho_file[] = "ho_test.cub";
 static const char cubit12_file[] = "cubtest12.cub";
+static const char cubit12_file[] = "cubtest14.cub";
 #endif
 
 void read_file( Interface& moab, const char* input_file );
@@ -143,6 +146,7 @@ void test_hex27() { test_ho_elements(MBHEX, 27); }
 void test_multiple_files();                    
 
 void test_cubit12();
+void test_cubit14();
 
 int main()
 {
@@ -170,6 +174,7 @@ int main()
   result += RUN_TEST(test_hex27);
   result += RUN_TEST(test_multiple_files);
   result += RUN_TEST(test_cubit12);
+  result += RUN_TEST(test_cubit14);
   return result;
 }
 
@@ -1074,4 +1079,23 @@ void test_cubit12()
   Core mb_impl;
   Interface& mb = mb_impl;
   read_file( mb, cubit12_file);
+}
+
+void test_cubit14()
+{
+  Core mb_impl;
+  Interface& mb = mb_impl;
+  read_file( mb, cubit14_file);
+  // check the global id for some geometry sets
+  GeomTopoTool gtt(&mb_impl);
+  Range ranges[5];
+  ErrorCode rval = gtt.find_geomsets(ranges);
+  CHECK_ERR(rval);
+  EntityHandle set0=ranges[0][0]; // does it have a global id > 0?
+  Tag gid_tag;
+  rval = mb.tag_get_handle( "GLOBAL_ID", 1, MB_TYPE_INTEGER, gid_tag ); CHECK_ERR(rval);
+
+  int val;
+  rval = mb.tag_get_data(gid_tag, &set0, 1, &val );
+  CHECK ( val!=0 );
 }

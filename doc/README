@@ -1,0 +1,21 @@
+How to generate doxygen document for MOAB in Linux:
+
+-  Install doxygen, and include the doxygen installation path to PATH.
+
+-  After checking out moab from bitbucket, do following under moab directory:
+
+   autoreconf -fi
+   ./configure [options] --enable-docs --with-doxygen=DIR
+   make
+   make check
+   cd doc
+   doxygen user.dox
+
+(--ebable-docs indicates to check for doxygen installation under your given --with-doxygen directory or, if --with-doxygen is not given, under your PATH. If doxygen execuable is not found, it'll report error and exit configure.
+
+If you are sure doxygen is installed and put into PATH, you don't need to add --enable-docs or --with-doxygen, going to doc directory and directly applying "doxygen user.dox" should generate all the documents.)
+
+-  After doxygen is done, you should be able to open web browser, and view MOAB document at file://your_moab_dir/doc/html/index.html . 
+
+
+

@@ -566,7 +566,7 @@ void create_structured_quad_mesh( Interface& mb, int x, int y )
   std::vector<EntityHandle> verts((x+1)*(y+1));
   for (int i = 0; i <= x; ++i) {
     for (int j = 0; j<= y; ++j) {
-      double coords[3] = { i, j, z };
+      double coords[3] = { static_cast<double>(i), static_cast<double>(j), static_cast<double>(z) };
       rval = mb.create_vertex( coords, verts[i + (x+1)*j] );
       CHECK_ERR( rval );
     }

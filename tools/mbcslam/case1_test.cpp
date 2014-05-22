@@ -32,7 +32,7 @@ using namespace moab;
 double gtol = 0.0001; // this is for geometry tolerance
 std::string input_mesh_file("eulerHomme.vtk"); // input file, plain vtk, sphere-cube mesh
 double CubeSide = 6.; // the above file starts with cube side 6; radius depends on cube side
-double t = 0.1, delta_t = 0.01; // check the script
+double t = 0.1, delta_t = 0.43; // check the script
 
 ErrorCode manufacture_lagrange_mesh_on_sphere(Interface * mb,
     EntityHandle euler_set, EntityHandle & lagr_set)
@@ -166,6 +166,13 @@ int main(int argc, char **argv)
   rval = manufacture_lagrange_mesh_on_sphere(&mb, euler_set, lagrange_set);
   if (MB_SUCCESS != rval)
     return 1;
+  rval = mb.write_file("lagrIni.h5m", 0, 0, &lagrange_set, 1);
+ if (MB_SUCCESS != rval)
+   std::cout << "can't write lagr set\n";
+
+  rval = enforce_convexity(&mb, lagrange_set);
+  if (MB_SUCCESS != rval)
+    return 1;
 
   rval = mb.write_file("lagr.h5m", 0, 0, &lagrange_set, 1);
   if (MB_SUCCESS != rval)
@@ -174,9 +181,10 @@ int main(int argc, char **argv)
   Intx2MeshOnSphere worker(&mb);
 
   double radius = CubeSide / 2 * sqrt(3.); // input
+
   worker.SetRadius(radius);
 
-  worker.SetEntityType(MBQUAD);
+  //worker.SetEntityType(MBQUAD);
 
   worker.SetErrorTolerance(gtol);
   std::cout << "error tolerance epsilon_1=" << gtol << "\n";

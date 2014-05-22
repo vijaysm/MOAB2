@@ -126,7 +126,7 @@ void tag_depth( Interface& mb, Tag tag )
     if (--dim == 0)
       return; // no elements
   }
-  rval = tool.find_skin( elems, 0, verts ); check(rval);
+  rval = tool.find_skin( 0, elems, 0, verts ); check(rval);
   rval = get_adjacent_elems( mb, verts, elems ); check(rval);
   
   std::vector<int> data;

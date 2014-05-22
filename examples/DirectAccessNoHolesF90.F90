@@ -1,42 +1,41 @@
-! @example DirectAccessNoHolesF90.F90 \n
-! \brief Use direct access to MOAB data to avoid calling through API, in Fortran90 \n
-!
-! This example creates a 1d row of quad elements, such that all quad and vertex handles
-! are contiguous in the handle space and in the database.  Then it shows how to get access
-! to pointers to MOAB-native data for vertex coordinates, quad connectivity, and tag storage
-! (vertex to quad adjacency lists aren't accessible from Fortran because they are std::vector's).  
-! This allows applications to access this data directly
-! without going through MOAB's API.  In cases where the mesh is not changing (or only mesh
-! vertices are moving), this can save significant execution time in applications.
-!
-! Using direct access (or MOAB in general) from Fortran is complicated in two specific ways:
-! 1) There is no way to use arrays with specified dimension starting/ending values with ISO_C_BINDING;
-!    therefore, all arrays passed back from MOAB/iMesh must use 1-based indices; this makes it a bit
-!    more difficult to traverse the direct arrays.  In this example, I explicitly use indices that
-!    look like my_array(1+v_ind...) to remind users of this.
-! 2) Arithmetic on handles is complicated by the fact that Fortran has no unsigned integer type.  I get
-!    around this by assigning to a C-typed variable first, before the handle arithmetic.  This seems to
-!    work fine.  C-typed variables are part of the Fortran95 standard.
-!
-!  ----------------------
-!  |      |      |      |       
-!  |      |      |      | ...
-!  |      |      |      |
-!  ----------------------
-!
-!    -#  Initialize MOAB \n
-!    -#  Create a quad mesh, as depicted above
-!    -#  Create 2 dense tags (tag1, tag2) for avg position to assign to quads, and # verts per quad (tag3)
-!    -#  Get connectivity, coordinate, tag1 iterators
-!    -#  Iterate through quads, computing midpoint based on vertex positions, set on quad-based tag1
-!    -#  Iterate through vertices, summing positions into tag2 on connected quads and incrementing vertex count
-!    -#  Iterate through quads, normalizing tag2 by vertex count and comparing values of tag1 and tag2
-!
-! <b>To compile</b>: \n
-!    make DirectAccessNoHolesF90 MOAB_DIR=<installdir>  \n
-! <b>To run</b>: ./DirectAccessNoHolesF90 [-nquads <# quads>]\n
-!
-!
+!> @example DirectAccessNoHolesF90.F90
+!! \brief Use direct access to MOAB data to avoid calling through API, in Fortran90 \n
+!!
+!! This example creates a 1d row of quad elements, such that all quad and vertex handles
+!! are contiguous in the handle space and in the database.  Then it shows how to get access
+!! to pointers to MOAB-native data for vertex coordinates, quad connectivity, and tag storage
+!! (vertex to quad adjacency lists aren't accessible from Fortran because they are std::vector's).
+!! This allows applications to access this data directly
+!! without going through MOAB's API.  In cases where the mesh is not changing (or only mesh
+!! vertices are moving), this can save significant execution time in applications.
+!!
+!! Using direct access (or MOAB in general) from Fortran is complicated in two specific ways:
+!! 1) There is no way to use arrays with specified dimension starting/ending values with ISO_C_BINDING;
+!!    therefore, all arrays passed back from MOAB/iMesh must use 1-based indices; this makes it a bit
+!!    more difficult to traverse the direct arrays.  In this example, I explicitly use indices that
+!!    look like my_array(1+v_ind...) to remind users of this.
+!! 2) Arithmetic on handles is complicated by the fact that Fortran has no unsigned integer type.  I get
+!!    around this by assigning to a C-typed variable first, before the handle arithmetic.  This seems to
+!!    work fine.  C-typed variables are part of the Fortran95 standard.
+!!
+!!  ----------------------
+!!  |      |      |      |
+!!  |      |      |      | ...
+!!  |      |      |      |
+!!  ----------------------
+!!
+!!    -#  Initialize MOAB \n
+!!    -#  Create a quad mesh, as depicted above
+!!    -#  Create 2 dense tags (tag1, tag2) for avg position to assign to quads, and # verts per quad (tag3)
+!!    -#  Get connectivity, coordinate, tag1 iterators
+!!    -#  Iterate through quads, computing midpoint based on vertex positions, set on quad-based tag1
+!!    -#  Iterate through vertices, summing positions into tag2 on connected quads and incrementing vertex count
+!!    -#  Iterate through quads, normalizing tag2 by vertex count and comparing values of tag1 and tag2
+!!
+!! <b>To compile</b>: \n
+!!    make DirectAccessNoHolesF90 MOAB_DIR=<installdir>  \n
+!! <b>To run</b>: ./DirectAccessNoHolesF90 [-nquads <# quads>]\n
+!!
 
 #define CHECK(a) \
   if (a .ne. iBase_SUCCESS) call exit(a)

@@ -1,14 +1,14 @@
-/** @example DirectAccess.cpp \n
+/** @example DirectAccessWithHoles.cpp \n
  * \brief Use direct access to MOAB data to avoid calling through API \n
  *
  * This example creates a 1d row of quad elements, with a user-specified number of "holes" (missing quads) in the row:
- *
+ * \verbatim
  *  ----------------------      ----------------------      --------
  *  |      |      |      |      |      |      |      |      |      |       
  *  |      |      |      |(hole)|      |      |      |(hole)|      | ...
  *  |      |      |      |      |      |      |      |      |      |
  *  ----------------------      ----------------------      --------
- *
+ * \endverbatim
  * This makes (nholes+1) contiguous runs of quad handles in the handle space
  * This example shows how to use the xxx_iterate functions in MOAB (xxx = coords, connect, tag, adjacencies) to get 
  * direct pointer access to MOAB internal storage, which can be used without calling through the MOAB API.

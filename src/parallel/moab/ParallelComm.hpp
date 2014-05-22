@@ -107,6 +107,14 @@ namespace moab {
                                 const bool parallel = true,
                                 const bool owned_only = false);
 
+  //! assign a global id space, for largest-dimension or all entities (and
+  //! in either case for vertices too)
+  ErrorCode assign_global_ids( Range entities[],
+                               const int dimension, 
+                               const int start_id,
+                               const bool parallel,
+                               const bool owned_only);
+    
     //! check for global ids; based only on tag handle being there or not;
     //! if it's not there, create them for the specified dimensions
     //!\param owned_only If true, do not get global IDs for non-owned entities
@@ -291,26 +299,38 @@ namespace moab {
     /** \brief Exchange tags for all shared and ghosted entities
      * This function should be called collectively over the communicator for this ParallelComm.
      * If this version is called, all ghosted/shared entities should have a value for this
-     * tag (or the tag should have a default value).
-     * \param tags Vector of tag handles to be exchanged
+     * tag (or the tag should have a default value).  If the entities vector is empty, all shared entities
+     * participate in the exchange.  If a proc has no owned entities this function must still be called
+     * since it is collective.
+     * \param src_tags Vector of tag handles to be exchanged
+     * \param dst_tags Tag handles to store the tags on the non-owning procs
+     * \param entities Entities for which tags are exchanged
      */
     ErrorCode exchange_tags( const std::vector<Tag> &src_tags,
-			     const  std::vector<Tag> &dst_tags,
-			     const Range &entities);
+                             const  std::vector<Tag> &dst_tags,
+                             const Range &entities);
   
     /** \brief Exchange tags for all shared and ghosted entities
-     * This function should be called collectively over the communicator for this ParallelComm
+     * This function should be called collectively over the communicator for this ParallelComm.
+     * If the entities vector is empty, all shared entities
+     * participate in the exchange.  If a proc has no owned entities this function must still be called
+     * since it is collective.
      * \param tag_name Name of tag to be exchanged
+     * \param entities Entities for which tags are exchanged
      */
     ErrorCode exchange_tags( const char *tag_name,
-			     const Range &entities);
+                             const Range &entities);
   
     /** \brief Exchange tags for all shared and ghosted entities
-     * This function should be called collectively over the communicator for this ParallelComm
+     * This function should be called collectively over the communicator for this ParallelComm.  
+     * If the entities vector is empty, all shared entities
+     * participate in the exchange.  If a proc has no owned entities this function must still be called
+     * since it is collective.
      * \param tagh Handle of tag to be exchanged
+     * \param entities Entities for which tags are exchanged
      */
     ErrorCode exchange_tags( Tag tagh,
-			     const Range &entities);
+                             const Range &entities);
   
     /** \brief Perform data reduction operation for all shared and ghosted entities
      * This function should be called collectively over the communicator for this ParallelComm.
@@ -400,6 +420,7 @@ namespace moab {
                                   Range &proc_ents, 
                                   int resolve_dim = -1,
                                   int shared_dim = -1,
+                                  Range *skin_ents = NULL,
                                   const Tag* id_tag = 0);
   
     /** \brief Resolve shared entities between processors
@@ -418,21 +439,9 @@ namespace moab {
                                   int shared_dim = -1,
                                   const Tag* id_tag = 0);
 
-    /** \brief Resolve shared entities between processors
-     *
-     * Entity skin array is offered by user not by skinner
-     * It is used by other resolve_shared_ents functions above 
-
-     * \param skin_ents[] entity skin array by user
-     */
-    ErrorCode resolve_shared_ents(Range &proc_ents,
-				  Range skin_ents[],
-				  int resolve_dim = 3,
-				  int shared_dim = -1,
-				  const Tag* id_tag = 0);
-    
     static ErrorCode resolve_shared_ents(ParallelComm **pc, 
                                          const unsigned int np, 
+                                         EntityHandle this_set,
                                          const int to_dim);
 
     /** Remove shared sets.
@@ -491,7 +500,8 @@ namespace moab {
 
     /** \brief Get the shared processors/handles for an entity
      * Get the shared processors/handles for an entity.  Arrays must
-     * be large enough to receive data for all sharing procs.
+     * be large enough to receive data for all sharing procs.  Does *not* include
+     * this proc if only shared with one other proc.
      * \param entity Entity being queried
      * \param ps Pointer to sharing proc data
      * \param hs Pointer to shared proc handle data
@@ -648,6 +658,16 @@ namespace moab {
     Tag part_tag() { return partition_tag(); }
 
     // ==================================
+    // \section DEBUGGING AIDS
+    // ==================================
+
+    //! print contents of pstatus value in human-readable form
+    void print_pstatus(unsigned char pstat, std::string &ostr);
+
+    //! print contents of pstatus value in human-readable form to std::cut
+    void print_pstatus(unsigned char pstat);
+    
+    // ==================================
     // \section IMESHP-RELATED FUNCTIONS
     // ==================================
 
@@ -677,10 +697,6 @@ namespace moab {
                                  int& num_part_ids_out,
                                  EntityHandle remote_handles[MAX_SHARING_PROCS] = 0);
   
-    // Propogate mesh modification amongst shared entities
-    // from the onwing processor to any procs with copies.
-    ErrorCode update_shared_mesh();
-
     /** Filter the entities by pstatus tag.  
      * op is one of PSTATUS_ AND, OR, NOT; an entity is output if:
      * AND: all bits set in pstatus_val are also set on entity
@@ -849,11 +865,10 @@ namespace moab {
     // and tags the set with the procs sharing it; interface sets are optionally
     // returned; NOTE: a subsequent step is used to verify entities on the interface
     // and remove them if they're not shared
-    ErrorCode create_interface_sets(std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs,
-                                    int resolve_dim, int shared_dim);
+    ErrorCode create_interface_sets(std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs);
 
     // do the same but working straight from sharedEnts
-    ErrorCode create_interface_sets(int resolve_dim, int shared_dim);
+    ErrorCode create_interface_sets(EntityHandle this_set, int resolve_dim, int shared_dim);
 
     ErrorCode tag_shared_verts(TupleList &shared_ents,
 			       std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs,
@@ -877,7 +892,10 @@ namespace moab {
     //! set the verbosity level of output from this pcomm
     void set_debug_verbosity(int verb);
 
-    /* \brief Gather tag value from entities down to root proc
+    //! get the verbosity level of output from this pcomm
+    int get_debug_verbosity();
+
+    /* \brief Gather tag value from entities down to a specified root proc
      * This function gathers data from a domain-decomposed mesh onto a global mesh
      * represented on the root processor.  On the root, this gather mesh is distinct from
      * the root's domain-decomposed subdomain.  Entities are matched by global id, or by
@@ -888,9 +906,10 @@ namespace moab {
      * \param tag_handle Tag whose values are being gathered
      * \param id_tag Tag to use for matching entities (global id used by default)
      * \param gather_set On root, set containing global mesh onto which to put data
+     * \param root_proc_rank Rank of the specified root processor (default rank is 0)
      */
     ErrorCode gather_data(Range &gather_ents, Tag &tag_handle, 
-			  Tag id_tag = 0, EntityHandle gather_set = 0);
+			  Tag id_tag = 0, EntityHandle gather_set = 0, int root_proc_rank = 0);
 
     /* \brief communicate extra points positions on boundary
      * This function is called after intersection of 2 meshes, to settle the
@@ -1216,10 +1235,10 @@ namespace moab {
                                std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs,
                                Range &proc_verts);
   
-    ErrorCode tag_shared_ents(int resolve_dim,
-                              int shared_dim,
-                              Range *skin_ents,
-                              std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs);
+    ErrorCode get_proc_nvecs(int resolve_dim,
+                             int shared_dim,
+                             Range *skin_ents,
+                             std::map<std::vector<int>, std::vector<EntityHandle> > &proc_nvecs);
 
     // after verifying shared entities, now parent/child links between sets can be established
     ErrorCode create_iface_pc_links();
@@ -1312,6 +1331,12 @@ namespace moab {
                                  const int num_ps,
                                  const unsigned char add_pstat);
   
+    ErrorCode update_remote_data_old(const EntityHandle new_h,
+                                     const int *ps,
+                                     const EntityHandle *hs,
+                                     const int num_ps,
+                                     const unsigned char add_pstat);
+    
     /** \brief Set pstatus tag interface bit on entities in sets passed in
      */
     ErrorCode tag_iface_entities();

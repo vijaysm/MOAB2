@@ -2,7 +2,7 @@
  * Description: read a mesh, get the entities.\n
  * HelloMOAB is a simple test file which is used to read meshes from VTK file and test how many entities there are.\n
  *
- * To run: ./HelloMOAB <meshfile>\n
+ * To run: ./HelloMOAB [meshfile]\n
  * (default values can run if users don't specify a mesh file)
  */
 
@@ -13,6 +13,10 @@
 
 using namespace moab;
 using namespace std;
+
+#ifndef MESH_DIR
+#define MESH_DIR "."
+#endif
 
 string test_file_name = string(MESH_DIR) + string("/3k-tri-sphere.vtk");
 
@@ -27,38 +31,34 @@ int main( int argc, char** argv )
   }  
     //load the mesh from vtk file
   ErrorCode rval = iface->load_mesh( test_file_name.c_str() );
-  assert( rval == MB_SUCCESS);
+  assert(rval == MB_SUCCESS);
 
-    //get verts entities
+    // get verts entities, by type
   Range verts;
   rval = iface->get_entities_by_type(0, MBVERTEX, verts);
-  assert( rval == MB_SUCCESS);
-    //get edge entities
+  assert(rval == MB_SUCCESS);
+    //get edge entities, by type
   Range edges;
   rval = iface->get_entities_by_type(0, MBEDGE, edges);
   assert(rval == MB_SUCCESS);
 
-    //get triangular entities
-  Range tri;
-  rval = iface->get_entities_by_type(0, MBTRI, tri);
-  assert( rval == MB_SUCCESS);
-
-    //get quad entities
-  Range quads;
-  rval = iface->get_entities_by_type(0, MBQUAD, quads);
+    // get faces, by dimension, so we stay generic to entity type
+  Range faces;
+  rval = iface->get_entities_by_dimension(0, 2, faces);
   assert(rval == MB_SUCCESS);
 
-    //get hex entities
-  Range hex;
-  rval = iface->get_entities_by_type(0, MBHEX, hex);
+    //get regions, by dimension, so we stay generic to entity type
+  Range elems;
+  rval = iface->get_entities_by_dimension(0, 3, elems);
   assert(rval == MB_SUCCESS);
 
    //output the number of entities
   cout << "Number of vertices is " << verts.size() <<  endl;
   cout << "Number of edges is " << edges.size() <<  endl;
-  cout << "Number of triangular faces is " << tri.size() <<  endl;
-  cout << "Number of quad faces is " << quads.size() <<  endl;
-  cout << "Number of hex is " << hex.size() <<  endl;
-  
+  cout << "Number of faces is " << faces.size() <<  endl;
+  cout << "Number of elements is " << elems.size() <<  endl;
+
+  delete iface;
+
   return 0;
 }

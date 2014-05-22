@@ -3,14 +3,7 @@
 
 #include "moab/Matrix3.hpp"
 #include "moab/CartVect.hpp"
-extern "C"{
-   #include "moab/point_locater/lotte/types.h"
-   #include "moab/point_locater/lotte/poly.h"
-   #include "moab/point_locater/lotte/tensor.h"
-   #include "moab/point_locater/lotte/findpt.h"
-   #include "moab/point_locater/lotte/extrafindpt.h"
-   #include "moab/point_locater/lotte/errmem.h"
-}
+#include "moab/FindPtFuncs.h"
 #include <sstream>
 #include <iomanip>
 #include <iostream>
@@ -61,20 +54,20 @@ class Spectral_hex_map {
     //Natural coordinates
     template< typename Moab, typename Entity_handle, 
 	      typename Points, typename Point>
-    std::pair< bool, Point> operator()( const Moab & moab,
-					const Entity_handle & h, 
+    std::pair< bool, Point> operator()( const Moab & /* moab */,
+					const Entity_handle & /* h */,
 					const Points & v, 
 					const Point & p, 
-					const double tol=1.e-6) {
-	Point result(3, 0.0);
-	/*
-      	moab.tag_get_by_ptr(_xm1Tag, &eh, 1,(const void **) &_xyz[ 0] );
-      	moab.tag_get_by_ptr(_ym1Tag, &eh, 1,(const void **) &_xyz[ 1] );
-      	moab.tag_get_by_ptr(_zm1Tag, &eh, 1,(const void **) &_xyz[ 2] );
-	*/
-	bool point_found = solve_inverse( p, result, v, tol) && 
-						is_contained( result, tol);
-	return std::make_pair( point_found, result);
+					const double tol = 1.e-6) {
+        Point result(3, 0.0);
+        /*
+        moab.tag_get_by_ptr(_xm1Tag, &eh, 1,(const void **) &_xyz[ 0] );
+        moab.tag_get_by_ptr(_ym1Tag, &eh, 1,(const void **) &_xyz[ 1] );
+        moab.tag_get_by_ptr(_zm1Tag, &eh, 1,(const void **) &_xyz[ 2] );
+        */
+        bool point_found = solve_inverse( p, result, v, tol) &&
+                  is_contained( result, tol);
+        return std::make_pair( point_found, result);
     }
 
   private:
@@ -142,17 +135,17 @@ class Spectral_hex_map {
     }
 
     template< typename Point, typename Points>
-    Point& evaluate( const Point & p, const Points & points, Point & f) {
-    	for(int d = 0; d < 3; ++d){ lagrange_0(&_ld[ d], p[ 0]); }
-	for( int d = 0; d < 3; ++d){
-		f[ d] = tensor_i3( _ld[ 0].J, _ld[ 0].n,
-			_ld[1].J, _ld[1].n,
-			_ld[2].J, _ld[2].n,
-			_xyz[ d],
-			_odwork);
-	}
-    	return f;
-   }
+    Point& evaluate( const Point & p, const Points & /* points */, Point & f) {
+      for (int d = 0; d < 3; ++d) { lagrange_0(&_ld[ d], p[ 0]); }
+      for (int d = 0; d < 3; ++d) {
+        f[ d] = tensor_i3( _ld[ 0].J, _ld[ 0].n,
+        _ld[1].J, _ld[1].n,
+        _ld[2].J, _ld[2].n,
+        _xyz[ d],
+        _odwork);
+      }
+      return f;
+    }
 
    template< typename Point, typename Field>
    double   evaluate_scalar_field(const Point & p, const Field & field) const {
@@ -190,7 +183,8 @@ class Spectral_hex_map {
          double wj= _ld[1].J[j];
          double wi= _ld[0].J[i];
          Matrix3 J(0.);
-	 for(int i = 0; i < 8; ++i){ J(i/3, i%3) = _data.jac[ i];}
+         for (int n = 0; n < 8; n++)
+           J(n/3, n%3) = _data.jac[n];
          double bm = wk*wj*wi* J.determinant();
          integral+= bm*field[index++];
          //volume +=bm;
@@ -201,23 +195,23 @@ class Spectral_hex_map {
    return integral;
  }
 
-   template< typename Point, typename Points>
-   Matrix& jacobian( const Point & p, const Points & points, Matrix & J) {
+  template< typename Point, typename Points>
+  Matrix& jacobian( const Point & /* p */, const Points & /* points */, Matrix & J) {
    	real x[ 3];
-       for(int i = 0; i < 3; ++i){ _data.elx[ i] = _xyz[ i]; }
-       opt_vol_set_intp_3(& _data,x);
-       for(int i = 0; i < 9; ++i){ J(i%3, i/3) = _data.jac[ i]; }
-       return J;
-   }
-    
+    for (int i = 0; i < 3; ++i) { _data.elx[ i] = _xyz[ i]; }
+    opt_vol_set_intp_3(& _data, x);
+    for (int i = 0; i < 9; ++i) { J(i%3, i/3) = _data.jac[ i]; }
+    return J;
+  }
+
   private:
-	bool _init;
-	int _n;
-	real * _z[ 3];
-	lagrange_data _ld[ 3];
-	opt_data_3 _data;
-	real * _odwork;
-	real * _xyz[ 3];
+  bool _init;
+  int _n;
+  real * _z[ 3];
+  lagrange_data _ld[ 3];
+  opt_data_3 _data;
+  real * _odwork;
+  real * _xyz[ 3];
 }; //Class Spectral_hex_map
 
 }// namespace element_utility

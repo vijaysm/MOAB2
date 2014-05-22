@@ -16,8 +16,10 @@
 #include "Tqdcfr.hpp"
 #include "moab/Core.hpp"
 #include "moab/Range.hpp"
-#include "FileOptions.hpp"
+#include "moab/FileOptions.hpp"
 #include <iostream>
+#include <string>
+
 
 #ifdef USE_MPI
 #include "moab_mpi.h"
@@ -37,6 +39,9 @@
 #include <sstream>
 #include <assert.h>
 #include <string.h>
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
 
 namespace moab {
 
@@ -44,6 +49,10 @@ static bool debug = false;
 //const int ACIS_DIMS[] = {-1, 3, -1, 2, -1, -1, 1, 0, -1, -1};
 const char Tqdcfr::geom_categories[][CATEGORY_TAG_SIZE] = 
 {"Vertex\0", "Curve\0", "Surface\0", "Volume\0"};
+
+// will be used in a static function, so declared outside class members :(
+// major/minor cubit version that wrote this file
+int major=-1, minor=-1;
 const EntityType Tqdcfr::group_type_to_mb_type[] = {
   MBENTITYSET, MBENTITYSET, MBENTITYSET, // group, body, volume
   MBENTITYSET, MBENTITYSET, MBENTITYSET, // surface, curve, vertex
@@ -143,14 +152,54 @@ void Tqdcfr::FREADC( unsigned num_ents ) {
   FREADCA( num_ents, &char_buf[0] );
 }
 
+// used for swapping
+static void swap8_voff(long *data)
+{
+  unsigned char tmp, *cdat = (unsigned char *) data;
+  tmp = cdat[0]; cdat[0] = cdat[7], cdat[7] = tmp;
+  tmp = cdat[1]; cdat[1] = cdat[6], cdat[6] = tmp;
+  tmp = cdat[2]; cdat[2] = cdat[5], cdat[5] = tmp;
+  tmp = cdat[3]; cdat[3] = cdat[4], cdat[4] = tmp;
+}
+static void swap4_uint(unsigned int *data)
+{
+  unsigned char tmp, *cdat = (unsigned char *) data;
+  tmp = cdat[0]; cdat[0] = cdat[3], cdat[3] = tmp;
+  tmp = cdat[1]; cdat[1] = cdat[2], cdat[2] = tmp;
+}
+/*static void swap2_ushort(unsigned short *data)
+{
+  unsigned char tmp, *cdat = (unsigned char *) data;
+  tmp = cdat[0]; cdat[0] = cdat[1], cdat[1] = tmp;
+}*/
+
 void Tqdcfr::FREADIA( unsigned num_ents, unsigned int* array ) {
   unsigned rval = fread( array, sizeof(unsigned int), num_ents, cubFile );
   IO_ASSERT( rval == num_ents );
+  if (swapForEndianness)
+  {
+    unsigned int  * pt=array;
+    for (unsigned int i=0; i<num_ents; i++ )
+    {
+      swap4_uint((unsigned int *)pt);
+      pt++;
+    }
+  }
+
 }
 
 void Tqdcfr::FREADDA( unsigned num_ents, double* array ) {
   unsigned rval = fread( array, sizeof(double), num_ents, cubFile );
   IO_ASSERT( rval == num_ents );
+  if (swapForEndianness)
+  {
+    double  * pt=array;
+    for (unsigned int i=0; i<num_ents; i++ )
+    {
+      swap8_voff((long *)pt);
+      pt++;
+    }
+  }
 }
 
 void Tqdcfr::FREADCA( unsigned num_ents, char* array ) {
@@ -170,7 +219,7 @@ ReaderIface* Tqdcfr::factory( Interface* iface )
 Tqdcfr::Tqdcfr(Interface *impl) 
     : cubFile(NULL), globalIdTag(0), geomTag(0), uniqueIdTag(0), 
       blockTag(0), nsTag(0), ssTag(0), attribVectorTag(0), entityNameTag(0),
-      categoryTag(0), hasMidNodesTag(0), printedSeqWarning(false), printedElemWarning(false)
+      categoryTag(0), hasMidNodesTag(0), swapForEndianness(false), printedSeqWarning(false), printedElemWarning(false)
 {
   assert(NULL != impl);
   mdbImpl = impl;
@@ -271,7 +320,7 @@ ErrorCode Tqdcfr::load_file(const char *file_name,
   else data_version = modelMetaData.metadataEntries[md_index].mdDblValue;
   
     // get the major/minor cubit version that wrote this file
-  int major = -1, minor = -1;
+//  int major = -1, minor = -1;
   md_index = modelMetaData.get_md_entry(2, "CubitVersion");
   if (md_index >= 0 && !modelMetaData.metadataEntries[md_index].mdStringValue.empty())
     sscanf( modelMetaData.metadataEntries[md_index].mdStringValue.c_str(), "%d.%d",
@@ -542,32 +591,55 @@ ErrorCode Tqdcfr::read_nodeset(const unsigned int nsindex,
                                       ns_entities, excl_entities);
     if (MB_SUCCESS != result) return result;
   }
-
     // check for more data
   if (num_read < nodeseth->nsLength) {
     FREADC(2); num_read += 2;
     if (char_buf[0] == 'i' && char_buf[1] == 'd') {
       FREADI(1); num_read += sizeof(int);
       //uid = int_buf[0];
-    }
-    
-    if (num_read < nodeseth->nsLength) {
-        // check for bc_data
-      FREADC(2); num_read += 2;
+    } else {
       if (char_buf[0] == 'b' && char_buf[1] == 'c') {
-        FREADI(1); num_read += sizeof(int);
-        int num_bcs = int_buf[0];
+        FREADI(1); num_read += sizeof(int); 
+        int num_bcs = uint_buf[0]; 
         bc_data.resize(num_bcs);
         FREADCA(num_bcs, &bc_data[0]); num_read += num_bcs;
       }
     }
   }
 
+  if(debug) { 
+    nodeseth->print(); 
+    if(!bc_data.empty()) {
+      std::cout << "bc_data = ";
+      std::vector<char>::iterator vit = bc_data.begin();
+      for(;vit!=bc_data.end();vit++) {
+	std::cout << std::hex << (int)((unsigned char)*vit) << " ";
+      }
+      std::cout << ": ";
+      vit = bc_data.begin();
+      for(;vit!=bc_data.end();vit++) {
+	std::cout << *vit;
+      }
+      std::cout << std::endl;
+    }
+  } 
+
     // and put entities into this nodeset's set
   ErrorCode result = put_into_set(nodeseth->setHandle, ns_entities, excl_entities);
   if (MB_SUCCESS != result) return result;
 
   result = get_names(model->nodesetMD, nsindex, nodeseth->setHandle);
+  if (MB_SUCCESS != result) return result;
+
+  const int def_bc_data_len = 0;
+  std::string tag_name = std::string(DIRICHLET_SET_TAG_NAME)+"__BC_DATA";
+  Tag nbc_data;
+  result = mdbImpl->tag_get_handle(tag_name.c_str(),def_bc_data_len,MB_TYPE_OPAQUE,
+    nbc_data,MB_TAG_CREAT|MB_TAG_SPARSE|MB_TAG_BYTES|MB_TAG_VARLEN,NULL); 
+  if (MB_SUCCESS != result) return result;
+  void const* tag_data[] = { &(bc_data[0]) };
+  int tag_size = bc_data.size();
+  result = mdbImpl->tag_set_by_ptr(nbc_data,&nodeseth->setHandle,1,tag_data,&tag_size);
   if (MB_SUCCESS != result) return result;
   
   return result;
@@ -676,22 +748,48 @@ ErrorCode Tqdcfr::read_sideset(const unsigned int ssindex,
     if (char_buf[0] == 'i' && char_buf[1] == 'd') {
       FREADI(1); num_read += sizeof(int);
       //uid = int_buf[0];
-    }
-    
-    if (num_read < sideseth->ssLength) {
+    } else {
         // check for bc_data
-      FREADC(2); num_read += 2;
       if (char_buf[0] == 'b' && char_buf[1] == 'c') {
         FREADI(1); num_read += sizeof(int);
-        int num_bcs = int_buf[0];
+        int num_bcs = uint_buf[0];
         bc_data.resize(num_bcs);
         FREADCA(num_bcs, &bc_data[0]); num_read += num_bcs;
       }
     }
   }
 
+  if(debug) { 
+    sideseth->print(); 
+    if(!bc_data.empty()) {
+      std::cout << "bc_data = ";
+      std::vector<char>::iterator vit = bc_data.begin();
+      for(;vit!=bc_data.end();vit++) {
+	std::cout << std::hex << (int)((unsigned char)*vit) << " ";
+      }
+      std::cout << ": ";
+      vit = bc_data.begin();
+      for(;vit!=bc_data.end();vit++) {
+	std::cout << *vit;
+      }
+      std::cout << std::endl;
+    }
+  } 
+
   result = get_names(model->sidesetMD, ssindex, sideseth->setHandle);
   if (MB_SUCCESS != result) return result;
+
+  const int def_bc_data_len = 0;
+  std::string tag_name = std::string(NEUMANN_SET_TAG_NAME)+"__BC_DATA";
+  Tag nbc_data;
+  result = mdbImpl->tag_get_handle(tag_name.c_str(),def_bc_data_len,MB_TYPE_OPAQUE,
+    nbc_data,MB_TAG_CREAT|MB_TAG_SPARSE|MB_TAG_BYTES|MB_TAG_VARLEN,NULL); 
+  if (MB_SUCCESS != result) return result;
+  void const* tag_data[] = { &(bc_data[0]) };
+  int tag_size = bc_data.size();
+  result = mdbImpl->tag_set_by_ptr(nbc_data,&sideseth->setHandle,1,tag_data,&tag_size);
+  if (MB_SUCCESS != result) return result;
+
   
   return MB_SUCCESS;
 }
@@ -819,6 +917,7 @@ ErrorCode Tqdcfr::read_block(const unsigned int blindex,
                              Tqdcfr::ModelEntry *model,
                              Tqdcfr::BlockHeader *blockh)  
 {
+
   if (blockh->memCt == 0) return MB_SUCCESS;
   
     // position file
@@ -848,24 +947,20 @@ ErrorCode Tqdcfr::read_block(const unsigned int blindex,
   ErrorCode result = put_into_set(blockh->setHandle, block_entities, excl_entities);
   if (MB_SUCCESS != result) return result;
   
-    // read attribs if there are any
-  if (blockh->attribOrder > 0) {
-    Tag block_attribs;
-    
-    FREADD(blockh->attribOrder); num_read += sizeof(double);
-      // now do something with them...
-      // This code seems broken.  It is apparently supposed to read 
-      // blockh->attribOrder values for each block and store them in
-      // a tag.  However, blockh->attribOrder is not a constant 
-      // so the same fixed-length tag cannot be used for all blocks.  
-      // For now, just store one value, as that was what the buggy code
-      // previously did.
-    result = mdbImpl->tag_get_handle("Block_Attributes", 1/*blockh->attribOrder*/, 
-                                 MB_TYPE_DOUBLE, block_attribs, 
-                                 MB_TAG_SPARSE|MB_TAG_CREAT);
+  // read attribs if there are any
+  Tag block_attribs;
+  {
+    int def_block_attributes_length = 0;
+    result = mdbImpl->tag_get_handle(BLOCK_ATTRIBUTES,def_block_attributes_length,MB_TYPE_DOUBLE,
+      block_attribs,MB_TAG_CREAT|MB_TAG_SPARSE|MB_TAG_VARLEN,NULL); 
     if (MB_SUCCESS != result && MB_ALREADY_ALLOCATED != result) return result;
-    result = mdbImpl->tag_set_data(block_attribs, &(blockh->setHandle), 1,
-                                   &(dbl_buf[0]));
+  }
+  if (blockh->attribOrder > 0) {
+     
+    FREADD(blockh->attribOrder); num_read += sizeof(double);
+    void const* tag_data[] = { &dbl_buf[0] };
+    int tag_sizes[] = { static_cast<int>(blockh->attribOrder) };
+    result = mdbImpl->tag_set_by_ptr(block_attribs,&(blockh->setHandle),1,tag_data,tag_sizes);
     if (MB_SUCCESS != result) return result;
   }
 
@@ -875,17 +970,6 @@ ErrorCode Tqdcfr::read_block(const unsigned int blindex,
     if (char_buf[0] == 'i' && char_buf[1] == 'd') {
       FREADI(1); num_read += sizeof(int);
       //uid = int_buf[0];
-    }
-    
-    if (num_read < blockh->blockLength) {
-        // check for bc_data
-      FREADC(2); num_read += 2;
-      if (char_buf[0] == 'b' && char_buf[1] == 'c') {
-        FREADI(1); num_read += sizeof(int);
-        int num_bcs = int_buf[0];
-        bc_data.resize(num_bcs);
-        FREADCA(num_bcs, &bc_data[0]); num_read += num_bcs;
-      }
     }
   }
   
@@ -1415,7 +1499,8 @@ ErrorCode Tqdcfr::read_elements(Tqdcfr::ModelEntry *model,
 
       // get the connectivity array
     unsigned int total_conn = num_elem * nodes_per_elem;
-    
+    if(major >=14)
+      FREADI(num_elem);// we need to skip num_elem in advance, it looks like
     FREADI(total_conn);
 
       // post-process connectivity into handles
@@ -1533,13 +1618,26 @@ ErrorCode Tqdcfr::read_file_header()
 {
     // read file header
   FSEEK(4);
-  FREADI(6);
-  fileTOC.fileEndian = uint_buf[0];
-  fileTOC.fileSchema = uint_buf[1];
-  fileTOC.numModels = uint_buf[2];
-  fileTOC.modelTableOffset = uint_buf[3];
-  fileTOC.modelMetaDataOffset = uint_buf[4];
-  fileTOC.activeFEModel = uint_buf[5];
+  // read tthe first int from the file
+  // if it is 0, it is littleEndian
+  unsigned rval = fread( &fileTOC.fileEndian, sizeof(unsigned int), 1, cubFile );
+  IO_ASSERT( rval == 1 );
+#ifdef WORDS_BIGENDIAN
+  if (fileTOC.fileEndian==0)
+    swapForEndianness=true;
+#else
+  if (fileTOC.fileEndian!=0)
+    swapForEndianness=true;
+#endif
+  if (debug)
+    std::cout << " swapping ? " << swapForEndianness << "\n";
+  FREADI(5);
+  //fileTOC.fileEndian = uint_buf[0];
+  fileTOC.fileSchema = uint_buf[0];
+  fileTOC.numModels = uint_buf[1];
+  fileTOC.modelTableOffset = uint_buf[2];
+  fileTOC.modelMetaDataOffset = uint_buf[3];
+  fileTOC.activeFEModel = uint_buf[4];
   if (debug) fileTOC.print();
 
   return MB_SUCCESS;
@@ -1726,7 +1824,12 @@ ErrorCode Tqdcfr::GeomHeader::read_info_header(const unsigned int model_offset,
       geom_headers[i].maxDim = std::max(geom_headers[i].maxDim, 
                                         (int)CN::Dimension(elem_type));
       if (j < geom_headers[i].elemTypeCt-1) 
-        instance->FREADI(num_elem + num_elem*nodes_per_elem);
+      {
+        int num_skipped_ints = num_elem + num_elem*nodes_per_elem;
+        if (major>=14)
+          num_skipped_ints+=num_elem;
+        instance->FREADI(num_skipped_ints);
+      }
     }
     
   }
@@ -1822,6 +1925,20 @@ ErrorCode Tqdcfr::BlockHeader::read_info_header(const double data_version,
     block_headers[i].blockMat = instance->uint_buf[9];
     block_headers[i].blockLength = instance->uint_buf[10];
     block_headers[i].blockDim = instance->uint_buf[11];
+
+    Tag bhTag_header;
+    {
+      std::vector<int> def_uint_zero(3,0);
+      result = instance->mdbImpl->tag_get_handle(BLOCK_HEADER,3*sizeof(unsigned int),MB_TYPE_INTEGER,
+	bhTag_header,MB_TAG_CREAT|MB_TAG_SPARSE|MB_TAG_BYTES,&def_uint_zero[0]); 
+      if (MB_SUCCESS != result) return result;
+      int block_header_data[] = { static_cast<int>(block_headers[i].blockCol), static_cast<int>(block_headers[i].blockMat), 
+                                  static_cast<int>(block_headers[i].blockDim) }; 
+      result = instance->mdbImpl->tag_set_data(bhTag_header,&(block_headers[i].setHandle), 1,
+					      block_header_data);
+    }
+
+    if (MB_SUCCESS != result) return result;
 
       // adjust element type for data version; older element types didn't include
       // 4 new trishell element types
@@ -1928,6 +2045,7 @@ ErrorCode Tqdcfr::NodesetHeader::read_info_header(const unsigned int model_offse
                                              &(nodeset_headers[i].setHandle), 1, 
                                              dirichlet_category);
     if (MB_SUCCESS != result) return result;
+
         
   }
 
@@ -2211,6 +2329,8 @@ ErrorCode Tqdcfr::read_acis_records( const char* sat_filename )
       
         // get next occurrence of '#' (record terminator)
       ret = strchr(&(char_buf[buf_pos]), '#');
+      while (ret && (unsigned int)(ret+1-&char_buf[0]) < bytes_left && *(ret+1) != '\n')
+        ret = strchr(ret+1, '#');
       if (NULL != ret) {
           // grab the string (inclusive of the record terminator and the line feed) and complete the record
         int num_chars = ret-&(char_buf[buf_pos])+2;
@@ -2350,7 +2470,10 @@ ErrorCode Tqdcfr::parse_acis_attribs(const unsigned int entity_rec_num,
     }
     else if (strncmp(records[current_attrib].att_string.c_str(), "UNIQUE_ID", 9) == 0) {
         // parse uid
-      num_read = sscanf(records[current_attrib].att_string.c_str(), "UNIQUE_ID 1 0 1 %d", &uid);
+      if (major >=14) // change of format for cubit 14:
+        num_read =sscanf(records[current_attrib].att_string.c_str(), "UNIQUE_ID 0 1 %d", &uid);
+      else
+        num_read = sscanf(records[current_attrib].att_string.c_str(), "UNIQUE_ID 1 0 1 %d", &uid);
       if (1 != num_read) return MB_FAILURE;
     }
     else if (strncmp(records[current_attrib].att_string.c_str(), "COMPOSITE_ATTRIB @9 UNIQUE_ID", 29) == 0) {
@@ -2391,6 +2514,11 @@ ErrorCode Tqdcfr::parse_acis_attribs(const unsigned int entity_rec_num,
   if (records[entity_rec_num].entity == 0) {
     records[entity_rec_num].entity = uidSetMap[uid];
   }
+
+  if (0==records[entity_rec_num].entity)
+    return MB_SUCCESS; // we do not have a MOAB entity for this, skip
+
+  //assert(records[entity_rec_num].entity);
   
     // set the id
   if (id != -1) {
@@ -2674,7 +2802,7 @@ void Tqdcfr::BlockHeader::print()
   std::cout << "blockDim = " << blockDim << std::endl;
   std::cout << "setHandle = " << setHandle << std::endl;
   std::cout << "blockEntityType = " << blockEntityType << std::endl;
-    }
+}
 
 Tqdcfr::NodesetHeader::NodesetHeader()
     : nsID(0), memCt(0), memOffset(0), memTypeCt(0), pointSym(0), nsCol(0), nsLength(0),
@@ -2691,7 +2819,7 @@ void Tqdcfr::NodesetHeader::print()
   std::cout << "nsCol = " << nsCol << std::endl;
   std::cout << "nsLength = " << nsLength << std::endl;
   std::cout << "setHandle = " << setHandle << std::endl;
-    }
+}
 
 Tqdcfr::SidesetHeader::SidesetHeader()
     : ssID(0), memCt(0), memOffset(0), memTypeCt(0), numDF(0), ssCol(0), useShell(0), ssLength(0),
@@ -2797,10 +2925,10 @@ using namespace moab;
 int main(int argc, char* argv[])
 {
 #ifdef USE_MPI
-  int err = MPI_Init(&argc, &argv);
+  MPI_Init(&argc, &argv);
 #endif
     // Check command line arg
-  const char* file = STRINGIFY(SRCDIR) "/brick_cubit10.2.cub";
+  const char* file = STRINGIFY(MESHDIR) "/io/brick_cubit10.2.cub";
   if (argc < 2)
   {
     std::cout << "Usage: tqdcfr <cub_file_name>" << std::endl;
@@ -2819,9 +2947,9 @@ int main(int argc, char* argv[])
     std::cout << "Success." << std::endl;
   else {
     std::cout << "load_file returned error:" << std::endl;
-    std::string err;
-    result = my_impl->get_last_error(err);
-    if (MB_SUCCESS == result) std::cout << err << std::endl;
+    std::string errs;
+    result = my_impl->get_last_error(errs);
+    if (MB_SUCCESS == result) std::cout << errs << std::endl;
     else std::cout << "(no message)" << std::endl;
   }
 

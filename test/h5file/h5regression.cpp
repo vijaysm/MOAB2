@@ -3,7 +3,7 @@
 #include "moab/Range.hpp"
 #include "moab/ReadUtilIface.hpp"
 #include "WriteHDF5.hpp"
-#include "FileOptions.hpp"
+#include "moab/FileOptions.hpp"
 
 #ifdef USE_MPI
 #include "moab_mpi.h"

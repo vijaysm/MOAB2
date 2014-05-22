@@ -30,6 +30,8 @@
 #include "moab/CartVect.hpp"
 #include "moab/TupleList.hpp"
 
+#include <sstream>
+
 namespace moab {
 
 class ParallelComm;
@@ -37,6 +39,8 @@ class ParallelComm;
 class AdaptiveKDTree;
   
 class TupleList;
+
+class Error;
 
 class Coupler
 {
@@ -523,28 +527,10 @@ private:
   void * _spectralTarget;
   moab::Tag _xm1Tag, _ym1Tag, _zm1Tag;
   int _ntot;
-};
 
-inline ErrorCode Coupler::interpolate(Coupler::Method method,
-                                      const std::string &interp_tag,
-                                      double *interp_vals,
-                                      TupleList *tl,
-                                      bool normalize)
-{
-  Tag tag;
-  ErrorCode result ;
-  if (_spectralSource)
-  {
-    result = mbImpl->tag_get_handle(interp_tag.c_str(), _ntot, MB_TYPE_DOUBLE, tag);
-    if (MB_SUCCESS != result) return result;
-  }
-  else
-  {
-    result = mbImpl->tag_get_handle(interp_tag.c_str(), 1, MB_TYPE_DOUBLE, tag);
-    if (MB_SUCCESS != result) return result;
-  }
-  return interpolate(method, tag, interp_vals, tl, normalize);
-}
+    // error object used to set last error on interface
+  Error *mError;
+};
   
 inline ErrorCode Coupler::interpolate(Coupler::Method method,
                                       Tag tag,

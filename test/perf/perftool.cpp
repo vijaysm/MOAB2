@@ -266,7 +266,7 @@ void skin_common( int interval, int dim, int num, bool use_adj )
   Skinner tool(gMB);
   
   t = clock();
-  rval = tool.find_skin( elems, true, verts, 0, use_adj, false );
+  rval = tool.find_skin( 0, elems, true, verts, 0, use_adj, false );
   t = clock() - t;
   if (MB_SUCCESS != rval) {
     std::cerr << "Search for skin vertices failed" << std::endl;
@@ -288,7 +288,7 @@ void skin_common( int interval, int dim, int num, bool use_adj )
     blockelems.merge( it, end );
     it = end;
     tt = clock();
-    rval = tool.find_skin( blockelems, true, verts, 0, use_adj, false );
+    rval = tool.find_skin( 0, blockelems, true, verts, 0, use_adj, false );
     t += clock() - tt;
     if (MB_SUCCESS != rval) {
       std::cerr << "Search for skin vertices failed" << std::endl;
@@ -312,7 +312,7 @@ void skin_common( int interval, int dim, int num, bool use_adj )
   
     skin.clear();
     t = clock();
-    rval = tool.find_skin( elems, false, skin, 0, use_adj, true );
+    rval = tool.find_skin( 0, elems, false, skin, 0, use_adj, true );
     t = clock() - t;
     if (MB_SUCCESS != rval) {
       std::cerr << "Search for skin vertices failed" << std::endl;
@@ -330,7 +330,7 @@ void skin_common( int interval, int dim, int num, bool use_adj )
       blockelems.merge( it, end );
       it = end;
       tt = clock();
-      rval = tool.find_skin( blockelems, false, skin, 0, use_adj, true );
+      rval = tool.find_skin( 0, blockelems, false, skin, 0, use_adj, true );
       t += clock() - tt;
       if (MB_SUCCESS != rval) {
         std::cerr << "Search for skin elements failed" << std::endl;

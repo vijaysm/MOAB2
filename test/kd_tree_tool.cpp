@@ -4,10 +4,12 @@
 #include "moab/GeomUtil.hpp"
 #include "Internals.hpp"
 #include "moab/Range.hpp"
+#include "moab/FileOptions.hpp"
 #include <iostream>
 #include <iomanip>
 #include <cstdio>
 #include <limits>
+#include <sstream>
 #include <stdlib.h>
 #include <time.h>
 #if !defined(_MSC_VER) && !defined(__MINGW32__)
@@ -24,27 +26,14 @@ const char* TAG_NAME = "TREE_CELL";
 std::string clock_to_string( clock_t t );
 std::string mem_to_string( unsigned long mem );
 
-void build_tree( Interface* interface, const Range& elems,
-                 AdaptiveKDTree::Settings settings, 
-                 unsigned meshset_flags );
-void build_grid( Interface* iface,
-                 AdaptiveKDTree::Settings settings,
-                 unsigned meshset_flags,
-                 const double dims[3] );
+void build_tree( Interface* interface, const Range& elems, FileOptions &opts);
+void build_grid( Interface* iface, const double dims[3] );
 void delete_existing_tree( Interface* interface );
 void print_stats( Interface* interface );
 void tag_elements( Interface* interface );
 void tag_vertices( Interface* interface );
 void write_tree_blocks( Interface* interface, const char* file );
 
-static const char* ds( AdaptiveKDTree::CandidatePlaneSet scheme )
-{
-  static const char def[] = " (default)";
-  const static char non[] = "";
-  AdaptiveKDTree::Settings st;
-  return scheme == st.candidatePlaneSet ? def : non;
-}
-  
 static void usage( bool err = true )
 {
   std::ostream& s = err ? std::cerr : std::cout;
@@ -52,17 +41,16 @@ static void usage( bool err = true )
     << "kd_tree_tool [-d <int>] -G <dims> [-s|-S] <output file>" << std::endl
     << "kd_tree_tool [-h]" << std::endl;
   if (!err) {
-    AdaptiveKDTree::Settings st;
     s << "Tool to build adaptive kd-Tree" << std::endl;
-    s << "  -d <int>  Specify maximum depth for tree. Default: " << st.maxTreeDepth << std::endl
-      << "  -n <int>  Specify maximum entities per leaf. Default: " << st.maxEntPerLeaf << std::endl
+    s << "  -d <int>  Specify maximum depth for tree. Default: 30"<< std::endl
+      << "  -n <int>  Specify maximum entities per leaf. Default: 6" << std::endl
       << "  -2        Build tree from surface elements. Default: yes" << std::endl
       << "  -3        Build tree from volume elements. Default: yes" << std::endl
-      << "  -u        Use 'SUBDIVISION' scheme for tree construction" << ds(AdaptiveKDTree::SUBDIVISION) << std::endl
-      << "  -p        Use 'SUBDIVISION_SNAP' tree construction algorithm." << ds(AdaptiveKDTree::SUBDIVISION_SNAP) << std::endl
-      << "  -m        Use 'VERTEX_MEDIAN' tree construction algorithm." << ds(AdaptiveKDTree::VERTEX_MEDIAN) << std::endl
-      << "  -v        Use 'VERTEX_SAMPLE' tree construction algorithm." << ds(AdaptiveKDTree::VERTEX_SAMPLE) << std::endl
-      << "  -N <int>  Specify candidate split planes per axis.  Default: " << st.candidateSplitsPerDir << std::endl
+      << "  -u        Use 'SUBDIVISION' scheme for tree construction" << std::endl
+      << "  -p        Use 'SUBDIVISION_SNAP' tree construction algorithm." << std::endl
+      << "  -m        Use 'VERTEX_MEDIAN' tree construction algorithm." << std::endl
+      << "  -v        Use 'VERTEX_SAMPLE' tree construction algorithm." << std::endl
+      << "  -N <int>  Specify candidate split planes per axis.  Default: 3" << std::endl
       << "  -t        Tag elements will tree cell number." << std::endl
       << "  -T        Write tree boxes to file." << std::endl
       << "  -G <dims> Generate grid - no input elements.  Dims must be " << std::endl
@@ -74,6 +62,7 @@ static void usage( bool err = true )
   exit( err );
 }
 
+/*
 #if !defined(_MSC_VER) && !defined(__MINGW32__)
 static void memory_use( unsigned long& vsize, unsigned long& rss )
 {
@@ -99,6 +88,7 @@ static void memory_use( unsigned long& vsize, unsigned long& rss )
 static void memory_use( unsigned long& vsize, unsigned long& rss )
   { vsize = rss = 0; }
 #endif
+*/
 
 static int parseint( int& i, int argc, char* argv[] )
 {
@@ -162,8 +152,7 @@ int main( int argc, char* argv[] )
   const char* input_file = 0;
   const char* output_file = 0;
   const char* tree_file = 0;
-  AdaptiveKDTree::Settings settings;
-  unsigned meshset_flags = MESHSET_SET;
+  std::ostringstream options;
   bool tag_elems = false;
   clock_t load_time, build_time, stat_time, tag_time, write_time, block_time;
   bool make_grid = false;
@@ -186,15 +175,15 @@ int main( int argc, char* argv[] )
     switch (argv[i][1]) {
       case '2': surf_elems = true;                                  break;
       case '3':  vol_elems = true;                                  break;
-      case 'S': meshset_flags = MESHSET_ORDERED;                    break;
-      case 's': meshset_flags = MESHSET_SET;                        break;
-      case 'd': settings.maxTreeDepth  = parseint( i, argc, argv ); break;
-      case 'n': settings.maxEntPerLeaf = parseint( i, argc, argv ); break;
-      case 'u': settings.candidatePlaneSet = AdaptiveKDTree::SUBDIVISION;      break;
-      case 'p': settings.candidatePlaneSet = AdaptiveKDTree::SUBDIVISION_SNAP; break;
-      case 'm': settings.candidatePlaneSet = AdaptiveKDTree::VERTEX_MEDIAN;    break;
-      case 'v': settings.candidatePlaneSet = AdaptiveKDTree::VERTEX_SAMPLE;    break;
-      case 'N': settings.candidateSplitsPerDir = parseint( i, argc, argv );      break;
+      case 'S': options << "MESHSET_FLAGS=" << MESHSET_ORDERED << ";"; break;
+      case 's': break;
+      case 'd': options << "MAX_DEPTH=" << parseint( i, argc, argv ) << ";"; break;
+      case 'n': options << "MAX_PER_LEAF=" << parseint( i, argc, argv ) << ";"; break;
+      case 'u': options << "CANDIDATE_PLANE_SET=" << AdaptiveKDTree::SUBDIVISION << ";";      break;
+      case 'p': options << "CANDIDATE_PLANE_SET=" << AdaptiveKDTree::SUBDIVISION_SNAP << ";"; break;
+      case 'm': options << "CANDIDATE_PLANE_SET=" << AdaptiveKDTree::VERTEX_MEDIAN << ";";    break;
+      case 'v': options << "CANDIDATE_PLANE_SET=" << AdaptiveKDTree::VERTEX_SAMPLE << ";";    break;
+      case 'N': options << "SPLITS_PER_DIR=" << parseint( i, argc, argv ) << ";"; break;
       case 't': tag_elems = true;                                   break;
       case 'T': tree_file = argv[++i];                              break;
       case 'G': make_grid = true; parsedims( i, argc, argv, dims ); break;
@@ -202,6 +191,9 @@ int main( int argc, char* argv[] )
       default: usage();
     }
   }
+
+    // this test relies on not cleaning up trees
+  options << "CLEAN_UP=false;";
   
   if (make_grid != !output_file)
     usage();
@@ -213,13 +205,14 @@ int main( int argc, char* argv[] )
   ErrorCode rval;
   Core moab_core;
   Interface* interface = &moab_core;
+  FileOptions opts(options.str().c_str());
   
   if (make_grid) {
     load_time = 0;
     output_file = input_file;
     input_file = 0;
     build_time = clock();
-    build_grid( interface, settings, meshset_flags, dims );
+    build_grid( interface, dims );
     build_time = clock() - build_time;
   }
   else {
@@ -249,12 +242,23 @@ int main( int argc, char* argv[] )
       }
     }
     
-    build_tree( interface, elems, settings, meshset_flags );
+    build_tree( interface, elems, opts);
     build_time = clock() - build_time;
   }
   
   std::cout << "Calculating stats..." << std::endl;
-  print_stats( interface );
+  AdaptiveKDTree tool(interface);
+  Range range;
+  tool.find_all_trees( range );
+  if (range.size() != 1) {
+    if (range.empty())
+      std::cerr << "Internal error: Failed to retreive tree." << std::endl;
+    else
+      std::cerr << "Internal error: Multiple tree roots." << std::endl;
+    exit(5);
+  }
+  tool.print();
+
   stat_time = clock() - build_time;
   
   if (tag_elems) {
@@ -315,7 +319,7 @@ void delete_existing_tree( Interface* interface )
   if (!trees.empty())
     std::cout << "Destroying existing tree(s) contained in file" << std::endl;
   for (Range::iterator i = trees.begin(); i != trees.end(); ++i)
-    tool.delete_tree( *i );
+    tool.reset_tree();
   
   trees.clear();
   tool.find_all_trees( trees );
@@ -325,12 +329,8 @@ void delete_existing_tree( Interface* interface )
   }
 }
   
-void build_tree( Interface* interface,
-                 const Range& elems, 
-                 AdaptiveKDTree::Settings settings, 
-                 unsigned meshset_flags )
+void build_tree( Interface* interface, const Range& elems, FileOptions &opts)
 {
-  ErrorCode rval;
   EntityHandle root = 0;
   
   if (elems.empty()) {
@@ -338,28 +338,20 @@ void build_tree( Interface* interface,
     exit(4);
   }
   
-  AdaptiveKDTree tool(interface, 0, meshset_flags);
-  rval = tool.build_tree( elems, root, &settings );
-  if (MB_SUCCESS != rval || !root) {
-    std::cerr << "Tree construction failed." << std::endl;
-    exit(4);
-  }
+  AdaptiveKDTree tool(interface, elems, &root, &opts);
 }  
   
-void build_grid( Interface* interface, 
-                 AdaptiveKDTree::Settings settings, 
-                 unsigned meshset_flags,
-                 const double dims[3] )
+void build_grid( Interface* interface, const double dims[3] )
 {
   ErrorCode rval;
   EntityHandle root = 0;
-  AdaptiveKDTree tool(interface, 0, meshset_flags);
+  AdaptiveKDTree tool(interface);
   AdaptiveKDTreeIter iter;
   AdaptiveKDTree::Plane plane;
 
   double min[3] = { -0.5*dims[0], -0.5*dims[1], -0.5*dims[2] };
   double max[3] = {  0.5*dims[0],  0.5*dims[1],  0.5*dims[2] };
-  rval = tool.create_tree( min, max, root );
+  rval = tool.create_root( min, max, root );
   if (MB_SUCCESS != rval || !root) {
     std::cerr << "Failed to create tree root." << std::endl;
     exit(4);
@@ -371,7 +363,7 @@ void build_grid( Interface* interface,
   }
   
   do {
-    while (iter.depth() < settings.maxTreeDepth) {
+    while (iter.depth() < tool.get_max_depth()) {
       plane.norm = iter.depth() % 3;
       plane.coord = 0.5 * (iter.box_min()[plane.norm] + iter.box_max()[plane.norm]);
       rval = tool.split_leaf( iter, plane );
@@ -408,155 +400,6 @@ std::string clock_to_string( clock_t t )
   sprintf(buffer,"%0.2f%s",dt,unit);
   return buffer;
 }
-
-std::string mem_to_string( unsigned long mem )
-{
-  char unit[3] = "B";
-  if (mem > 9*1024) {
-    mem = (mem + 512) / 1024;
-    strcpy( unit, "kB" );
-  }
-  if (mem > 9*1024) {
-    mem = (mem + 512) / 1024;
-    strcpy( unit, "MB" );
-  }
-  if (mem > 9*1024) {
-    mem = (mem + 512) / 1024;
-    strcpy( unit, "GB" );
-  }
-  char buffer[256];
-  sprintf(buffer, "%lu %s", mem, unit );
-  return buffer;
-}
-
-template <typename T> 
-struct SimpleStat 
-{
-  T min, max, sum, sqr;
-  size_t count;
-  SimpleStat();
-  void add( T value );
-  double avg() const { return (double)sum / count; }
-  double rms() const { return sqrt( (double)sqr / count ); }
-  double dev() const { return sqrt( (count * (double)sqr - (double)sum * (double)sum) / ((double)count * (count - 1) ) ); }
-};
-
-template <typename T> SimpleStat<T>::SimpleStat()
-  : min(  std::numeric_limits<T>::max() ),
-    max(  std::numeric_limits<T>::min() ),
-    sum( 0 ), sqr( 0 ), count( 0 )
-  {}
-
-template <typename T> void SimpleStat<T>::add( T value )
-{
-  if (value < min)
-    min = value;
-  if (value > max)
-    max = value;
-  sum += value;
-  sqr += value*value;
-  ++count;
-}
-  
-void print_stats( Interface* interface )
-{
-  EntityHandle root;
-  Range range;
-  AdaptiveKDTree tool(interface);
-  
-  tool.find_all_trees( range );
-  if (range.size() != 1) {
-    if (range.empty())
-      std::cerr << "Internal error: Failed to retreive tree." << std::endl;
-    else
-      std::cerr << "Internal error: Multiple tree roots." << std::endl;
-    exit(5);
-  }
-  
-  root = *range.begin();
-  range.clear();
-
-  Range tree_sets, elem2d, elem3d, verts, all;
-  //interface->get_child_meshsets( root, tree_sets, 0 );
-  interface->get_entities_by_type( 0, MBENTITYSET, tree_sets );
-  tree_sets.erase( tree_sets.begin(), Range::lower_bound( tree_sets.begin(), tree_sets.end(), root ) );
-  interface->get_entities_by_dimension( 0, 2, elem2d );
-  interface->get_entities_by_dimension( 0, 3, elem3d );
-  interface->get_entities_by_type( 0, MBVERTEX, verts );
-  all.clear();
-  all.merge( verts );
-  all.merge( elem2d );
-  all.merge( elem3d );
-  tree_sets.insert( root );
-  unsigned long set_used, set_amortized, set_store_used, set_store_amortized,
-                set_tag_used, set_tag_amortized, elem_used, elem_amortized;
-  interface->estimated_memory_use( tree_sets, 
-                                   &set_used, &set_amortized, 
-                                   &set_store_used, &set_store_amortized,
-                                   0, 0, 0, 0,
-                                   &set_tag_used, &set_tag_amortized );
-  interface->estimated_memory_use( all,  &elem_used, &elem_amortized );
-  
-  int num_2d = 0, num_3d = 0;;
-  interface->get_number_entities_by_dimension( 0, 2, num_2d );
-  interface->get_number_entities_by_dimension( 0, 3, num_3d );
-  
-  double min[3] = {0,0,0}, max[3] = {0,0,0};
-  tool.get_tree_box( root, min, max );
-  double diff[3] = { max[0]-min[0], max[1]-min[1], max[2] - min[2] };
-  double tree_vol = diff[0]*diff[1]*diff[2];
-  double tree_surf_area = 2*(diff[0]*diff[1] + diff[1]*diff[2] + diff[2]*diff[0]);
-  
-  SimpleStat<unsigned> depth, size;
-  SimpleStat<double> vol, surf;
-  
-  AdaptiveKDTreeIter iter;
-  tool.get_tree_iterator( root, iter );
-  do {
-    depth.add( iter.depth() );
-    
-    int num_leaf_elem;
-    interface->get_number_entities_by_handle( iter.handle(), num_leaf_elem );
-    size.add(num_leaf_elem);
-    
-    const double* n = iter.box_min();
-    const double* x = iter.box_max();
-    double dims[3] = {x[0]-n[0], x[1]-n[1], x[2]-n[2]};
-    
-    double leaf_vol = dims[0]*dims[1]*dims[2];
-    vol.add(leaf_vol);
-    
-    double area = 2.0*(dims[0]*dims[1] + dims[1]*dims[2] + dims[2]*dims[0]);
-    surf.add(area);
-    
-  } while (MB_SUCCESS == iter.step());
-  
-  unsigned long real_rss, real_vsize;
-  memory_use( real_vsize, real_rss );
-  
-  printf("------------------------------------------------------------------\n");
-  printf("tree volume:      %f\n", tree_vol );
-  printf("total elements:   %d\n", num_2d + num_3d );
-  printf("number of leaves: %lu\n", (unsigned long)depth.count );
-  printf("number of nodes:  %lu\n", (unsigned long)tree_sets.size() );
-  printf("volume ratio:     %0.2f%%\n", 100*(vol.sum / tree_vol));
-  printf("surface ratio:    %0.2f%%\n", 100*(surf.sum / tree_surf_area));
-  printf("\nmemory:           used  amortized\n");
-  printf("            ---------- ----------\n");
-  printf("elements    %10s %10s\n",mem_to_string(elem_used).c_str(), mem_to_string(elem_amortized).c_str());
-  printf("sets (total)%10s %10s\n",mem_to_string(set_used).c_str(), mem_to_string(set_amortized).c_str());
-  printf("sets        %10s %10s\n",mem_to_string(set_store_used).c_str(), mem_to_string(set_store_amortized).c_str());
-  printf("set tags    %10s %10s\n",mem_to_string(set_tag_used).c_str(), mem_to_string(set_tag_amortized).c_str());
-  printf("total real  %10s %10s\n",mem_to_string(real_rss).c_str(), mem_to_string(real_vsize).c_str());
-  printf("\nleaf stats:        min        avg        rms        max    std.dev\n");
-  printf("            ---------- ---------- ---------- ---------- ----------\n");
-  printf("depth       %10u %10.1f %10.1f %10u %10.2f\n", depth.min, depth.avg(), depth.rms(), depth.max, depth.dev() );
-  printf("triangles   %10u %10.1f %10.1f %10u %10.2f\n", size.min, size.avg(), size.rms(), size.max, size.dev() );
-  printf("volume      %10.2g %10.2g %10.2g %10.2g %10.2g\n", vol.min, vol.avg(), vol.rms(), vol.max, vol.dev() );
-  printf("surf. area  %10.2g %10.2g %10.2g %10.2g %10.2g\n", surf.min, surf.avg(), surf.rms(), surf.max, surf.dev() );
-  printf("------------------------------------------------------------------\n");
-}
-
 
 static int hash_handle( EntityHandle handle )
 {

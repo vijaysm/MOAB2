@@ -274,7 +274,7 @@ ErrorCode OrientedBox::compute_from_vertices( OrientedBox& result,
 
     // Get axes (Eigenvectors) from covariance matrix
   double lambda[3];
-  EigenDecomp( a, lambda, result.axis );
+  moab::Matrix::EigenDecomp( a, lambda, result.axis );
   
     // Calculate center and extents of box given orientation defined by axes
   return box_from_axes( result, instance, vertices );
@@ -369,7 +369,7 @@ ErrorCode OrientedBox::compute_from_covariance_data(
 
     // get axes (Eigenvectors) from covariance matrix
   double lamda[3];
-  EigenDecomp( data.matrix, lamda, result.axis );
+  moab::Matrix::EigenDecomp( data.matrix, lamda, result.axis );
 
     // We now have only the axes.  Calculate proper center
     // and extents for enclosed points.

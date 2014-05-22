@@ -185,7 +185,8 @@ void make_mesh( Interface& iface )
   for (int z = 0; z <= dim; ++z) {
     for (int y = 0; y <= dim; ++y) {
       for (int x = 0; x <= dim; ++x) {
-        const double coords[] = {x, y, z};
+        const double coords[] = {static_cast<double>(x), static_cast<double>(y), 
+                                 static_cast<double>(z)};
         EntityHandle new_handle = 0;
         ErrorCode rval = iface.create_vertex( coords, new_handle );
         CHECK_ERR(rval);

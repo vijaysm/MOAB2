@@ -335,9 +335,9 @@ void print_partitioned_entities( Interface& moab, bool list_non_shared = false )
           else {
             buffer << rank << ":\t" << topo_names_s[t] << " " << id << ":\t"
                    << "processors ";
-            for (int j = 0; j < MAX_SHARING_PROCS; ++j)
-              if (ent_procs[j] != -1)
-                buffer << ent_procs[j] << ", ";
+            for (int k = 0; k < MAX_SHARING_PROCS; ++k)
+              if (ent_procs[k] != -1)
+                buffer << ent_procs[k] << ", ";
             if (num_owned)
               buffer << " (owned by this processor)";
             buffer << std::endl;
@@ -724,21 +724,21 @@ void test_var_length_parallel()
     const void* ptrarr[1] = { 0 };
     rval = mb.tag_get_by_ptr( vartag, &h, 1, ptrarr, &size );
     CHECK_ERR( rval );
-    const int* data = reinterpret_cast<const int*>(ptrarr[0]);
+    const int* tag_data = reinterpret_cast<const int*>(ptrarr[0]);
     CHECK( size >= 2 );
-    CHECK( NULL != data );
-    CHECK_EQUAL( size-1, data[0] );
-    CHECK( data[1] >= 0 && data[1] < numproc );
-    ++vtx_counts[data[1]];
-    for (int j = 1; j < size-1; ++j)
-      CHECK_EQUAL( data[1]+j, data[1+j] );
+    CHECK( NULL != tag_data );
+    CHECK_EQUAL( size - 1, tag_data[0] );
+    CHECK( tag_data[1] >= 0 && tag_data[1] < numproc );
+    ++vtx_counts[tag_data[1]];
+    for (int j = 1; j < size - 1; ++j)
+      CHECK_EQUAL( tag_data[1] + j, tag_data[1 + j] );
   }
   
   // Check number of vertices for each rank
   for (int j = 0; j < numproc; ++j) {
     // Only root should have data for other processors.
     if (rank == 0 || rank == j) 
-      CHECK_EQUAL( j+1, vtx_counts[j] );
+      CHECK_EQUAL( j + 1, vtx_counts[j] );
     else 
       CHECK_EQUAL( 0, vtx_counts[j] );
   }
@@ -790,7 +790,8 @@ void create_input_file( const char* file_name,
     for (int j = 0; j < iv; ++j) {
       int start = idx;
       for (int k = 0; k < iv; ++k) {
-        const double coords[3] = {i, j, k};
+        const double coords[3] = {static_cast<double>(i), static_cast<double>(j), 
+                                  static_cast<double>(k)};
         rval = mb.create_vertex( coords, verts[idx] );
         CHECK_ERR(rval);
         if (ijk_vert_tag) {
@@ -856,7 +857,7 @@ void create_input_file( const char* file_name,
   if (create_bcsets) {
       // neumann set
     Range skin_ents;
-    rval = Skinner(&mb).find_skin(&elems[0], elems.size(), false, skin_ents);
+    rval = Skinner(&mb).find_skin(0, &elems[0], elems.size(), false, skin_ents);
     CHECK_ERR(rval);
     EntityHandle bcset;
     rval = mb.create_meshset( MESHSET_SET, bcset);
@@ -900,7 +901,7 @@ void create_input_file( const char* file_name,
   CHECK_ERR(rval);
 }
 
-void test_read_elements_common( bool by_rank, int intervals, bool print_time,
+void test_read_elements_common( bool by_rank, int intervals, bool /* print_time */,
                                 const char* extra_opts )
 {
   const char *file_name = by_rank ? "test_read_rank.h5m" : "test_read.h5m";
@@ -1204,7 +1205,7 @@ void test_read_sets_common( const char* extra_opts )
 
 void test_read_bc_sets()
 {
-  const char tag_name[] = "test_tag_s";
+  //const char tag_name[] = "test_tag_s";
   const char file_name[] = "test_read_sets.h5m";
   int numproc, rank;
   MPI_Comm_size( MPI_COMM_WORLD, &numproc );
@@ -1279,7 +1280,7 @@ void test_write_different_element_types()
   const int nvert = verts[rank%ntypes];
   std::vector<EntityHandle> conn(nvert);
   for (int i = 0; i < nvert; ++i) {
-    const double coords[] = { rank, i, 0 };
+    const double coords[] = { static_cast<double>(rank), static_cast<double>(i), 0 };
     rval = mb.create_vertex( coords, conn[i] );
     CHECK_ERR(rval);
   }
@@ -1323,8 +1324,10 @@ Tag get_tag( Interface& mb, int rank, bool create )
   std::ostringstream name;
   name << "TestTag" << rank;
   const void* defval = 0;
-  const int defint[] = { rank, rank/2, rank+1, rank-1 };
-  const double defreal[] = { 0.1*rank, 1.0/rank, -rank, rank };
+  const int defint[] = { static_cast<int>(rank), static_cast<int>(rank/2), 
+                         static_cast<int>(rank+1), static_cast<int>(rank-1) };
+  const double defreal[] = { 0.1*rank, 1.0/rank, 
+                             static_cast<double>(-rank), static_cast<double>(rank) };
   const int defhandle[] = { 0, 0, 0, 0 };
   const unsigned char defbit = 0x1;
   const char defopq[] = "Jason";
@@ -1384,14 +1387,14 @@ void test_write_polygons()
   
     // create a polygon on each process
   const double r = 0.70710678118654757;
-  const double points[8][3] = { { 1, 0, rank },
-                                { r, r, rank },
-                                { 0, 1, rank },
-                                {-r, r, rank },
-                                {-1, 0, rank },
-                                {-r,-r, rank },
-                                { 0,-1, rank },
-                                { r,-r, rank } };
+  const double points[8][3] = { { 1, 0, static_cast<double>(rank) },
+                                { static_cast<double>(r), static_cast<double>(r), static_cast<double>(rank) },
+                                { 0, 1, static_cast<double>(rank) },
+                                {static_cast<double>(-r), static_cast<double>(r), static_cast<double>(rank) },
+                                {-1, 0, static_cast<double>(rank) },
+                                {static_cast<double>(-r),static_cast<double>(-r), static_cast<double>(rank) },
+                                { 0,-1, static_cast<double>(rank) },
+                                { static_cast<double>(r),static_cast<double>(-r), static_cast<double>(rank) } };
   const int nvtx = rank % 4 + 5;
   std::vector<EntityHandle> conn(nvtx);
   for (int i = 0; i < nvtx; ++i) {
@@ -1417,23 +1420,23 @@ void test_write_polygons()
   std::vector<EntityHandle> poly( numproc, 0 );
   CHECK_EQUAL( numproc, (int)range.size() );
   for (Range::iterator it = range.begin(); it != range.end(); ++it) {
-    const EntityHandle* conn;
+    const EntityHandle* conn_arr;
     int len;
-    rval = mb.get_connectivity( *it, conn, len );
+    rval = mb.get_connectivity( *it, conn_arr, len );
     CHECK_ERR(rval);
     double coords[3];
-    rval = mb.get_coords( conn, 1, coords );
+    rval = mb.get_coords( conn_arr, 1, coords );
     CHECK_ERR(rval);
-    int r = (int)(coords[2]);
-    CHECK_EQUAL( (EntityHandle)0, poly[r] );
-    poly[r] = *it;
+    int proc = (int)(coords[2]);
+    CHECK_EQUAL( (EntityHandle)0, poly[proc] );
+    poly[proc] = *it;
   }
   
     // check that each poly has the expected number of vertices
   for (int i = 0; i < numproc; ++i) {
-    const EntityHandle* conn;
+    const EntityHandle* conn_arr;
     int len;
-    rval = mb.get_connectivity( poly[i], conn, len );
+    rval = mb.get_connectivity( poly[i], conn_arr, len );
     CHECK_ERR(rval);
     CHECK_EQUAL( i % 4 + 5, len );
   }
@@ -1468,10 +1471,10 @@ void test_write_unbalanced()
 
     // create a quad on every odd processor
   if (rank % 2) {
-    const double coords[4][3] = { { rank,   0, 0 },
-                                  { rank+2, 0, 0 },
-                                  { rank+2, 2, 0 },
-                                  { rank,   2, 0 } };
+    const double coords[4][3] = { { static_cast<double>(rank),   0, 0 },
+                                  { static_cast<double>(rank+2), 0, 0 },
+                                  { static_cast<double>(rank+2), 2, 0 },
+                                  { static_cast<double>(rank),   2, 0 } };
     EntityHandle conn[4], quad;
     for (int i = 0; i < 4; ++i)
       mb.create_vertex( coords[i], conn[i] );
@@ -1491,7 +1494,7 @@ void test_write_unbalanced()
   ParallelComm* pcomm = ParallelComm::get_pcomm( &mb, 0 );
   if (0 == pcomm)
     pcomm = new ParallelComm( &mb, MPI_COMM_WORLD );
-  rval = pcomm->resolve_shared_ents( 0, entities, 2, 0, &idtag );
+  rval = pcomm->resolve_shared_ents( 0, entities, 2, 0, NULL, &idtag );
   CHECK_ERR(rval);
   rval = pcomm->resolve_shared_sets( sets, idtag );
   CHECK_ERR(rval);

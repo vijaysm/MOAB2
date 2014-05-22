@@ -5,8 +5,7 @@
 #include <string.h>  /* for memcpy */
 #include <float.h>
 
-#include "errmem.h"
-#include "types.h"
+#include "moab/FindPtFuncs.h"
 
 /* 
   For brevity's sake, some names have been shortened
@@ -353,15 +352,6 @@ void lagrange_weights_deriv(const real *z, unsigned n,
 
      lagrange_free(&p);  // deallocate memory allocated by setup
   --------------------------------------------------------------------------*/
-
-typedef struct {
-  unsigned n;                /* number of Lagrange nodes            */
-  const real *z;             /* Lagrange nodes (user-supplied)      */
-  real *J, *D, *D2;          /* weights for 0th,1st,2nd derivatives */
-  real *J_z0, *D_z0, *D2_z0; /* ditto at z[0]   (computed at setup) */
-  real *J_zn, *D_zn, *D2_zn; /* ditto at z[n-1] (computed at setup) */
-  real *w, *d, *u0, *v0, *u1, *v1, *u2, *v2; /* work data            */
-} lagrange_data;
 
 void lagrange_0(lagrange_data *p, real x)
 {

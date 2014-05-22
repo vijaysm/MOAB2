@@ -1,7 +1,7 @@
 #include "ReadParallel.hpp"
 #include "moab/Core.hpp"
 #include "moab/ProcConfig.hpp"
-#include "FileOptions.hpp"
+#include "moab/FileOptions.hpp"
 #include "moab/Error.hpp"
 #include "moab/ReaderWriterSet.hpp"
 #include "moab/ReadUtilIface.hpp"

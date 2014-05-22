@@ -1,7 +1,7 @@
 #include "moab/ParallelComm.hpp"
 #include "MBParallelConventions.h"
 #include "ReadParallel.hpp"
-#include "FileOptions.hpp"
+#include "moab/FileOptions.hpp"
 #include "MBTagConventions.hpp"
 #include "moab/Core.hpp"
 #include "moab_mpi.h"

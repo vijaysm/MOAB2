@@ -39,7 +39,7 @@ namespace moab {
     //Wrapper of merge() that performs the merge
     ErrorCode PerformMerge();
     //Determine the local skin entities (fills mySkinEnts)
-    ErrorCode PopulateMySkinEnts(int dim);
+    ErrorCode PopulateMySkinEnts(const EntityHandle meshset,int dim);
     //Get the global bounding box
     ErrorCode GetGlobalBox(double *gbox);
     //Fill out the local myTup before the first gather-scatter

@@ -69,21 +69,25 @@
 #  ifdef HDF5_PARALLEL
 #    include "WriteHDF5Parallel.hpp"
      typedef moab::WriteHDF5Parallel DefaultWriter;
+#    define DefaultWriterName "WriteHDF5Parallel"
 #  else
 #    include "WriteHDF5.hpp"
      typedef moab::WriteHDF5 DefaultWriter;
+#    define DefaultWriterName "WriteHDF5"
 #  endif
 #elif defined(NETCDF_FILE)
 #  include "WriteNCDF.hpp"
    typedef moab::WriteNCDF DefaultWriter;
+#  define DefaultWriterName "WriteNCDF"
 #else
 #  include "WriteVtk.hpp"
    typedef moab::WriteVtk DefaultWriter;
+#  define DefaultWriterName "WriteVtk"
 #endif
 #include "MBTagConventions.hpp"
 #include "ExoIIUtil.hpp"
 #include "EntitySequence.hpp"
-#include "FileOptions.hpp"
+#include "moab/FileOptions.hpp"
 #ifdef LINUX
 # include <dlfcn.h>
 # include <dirent.h>
@@ -609,6 +613,21 @@ ErrorCode Core::serial_load_file( const char* file_name,
     Range new_ents;
     get_entities_by_handle( 0, new_ents );
     new_ents = subtract( new_ents, initial_ents );
+
+    // Check if gather set exists
+    EntityHandle gather_set;
+    rval = mMBReadUtil->get_gather_set(gather_set);
+    if (MB_SUCCESS == rval) {
+      // Exclude gather set itself
+      new_ents.erase(gather_set);
+
+      // Exclude gather set entities
+      Range gather_ents;
+      rval = get_entities_by_handle(gather_set, gather_ents);
+      if (MB_SUCCESS == rval)
+        new_ents = subtract(new_ents, gather_ents);
+    }
+
     rval = add_entities( *file_set, new_ents );
   }
 
@@ -712,7 +731,10 @@ ErrorCode Core::write_file( const char* file_name,
       rval = writer->write_file(file_name, overwrite, opts, list_ptr, list.size(), qa_records,
                                 tag_list, num_tags );
       if (rval != MB_SUCCESS)
+      {
         mError->set_last_error( "Writer for file type \"%s\" was unsuccessful", file_type);
+        printf("Writer with name %s for file %s using extension %s was unsuccessful\n",i->name().c_str(), file_name, ext.c_str());
+      }
       delete writer;
     }
   }
@@ -722,6 +744,7 @@ ErrorCode Core::write_file( const char* file_name,
 
   else if (MB_SUCCESS != rval) {
     DefaultWriter writer(this);
+    printf("Using default writer %s for file %s \n", DefaultWriterName, file_name);
     rval = writer.write_file(file_name, overwrite, opts, list_ptr, list.size(), qa_records,
                              tag_list, num_tags );
   }
@@ -1138,11 +1161,11 @@ ErrorCode Core::get_connectivity_by_type(const EntityType type,
 ErrorCode  Core::get_connectivity(const EntityHandle *entity_handles,
                                       const int num_handles,
                                       Range &connectivity,
-                                      bool topological_connectivity) const
+                                      bool corners_only) const
 {
   std::vector<EntityHandle> tmp_connect;
   ErrorCode result = get_connectivity(entity_handles, num_handles, tmp_connect,
-                                        topological_connectivity);
+                                        corners_only);
   if (MB_SUCCESS != result) return result;
 
   std::sort( tmp_connect.begin(), tmp_connect.end() );
@@ -1154,7 +1177,7 @@ ErrorCode  Core::get_connectivity(const EntityHandle *entity_handles,
 ErrorCode  Core::get_connectivity(const EntityHandle *entity_handles,
                                   const int num_handles,
                                   std::vector<EntityHandle> &connectivity,
-                                  bool topological_connectivity,
+                                  bool corners_only,
                                   std::vector<int> *offsets) const
 {
   connectivity.clear(); // this seems wrong as compared to other API functions,
@@ -1167,7 +1190,7 @@ ErrorCode  Core::get_connectivity(const EntityHandle *entity_handles,
   int len;
   if (offsets) offsets->push_back(0);
   for (int i = 0; i < num_handles; ++i) {
-    rval = get_connectivity( entity_handles[i], conn, len, topological_connectivity, &tmp_storage );
+    rval = get_connectivity( entity_handles[i], conn, len, corners_only, &tmp_storage );
     if (MB_SUCCESS != rval)
       return rval;
     connectivity.insert( connectivity.end(), conn, conn + len );
@@ -1180,7 +1203,7 @@ ErrorCode  Core::get_connectivity(const EntityHandle *entity_handles,
 ErrorCode Core::get_connectivity(const EntityHandle entity_handle,
                                      const EntityHandle*& connectivity,
                                      int& number_nodes,
-                                     bool topological_connectivity,
+                                     bool corners_only,
                                      std::vector<EntityHandle>* storage) const
 {
   ErrorCode status;
@@ -1207,7 +1230,7 @@ ErrorCode Core::get_connectivity(const EntityHandle entity_handle,
   return static_cast<const ElementSequence*>(seq)->get_connectivity(entity_handle,
                                                               connectivity,
                                                               number_nodes,
-                                                              topological_connectivity,
+                                                              corners_only,
                                                               storage);
 }
 
@@ -2881,9 +2904,11 @@ ErrorCode Core::list_entity(const EntityHandle entity) const
   if (multiple != 0)
     std::cout << "   (MULTIPLE = " << multiple << ")" << std::endl;
 
+  result = print_entity_tags(std::string(), entity, MB_TAG_DENSE);
+
   std::cout << std::endl;
 
-  return MB_SUCCESS;
+  return result;
 }
 
 ErrorCode Core::convert_entities( const EntityHandle meshset,
@@ -2954,7 +2979,7 @@ ErrorCode Core::side_number(const EntityHandle parent,
     return (0 == temp_result ? MB_SUCCESS : MB_FAILURE);
   }
   else if (TYPE_FROM_HANDLE(parent) == MBPOLYGON) {
-      // find location of 1st vertex
+      // find location of 1st vertex; this works even for padded vertices
     const EntityHandle *first_v = std::find(parent_conn, parent_conn+num_parent_vertices,
                                               child_conn[0]);
     if (first_v == parent_conn+num_parent_vertices) return MB_ENTITY_NOT_FOUND;
@@ -2973,11 +2998,23 @@ ErrorCode Core::side_number(const EntityHandle parent,
       else return MB_ENTITY_NOT_FOUND;
     }
     else if (TYPE_FROM_HANDLE(child) == MBEDGE) {
+      // determine the actual number of vertices, for the padded case
+      // the padded case could be like ABCDEFFF; num_parent_vertices=8, actual_num_parent_vertices=6
+      int actual_num_parent_vertices = num_parent_vertices;
+      while(actual_num_parent_vertices>=3 &&
+          (parent_conn[actual_num_parent_vertices-2] ==parent_conn[actual_num_parent_vertices-1] ) )
+        actual_num_parent_vertices--;
+
       if (parent_conn[(sd_number+1)%num_parent_vertices] == child_conn[1])
         sense = 1;
       else if (parent_conn[(sd_number+num_parent_vertices-1)%num_parent_vertices] ==
-               child_conn[1])
+               child_conn[1]) // this will also cover edge AF for padded case, side will be 0, sense -1
         sense = -1;
+      // if edge FA in above example, we should return sd_number = 5, sense 1
+      else if ((sd_number==actual_num_parent_vertices-1) && (child_conn[1]==parent_conn[0]))
+        sense =1;
+      else
+        return MB_ENTITY_NOT_FOUND;
       return MB_SUCCESS;
     }
   }
@@ -3583,16 +3620,21 @@ void Core::print(const EntityHandle ms_handle, const char *prefix,
   }
 
     // print all sparse tags
+  print_entity_tags(indent_prefix, ms_handle, MB_TAG_SPARSE);
+}
+
+ErrorCode Core::print_entity_tags(std::string indent_prefix, const EntityHandle handle, TagType tp) const
+{
   std::vector<Tag> set_tags;
-  ErrorCode result = this->tag_get_tags_on_entity(ms_handle, set_tags);
-  std::cout << indent_prefix << "Sparse tags:" << std::endl;
+  ErrorCode result = this->tag_get_tags_on_entity(handle, set_tags);
+  std::cout << indent_prefix << (tp == MB_TAG_SPARSE ? "Sparse tags:" : "Dense tags:") << std::endl;
   indent_prefix += "  ";
 
   for (std::vector<Tag>::iterator vit = set_tags.begin();
        vit != set_tags.end(); vit++) {
     TagType this_type;
     result = this->tag_get_type(*vit, this_type);
-    if (MB_SUCCESS != result || MB_TAG_SPARSE != this_type) continue;
+    if (MB_SUCCESS != result || tp != this_type) continue;
     DataType this_data_type;
     result = this->tag_get_data_type(*vit, this_data_type);
     int this_size;
@@ -3607,7 +3649,7 @@ void Core::print(const EntityHandle ms_handle, const char *prefix,
     if (MB_SUCCESS != result) continue;
     switch (this_data_type) {
       case MB_TYPE_INTEGER:
-        result = this->tag_get_data(*vit, &ms_handle, 1, &int_vals[0]);
+        result = this->tag_get_data(*vit, &handle, 1, &int_vals[0]);
         if (MB_SUCCESS != result) continue;
         std::cout << indent_prefix << tag_name << " = ";
         if (this_size < 10)
@@ -3616,7 +3658,7 @@ void Core::print(const EntityHandle ms_handle, const char *prefix,
         std::cout << std::endl;
         break;
       case MB_TYPE_DOUBLE:
-        result = this->tag_get_data(*vit, &ms_handle, 1, &dbl_vals[0]);
+        result = this->tag_get_data(*vit, &handle, 1, &dbl_vals[0]);
         if (MB_SUCCESS != result) continue;
         std::cout << indent_prefix << tag_name << " = ";
         if (this_size < 10)
@@ -3625,7 +3667,7 @@ void Core::print(const EntityHandle ms_handle, const char *prefix,
         std::cout << std::endl;
         break;
       case MB_TYPE_HANDLE:
-        result = this->tag_get_data(*vit, &ms_handle, 1, &hdl_vals[0]);
+        result = this->tag_get_data(*vit, &handle, 1, &hdl_vals[0]);
         if (MB_SUCCESS != result) continue;
         std::cout << indent_prefix << tag_name << " = ";
         if (this_size < 10)
@@ -3636,7 +3678,7 @@ void Core::print(const EntityHandle ms_handle, const char *prefix,
       case MB_TYPE_OPAQUE:
         if (NAME_TAG_SIZE == this_size) {
           char dum_tag[NAME_TAG_SIZE];
-          result = this->tag_get_data(*vit, &ms_handle, 1, &dum_tag);
+          result = this->tag_get_data(*vit, &handle, 1, &dum_tag);
           if (MB_SUCCESS != result) continue;
             // insert NULL just in case there isn't one
           dum_tag[NAME_TAG_SIZE-1] = '\0';
@@ -3647,6 +3689,8 @@ void Core::print(const EntityHandle ms_handle, const char *prefix,
         break;
     }
   }
+
+  return MB_SUCCESS;
 }
 
 ErrorCode Core::check_adjacencies()

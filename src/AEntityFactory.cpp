@@ -65,7 +65,7 @@ AEntityFactory::~AEntityFactory()
   EntityType ent_type;
 
   // iterate through each element type
-  for (ent_type = MBVERTEX; ent_type != MBENTITYSET; ent_type++) {
+  for (ent_type = MBVERTEX; ent_type <= MBENTITYSET; ent_type++) {
     TypeSequenceManager::iterator i;
     TypeSequenceManager& seqman = thisMB->sequence_manager()->entity_map( ent_type );
     for (i = seqman.begin(); i != seqman.end(); ++i) {
@@ -820,6 +820,9 @@ ErrorCode AEntityFactory::get_down_adjacency_elements_poly(EntityHandle source_e
       Range vrange, adj_edges;
       vrange.insert(vertex_array[i]);
       vrange.insert(vertex_array[i+1]);
+      // account for padded polygons; if the vertices are the same, skip
+      if (vrange.size() == 1)
+        continue;
       tmp_result = thisMB->get_adjacencies(vrange, 1, false, adj_edges);
       if (MB_SUCCESS != tmp_result) result = tmp_result;
       if (adj_edges.size() == 1) {

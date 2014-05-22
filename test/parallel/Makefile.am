@@ -11,14 +11,13 @@ AM_CPPFLAGS += -DIS_BUILDING_MB \
                -I$(top_srcdir)/src \
                -I$(top_srcdir)/src/parallel \
                -I$(top_srcdir)/src/io/mhdf/include
-               
+
 if ENABLE_mbcoupler
   AM_CPPFLAGS += -I$(top_srcdir)/tools/mbcoupler \
                  -I$(top_srcdir)/itaps \
                  -I$(top_srcdir)/itaps/imesh \
                  -I$(top_builddir)/itaps/imesh \
-                 -I$(top_srcdir)/src/moab/point_locater/lotte 
-  
+                 -I$(top_srcdir)/src/moab/point_locater/lotte
 endif
 
 if ENABLE_mbcslam
@@ -27,8 +26,8 @@ endif
 
 # Run parallel tests in parallel
 if USE_MPIEXEC
-  OLD_ENVIRONMENT := ${TESTS_ENVIRONMENT}
-  TESTS_ENVIRONMENT = ${MPIEXEC} ${MPIEXEC_NP} ${NP} ${OLD_ENVIRONMENT} 
+  LOG_COMPILER = ${MPIEXEC}
+  AM_LOG_FLAGS = ${MPIEXEC_NP} ${NP}
 endif
 
 TESTS = pcomm_unit \
@@ -36,8 +35,8 @@ TESTS = pcomm_unit \
         uber_parallel_test \
         scdtest \
         pcomm_serial \
-	$(NETCDF_TESTS) \
-	$(PNETCDF_TESTS) \
+	par_spatial_locator_test \
+        $(NETCDF_TESTS) \
         $(HDF5_TESTS) \
         $(COUPLER_TESTS) \
         $(MBCSLAM_TESTS)
@@ -49,15 +48,17 @@ else
 endif
 
 if NETCDF_FILE
-  NETCDF_TESTS = scdpart
+  NETCDF_TESTS = scdpart read_nc_par ucdtrvpart mpastrvpart gcrm_par
 else
   NETCDF_TESTS = 
 endif
 
 if PNETCDF_FILE
-  PNETCDF_TESTS =  ucdtrvpart read_nc_par 
+if !NETCDF_FILE
+  NETCDF_TESTS += scdpart read_nc_par ucdtrvpart mpastrvpart write_nc_par
 else
-  PNETCDF_TESTS = 
+  NETCDF_TESTS += write_nc_par
+endif
 endif
 
 if ENABLE_mbcoupler
@@ -77,6 +78,7 @@ check_PROGRAMS = $(TESTS) mbparallelcomm_test partcheck structured3 parmerge
 pcomm_unit_SOURCES = pcomm_unit.cpp
 parallel_hdf5_test_SOURCES = parallel_hdf5_test.cc
 mhdf_parallel_SOURCES = mhdf_parallel.c
+mhdf_parallel_LDADD = $(LDADD) $(HDF5_LIBS)
 parallel_unit_tests_SOURCES = parallel_unit_tests.cpp
 parallel_write_test_SOURCES = parallel_write_test.cc
 uber_parallel_test_SOURCES = uber_parallel_test.cpp
@@ -87,14 +89,17 @@ partcheck_SOURCES = partcheck.cpp
 structured3_SOURCES = structured3.cpp
 parmerge_SOURCES = parmerge.cpp
 scdpart_SOURCES = scdpart.cpp
-if PNETCDF_FILE
-  ucdtrvpart_SOURCES = ucdtrvpart.cpp
-  read_nc_par_SOURCES=../io/read_nc.cpp
-endif
+read_nc_par_SOURCES = ../io/read_nc.cpp
+ucdtrvpart_SOURCES = ucdtrvpart.cpp
+mpastrvpart_SOURCES = mpastrvpart.cpp
+gcrm_par_SOURCES = gcrm_par.cpp
+write_nc_par_SOURCES = ../io/write_nc.cpp
+par_spatial_locator_test_SOURCES = par_spatial_locator_test.cpp
 
 if ENABLE_mbcoupler
-  par_coupler_test_SOURCES=par_coupler_test.cpp
-  par_coupler_test_LDADD=$(LDADD) ../../tools/mbcoupler/libmbcoupler.la
+  par_coupler_test_SOURCES = par_coupler_test.cpp
+  par_coupler_test_LDADD = $(LDADD) $(top_builddir)/tools/mbcoupler/libmbcoupler.la \
+          $(top_builddir)/itaps/imesh/libiMesh.la
 endif
 
 if ENABLE_mbcslam
@@ -102,4 +107,29 @@ if ENABLE_mbcslam
   par_intx_sph_LDADD = $(LDADD) ../../tools/mbcoupler/libmbcoupler.la ../../tools/mbcslam/libmbcslam.la  
 endif
 # Other files to clean up (e.g. output from tests)
-MOSTLYCLEANFILES = mhdf_ll.h5m tmp0.h5m tmp1.h5m tmp2.h5m tmp3.h5m
+MOSTLYCLEANFILES = mhdf_ll.h5m tmp0.h5m tmp1.h5m tmp2.h5m tmp3.h5m \
+                   partial0.vtk \
+                   partial1.vtk  \
+                   partialConvex1.vtk \
+                   partialConvex0.vtk \
+                   initial0.vtk \
+                   intersect1.h5m \
+                   intersect0.h5m \
+                   test.h5m \
+                   initial1.vtk \
+                   test_mpas.h5m \
+                   dum.h5m \
+                   test_gcrm.h5m \
+                   test_gcrm_rcbzoltan.h5m \
+                   test_mpas_no_mixed_elements.h5m \
+                   test_mpas_rcbzoltan.h5m \
+                   test_mpas_rcbzoltan_no_mixed_elements.h5m \
+                   test_par_eul_across_files.nc \
+                   test_par_eul_append.nc \
+                   test_par_eul_ghosting.nc \
+                   test_par_eul_T2.nc \
+                   test_par_eul_T.nc \
+                   test_par_fv_T.nc \
+                   test_par_gcrm_vars.nc \
+                   test_par_homme_T.nc \
+                   test_par_mpas_vars.nc

@@ -11,6 +11,10 @@ if ENABLE_imesh
  LDADD+= $(top_builddir)/itaps/imesh/libiMesh.la
 endif
 
+if HAVE_CGM
+ LDADD+=  ${CGM_DIR}/lib/libcgm.la
+endif 
+
 # For old (pre 1.10.x) versions of Automake
 docdir = @docdir@
 
@@ -26,10 +30,6 @@ EXTRA_DIST = README.hexmodops \
              README.mbtagprop \
              README.spheredecomp \
              mbzoltan/README
-
-if ENABLE_pointsearch
-  bin_PROGRAMS += pointsearch
-endif
 
 
 if ENABLE_mbconvert
@@ -141,7 +141,6 @@ SUBDIRS = . \
           $(dagmc_DIR) 
 
 mbconvert_SOURCES = convert.cpp
-pointsearch_SOURCES = point_search.cpp
 mbgsets_SOURCES = gsets.cc
 hexmodops_SOURCES = makeops.cpp
 mbsize_SOURCES = measure.cpp measure.hpp size.cpp
