@@ -21,13 +21,13 @@ void test_read_onevar();
 void test_read_onetimestep();
 void test_read_nomesh();
 void test_read_novars();
-void test_read_no_mixed_elements(); // Test read option NO_MIXED_ELEMENTS
 void test_read_no_edges(); // Test read option NO_EDGES
 void test_gather_onevar(); // Test gather set with one variable
 
 void get_options(std::string& opts);
 
-const double eps = 1e-20;
+const double eps = 1e-6;
+const int layers = 256;
 
 int main(int argc, char* argv[])
 {
@@ -42,12 +42,11 @@ int main(int argc, char* argv[])
 #endif
 
   result += RUN_TEST(test_read_all);
-  //result += RUN_TEST(test_read_onevar);
-  //result += RUN_TEST(test_read_onetimestep);
-  //result += RUN_TEST(test_read_nomesh);
-  //result += RUN_TEST(test_read_novars);
-  //result += RUN_TEST(test_read_no_mixed_elements);
-  //result += RUN_TEST(test_read_no_edges);
+  result += RUN_TEST(test_read_onevar);
+  result += RUN_TEST(test_read_onetimestep);
+  result += RUN_TEST(test_read_nomesh);
+  result += RUN_TEST(test_read_novars);
+  result += RUN_TEST(test_read_no_edges);
   //result += RUN_TEST(test_gather_onevar);
 
 #ifdef USE_MPI
@@ -66,14 +65,13 @@ void test_read_all()
 
   std::string opts;
   get_options(opts);
-  opts+=";DEBUG_IO=2";
 
   // Read mesh and read all variables at all timesteps
   ErrorCode rval = mb.load_file(example, 0, opts.c_str());
   CHECK_ERR(rval);
 
   mb.write_file("gcrm.h5m");
-#if 0
+
   int procs = 1;
 #ifdef USE_MPI
   ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
@@ -82,14 +80,15 @@ void test_read_all()
 
   // Make check runs this test on one processor
   if (1 == procs) {
-    // For each tag, check two values
-    double val[2];
+    // For each tag, check values on two entities
+    // There are 256 layers, only check on first two
+    double val[2 * layers];
 
-    // Check tags for vertex variable vorticity
-    Tag vorticity_tag0, vorticity_tag1;
-    rval = mb.tag_get_handle("vorticity0", 1, MB_TYPE_DOUBLE, vorticity_tag0);
+    // Check tags for vertex variable u
+    Tag u_tag0, u_tag1;
+    rval = mb.tag_get_handle("u0", layers, MB_TYPE_DOUBLE, u_tag0);
     CHECK_ERR(rval);
-    rval = mb.tag_get_handle("vorticity1", 1, MB_TYPE_DOUBLE, vorticity_tag1);
+    rval = mb.tag_get_handle("u1", layers, MB_TYPE_DOUBLE, u_tag1);
     CHECK_ERR(rval);
 
     // Get vertices (1280 edges)
@@ -99,22 +98,34 @@ void test_read_all()
     CHECK_EQUAL((size_t)1280, verts.size());
     CHECK_EQUAL((size_t)1, verts.psize());
 
-    // Check vorticity tag values on first two vertices
-    EntityHandle vert_ents[] = {verts[0], verts[1]};
-    rval = mb.tag_get_data(vorticity_tag0, vert_ents, 2, val);
-    CHECK_ERR(rval);
-    CHECK_REAL_EQUAL(1.1, val[0], eps);
-    CHECK_REAL_EQUAL(1.2, val[1], eps);
-    rval = mb.tag_get_data(vorticity_tag1, vert_ents, 2, val);
-    CHECK_ERR(rval);
-    CHECK_REAL_EQUAL(2.1, val[0], eps);
-    CHECK_REAL_EQUAL(2.2, val[1], eps);
+    // Check u tag values on first and last vertices
+    EntityHandle vert_ents[] = {verts[0], verts[1279]};
 
-    // Check tags for edge variable u
-    Tag u_tag0, u_tag1;
-    rval = mb.tag_get_handle("u0", 1, MB_TYPE_DOUBLE, u_tag0);
+    // Timestep 0
+    rval = mb.tag_get_data(u_tag0, vert_ents, 2, val);
     CHECK_ERR(rval);
-    rval = mb.tag_get_handle("u1", 1, MB_TYPE_DOUBLE, u_tag1);
+    // Layer 0
+    CHECK_REAL_EQUAL(-4.839992, val[0 * layers], eps);
+    CHECK_REAL_EQUAL(-3.699257, val[1 * layers], eps);
+    // Layer 1
+    CHECK_REAL_EQUAL(-4.839925, val[0 * layers + 1], eps);
+    CHECK_REAL_EQUAL(-3.699206, val[1 * layers + 1], eps);
+
+    // Timestep 1
+    rval = mb.tag_get_data(u_tag1, vert_ents, 2, val);
+    CHECK_ERR(rval);
+    // Layer 0
+    CHECK_REAL_EQUAL(-4.712473, val[0 * layers], eps);
+    CHECK_REAL_EQUAL(-3.601793, val[1 * layers], eps);
+    // Layer 1
+    CHECK_REAL_EQUAL(-4.712409, val[0 * layers + 1], eps);
+    CHECK_REAL_EQUAL(-3.601743, val[1 * layers + 1], eps);
+
+    // Check tags for edge variable wind
+    Tag wind_tag0, wind_tag1;
+    rval = mb.tag_get_handle("wind0", layers, MB_TYPE_DOUBLE, wind_tag0);
+    CHECK_ERR(rval);
+    rval = mb.tag_get_handle("wind1", layers, MB_TYPE_DOUBLE, wind_tag1);
     CHECK_ERR(rval);
 
     // Get edges (1920 edges)
@@ -124,22 +135,34 @@ void test_read_all()
     CHECK_EQUAL((size_t)1920, edges.size());
     CHECK_EQUAL((size_t)1, edges.psize());
 
-    // Check u tag values on two specified edges
-    EntityHandle edge_ents[] = {edges[5], edges[6]};
-    rval = mb.tag_get_data(u_tag0, edge_ents, 2, val);
-    CHECK_ERR(rval);
-    CHECK_REAL_EQUAL(1.113138721544778, val[0], eps);
-    CHECK_REAL_EQUAL(-1.113138721930009, val[1], eps);
-    rval = mb.tag_get_data(u_tag1, edge_ents, 2, val);
-    CHECK_ERR(rval);
-    CHECK_REAL_EQUAL(2.113138721544778, val[0], eps);
-    CHECK_REAL_EQUAL(-2.113138721930009, val[1], eps);
+    // Check wind tag values on first and last edges
+    EntityHandle edge_ents[] = {edges[0], edges[1919]};
 
-    // Check tags for cell variable ke
-    Tag ke_tag0, ke_tag1;
-    rval = mb.tag_get_handle("ke0", 1, MB_TYPE_DOUBLE, ke_tag0);
+    // Timestep 0
+    rval = mb.tag_get_data(wind_tag0, edge_ents, 2, val);
     CHECK_ERR(rval);
-    rval = mb.tag_get_handle("ke1", 1, MB_TYPE_DOUBLE, ke_tag1);
+    // Layer 0
+    CHECK_REAL_EQUAL(-5.081991, val[0 * layers], eps);
+    CHECK_REAL_EQUAL(-6.420274, val[1 * layers], eps);
+    // Layer 1
+    CHECK_REAL_EQUAL(-5.081781, val[0 * layers + 1], eps);
+    CHECK_REAL_EQUAL(-6.419831, val[1 * layers + 1], eps);
+
+    // Timestep 1
+    rval = mb.tag_get_data(wind_tag1, edge_ents, 2, val);
+    CHECK_ERR(rval);
+    // Layer 0
+    CHECK_REAL_EQUAL(-4.948097, val[0 * layers], eps);
+    CHECK_REAL_EQUAL(-6.251121, val[1 * layers], eps);
+    // Layer 1
+    CHECK_REAL_EQUAL(-4.947892, val[0 * layers + 1], eps);
+    CHECK_REAL_EQUAL(-6.250690, val[1 * layers + 1], eps);
+
+    // Check tags for cell variable vorticity
+    Tag vorticity_tag0, vorticity_tag1;
+    rval = mb.tag_get_handle("vorticity0", layers, MB_TYPE_DOUBLE, vorticity_tag0);
+    CHECK_ERR(rval);
+    rval = mb.tag_get_handle("vorticity1", layers, MB_TYPE_DOUBLE, vorticity_tag1);
     CHECK_ERR(rval);
 
     // Get cells (12 pentagons and 630 hexagons)
@@ -147,27 +170,33 @@ void test_read_all()
     rval = mb.get_entities_by_type(0, MBPOLYGON, cells);
     CHECK_ERR(rval);
     CHECK_EQUAL((size_t)642, cells.size());
-#ifdef USE_MPI
-    // If MOAB is compiled parallel, sequence size requested are increased
-    // by a factor of 1.5, to allow for ghosts. This will introduce a gap
-    // between the two face sequences.
-    CHECK_EQUAL((size_t)2, cells.psize());
-#else
-    CHECK_EQUAL((size_t)1, cells.psize());
-#endif
 
-    // Check ke tag values on first pentagon and first hexagon
-    EntityHandle cell_ents[] = {cells[0], cells[12]};
-    rval = mb.tag_get_data(ke_tag0, cell_ents, 2, val);
+    // GCRM pentagons are always padded to hexagons
+    CHECK_EQUAL((size_t)1, cells.psize());
+
+    // Check vorticity tag values on first and last cells
+    EntityHandle cell_ents[] = {cells[0], cells[641]};
+
+    // Timestep 0
+    rval = mb.tag_get_data(vorticity_tag0, cell_ents, 2, val);
     CHECK_ERR(rval);
-    CHECK_REAL_EQUAL(15.001, val[0], eps);
-    CHECK_REAL_EQUAL(16.013, val[1], eps);
-    rval = mb.tag_get_data(ke_tag1, cell_ents, 2, val);
+    // Layer 0
+    CHECK_REAL_EQUAL(3.629994, val[0 * layers], eps);
+    CHECK_REAL_EQUAL(-0.554888, val[1 * layers], eps);
+    // Layer 1
+    CHECK_REAL_EQUAL(3.629944, val[0 * layers + 1], eps);
+    CHECK_REAL_EQUAL(-0.554881, val[1 * layers + 1], eps);
+
+    // Timestep 1
+    rval = mb.tag_get_data(vorticity_tag1, cell_ents, 2, val);
     CHECK_ERR(rval);
-    CHECK_REAL_EQUAL(25.001, val[0], eps);
-    CHECK_REAL_EQUAL(26.013, val[1], eps);
+    // Layer 0
+    CHECK_REAL_EQUAL(3.534355, val[0 * layers], eps);
+    CHECK_REAL_EQUAL(-0.540269, val[1 * layers], eps);
+    // Layer 1
+    CHECK_REAL_EQUAL(3.534306, val[0 * layers + 1], eps);
+    CHECK_REAL_EQUAL(-0.540262, val[1 * layers + 1], eps);
   }
-#endif
 }
 
 void test_read_onevar()
@@ -178,8 +207,8 @@ void test_read_onevar()
   std::string opts;
   get_options(opts);
 
-  // Read mesh and read cell variable ke at all timesteps
-  opts += ";VARIABLE=ke";
+  // Read mesh and read cell variable vorticity at all timesteps
+  opts += ";VARIABLE=vorticity";
   ErrorCode rval = mb.load_file(example, NULL, opts.c_str());
   CHECK_ERR(rval);
 
@@ -191,11 +220,11 @@ void test_read_onevar()
 
   // Make check runs this test on one processor
   if (1 == procs) {
-    // Check ke tags
-    Tag ke_tag0, ke_tag1;
-    rval = mb.tag_get_handle("ke0", 1, MB_TYPE_DOUBLE, ke_tag0);
+    // Check vorticity tags
+    Tag vorticity_tag0, vorticity_tag1;
+    rval = mb.tag_get_handle("vorticity0", layers, MB_TYPE_DOUBLE, vorticity_tag0);
     CHECK_ERR(rval);
-    rval = mb.tag_get_handle("ke1", 1, MB_TYPE_DOUBLE, ke_tag1);
+    rval = mb.tag_get_handle("vorticity1", layers, MB_TYPE_DOUBLE, vorticity_tag1);
     CHECK_ERR(rval);
 
     // Get cells (12 pentagons and 630 hexagons)
@@ -204,32 +233,41 @@ void test_read_onevar()
     CHECK_ERR(rval);
     CHECK_EQUAL((size_t)642, cells.size());
 
-#ifdef USE_MPI
-    // If MOAB is compiled parallel, sequence size requested are increased
-    // by a factor of 1.5, to allow for ghosts. This will introduce a gap
-    // between the two face sequences.
-    CHECK_EQUAL((size_t)2, cells.psize());
-#else
+    // GCRM pentagons are always padded to hexagons
     CHECK_EQUAL((size_t)1, cells.psize());
-#endif
 
-    // Check ke tag values on 4 cells: first pentagon, last pentagon,
-    // first hexagon, and last hexagon
-    EntityHandle cell_ents[] = {cells[0], cells[11], cells[12], cells[641]};
-    double ke0_val[4];
-    rval = mb.tag_get_data(ke_tag0, cell_ents, 4, ke0_val);
+    // Check vorticity tag values on 4 cells: first cell, two median cells, and last cell
+    EntityHandle cell_ents[] = {cells[0], cells[320], cells[321], cells[641]};
+    // There are 256 layers, only check on first two
+    double vorticity_val[4 * layers];
+
+    // Timestep 0
+    rval = mb.tag_get_data(vorticity_tag0, cell_ents, 4, vorticity_val);
     CHECK_ERR(rval);
-    CHECK_REAL_EQUAL(15.001, ke0_val[0], eps);
-    CHECK_REAL_EQUAL(15.012, ke0_val[1], eps);
-    CHECK_REAL_EQUAL(16.013, ke0_val[2], eps);
-    CHECK_REAL_EQUAL(16.642, ke0_val[3], eps);
-    double ke1_val[4];
-    rval = mb.tag_get_data(ke_tag1, cell_ents, 4, ke1_val);
+    // Layer 0
+    CHECK_REAL_EQUAL(3.629994, vorticity_val[0 * layers], eps);
+    CHECK_REAL_EQUAL(0.131688, vorticity_val[1 * layers], eps);
+    CHECK_REAL_EQUAL(-0.554888, vorticity_val[2 * layers], eps);
+    CHECK_REAL_EQUAL(-0.554888, vorticity_val[3 * layers], eps);
+    // Layer 1
+    CHECK_REAL_EQUAL(3.629944, vorticity_val[0 * layers + 1], eps);
+    CHECK_REAL_EQUAL(0.131686, vorticity_val[1 * layers + 1], eps);
+    CHECK_REAL_EQUAL(-0.554881, vorticity_val[2 * layers + 1], eps);
+    CHECK_REAL_EQUAL(-0.554881, vorticity_val[3 * layers + 1], eps);
+
+    // Timestep 1
+    rval = mb.tag_get_data(vorticity_tag1, cell_ents, 4, vorticity_val);
     CHECK_ERR(rval);
-    CHECK_REAL_EQUAL(25.001, ke1_val[0], eps);
-    CHECK_REAL_EQUAL(25.012, ke1_val[1], eps);
-    CHECK_REAL_EQUAL(26.013, ke1_val[2], eps);
-    CHECK_REAL_EQUAL(26.642, ke1_val[3], eps);
+    // Layer 0
+    CHECK_REAL_EQUAL(3.534355, vorticity_val[0 * layers], eps);
+    CHECK_REAL_EQUAL(0.128218, vorticity_val[1 * layers], eps);
+    CHECK_REAL_EQUAL(-0.540269, vorticity_val[2 * layers], eps);
+    CHECK_REAL_EQUAL(-0.540269, vorticity_val[3 * layers], eps);
+    // Layer 1
+    CHECK_REAL_EQUAL(3.534306, vorticity_val[0 * layers + 1], eps);
+    CHECK_REAL_EQUAL(0.128216, vorticity_val[1 * layers + 1], eps);
+    CHECK_REAL_EQUAL(-0.540262, vorticity_val[2 * layers + 1], eps);
+    CHECK_REAL_EQUAL(-0.540262, vorticity_val[3 * layers + 1], eps);
   }
 }
 
@@ -248,10 +286,10 @@ void test_read_onetimestep()
 
   // Check vorticity tags
   Tag vorticity_tag0, vorticity_tag1;
-  rval = mb.tag_get_handle("vorticity0", 1, MB_TYPE_DOUBLE, vorticity_tag0);
+  rval = mb.tag_get_handle("vorticity0", layers, MB_TYPE_DOUBLE, vorticity_tag0);
   // Tag vorticity0 should not exist
   CHECK_EQUAL(rval, MB_TAG_NOT_FOUND);
-  rval = mb.tag_get_handle("vorticity1", 1, MB_TYPE_DOUBLE, vorticity_tag1);
+  rval = mb.tag_get_handle("vorticity1", layers, MB_TYPE_DOUBLE, vorticity_tag1);
   CHECK_ERR(rval);
 }
 
@@ -275,10 +313,10 @@ void test_read_nomesh()
 
   // Check u tags
   Tag u_tag0, u_tag1;
-  rval = mb.tag_get_handle("u0", 1, MB_TYPE_DOUBLE, u_tag0);
+  rval = mb.tag_get_handle("u0", layers, MB_TYPE_DOUBLE, u_tag0);
   CHECK_ERR(rval);
   // Tag u1 should not exist
-  rval = mb.tag_get_handle("u1", 1, MB_TYPE_DOUBLE, u_tag1);
+  rval = mb.tag_get_handle("u1", layers, MB_TYPE_DOUBLE, u_tag1);
   CHECK_EQUAL(rval, MB_TAG_NOT_FOUND);
 
   // Read all variables at 2nd timestep 0, no need to read mesh
@@ -287,7 +325,7 @@ void test_read_nomesh()
   CHECK_ERR(rval);
 
   // Check tag u1 again
-  rval = mb.tag_get_handle("u1", 1, MB_TYPE_DOUBLE, u_tag1);
+  rval = mb.tag_get_handle("u1", layers, MB_TYPE_DOUBLE, u_tag1);
   // Tag u1 should exist at this time
   CHECK_ERR(rval);
 }
@@ -312,42 +350,40 @@ void test_read_novars()
   CHECK_ERR(rval);
 
   // Read mesh, but still no variables
-  opts = orig + ";VARIABLE=;TIMESTEP=0;DEBUG_IO=2";
+  opts = orig + ";VARIABLE=";
   rval = mb.load_file(example, &file_set, opts.c_str());
   CHECK_ERR(rval);
 
-  rval = mb.write_file("gcrm.vtk");
-#if 0
-  // Check ke tags
-  Tag ke_tag0, ke_tag1;
-  rval = mb.tag_get_handle("ke0", 1, MB_TYPE_DOUBLE, ke_tag0);
-  // Tag ke0 should not exist
+  // Check vorticity tags
+  Tag vorticity_tag0, vorticity_tag1;
+  rval = mb.tag_get_handle("vorticity0", layers, MB_TYPE_DOUBLE, vorticity_tag0);
+  // Tag vorticity0 should not exist
   CHECK_EQUAL(rval, MB_TAG_NOT_FOUND);
-  rval = mb.tag_get_handle("ke1", 1, MB_TYPE_DOUBLE, ke_tag1);
-  // Tag ke1 should not exist
+  rval = mb.tag_get_handle("vorticity1", layers, MB_TYPE_DOUBLE, vorticity_tag1);
+  // Tag vorticity1 should not exist
   CHECK_EQUAL(rval, MB_TAG_NOT_FOUND);
 
-  // Read ke at 1st timestep, no need to read mesh
-  opts = orig + ";VARIABLE=ke;TIMESTEP=0;NOMESH";
+  // Read vorticity at 1st timestep, no need to read mesh
+  opts = orig + ";VARIABLE=vorticity;TIMESTEP=0;NOMESH";
   rval = mb.load_file(example, &file_set, opts.c_str());
   CHECK_ERR(rval);
 
-  // Check ke tags again
-  rval = mb.tag_get_handle("ke0", 1, MB_TYPE_DOUBLE, ke_tag0);
-  // Tag ke0 should exist at this time
+  // Check vorticity tags again
+  rval = mb.tag_get_handle("vorticity0", layers, MB_TYPE_DOUBLE, vorticity_tag0);
+  // Tag vorticity0 should exist at this time
   CHECK_ERR(rval);
-  // Tag ke1 should still not exist
-  rval = mb.tag_get_handle("ke1", 1, MB_TYPE_DOUBLE, ke_tag1);
+  // Tag vorticity1 should still not exist
+  rval = mb.tag_get_handle("vorticity1", layers, MB_TYPE_DOUBLE, vorticity_tag1);
   CHECK_EQUAL(rval, MB_TAG_NOT_FOUND);
 
-  // Read ke at 2nd timestep, no need to read mesh
-  opts = orig + ";VARIABLE=ke;TIMESTEP=1;NOMESH";
+  // Read vorticity at 2nd timestep, no need to read mesh
+  opts = orig + ";VARIABLE=vorticity;TIMESTEP=1;NOMESH";
   rval = mb.load_file(example, &file_set, opts.c_str());
   CHECK_ERR(rval);
 
-  // Check tag ke1 again
-  rval = mb.tag_get_handle("ke1", 1, MB_TYPE_DOUBLE, ke_tag1);
-  // Tag ke1 should exist at this time
+  // Check tag vorticity1 again
+  rval = mb.tag_get_handle("vorticity1", layers, MB_TYPE_DOUBLE, vorticity_tag1);
+  // Tag vorticity1 should exist at this time
   CHECK_ERR(rval);
 
   int procs = 1;
@@ -364,90 +400,41 @@ void test_read_novars()
     CHECK_ERR(rval);
     CHECK_EQUAL((size_t)642, cells.size());
 
-#ifdef USE_MPI
-    // If MOAB is compiled parallel, sequence size requested are increased
-    // by a factor of 1.5, to allow for ghosts. This will introduce a gap
-    // between the two face sequences.
-    CHECK_EQUAL((size_t)2, cells.psize());
-#else
-    CHECK_EQUAL((size_t)1, cells.psize());
-#endif
-
-    // Check ke tag values on 4 cells: first pentagon, last pentagon,
-    // first hexagon, and last hexagon
-    EntityHandle cell_ents[] = {cells[0], cells[11], cells[12], cells[641]};
-    double ke0_val[4];
-    rval = mb.tag_get_data(ke_tag0, cell_ents, 4, ke0_val);
-    CHECK_ERR(rval);
-    CHECK_REAL_EQUAL(15.001, ke0_val[0], eps);
-    CHECK_REAL_EQUAL(15.012, ke0_val[1], eps);
-    CHECK_REAL_EQUAL(16.013, ke0_val[2], eps);
-    CHECK_REAL_EQUAL(16.642, ke0_val[3], eps);
-    double ke1_val[4];
-    rval = mb.tag_get_data(ke_tag1, cell_ents, 4, ke1_val);
-    CHECK_ERR(rval);
-    CHECK_REAL_EQUAL(25.001, ke1_val[0], eps);
-    CHECK_REAL_EQUAL(25.012, ke1_val[1], eps);
-    CHECK_REAL_EQUAL(26.013, ke1_val[2], eps);
-    CHECK_REAL_EQUAL(26.642, ke1_val[3], eps);
-  }
-#endif
-}
-
-void test_read_no_mixed_elements()
-{
-  Core moab;
-  Interface& mb = moab;
-
-  std::string opts;
-  get_options(opts);
-
-  // Read mesh with no mixed elements and read all variables at all timesteps
-  opts += ";NO_MIXED_ELEMENTS";
-  ErrorCode rval = mb.load_file(example, NULL, opts.c_str());
-  CHECK_ERR(rval);
-
-  int procs = 1;
-#ifdef USE_MPI
-  ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
-  procs = pcomm->proc_config().proc_size();
-#endif
-
-  // Make check runs this test on one processor
-  if (1 == procs) {
-    // Check ke tags
-    Tag ke_tag0, ke_tag1;
-    rval = mb.tag_get_handle("ke0", 1, MB_TYPE_DOUBLE, ke_tag0);
-    CHECK_ERR(rval);
-    rval = mb.tag_get_handle("ke1", 1, MB_TYPE_DOUBLE, ke_tag1);
-    CHECK_ERR(rval);
-
-    // Get cells (12 pentagons and 630 hexagons)
-    Range cells;
-    rval = mb.get_entities_by_type(0, MBPOLYGON, cells);
-    CHECK_ERR(rval);
-    CHECK_EQUAL((size_t)642, cells.size());
-    // Only one group of cells (pentagons are padded to hexagons,
-    // e.g. connectivity [1 2 3 4 5] => [1 2 3 4 5 5])
+    // GCRM pentagons are always padded to hexagons
     CHECK_EQUAL((size_t)1, cells.psize());
 
-    // Check ke tag values on 4 cells: first pentagon, last pentagon,
-    // first hexagon, and last hexagon
-    EntityHandle cell_ents[] = {cells[0], cells[11], cells[12], cells[641]};
-    double ke0_val[4];
-    rval = mb.tag_get_data(ke_tag0, cell_ents, 4, ke0_val);
+    // Check vorticity tag values on 4 cells: first cell, two median cells, and last cell
+    EntityHandle cell_ents[] = {cells[0], cells[320], cells[321], cells[641]};
+    // There are 256 layers, only check on first two
+    double vorticity_val[4 * layers];
+
+    // Timestep 0
+    rval = mb.tag_get_data(vorticity_tag0, cell_ents, 4, vorticity_val);
     CHECK_ERR(rval);
-    CHECK_REAL_EQUAL(15.001, ke0_val[0], eps);
-    CHECK_REAL_EQUAL(15.012, ke0_val[1], eps);
-    CHECK_REAL_EQUAL(16.013, ke0_val[2], eps);
-    CHECK_REAL_EQUAL(16.642, ke0_val[3], eps);
-    double ke1_val[4];
-    rval = mb.tag_get_data(ke_tag1, cell_ents, 4, ke1_val);
+    // Layer 0
+    CHECK_REAL_EQUAL(3.629994, vorticity_val[0 * layers], eps);
+    CHECK_REAL_EQUAL(0.131688, vorticity_val[1 * layers], eps);
+    CHECK_REAL_EQUAL(-0.554888, vorticity_val[2 * layers], eps);
+    CHECK_REAL_EQUAL(-0.554888, vorticity_val[3 * layers], eps);
+    // Layer 1
+    CHECK_REAL_EQUAL(3.629944, vorticity_val[0 * layers + 1], eps);
+    CHECK_REAL_EQUAL(0.131686, vorticity_val[1 * layers + 1], eps);
+    CHECK_REAL_EQUAL(-0.554881, vorticity_val[2 * layers + 1], eps);
+    CHECK_REAL_EQUAL(-0.554881, vorticity_val[3 * layers + 1], eps);
+
+    // Timestep 1
+    rval = mb.tag_get_data(vorticity_tag1, cell_ents, 4, vorticity_val);
     CHECK_ERR(rval);
-    CHECK_REAL_EQUAL(25.001, ke1_val[0], eps);
-    CHECK_REAL_EQUAL(25.012, ke1_val[1], eps);
-    CHECK_REAL_EQUAL(26.013, ke1_val[2], eps);
-    CHECK_REAL_EQUAL(26.642, ke1_val[3], eps);
+    // Layer 0
+    CHECK_REAL_EQUAL(3.534355, vorticity_val[0 * layers], eps);
+    CHECK_REAL_EQUAL(0.128218, vorticity_val[1 * layers], eps);
+    CHECK_REAL_EQUAL(-0.540269, vorticity_val[2 * layers], eps);
+    CHECK_REAL_EQUAL(-0.540269, vorticity_val[3 * layers], eps);
+    // Layer 1
+    CHECK_REAL_EQUAL(3.534306, vorticity_val[0 * layers + 1], eps);
+    CHECK_REAL_EQUAL(0.128216, vorticity_val[1 * layers + 1], eps);
+    CHECK_REAL_EQUAL(-0.540262, vorticity_val[2 * layers + 1], eps);
+    CHECK_REAL_EQUAL(-0.540262, vorticity_val[3 * layers + 1], eps);
   }
 }
 
@@ -472,73 +459,7 @@ void test_read_no_edges()
 
 void test_gather_onevar()
 {
-  Core moab;
-  Interface& mb = moab;
-
-  EntityHandle file_set;
-  ErrorCode rval = mb.create_meshset(MESHSET_SET, file_set);
-  CHECK_ERR(rval);
-
-  std::string opts;
-  get_options(opts);
-
-  // Read cell variable ke and create gather set on processor 0
-  opts += ";VARIABLE=ke;GATHER_SET=0";
-  rval = mb.load_file(example, &file_set, opts.c_str());
-  CHECK_ERR(rval);
-
-#ifdef USE_MPI
-  ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
-  int rank = pcomm->proc_config().proc_rank();
-
-  Range cells, cells_owned;
-  rval = mb.get_entities_by_type(file_set, MBPOLYGON, cells);
-  CHECK_ERR(rval);
-
-  // Get local owned cells
-  rval = pcomm->filter_pstatus(cells, PSTATUS_NOT_OWNED, PSTATUS_NOT, -1, &cells_owned);
-  CHECK_ERR(rval);
-
-  EntityHandle gather_set = 0;
-  if (0 == rank) {
-    // Get gather set
-    ReadUtilIface* readUtilIface;
-    mb.query_interface(readUtilIface);
-    rval = readUtilIface->get_gather_set(gather_set);
-    CHECK_ERR(rval);
-    assert(gather_set != 0);
-  }
-
-  Tag ke_tag0, gid_tag;
-  rval = mb.tag_get_handle("ke0", 1, MB_TYPE_DOUBLE, ke_tag0, MB_TAG_DENSE);
-  CHECK_ERR(rval);
-
-  rval = mb.tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid_tag, MB_TAG_DENSE);
-  CHECK_ERR(rval);
-
-  pcomm->gather_data(cells_owned, ke_tag0, gid_tag, gather_set, 0);
-
-  if (0 == rank) {
-    // Get gather set cells
-    Range gather_set_cells;
-    rval = mb.get_entities_by_type(gather_set, MBPOLYGON, gather_set_cells);
-    CHECK_ERR(rval);
-    CHECK_EQUAL((size_t)642, gather_set_cells.size());
-    CHECK_EQUAL((size_t)2, gather_set_cells.psize());
-
-    // Check ke0 tag values on 4 gather set cells: first pentagon, last pentagon,
-    // first hexagon, and last hexagon
-    double ke0_val[4];
-    EntityHandle cell_ents[] = {gather_set_cells[0], gather_set_cells[11],
-                                gather_set_cells[12], gather_set_cells[641]};
-    rval = mb.tag_get_data(ke_tag0, cell_ents, 4, ke0_val);
-    CHECK_ERR(rval);
-    CHECK_REAL_EQUAL(15.001, ke0_val[0], eps);
-    CHECK_REAL_EQUAL(15.012, ke0_val[1], eps);
-    CHECK_REAL_EQUAL(16.013, ke0_val[2], eps);
-    CHECK_REAL_EQUAL(16.642, ke0_val[3], eps);
-  }
-#endif
+  // TBD
 }
 
 void get_options(std::string& opts)
