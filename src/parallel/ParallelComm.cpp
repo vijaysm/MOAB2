@@ -7038,8 +7038,8 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
 
     // post ghost irecv's for all interface procs
     // index greqs the same as buffer/sharing procs indices
-    std::vector<MPI_Request> recv_tag_reqs(2*buffProcs.size(), MPI_REQUEST_NULL),
-      sent_ack_reqs(buffProcs.size(), MPI_REQUEST_NULL);
+    std::vector<MPI_Request> recv_tag_reqs(3*buffProcs.size(), MPI_REQUEST_NULL);
+    //  sent_ack_reqs(buffProcs.size(), MPI_REQUEST_NULL);
     std::vector<unsigned int>::iterator sit;
     int ind;
 
@@ -7054,7 +7054,7 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
       success = MPI_Irecv(remoteOwnedBuffs[ind]->mem_ptr, INITIAL_BUFF_SIZE,
                           MPI_UNSIGNED_CHAR, *sit,
                           MB_MESG_TAGS_SIZE, procConfig.proc_comm(), 
-                          &recv_tag_reqs[2*ind]);
+                          &recv_tag_reqs[3*ind]);
       if (success != MPI_SUCCESS) {
         result = MB_FAILURE;
         RRA("Failed to post irecv in ghost exchange.");
@@ -7064,7 +7064,7 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
   
     // pack and send tags from this proc to others
     // make sendReqs vector to simplify initialization
-    sendReqs.resize(2*buffProcs.size(), MPI_REQUEST_NULL);
+    sendReqs.resize(3*buffProcs.size(), MPI_REQUEST_NULL);
   
     // take all shared entities if incoming list is empty
     Range entities;
@@ -7114,8 +7114,8 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
       RRA("Failed to count buffer in pack_send_tag.");
 
       // now send it
-      result = send_buffer(*sit, localOwnedBuffs[ind], MB_MESG_TAGS_SIZE, sendReqs[2*ind],
-                           recv_tag_reqs[2*ind+1], &dum_ack_buff, incoming);
+      result = send_buffer(*sit, localOwnedBuffs[ind], MB_MESG_TAGS_SIZE, sendReqs[3*ind],
+                           recv_tag_reqs[3*ind+2], &dum_ack_buff, incoming);
       RRA("Failed to send buffer.");
                          
     }
@@ -7123,13 +7123,16 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
     // receive/unpack tags
     while (incoming) {
       MPI_Status status;
+      int index_in_recv_requests;
       PRINT_DEBUG_WAITANY(recv_tag_reqs, MB_MESG_TAGS_SIZE, procConfig.proc_rank());
-      success = MPI_Waitany(2*buffProcs.size(), &recv_tag_reqs[0], &ind, &status);
+      success = MPI_Waitany(3*buffProcs.size(), &recv_tag_reqs[0], &index_in_recv_requests, &status);
       if (MPI_SUCCESS != success) {
         result = MB_FAILURE;
-        RRA("Failed in waitany in ghost exchange.");
+        RRA("Failed in waitany in tag exchange.");
       }
-    
+      // processor index in the list is divided by 3
+      ind = index_in_recv_requests/3;
+
       PRINT_DEBUG_RECD(status);
 
       // ok, received something; decrement incoming counter
@@ -7139,16 +7142,18 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
       std::vector<EntityHandle> dum_vec;
       result = recv_buffer(MB_MESG_TAGS_SIZE,
                            status,
-                           remoteOwnedBuffs[ind/2],
-                           recv_tag_reqs[ind/2 * 2], recv_tag_reqs[ind/2 * 2 + 1],
+                           remoteOwnedBuffs[ind],
+                           recv_tag_reqs[3*ind + 1], // this is for receiving the second message
+                           recv_tag_reqs[3*ind + 2], // this would be for ack, but it is not used; consider removing it
                            incoming,
-                           localOwnedBuffs[ind/2], sendReqs[ind/2*2], sendReqs[ind/2*2+1],
+                           localOwnedBuffs[ind], sendReqs[3*ind+1], // send reg for sendig the second message
+                           sendReqs[3*ind+2], // this is for sending the ack
                            done);
       RRA("Failed to resize recv buffer.");
       if (done) {
-        remoteOwnedBuffs[ind/2]->reset_ptr(sizeof(int));
-        result = unpack_tags(remoteOwnedBuffs[ind/2]->buff_ptr,
-                             dum_vec, true, buffProcs[ind/2]);
+        remoteOwnedBuffs[ind]->reset_ptr(sizeof(int));
+        result = unpack_tags(remoteOwnedBuffs[ind]->buff_ptr,
+                             dum_vec, true, buffProcs[ind]);
         RRA("Failed to recv-unpack-tag message.");
       }
     }
@@ -7158,8 +7163,8 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
       success = MPI_Barrier(procConfig.proc_comm());
     }
     else {
-      MPI_Status status[2*MAX_SHARING_PROCS];
-      success = MPI_Waitall(2*buffProcs.size(), &sendReqs[0], status);
+      MPI_Status status[3*MAX_SHARING_PROCS];
+      success = MPI_Waitall(3*buffProcs.size(), &sendReqs[0], status);
     }
     if (MPI_SUCCESS != success) {
       result = MB_FAILURE;

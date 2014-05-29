@@ -73,7 +73,6 @@
     io/GmshUtil.cpp
     io/ReadABAQUS.cpp
     io/ReadGmsh.cpp
-    io/ReadGCRM.cpp
     io/ReadIDEAS.cpp
     io/ReadMCNP5.cpp
     io/ReadNASTRAN.cpp
@@ -132,6 +131,7 @@
       io/NCHelperFV.cpp
       io/NCHelperHOMME.cpp
       io/NCHelperMPAS.cpp
+      io/NCHelperGCRM.cpp
       SpectralMeshTool.cpp
     )
     include_directories(

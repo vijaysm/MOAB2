@@ -4,10 +4,10 @@
 using namespace moab;
 
 #ifdef MESHDIR
-static const char example_eul[] = STRINGIFY(MESHDIR) "/io/camEul26x48x96.t3.nc";
+static const char example_eul[] = STRINGIFY(MESHDIR) "/io/eul26x48x96.t.3.nc";
 static const char example_fv[] = STRINGIFY(MESHDIR) "/io/fv26x46x72.t.3.nc";
 #else
-static const char example_eul[] = "/io/camEul26x48x96.t3.nc";
+static const char example_eul[] = "/io/eul26x48x96.t.3.nc";
 static const char example_fv[] = "/io/fv26x46x72.t.3.nc";
 #endif
 
