@@ -27,7 +27,7 @@ void test_gather_onevar(); // Test gather set with one variable
 void get_options(std::string& opts);
 
 const double eps = 1e-6;
-const int layers = 256;
+const int layers = 3;
 
 int main(int argc, char* argv[])
 {
