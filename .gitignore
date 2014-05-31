@@ -97,9 +97,9 @@ Makefile
 Makefile.in
 moab.config
 MOABConfig.cmake
-moab.creator*
-moab.files
-moab.includes
+*.creator*
+*.files
+*.includes
 moab.make
 *.o
 .project
