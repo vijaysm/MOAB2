@@ -747,7 +747,8 @@ void test_mpas_check_vars()
   }
 }
 
-// Write vertex variable vorticity, edge variable u and cell veriable ke
+// Check vertex variable u, edge variable wind, cell variable vorticity (on layers),
+// and cell variable pressure (on interfaces)
 void test_gcrm_read_write_vars()
 {
   int procs = 1;
@@ -772,15 +773,15 @@ void test_gcrm_read_write_vars()
   ErrorCode rval = mb.create_meshset(MESHSET_SET, set);
   CHECK_ERR(rval);
 
-  // Read non-set variables vorticity (cells) and u (corners)
-  read_opts += ";VARIABLE=vorticity,u;DEBUG_IO=0";
+  // Read non-set variables u, wind, vorticity and pressure
+  read_opts += ";VARIABLE=u,wind,vorticity,pressure;DEBUG_IO=0";
   if (procs > 1)
     read_opts += ";PARALLEL_RESOLVE_SHARED_ENTS";
   rval = mb.load_file(example_gcrm, &set, read_opts.c_str());
   CHECK_ERR(rval);
 
-  // Write variables vorticity, u
-  std::string write_opts = ";;VARIABLE=vorticity,u;DEBUG_IO=0";
+  // Write variables u, wind, vorticity and pressure
+  std::string write_opts = ";;VARIABLE=u,wind,vorticity,pressure;DEBUG_IO=0";
 #ifdef USE_MPI
   // Use parallel options
   write_opts += ";PARALLEL=WRITE_PART";
