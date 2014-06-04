@@ -173,11 +173,14 @@ int main(int argc, char *argv[]) {
 
    iBase_EntitySetHandle root_set;
    iMesh_createEntSet(mesh, 0, &root_set, &err);
-   CHECK( "Failed to create a model root set.\n");
+   if (err != iBase_SUCCESS)
+     std::cerr << " Error code: " << err << " failed to create a model set"
+                 << "  At        : " << __FILE__ << ':' << __LINE__  << std::endl;
 
    iMesh_load(mesh, root_set, filename.c_str(), NULL, &err, filename.length(), 0);
-   CHECK( "Failed to create a model root set.\n");
-
+   if (err != iBase_SUCCESS)
+     std::cerr << " Error code: " << err << " failed load the file"
+                    << "  At        : " << __FILE__ << ':' << __LINE__  << std::endl;
 
    std::string opts("SMOOTH;");
    // new constructor

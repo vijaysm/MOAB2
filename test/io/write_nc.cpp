@@ -4,13 +4,19 @@
 using namespace moab;
 
 #ifdef MESHDIR
-static const char example_eul[] = STRINGIFY(MESHDIR) "/io/camEul26x48x96.t3.nc";
+static const char example_eul[] = STRINGIFY(MESHDIR) "/io/eul26x48x96.t.3.nc";
+static const char example_eul_t0[] = STRINGIFY(MESHDIR) "/io/eul26x48x96.t0.nc";
+static const char example_eul_t1[] = STRINGIFY(MESHDIR) "/io/eul26x48x96.t1.nc";
+static const char example_eul_t2[] = STRINGIFY(MESHDIR) "/io/eul26x48x96.t2.nc";
 static const char example_fv[] = STRINGIFY(MESHDIR) "/io/fv26x46x72.t.3.nc";
 static const char example_homme[] = STRINGIFY(MESHDIR) "/io/homme26x3458.t.3.nc";
 static const char example_mpas[] = STRINGIFY(MESHDIR) "/io/mpasx1.642.t.2.nc";
 static const char example_gcrm[] = STRINGIFY(MESHDIR) "/io/gcrm_r3.nc";
 #else
-static const char example_eul[] = "/io/camEul26x48x96.t3.nc";
+static const char example_eul[] = "/io/eul26x48x96.t.3.nc";
+static const char example_eul_t0[] = "/io/eul26x48x96.t0.nc";
+static const char example_eul_t1[] = "/io/eul26x48x96.t1.nc";
+static const char example_eul_t2[] = "/io/eul26x48x96.t2.nc";
 static const char example_fv[] = "/io/fv26x46x72.t.3.nc";
 static const char example_homme[] = "/io/homme26x3458.t.3.nc";
 static const char example_mpas[] = "/io/mpasx1.642.t.2.nc";
@@ -48,10 +54,9 @@ void test_homme_check_T();
 void test_mpas_read_write_vars();
 void test_mpas_check_vars();
 
-
 // GCRM
 void test_gcrm_read_write_vars();
-//void test_gcrm_check_vars();
+void test_gcrm_check_vars();
 
 // Test timestep option
 void test_eul_read_write_timestep();
@@ -60,6 +65,10 @@ void test_eul_check_timestep();
 // Test append option
 void test_eul_read_write_append();
 void test_eul_check_append();
+
+// Test writing variables with timesteps spread across files
+void test_eul_read_write_across_files();
+void test_eul_check_across_files();
 
 #ifdef USE_MPI
 // Test mesh with ghosted entities
@@ -97,13 +106,16 @@ int main(int argc, char* argv[])
   result += RUN_TEST(test_mpas_check_vars);
 
   result += RUN_TEST(test_gcrm_read_write_vars);
-  //result += RUN_TEST(test_gcrm_check_vars);
+  result += RUN_TEST(test_gcrm_check_vars);
 
   result += RUN_TEST(test_eul_read_write_timestep);
   result += RUN_TEST(test_eul_check_timestep);
 
   result += RUN_TEST(test_eul_read_write_append);
   result += RUN_TEST(test_eul_check_append);
+
+  result += RUN_TEST(test_eul_read_write_across_files);
+  result += RUN_TEST(test_eul_check_across_files);
 
 #ifdef USE_MPI
   result += RUN_TEST(test_eul_read_write_ghosting);
@@ -210,15 +222,15 @@ void test_eul_check_T()
 #endif
 
     NCDF_SIZE start[] = {0, 0, 0, 0};
-    NCDF_SIZE count[] = {2, 1, 48, 96}; // Read two timesteps and one level
+    NCDF_SIZE count[] = {3, 1, 48, 96}; // Read three timesteps and one level
 
     // Read variable T on 48 * 96 quads (first level)
-    double T_vals_lev1[2 * 48 * 96];
+    double T_vals_lev1[3 * 48 * 96];
     success = NCFUNC(get_vara_double)(ncid, T_id, start, count, T_vals_lev1);
     CHECK_EQUAL(0, success);
 
     // Read variable T on 48 * 96 quads (last level)
-    double T_vals_lev26[2 * 48 * 96];
+    double T_vals_lev26[3 * 48 * 96];
     start[1] = 25;
     success = NCFUNC(get_vara_double)(ncid, T_id, start, count, T_vals_lev26);
     CHECK_EQUAL(0, success);
@@ -244,10 +256,15 @@ void test_eul_check_T()
     CHECK_REAL_EQUAL(232.6458, T_vals_lev1[2304], eps); // Median quad
     CHECK_REAL_EQUAL(200.6828, T_vals_lev1[4607], eps); // Last quad
     // Timestep 1
-    CHECK_REAL_EQUAL(241.7352, T_vals_lev1[0 + 4608], eps); // First quad
+    CHECK_REAL_EQUAL(241.7353, T_vals_lev1[0 + 4608], eps); // First quad
     CHECK_REAL_EQUAL(234.7536, T_vals_lev1[2303 + 4608], eps); // Median quad
     CHECK_REAL_EQUAL(234.4739, T_vals_lev1[2304 + 4608], eps); // Median quad
     CHECK_REAL_EQUAL(198.2482, T_vals_lev1[4607 + 4608], eps); // Last quad
+    // Timestep 2
+    CHECK_REAL_EQUAL(224.1966, T_vals_lev1[0 + 4608*2], eps); // First quad
+    CHECK_REAL_EQUAL(236.1358, T_vals_lev1[2303 + 4608*2], eps); // Median quad
+    CHECK_REAL_EQUAL(235.9430, T_vals_lev1[2304 + 4608*2], eps); // Median quad
+    CHECK_REAL_EQUAL(218.7719, T_vals_lev1[4607 + 4608*2], eps); // Last quad
 
     // Check T values at some strategically chosen places (last level)
     // Timestep 0
@@ -260,6 +277,11 @@ void test_eul_check_T()
     CHECK_REAL_EQUAL(299.9290, T_vals_lev26[2303 + 4608], eps); // Median quad
     CHECK_REAL_EQUAL(299.7614, T_vals_lev26[2304 + 4608], eps); // Median quad
     CHECK_REAL_EQUAL(241.1057, T_vals_lev26[4607 + 4608], eps); // Last quad
+    // Timestep 2
+    CHECK_REAL_EQUAL(232.7547, T_vals_lev26[0 + 4608*2], eps); // First quad
+    CHECK_REAL_EQUAL(300.2307, T_vals_lev26[2303 + 4608*2], eps); // Median quad
+    CHECK_REAL_EQUAL(299.2372, T_vals_lev26[2304 + 4608*2], eps); // Median quad
+    CHECK_REAL_EQUAL(242.8274, T_vals_lev26[4607 + 4608*2], eps); // Last quad
 
     eps = 1e-10;
 
@@ -566,7 +588,7 @@ void test_homme_check_T()
   }
 }
 
-// Write vertex variable vorticity, edge variable u and cell veriable ke
+// Write vertex variable vorticity, edge variable u and cell variable ke
 void test_mpas_read_write_vars()
 {
   int procs = 1;
@@ -610,7 +632,7 @@ void test_mpas_read_write_vars()
   CHECK_ERR(rval);
 }
 
-// Check vertex variable vorticity, edge variable u and cell veriable ke
+// Check vertex variable vorticity, edge variable u and cell variable ke
 void test_mpas_check_vars()
 {
   int rank = 0;
@@ -725,7 +747,8 @@ void test_mpas_check_vars()
   }
 }
 
-// Write vertex variable vorticity, edge variable u and cell veriable ke
+// Write vertex variable u, edge variable wind, cell variable vorticity (on layers),
+// and cell variable pressure (on interfaces)
 void test_gcrm_read_write_vars()
 {
   int procs = 1;
@@ -750,15 +773,15 @@ void test_gcrm_read_write_vars()
   ErrorCode rval = mb.create_meshset(MESHSET_SET, set);
   CHECK_ERR(rval);
 
-  // Read non-set variables vorticity (cells) and u (corners)
-  read_opts += ";VARIABLE=vorticity,u;DEBUG_IO=0";
+  // Read non-set variables u, wind, vorticity and pressure
+  read_opts += ";VARIABLE=u,wind,vorticity,pressure;DEBUG_IO=0";
   if (procs > 1)
     read_opts += ";PARALLEL_RESOLVE_SHARED_ENTS";
   rval = mb.load_file(example_gcrm, &set, read_opts.c_str());
   CHECK_ERR(rval);
 
-  // Write variables vorticity, u
-  std::string write_opts = ";;VARIABLE=vorticity,u;DEBUG_IO=0";
+  // Write variables u, wind, vorticity and pressure
+  std::string write_opts = ";;VARIABLE=u,wind,vorticity,pressure;DEBUG_IO=0";
 #ifdef USE_MPI
   // Use parallel options
   write_opts += ";PARALLEL=WRITE_PART";
@@ -768,6 +791,169 @@ void test_gcrm_read_write_vars()
   else
     rval = mb.write_file("test_gcrm_vars.nc", 0, write_opts.c_str(), &set, 1);
   CHECK_ERR(rval);
+}
+
+// Check vertex variable u, edge variable wind, cell variable vorticity (on layers),
+// and cell variable pressure (on interfaces)
+void test_gcrm_check_vars()
+{
+  int rank = 0;
+  int procs = 1;
+#ifdef USE_MPI
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &procs);
+#endif
+
+// We will not test NC writer in parallel without pnetcdf support
+#ifndef PNETCDF_FILE
+  if (procs > 1)
+    return;
+#endif
+
+  if (0 == rank) {
+    int ncid;
+    int success;
+
+    std::string filename;
+    if (procs > 1)
+      filename = "test_par_gcrm_vars.nc";
+    else
+      filename = "test_gcrm_vars.nc";
+
+#ifdef PNETCDF_FILE
+    success = NCFUNC(open)(MPI_COMM_SELF, filename.c_str(), NC_NOWRITE, MPI_INFO_NULL, &ncid);
+#else
+    success = NCFUNC(open)(filename.c_str(), NC_NOWRITE, &ncid);
+#endif
+    CHECK_EQUAL(0, success);
+
+    int u_id;
+    success = NCFUNC(inq_varid)(ncid, "u", &u_id);
+    CHECK_EQUAL(0, success);
+
+    int wind_id;
+    success = NCFUNC(inq_varid)(ncid, "wind", &wind_id);
+    CHECK_EQUAL(0, success);
+
+    int vorticity_id;
+    success = NCFUNC(inq_varid)(ncid, "vorticity", &vorticity_id);
+    CHECK_EQUAL(0, success);
+
+    int pressure_id;
+    success = NCFUNC(inq_varid)(ncid, "pressure", &pressure_id);
+    CHECK_EQUAL(0, success);
+
+#ifdef PNETCDF_FILE
+    // Enter independent I/O mode
+    success = NCFUNC(begin_indep_data)(ncid);
+    CHECK_EQUAL(0, success);
+#endif
+
+    NCDF_SIZE start[] = {0, 0, 0};
+    NCDF_SIZE count[] = {2, 1, 2}; // Read two timesteps and two levels
+
+    // Read variable u on all 1280 vertices
+    count[1] = 1280;
+    double u_vals[1280 * 4];
+    success = NCFUNC(get_vara_double)(ncid, u_id, start, count, u_vals);
+    CHECK_EQUAL(0, success);
+
+    // Read variable wind on all 1920 edges
+    count[1] = 1920;
+    double wind_vals[1920 * 4];
+    success = NCFUNC(get_vara_double)(ncid, wind_id, start, count, wind_vals);
+    CHECK_EQUAL(0, success);
+
+    // Read variable vorticity on all 642 cells
+    count[1] = 642;
+    double vorticity_vals[642 * 4];
+    success = NCFUNC(get_vara_double)(ncid, vorticity_id, start, count, vorticity_vals);
+    CHECK_EQUAL(0, success);
+
+    // Read variable pressure on all 642 cells
+    double pressure_vals[642 * 4];
+    success = NCFUNC(get_vara_double)(ncid, pressure_id, start, count, pressure_vals);
+    CHECK_EQUAL(0, success);
+
+#ifdef PNETCDF_FILE
+    // End independent I/O mode
+    success = NCFUNC(end_indep_data)(ncid);
+    CHECK_EQUAL(0, success);
+#endif
+
+    const double eps = 1e-6;
+
+    // Check u values on first and last vertices
+    // Timestep 0
+    // Layer 0
+    CHECK_REAL_EQUAL(-4.839992, u_vals[0], eps);
+    CHECK_REAL_EQUAL(-3.699257, u_vals[1279 * 2], eps);
+    // Layer 1
+    CHECK_REAL_EQUAL(-4.839925, u_vals[0 + 1], eps);
+    CHECK_REAL_EQUAL(-3.699206, u_vals[1279 * 2 + 1], eps);
+
+    // Timestep 1
+    // Layer 0
+    CHECK_REAL_EQUAL(-4.712473, u_vals[0 + 1280 * 2], eps);
+    CHECK_REAL_EQUAL(-3.601793, u_vals[1279 * 2 + 1280 * 2], eps);
+    // Layer 1
+    CHECK_REAL_EQUAL(-4.712409, u_vals[0 + 1 + 1280 * 2], eps);
+    CHECK_REAL_EQUAL(-3.601743, u_vals[1279 * 2 + 1 + 1280 * 2], eps);
+
+    // Check wind values on first and last edges
+    // Timestep 0
+    // Layer 0
+    CHECK_REAL_EQUAL(-5.081991, wind_vals[0], eps);
+    CHECK_REAL_EQUAL(-6.420274, wind_vals[1919 * 2], eps);
+    // Layer 1
+    CHECK_REAL_EQUAL(-5.081781, wind_vals[0 + 1], eps);
+    CHECK_REAL_EQUAL(-6.419831, wind_vals[1919 * 2 + 1], eps);
+
+    // Timestep 1
+    // Layer 0
+    CHECK_REAL_EQUAL(-4.948097, wind_vals[0 + 1920 * 2], eps);
+    CHECK_REAL_EQUAL(-6.251121, wind_vals[1919 * 2 + 1920 * 2], eps);
+    // Layer 1
+    CHECK_REAL_EQUAL(-4.947892, wind_vals[0 + 1 + 1920 * 2], eps);
+    CHECK_REAL_EQUAL(-6.250690, wind_vals[1919 * 2 + 1 + 1920 * 2], eps);
+
+    // Check vorticity values on first and last cells
+    // Timestep 0
+    // Layer 0
+    CHECK_REAL_EQUAL(3.629994, vorticity_vals[0], eps);
+    CHECK_REAL_EQUAL(-0.554888, vorticity_vals[641 * 2], eps);
+    // Layer 1
+    CHECK_REAL_EQUAL(3.629944, vorticity_vals[0 + 1], eps);
+    CHECK_REAL_EQUAL(-0.554881, vorticity_vals[641 * 2 + 1], eps);
+
+    // Timestep 1
+    // Layer 0
+    CHECK_REAL_EQUAL(3.534355, vorticity_vals[0 + 642 * 2], eps);
+    CHECK_REAL_EQUAL(-0.540269, vorticity_vals[641 * 2 + 642 * 2], eps);
+    // Layer 1
+    CHECK_REAL_EQUAL(3.534306, vorticity_vals[0 + 1 + 642 * 2], eps);
+    CHECK_REAL_EQUAL(-0.540262, vorticity_vals[641 * 2 + 1 + 642 * 2], eps);
+
+    // Check pressure values on first and last cells
+    // Timestep 0
+    // Interface 0
+    CHECK_REAL_EQUAL(4.44234e-06, pressure_vals[0], 1e-11);
+    CHECK_REAL_EQUAL(0.2486804, pressure_vals[641 * 2], 1e-7);
+    // Interface 1
+    CHECK_REAL_EQUAL(4.44234e-06, pressure_vals[0 + 1], 1e-11);
+    CHECK_REAL_EQUAL(0.2486804, pressure_vals[641 * 2 + 1], 1e-7);
+
+    // Timestep 1
+    // Interface 0
+    CHECK_REAL_EQUAL(2.365176e-07, pressure_vals[0 + 642 * 2], 1e-13);
+    CHECK_REAL_EQUAL(0.02234409, pressure_vals[641 * 2 + 642 * 2], 1e-8);
+    // Interface 1
+    CHECK_REAL_EQUAL(2.365176e-07, pressure_vals[0 + 1 + 642 * 2], 1e-13);
+    CHECK_REAL_EQUAL(0.02234409, pressure_vals[641 * 2 + 1 + 642 * 2], 1e-8);
+
+    success = NCFUNC(close)(ncid);
+    CHECK_EQUAL(0, success);
+  }
 }
 
 // Read non-set variable T on all 3 timesteps, and write only timestep 2
@@ -1049,6 +1235,165 @@ void test_eul_check_append()
     CHECK_REAL_EQUAL(0.89077, V_vals_lev1[2303], eps); // Median quad
     CHECK_REAL_EQUAL(1.141688, V_vals_lev1[2304], eps); // Median quad
     CHECK_REAL_EQUAL(-38.21262, V_vals_lev1[4607], eps); // Last quad
+
+    success = NCFUNC(close)(ncid);
+    CHECK_EQUAL(0, success);
+  }
+}
+
+void test_eul_read_write_across_files()
+{
+  int procs = 1;
+#ifdef USE_MPI
+  MPI_Comm_size(MPI_COMM_WORLD, &procs);
+#endif
+
+// We will not test NC writer in parallel without pnetcdf support
+#ifndef PNETCDF_FILE
+  if (procs > 1)
+    return;
+#endif
+
+  Core moab;
+  Interface& mb = moab;
+
+  std::string read_opts;
+
+  EntityHandle set;
+  ErrorCode rval = mb.create_meshset(MESHSET_SET, set);
+  CHECK_ERR(rval);
+
+  // This file contains single timestep 2 (option TIMESTEP=0 will be implicitly used)
+  // Read T as tag T2 with option TIMESTEPBASE=2
+  get_eul_read_options(read_opts);
+  read_opts += ";VARIABLE=T;TIMESTEPBASE=2;DEBUG_IO=0";
+  rval = mb.load_file(example_eul_t2, &set, read_opts.c_str());
+  CHECK_ERR(rval);
+
+  // This file contains single timestep 0 (option TIMESTEP=0 will be implicitly used)
+  // Read T as tag T0 with option TIMESTEPBASE=0
+  get_eul_read_options(read_opts);
+  read_opts += ";VARIABLE=T;TIMESTEPBASE=0;NOMESH;DEBUG_IO=0";
+  rval = mb.load_file(example_eul_t0, &set, read_opts.c_str());
+  CHECK_ERR(rval);
+
+  // This file contains single timestep 1 (option TIMESTEP=0 will be implicitly used)
+  // Read T as tag T1 with option TIMESTEPBASE=1
+  get_eul_read_options(read_opts);
+  read_opts += ";VARIABLE=T;TIMESTEPBASE=1;NOMESH;DEBUG_IO=0";
+  rval = mb.load_file(example_eul_t1, &set, read_opts.c_str());
+  CHECK_ERR(rval);
+
+  // Write variable T with 3 timesteps
+  std::string write_opts = ";;VARIABLE=T;TIMESTEP=0,1,2;DEBUG_IO=0";
+#ifdef USE_MPI
+  // Use parallel options
+  write_opts += ";PARALLEL=WRITE_PART";
+#endif
+  if (procs > 1)
+    rval = mb.write_file("test_par_eul_across_files.nc", 0, write_opts.c_str(), &set, 1);
+  else
+    rval = mb.write_file("test_eul_across_files.nc", 0, write_opts.c_str(), &set, 1);
+  CHECK_ERR(rval);
+}
+
+void test_eul_check_across_files()
+{
+  int rank = 0;
+  int procs = 1;
+#ifdef USE_MPI
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &procs);
+#endif
+
+// We will not test NC writer in parallel without pnetcdf support
+#ifndef PNETCDF_FILE
+  if (procs > 1)
+    return;
+#endif
+
+  if (0 == rank) {
+    int ncid;
+    int success;
+
+    std::string filename;
+    if (procs > 1)
+      filename = "test_par_eul_across_files.nc";
+    else
+      filename = "test_eul_across_files.nc";
+
+#ifdef PNETCDF_FILE
+    success = NCFUNC(open)(MPI_COMM_SELF, filename.c_str(), NC_NOWRITE, MPI_INFO_NULL, &ncid);
+#else
+    success = NCFUNC(open)(filename.c_str(), NC_NOWRITE, &ncid);
+#endif
+    CHECK_EQUAL(0, success);
+
+    int T_id;
+    success = NCFUNC(inq_varid)(ncid, "T", &T_id);
+    CHECK_EQUAL(0, success);
+
+#ifdef PNETCDF_FILE
+    // Enter independent I/O mode
+    success = NCFUNC(begin_indep_data)(ncid);
+    CHECK_EQUAL(0, success);
+#endif
+
+    NCDF_SIZE start[] = {0, 0, 0, 0};
+    NCDF_SIZE count[] = {3, 1, 48, 96}; // Read three timesteps and one level
+
+    // Read variable T on 48 * 96 quads (first level)
+    double T_vals_lev1[3 * 48 * 96];
+    success = NCFUNC(get_vara_double)(ncid, T_id, start, count, T_vals_lev1);
+    CHECK_EQUAL(0, success);
+
+    // Read variable T on 48 * 96 quads (last level)
+    double T_vals_lev26[3 * 48 * 96];
+    start[1] = 25;
+    success = NCFUNC(get_vara_double)(ncid, T_id, start, count, T_vals_lev26);
+    CHECK_EQUAL(0, success);
+
+#ifdef PNETCDF_FILE
+    // End independent I/O mode
+    success = NCFUNC(end_indep_data)(ncid);
+    CHECK_EQUAL(0, success);
+#endif
+
+    double eps = 0.0001;
+
+    // Check T values at some strategically chosen places (first level)
+    // Timestep 0
+    CHECK_REAL_EQUAL(252.8529, T_vals_lev1[0], eps); // First quad
+    CHECK_REAL_EQUAL(232.6670, T_vals_lev1[2303], eps); // Median quad
+    CHECK_REAL_EQUAL(232.6458, T_vals_lev1[2304], eps); // Median quad
+    CHECK_REAL_EQUAL(200.6828, T_vals_lev1[4607], eps); // Last quad
+    // Timestep 1
+    CHECK_REAL_EQUAL(241.7353, T_vals_lev1[0 + 4608], eps); // First quad
+    CHECK_REAL_EQUAL(234.7536, T_vals_lev1[2303 + 4608], eps); // Median quad
+    CHECK_REAL_EQUAL(234.4739, T_vals_lev1[2304 + 4608], eps); // Median quad
+    CHECK_REAL_EQUAL(198.2482, T_vals_lev1[4607 + 4608], eps); // Last quad
+    // Timestep 2
+    CHECK_REAL_EQUAL(224.1966, T_vals_lev1[0 + 4608*2], eps); // First quad
+    CHECK_REAL_EQUAL(236.1358, T_vals_lev1[2303 + 4608*2], eps); // Median quad
+    CHECK_REAL_EQUAL(235.9430, T_vals_lev1[2304 + 4608*2], eps); // Median quad
+    CHECK_REAL_EQUAL(218.7719, T_vals_lev1[4607 + 4608*2], eps); // Last quad
+
+    // Check T values at some strategically chosen places (last level)
+    // Timestep 0
+    CHECK_REAL_EQUAL(253.1395, T_vals_lev26[0], eps); // First quad
+    CHECK_REAL_EQUAL(299.0477, T_vals_lev26[2303], eps); // Median quad
+    CHECK_REAL_EQUAL(300.0627, T_vals_lev26[2304], eps); // Median quad
+    CHECK_REAL_EQUAL(241.1817, T_vals_lev26[4607], eps); // Last quad
+    // Timestep 1
+    CHECK_REAL_EQUAL(242.9252, T_vals_lev26[0 + 4608], eps); // First quad
+    CHECK_REAL_EQUAL(299.9290, T_vals_lev26[2303 + 4608], eps); // Median quad
+    CHECK_REAL_EQUAL(299.7614, T_vals_lev26[2304 + 4608], eps); // Median quad
+    CHECK_REAL_EQUAL(241.1057, T_vals_lev26[4607 + 4608], eps); // Last quad
+    // Timestep 2
+    CHECK_REAL_EQUAL(232.7547, T_vals_lev26[0 + 4608*2], eps); // First quad
+    CHECK_REAL_EQUAL(300.2307, T_vals_lev26[2303 + 4608*2], eps); // Median quad
+    CHECK_REAL_EQUAL(299.2372, T_vals_lev26[2304 + 4608*2], eps); // Median quad
+    CHECK_REAL_EQUAL(242.8274, T_vals_lev26[4607 + 4608*2], eps); // Last quad
 
     success = NCFUNC(close)(ncid);
     CHECK_EQUAL(0, success);

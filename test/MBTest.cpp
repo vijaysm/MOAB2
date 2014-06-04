@@ -8182,7 +8182,9 @@ int main(int argc, char* argv[])
   argv0 = argv[0];
 
     // Check command line arg to see if we should avoid doing the stress test
+#if NETCDF_FILE
   bool stress_test = true;
+#endif
 
   std::cout << "Size of mConnMap = " << sizeof(CN::mConnectivityMap)
             << std::endl;
@@ -8192,10 +8194,13 @@ int main(int argc, char* argv[])
             << std::endl;
     
   for (int i = 1; i < argc; ++i) {
-    if (string(argv[i]) == "-nostress")
-      stress_test = false;
-    else if (string(argv[i]) == "-d" && (i+1) < argc)
+
+    if (string(argv[i]) == "-d" && (i+1) < argc)
       TestDir = argv[++i];
+#if NETCDF_FILE
+    else if (string(argv[i]) == "-nostress")
+      stress_test = false;
+#endif
     else if (string(argv[i]) == "-h" || string(argv[i]) == "--help")
       usage( argv[0] );
     else {

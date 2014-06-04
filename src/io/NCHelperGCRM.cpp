@@ -103,10 +103,10 @@ ErrorCode NCHelperGCRM::init_mesh_vals()
   levDim = idx;
   nLevels = dimLens[idx];
 
-  // Dimension numbers for other optional levels
+  // Dimension indices for other optional levels
   std::vector<unsigned int> opt_lev_dims;
 
-  // Get number of interface levels
+  // Get index of interface levels
   if ((vit = std::find(dimNames.begin(), dimNames.end(), "interfaces")) != dimNames.end()) {
     idx = vit - dimNames.begin();
     opt_lev_dims.push_back(idx);
@@ -1308,7 +1308,7 @@ ErrorCode NCHelperGCRM::create_local_cells(const std::vector<int>& vertices_on_l
         if( *(pvertex+k) == *(pvertex+k+1) )
         {
           // shift the connectivity
-          for (int kk=k+1; kk<num_edges_per_cell-2; kk++)
+          for (int kk=k+1; kk<num_edges_per_cell-1; kk++)
           {
             *(pvertex+kk)=*(pvertex+kk+1);
           }

@@ -61,7 +61,8 @@ NCHelper* NCHelper::get_nc_helper(ReadNC* readNC, int fileId, const FileOptions&
   return NULL;
 }
 
-ErrorCode NCHelper::create_conventional_tags(const std::vector<int>& tstep_nums) {
+ErrorCode NCHelper::create_conventional_tags(const std::vector<int>& tstep_nums)
+{
   Interface*& mbImpl = _readNC->mbImpl;
   std::vector<std::string>& dimNames = _readNC->dimNames;
   std::vector<int>& dimLens = _readNC->dimLens;
@@ -261,7 +262,7 @@ ErrorCode NCHelper::create_conventional_tags(const std::vector<int>& tstep_nums)
     std::vector<int> varAttLen;
     if (mapIter->second.numAtts < 1) {
       if (dummyVarNames.find(mapIter->first) != dummyVarNames.end()) {
-        // This variable is a dummy dimension variable
+        // This variable is a dummy coordinate variable
         varAttVal = "DUMMY_VAR";
       }
       else {
@@ -327,6 +328,58 @@ ErrorCode NCHelper::create_conventional_tags(const std::vector<int>& tstep_nums)
   return MB_SUCCESS;
 }
 
+ErrorCode NCHelper::update_time_tag_vals()
+{
+  Interface*& mbImpl = _readNC->mbImpl;
+  std::vector<std::string>& dimNames = _readNC->dimNames;
+
+  ErrorCode rval;
+
+  // The time tag might be a dummy one (e.g. 'Time' for MPAS)
+  std::string time_tag_name = dimNames[tDim];
+  if (dummyVarNames.find(time_tag_name) != dummyVarNames.end())
+    return MB_SUCCESS;
+
+  Tag time_tag = 0;
+  const void* data = NULL;
+  int time_tag_size = 0;
+  rval = mbImpl->tag_get_handle(time_tag_name.c_str(), 0, MB_TYPE_DOUBLE, time_tag, MB_TAG_VARLEN);
+  ERRORR(rval, "Trouble getting time tag.");
+  rval = mbImpl->tag_get_by_ptr(time_tag, &_fileSet, 1, &data, &time_tag_size);
+  ERRORR(rval, "Trouble getting values for time tag.");
+  const double* time_tag_vals = static_cast<const double*>(data);
+
+  // Merge tVals (read from current file) to existing time tag
+  // Assume that time_tag_vals and tVals are both sorted
+  std::vector<double> merged_time_vals;
+  merged_time_vals.reserve(time_tag_size + nTimeSteps);
+  int i = 0;
+  int j = 0;
+
+  // Merge time values from time_tag_vals and tVals
+  while (i < time_tag_size && j < nTimeSteps) {
+    if (time_tag_vals[i] < tVals[j])
+      merged_time_vals.push_back(time_tag_vals[i++]);
+    else
+      merged_time_vals.push_back(tVals[j++]);
+  }
+
+  // Append remaining time values of time_tag_vals (if any)
+  while (i < time_tag_size)
+    merged_time_vals.push_back(time_tag_vals[i++]);
+
+  // Append remaining time values of tVals (if any)
+  while (j < nTimeSteps)
+    merged_time_vals.push_back(tVals[j++]);
+
+  data = &merged_time_vals[0];
+  time_tag_size = merged_time_vals.size();
+  rval = mbImpl->tag_set_by_ptr(time_tag, &_fileSet, 1, &data, &time_tag_size);
+  ERRORR(rval, "Failed to set data for time tag.");
+
+  return MB_SUCCESS;
+}
+
 ErrorCode NCHelper::read_variable_setup(std::vector<std::string>& var_names, std::vector<int>& tstep_nums,
                                         std::vector<ReadNC::VarData>& vdatas, std::vector<ReadNC::VarData>& vsetdatas)
 {
@@ -341,12 +394,10 @@ ErrorCode NCHelper::read_variable_setup(std::vector<std::string>& var_names, std
       ReadNC::VarData vd = (*mit).second;
 
       // If read all variables at once, skip ignored ones
-      // Upon creation of dummy variables, tag values have already been set
-      if (ignoredVarNames.find(vd.varName) != ignoredVarNames.end() ||
-          dummyVarNames.find(vd.varName) != dummyVarNames.end())
+      if (ignoredVarNames.find(vd.varName) != ignoredVarNames.end())
          continue;
 
-      // Dimension variables were read before creating conventional tags
+      // Coordinate variables (include dummy ones) were read to the file set by default
       if (std::find(dimNames.begin(), dimNames.end(), vd.varName) != dimNames.end())
         continue;
 
@@ -363,7 +414,7 @@ ErrorCode NCHelper::read_variable_setup(std::vector<std::string>& var_names, std
       if (mit != varInfo.end()) {
         ReadNC::VarData vd = (*mit).second;
 
-        // Upon creation of dummy variables, tag values have already been set
+        // Upon creation of dummy coordinate variables, tag values have already been set
         if (dummyVarNames.find(vd.varName) != dummyVarNames.end())
            continue;
 
@@ -636,6 +687,10 @@ ErrorCode NCHelper::get_tag_to_set(ReadNC::VarData& var_data, int tstep_num, Tag
 {
   Interface*& mbImpl = _readNC->mbImpl;
   DebugOutput& dbgOut = _readNC->dbgOut;
+  int& tStepBase = _readNC->tStepBase;
+
+  if (tStepBase > 0)
+    tstep_num += tStepBase;
 
   std::ostringstream tag_name;
   if (var_data.has_tsteps)
@@ -673,6 +728,10 @@ ErrorCode NCHelper::get_tag_to_nonset(ReadNC::VarData& var_data, int tstep_num, 
 {
   Interface*& mbImpl = _readNC->mbImpl;
   DebugOutput& dbgOut = _readNC->dbgOut;
+  int& tStepBase = _readNC->tStepBase;
+
+  if (tStepBase > 0)
+    tstep_num += tStepBase;
 
   std::ostringstream tag_name;
   tag_name << var_data.varName << tstep_num;
@@ -775,13 +834,13 @@ ErrorCode NCHelper::create_dummy_variables()
 
   // Hack: look at all dimensions, and see if we have one that does not appear in the list of varInfo names
   // Right now, candidates are from unstructured meshes, such as ncol (HOMME) and nCells (MPAS)
-  // For each of them, create a dummy variable with a sparse tag to store the dimension length
+  // For each of them, create a dummy coordinate variable with a sparse tag to store the dimension length
   for (unsigned int i = 0; i < dimNames.size(); i++) {
     // If there is a variable with this dimension name, skip
     if (varInfo.find(dimNames[i]) != varInfo.end())
       continue;
 
-    // Create a dummy variable
+    // Create a dummy coordinate variable
     int sizeTotalVar = varInfo.size();
     std::string var_name(dimNames[i]);
     ReadNC::VarData& data = varInfo[var_name];
@@ -794,13 +853,13 @@ ErrorCode NCHelper::create_dummy_variables()
     data.numAtts = 0;
     data.entLoc = ReadNC::ENTLOCSET;
     dummyVarNames.insert(dimNames[i]);
-    dbgOut.tprintf(2, "Dummy variable created for dimension %s\n", dimNames[i].c_str());
+    dbgOut.tprintf(2, "Dummy coordinate variable created for dimension %s\n", dimNames[i].c_str());
 
     // Create a corresponding sparse tag
     Tag tagh;
     ErrorCode rval = mbImpl->tag_get_handle(dimNames[i].c_str(), 0, MB_TYPE_INTEGER, tagh,
                                             MB_TAG_CREAT | MB_TAG_SPARSE | MB_TAG_VARLEN);
-    ERRORR(rval, "Failed to create tag for a dummy dimension variable.");
+    ERRORR(rval, "Failed to create tag for a dummy coordinate variable.");
 
     // Tag value is the dimension length
     const void* ptr = &dimLens[i];

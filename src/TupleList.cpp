@@ -267,7 +267,7 @@ int TupleList::find(unsigned int key_num, sint value)
     else
     {
       // Sequential search: if tuple_list is not sorted
-      for (long index = 0; index < n; index++)
+      for (uint index = 0; index < n; index++)
       {
         if (vi[index * mi + key_num] == (long) uvalue)
           return index;

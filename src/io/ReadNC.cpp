@@ -25,7 +25,7 @@ ReadNC::ReadNC(Interface* impl) :
   myPcomm(NULL),
 #endif
   noMesh(false), noVars(false), spectralMesh(false), noMixedElements(false), noEdges(false),
-  gatherSetRank(-1), myHelper(NULL)
+  gatherSetRank(-1), tStepBase(-1), myHelper(NULL)
 {
   assert(impl != NULL);
   impl->query_interface(readMeshIface);
@@ -119,7 +119,9 @@ ErrorCode ReadNC::load_file(const char* file_name, const EntityHandle* file_set,
   }
 
   // Create some conventional tags, e.g. __NUM_DIMS
-  // Keep a flag on the file set to prevent conventional tags from being created again on a second read
+  // For multiple reads to a specified file set, we assume a single file, or a series of
+  // files with separated timesteps. Keep a flag on the file set to prevent conventional
+  // tags from being created again on a second read
   Tag convTagsCreated = 0;
   int def_val = 0;
   rval = mbImpl->tag_get_handle("__CONV_TAGS_CREATED", 1, MB_TYPE_INTEGER, convTagsCreated,
@@ -127,10 +129,12 @@ ErrorCode ReadNC::load_file(const char* file_name, const EntityHandle* file_set,
   ERRORR(rval, "Trouble getting _CONV_TAGS_CREATED tag.");
   int create_conv_tags_flag = 0;
   rval = mbImpl->tag_get_data(convTagsCreated, &tmp_set, 1, &create_conv_tags_flag);
+  // The first read to the file set
   if (0 == create_conv_tags_flag) {
-    // Read dimension variables to create tags like __<var_name>_DIMS
+    // Read dimensions (coordinate variables) by default to create tags like __<var_name>_DIMS
+    // This is done only once (assume that all files read to the file set have the same dimensions)
     rval = myHelper->read_variables(dimNames, tstep_nums);
-    ERRORR(rval, "Trouble reading dimension variables.");
+    ERRORR(rval, "Trouble reading dimensions.");
 
     rval = myHelper->create_conventional_tags(tstep_nums);
     ERRORR(rval, "Trouble creating NC conventional tags.");
@@ -138,6 +142,15 @@ ErrorCode ReadNC::load_file(const char* file_name, const EntityHandle* file_set,
     create_conv_tags_flag = 1;
     rval = mbImpl->tag_set_data(convTagsCreated, &tmp_set, 1, &create_conv_tags_flag);
     ERRORR(rval, "Trouble setting data for _CONV_TAGS_CREATED tag.");
+  }
+  // Another read to the file set
+  else {
+    if (tStepBase > -1) {
+      // If timesteps spread across files, merge time values read
+      // from current file to existing time tag
+      rval = myHelper->update_time_tag_vals();
+      ERRORR(rval, "Trouble updating time tag values.");
+    }
   }
 
   // Create mesh vertex/edge/face sequences
@@ -149,8 +162,24 @@ ErrorCode ReadNC::load_file(const char* file_name, const EntityHandle* file_set,
 
   // Read specified variables onto grid
   if (!noVars) {
-    rval = myHelper->read_variables(var_names, tstep_nums);
-    ERRORR(rval, "Trouble reading specified variables.");
+    if (var_names.empty()) {
+      // If VARIABLE option is missing, read all variables
+      rval = myHelper->read_variables(var_names, tstep_nums);
+      ERRORR(rval, "Trouble reading all variables.");
+    }
+    else {
+      // Exclude dimensions that are read to the file set by default
+      std::vector<std::string> non_dim_var_names;
+      for (unsigned int i = 0; i < var_names.size(); i++) {
+        if (std::find(dimNames.begin(), dimNames.end(), var_names[i]) == dimNames.end())
+          non_dim_var_names.push_back(var_names[i]);
+      }
+
+      if (!non_dim_var_names.empty()) {
+        rval = myHelper->read_variables(non_dim_var_names, tstep_nums);
+        ERRORR(rval, "Trouble reading specified variables.");
+      }
+    }
   }
 
 #ifdef USE_MPI
@@ -205,8 +234,10 @@ ErrorCode ReadNC::parse_options(const FileOptions& opts, std::vector<std::string
     noVars = true;
   else
     noVars = false;
+
   opts.get_ints_option("TIMESTEP", tstep_nums);
   opts.get_reals_option("TIMEVAL", tstep_vals);
+
   rval = opts.get_null_option("NOMESH");
   if (MB_SUCCESS == rval)
     noMesh = true;
@@ -230,12 +261,14 @@ ErrorCode ReadNC::parse_options(const FileOptions& opts, std::vector<std::string
         std::cerr << var_names[i];
       std::cerr << std::endl;
     }
+
     if (!tstep_nums.empty()) {
       std::cerr << "Timesteps requested: ";
       for (unsigned int i = 0; i < tstep_nums.size(); i++)
         std::cerr << tstep_nums[i];
       std::cerr << std::endl;
     }
+
     if (!tstep_vals.empty()) {
       std::cerr << "Time vals requested: ";
       for (unsigned int i = 0; i < tstep_vals.size(); i++)
@@ -247,6 +280,12 @@ ErrorCode ReadNC::parse_options(const FileOptions& opts, std::vector<std::string
   rval = opts.get_int_option("GATHER_SET", 0, gatherSetRank);
   if (MB_TYPE_OUT_OF_RANGE == rval) {
     readMeshIface->report_error("Invalid value for GATHER_SET option");
+    return rval;
+  }
+
+  rval = opts.get_int_option("TIMESTEPBASE", 0, tStepBase);
+  if (MB_TYPE_OUT_OF_RANGE == rval) {
+    readMeshIface->report_error("Invalid value for TIMESTEPBASE option");
     return rval;
   }
 
