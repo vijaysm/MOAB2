@@ -602,8 +602,7 @@ void multiple_loads_of_same_file()
 
     if (0 == rank) {
       CHECK_EQUAL((size_t)687, local_verts.size());
-      // FIXME: Previous result is 1010
-      //CHECK_EQUAL((size_t)1007, local_edges.size());
+      CHECK_EQUAL((size_t)1007, local_edges.size());
 
       // Layer 0
       CHECK_REAL_EQUAL(3.629994, vorticity0_val[0 * layers], eps);
@@ -616,8 +615,7 @@ void multiple_loads_of_same_file()
     }
     else if (1 == rank) {
       CHECK_EQUAL((size_t)688, local_verts.size());
-      // FIXME: Previous result is 1010
-      //CHECK_EQUAL((size_t)1008, local_edges.size());
+      CHECK_EQUAL((size_t)1008, local_edges.size());
 
       // Layer 0
       CHECK_REAL_EQUAL(-0.554888, vorticity0_val[0 * layers], eps);
