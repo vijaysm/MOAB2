@@ -361,15 +361,15 @@ void read_mesh_parallel(bool rcbzoltan)
   if (2 == procs) {
     if (rcbzoltan) {
       if (0 == rank)
-        CHECK_EQUAL(1004, edges_num);
+        CHECK_EQUAL(1002, edges_num);
       else if (1 == rank)
-        CHECK_EQUAL(1016, edges_num); // Not owned edges included
+        CHECK_EQUAL(1013, edges_num); // Not owned edges included
     }
     else {
       if (0 == rank)
-        CHECK_EQUAL(1010, edges_num);
+        CHECK_EQUAL(1007, edges_num);
       else if (1 == rank)
-        CHECK_EQUAL(1010, edges_num); // Not owned edges included
+        CHECK_EQUAL(1008, edges_num); // Not owned edges included
     }
   }
 
@@ -380,15 +380,15 @@ void read_mesh_parallel(bool rcbzoltan)
   if (2 == procs) {
     if (rcbzoltan) {
       if (0 == rank)
-        CHECK_EQUAL(1004, edges_num);
+        CHECK_EQUAL(1002, edges_num);
       else if (1 == rank)
-        CHECK_EQUAL(921, edges_num); // Not owned edges excluded
+        CHECK_EQUAL(918, edges_num); // Not owned edges excluded
     }
     else {
       if (0 == rank)
-        CHECK_EQUAL(1010, edges_num);
+        CHECK_EQUAL(1007, edges_num);
       else if (1 == rank)
-        CHECK_EQUAL(915, edges_num); // Not owned edges excluded
+        CHECK_EQUAL(913, edges_num); // Not owned edges excluded
     }
   }
 
@@ -441,8 +441,7 @@ void read_mesh_parallel(bool rcbzoltan)
   MPI_Reduce(&edges_num, &total_edges_num, 1, MPI_INTEGER, MPI_SUM, 0, pcomm->proc_config().proc_comm());
   if (0 == rank) {
     std::cout << "total edges: " << total_edges_num << "\n";
-    // FIXME: Current result is 1925
-    //CHECK_EQUAL(1920, total_edges_num);
+    CHECK_EQUAL(1920, total_edges_num);
   }
 
   std::cout << "proc: " << rank << " cells:" << cells_num << "\n";
