@@ -75,7 +75,7 @@ class Interface;
 class EdgeSizeEvaluator;
 class RefinerTagManager;
 
-class MB_DLL_EXPORT EntityRefinerOutputFunctor
+class EntityRefinerOutputFunctor
 {
 public:
   virtual ~EntityRefinerOutputFunctor() { }
