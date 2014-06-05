@@ -127,7 +127,7 @@ if ( MOAB_BUILD_QVDUAL )
 endif( )
 
 # MBCoupler
-if ( MOAB_USE_MPI AND MPI_FOUND AND MOAB_BUILD_MBCOUPLER )
+if ( ENABLE_IMESH AND MOAB_USE_MPI AND MPI_FOUND AND MOAB_BUILD_MBCOUPLER )
   add_subdirectory( mbcoupler )
 endif ( )
 
