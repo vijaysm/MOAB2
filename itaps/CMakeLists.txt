@@ -14,5 +14,4 @@ if(ENABLE_IGEOM )
   add_subdirectory(igeom)
 endif()
 
-include(AutoconfHeader)
-moab_install_headers(${BASE_INCLUDE_HEADERS})
+install(FILES ${BASE_INCLUDE_HEADERS} DESTINATION include )
