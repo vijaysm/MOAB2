@@ -126,19 +126,21 @@ target_link_libraries( xform_test MOAB )
 add_test( xform_test ${EXECUTABLE_OUTPUT_PATH}/xform_test )
 
 #add imesh tests
-set( TESTS MOAB_iMesh_unit_tests.cpp
-           MOAB_iMesh_extensions_tests.cpp )
-if(MOAB_USE_MPI)
+if(ENABLE_IMESH)
+  set( TESTS MOAB_iMesh_unit_tests.cpp
+             MOAB_iMesh_extensions_tests.cpp )
+  if(MOAB_USE_MPI)
     set(TESTS ${TESTS} MOAB_iMeshP_unit_tests.cpp )
-endif()
-foreach( fname ${TESTS} )
+  endif()
+  foreach( fname ${TESTS} )
     string( REPLACE ".cpp" "" tmp ${fname} )
     string( REPLACE ".cc" "" base ${tmp} )
     add_executable( ${base} ${CMAKE_SOURCE_DIR}/test/TestUtil.hpp ${CMAKE_SOURCE_DIR}/itaps/imesh/${fname})
     set_target_properties( ${base} PROPERTIES COMPILE_FLAGS "-DSRCDIR=${CMAKE_SOURCE_DIR}/itaps/imesh/ -DMESHDIR=${CMAKE_SOURCE_DIR}/MeshFiles/unittest ${MOAB_DEFINES} -DTEST" )
     target_link_libraries( ${base} MOAB iMesh)
     add_test( ${base} ${EXECUTABLE_OUTPUT_PATH}/${base} )
-endforeach()
+  endforeach()
+endif()
 
 if ( MOAB_USE_MPI AND MPI_FOUND )
 

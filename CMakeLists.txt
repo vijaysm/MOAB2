@@ -71,6 +71,9 @@ option ( MOAB_ENABLE_TESTING "Enable Testing"                                  O
 option ( MOAB_FORCE_64_BIT_HANDLES "Force MBEntityHandle to be 64 bits (uint64_t)" OFF )
 option ( MOAB_FORCE_32_BIT_HANDLES "Force MBEntityHandle to be 32 bits (uint32_t)" OFF )
 
+option ( ENABLE_IMESH        "Should build IMESH?"       OFF )
+option ( ENABLE_IGEOM        "Should build IGEOM?"       OFF )
+
 mark_as_advanced(
     MOAB_FORCE_64_BIT_HANDLES
     MOAB_FORCE_32_BIT_HANDLES
