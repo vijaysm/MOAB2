@@ -2,7 +2,8 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}
                     ${CMAKE_CURRENT_BINARY_DIR}
                     parallel
                     LocalDiscretization
-                    io io/mhdf )
+                    io io/mhdf
+                    ${MOAB_BINARY_DIR}/src/parallel )
 
 if(MOAB_USE_MPI AND MPI_FOUND)
   add_subdirectory(parallel)
@@ -22,7 +23,6 @@ string( REGEX REPLACE "#undef" "#cmakedefine" outstring2 "${infile2}" )
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/moab/EntityHandle.hpp.in" "${outstring2}")
 configure_file(${CMAKE_CURRENT_BINARY_DIR}/moab/EntityHandle.hpp.in ${CMAKE_CURRENT_BINARY_DIR}/moab/EntityHandle.hpp)
 
-
 #generate the Version.h file
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/moab/Version.h.cmake.in "${CMAKE_CURRENT_BINARY_DIR}/moab/Version.h" @ONLY)
 
@@ -40,6 +40,19 @@ ADD_CUSTOM_COMMAND(
           -Dprefix:STRING=MBCN
           -P ${CMAKE_SOURCE_DIR}/config/ITAPSFortranMangling.cmake
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/MBCN.h )
+
+if( MOAB_USE_HDF )
+  include_directories(${HDF5_INCLUDES})
+  set( MOAB_HDF_LIBS ${HDF5_LIBRARIES} )
+endif()
+if( MOAB_USE_NETCDF )
+  include_directories(${NetCDF_INCLUDES})
+  if ( MOAB_USE_MPI )
+    set( MOAB_NETCDF_LIBS ${PNetCDF_LIBRARIES} ${NetCDF_LIBRARIES} )
+  else ( MOAB_USE_MPI )
+    set( MOAB_NETCDF_LIBS ${NetCDF_LIBRARIES} )
+  endif ( MOAB_USE_MPI )
+endif()
 
 set(MOAB_LIB_SOURCES
         AdaptiveKDTree.cpp

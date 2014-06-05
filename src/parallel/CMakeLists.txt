@@ -8,6 +8,9 @@ set( moab_PARALLEL_SRCS
   gs.cpp
 )
 
+#generate the moab_mpi_config.h file
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/moab_mpi_config.h.in "${CMAKE_CURRENT_BINARY_DIR}/moab_mpi_config.h" @ONLY)
+
 set(moab_PARALLEL_INSTALL_HDRS moab/gs.hpp
                                moab_mpi.h
                                moab_mpi_config.h
@@ -20,6 +23,7 @@ set(moab_PARALLEL_INSTALL_HDRS moab/gs.hpp
 include_directories(
     ${MOAB_SOURCE_DIR}/src
     ${MOAB_SOURCE_DIR}/src/parallel
+    ${CMAKE_CURRENT_BINARY_DIR}
   )
 
 if ( MOAB_USE_HDF AND MOAB_HDF_HAVE_PARALLEL )
