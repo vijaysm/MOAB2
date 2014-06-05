@@ -104,7 +104,12 @@ inline double CartVect::length_squared() const
   { return d[0]*d[0] + d[1]*d[1] + d[2]*d[2]; }
 
 inline void CartVect::normalize()
-  { *this /= length(); }
+  { double tmp=length();
+    if (tmp < FLT_MIN)
+      *this = {0,0,0};
+    else
+      *this /= tmp; 
+  }
 
 inline void CartVect::flip()
   { d[0] = -d[0]; d[1] = -d[1]; d[2] = -d[2]; }
