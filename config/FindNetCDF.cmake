@@ -121,6 +121,8 @@ IF (MOAB_USE_MPI)
     PNetCDF_INCLUDES
     PNetCDF_LIBRARIES
   )
+ELSE (MOAB_USE_MPI)
+  message (STATUS "Not configuring with PNetCDF since MPI installation not specified")
 ENDIF()
 
 include (FindPackageHandleStandardArgs)
