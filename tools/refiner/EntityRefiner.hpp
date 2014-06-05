@@ -135,7 +135,7 @@ public:
   virtual void operator () ( EntityType etyp ) = 0;
 };
 
-class MB_DLL_EXPORT EntityRefiner
+class EntityRefiner
 {
 public:
   EntityRefiner();

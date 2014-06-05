@@ -30,7 +30,7 @@
 
 namespace moab {
 
-class MB_DLL_EXPORT EdgeSizeEvaluator
+class EdgeSizeEvaluator
 {
 public:
   EdgeSizeEvaluator();
