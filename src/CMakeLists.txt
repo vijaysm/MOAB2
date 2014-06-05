@@ -207,7 +207,7 @@ if (MBZOLTAN_ENABLE AND ZOLTAN_FOUND)
   set( MOAB_INSTALL_HEADERS ${MOAB_INSTALL_HEADERS}
           ${CMAKE_SOURCE_DIR}/tools/mbzoltan/MBZoltan.hpp )
 endif()
-add_library( MOAB ${MOAB_LIB_SOURCES} ${MOAB_INSTALL_HEADERS}
+add_library( MOAB ${MOAB_LIB_SOURCES} ${MOAB_INSTALL_HEADERS} ${MOAB_GENERATED_INSTALL_HEADERS}
                   $<TARGET_OBJECTS:moabio> 
                   $<TARGET_OBJECTS:moab_loc_discr> 
                   ${MDHF_OBJ} )
