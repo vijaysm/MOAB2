@@ -106,8 +106,8 @@ inline double CartVect::length_squared() const
 
 inline void CartVect::normalize()
   { double tmp=length();
-    if (tmp < FLT_MIN)
-      *this = {0,0,0};
+    if (tmp < DBL_MIN)
+      d[0] = d[1] = d[2] = 0;
     else
       *this /= tmp; 
   }
