@@ -29,7 +29,7 @@ FIND_LIBRARY(HDF5_D2 m
 FIND_LIBRARY(HDF5_D3 z
   PATHS /usr/local/lib /usr/lib /opt/local/lib
 )
-FIND_LIBRARY(HDF5_BASE_LIBRARY hdf5 hdf5d
+FIND_LIBRARY(HDF5_BASE_LIBRARY hdf5 hdf5d)
 
 FIND_LIBRARY(HDF5_BASE_LIBRARY NAMES hdf5 hdf5d
   PATHS ${HDF5_DIR}/lib /usr/local/lib /usr/lib /opt/local/lib
@@ -99,4 +99,4 @@ if(EXISTS ${HDF5_DIR}/share/cmake/hdf5/hdf5-targets.cmake)
   include(${HDF5_DIR}/share/cmake/hdf5/hdf5-targets.cmake)
 endif()
 
-endif()
+endif(EXISTS "${HDF5_DIR}/share/cmake/hdf5/hdf5-config.cmake")
