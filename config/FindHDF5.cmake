@@ -15,7 +15,15 @@ FIND_PATH(HDF5_INCLUDE_DIR
   /usr/include
   /opt/local/include
 )
-
+FIND_LIBRARY(HDF5_D1 dl
+  PATHS /usr/local/lib /usr/lib /opt/local/lib
+)
+FIND_LIBRARY(HDF5_D2 m
+  PATHS /usr/local/lib /usr/lib /opt/local/lib
+)
+FIND_LIBRARY(HDF5_D3 z
+  PATHS /usr/local/lib /usr/lib /opt/local/lib
+)
 FIND_LIBRARY(HDF5_BASE_LIBRARY hdf5
   PATHS ${HDF5_DIR}/lib /usr/local/lib /usr/lib /opt/local/lib
 )
@@ -38,7 +46,7 @@ IF (NOT HDF5_FOUND)
       NAMES hdf5hl_fortran hdf5_hl_fortran
       PATHS ${HDF5_DIR}/lib /usr/local/lib /usr/lib /opt/local/lib
     )
-    SET( HDF5_INCLUDES "-I${HDF5_INCLUDE_DIR}" )
+    SET( HDF5_INCLUDES "${HDF5_INCLUDE_DIR}" )
     if (HDF5_FORT_LIBRARY)
       FIND_PATH(HDF5_FORT_INCLUDE_DIR
         NAMES hdf5.mod
@@ -49,7 +57,7 @@ IF (NOT HDF5_FOUND)
         /opt/local/include
       )
       if (HDF5_FORT_INCLUDE_DIR AND NOT ${HDF5_FORT_INCLUDE_DIR} STREQUAL ${HDF5_INCLUDE_DIR})
-        SET( HDF5_INCLUDES "${HDF5_INCLUDES} -I${HDF5_FORT_INCLUDE_DIR}" )
+        SET( HDF5_INCLUDES "${HDF5_INCLUDES} ${HDF5_FORT_INCLUDE_DIR}" )
       endif (HDF5_FORT_INCLUDE_DIR AND NOT ${HDF5_FORT_INCLUDE_DIR} STREQUAL ${HDF5_INCLUDE_DIR})
       unset(HDF5_FORT_INCLUDE_DIR CACHE)
     endif (HDF5_FORT_LIBRARY)
@@ -64,6 +72,7 @@ IF (NOT HDF5_FOUND)
       unset(HDF5_HL${VARIANT}_LIBRARY CACHE)
       unset(HDF5_${VARIANT}_LIBRARY CACHE)
     endforeach()
+    list(APPEND HDF5_LIBRARIES ${HDF5_D1} ${HDF5_D2} ${HDF5_D3})
     SET( HDF5_FOUND YES )
     message (STATUS "---   HDF5 Configuration ::")
     message (STATUS "        INCLUDES  : ${HDF5_INCLUDES}")

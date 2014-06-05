@@ -57,7 +57,7 @@ find_library( NetCDF_FORTRAN_LIBRARY
 IF (NOT NetCDF_FOUND)
   if ( NetCDF_INCLUDE_DIR AND NetCDF_C_LIBRARY )
     set( NetCDF_FOUND YES )
-    set(NetCDF_INCLUDES "-I${NetCDF_INCLUDE_DIR}")
+    set(NetCDF_INCLUDES "${NetCDF_INCLUDE_DIR}")
     set(NetCDF_LIBRARIES ${NetCDF_C_LIBRARY})
     if ( NetCDF_CXX_LIBRARY )
       set(NetCDF_LIBRARIES ${NetCDF_LIBRARIES} ${NetCDF_CXX_LIBRARY})
@@ -80,6 +80,51 @@ mark_as_advanced(
   NetCDF_LIBRARIES
 )
 
+IF (MOAB_USE_MPI)
+  set (PNetCDF_DIR "" CACHE PATH "Path to search for parallel NetCDF header and library files" )
+  set (PNetCDF_FOUND NO CACHE INTERNAL "Found parallel NetCDF components successfully." )
+
+  find_path( PNetCDF_INCLUDES pnetcdf.h
+    ${PNetCDF_DIR}
+    ${PNetCDF_DIR}/include
+    /usr/local/include
+    /usr/include
+  )
+
+  find_library( PNetCDF_LIBRARIES
+    NAMES pnetcdf
+    HINTS ${PNetCDF_DIR}
+    ${PNetCDF_DIR}/lib64
+    ${PNetCDF_DIR}/lib
+    /usr/local/lib64
+    /usr/lib64
+    /usr/lib64/pnetcdf
+    /usr/local/lib
+    /usr/lib
+    /usr/lib/pnetcdf
+  )
+
+  IF (NOT PNetCDF_FOUND)
+    if ( PNetCDF_INCLUDES AND PNetCDF_LIBRARIES )
+      set( PNetCDF_FOUND YES )
+      message (STATUS "---   PNetCDF Configuration ::")
+      message (STATUS "        INCLUDES  : ${PNetCDF_INCLUDES}")
+      message (STATUS "        LIBRARIES : ${PNetCDF_LIBRARIES}")
+    else ( PNetCDF_INCLUDES AND PNetCDF_LIBRARIES )
+      set( NetCDF_FOUND NO )
+      message("finding PNetCDF failed, please try to set the var PNetCDF_DIR")
+    endif ( PNetCDF_INCLUDES AND PNetCDF_LIBRARIES )
+  ENDIF (NOT PNetCDF_FOUND)
+
+  mark_as_advanced(
+    PNetCDF_DIR
+    PNetCDF_INCLUDES
+    PNetCDF_LIBRARIES
+  )
+ENDIF()
+
 include (FindPackageHandleStandardArgs)
 find_package_handle_standard_args (NetCDF "NetCDF not found, check environment variables NetCDF_DIR"
   NetCDF_DIR NetCDF_INCLUDES NetCDF_LIBRARIES)
+find_package_handle_standard_args (PNetCDF "PNetCDF not found, check environment variables PNetCDF_DIR"
+  PNetCDF_DIR PNetCDF_INCLUDES PNetCDF_LIBRARIES)
