@@ -93,8 +93,10 @@ ENDIF (NOT HDF5_FOUND)
 include (FindPackageHandleStandardArgs)
 find_package_handle_standard_args (HDF5 "HDF5 not found, check environment variables HDF5_DIR"
   HDF5_DIR HDF5_INCLUDES HDF5_LIBRARIES)
-  include(FindPackageHandleStandardArgs)
 
 #now we create fake targets to be used
-include(${HDF5_DIR}/share/cmake/hdf5/hdf5-targets.cmake)
+if(EXISTS ${HDF5_DIR}/share/cmake/hdf5/hdf5-targets.cmake)
+  include(${HDF5_DIR}/share/cmake/hdf5/hdf5-targets.cmake)
+endif()
+
 endif()
