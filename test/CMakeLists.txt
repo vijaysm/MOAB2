@@ -9,7 +9,8 @@ include_directories(
     ${CMAKE_BINARY_DIR}/itaps
     ${CMAKE_SOURCE_DIR}/itaps/imesh
     ${CMAKE_BINARY_DIR}/itaps/imesh
-    ${CMAKE_SOURCE_DIR}/src/parallel )
+    ${CMAKE_SOURCE_DIR}/src/parallel
+    ${CMAKE_BINARY_DIR}/src/parallel )
 
 add_subdirectory(io)
 add_subdirectory(dual)
@@ -166,7 +167,7 @@ if ( MOAB_USE_MPI AND MPI_FOUND )
     set_source_files_properties( parallel/mhdf_parallel.c
       COMPILE_FLAGS "-DTEST ${MOAB_DEFINES} -DMESHDIR=${MOAB_SOURCE_DIR}/MeshFiles/unittest" )
     add_executable( mhdf_parallel parallel/mhdf_parallel.c )
-    target_link_libraries( mhdf_parallel mhdf MOAB MOABpar )
+    target_link_libraries( mhdf_parallel MOAB MOABpar )
     add_test( TestMHDFParallel ${EXECUTABLE_OUTPUT_PATH}/mhdf_parallel )
   endif ( MOAB_USE_HDF )
 
