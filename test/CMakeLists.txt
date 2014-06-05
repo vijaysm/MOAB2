@@ -71,25 +71,29 @@ set_target_properties( Test_MBMeshSet PROPERTIES COMPILE_FLAGS "${TEST_COMP_FLAG
 target_link_libraries( Test_MBMeshSet MOAB )
 add_test( Test_MBMeshSet ${EXECUTABLE_OUTPUT_PATH}/Test_MBMeshSet )
 
-add_custom_command( OUTPUT mb_big_test.g
-                    COMMAND /bin/zcat ${MOAB_SOURCE_DIR}/MeshFiles/unittest/mb_big_test.g.gz > mb_big_test.g
-                    DEPENDS ${MOAB_SOURCE_DIR}/MeshFiles/unittest/mb_big_test.g.gz )
-add_custom_command( OUTPUT cell1.gen
-                    COMMAND /bin/zcat ${MOAB_SOURCE_DIR}/MeshFiles/unittest/cell1.gen.gz > cell1.gen
-                    DEPENDS ${MOAB_SOURCE_DIR}/MeshFiles/unittest/cell1.gen.gz )
-add_custom_command( OUTPUT cell2.gen
-                    COMMAND /bin/zcat ${MOAB_SOURCE_DIR}/MeshFiles/unittest/cell2.gen.gz > cell2.gen
-                    DEPENDS ${MOAB_SOURCE_DIR}/MeshFiles/unittest/cell2.gen.gz)
-                    
-add_custom_target(moab_test_files DEPENDS mb_big_test.g cell1.gen cell2.gen)
+find_program( ZCAT_EXE NAMES ZCAT zcat PATHS /bin /usr/bin )
 
-#MBTest.cpp:
-set_source_files_properties( MBTest.cpp
-                             COMPILE_FLAGS "-DSRCDIR=${CMAKE_CURRENT_SOURCE_DIR} ${TEST_COMP_FLAGS}" )
-add_executable( moab_test MBTest.cpp )
-target_link_libraries( moab_test MOAB )
-add_dependencies(moab_test moab_test_files)
-add_test( TestMOAB ${EXECUTABLE_OUTPUT_PATH}/moab_test )
+if(ZCAT_EXE)
+  add_custom_command( OUTPUT mb_big_test.g
+                      COMMAND ${ZCAT_EXE} ${MOAB_SOURCE_DIR}/MeshFiles/unittest/mb_big_test.g.gz > mb_big_test.g
+                      DEPENDS ${MOAB_SOURCE_DIR}/MeshFiles/unittest/mb_big_test.g.gz )
+  add_custom_command( OUTPUT cell1.gen
+                      COMMAND ${ZCAT_EXE} ${MOAB_SOURCE_DIR}/MeshFiles/unittest/cell1.gen.gz > cell1.gen
+                      DEPENDS ${MOAB_SOURCE_DIR}/MeshFiles/unittest/cell1.gen.gz )
+  add_custom_command( OUTPUT cell2.gen
+                      COMMAND ${ZCAT_EXE} ${MOAB_SOURCE_DIR}/MeshFiles/unittest/cell2.gen.gz > cell2.gen
+                      DEPENDS ${MOAB_SOURCE_DIR}/MeshFiles/unittest/cell2.gen.gz)
+                    
+  add_custom_target(moab_test_files DEPENDS mb_big_test.g cell1.gen cell2.gen)
+
+  #MBTest.cpp:
+  set_source_files_properties( MBTest.cpp
+                               COMPILE_FLAGS "-DSRCDIR=${CMAKE_CURRENT_SOURCE_DIR} ${TEST_COMP_FLAGS}" )
+  add_executable( moab_test MBTest.cpp )
+  target_link_libraries( moab_test MOAB )
+  add_dependencies(moab_test moab_test_files)
+  add_test( TestMOAB ${EXECUTABLE_OUTPUT_PATH}/moab_test )
+endif()
 
 add_executable( var_len_test_no_template VarLenTagTest.cpp )
 set_source_files_properties( ${CMAKE_SOURCE_DIR}/src/VarLenTagTest.cpp
