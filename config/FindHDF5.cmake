@@ -20,15 +20,13 @@ FIND_PATH(HDF5_INCLUDE_DIR
   /opt/local/include
 )
 
-FIND_LIBRARY(HDF5_D1 dl
-  PATHS /usr/local/lib /usr/lib /opt/local/lib
-)
-FIND_LIBRARY(HDF5_D2 m
-  PATHS /usr/local/lib /usr/lib /opt/local/lib
-)
-FIND_LIBRARY(HDF5_D3 z
-  PATHS /usr/local/lib /usr/lib /opt/local/lib
-)
+foreach (VARIANT dl m z )
+  FIND_LIBRARY(hdf5_deplibs_${VARIANT} ${VARIANT}
+    PATHS /lib /usr/local/lib /usr/lib /opt/local/lib
+  )
+  list(APPEND HDF5_DEP_LIBRARIES ${hdf5_deplibs_${VARIANT}})
+endforeach()
+
 FIND_LIBRARY(HDF5_BASE_LIBRARY hdf5 hdf5d)
 
 FIND_LIBRARY(HDF5_BASE_LIBRARY NAMES hdf5 hdf5d
@@ -79,7 +77,7 @@ IF (NOT HDF5_FOUND)
       unset(HDF5_HL${VARIANT}_LIBRARY CACHE)
       unset(HDF5_${VARIANT}_LIBRARY CACHE)
     endforeach()
-    list(APPEND HDF5_LIBRARIES ${HDF5_D1} ${HDF5_D2} ${HDF5_D3})
+    list(APPEND HDF5_LIBRARIES ${HDF5_DEP_LIBRARIES})
     SET( HDF5_FOUND YES )
     message (STATUS "---   HDF5 Configuration ::")
     message (STATUS "        INCLUDES  : ${HDF5_INCLUDES}")
