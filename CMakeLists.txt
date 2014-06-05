@@ -65,7 +65,7 @@ option ( MOAB_USE_CGNS       "Should build with CGNS support?"                 O
 option ( MOAB_USE_MPI        "Should MOAB be compiled with MPI support?"       OFF )
 option ( MOAB_USE_HDF        "Include HDF I/O in the build?"                   OFF )
 option ( MOAB_USE_NETCDF     "Include NetCDF support (ExodusII) in the build?" OFF )
-option ( MOAB_USE_PNETCDF     "Include parallel NetCDF support (ExodusII) in the build?" OFF )
+option ( MOAB_USE_PNETCDF    "Include parallel NetCDF support (ExodusII) in the build?" OFF )
 option ( MOAB_USE_ZOLTAN     "Include Zoltan support for partitioning algorithms?" OFF )
 option ( MOAB_ENABLE_TESTING "Enable Testing"                                  ON  )
 option ( MOAB_FORCE_64_BIT_HANDLES "Force MBEntityHandle to be 64 bits (uint64_t)" OFF )
@@ -157,6 +157,10 @@ endif ( MOAB_USE_HDF )
 
 if ( MOAB_USE_ZLIB )
   find_package( ZLIB REQUIRED )
+endif ( )
+
+if ( MOAB_USE_ZOLTAN )
+  find_package( Zoltan REQUIRED )
 endif ( )
 
 if ( MOAB_USE_CGM )

@@ -201,17 +201,19 @@ if( CGM_FOUND )
   set( MOAB_CGM_LIBS ${CGM_LIBRARIES} )
 endif()
 
-if (MBZOLTAN_ENABLE AND ZOLTAN_FOUND)
+if (MOAB_USE_ZOLTAN)
   set( MOAB_LIB_SOURCES ${MOAB_LIB_SOURCES}
           ${CMAKE_SOURCE_DIR}/tools/mbzoltan/MBZoltan.cpp )
   set( MOAB_INSTALL_HEADERS ${MOAB_INSTALL_HEADERS}
           ${CMAKE_SOURCE_DIR}/tools/mbzoltan/MBZoltan.hpp )
+  include_directories( ${Zoltan_INCLUDES} )
+  list(APPEND MOAB_DEP_LIBRARIES ${Zoltan_LIBRARIES})
 endif()
 add_library( MOAB ${MOAB_LIB_SOURCES} ${MOAB_INSTALL_HEADERS} ${MOAB_GENERATED_INSTALL_HEADERS}
                   $<TARGET_OBJECTS:moabio> 
                   $<TARGET_OBJECTS:moab_loc_discr> 
                   ${MDHF_OBJ} )
-target_link_libraries( MOAB ${MOAB_MPI} ${MOAB_LIBS} ${MOAB_CGM_LIBS} )
+target_link_libraries( MOAB ${MOAB_MPI} ${MOAB_DEP_LIBRARIES} ${MOAB_LIBS} ${MOAB_CGM_LIBS} )
 set_target_properties( MOAB PROPERTIES COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}")
 
 install(TARGETS MOAB EXPORT MOABTargets
