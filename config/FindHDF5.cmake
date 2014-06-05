@@ -8,6 +8,10 @@
 set( HDF5_DIR "" CACHE PATH "Path to search for HDF5 header and library files" )
 set (HDF5_FOUND NO CACHE INTERNAL "Found HDF5 components successfully." )
 
+if(EXISTS "${HDF5_DIR}/share/cmake/hdf5/hdf5-config.cmake")
+  include(${HDF5_DIR}/share/cmake/hdf5/hdf5-config.cmake)
+else()
+
 FIND_PATH(HDF5_INCLUDE_DIR
   NAMES hdf5.h H5public.h
   PATHS ${HDF5_DIR}/include
@@ -15,6 +19,7 @@ FIND_PATH(HDF5_INCLUDE_DIR
   /usr/include
   /opt/local/include
 )
+
 FIND_LIBRARY(HDF5_D1 dl
   PATHS /usr/local/lib /usr/lib /opt/local/lib
 )
@@ -24,10 +29,12 @@ FIND_LIBRARY(HDF5_D2 m
 FIND_LIBRARY(HDF5_D3 z
   PATHS /usr/local/lib /usr/lib /opt/local/lib
 )
-FIND_LIBRARY(HDF5_BASE_LIBRARY hdf5
+FIND_LIBRARY(HDF5_BASE_LIBRARY hdf5 hdf5d
+
+FIND_LIBRARY(HDF5_BASE_LIBRARY NAMES hdf5 hdf5d
   PATHS ${HDF5_DIR}/lib /usr/local/lib /usr/lib /opt/local/lib
 )
-FIND_LIBRARY(HDF5_HLBASE_LIBRARY hdf5_hl
+FIND_LIBRARY(HDF5_HLBASE_LIBRARY hdf5_hl hdf5_hld
   PATHS ${HDF5_DIR}/lib /usr/local/lib /usr/lib /opt/local/lib
 )
 
@@ -86,3 +93,8 @@ ENDIF (NOT HDF5_FOUND)
 include (FindPackageHandleStandardArgs)
 find_package_handle_standard_args (HDF5 "HDF5 not found, check environment variables HDF5_DIR"
   HDF5_DIR HDF5_INCLUDES HDF5_LIBRARIES)
+  include(FindPackageHandleStandardArgs)
+
+#now we create fake targets to be used
+include(${HDF5_DIR}/share/cmake/hdf5/hdf5-targets.cmake)
+endif()
