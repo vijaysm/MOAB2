@@ -71,17 +71,17 @@ set_target_properties( Test_MBMeshSet PROPERTIES COMPILE_FLAGS "${TEST_COMP_FLAG
 target_link_libraries( Test_MBMeshSet MOAB )
 add_test( Test_MBMeshSet ${EXECUTABLE_OUTPUT_PATH}/Test_MBMeshSet )
 
-find_program( ZCAT_EXE NAMES ZCAT zcat PATHS /bin /usr/bin )
+find_program( ZCAT_EXE NAMES zcap ZCAT PATHS /bin /usr/bin )
 
 if(ZCAT_EXE)
   add_custom_command( OUTPUT mb_big_test.g
-                      COMMAND ${ZCAT_EXE} ${MOAB_SOURCE_DIR}/MeshFiles/unittest/mb_big_test.g.gz > mb_big_test.g
+                      COMMAND ${ZCAT_EXE} < ${MOAB_SOURCE_DIR}/MeshFiles/unittest/mb_big_test.g.gz > mb_big_test.g
                       DEPENDS ${MOAB_SOURCE_DIR}/MeshFiles/unittest/mb_big_test.g.gz )
   add_custom_command( OUTPUT cell1.gen
-                      COMMAND ${ZCAT_EXE} ${MOAB_SOURCE_DIR}/MeshFiles/unittest/cell1.gen.gz > cell1.gen
+                      COMMAND ${ZCAT_EXE} < ${MOAB_SOURCE_DIR}/MeshFiles/unittest/cell1.gen.gz > cell1.gen
                       DEPENDS ${MOAB_SOURCE_DIR}/MeshFiles/unittest/cell1.gen.gz )
   add_custom_command( OUTPUT cell2.gen
-                      COMMAND ${ZCAT_EXE} ${MOAB_SOURCE_DIR}/MeshFiles/unittest/cell2.gen.gz > cell2.gen
+                      COMMAND ${ZCAT_EXE} < ${MOAB_SOURCE_DIR}/MeshFiles/unittest/cell2.gen.gz > cell2.gen
                       DEPENDS ${MOAB_SOURCE_DIR}/MeshFiles/unittest/cell2.gen.gz)
                     
   add_custom_target(moab_test_files DEPENDS mb_big_test.g cell1.gen cell2.gen)
