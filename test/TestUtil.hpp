@@ -562,6 +562,14 @@ void check_equal( const std::vector<T>& A, const std::vector<T>& B,
                   const char* sA, const char* sB, 
                   int line, const char* file )
 {
+   if(A.empty() || B.empty()) {
+    if(A.size() != B.size()) {
+      std::cout << "Equality Test Failed: " << sA << " == " << sB << std::endl;
+      std::cout << "  at line " << line << " of '" << file << "'" << std::endl;
+      std::cout << "  Both are not empty " << std::endl;
+    }
+    return;
+  }
   check_array_equal( &A[0], A.size(), &B[0], B.size(), sA, sB, line, file );
 }
 
