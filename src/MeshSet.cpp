@@ -403,8 +403,8 @@ static EntityHandle* resize_compact_list( MeshSet::Count& count,
 typedef std::pair<EntityHandle,EntityHandle> MeshSetRange;
 
 class MeshSetRComp {
-  public: bool operator()( const MeshSetRange& r, EntityHandle h )
-    { return r.second < h; }
+  public: bool operator()( const MeshSetRange& r, const MeshSetRange& h )
+    { return r.second < h.first; }
 };
 
 template <typename pair_iter_t> inline ErrorCode
@@ -451,7 +451,9 @@ range_tool<pair_iter_t>::ranged_insert_entities( MeshSet::Count& count,
         // subtract one from i->first because if it is one greater
         // then the the last value of some block, then we want that
         // block to append to.
-      list_write = std::lower_bound( list_read, list_end, i->first-1, MeshSetRComp() );
+      MeshSetRange tmp;
+      tmp.first = i->first-1;
+      list_write = std::lower_bound( list_read, list_end, tmp, MeshSetRComp() );
       list_read = list_write;
     }
     // otherwise shift down until we find where we find a range block
