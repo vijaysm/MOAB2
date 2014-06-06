@@ -453,6 +453,7 @@ range_tool<pair_iter_t>::ranged_insert_entities( MeshSet::Count& count,
         // block to append to.
       MeshSetRange tmp;
       tmp.first = i->first-1;
+      tmp.second = i->second;
       list_write = std::lower_bound( list_read, list_end, tmp, MeshSetRComp() );
       list_read = list_write;
     }
@@ -1108,7 +1109,7 @@ ErrorCode MeshSet::insert_entity_vector( const EntityHandle* vect, size_t len, E
     std::vector<EntityHandle> rangevect;
     convert_to_ranges( vect, len, rangevect );
     typedef const std::pair<EntityHandle,EntityHandle>* pair_vect_t;
-    pair_vect_t pair_vect = reinterpret_cast<pair_vect_t>(&rangevect[0]);
+    pair_vect_t pair_vect = (rangevect.empty())?NULL:reinterpret_cast<pair_vect_t>(&rangevect[0]);
     rval = range_tool<pair_vect_t>::ranged_insert_entities( count, contentList, pair_vect, 
                                  pair_vect + rangevect.size()/2, my_h, tracking() ? adj : 0 );
   }
@@ -1126,7 +1127,7 @@ ErrorCode MeshSet::remove_entity_vector( const EntityHandle* vect, size_t len, E
     std::vector<EntityHandle> rangevect;
     convert_to_ranges( vect, len, rangevect );
     typedef const std::pair<EntityHandle,EntityHandle>* pair_vect_t;
-    pair_vect_t pair_vect = reinterpret_cast<pair_vect_t>(&rangevect[0]);
+    pair_vect_t pair_vect = (rangevect.empty())?NULL:reinterpret_cast<pair_vect_t>(&rangevect[0]);
     rval = range_tool<pair_vect_t>::ranged_remove_entities( count, contentList, pair_vect, 
                                 pair_vect + rangevect.size()/2, my_h, tracking() ? adj : 0 );
   }
