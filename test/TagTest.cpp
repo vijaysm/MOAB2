@@ -1089,6 +1089,12 @@ void test_mesh_value( Interface& mb,
   unsigned memcmp_size = tag_size;
   if (tag_storage == MB_TAG_BIT || tag_type == MB_TYPE_BIT)
     memcmp_size = 1;
+  else if (tag_storage == MB_TYPE_DOUBLE)
+    memcmp_size = sizeof(double);
+  else if (tag_storage == MB_TYPE_INTEGER)
+    memcmp_size = sizeof(int);
+  if (tag_storage == MB_TYPE_HANDLE)
+    memcmp_size = sizeof(EntityHandle);
   
   const EntityHandle mesh = 0;
   ErrorCode rval = mb.tag_set_data( tag, &mesh, 1, value );
