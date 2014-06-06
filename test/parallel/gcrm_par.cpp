@@ -54,8 +54,8 @@ int main(int argc, char* argv[])
   result += RUN_TEST(test_read_mesh_parallel_rcbzoltan);
 #endif
 
-  //result += RUN_TEST(test_gather_onevar_on_rank0);
-  //result += RUN_TEST(test_gather_onevar_on_rank1);
+  result += RUN_TEST(test_gather_onevar_on_rank0);
+  result += RUN_TEST(test_gather_onevar_on_rank1);
 
   result += RUN_TEST(test_multiple_loads_of_same_file);
 
@@ -509,7 +509,7 @@ void gather_one_cell_var(int gather_set_rank)
   }
 
   Tag vorticity_tag0, gid_tag;
-  rval = mb.tag_get_handle("vorticity0", 1, MB_TYPE_DOUBLE, vorticity_tag0, MB_TAG_DENSE);
+  rval = mb.tag_get_handle("vorticity0", layers, MB_TYPE_DOUBLE, vorticity_tag0, MB_TAG_DENSE);
   CHECK_ERR(rval);
 
   rval = mb.tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid_tag, MB_TAG_DENSE);
