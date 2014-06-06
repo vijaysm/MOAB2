@@ -454,9 +454,10 @@ int main( int argc, char* argv[] ){
    CHECKERR( *dag, ret );
 
    std::vector< std::string > keywords;
-   ret = dag->detect_available_props( keywords );
+   char *delimiters = "_.";
+   ret = dag->detect_available_props( keywords, delimiters );
    CHECKERR( *dag, ret );
-   ret = dag->parse_properties( keywords );
+   ret = dag->parse_properties( keywords, delimiters );
    CHECKERR( *dag, ret );
 
    if( verbose ){
