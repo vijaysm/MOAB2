@@ -10,6 +10,8 @@
 
 set(MOAB_FOUND 1)
 
+set(MOAB_USE_HDF @MOAB_USE_HDF@)
+
 # Compiler flags used by MOAB
 
 set(MOAB_CXXFLAGS "@CXXFLAGS@ @AM_CXXFLAGS@")
@@ -23,5 +25,11 @@ if(NOT TARGET MOAB AND NOT MOAB_BINARY_DIR)
   include("${MOAB_CMAKE_DIR}/MOABTargets.cmake")
 endif()
 
-set(MOAB_INCLUDE_DIRS "%CMAKE_INSTALL_PREFIX%/include")
+if(MOAB_USE_HDF)
+  if(EXISTS "@HDF5_DIR@/share/cmake/hdf5/hdf5-config.cmake")
+    include(@HDF5_DIR@/share/cmake/hdf5/hdf5-config.cmake)
+  endif()
+endif()
+
+set(MOAB_INCLUDE_DIRS "@CMAKE_INSTALL_PREFIX@/include")
 set(MOAB_LIBRARIES MOAB)
