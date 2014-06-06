@@ -1101,7 +1101,7 @@ ErrorCode DualTool::construct_new_hyperplane(const int dim,
     Range all_hyperplanes;
     result = get_dual_hyperplanes(mbImpl, dim, all_hyperplanes); RR;
     std::vector<int> gids(all_hyperplanes.size());
-    result = mbImpl->tag_get_data(globalIdTag, all_hyperplanes, &gids[0]); RR;
+    result = mbImpl->tag_get_data(globalIdTag, all_hyperplanes, (gids.empty())?NULL:&gids[0]); RR;
     for (unsigned int i = 0; i < gids.size(); i++) 
       if (gids[i] > id) id = gids[i];
     id++;
@@ -1161,7 +1161,7 @@ ErrorCode DualTool::construct_hp_parent_child()
     dual_edges.clear();
     result = mbImpl->get_adjacencies(dual_cells, 1, false, dual_edges, Interface::UNION);
     if (MB_SUCCESS != result) return result;
-    dual_curve_sets.reserve(dual_edges.size());
+    dual_curve_sets.resize(dual_edges.size());
     result = mbImpl->tag_get_data(dualCurve_tag(), dual_edges, &dual_curve_sets[0]);
     if (MB_SUCCESS != result) return result;
 
@@ -2501,7 +2501,7 @@ ErrorCode DualTool::get_dual_entities(const EntityHandle dual_ent,
 
   if (NULL != dverts_loop && NULL != dverts) {
     static std::vector<EntityHandle> dual_ents;
-    dual_ents.reserve(dverts->size());
+    dual_ents.resize(dverts->size());
     result = mbImpl->tag_get_data(dualEntity_tag(), *dverts, &dual_ents[0]);
     if (MB_SUCCESS != result) return result;
     Range::iterator rit;
@@ -2513,7 +2513,7 @@ ErrorCode DualTool::get_dual_entities(const EntityHandle dual_ent,
   
   if (NULL != dedges_loop && NULL != dedges) {
     static std::vector<EntityHandle> dual_ents;
-    dual_ents.reserve(dedges->size());
+    dual_ents.resize(dedges->size());
     result = mbImpl->tag_get_data(dualEntity_tag(), *dedges, &dual_ents[0]);
     if (MB_SUCCESS != result) return result;
     Range::iterator rit;
