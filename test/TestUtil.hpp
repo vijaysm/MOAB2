@@ -363,6 +363,12 @@ void check_equal( long A, long B, const char* sA, const char* sB, int line, cons
 void check_equal( unsigned long A, unsigned long B, const char* sA, const char* sB, int line, const char* file )
   {  EQUAL_TEST_IMPL( A == B, lu ) }
 
+void check_equal( unsigned long long A, unsigned long long B, const char* sA, const char* sB, int line, const char* file )
+  {  EQUAL_TEST_IMPL( A == B, llu ) }
+
+void check_equal( long long A, long long B, const char* sA, const char* sB, int line, const char* file )
+  {  EQUAL_TEST_IMPL( A == B, lld ) }
+
 void check_equal( void* A, void* B, const char* sA, const char* sB, int line, const char* file )
   {  EQUAL_TEST_IMPL( A == B, p ) }
 

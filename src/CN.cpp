@@ -278,6 +278,16 @@ short int CN::SideNumber(const EntityType parent_type, const unsigned long *pare
   return side_number(parent_conn, parent_type, child_conn, child_num_verts,
                      child_dim, side_no, sense, offset);
 }
+
+short int CN::SideNumber(const EntityType parent_type, const unsigned long long *parent_conn,
+                          const unsigned long long *child_conn, const int child_num_verts,
+                          const int child_dim,
+                          int &side_no, int &sense, int &offset)
+{
+  return side_number(parent_conn, parent_type, child_conn, child_num_verts,
+                     child_dim, side_no, sense, offset);
+}
+
 short int CN::SideNumber(const EntityType parent_type, void * const *parent_conn, 
                      void * const *child_conn, const int child_num_verts,
                      const int child_dim,
@@ -549,6 +559,14 @@ bool CN::ConnectivityMatch( const unsigned long *conn1_i,
                               int &direct, int &offset )
 {
   return connectivity_match<unsigned long>(conn1_i, conn2_i, num_vertices, direct, offset );
+}
+
+bool CN::ConnectivityMatch( const unsigned long long *conn1_i,
+                            const unsigned long long *conn2_i,
+                            const int num_vertices,
+                            int &direct, int &offset )
+{
+  return connectivity_match<unsigned long long>(conn1_i, conn2_i, num_vertices, direct, offset );
 }
 
 bool CN::ConnectivityMatch( void* const *conn1_i,

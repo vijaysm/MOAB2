@@ -36,7 +36,9 @@ int main( int argc, char* argv[] )
   // make ProgOptions abort() rather than exiting with an
   // error code for invalid options so that we can catch
   // the signal and continue with later tests
+#ifndef WIN32
   setenv("MOAB_PROG_OPT_ABORT","1",0);
+#endif
   
   REGISTER_TEST( test_flag_opt_short );
   REGISTER_TEST( test_flag_opt_long_short );
