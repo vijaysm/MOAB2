@@ -8,16 +8,20 @@
 
 using namespace moab;
 
-const char* meshfile = STRINGIFY(MESHDIR) "/16_unmerged_hex.h5m";
+ const char* meshfile = STRINGIFY(MESHDIR) "/16_unmerged_hex.h5m";
+ const char *outfile = "mm_out.h5m";
 
-
-int main( int , char** )
+int main( int argc, char** argv)
 {
     Core moab_core;
     ErrorCode rval;
     Interface* iface = &moab_core;
     // can be generalized to load user defined input/output file
-//    std::cout << "loading mesh file " << (std::string) meshfile << std::endl;
+
+    if (argc>1)
+      meshfile = argv[1];
+    if (argc>2)
+      outfile= argv[2];
     rval = iface->load_mesh(meshfile);
     if (MB_SUCCESS != rval) {
         std::cerr << "Error reading file: " << meshfile << std::endl;
@@ -29,17 +33,16 @@ int main( int , char** )
 
     MergeMesh mm(iface);
     double merge_tol = 1e-3;
-    bool merge_higher_dim_entities = true;
 
-    rval = mm.merge_entities(ents, merge_tol, merge_higher_dim_entities);
+    rval = mm.merge_entities(ents, merge_tol);
     if (MB_SUCCESS != rval) {
         std::cerr << "Error in MergeMesh during merging entities" << std::endl;
         exit(2);
     }
 
     // Fixed for now
-    const char *outfile = "mm_out.h5m";
-    rval = iface->write_mesh( outfile);
+
+    rval = iface->write_file( outfile);
     if (MB_SUCCESS != rval) {
         std::cerr << "Error saving file: " << outfile << std::endl;
         exit(2);
