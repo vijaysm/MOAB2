@@ -104,6 +104,9 @@ ErrorCode MergeMesh::merge_entities(Range &elems,
 
 ErrorCode MergeMesh::perform_merge(Tag merge_tag)
 {
+  // we start with an empty range of vertices that are "merged to"
+  // they are used (eventually) for higher dim entities
+  mergedToVertices.clear();
   ErrorCode result;
   if (deadEnts.size() == 0)
   {
