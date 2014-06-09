@@ -14,6 +14,7 @@ foreach( fname ${TESTS} )
   set_target_properties( ${base} PROPERTIES COMPILE_FLAGS "-DSRCDIR=${CMAKE_CURRENT_SOURCE_DIR} ${TEST_COMP_FLAGS} ${MOAB_DEFINES} -DTEST" )
   target_link_libraries( ${base} MOAB )
   add_test( ${base} ${EXECUTABLE_OUTPUT_PATH}/${base} )
+  set_tests_properties ( ${base} PROPERTIES TIMEOUT 120)
 endforeach()
 
 add_executable( dump_sets dump_sets.c )
