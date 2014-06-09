@@ -420,8 +420,17 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
   if (MB_SUCCESS != rval) return error(rval);
   if (times) times[FILEID_EXCHANGE_TIME] = timer.elapsed();
  
+  /**************** Create meshset tables *********************/
 
-    /**************** Create adjacency tables *********************/
+  debug_barrier();
+  dbgOut.tprint(1,"creating meshset table\n");
+  topState.start("creating meshset tables");
+  rval = create_meshset_tables(times);
+  topState.end(rval);
+  if (MB_SUCCESS != rval) return error(rval);
+  if (times) times[CREATE_SET_TIME] = timer.elapsed();
+
+  /**************** Create adjacency tables *********************/
   
   debug_barrier();
   dbgOut.tprint(1,"creating adjacency table\n");
@@ -431,15 +440,7 @@ ErrorCode WriteHDF5Parallel::parallel_create_file( const char* filename,
   if (MB_SUCCESS != rval) return error(rval);
   if (times) times[CREATE_ADJ_TIME] = timer.elapsed();
   
-    /**************** Create meshset tables *********************/
   
-  debug_barrier();
-  dbgOut.tprint(1,"creating meshset table\n");
-  topState.start("creating meshset tables");
-  rval = create_meshset_tables(times);
-  topState.end(rval);
-  if (MB_SUCCESS != rval) return error(rval);
-  if (times) times[CREATE_SET_TIME] = timer.elapsed();
   
     /**************** Create tag data *********************/
 

@@ -15,58 +15,49 @@ static const char example[] = STRINGIFY(MESHDIR) "/io/gcrm_r3.nc";
 #endif
 
 void test_read_onevar_trivial();
-void test_read_onevar_trivial_no_mixed_elements();
 #if defined(USE_MPI) && defined(HAVE_ZOLTAN)
 void test_read_onevar_rcbzoltan();
-void test_read_onevar_rcbzoltan_no_mixed_elements();
 #endif
 
 void test_read_mesh_parallel_trivial();
-void test_read_mesh_parallel_trivial_no_mixed_elements();
 #if defined(USE_MPI) && defined(HAVE_ZOLTAN)
 void test_read_mesh_parallel_rcbzoltan();
-void test_read_mesh_parallel_rcbzoltan_no_mixed_elements();
 #endif
 
 void test_gather_onevar_on_rank0();
 void test_gather_onevar_on_rank1();
 
 void test_multiple_loads_of_same_file();
-void test_multiple_loads_of_same_file_no_mixed_elements();
 
 // Helper functions
-void read_one_cell_var(bool rcbzoltan, bool no_mixed_elements);
-void read_mesh_parallel(bool rcbzoltan, bool no_mixed_elements);
+void read_one_cell_var(bool rcbzoltan);
+void read_mesh_parallel(bool rcbzoltan);
 void gather_one_cell_var(int gather_set_rank);
-void multiple_loads_of_same_file(bool no_mixed_elements);
+void multiple_loads_of_same_file();
 
 std::string read_options;
-const double eps = 1e-20;
+const double eps = 1e-6;
+const int layers = 3;
 
 int main(int argc, char* argv[])
 {
   MPI_Init(&argc, &argv);
   int result = 0;
 
-  //result += RUN_TEST(test_read_onevar_trivial);
-  //result += RUN_TEST(test_read_onevar_trivial_no_mixed_elements);
+  result += RUN_TEST(test_read_onevar_trivial);
 #if defined(USE_MPI) && defined(HAVE_ZOLTAN)
-  //result += RUN_TEST(test_read_onevar_rcbzoltan);
-  //result += RUN_TEST(test_read_onevar_rcbzoltan_no_mixed_elements);
+  result += RUN_TEST(test_read_onevar_rcbzoltan);
 #endif
 
   result += RUN_TEST(test_read_mesh_parallel_trivial);
-  //result += RUN_TEST(test_read_mesh_parallel_trivial_no_mixed_elements);
 #if defined(USE_MPI) && defined(HAVE_ZOLTAN)
   result += RUN_TEST(test_read_mesh_parallel_rcbzoltan);
-  //result += RUN_TEST(test_read_mesh_parallel_rcbzoltan_no_mixed_elements);
 #endif
 
-  //result += RUN_TEST(test_gather_onevar_on_rank0);
-  //result += RUN_TEST(test_gather_onevar_on_rank1);
+  result += RUN_TEST(test_gather_onevar_on_rank0);
+  result += RUN_TEST(test_gather_onevar_on_rank1);
 
-  //result += RUN_TEST(test_multiple_loads_of_same_file);
-  //result += RUN_TEST(test_multiple_loads_of_same_file_no_mixed_elements);
+  result += RUN_TEST(test_multiple_loads_of_same_file);
 
   MPI_Finalize();
   return result;
@@ -74,42 +65,22 @@ int main(int argc, char* argv[])
 
 void test_read_onevar_trivial()
 {
-  read_one_cell_var(false, false);
-}
-
-void test_read_onevar_trivial_no_mixed_elements()
-{
-  read_one_cell_var(false, true);
+  read_one_cell_var(false);
 }
 
 void test_read_onevar_rcbzoltan()
 {
-  read_one_cell_var(true, false);
-}
-
-void test_read_onevar_rcbzoltan_no_mixed_elements()
-{
-  read_one_cell_var(true, true);
+  read_one_cell_var(true);
 }
 
 void test_read_mesh_parallel_trivial()
 {
-  read_mesh_parallel(false, false);
-}
-
-void test_read_mesh_parallel_trivial_no_mixed_elements()
-{
-  read_mesh_parallel(false, true);
+  read_mesh_parallel(false);
 }
 
 void test_read_mesh_parallel_rcbzoltan()
 {
-  read_mesh_parallel(true, false);
-}
-
-void test_read_mesh_parallel_rcbzoltan_no_mixed_elements()
-{
-  read_mesh_parallel(true, true);
+  read_mesh_parallel(true);
 }
 
 void test_gather_onevar_on_rank0()
@@ -124,26 +95,18 @@ void test_gather_onevar_on_rank1()
 
 void test_multiple_loads_of_same_file()
 {
-  multiple_loads_of_same_file(false);
-}
-
-void test_multiple_loads_of_same_file_no_mixed_elements()
-{
-  multiple_loads_of_same_file(true);
+  multiple_loads_of_same_file();
 }
 
 // Helper functions
-void read_one_cell_var(bool rcbzoltan, bool no_mixed_elements)
+void read_one_cell_var(bool rcbzoltan)
 {
   Core moab;
   Interface& mb = moab;
 
-  read_options = "PARALLEL=READ_PART;PARTITION_METHOD=TRIVIAL;NO_EDGES;VARIABLE=ke";
+  read_options = "PARALLEL=READ_PART;PARTITION_METHOD=TRIVIAL;NO_EDGES;VARIABLE=vorticity";
   if (rcbzoltan)
-    read_options = "PARALLEL=READ_PART;PARTITION_METHOD=RCBZOLTAN;NO_EDGES;VARIABLE=ke";
-
-  if (no_mixed_elements)
-    read_options += ";NO_MIXED_ELEMENTS";
+    read_options = "PARALLEL=READ_PART;PARTITION_METHOD=RCBZOLTAN;NO_EDGES;VARIABLE=vorticity;DEBUG_IO=1";
 
   ErrorCode rval = mb.load_file(example, NULL, read_options.c_str());
   CHECK_ERR(rval);
@@ -158,6 +121,8 @@ void read_one_cell_var(bool rcbzoltan, bool no_mixed_elements)
   Range local_cells;
   rval = mb.get_entities_by_type(0, MBPOLYGON, local_cells);
   CHECK_ERR(rval);
+  // No mixed elements
+  CHECK_EQUAL((size_t)1, local_cells.psize());
 
   Tag gid_tag;
   rval = mb.tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid_tag, MB_TAG_DENSE);
@@ -174,98 +139,161 @@ void read_one_cell_var(bool rcbzoltan, bool no_mixed_elements)
 
   // Make check runs this test on two processors
   if (2 == procs) {
-    CHECK_EQUAL((size_t)321, local_cells.size());
-    CHECK_EQUAL((size_t)321, local_cell_gids.size());
-
-    // Check tag for cell variable ke at timestep 0
-    Tag ke_tag0;
-    rval = mb.tag_get_handle("ke0", 1, MB_TYPE_DOUBLE, ke_tag0);
+    // Check tag for cell variable vorticity at timestep 0
+    Tag vorticity_tag0;
+    rval = mb.tag_get_handle("vorticity0", layers, MB_TYPE_DOUBLE, vorticity_tag0);
     CHECK_ERR(rval);
 
-    // Check tag for cell variable ke at timestep 1
-    Tag ke_tag1;
-    rval = mb.tag_get_handle("ke1", 1, MB_TYPE_DOUBLE, ke_tag1);
+    // Check tag for cell variable vorticity at timestep 1
+    Tag vorticity_tag1;
+    rval = mb.tag_get_handle("vorticity1", layers, MB_TYPE_DOUBLE, vorticity_tag1);
     CHECK_ERR(rval);
 
-    // Get ke0 and ke1 tag values on 3 local cells
-    EntityHandle cell_ents[] = {local_cells[0], local_cells[160], local_cells[320]};
-    double ke0_val[3];
-    rval = mb.tag_get_data(ke_tag0, cell_ents, 3, ke0_val);
-    CHECK_ERR(rval);
-    double ke1_val[3];
-    rval = mb.tag_get_data(ke_tag1, cell_ents, 3, ke1_val);
-    CHECK_ERR(rval);
+    // Get vorticity0 and vorticity1 tag values on 3 local cells
+    double vorticity0_val[3 * layers];
+    double vorticity1_val[3 * layers];
 
     if (rcbzoltan) {
-      if (no_mixed_elements)
-        CHECK_EQUAL((size_t)1, local_cells.psize());
-      else
-        CHECK_EQUAL((size_t)2, local_cells.psize());
-
-      CHECK_EQUAL((size_t)37, local_cell_gids.psize());
+      CHECK_EQUAL((size_t)14, local_cell_gids.psize());
 
       if (0 == rank) {
-        CHECK_EQUAL(1, (int)local_cell_gids[0]);
-        CHECK_EQUAL(284, (int)local_cell_gids[160]);
-        CHECK_EQUAL(630, (int)local_cell_gids[320]);
+        CHECK_EQUAL((size_t)319, local_cells.size());
+        CHECK_EQUAL((size_t)319, local_cell_gids.size());
 
-        CHECK_REAL_EQUAL(15.001, ke0_val[0], eps);
-        CHECK_REAL_EQUAL(16.284, ke0_val[1], eps);
-        CHECK_REAL_EQUAL(16.630, ke0_val[2], eps);
-        CHECK_REAL_EQUAL(25.001, ke1_val[0], eps);
-        CHECK_REAL_EQUAL(26.284, ke1_val[1], eps);
-        CHECK_REAL_EQUAL(26.630, ke1_val[2], eps);
+        CHECK_EQUAL(3, (int)local_cell_gids[0]);
+        CHECK_EQUAL(162, (int)local_cell_gids[159]);
+        CHECK_EQUAL(642, (int)local_cell_gids[318]);
+
+        EntityHandle cell_ents[] = {local_cells[0], local_cells[159], local_cells[318]};
+        rval = mb.tag_get_data(vorticity_tag0, cell_ents, 3, vorticity0_val);
+        CHECK_ERR(rval);
+
+        // Timestep 0
+        // Layer 0
+        CHECK_REAL_EQUAL(-0.725999, vorticity0_val[0 * layers], eps);
+        CHECK_REAL_EQUAL(-1.814997, vorticity0_val[1 * layers], eps);
+        CHECK_REAL_EQUAL(-0.554888, vorticity0_val[2 * layers], eps);
+        // Layer 1
+        CHECK_REAL_EQUAL(-0.725989, vorticity0_val[0 * layers + 1], eps);
+        CHECK_REAL_EQUAL(-1.814972, vorticity0_val[1 * layers + 1], eps);
+        CHECK_REAL_EQUAL(-0.554881, vorticity0_val[2 * layers + 1], eps);
+
+        rval = mb.tag_get_data(vorticity_tag1, cell_ents, 3, vorticity1_val);
+        CHECK_ERR(rval);
+
+        // Timestep 1
+        // Layer 0
+        CHECK_REAL_EQUAL(-0.706871, vorticity1_val[0 * layers], eps);
+        CHECK_REAL_EQUAL(-1.767178, vorticity1_val[1 * layers], eps);
+        CHECK_REAL_EQUAL(-0.540269, vorticity1_val[2 * layers], eps);
+        // Layer 1
+        CHECK_REAL_EQUAL(-0.706861, vorticity1_val[0 * layers + 1], eps);
+        CHECK_REAL_EQUAL(-1.767153, vorticity1_val[1 * layers + 1], eps);
+        CHECK_REAL_EQUAL(-0.540262, vorticity1_val[2 * layers + 1], eps);
       }
       else if (1 == rank) {
-        CHECK_EQUAL(4, (int)local_cell_gids[0]);
-        CHECK_EQUAL(341, (int)local_cell_gids[160]);
-        CHECK_EQUAL(642, (int)local_cell_gids[320]);
+        CHECK_EQUAL((size_t)323, local_cells.size());
+        CHECK_EQUAL((size_t)323, local_cell_gids.size());
 
-        CHECK_REAL_EQUAL(15.004, ke0_val[0], eps);
-        CHECK_REAL_EQUAL(16.341, ke0_val[1], eps);
-        CHECK_REAL_EQUAL(16.642, ke0_val[2], eps);
-        CHECK_REAL_EQUAL(25.004, ke1_val[0], eps);
-        CHECK_REAL_EQUAL(26.341, ke1_val[1], eps);
-        CHECK_REAL_EQUAL(26.642, ke1_val[2], eps);
+        CHECK_EQUAL(1, (int)local_cell_gids[0]);
+        CHECK_EQUAL(365, (int)local_cell_gids[161]);
+        CHECK_EQUAL(557, (int)local_cell_gids[322]);
+
+        EntityHandle cell_ents[] = {local_cells[0], local_cells[161], local_cells[322]};
+        rval = mb.tag_get_data(vorticity_tag0, cell_ents, 3, vorticity0_val);
+        CHECK_ERR(rval);
+
+        // Timestep 0
+        // Layer 0
+        CHECK_REAL_EQUAL(3.629994, vorticity0_val[0 * layers], eps);
+        CHECK_REAL_EQUAL(-1.173971, vorticity0_val[1 * layers], eps);
+        CHECK_REAL_EQUAL(3.526371, vorticity0_val[2 * layers], eps);
+        // Layer 1
+        CHECK_REAL_EQUAL(3.629944, vorticity0_val[0 * layers + 1], eps);
+        CHECK_REAL_EQUAL(-1.173955, vorticity0_val[1 * layers + 1], eps);
+        CHECK_REAL_EQUAL(3.526322, vorticity0_val[2 * layers + 1], eps);
+
+        rval = mb.tag_get_data(vorticity_tag1, cell_ents, 3, vorticity1_val);
+        CHECK_ERR(rval);
+
+        // Timestep 1
+        // Layer 0
+        CHECK_REAL_EQUAL(3.534355, vorticity1_val[0 * layers], eps);
+        CHECK_REAL_EQUAL(-1.143041, vorticity1_val[1 * layers], eps);
+        CHECK_REAL_EQUAL(3.433463, vorticity1_val[2 * layers], eps);
+        // Layer 1
+        CHECK_REAL_EQUAL(3.534306, vorticity1_val[0 * layers + 1], eps);
+        CHECK_REAL_EQUAL(-1.143025, vorticity1_val[1 * layers + 1], eps);
+        CHECK_REAL_EQUAL(3.433415, vorticity1_val[2 * layers + 1], eps);
       }
     }
     else {
+      CHECK_EQUAL((size_t)321, local_cells.size());
+      CHECK_EQUAL((size_t)321, local_cell_gids.size());
       CHECK_EQUAL((size_t)1, local_cell_gids.psize());
 
+      EntityHandle cell_ents[] = {local_cells[0], local_cells[160], local_cells[320]};
+      rval = mb.tag_get_data(vorticity_tag0, cell_ents, 3, vorticity0_val);
+      CHECK_ERR(rval);
+
+      rval = mb.tag_get_data(vorticity_tag1, cell_ents, 3, vorticity1_val);
+      CHECK_ERR(rval);
+
       if (0 == rank) {
-        if (no_mixed_elements)
-          CHECK_EQUAL((size_t)1, local_cells.psize());
-        else
-          CHECK_EQUAL((size_t)2, local_cells.psize());
         CHECK_EQUAL(1, (int)local_cell_gids[0]);
         CHECK_EQUAL(161, (int)local_cell_gids[160]);
         CHECK_EQUAL(321, (int)local_cell_gids[320]);
 
-        CHECK_REAL_EQUAL(15.001, ke0_val[0], eps);
-        CHECK_REAL_EQUAL(16.161, ke0_val[1], eps);
-        CHECK_REAL_EQUAL(16.321, ke0_val[2], eps);
-        CHECK_REAL_EQUAL(25.001, ke1_val[0], eps);
-        CHECK_REAL_EQUAL(26.161, ke1_val[1], eps);
-        CHECK_REAL_EQUAL(26.321, ke1_val[2], eps);
+        // Timestep 0
+        // Layer 0
+        CHECK_REAL_EQUAL(3.629994, vorticity0_val[0 * layers], eps);
+        CHECK_REAL_EQUAL(-1.708188, vorticity0_val[1 * layers], eps);
+        CHECK_REAL_EQUAL(0.131688, vorticity0_val[2 * layers], eps);
+        // Layer 1
+        CHECK_REAL_EQUAL(3.629944, vorticity0_val[0 * layers + 1], eps);
+        CHECK_REAL_EQUAL(-1.708164, vorticity0_val[1 * layers + 1], eps);
+        CHECK_REAL_EQUAL(0.131686, vorticity0_val[2 * layers + 1], eps);
+
+        // Timestep 1
+        // Layer 0
+        CHECK_REAL_EQUAL(3.534355, vorticity1_val[0 * layers], eps);
+        CHECK_REAL_EQUAL(-1.663182, vorticity1_val[1 * layers], eps);
+        CHECK_REAL_EQUAL(0.128218, vorticity1_val[2 * layers], eps);
+        // Layer 1
+        CHECK_REAL_EQUAL(3.534306, vorticity1_val[0 * layers + 1], eps);
+        CHECK_REAL_EQUAL(-1.663160, vorticity1_val[1 * layers + 1], eps);
+        CHECK_REAL_EQUAL(0.128216, vorticity1_val[2 * layers + 1], eps);
       }
       else if (1 == rank) {
-        CHECK_EQUAL((size_t)1, local_cells.psize());
         CHECK_EQUAL(322, (int)local_cell_gids[0]);
         CHECK_EQUAL(482, (int)local_cell_gids[160]);
         CHECK_EQUAL(642, (int)local_cell_gids[320]);
 
-        CHECK_REAL_EQUAL(16.322, ke0_val[0], eps);
-        CHECK_REAL_EQUAL(16.482, ke0_val[1], eps);
-        CHECK_REAL_EQUAL(16.642, ke0_val[2], eps);
-        CHECK_REAL_EQUAL(26.322, ke1_val[0], eps);
-        CHECK_REAL_EQUAL(26.482, ke1_val[1], eps);
-        CHECK_REAL_EQUAL(26.642, ke1_val[2], eps);
+        // Timestep 0
+        // Layer 0
+        CHECK_REAL_EQUAL(-0.554888, vorticity0_val[0 * layers], eps);
+        CHECK_REAL_EQUAL(2.434397, vorticity0_val[1 * layers], eps);
+        CHECK_REAL_EQUAL(-0.554888, vorticity0_val[2 * layers], eps);
+        // Layer 1
+        CHECK_REAL_EQUAL(-0.554881, vorticity0_val[0 * layers + 1], eps);
+        CHECK_REAL_EQUAL(2.434363, vorticity0_val[1 * layers + 1], eps);
+        CHECK_REAL_EQUAL(-0.554881, vorticity0_val[2 * layers + 1], eps);
+
+        // Timestep 1
+        // Layer 0
+        CHECK_REAL_EQUAL(-0.540269, vorticity1_val[0 * layers], eps);
+        CHECK_REAL_EQUAL(2.370258, vorticity1_val[1 * layers], eps);
+        CHECK_REAL_EQUAL(-0.540269, vorticity1_val[2 * layers], eps);
+        // Layer 1
+        CHECK_REAL_EQUAL(-0.540262, vorticity1_val[0 * layers + 1], eps);
+        CHECK_REAL_EQUAL(2.370226, vorticity1_val[1 * layers + 1], eps);
+        CHECK_REAL_EQUAL(-0.540262, vorticity1_val[2 * layers + 1], eps);
       }
     }
   }
 }
 
-void read_mesh_parallel(bool rcbzoltan, bool no_mixed_elements)
+void read_mesh_parallel(bool rcbzoltan)
 {
   Core moab;
   Interface& mb = moab;
@@ -274,17 +302,12 @@ void read_mesh_parallel(bool rcbzoltan, bool no_mixed_elements)
   if (rcbzoltan)
     read_options = "PARALLEL=READ_PART;PARTITION_METHOD=RCBZOLTAN;PARALLEL_RESOLVE_SHARED_ENTS;VARIABLE=";
 
-  if (no_mixed_elements)
-    read_options += ";NO_MIXED_ELEMENTS";
-
   ErrorCode rval = mb.load_file(example, NULL, read_options.c_str());
   CHECK_ERR(rval);
 
   ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
-#if 0
   int procs = pcomm->proc_config().proc_size();
   int rank = pcomm->proc_config().proc_rank();
-#endif
 
   rval = pcomm->check_all_shared_handles();
   CHECK_ERR(rval);
@@ -294,21 +317,19 @@ void read_mesh_parallel(bool rcbzoltan, bool no_mixed_elements)
   rval = mb.get_entities_by_type(0, MBVERTEX, local_verts);
   CHECK_ERR(rval);
 
-#if 0
   int verts_num = local_verts.size();
-
   if (2 == procs) {
     if (rcbzoltan) {
       if (0 == rank)
-        CHECK_EQUAL(685, verts_num);
+        CHECK_EQUAL(684, verts_num);
       else if (1 == rank)
-        CHECK_EQUAL(685, verts_num); // Not owned vertices included
+        CHECK_EQUAL(691, verts_num); // Not owned vertices included
     }
     else {
       if (0 == rank)
-        CHECK_EQUAL(1120, verts_num);
+        CHECK_EQUAL(687, verts_num);
       else if (1 == rank)
-        CHECK_EQUAL(1122, verts_num); // Not owned vertices included
+        CHECK_EQUAL(688, verts_num); // Not owned vertices included
     }
   }
 
@@ -319,15 +340,15 @@ void read_mesh_parallel(bool rcbzoltan, bool no_mixed_elements)
   if (2 == procs) {
     if (rcbzoltan) {
       if (0 == rank)
-        CHECK_EQUAL(685, verts_num);
+        CHECK_EQUAL(684, verts_num);
       else if (1 == rank)
-        CHECK_EQUAL(595, verts_num); // Not owned vertices excluded
+        CHECK_EQUAL(596, verts_num); // Not owned vertices excluded
     }
     else {
       if (0 == rank)
-        CHECK_EQUAL(1120, verts_num);
+        CHECK_EQUAL(687, verts_num);
       else if (1 == rank)
-        CHECK_EQUAL(160, verts_num); // Not owned vertices excluded
+        CHECK_EQUAL(593, verts_num); // Not owned vertices excluded
     }
   }
 
@@ -340,15 +361,15 @@ void read_mesh_parallel(bool rcbzoltan, bool no_mixed_elements)
   if (2 == procs) {
     if (rcbzoltan) {
       if (0 == rank)
-        CHECK_EQUAL(1005, edges_num);
+        CHECK_EQUAL(1002, edges_num);
       else if (1 == rank)
-        CHECK_EQUAL(1005, edges_num); // Not owned edges included
+        CHECK_EQUAL(1013, edges_num); // Not owned edges included
     }
     else {
       if (0 == rank)
-        CHECK_EQUAL(1438, edges_num);
+        CHECK_EQUAL(1007, edges_num);
       else if (1 == rank)
-        CHECK_EQUAL(1444, edges_num); // Not owned edges included
+        CHECK_EQUAL(1008, edges_num); // Not owned edges included
     }
   }
 
@@ -359,15 +380,15 @@ void read_mesh_parallel(bool rcbzoltan, bool no_mixed_elements)
   if (2 == procs) {
     if (rcbzoltan) {
       if (0 == rank)
-        CHECK_EQUAL(1005, edges_num);
+        CHECK_EQUAL(1002, edges_num);
       else if (1 == rank)
-        CHECK_EQUAL(915, edges_num); // Not owned edges excluded
+        CHECK_EQUAL(918, edges_num); // Not owned edges excluded
     }
     else {
       if (0 == rank)
-        CHECK_EQUAL(1438, edges_num);
+        CHECK_EQUAL(1007, edges_num);
       else if (1 == rank)
-        CHECK_EQUAL(482, edges_num); // Not owned edges excluded
+        CHECK_EQUAL(913, edges_num); // Not owned edges excluded
     }
   }
 
@@ -375,27 +396,19 @@ void read_mesh_parallel(bool rcbzoltan, bool no_mixed_elements)
   Range local_cells;
   rval = mb.get_entities_by_type(0, MBPOLYGON, local_cells);
   CHECK_ERR(rval);
+  // No mixed elements
+  CHECK_EQUAL((size_t)1, local_cells.psize());
 
   int cells_num = local_cells.size();
   if (2 == procs) {
-    CHECK_EQUAL(321, cells_num);
-
     if (rcbzoltan) {
-      if (no_mixed_elements)
-        CHECK_EQUAL((size_t)1, local_cells.psize());
+      if (0 == rank)
+        CHECK_EQUAL(319, cells_num);
       else
-        CHECK_EQUAL((size_t)2, local_cells.psize());
-     }
-    else {
-      if (0 == rank) {
-        if (no_mixed_elements)
-          CHECK_EQUAL((size_t)1, local_cells.psize());
-        else
-          CHECK_EQUAL((size_t)2, local_cells.psize());
-      }
-      else if (1 == rank)
-        CHECK_EQUAL((size_t)1, local_cells.psize());
+        CHECK_EQUAL(323, cells_num);
     }
+    else
+      CHECK_EQUAL(321, cells_num);
   }
 
   rval = pcomm->filter_pstatus(local_cells, PSTATUS_NOT_OWNED, PSTATUS_NOT);
@@ -403,24 +416,14 @@ void read_mesh_parallel(bool rcbzoltan, bool no_mixed_elements)
 
   cells_num = local_cells.size();
   if (2 == procs) {
-    CHECK_EQUAL(321, cells_num);
-
     if (rcbzoltan) {
-      if (no_mixed_elements)
-        CHECK_EQUAL((size_t)1, local_cells.psize());
+      if (0 == rank)
+        CHECK_EQUAL(319, cells_num);
       else
-        CHECK_EQUAL((size_t)2, local_cells.psize());
+        CHECK_EQUAL(323, cells_num);
     }
-    else {
-      if (0 == rank) {
-        if (no_mixed_elements)
-          CHECK_EQUAL((size_t)1, local_cells.psize());
-        else
-          CHECK_EQUAL((size_t)2, local_cells.psize());
-      }
-      else if (1 == rank)
-        CHECK_EQUAL((size_t)1, local_cells.psize());
-    }
+    else
+      CHECK_EQUAL(321, cells_num);
   }
 
   std::cout << "proc: " << rank << " verts:" << verts_num << "\n";
@@ -449,15 +452,13 @@ void read_mesh_parallel(bool rcbzoltan, bool no_mixed_elements)
     std::cout << "total cells: " << total_cells_num << "\n";
     CHECK_EQUAL(642, total_cells_num);
   }
-#endif
+
 #ifdef HDF5_PARALLEL
   std::string write_options("PARALLEL=WRITE_PART;");
 
   std::string output_file = "test_gcrm";
   if (rcbzoltan)
     output_file += "_rcbzoltan";
-  if (no_mixed_elements)
-    output_file += "_no_mixed_elements";
   output_file += ".h5m";
 
   mb.write_file(output_file.c_str(), NULL, write_options.c_str());
@@ -507,37 +508,43 @@ void gather_one_cell_var(int gather_set_rank)
     assert(gather_set != 0);
   }
 
-  Tag ke_tag0, gid_tag;
-  rval = mb.tag_get_handle("ke0", 1, MB_TYPE_DOUBLE, ke_tag0, MB_TAG_DENSE);
+  Tag vorticity_tag0, gid_tag;
+  rval = mb.tag_get_handle("vorticity0", layers, MB_TYPE_DOUBLE, vorticity_tag0, MB_TAG_DENSE);
   CHECK_ERR(rval);
 
   rval = mb.tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid_tag, MB_TAG_DENSE);
   CHECK_ERR(rval);
 
-  pcomm->gather_data(cells_owned, ke_tag0, gid_tag, gather_set, gather_set_rank);
+  pcomm->gather_data(cells_owned, vorticity_tag0, gid_tag, gather_set, gather_set_rank);
 
   if (gather_set_rank == rank) {
     // Get gather set cells
     Range gather_set_cells;
     rval = mb.get_entities_by_type(gather_set, MBPOLYGON, gather_set_cells);
     CHECK_EQUAL((size_t)642, gather_set_cells.size());
-    CHECK_EQUAL((size_t)2, gather_set_cells.psize());
+    CHECK_EQUAL((size_t)1, gather_set_cells.psize());
 
-    // Check ke0 tag values on 4 gather set cells: first pentagon, last pentagon,
-    // first hexagon and last hexagon
-    EntityHandle cell_ents[] = {gather_set_cells[0], gather_set_cells[11],
-                                gather_set_cells[12], gather_set_cells[641]};
-    double ke0_val[4];
-    rval = mb.tag_get_data(ke_tag0, &cell_ents[0], 4, ke0_val);
+    // Check vorticity0 tag values on 4 gather set cells: first cell, two median cells, and last cell
+    EntityHandle cell_ents[] = {gather_set_cells[0], gather_set_cells[320],
+                                gather_set_cells[321], gather_set_cells[641]};
+    double vorticity0_val[4 * layers];
+    rval = mb.tag_get_data(vorticity_tag0, &cell_ents[0], 4, vorticity0_val);
 
-    CHECK_REAL_EQUAL(15.001, ke0_val[0], eps);
-    CHECK_REAL_EQUAL(15.012, ke0_val[1], eps);
-    CHECK_REAL_EQUAL(16.013, ke0_val[2], eps);
-    CHECK_REAL_EQUAL(16.642, ke0_val[3], eps);
+    // Only check first two layers
+    // Layer 0
+    CHECK_REAL_EQUAL(3.629994, vorticity0_val[0 * layers], eps);
+    CHECK_REAL_EQUAL(0.131688, vorticity0_val[1 * layers], eps);
+    CHECK_REAL_EQUAL(-0.554888, vorticity0_val[2 * layers], eps);
+    CHECK_REAL_EQUAL(-0.554888, vorticity0_val[3 * layers], eps);
+    // Layer 1
+    CHECK_REAL_EQUAL(3.629944, vorticity0_val[0 * layers + 1], eps);
+    CHECK_REAL_EQUAL(0.131686, vorticity0_val[1 * layers + 1], eps);
+    CHECK_REAL_EQUAL(-0.554881, vorticity0_val[2 * layers + 1], eps);
+    CHECK_REAL_EQUAL(-0.554881, vorticity0_val[3 * layers + 1], eps);
   }
 }
 
-void multiple_loads_of_same_file(bool no_mixed_elements)
+void multiple_loads_of_same_file()
 {
   Core moab;
   Interface& mb = moab;
@@ -550,24 +557,18 @@ void multiple_loads_of_same_file(bool no_mixed_elements)
 
   // Read first only header information, no mesh, no variable
   read_options = "PARALLEL=READ_PART;PARTITION;NOMESH;VARIABLE=;PARTITION_METHOD=TRIVIAL";
-  if (no_mixed_elements)
-    read_options += ";NO_MIXED_ELEMENTS";
 
   rval = mb.load_file(example, &file_set, read_options.c_str());
   CHECK_ERR(rval);
 
   // Create mesh, no variable
   read_options = "PARALLEL=READ_PART;PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;PARTITION_METHOD=TRIVIAL;VARIABLE=";
-  if (no_mixed_elements)
-    read_options += ";NO_MIXED_ELEMENTS";
 
   rval = mb.load_file(example, &file_set, read_options.c_str());
   CHECK_ERR(rval);
 
-  // Read variable ke at timestep 0, no mesh
-  read_options = "PARALLEL=READ_PART;PARTITION;PARTITION_METHOD=TRIVIAL;NOMESH;VARIABLE=ke;TIMESTEP=0";
-  if (no_mixed_elements)
-    read_options += ";NO_MIXED_ELEMENTS";
+  // Read variable vorticity at timestep 0, no mesh
+  read_options = "PARALLEL=READ_PART;PARTITION;PARTITION_METHOD=TRIVIAL;NOMESH;VARIABLE=vorticity;TIMESTEP=0";
 
   rval = mb.load_file(example, &file_set, read_options.c_str());
   CHECK_ERR(rval);
@@ -583,6 +584,8 @@ void multiple_loads_of_same_file(bool no_mixed_elements)
   Range local_cells;
   rval = mb.get_entities_by_type(file_set, MBPOLYGON, local_cells);
   CHECK_ERR(rval);
+  // No mixed elements
+  CHECK_EQUAL((size_t)1, local_cells.psize());
 
   ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
   int procs = pcomm->proc_config().proc_size();
@@ -592,37 +595,42 @@ void multiple_loads_of_same_file(bool no_mixed_elements)
   if (2 == procs) {
     CHECK_EQUAL((size_t)321, local_cells.size());
 
-    // Check tag for cell variable ke at timestep 0
-    Tag ke_tag0;
-    rval = mb.tag_get_handle("ke0", 1, MB_TYPE_DOUBLE, ke_tag0);
+    // Check tag for cell variable vorticity at timestep 0
+    Tag vorticity_tag0;
+    rval = mb.tag_get_handle("vorticity0", layers, MB_TYPE_DOUBLE, vorticity_tag0);
     CHECK_ERR(rval);
 
-    // Get ke0 tag values on 3 local cells
+    // Get vorticity0 tag values on 3 local cells
+    double vorticity0_val[3 * layers];
     EntityHandle cell_ents[] = {local_cells[0], local_cells[160], local_cells[320]};
-    double ke0_val[3];
-    rval = mb.tag_get_data(ke_tag0, cell_ents, 3, ke0_val);
+    rval = mb.tag_get_data(vorticity_tag0, cell_ents, 3, vorticity0_val);
     CHECK_ERR(rval);
 
     if (0 == rank) {
-      CHECK_EQUAL((size_t)1120, local_verts.size());
-      CHECK_EQUAL((size_t)1438, local_edges.size());
-      if (no_mixed_elements)
-        CHECK_EQUAL((size_t)1, local_cells.psize());
-      else
-        CHECK_EQUAL((size_t)2, local_cells.psize());
+      CHECK_EQUAL((size_t)687, local_verts.size());
+      CHECK_EQUAL((size_t)1007, local_edges.size());
 
-      CHECK_REAL_EQUAL(15.001, ke0_val[0], eps);
-      CHECK_REAL_EQUAL(16.161, ke0_val[1], eps);
-      CHECK_REAL_EQUAL(16.321, ke0_val[2], eps);
+      // Layer 0
+      CHECK_REAL_EQUAL(3.629994, vorticity0_val[0 * layers], eps);
+      CHECK_REAL_EQUAL(-1.708188, vorticity0_val[1 * layers], eps);
+      CHECK_REAL_EQUAL(0.131688, vorticity0_val[2 * layers], eps);
+      // Layer 1
+      CHECK_REAL_EQUAL(3.629944, vorticity0_val[0 * layers + 1], eps);
+      CHECK_REAL_EQUAL(-1.708164, vorticity0_val[1 * layers + 1], eps);
+      CHECK_REAL_EQUAL(0.131686, vorticity0_val[2 * layers + 1], eps);
     }
     else if (1 == rank) {
-      CHECK_EQUAL((size_t)1122, local_verts.size());
-      CHECK_EQUAL((size_t)1444, local_edges.size());
-      CHECK_EQUAL((size_t)1, local_cells.psize());
+      CHECK_EQUAL((size_t)688, local_verts.size());
+      CHECK_EQUAL((size_t)1008, local_edges.size());
 
-      CHECK_REAL_EQUAL(16.322, ke0_val[0], eps);
-      CHECK_REAL_EQUAL(16.482, ke0_val[1], eps);
-      CHECK_REAL_EQUAL(16.642, ke0_val[2], eps);
+      // Layer 0
+      CHECK_REAL_EQUAL(-0.554888, vorticity0_val[0 * layers], eps);
+      CHECK_REAL_EQUAL(2.434397, vorticity0_val[1 * layers], eps);
+      CHECK_REAL_EQUAL(-0.554888, vorticity0_val[2 * layers], eps);
+      // Layer 1
+      CHECK_REAL_EQUAL(-0.554881, vorticity0_val[0 * layers + 1], eps);
+      CHECK_REAL_EQUAL(2.434363, vorticity0_val[1 * layers + 1], eps);
+      CHECK_REAL_EQUAL(-0.554881, vorticity0_val[2 * layers + 1], eps);
     }
   }
 }
