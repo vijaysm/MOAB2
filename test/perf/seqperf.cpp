@@ -627,7 +627,7 @@ static double hex_centroid( double coords[24], double cent[3] )
 
 void forward_order_query_element_verts(int percent)
 {
-  ErrorCode r;
+  ErrorCode r=MB_SUCCESS;
   if (r){} // empty line to remove compiler warning  
   const EntityHandle* conn;
   int len;
@@ -652,7 +652,7 @@ void forward_order_query_element_verts(int percent)
 
 void reverse_order_query_element_verts(int percent)
 {
-  ErrorCode r;
+  ErrorCode r=MB_SUCCESS;
   if (r) {} // empty statement to remove compiler warning
   
   const EntityHandle* conn;
@@ -678,7 +678,7 @@ void reverse_order_query_element_verts(int percent)
 
 void  random_order_query_element_verts(int percent)
 {
-  ErrorCode r;
+  ErrorCode r=MB_SUCCESS;
   if (r){} // empty line to remove compiler warning  
   const EntityHandle* conn;
   int len;
@@ -734,7 +734,7 @@ void  random_order_delete_elements( int percent )
 void create_missing_vertices( int percent )
 {
   EntityHandle h;
-  ErrorCode rval;
+  ErrorCode rval=MB_SUCCESS;
   if (rval){} // empty line to remove compiler warning  
   double coords[3];
   for (long i = 0; i < numVert; ++i)

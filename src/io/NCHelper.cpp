@@ -3,6 +3,7 @@
 #include "NCHelperFV.hpp"
 #include "NCHelperHOMME.hpp"
 #include "NCHelperMPAS.hpp"
+#include "NCHelperGCRM.hpp"
 
 #include <sstream>
 
@@ -51,13 +52,17 @@ NCHelper* NCHelper::get_nc_helper(ReadNC* readNC, int fileId, const FileOptions&
     // For a HOMME connectivity file, there might be no CF convention
     else if (NCHelperHOMME::can_read_file(readNC, fileId))
       return new (std::nothrow) NCHelperHOMME(readNC, fileId, opts, fileSet);
+    // gcrm reader
+    else if (NCHelperGCRM::can_read_file(readNC))
+          return new (std::nothrow) NCHelperGCRM(readNC, fileId, opts, fileSet);
   }
 
   // Unknown NetCDF grid (will fill this in later for POP, CICE and CLM)
   return NULL;
 }
 
-ErrorCode NCHelper::create_conventional_tags(const std::vector<int>& tstep_nums) {
+ErrorCode NCHelper::create_conventional_tags(const std::vector<int>& tstep_nums)
+{
   Interface*& mbImpl = _readNC->mbImpl;
   std::vector<std::string>& dimNames = _readNC->dimNames;
   std::vector<int>& dimLens = _readNC->dimLens;
@@ -192,16 +197,16 @@ ErrorCode NCHelper::create_conventional_tags(const std::vector<int>& tstep_nums)
     unsigned int varDimSz = varInfo[mapIter->first].varDims.size();
     if (varDimSz == 0)
       continue;
-    varInfo[mapIter->first].varTags.resize(varDimSz, 0);
+    std::vector<Tag> varDimTags(varDimSz);
     for (unsigned int i = 0; i != varDimSz; i++) {
       Tag tmptag = 0;
       std::string tmptagname = dimNames[varInfo[mapIter->first].varDims[i]];
       mbImpl->tag_get_handle(tmptagname.c_str(), 0, MB_TYPE_OPAQUE, tmptag, MB_TAG_ANY);
-      varInfo[mapIter->first].varTags[i] = tmptag;
+      varDimTags[i] = tmptag;
     }
     rval = mbImpl->tag_get_handle(tag_name.c_str(), varDimSz, MB_TYPE_HANDLE, varNamesDimsTag, MB_TAG_SPARSE | MB_TAG_CREAT);
     ERRORR(rval, "Trouble creating __<var_name>_DIMS tag.");
-    rval = mbImpl->tag_set_data(varNamesDimsTag, &_fileSet, 1, &(varInfo[mapIter->first].varTags[0]));
+    rval = mbImpl->tag_set_data(varNamesDimsTag, &_fileSet, 1, &(varDimTags[0]));
     ERRORR(rval, "Trouble setting data for __<var_name>_DIMS tag.");
     if (MB_SUCCESS == rval)
       dbgOut.tprintf(2, "Tag created for variable %s\n", tag_name.c_str());
@@ -252,21 +257,37 @@ ErrorCode NCHelper::create_conventional_tags(const std::vector<int>& tstep_nums)
     Tag varAttTag = 0;
     rval = mbImpl->tag_get_handle(tag_name.c_str(), 0, MB_TYPE_OPAQUE, varAttTag, MB_TAG_CREAT | MB_TAG_SPARSE | MB_TAG_VARLEN);
     ERRORR(rval, "Trouble creating __<var_name>_ATTRIBS tag.");
+
     std::string varAttVal;
     std::vector<int> varAttLen;
-    rval = create_attrib_string(mapIter->second.varAtts, varAttVal, varAttLen);
-    ERRORR(rval, "Trouble creating attribute strings.");
+    if (mapIter->second.numAtts < 1) {
+      if (dummyVarNames.find(mapIter->first) != dummyVarNames.end()) {
+        // This variable is a dummy coordinate variable
+        varAttVal = "DUMMY_VAR";
+      }
+      else {
+        // This variable has no attributes
+        varAttVal = "NO_ATTRIBS";
+      }
+    }
+    else {
+      rval = create_attrib_string(mapIter->second.varAtts, varAttVal, varAttLen);
+      ERRORR(rval, "Trouble creating attribute string.");
+    }
     const void* varAttPtr = varAttVal.c_str();
     int varAttSz = varAttVal.size();
+    if (0 == varAttSz)
+      varAttSz = 1;
     rval = mbImpl->tag_set_by_ptr(varAttTag, &_fileSet, 1, &varAttPtr, &varAttSz);
     ERRORR(rval, "Trouble setting data for __<var_name>_ATTRIBS tag.");
     if (MB_SUCCESS == rval)
       dbgOut.tprintf(2, "Tag created for variable %s\n", tag_name.c_str());
-    if (varAttLen.size() == 0)
-      varAttLen.push_back(0);
+
     ssTagName << "_LEN";
     tag_name = ssTagName.str();
     Tag varAttLenTag = 0;
+    if (0 == varAttLen.size())
+      varAttLen.push_back(0);
     rval = mbImpl->tag_get_handle(tag_name.c_str(), varAttLen.size(), MB_TYPE_INTEGER, varAttLenTag, MB_TAG_SPARSE | MB_TAG_CREAT);
     ERRORR(rval, "Trouble creating __<var_name>_ATTRIBS_LEN tag.");
     rval = mbImpl->tag_set_data(varAttLenTag, &_fileSet, 1, &varAttLen[0]);
@@ -307,10 +328,64 @@ ErrorCode NCHelper::create_conventional_tags(const std::vector<int>& tstep_nums)
   return MB_SUCCESS;
 }
 
+ErrorCode NCHelper::update_time_tag_vals()
+{
+  Interface*& mbImpl = _readNC->mbImpl;
+  std::vector<std::string>& dimNames = _readNC->dimNames;
+
+  ErrorCode rval;
+
+  // The time tag might be a dummy one (e.g. 'Time' for MPAS)
+  std::string time_tag_name = dimNames[tDim];
+  if (dummyVarNames.find(time_tag_name) != dummyVarNames.end())
+    return MB_SUCCESS;
+
+  Tag time_tag = 0;
+  const void* data = NULL;
+  int time_tag_size = 0;
+  rval = mbImpl->tag_get_handle(time_tag_name.c_str(), 0, MB_TYPE_DOUBLE, time_tag, MB_TAG_VARLEN);
+  ERRORR(rval, "Trouble getting time tag.");
+  rval = mbImpl->tag_get_by_ptr(time_tag, &_fileSet, 1, &data, &time_tag_size);
+  ERRORR(rval, "Trouble getting values for time tag.");
+  const double* time_tag_vals = static_cast<const double*>(data);
+
+  // Merge tVals (read from current file) to existing time tag
+  // Assume that time_tag_vals and tVals are both sorted
+  std::vector<double> merged_time_vals;
+  merged_time_vals.reserve(time_tag_size + nTimeSteps);
+  int i = 0;
+  int j = 0;
+
+  // Merge time values from time_tag_vals and tVals
+  while (i < time_tag_size && j < nTimeSteps) {
+    if (time_tag_vals[i] < tVals[j])
+      merged_time_vals.push_back(time_tag_vals[i++]);
+    else
+      merged_time_vals.push_back(tVals[j++]);
+  }
+
+  // Append remaining time values of time_tag_vals (if any)
+  while (i < time_tag_size)
+    merged_time_vals.push_back(time_tag_vals[i++]);
+
+  // Append remaining time values of tVals (if any)
+  while (j < nTimeSteps)
+    merged_time_vals.push_back(tVals[j++]);
+
+  data = &merged_time_vals[0];
+  time_tag_size = merged_time_vals.size();
+  rval = mbImpl->tag_set_by_ptr(time_tag, &_fileSet, 1, &data, &time_tag_size);
+  ERRORR(rval, "Failed to set data for time tag.");
+
+  return MB_SUCCESS;
+}
+
 ErrorCode NCHelper::read_variable_setup(std::vector<std::string>& var_names, std::vector<int>& tstep_nums,
                                         std::vector<ReadNC::VarData>& vdatas, std::vector<ReadNC::VarData>& vsetdatas)
 {
   std::map<std::string, ReadNC::VarData>& varInfo = _readNC->varInfo;
+  std::vector<std::string>& dimNames = _readNC->dimNames;
+
   std::map<std::string, ReadNC::VarData>::iterator mit;
 
   // If empty read them all (except ignored variables)
@@ -319,10 +394,12 @@ ErrorCode NCHelper::read_variable_setup(std::vector<std::string>& var_names, std
       ReadNC::VarData vd = (*mit).second;
 
       // If read all variables at once, skip ignored ones
-      // Upon creation of dummy variables, tag values have already been set
-      if (ignoredVarNames.find(vd.varName) != ignoredVarNames.end() ||
-          dummyVarNames.find(vd.varName) != dummyVarNames.end())
+      if (ignoredVarNames.find(vd.varName) != ignoredVarNames.end())
          continue;
+
+      // Coordinate variables (include dummy ones) were read to the file set by default
+      if (std::find(dimNames.begin(), dimNames.end(), vd.varName) != dimNames.end())
+        continue;
 
       if (vd.entLoc == ReadNC::ENTLOCSET)
         vsetdatas.push_back(vd);
@@ -337,7 +414,7 @@ ErrorCode NCHelper::read_variable_setup(std::vector<std::string>& var_names, std
       if (mit != varInfo.end()) {
         ReadNC::VarData vd = (*mit).second;
 
-        // Upon creation of dummy variables, tag values have already been set
+        // Upon creation of dummy coordinate variables, tag values have already been set
         if (dummyVarNames.find(vd.varName) != dummyVarNames.end())
            continue;
 
@@ -362,21 +439,21 @@ ErrorCode NCHelper::read_variable_setup(std::vector<std::string>& var_names, std
     for (unsigned int i = 0; i < vdatas.size(); i++) {
       vdatas[i].varTags.resize(tstep_nums.size(), 0);
       vdatas[i].varDatas.resize(tstep_nums.size());
+      // NC reader assumes that non-set variables always have timesteps
+      assert(std::find(vdatas[i].varDims.begin(), vdatas[i].varDims.end(), tDim) != vdatas[i].varDims.end());
       vdatas[i].has_tsteps = true;
     }
 
     for (unsigned int i = 0; i < vsetdatas.size(); i++) {
       if ((std::find(vsetdatas[i].varDims.begin(), vsetdatas[i].varDims.end(), tDim) != vsetdatas[i].varDims.end())
-          && (vsetdatas[i].varDims.size() > 1)) {
-        // Set variables with timesteps: time is the first dimension, followed
-        // by other dimensions, e.g. xtime(Time, StrLen)
+          && (vsetdatas[i].varName != dimNames[tDim])) {
+        // Set variables with timesteps: e.g. xtime(Time) or xtime(Time, StrLen)
         vsetdatas[i].varTags.resize(tstep_nums.size(), 0);
         vsetdatas[i].varDatas.resize(tstep_nums.size());
         vsetdatas[i].has_tsteps = true;
       }
       else {
-        // Set variables without timesteps: no time dimension, or time is the only
-        // dimension, e.g. lev(lev), xtime(Time)
+        // Set variables without timesteps: no time dimension, or time itself
         vsetdatas[i].varTags.resize(1, 0);
         vsetdatas[i].varDatas.resize(1);
         vsetdatas[i].has_tsteps = false;
@@ -402,7 +479,7 @@ ErrorCode NCHelper::read_variable_to_set(std::vector<ReadNC::VarData>& vdatas, s
     for (unsigned int t = 0; t < tstep_nums.size(); t++) {
       void* data = vdatas[i].varDatas[t];
 
-      // Set variables with timesteps, e.g. xtime(Time, StrLen)
+      // Set variables with timesteps, e.g. xtime(Time) or xtime(Time, StrLen)
       if (vdatas[i].has_tsteps) {
         // Set readStart for each timestep along time dimension
         vdatas[i].readStarts[0] = tstep_nums[t];
@@ -469,7 +546,7 @@ ErrorCode NCHelper::read_variable_to_set(std::vector<ReadNC::VarData>& vdatas, s
       }
       vdatas[i].varDatas[t] = NULL;
 
-      // Loop continues only for set variables with timesteps, e.g. xtime(Time, StrLen)
+      // Loop continues only for set variables with timesteps, e.g. xtime(Time) or xtime(Time, StrLen)
       if (!vdatas[i].has_tsteps)
         break;
     }
@@ -610,6 +687,10 @@ ErrorCode NCHelper::get_tag_to_set(ReadNC::VarData& var_data, int tstep_num, Tag
 {
   Interface*& mbImpl = _readNC->mbImpl;
   DebugOutput& dbgOut = _readNC->dbgOut;
+  int& tStepBase = _readNC->tStepBase;
+
+  if (tStepBase > 0)
+    tstep_num += tStepBase;
 
   std::ostringstream tag_name;
   if (var_data.has_tsteps)
@@ -647,6 +728,10 @@ ErrorCode NCHelper::get_tag_to_nonset(ReadNC::VarData& var_data, int tstep_num, 
 {
   Interface*& mbImpl = _readNC->mbImpl;
   DebugOutput& dbgOut = _readNC->dbgOut;
+  int& tStepBase = _readNC->tStepBase;
+
+  if (tStepBase > 0)
+    tstep_num += tStepBase;
 
   std::ostringstream tag_name;
   tag_name << var_data.varName << tstep_num;
@@ -749,13 +834,13 @@ ErrorCode NCHelper::create_dummy_variables()
 
   // Hack: look at all dimensions, and see if we have one that does not appear in the list of varInfo names
   // Right now, candidates are from unstructured meshes, such as ncol (HOMME) and nCells (MPAS)
-  // For each of them, create a dummy variable with a sparse tag to store the dimension length
+  // For each of them, create a dummy coordinate variable with a sparse tag to store the dimension length
   for (unsigned int i = 0; i < dimNames.size(); i++) {
     // If there is a variable with this dimension name, skip
     if (varInfo.find(dimNames[i]) != varInfo.end())
       continue;
 
-    // Create a dummy variable
+    // Create a dummy coordinate variable
     int sizeTotalVar = varInfo.size();
     std::string var_name(dimNames[i]);
     ReadNC::VarData& data = varInfo[var_name];
@@ -768,13 +853,13 @@ ErrorCode NCHelper::create_dummy_variables()
     data.numAtts = 0;
     data.entLoc = ReadNC::ENTLOCSET;
     dummyVarNames.insert(dimNames[i]);
-    dbgOut.tprintf(2, "Dummy variable created for dimension %s\n", dimNames[i].c_str());
+    dbgOut.tprintf(2, "Dummy coordinate variable created for dimension %s\n", dimNames[i].c_str());
 
     // Create a corresponding sparse tag
     Tag tagh;
     ErrorCode rval = mbImpl->tag_get_handle(dimNames[i].c_str(), 0, MB_TYPE_INTEGER, tagh,
                                             MB_TAG_CREAT | MB_TAG_SPARSE | MB_TAG_VARLEN);
-    ERRORR(rval, "Failed to create tag for a dummy dimension variable.");
+    ERRORR(rval, "Failed to create tag for a dummy coordinate variable.");
 
     // Tag value is the dimension length
     const void* ptr = &dimLens[i];
@@ -860,7 +945,7 @@ ErrorCode NCHelper::read_variable_to_set_allocate(std::vector<ReadNC::VarData>& 
           rval = MB_FAILURE;
       }
 
-      // Loop continues only for set variables with timesteps, e.g. xtime(Time, StrLen)
+      // Loop continues only for set variables with timesteps, e.g. xtime(Time) or xtime(Time, StrLen)
       if (!vdatas[i].has_tsteps)
         break;
     }
@@ -1005,6 +1090,10 @@ ErrorCode ScdNCHelper::create_mesh(Range& faces)
   Range edges;
   mbImpl->get_adjacencies(faces, 1, true, edges, Interface::UNION);
 
+  // Create COORDS tag for quads
+  rval = create_quad_coordinate_tag();
+  ERRORR(rval, "Trouble creating coordinate tags to entities quads");
+
   return MB_SUCCESS;
 }
 
@@ -1015,10 +1104,6 @@ ErrorCode ScdNCHelper::read_variables(std::vector<std::string>& var_names, std::
 
   ErrorCode rval = read_variable_setup(var_names, tstep_nums, vdatas, vsetdatas);
   ERRORR(rval, "Trouble setting up read variable.");
-
-  // Create COORDS tag for quads
-  rval = create_quad_coordinate_tag();
-  ERRORR(rval, "Trouble creating coordinate tags to entities quads");
 
   if (!vsetdatas.empty()) {
     rval = read_variable_to_set(vsetdatas, tstep_nums);
@@ -1190,7 +1275,7 @@ ErrorCode ScdNCHelper::read_scd_variable_to_nonset(std::vector<ReadNC::VarData>&
           std::vector<char> tmpchardata(sz);
           success = NCFUNCAG(_vara_text)(_fileId, vdatas[i].varId, &vdatas[i].readStarts[0], &vdatas[i].readCounts[0],
                                         &tmpchardata[0]);
-          if (vdatas[i].numLev != 1)
+          if (vdatas[i].numLev > 1)
             // Transpose (lev, lat, lon) to (lat, lon, lev)
             success = kji_to_jik(ni, nj, nk, data, &tmpchardata[0]);
           else {
@@ -1204,7 +1289,7 @@ ErrorCode ScdNCHelper::read_scd_variable_to_nonset(std::vector<ReadNC::VarData>&
           std::vector<double> tmpdoubledata(sz);
           success = NCFUNCAG(_vara_double)(_fileId, vdatas[i].varId, &vdatas[i].readStarts[0], &vdatas[i].readCounts[0],
                                           &tmpdoubledata[0]);
-          if (vdatas[i].numLev != 1)
+          if (vdatas[i].numLev > 1)
             // Transpose (lev, lat, lon) to (lat, lon, lev)
             success = kji_to_jik(ni, nj, nk, data, &tmpdoubledata[0]);
           else {
@@ -1218,7 +1303,7 @@ ErrorCode ScdNCHelper::read_scd_variable_to_nonset(std::vector<ReadNC::VarData>&
           std::vector<float> tmpfloatdata(sz);
           success = NCFUNCAG(_vara_float)(_fileId, vdatas[i].varId, &vdatas[i].readStarts[0], &vdatas[i].readCounts[0],
                                           &tmpfloatdata[0]);
-          if (vdatas[i].numLev != 1)
+          if (vdatas[i].numLev > 1)
             // Transpose (lev, lat, lon) to (lat, lon, lev)
             success = kji_to_jik(ni, nj, nk, data, &tmpfloatdata[0]);
           else {
@@ -1232,7 +1317,7 @@ ErrorCode ScdNCHelper::read_scd_variable_to_nonset(std::vector<ReadNC::VarData>&
           std::vector<int> tmpintdata(sz);
           success = NCFUNCAG(_vara_int)(_fileId, vdatas[i].varId, &vdatas[i].readStarts[0], &vdatas[i].readCounts[0],
                                         &tmpintdata[0]);
-          if (vdatas[i].numLev != 1)
+          if (vdatas[i].numLev > 1)
             // Transpose (lev, lat, lon) to (lat, lon, lev)
             success = kji_to_jik(ni, nj, nk, data, &tmpintdata[0]);
           else {
@@ -1246,7 +1331,7 @@ ErrorCode ScdNCHelper::read_scd_variable_to_nonset(std::vector<ReadNC::VarData>&
           std::vector<short> tmpshortdata(sz);
           success = NCFUNCAG(_vara_short)(_fileId, vdatas[i].varId, &vdatas[i].readStarts[0], &vdatas[i].readCounts[0],
                                           &tmpshortdata[0]);
-          if (vdatas[i].numLev != 1)
+          if (vdatas[i].numLev > 1)
             // Transpose (lev, lat, lon) to (lat, lon, lev)
             success = kji_to_jik(ni, nj, nk, data, &tmpshortdata[0]);
           else {
@@ -1302,8 +1387,7 @@ ErrorCode ScdNCHelper::create_quad_coordinate_tag() {
     ERRORR(rval, "Trouble getting owned QUAD entity.");
     numOwnedEnts = ents_owned.size();
   }
-  else
-  {
+  else {
     numOwnedEnts = ents.size();
     ents_owned = ents;
   }
