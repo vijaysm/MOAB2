@@ -509,9 +509,9 @@ void mb_write_mesh_test()
       temp_vec.push_back(*it);
     k++;
   }
-  result = MB->add_entities( meshset_a, &temp_vec[0], temp_vec.size() );
+  result = MB->add_entities( meshset_a, (temp_vec.empty())?NULL:&temp_vec[0], temp_vec.size() );
   CHECK_ERR(result);
-  result = MB->add_entities( block_of_shells, &temp_vec[0], temp_vec.size());
+  result = MB->add_entities( block_of_shells, (temp_vec.empty())?NULL:&temp_vec[0], temp_vec.size());
   CHECK_ERR(result);
 
     //put these quads into a different meshset_b and tag them with a reverse sense tag
