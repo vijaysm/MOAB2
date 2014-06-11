@@ -5,7 +5,7 @@ EXTRA_DIST = HommeMapping.nc \
              eul26x48x96.t0.nc \
              eul26x48x96.t1.nc \
              eul26x48x96.t2.nc \
-             eul26x48x96.t.3.nc \ 
+             eul26x48x96.t.3.nc \
              fv26x46x72.t.3.nc \
 	     cubtest12.cub \
 	     cubtest14.cub \
