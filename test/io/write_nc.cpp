@@ -465,8 +465,10 @@ void test_homme_read_write_T()
 
   // Read non-set variable T and set variable lat
   read_opts += ";VARIABLE=T,lat;DEBUG_IO=0";
-  if (procs > 1)
-    read_opts += ";PARALLEL_RESOLVE_SHARED_ENTS";
+  if (procs > 1) {
+    // Rotate trivial partition, otherwise localGidVertsOwned.psize() is always 1
+    read_opts += ";PARALLEL_RESOLVE_SHARED_ENTS;TRIVIAL_PARTITION_SHIFT=1";
+  }
   rval = mb.load_file(example_homme, &set, read_opts.c_str());
   CHECK_ERR(rval);
 
