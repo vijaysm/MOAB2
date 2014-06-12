@@ -86,11 +86,11 @@ MOSTLYCLEANFILES = mb_write.g \
 range_test_SOURCES = range_test.cpp
 
 moab_test_SOURCES = MBTest.cpp
-moab_test_DEPENDENCIES = \
-	mb_big_test.g \
-	cell1.gen \
-	cell2.gen \
-	$(LDADD)
+#moab_test_DEPENDENCIES = \
+#	mb_big_test.g \
+#	cell1.gen \
+#	cell2.gen \
+#	$(LDADD)
 
 homxform_test_SOURCES = $(top_srcdir)/src/HomXform.cpp
 homxform_test_CPPFLAGS = -DTEST $(AM_CPPFLAGS) $(CPPFLAGS)

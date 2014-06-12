@@ -1,0 +1,35 @@
+# Config file for MOAB; use the CMake find_package() function to pull this into
+# your own CMakeLists.txt file.
+#
+# This file defines the following variables:
+# MOAB_FOUND        - boolean indicating that MOAB is found
+# MOAB_INCLUDE_DIRS - include directories from which to pick up MOAB includes
+# MOAB_LIBRARIES    - libraries need to link to MOAB; use this in target_link_libraries for MOAB-dependent targets
+# MOAB_CXX, MOAB_CC, MOAB_F77, MOAB_FC - compilers used to compile MOAB
+# MOAB_CXXFLAGS, MOAB_CCFLAGS, MOAB_FFLAGS, MOAB_FCFLAGS - compiler flags used to compile MOAB; possibly need to use these in add_definitions or CMAKE_<LANG>_FLAGS_<MODE> 
+
+set(MOAB_FOUND 1)
+
+set(MOAB_USE_HDF @MOAB_USE_HDF@)
+
+# Compiler flags used by MOAB
+
+set(MOAB_CXXFLAGS "@CXXFLAGS@ @AM_CXXFLAGS@")
+set(MOAB_CFLAGS "@CFLAGS@ @AM_CFLAGS@")
+set(MOAB_FORTRAN_FLAGS "@MOAB_FFLAGS@ @AM_FFLAGS@")
+
+# Library and include defs
+get_filename_component(MOAB_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
+
+if(NOT TARGET MOAB AND NOT MOAB_BINARY_DIR)
+  include("${MOAB_CMAKE_DIR}/MOABTargets.cmake")
+endif()
+
+if(MOAB_USE_HDF)
+  if(EXISTS "@HDF5_DIR@/share/cmake/hdf5/hdf5-config.cmake")
+    include(@HDF5_DIR@/share/cmake/hdf5/hdf5-config.cmake)
+  endif()
+endif()
+
+set(MOAB_INCLUDE_DIRS "@CMAKE_INSTALL_PREFIX@/include")
+set(MOAB_LIBRARIES MOAB)
