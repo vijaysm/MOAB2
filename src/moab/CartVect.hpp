@@ -58,7 +58,7 @@ class CartVect
 
     inline double length_squared() const;
 
-    inline void normalize(); //!< make unit length
+    inline void normalize(); //!< make unit length, or 0 if length < DBL_MIN
 
     inline void flip(); //!< flip direction
 
@@ -75,6 +75,11 @@ class CartVect
       /** initialize array from this */
     inline void get( double v[3] ) const
       { v[0] = d[0]; v[1] = d[1]; v[2] = d[2]; }
+
+      /** initialize array from this */
+    inline void get( float v[3] ) const
+      { v[0] = d[0]; v[1] = d[1]; v[2] = d[2]; }
+
 };
 
 inline CartVect operator+( const CartVect& u, const CartVect& v )
