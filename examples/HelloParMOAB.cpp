@@ -2,6 +2,12 @@
  * \brief Read mesh into MOAB and resolve/exchange/report shared and ghosted entities \n
  * <b>To run</b>: mpiexec -np 4 HelloMoabPar [filename]\n
  *
+ *  It shows how to load the mesh independently, on multiple
+ *  communicators (with second argument, the number of comms)
+ *
+ *
+ *
+ *  mpiexec -np 8 HelloMoabPar [filename] [nbComms]
  */
 
 #include "moab/ParallelComm.hpp"
@@ -26,6 +32,10 @@ int main(int argc, char **argv)
     test_file_name = argv[1];
   }  
 
+  int nbComms = 1;
+  if (argc > 2)
+    nbComms = atoi(argv[2]);
+
   options = "PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS";
 
   // Get MOAB instance and read the file with the specified options
@@ -33,15 +43,38 @@ int main(int argc, char **argv)
   if (NULL == mb)
     return 1;
 
+  MPI_Comm comm ;
+  int global_rank, global_size;
+  MPI_Comm_rank( MPI_COMM_WORLD, &global_rank );
+  MPI_Comm_rank( MPI_COMM_WORLD, &global_size );
+
+  int color = global_rank%nbComms; // for each angle group a different color
+  if (nbComms>1)
+  {
+    // split the communicator, into ngroups = nbComms
+    MPI_Comm_split( MPI_COMM_WORLD, color, global_rank, &comm );
+  }
+  else
+  {
+    comm = MPI_COMM_WORLD;
+  }
   // Get the ParallelComm instance
-  ParallelComm* pcomm = new ParallelComm(mb, MPI_COMM_WORLD);
+  ParallelComm* pcomm = new ParallelComm(mb, comm);
   int nprocs = pcomm->proc_config().proc_size();
   int rank = pcomm->proc_config().proc_rank();
-  MPI_Comm comm = pcomm->proc_config().proc_comm();
+  MPI_Comm rcomm = pcomm->proc_config().proc_comm();
+  assert(rcomm==comm);
+  if (global_rank == 0)
+    cout<< " global rank:" <<global_rank << " color:" << color << " rank:" << rank << " of " << nprocs << " processors\n";
 
-  if (rank == 0)
+  if (global_rank == 1)
+    cout<< " global rank:" <<global_rank << " color:" << color << " rank:" << rank << " of " << nprocs << " processors\n";
+
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  if (global_rank == 0)
     cout << "Reading file " << test_file_name << "\n  with options: " << options << endl
-         << " on " << nprocs << " processors\n";
+         << " on " << nprocs << " processors on " << nbComms << " communicator(s) \n";
 
   ErrorCode rval = mb->load_file(test_file_name.c_str(), 0, options.c_str());
   if (rval != MB_SUCCESS) {
@@ -69,9 +102,9 @@ int main(int argc, char **argv)
   for (int i = 0; i < 4; i++)
     nums[i] = (int)owned_entities.num_of_dimension(i);
   vector<int> rbuf(nprocs*4, 0);
-  MPI_Gather(nums, 4, MPI_INT, &rbuf[0], 4, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Gather(nums, 4, MPI_INT, &rbuf[0], 4, MPI_INT, 0, comm);
   // Print the stats gathered:
-  if (rank == 0) {
+  if (global_rank == 0) {
     for (int i = 0; i < nprocs; i++)
       cout << " Shared, owned entities on proc " << i << ": " << rbuf[4*i] << " verts, " <<
           rbuf[4*i + 1] << " edges, " << rbuf[4*i + 2] << " faces, " << rbuf[4*i + 3] << " elements" << endl;
@@ -109,7 +142,7 @@ int main(int argc, char **argv)
 
   // gather the statistics on processor 0
   MPI_Gather(nums, 4, MPI_INT, &rbuf[0], 4, MPI_INT, 0, comm);
-  if (rank == 0) {
+  if (global_rank == 0) {
     cout << " \n\n After exchanging one ghost layer: \n";
     for (int i = 0; i < nprocs; i++) {
       cout << " Shared, owned entities on proc " << i << ": " << rbuf[4*i] << " verts, " <<

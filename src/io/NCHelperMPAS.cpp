@@ -122,22 +122,22 @@ ErrorCode NCHelperMPAS::init_mesh_vals()
   levDim = idx;
   nLevels = dimLens[idx];
 
-  // Dimension numbers for other optional levels
+  // Dimension indices for other optional levels
   std::vector<unsigned int> opt_lev_dims;
 
-  // Get number of vertex levels P1
+  // Get index of vertex levels P1
   if ((vit = std::find(dimNames.begin(), dimNames.end(), "nVertLevelsP1")) != dimNames.end()) {
     idx = vit - dimNames.begin();
     opt_lev_dims.push_back(idx);
   }
 
-  // Get number of vertex levels P2
+  // Get index of vertex levels P2
   if ((vit = std::find(dimNames.begin(), dimNames.end(), "nVertLevelsP2")) != dimNames.end()) {
     idx = vit - dimNames.begin();
     opt_lev_dims.push_back(idx);
   }
 
-  // Get number of soil levels
+  // Get index of soil levels
   if ((vit = std::find(dimNames.begin(), dimNames.end(), "nSoilLevels")) != dimNames.end()) {
     idx = vit - dimNames.begin();
     opt_lev_dims.push_back(idx);
@@ -299,6 +299,7 @@ ErrorCode NCHelperMPAS::create_mesh(Range& faces)
 {
   Interface*& mbImpl = _readNC->mbImpl;
   int& gatherSetRank = _readNC->gatherSetRank;
+  int& trivialPartitionShift = _readNC->trivialPartitionShift;
   bool& noMixedElements = _readNC->noMixedElements;
   bool& noEdges = _readNC->noEdges;
 
@@ -318,19 +319,24 @@ ErrorCode NCHelperMPAS::create_mesh(Range& faces)
     createGatherSet = true;
 
   if (procs >= 2) {
+    // Shift rank to obtain a rotated trivial partition
+    int shifted_rank = rank;
+    if (trivialPartitionShift > 0)
+      shifted_rank = (rank + trivialPartitionShift) % procs;
+
     // Compute the number of local cells on this proc
     nLocalCells = int(std::floor(1.0 * nCells / procs));
 
     // The starting global cell index in the MPAS file for this proc
-    int start_cell_idx = rank * nLocalCells;
+    int start_cell_idx = shifted_rank * nLocalCells;
 
     // Number of extra cells after equal split over procs
     int iextra = nCells % procs;
 
     // Allocate extra cells over procs
-    if (rank < iextra)
+    if (shifted_rank < iextra)
       nLocalCells++;
-    start_cell_idx += std::min(rank, iextra);
+    start_cell_idx += std::min(shifted_rank, iextra);
 
     start_cell_idx++; // 0 based -> 1 based
 
@@ -509,7 +515,7 @@ ErrorCode NCHelperMPAS::create_mesh(Range& faces)
   return MB_SUCCESS;
 }
 
-ErrorCode NCHelperMPAS::read_ucd_variable_to_nonset_allocate(std::vector<ReadNC::VarData>& vdatas, std::vector<int>& tstep_nums)
+ErrorCode NCHelperMPAS::read_ucd_variables_to_nonset_allocate(std::vector<ReadNC::VarData>& vdatas, std::vector<int>& tstep_nums)
 {
   Interface*& mbImpl = _readNC->mbImpl;
   std::vector<int>& dimLens = _readNC->dimLens;
@@ -648,13 +654,13 @@ ErrorCode NCHelperMPAS::read_ucd_variable_to_nonset_allocate(std::vector<ReadNC:
 }
 
 #ifdef PNETCDF_FILE
-ErrorCode NCHelperMPAS::read_ucd_variable_to_nonset_async(std::vector<ReadNC::VarData>& vdatas, std::vector<int>& tstep_nums)
+ErrorCode NCHelperMPAS::read_ucd_variables_to_nonset_async(std::vector<ReadNC::VarData>& vdatas, std::vector<int>& tstep_nums)
 {
   Interface*& mbImpl = _readNC->mbImpl;
   bool& noEdges = _readNC->noEdges;
   DebugOutput& dbgOut = _readNC->dbgOut;
 
-  ErrorCode rval = read_ucd_variable_to_nonset_allocate(vdatas, tstep_nums);
+  ErrorCode rval = read_ucd_variables_to_nonset_allocate(vdatas, tstep_nums);
   ERRORR(rval, "Trouble allocating read variables.");
 
   // Finally, read into that space
@@ -805,13 +811,13 @@ ErrorCode NCHelperMPAS::read_ucd_variable_to_nonset_async(std::vector<ReadNC::Va
   return rval;
 }
 #else
-ErrorCode NCHelperMPAS::read_ucd_variable_to_nonset(std::vector<ReadNC::VarData>& vdatas, std::vector<int>& tstep_nums)
+ErrorCode NCHelperMPAS::read_ucd_variables_to_nonset(std::vector<ReadNC::VarData>& vdatas, std::vector<int>& tstep_nums)
 {
   Interface*& mbImpl = _readNC->mbImpl;
   bool& noEdges = _readNC->noEdges;
   DebugOutput& dbgOut = _readNC->dbgOut;
 
-  ErrorCode rval = read_ucd_variable_to_nonset_allocate(vdatas, tstep_nums);
+  ErrorCode rval = read_ucd_variables_to_nonset_allocate(vdatas, tstep_nums);
   ERRORR(rval, "Trouble allocating read variables.");
 
   // Finally, read into that space

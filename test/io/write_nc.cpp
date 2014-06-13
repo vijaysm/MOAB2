@@ -20,7 +20,7 @@ static const char example_eul_t2[] = "/io/eul26x48x96.t2.nc";
 static const char example_fv[] = "/io/fv26x46x72.t.3.nc";
 static const char example_homme[] = "/io/homme26x3458.t.3.nc";
 static const char example_mpas[] = "/io/mpasx1.642.t.2.nc";
-static const char example_gcrm[] =  "/io/gcrm_r3.nc";
+static const char example_gcrm[] = "/io/gcrm_r3.nc";
 #endif
 
 #ifdef USE_MPI
@@ -56,7 +56,7 @@ void test_mpas_check_vars();
 
 // GCRM
 void test_gcrm_read_write_vars();
-//void test_gcrm_check_vars();
+void test_gcrm_check_vars();
 
 // Test timestep option
 void test_eul_read_write_timestep();
@@ -80,6 +80,9 @@ void get_eul_read_options(std::string& opts);
 void get_fv_read_options(std::string& opts);
 void get_homme_read_options(std::string& opts);
 void get_mpas_read_options(std::string& opts);
+
+const double eps = 1e-10;
+const int levels = 3; // Number of levels to be checked (e.g. 3 out of 26)
 
 int main(int argc, char* argv[])
 {
@@ -106,7 +109,7 @@ int main(int argc, char* argv[])
   result += RUN_TEST(test_mpas_check_vars);
 
   result += RUN_TEST(test_gcrm_read_write_vars);
-  //result += RUN_TEST(test_gcrm_check_vars);
+  result += RUN_TEST(test_gcrm_check_vars);
 
   result += RUN_TEST(test_eul_read_write_timestep);
   result += RUN_TEST(test_eul_check_timestep);
@@ -173,7 +176,7 @@ void test_eul_read_write_T()
   CHECK_ERR(rval);
 }
 
-// Check non-set variable T on some quads
+// Check non-set variable T
 // Also check set variable gw
 void test_eul_check_T()
 {
@@ -192,6 +195,7 @@ void test_eul_check_T()
 
   if (0 == rank) {
     int ncid;
+    int ncid_ref;
     int success;
 
     std::string filename;
@@ -207,12 +211,27 @@ void test_eul_check_T()
 #endif
     CHECK_EQUAL(0, success);
 
+#ifdef PNETCDF_FILE
+    success = NCFUNC(open)(MPI_COMM_SELF, example_eul, NC_NOWRITE, MPI_INFO_NULL, &ncid_ref);
+#else
+    success = NCFUNC(open)(example_eul, NC_NOWRITE, &ncid_ref);
+#endif
+    CHECK_EQUAL(0, success);
+
     int T_id;
     success = NCFUNC(inq_varid)(ncid, "T", &T_id);
     CHECK_EQUAL(0, success);
 
+    int T_id_ref;
+    success = NCFUNC(inq_varid)(ncid_ref, "T", &T_id_ref);
+    CHECK_EQUAL(0, success);
+
     int gw_id;
     success = NCFUNC(inq_varid)(ncid, "gw", &gw_id);
+    CHECK_EQUAL(0, success);
+
+    int gw_id_ref;
+    success = NCFUNC(inq_varid)(ncid_ref, "gw", &gw_id_ref);
     CHECK_EQUAL(0, success);
 
 #ifdef PNETCDF_FILE
@@ -221,24 +240,35 @@ void test_eul_check_T()
     CHECK_EQUAL(0, success);
 #endif
 
+#ifdef PNETCDF_FILE
+    // Enter independent I/O mode
+    success = NCFUNC(begin_indep_data)(ncid_ref);
+    CHECK_EQUAL(0, success);
+#endif
+
     NCDF_SIZE start[] = {0, 0, 0, 0};
-    NCDF_SIZE count[] = {3, 1, 48, 96}; // Read three timesteps and one level
+    NCDF_SIZE count[] = {3, levels, 48, 96};
+    const int size = 3 * levels * 48 * 96;
 
-    // Read variable T on 48 * 96 quads (first level)
-    double T_vals_lev1[3 * 48 * 96];
-    success = NCFUNC(get_vara_double)(ncid, T_id, start, count, T_vals_lev1);
+    // Read variable T from output file
+    double T_vals[size];
+    success = NCFUNC(get_vara_double)(ncid, T_id, start, count, T_vals);
     CHECK_EQUAL(0, success);
 
-    // Read variable T on 48 * 96 quads (last level)
-    double T_vals_lev26[3 * 48 * 96];
-    start[1] = 25;
-    success = NCFUNC(get_vara_double)(ncid, T_id, start, count, T_vals_lev26);
+    // Read variable T from reference file
+    double T_vals_ref[size];
+    success = NCFUNC(get_vara_double)(ncid_ref, T_id_ref, start, count, T_vals_ref);
     CHECK_EQUAL(0, success);
 
-    // Read variable gw on lat
-    double gw_vals[48];
+    // Read variable gw (on lat) from output file
     count[0] = 48;
+    double gw_vals[48];
     success = NCFUNC(get_vara_double)(ncid, gw_id, start, count, gw_vals);
+    CHECK_EQUAL(0, success);
+
+    // Read variable gw (on lat) from reference file
+    double gw_vals_ref[48];
+    success = NCFUNC(get_vara_double)(ncid_ref, gw_id_ref, start, count, gw_vals_ref);
     CHECK_EQUAL(0, success);
 
 #ifdef PNETCDF_FILE
@@ -247,52 +277,25 @@ void test_eul_check_T()
     CHECK_EQUAL(0, success);
 #endif
 
-    double eps = 0.0001;
-
-    // Check T values at some strategically chosen places (first level)
-    // Timestep 0
-    CHECK_REAL_EQUAL(252.8529, T_vals_lev1[0], eps); // First quad
-    CHECK_REAL_EQUAL(232.6670, T_vals_lev1[2303], eps); // Median quad
-    CHECK_REAL_EQUAL(232.6458, T_vals_lev1[2304], eps); // Median quad
-    CHECK_REAL_EQUAL(200.6828, T_vals_lev1[4607], eps); // Last quad
-    // Timestep 1
-    CHECK_REAL_EQUAL(241.7353, T_vals_lev1[0 + 4608], eps); // First quad
-    CHECK_REAL_EQUAL(234.7536, T_vals_lev1[2303 + 4608], eps); // Median quad
-    CHECK_REAL_EQUAL(234.4739, T_vals_lev1[2304 + 4608], eps); // Median quad
-    CHECK_REAL_EQUAL(198.2482, T_vals_lev1[4607 + 4608], eps); // Last quad
-    // Timestep 2
-    CHECK_REAL_EQUAL(224.1966, T_vals_lev1[0 + 4608*2], eps); // First quad
-    CHECK_REAL_EQUAL(236.1358, T_vals_lev1[2303 + 4608*2], eps); // Median quad
-    CHECK_REAL_EQUAL(235.9430, T_vals_lev1[2304 + 4608*2], eps); // Median quad
-    CHECK_REAL_EQUAL(218.7719, T_vals_lev1[4607 + 4608*2], eps); // Last quad
-
-    // Check T values at some strategically chosen places (last level)
-    // Timestep 0
-    CHECK_REAL_EQUAL(253.1395, T_vals_lev26[0], eps); // First quad
-    CHECK_REAL_EQUAL(299.0477, T_vals_lev26[2303], eps); // Median quad
-    CHECK_REAL_EQUAL(300.0627, T_vals_lev26[2304], eps); // Median quad
-    CHECK_REAL_EQUAL(241.1817, T_vals_lev26[4607], eps); // Last quad
-    // Timestep 1
-    CHECK_REAL_EQUAL(242.9252, T_vals_lev26[0 + 4608], eps); // First quad
-    CHECK_REAL_EQUAL(299.9290, T_vals_lev26[2303 + 4608], eps); // Median quad
-    CHECK_REAL_EQUAL(299.7614, T_vals_lev26[2304 + 4608], eps); // Median quad
-    CHECK_REAL_EQUAL(241.1057, T_vals_lev26[4607 + 4608], eps); // Last quad
-    // Timestep 2
-    CHECK_REAL_EQUAL(232.7547, T_vals_lev26[0 + 4608*2], eps); // First quad
-    CHECK_REAL_EQUAL(300.2307, T_vals_lev26[2303 + 4608*2], eps); // Median quad
-    CHECK_REAL_EQUAL(299.2372, T_vals_lev26[2304 + 4608*2], eps); // Median quad
-    CHECK_REAL_EQUAL(242.8274, T_vals_lev26[4607 + 4608*2], eps); // Last quad
-
-    eps = 1e-10;
-
-    // Check gw values at some strategically chosen places
-    CHECK_REAL_EQUAL(0.00315334605230584, gw_vals[0], eps);
-    CHECK_REAL_EQUAL(0.0647376968126839, gw_vals[23], eps);
-    CHECK_REAL_EQUAL(0.0647376968126839, gw_vals[24], eps);
-    CHECK_REAL_EQUAL(0.00315334605230584, gw_vals[47], eps);
+#ifdef PNETCDF_FILE
+    // End independent I/O mode
+    success = NCFUNC(end_indep_data)(ncid_ref);
+    CHECK_EQUAL(0, success);
+#endif
 
     success = NCFUNC(close)(ncid);
     CHECK_EQUAL(0, success);
+
+    success = NCFUNC(close)(ncid_ref);
+    CHECK_EQUAL(0, success);
+
+    // Check T values
+    for (int i = 0; i < size; i++)
+      CHECK_REAL_EQUAL(T_vals_ref[i], T_vals[i], eps);
+
+    // Check gw values
+    for (int i = 0; i < 48; i++)
+      CHECK_REAL_EQUAL(gw_vals_ref[i], gw_vals[i], eps);
   }
 }
 
@@ -337,7 +340,7 @@ void test_fv_read_write_T()
   CHECK_ERR(rval);
 }
 
-// Check non-set variable T on some quads
+// Check non-set variable T
 void test_fv_check_T()
 {
   int rank = 0;
@@ -355,6 +358,7 @@ void test_fv_check_T()
 
   if (0 == rank) {
     int ncid;
+    int ncid_ref;
     int success;
 
     std::string filename;
@@ -370,8 +374,19 @@ void test_fv_check_T()
 #endif
     CHECK_EQUAL(0, success);
 
+#ifdef PNETCDF_FILE
+    success = NCFUNC(open)(MPI_COMM_SELF, example_fv, NC_NOWRITE, MPI_INFO_NULL, &ncid_ref);
+#else
+    success = NCFUNC(open)(example_fv, NC_NOWRITE, &ncid_ref);
+#endif
+    CHECK_EQUAL(0, success);
+
     int T_id;
     success = NCFUNC(inq_varid)(ncid, "T", &T_id);
+    CHECK_EQUAL(0, success);
+
+    int T_id_ref;
+    success = NCFUNC(inq_varid)(ncid_ref, "T", &T_id_ref);
     CHECK_EQUAL(0, success);
 
 #ifdef PNETCDF_FILE
@@ -380,18 +395,24 @@ void test_fv_check_T()
     CHECK_EQUAL(0, success);
 #endif
 
-    NCDF_SIZE start[] = {0, 0, 0, 0};
-    NCDF_SIZE count[] = {2, 1, 46, 72}; // Read two timesteps and one level
+#ifdef PNETCDF_FILE
+    // Enter independent I/O mode
+    success = NCFUNC(begin_indep_data)(ncid_ref);
+    CHECK_EQUAL(0, success);
+#endif
 
-    // Read variable T on 46 * 72 quads (first level)
-    double T_vals_lev1[2 * 46 * 72];
-    success = NCFUNC(get_vara_double)(ncid, T_id, start, count, T_vals_lev1);
+    NCDF_SIZE start[] = {0, 0, 0, 0};
+    NCDF_SIZE count[] = {3, levels, 46, 72};
+    const int size = 3 * levels * 46 * 72;
+
+    // Read variable T from output file
+    double T_vals[size];
+    success = NCFUNC(get_vara_double)(ncid, T_id, start, count, T_vals);
     CHECK_EQUAL(0, success);
 
-    // Read variable T on 46 * 72 quads (last level)
-    double T_vals_lev26[2 * 46 * 72];
-    start[1] = 25;
-    success = NCFUNC(get_vara_double)(ncid, T_id, start, count, T_vals_lev26);
+    // Read variable T from reference file
+    double T_vals_ref[size];
+    success = NCFUNC(get_vara_double)(ncid_ref, T_id_ref, start, count, T_vals_ref);
     CHECK_EQUAL(0, success);
 
 #ifdef PNETCDF_FILE
@@ -400,34 +421,21 @@ void test_fv_check_T()
     CHECK_EQUAL(0, success);
 #endif
 
-    const double eps = 0.0001;
-
-    // Check T values at some strategically chosen places (first level)
-    // Timestep 0
-    CHECK_REAL_EQUAL(253.6048, T_vals_lev1[0], eps); // First quad
-    CHECK_REAL_EQUAL(232.9553, T_vals_lev1[1655], eps); // Median quad
-    CHECK_REAL_EQUAL(232.7454, T_vals_lev1[1656], eps); // Median quad
-    CHECK_REAL_EQUAL(210.2581, T_vals_lev1[3311], eps); // Last quad
-    // Timestep 1
-    CHECK_REAL_EQUAL(242.4844, T_vals_lev1[0 + 3312], eps); // First quad
-    CHECK_REAL_EQUAL(234.0176, T_vals_lev1[1655 + 3312], eps); // Median quad
-    CHECK_REAL_EQUAL(233.8797, T_vals_lev1[1656 + 3312], eps); // Median quad
-    CHECK_REAL_EQUAL(207.3904, T_vals_lev1[3311 + 3312], eps); // Last quad
-
-    // Check T values at some strategically chosen places (last level)
-    // Timestep 0
-    CHECK_REAL_EQUAL(244.5516, T_vals_lev26[0], eps); // First quad
-    CHECK_REAL_EQUAL(297.2558, T_vals_lev26[1655], eps); // Median quad
-    CHECK_REAL_EQUAL(295.2663, T_vals_lev26[1656], eps); // Median quad
-    CHECK_REAL_EQUAL(244.5003, T_vals_lev26[3311], eps); // Last quad
-    // Timestep 1
-    CHECK_REAL_EQUAL(238.8134, T_vals_lev26[0 + 3312], eps); // First quad
-    CHECK_REAL_EQUAL(297.9755, T_vals_lev26[1655 + 3312], eps); // Median quad
-    CHECK_REAL_EQUAL(296.1439, T_vals_lev26[1656 + 3312], eps); // Median quad
-    CHECK_REAL_EQUAL(242.1957, T_vals_lev26[3311 + 3312], eps); // Last quad
+#ifdef PNETCDF_FILE
+    // End independent I/O mode
+    success = NCFUNC(end_indep_data)(ncid_ref);
+    CHECK_EQUAL(0, success);
+#endif
 
     success = NCFUNC(close)(ncid);
     CHECK_EQUAL(0, success);
+
+    success = NCFUNC(close)(ncid_ref);
+    CHECK_EQUAL(0, success);
+
+    // Check T values
+    for (int i = 0; i < size; i++)
+      CHECK_REAL_EQUAL(T_vals_ref[i], T_vals[i], eps);
   }
 }
 
@@ -457,8 +465,10 @@ void test_homme_read_write_T()
 
   // Read non-set variable T and set variable lat
   read_opts += ";VARIABLE=T,lat;DEBUG_IO=0";
-  if (procs > 1)
-    read_opts += ";PARALLEL_RESOLVE_SHARED_ENTS";
+  if (procs > 1) {
+    // Rotate trivial partition, otherwise localGidVertsOwned.psize() is always 1
+    read_opts += ";PARALLEL_RESOLVE_SHARED_ENTS;TRIVIAL_PARTITION_SHIFT=1";
+  }
   rval = mb.load_file(example_homme, &set, read_opts.c_str());
   CHECK_ERR(rval);
 
@@ -475,7 +485,7 @@ void test_homme_read_write_T()
   CHECK_ERR(rval);
 }
 
-// Check non-set variable T on some vertices
+// Check non-set variable T
 // Also check set variable lat
 void test_homme_check_T()
 {
@@ -494,6 +504,7 @@ void test_homme_check_T()
 
   if (0 == rank) {
     int ncid;
+    int ncid_ref;
     int success;
 
     std::string filename;
@@ -509,12 +520,27 @@ void test_homme_check_T()
 #endif
     CHECK_EQUAL(0, success);
 
+#ifdef PNETCDF_FILE
+    success = NCFUNC(open)(MPI_COMM_SELF, example_homme, NC_NOWRITE, MPI_INFO_NULL, &ncid_ref);
+#else
+    success = NCFUNC(open)(example_homme, NC_NOWRITE, &ncid_ref);
+#endif
+    CHECK_EQUAL(0, success);
+
     int T_id;
     success = NCFUNC(inq_varid)(ncid, "T", &T_id);
     CHECK_EQUAL(0, success);
 
+    int T_id_ref;
+    success = NCFUNC(inq_varid)(ncid_ref, "T", &T_id_ref);
+    CHECK_EQUAL(0, success);
+
     int lat_id;
     success = NCFUNC(inq_varid)(ncid, "lat", &lat_id);
+    CHECK_EQUAL(0, success);
+
+    int lat_id_ref;
+    success = NCFUNC(inq_varid)(ncid_ref, "lat", &lat_id_ref);
     CHECK_EQUAL(0, success);
 
 #ifdef PNETCDF_FILE
@@ -523,24 +549,35 @@ void test_homme_check_T()
     CHECK_EQUAL(0, success);
 #endif
 
+#ifdef PNETCDF_FILE
+    // Enter independent I/O mode
+    success = NCFUNC(begin_indep_data)(ncid_ref);
+    CHECK_EQUAL(0, success);
+#endif
+
     NCDF_SIZE start[] = {0, 0, 0};
-    NCDF_SIZE count[] = {2, 1, 3458}; // Read two timesteps and one level
+    NCDF_SIZE count[] = {3, levels, 3458};
+    const int size = 3 * levels * 3458;
 
-    // Read variable T on 3458 vertices (first level)
-    double T_vals_lev1[2 * 3458];
-    success = NCFUNC(get_vara_double)(ncid, T_id, start, count, T_vals_lev1);
+    // Read variable T from output file
+    double T_vals[size];
+    success = NCFUNC(get_vara_double)(ncid, T_id, start, count, T_vals);
     CHECK_EQUAL(0, success);
 
-    // Read variable T on 3458 vertices (last level)
-    double T_vals_lev26[2 * 3458];
-    start[1] = 25;
-    success = NCFUNC(get_vara_double)(ncid, T_id, start, count, T_vals_lev26);
+    // Read variable T from reference file
+    double T_vals_ref[size];
+    success = NCFUNC(get_vara_double)(ncid_ref, T_id_ref, start, count, T_vals_ref);
     CHECK_EQUAL(0, success);
 
-    // Read variable lat
-    double lat_vals[3458];
+    // Read variable lat from output file
     count[0] = 3458;
+    double lat_vals[3458];
     success = NCFUNC(get_vara_double)(ncid, lat_id, start, count, lat_vals);
+    CHECK_EQUAL(0, success);
+
+    // Read variable lat from reference file
+    double lat_vals_ref[3458];
+    success = NCFUNC(get_vara_double)(ncid_ref, lat_id_ref, start, count, lat_vals_ref);
     CHECK_EQUAL(0, success);
 
 #ifdef PNETCDF_FILE
@@ -549,46 +586,29 @@ void test_homme_check_T()
     CHECK_EQUAL(0, success);
 #endif
 
-    double eps = 0.0001;
-
-    // Check T values at some strategically chosen places (first level)
-    // Timestep 0
-    CHECK_REAL_EQUAL(233.1136, T_vals_lev1[0], eps); // First vertex
-    CHECK_REAL_EQUAL(236.1505, T_vals_lev1[1728], eps); // Median vertex
-    CHECK_REAL_EQUAL(235.7722, T_vals_lev1[1729], eps); // Median vertex
-    CHECK_REAL_EQUAL(234.0416, T_vals_lev1[3457], eps); // Last vertex
-    // Timestep 1
-    CHECK_REAL_EQUAL(234.6015, T_vals_lev1[0 + 3458], eps); // First vertex
-    CHECK_REAL_EQUAL(236.3139, T_vals_lev1[1728 + 3458], eps); // Median vertex
-    CHECK_REAL_EQUAL(235.3373, T_vals_lev1[1729 + 3458], eps); // Median vertex
-    CHECK_REAL_EQUAL(233.6020, T_vals_lev1[3457 + 3458], eps); // Last vertex
-
-    // Check T values at some strategically chosen places (last level)
-    // Timestep 0
-    CHECK_REAL_EQUAL(281.5824, T_vals_lev26[0], eps); // First vertex
-    CHECK_REAL_EQUAL(290.0607, T_vals_lev26[1728], eps); // Median vertex
-    CHECK_REAL_EQUAL(285.7311, T_vals_lev26[1729], eps); // Median vertex
-    CHECK_REAL_EQUAL(281.3145, T_vals_lev26[3457], eps); // Last vertex
-    // Timestep 1
-    CHECK_REAL_EQUAL(281.4600, T_vals_lev26[0 + 3458], eps); // First vertex
-    CHECK_REAL_EQUAL(289.1411, T_vals_lev26[1728 + 3458], eps); // Median vertex
-    CHECK_REAL_EQUAL(285.6183, T_vals_lev26[1729 + 3458], eps); // Median vertex
-    CHECK_REAL_EQUAL(279.7856, T_vals_lev26[3457 + 3458], eps); // Last vertex
-
-    eps = 1e-10;
-
-    // Check lat values at some strategically chosen places
-    CHECK_REAL_EQUAL(-35.2643896827547, lat_vals[0], eps); // First vertex
-    CHECK_REAL_EQUAL(23.8854752772335, lat_vals[1728], eps); // Median vertex
-    CHECK_REAL_EQUAL(29.8493120043874, lat_vals[1729], eps); // Median vertex
-    CHECK_REAL_EQUAL(38.250274171077, lat_vals[3457], eps); // Last vertex
+#ifdef PNETCDF_FILE
+    // End independent I/O mode
+    success = NCFUNC(end_indep_data)(ncid_ref);
+    CHECK_EQUAL(0, success);
+#endif
 
     success = NCFUNC(close)(ncid);
     CHECK_EQUAL(0, success);
+
+    success = NCFUNC(close)(ncid_ref);
+    CHECK_EQUAL(0, success);
+
+    // Check T values
+    for (int i = 0; i < size; i++)
+      CHECK_REAL_EQUAL(T_vals_ref[i], T_vals[i], eps);
+
+    // Check gw values
+    for (int i = 0; i < 3458; i++)
+      CHECK_REAL_EQUAL(lat_vals_ref[i], lat_vals[i], eps);
   }
 }
 
-// Write vertex variable vorticity, edge variable u and cell veriable ke
+// Write vertex variable vorticity, edge variable u and cell variable ke
 void test_mpas_read_write_vars()
 {
   int procs = 1;
@@ -632,7 +652,7 @@ void test_mpas_read_write_vars()
   CHECK_ERR(rval);
 }
 
-// Check vertex variable vorticity, edge variable u and cell veriable ke
+// Check vertex variable vorticity, edge variable u and cell variable ke
 void test_mpas_check_vars()
 {
   int rank = 0;
@@ -650,6 +670,7 @@ void test_mpas_check_vars()
 
   if (0 == rank) {
     int ncid;
+    int ncid_ref;
     int success;
 
     std::string filename;
@@ -665,16 +686,35 @@ void test_mpas_check_vars()
 #endif
     CHECK_EQUAL(0, success);
 
+#ifdef PNETCDF_FILE
+    success = NCFUNC(open)(MPI_COMM_SELF, example_mpas, NC_NOWRITE, MPI_INFO_NULL, &ncid_ref);
+#else
+    success = NCFUNC(open)(example_mpas, NC_NOWRITE, &ncid_ref);
+#endif
+    CHECK_EQUAL(0, success);
+
     int vorticity_id;
     success = NCFUNC(inq_varid)(ncid, "vorticity", &vorticity_id);
+    CHECK_EQUAL(0, success);
+
+    int vorticity_id_ref;
+    success = NCFUNC(inq_varid)(ncid_ref, "vorticity", &vorticity_id_ref);
     CHECK_EQUAL(0, success);
 
     int u_id;
     success = NCFUNC(inq_varid)(ncid, "u", &u_id);
     CHECK_EQUAL(0, success);
 
+    int u_id_ref;
+    success = NCFUNC(inq_varid)(ncid_ref, "u", &u_id_ref);
+    CHECK_EQUAL(0, success);
+
     int ke_id;
     success = NCFUNC(inq_varid)(ncid, "ke", &ke_id);
+    CHECK_EQUAL(0, success);
+
+    int ke_id_ref;
+    success = NCFUNC(inq_varid)(ncid_ref, "ke", &ke_id_ref);
     CHECK_EQUAL(0, success);
 
 #ifdef PNETCDF_FILE
@@ -683,27 +723,49 @@ void test_mpas_check_vars()
     CHECK_EQUAL(0, success);
 #endif
 
-    NCDF_SIZE start[] = {0, 0, 0};
-    NCDF_SIZE count[] = {2, 1, 1}; // Read two timesteps and one level
+#ifdef PNETCDF_FILE
+    // Enter independent I/O mode
+    success = NCFUNC(begin_indep_data)(ncid_ref);
+    CHECK_EQUAL(0, success);
+#endif
 
-    // Read variable vorticity on 1st and 2nd vertices
-    count[1] = 2;
-    double vorticity_vals[4];
+    NCDF_SIZE start[] = {0, 0, 0};
+    NCDF_SIZE count[] = {2, 1, 1};
+    const int size1 = 2 * 1280;
+    const int size2 = 2 * 1920;
+    const int size3 = 2 * 642;
+
+    // Read vertex variable vorticity from output file
+    count[1] = 1280;
+    double vorticity_vals[size1];
     success = NCFUNC(get_vara_double)(ncid, vorticity_id, start, count, vorticity_vals);
     CHECK_EQUAL(0, success);
 
-    // Read variable u on 6th and 7th edges
-    start[1] = 5;
-    count[1] = 2;
-    double u_vals[4];
+    // Read vertex variable vorticity from reference file
+    double vorticity_vals_ref[size1];
+    success = NCFUNC(get_vara_double)(ncid_ref, vorticity_id_ref, start, count, vorticity_vals_ref);
+    CHECK_EQUAL(0, success);
+
+    // Read edge variable u from output file
+    count[1] = 1920;
+    double u_vals[size2];
     success = NCFUNC(get_vara_double)(ncid, u_id, start, count, u_vals);
     CHECK_EQUAL(0, success);
 
-    // Read variable ke on all 642 cells
-    start[1] = 0;
+    // Read edge variable u from reference file
+    double u_vals_ref[size2];
+    success = NCFUNC(get_vara_double)(ncid_ref, u_id_ref, start, count, u_vals_ref);
+    CHECK_EQUAL(0, success);
+
+    // Read cell variable ke from output file
     count[1] = 642;
-    double ke_vals[642 * 2];
+    double ke_vals[size3];
     success = NCFUNC(get_vara_double)(ncid, ke_id, start, count, ke_vals);
+    CHECK_EQUAL(0, success);
+
+    // Read cell variable ke from reference file
+    double ke_vals_ref[size3];
+    success = NCFUNC(get_vara_double)(ncid_ref, ke_id_ref, start, count, ke_vals_ref);
     CHECK_EQUAL(0, success);
 
 #ifdef PNETCDF_FILE
@@ -712,42 +774,34 @@ void test_mpas_check_vars()
     CHECK_EQUAL(0, success);
 #endif
 
-    const double eps = 1e-10;
-
-    // Check vorticity values on 1st and 2nd vertices
-    // Timestep 0
-    CHECK_REAL_EQUAL(1.1, vorticity_vals[0], eps);
-    CHECK_REAL_EQUAL(1.2, vorticity_vals[1], eps);
-    // Timestep 1
-    CHECK_REAL_EQUAL(2.1, vorticity_vals[2], eps);
-    CHECK_REAL_EQUAL(2.2, vorticity_vals[3], eps);
-
-    // Check u values on 6th and 7th edges
-    // Timestep 0
-    CHECK_REAL_EQUAL(1.11313872154478, u_vals[0], eps);
-    CHECK_REAL_EQUAL(-1.113138721930009, u_vals[1], eps);
-    // Timestep 1
-    CHECK_REAL_EQUAL(2.113138721544778, u_vals[2], eps);
-    CHECK_REAL_EQUAL(-2.113138721930009, u_vals[3], eps);
-
-    // Check ke values on first pentagon, last pentagon, first hexagon, and last hexagon
-    // Timestep 0
-    CHECK_REAL_EQUAL(15.001, ke_vals[0], eps);
-    CHECK_REAL_EQUAL(15.012, ke_vals[11], eps);
-    CHECK_REAL_EQUAL(16.013, ke_vals[12], eps);
-    CHECK_REAL_EQUAL(16.642, ke_vals[641], eps);
-    // Timestep 1
-    CHECK_REAL_EQUAL(25.001, ke_vals[0 + 642], eps);
-    CHECK_REAL_EQUAL(25.012, ke_vals[11 + 642], eps);
-    CHECK_REAL_EQUAL(26.013, ke_vals[12 + 642], eps);
-    CHECK_REAL_EQUAL(26.642, ke_vals[641 + 642], eps);
+#ifdef PNETCDF_FILE
+    // End independent I/O mode
+    success = NCFUNC(end_indep_data)(ncid_ref);
+    CHECK_EQUAL(0, success);
+#endif
 
     success = NCFUNC(close)(ncid);
     CHECK_EQUAL(0, success);
+
+    success = NCFUNC(close)(ncid_ref);
+    CHECK_EQUAL(0, success);
+
+    // Check vorticity values
+    for (int i = 0; i < size1; i++)
+      CHECK_REAL_EQUAL(vorticity_vals_ref[i], vorticity_vals[i], eps);
+
+    // Check u values
+    for (int i = 0; i < size2; i++)
+      CHECK_REAL_EQUAL(u_vals_ref[i], u_vals[i], eps);
+
+    // Check ke values
+    for (int i = 0; i < size3; i++)
+      CHECK_REAL_EQUAL(ke_vals_ref[i], ke_vals[i], eps);
   }
 }
 
-// Write vertex variable vorticity, edge variable u and cell veriable ke
+// Write vertex variable u, edge variable wind, cell variable vorticity (on layers),
+// and cell variable pressure (on interfaces)
 void test_gcrm_read_write_vars()
 {
   int procs = 1;
@@ -772,15 +826,15 @@ void test_gcrm_read_write_vars()
   ErrorCode rval = mb.create_meshset(MESHSET_SET, set);
   CHECK_ERR(rval);
 
-  // Read non-set variables vorticity (cells) and u (corners)
-  read_opts += ";VARIABLE=vorticity,u;DEBUG_IO=0";
+  // Read non-set variables u, wind, vorticity and pressure
+  read_opts += ";VARIABLE=u,wind,vorticity,pressure;DEBUG_IO=0";
   if (procs > 1)
     read_opts += ";PARALLEL_RESOLVE_SHARED_ENTS";
   rval = mb.load_file(example_gcrm, &set, read_opts.c_str());
   CHECK_ERR(rval);
 
-  // Write variables vorticity, u
-  std::string write_opts = ";;VARIABLE=vorticity,u;DEBUG_IO=0";
+  // Write variables u, wind, vorticity and pressure
+  std::string write_opts = ";;VARIABLE=u,wind,vorticity,pressure;DEBUG_IO=0";
 #ifdef USE_MPI
   // Use parallel options
   write_opts += ";PARALLEL=WRITE_PART";
@@ -790,6 +844,175 @@ void test_gcrm_read_write_vars()
   else
     rval = mb.write_file("test_gcrm_vars.nc", 0, write_opts.c_str(), &set, 1);
   CHECK_ERR(rval);
+}
+
+// Check vertex variable u, edge variable wind, cell variable vorticity (on layers),
+// and cell variable pressure (on interfaces)
+void test_gcrm_check_vars()
+{
+  int rank = 0;
+  int procs = 1;
+#ifdef USE_MPI
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &procs);
+#endif
+
+// We will not test NC writer in parallel without pnetcdf support
+#ifndef PNETCDF_FILE
+  if (procs > 1)
+    return;
+#endif
+
+  if (0 == rank) {
+    int ncid;
+    int ncid_ref;
+    int success;
+
+    std::string filename;
+    if (procs > 1)
+      filename = "test_par_gcrm_vars.nc";
+    else
+      filename = "test_gcrm_vars.nc";
+
+#ifdef PNETCDF_FILE
+    success = NCFUNC(open)(MPI_COMM_SELF, filename.c_str(), NC_NOWRITE, MPI_INFO_NULL, &ncid);
+#else
+    success = NCFUNC(open)(filename.c_str(), NC_NOWRITE, &ncid);
+#endif
+    CHECK_EQUAL(0, success);
+
+#ifdef PNETCDF_FILE
+    success = NCFUNC(open)(MPI_COMM_SELF, example_gcrm, NC_NOWRITE, MPI_INFO_NULL, &ncid_ref);
+#else
+    success = NCFUNC(open)(example_gcrm, NC_NOWRITE, &ncid_ref);
+#endif
+    CHECK_EQUAL(0, success);
+
+    int u_id;
+    success = NCFUNC(inq_varid)(ncid, "u", &u_id);
+    CHECK_EQUAL(0, success);
+
+    int u_id_ref;
+    success = NCFUNC(inq_varid)(ncid_ref, "u", &u_id_ref);
+    CHECK_EQUAL(0, success);
+
+    int wind_id;
+    success = NCFUNC(inq_varid)(ncid, "wind", &wind_id);
+    CHECK_EQUAL(0, success);
+
+    int wind_id_ref;
+    success = NCFUNC(inq_varid)(ncid_ref, "wind", &wind_id_ref);
+    CHECK_EQUAL(0, success);
+
+    int vorticity_id;
+    success = NCFUNC(inq_varid)(ncid, "vorticity", &vorticity_id);
+    CHECK_EQUAL(0, success);
+
+    int vorticity_id_ref;
+    success = NCFUNC(inq_varid)(ncid_ref, "vorticity", &vorticity_id_ref);
+    CHECK_EQUAL(0, success);
+
+    int pressure_id;
+    success = NCFUNC(inq_varid)(ncid, "pressure", &pressure_id);
+    CHECK_EQUAL(0, success);
+
+    int pressure_id_ref;
+    success = NCFUNC(inq_varid)(ncid_ref, "pressure", &pressure_id_ref);
+    CHECK_EQUAL(0, success);
+
+#ifdef PNETCDF_FILE
+    // Enter independent I/O mode
+    success = NCFUNC(begin_indep_data)(ncid);
+    CHECK_EQUAL(0, success);
+#endif
+
+#ifdef PNETCDF_FILE
+    // Enter independent I/O mode
+    success = NCFUNC(begin_indep_data)(ncid_ref);
+    CHECK_EQUAL(0, success);
+#endif
+
+    NCDF_SIZE start[] = {0, 0, 0};
+    NCDF_SIZE count[] = {2, 1, 3};
+    const int size1 = 2 * 1280 * 3;
+    const int size2 = 2 * 1920 * 3;
+    const int size3 = 2 * 642 * 3;
+
+    // Read vertex variable u from output file
+    count[1] = 1280;
+    double u_vals[size1];
+    success = NCFUNC(get_vara_double)(ncid, u_id, start, count, u_vals);
+    CHECK_EQUAL(0, success);
+
+    // Read vertex variable u from reference file
+    double u_vals_ref[size1];
+    success = NCFUNC(get_vara_double)(ncid_ref, u_id_ref, start, count, u_vals_ref);
+    CHECK_EQUAL(0, success);
+
+    // Read edge variable wind from output file
+    count[1] = 1920;
+    double wind_vals[size2];
+    success = NCFUNC(get_vara_double)(ncid, wind_id, start, count, wind_vals);
+    CHECK_EQUAL(0, success);
+
+    // Read edge variable wind from reference file
+    double wind_vals_ref[size2];
+    success = NCFUNC(get_vara_double)(ncid_ref, wind_id_ref, start, count, wind_vals_ref);
+    CHECK_EQUAL(0, success);
+
+    // Read cell variable vorticity from output file
+    count[1] = 642;
+    double vorticity_vals[size3];
+    success = NCFUNC(get_vara_double)(ncid, vorticity_id, start, count, vorticity_vals);
+    CHECK_EQUAL(0, success);
+
+    // Read cell variable vorticity from reference file
+    double vorticity_vals_ref[size3];
+    success = NCFUNC(get_vara_double)(ncid_ref, vorticity_id_ref, start, count, vorticity_vals_ref);
+    CHECK_EQUAL(0, success);
+
+    // Read variable pressure from output file
+    double pressure_vals[size3];
+    success = NCFUNC(get_vara_double)(ncid, pressure_id, start, count, pressure_vals);
+    CHECK_EQUAL(0, success);
+
+    // Read variable pressure from reference file
+    double pressure_vals_ref[size3];
+    success = NCFUNC(get_vara_double)(ncid_ref, pressure_id_ref, start, count, pressure_vals_ref);
+    CHECK_EQUAL(0, success);
+
+#ifdef PNETCDF_FILE
+    // End independent I/O mode
+    success = NCFUNC(end_indep_data)(ncid);
+    CHECK_EQUAL(0, success);
+#endif
+
+#ifdef PNETCDF_FILE
+    // End independent I/O mode
+    success = NCFUNC(end_indep_data)(ncid_ref);
+    CHECK_EQUAL(0, success);
+#endif
+
+    success = NCFUNC(close)(ncid);
+    CHECK_EQUAL(0, success);
+
+    success = NCFUNC(close)(ncid_ref);
+    CHECK_EQUAL(0, success);
+
+    // Check u values
+    for (int i = 0; i < size1; i++)
+      CHECK_REAL_EQUAL(u_vals_ref[i], u_vals[i], eps);
+
+    // Check wind values
+    for (int i = 0; i < size2; i++)
+      CHECK_REAL_EQUAL(wind_vals_ref[i], wind_vals[i], eps);
+
+    // Check vorticity and pressuer values
+    for (int i = 0; i < size3; i++) {
+      CHECK_REAL_EQUAL(vorticity_vals_ref[i], vorticity_vals[i], eps);
+      CHECK_REAL_EQUAL(pressure_vals_ref[i], pressure_vals[i], eps);
+    }
+  }
 }
 
 // Read non-set variable T on all 3 timesteps, and write only timestep 2
@@ -851,6 +1074,7 @@ void test_eul_check_timestep()
 
   if (0 == rank) {
     int ncid;
+    int ncid_ref;
     int success;
 
     std::string filename;
@@ -866,8 +1090,19 @@ void test_eul_check_timestep()
 #endif
     CHECK_EQUAL(0, success);
 
+#ifdef PNETCDF_FILE
+    success = NCFUNC(open)(MPI_COMM_SELF, example_eul, NC_NOWRITE, MPI_INFO_NULL, &ncid_ref);
+#else
+    success = NCFUNC(open)(example_eul, NC_NOWRITE, &ncid_ref);
+#endif
+    CHECK_EQUAL(0, success);
+
     int T_id;
     success = NCFUNC(inq_varid)(ncid, "T", &T_id);
+    CHECK_EQUAL(0, success);
+
+    int T_id_ref;
+    success = NCFUNC(inq_varid)(ncid_ref, "T", &T_id_ref);
     CHECK_EQUAL(0, success);
 
 #ifdef PNETCDF_FILE
@@ -876,12 +1111,25 @@ void test_eul_check_timestep()
     CHECK_EQUAL(0, success);
 #endif
 
-    NCDF_SIZE start[] = {0, 0, 0, 0};
-    NCDF_SIZE count[] = {1, 1, 48, 96}; // Read one timestep and one level
+#ifdef PNETCDF_FILE
+    // Enter independent I/O mode
+    success = NCFUNC(begin_indep_data)(ncid_ref);
+    CHECK_EQUAL(0, success);
+#endif
 
-    // Read variable T on 48 * 96 quads (first level)
-    double T_vals_lev1[48 * 96];
-    success = NCFUNC(get_vara_double)(ncid, T_id, start, count, T_vals_lev1);
+    NCDF_SIZE start[] = {0, 0, 0, 0};
+    NCDF_SIZE count[] = {1, levels, 48, 96};
+    const int size = levels * 48 * 96;
+
+    // Read variable T from output file (timestep 0)
+    double T_vals[size];
+    success = NCFUNC(get_vara_double)(ncid, T_id, start, count, T_vals);
+    CHECK_EQUAL(0, success);
+
+    // Read variable T from reference file (timestep 2)
+    start[0] = 2;
+    double T_vals_ref[size];
+    success = NCFUNC(get_vara_double)(ncid_ref, T_id_ref, start, count, T_vals_ref);
     CHECK_EQUAL(0, success);
 
 #ifdef PNETCDF_FILE
@@ -890,17 +1138,21 @@ void test_eul_check_timestep()
     CHECK_EQUAL(0, success);
 #endif
 
-    double eps = 0.0001;
-
-    // Check T values at some strategically chosen places (first level)
-    // Timestep 2
-    CHECK_REAL_EQUAL(224.1966, T_vals_lev1[0], eps); // First quad
-    CHECK_REAL_EQUAL(236.1357, T_vals_lev1[2303], eps); // Median quad
-    CHECK_REAL_EQUAL(235.9430, T_vals_lev1[2304], eps); // Median quad
-    CHECK_REAL_EQUAL(218.7719, T_vals_lev1[4607], eps); // Last quad
+#ifdef PNETCDF_FILE
+    // End independent I/O mode
+    success = NCFUNC(end_indep_data)(ncid_ref);
+    CHECK_EQUAL(0, success);
+#endif
 
     success = NCFUNC(close)(ncid);
     CHECK_EQUAL(0, success);
+
+    success = NCFUNC(close)(ncid_ref);
+    CHECK_EQUAL(0, success);
+
+    // Check T values
+    for (int i = 0; i < size; i++)
+      CHECK_REAL_EQUAL(T_vals_ref[i], T_vals[i], eps);
   }
 }
 
@@ -988,6 +1240,7 @@ void test_eul_check_append()
 
   if (0 == rank) {
     int ncid;
+    int ncid_ref;
     int success;
 
     std::string filename;
@@ -1003,16 +1256,35 @@ void test_eul_check_append()
 #endif
     CHECK_EQUAL(0, success);
 
+#ifdef PNETCDF_FILE
+    success = NCFUNC(open)(MPI_COMM_SELF, example_eul, NC_NOWRITE, MPI_INFO_NULL, &ncid_ref);
+#else
+    success = NCFUNC(open)(example_eul, NC_NOWRITE, &ncid_ref);
+#endif
+    CHECK_EQUAL(0, success);
+
     int T_id;
     success = NCFUNC(inq_varid)(ncid, "T", &T_id);
+    CHECK_EQUAL(0, success);
+
+    int T_id_ref;
+    success = NCFUNC(inq_varid)(ncid_ref, "T", &T_id_ref);
     CHECK_EQUAL(0, success);
 
     int U_id;
     success = NCFUNC(inq_varid)(ncid, "U", &U_id);
     CHECK_EQUAL(0, success);
 
+    int U_id_ref;
+    success = NCFUNC(inq_varid)(ncid_ref, "U", &U_id_ref);
+    CHECK_EQUAL(0, success);
+
     int V_id;
     success = NCFUNC(inq_varid)(ncid, "VNEWNAME", &V_id);
+    CHECK_EQUAL(0, success);
+
+    int V_id_ref;
+    success = NCFUNC(inq_varid)(ncid_ref, "V", &V_id_ref);
     CHECK_EQUAL(0, success);
 
 #ifdef PNETCDF_FILE
@@ -1021,22 +1293,44 @@ void test_eul_check_append()
     CHECK_EQUAL(0, success);
 #endif
 
+#ifdef PNETCDF_FILE
+    // Enter independent I/O mode
+    success = NCFUNC(begin_indep_data)(ncid_ref);
+    CHECK_EQUAL(0, success);
+#endif
+
     NCDF_SIZE start[] = {0, 0, 0, 0};
-    NCDF_SIZE count[] = {1, 1, 48, 96}; // Read one timestep and one level
+    NCDF_SIZE count[] = {3, levels, 48, 96};
+    const int size = 3 * levels * 48 * 96;
 
-    // Read variable T on 48 * 96 quads (first level)
-    double T_vals_lev1[48 * 96];
-    success = NCFUNC(get_vara_double)(ncid, T_id, start, count, T_vals_lev1);
+    // Read variable T from output file
+    double T_vals[size];
+    success = NCFUNC(get_vara_double)(ncid, T_id, start, count, T_vals);
     CHECK_EQUAL(0, success);
 
-    // Read variable U on 48 * 96 quads (first level)
-    double U_vals_lev1[48 * 96];
-    success = NCFUNC(get_vara_double)(ncid, U_id, start, count, U_vals_lev1);
+    // Read variable T from reference file
+    double T_vals_ref[size];
+    success = NCFUNC(get_vara_double)(ncid_ref, T_id_ref, start, count, T_vals_ref);
     CHECK_EQUAL(0, success);
 
-    // Read variable V on 48 * 96 quads (first level)
-    double V_vals_lev1[48 * 96];
-    success = NCFUNC(get_vara_double)(ncid, V_id, start, count, V_vals_lev1);
+    // Read variable U from output file
+    double U_vals[size];
+    success = NCFUNC(get_vara_double)(ncid, U_id, start, count, U_vals);
+    CHECK_EQUAL(0, success);
+
+    // Read variable U from reference file
+    double U_vals_ref[size];
+    success = NCFUNC(get_vara_double)(ncid_ref, U_id_ref, start, count, U_vals_ref);
+    CHECK_EQUAL(0, success);
+
+    // Read variable VNEWNAME from output file
+    double V_vals[size];
+    success = NCFUNC(get_vara_double)(ncid, V_id, start, count, V_vals);
+    CHECK_EQUAL(0, success);
+
+    // Read variable V from reference file
+    double V_vals_ref[size];
+    success = NCFUNC(get_vara_double)(ncid_ref, V_id_ref, start, count, V_vals_ref);
     CHECK_EQUAL(0, success);
 
 #ifdef PNETCDF_FILE
@@ -1045,35 +1339,24 @@ void test_eul_check_append()
     CHECK_EQUAL(0, success);
 #endif
 
-    double eps = 0.0001;
-
-    // Check T values at some strategically chosen places (first level)
-    // Timestep 0
-    CHECK_REAL_EQUAL(252.8529, T_vals_lev1[0], eps); // First quad
-    CHECK_REAL_EQUAL(232.6670, T_vals_lev1[2303], eps); // Median quad
-    CHECK_REAL_EQUAL(232.6458, T_vals_lev1[2304], eps); // Median quad
-    CHECK_REAL_EQUAL(200.6828, T_vals_lev1[4607], eps); // Last quad
-
-    eps = 1e-6;
-
-    // Check U values at some strategically chosen places (first level)
-    // Timestep 0
-    CHECK_REAL_EQUAL(0.6060912, U_vals_lev1[0], eps); // First quad
-    CHECK_REAL_EQUAL(-36.789986, U_vals_lev1[2303], eps); // Median quad
-    CHECK_REAL_EQUAL(-31.429073, U_vals_lev1[2304], eps); // Median quad
-    CHECK_REAL_EQUAL(-48.085426, U_vals_lev1[4607], eps); // Last quad
-
-    eps = 1e-5;
-
-    // Check V values at some strategically chosen places (first level)
-    // Timestep 0
-    CHECK_REAL_EQUAL(-0.44605, V_vals_lev1[0], eps); // First quad
-    CHECK_REAL_EQUAL(0.89077, V_vals_lev1[2303], eps); // Median quad
-    CHECK_REAL_EQUAL(1.141688, V_vals_lev1[2304], eps); // Median quad
-    CHECK_REAL_EQUAL(-38.21262, V_vals_lev1[4607], eps); // Last quad
+#ifdef PNETCDF_FILE
+    // End independent I/O mode
+    success = NCFUNC(end_indep_data)(ncid_ref);
+    CHECK_EQUAL(0, success);
+#endif
 
     success = NCFUNC(close)(ncid);
     CHECK_EQUAL(0, success);
+
+    success = NCFUNC(close)(ncid_ref);
+    CHECK_EQUAL(0, success);
+
+    // Check T, U, and V values
+    for (int i = 0; i < size; i++) {
+      CHECK_REAL_EQUAL(T_vals_ref[i], T_vals[i], eps);
+      CHECK_REAL_EQUAL(U_vals_ref[i], U_vals[i], eps);
+      CHECK_REAL_EQUAL(V_vals_ref[i], V_vals[i], eps);
+    }
   }
 }
 
@@ -1150,6 +1433,7 @@ void test_eul_check_across_files()
 
   if (0 == rank) {
     int ncid;
+    int ncid_ref;
     int success;
 
     std::string filename;
@@ -1165,8 +1449,19 @@ void test_eul_check_across_files()
 #endif
     CHECK_EQUAL(0, success);
 
+#ifdef PNETCDF_FILE
+    success = NCFUNC(open)(MPI_COMM_SELF, example_eul, NC_NOWRITE, MPI_INFO_NULL, &ncid_ref);
+#else
+    success = NCFUNC(open)(example_eul, NC_NOWRITE, &ncid_ref);
+#endif
+    CHECK_EQUAL(0, success);
+
     int T_id;
     success = NCFUNC(inq_varid)(ncid, "T", &T_id);
+    CHECK_EQUAL(0, success);
+
+    int T_id_ref;
+    success = NCFUNC(inq_varid)(ncid_ref, "T", &T_id_ref);
     CHECK_EQUAL(0, success);
 
 #ifdef PNETCDF_FILE
@@ -1175,18 +1470,24 @@ void test_eul_check_across_files()
     CHECK_EQUAL(0, success);
 #endif
 
-    NCDF_SIZE start[] = {0, 0, 0, 0};
-    NCDF_SIZE count[] = {3, 1, 48, 96}; // Read three timesteps and one level
+#ifdef PNETCDF_FILE
+    // Enter independent I/O mode
+    success = NCFUNC(begin_indep_data)(ncid_ref);
+    CHECK_EQUAL(0, success);
+#endif
 
-    // Read variable T on 48 * 96 quads (first level)
-    double T_vals_lev1[3 * 48 * 96];
-    success = NCFUNC(get_vara_double)(ncid, T_id, start, count, T_vals_lev1);
+    NCDF_SIZE start[] = {0, 0, 0, 0};
+    NCDF_SIZE count[] = {3, levels, 48, 96};
+    const int size = 3 * levels * 48 * 96;
+
+    // Read variable T from output file (with 3 timesteps)
+    double T_vals[size];
+    success = NCFUNC(get_vara_double)(ncid, T_id, start, count, T_vals);
     CHECK_EQUAL(0, success);
 
-    // Read variable T on 48 * 96 quads (last level)
-    double T_vals_lev26[3 * 48 * 96];
-    start[1] = 25;
-    success = NCFUNC(get_vara_double)(ncid, T_id, start, count, T_vals_lev26);
+    // Read variable T from reference file (with 3 timesteps)
+    double T_vals_ref[size];
+    success = NCFUNC(get_vara_double)(ncid_ref, T_id_ref, start, count, T_vals_ref);
     CHECK_EQUAL(0, success);
 
 #ifdef PNETCDF_FILE
@@ -1195,44 +1496,21 @@ void test_eul_check_across_files()
     CHECK_EQUAL(0, success);
 #endif
 
-    double eps = 0.0001;
-
-    // Check T values at some strategically chosen places (first level)
-    // Timestep 0
-    CHECK_REAL_EQUAL(252.8529, T_vals_lev1[0], eps); // First quad
-    CHECK_REAL_EQUAL(232.6670, T_vals_lev1[2303], eps); // Median quad
-    CHECK_REAL_EQUAL(232.6458, T_vals_lev1[2304], eps); // Median quad
-    CHECK_REAL_EQUAL(200.6828, T_vals_lev1[4607], eps); // Last quad
-    // Timestep 1
-    CHECK_REAL_EQUAL(241.7353, T_vals_lev1[0 + 4608], eps); // First quad
-    CHECK_REAL_EQUAL(234.7536, T_vals_lev1[2303 + 4608], eps); // Median quad
-    CHECK_REAL_EQUAL(234.4739, T_vals_lev1[2304 + 4608], eps); // Median quad
-    CHECK_REAL_EQUAL(198.2482, T_vals_lev1[4607 + 4608], eps); // Last quad
-    // Timestep 2
-    CHECK_REAL_EQUAL(224.1966, T_vals_lev1[0 + 4608*2], eps); // First quad
-    CHECK_REAL_EQUAL(236.1358, T_vals_lev1[2303 + 4608*2], eps); // Median quad
-    CHECK_REAL_EQUAL(235.9430, T_vals_lev1[2304 + 4608*2], eps); // Median quad
-    CHECK_REAL_EQUAL(218.7719, T_vals_lev1[4607 + 4608*2], eps); // Last quad
-
-    // Check T values at some strategically chosen places (last level)
-    // Timestep 0
-    CHECK_REAL_EQUAL(253.1395, T_vals_lev26[0], eps); // First quad
-    CHECK_REAL_EQUAL(299.0477, T_vals_lev26[2303], eps); // Median quad
-    CHECK_REAL_EQUAL(300.0627, T_vals_lev26[2304], eps); // Median quad
-    CHECK_REAL_EQUAL(241.1817, T_vals_lev26[4607], eps); // Last quad
-    // Timestep 1
-    CHECK_REAL_EQUAL(242.9252, T_vals_lev26[0 + 4608], eps); // First quad
-    CHECK_REAL_EQUAL(299.9290, T_vals_lev26[2303 + 4608], eps); // Median quad
-    CHECK_REAL_EQUAL(299.7614, T_vals_lev26[2304 + 4608], eps); // Median quad
-    CHECK_REAL_EQUAL(241.1057, T_vals_lev26[4607 + 4608], eps); // Last quad
-    // Timestep 2
-    CHECK_REAL_EQUAL(232.7547, T_vals_lev26[0 + 4608*2], eps); // First quad
-    CHECK_REAL_EQUAL(300.2307, T_vals_lev26[2303 + 4608*2], eps); // Median quad
-    CHECK_REAL_EQUAL(299.2372, T_vals_lev26[2304 + 4608*2], eps); // Median quad
-    CHECK_REAL_EQUAL(242.8274, T_vals_lev26[4607 + 4608*2], eps); // Last quad
+#ifdef PNETCDF_FILE
+    // End independent I/O mode
+    success = NCFUNC(end_indep_data)(ncid_ref);
+    CHECK_EQUAL(0, success);
+#endif
 
     success = NCFUNC(close)(ncid);
     CHECK_EQUAL(0, success);
+
+    success = NCFUNC(close)(ncid_ref);
+    CHECK_EQUAL(0, success);
+
+    // Check T values
+    for (int i = 0; i < size; i++)
+      CHECK_REAL_EQUAL(T_vals_ref[i], T_vals[i], eps);
   }
 }
 
@@ -1290,6 +1568,7 @@ void test_eul_check_ghosting()
 
   if (0 == rank) {
     int ncid;
+    int ncid_ref;
     int success;
 
     std::string filename;
@@ -1305,8 +1584,19 @@ void test_eul_check_ghosting()
 #endif
     CHECK_EQUAL(0, success);
 
+#ifdef PNETCDF_FILE
+    success = NCFUNC(open)(MPI_COMM_SELF, example_eul, NC_NOWRITE, MPI_INFO_NULL, &ncid_ref);
+#else
+    success = NCFUNC(open)(example_eul, NC_NOWRITE, &ncid_ref);
+#endif
+    CHECK_EQUAL(0, success);
+
     int T_id;
     success = NCFUNC(inq_varid)(ncid, "T", &T_id);
+    CHECK_EQUAL(0, success);
+
+    int T_id_ref;
+    success = NCFUNC(inq_varid)(ncid_ref, "T", &T_id_ref);
     CHECK_EQUAL(0, success);
 
 #ifdef PNETCDF_FILE
@@ -1315,12 +1605,24 @@ void test_eul_check_ghosting()
     CHECK_EQUAL(0, success);
 #endif
 
-    NCDF_SIZE start[] = {0, 0, 0, 0};
-    NCDF_SIZE count[] = {1, 1, 48, 96}; // Read one timesteps and one level
+#ifdef PNETCDF_FILE
+    // Enter independent I/O mode
+    success = NCFUNC(begin_indep_data)(ncid_ref);
+    CHECK_EQUAL(0, success);
+#endif
 
-    // Read variable T on 48 * 96 quads (first level)
-    double T_vals_lev1[48 * 96];
-    success = NCFUNC(get_vara_double)(ncid, T_id, start, count, T_vals_lev1);
+    NCDF_SIZE start[] = {0, 0, 0, 0};
+    NCDF_SIZE count[] = {3, levels, 48, 96};
+    const int size = 3 * levels * 48 * 96;
+
+    // Read variable T from output file
+    double T_vals[size];
+    success = NCFUNC(get_vara_double)(ncid, T_id, start, count, T_vals);
+    CHECK_EQUAL(0, success);
+
+    // Read variable T from reference file
+    double T_vals_ref[size];
+    success = NCFUNC(get_vara_double)(ncid_ref, T_id_ref, start, count, T_vals_ref);
     CHECK_EQUAL(0, success);
 
 #ifdef PNETCDF_FILE
@@ -1329,17 +1631,21 @@ void test_eul_check_ghosting()
     CHECK_EQUAL(0, success);
 #endif
 
-    const double eps = 0.0001;
-
-    // Check T values at some strategically chosen places (first level)
-    // Timestep 0
-    CHECK_REAL_EQUAL(252.8529, T_vals_lev1[0], eps); // First quad
-    CHECK_REAL_EQUAL(232.6670, T_vals_lev1[2303], eps); // Median quad
-    CHECK_REAL_EQUAL(232.6458, T_vals_lev1[2304], eps); // Median quad
-    CHECK_REAL_EQUAL(200.6828, T_vals_lev1[4607], eps); // Last quad
+#ifdef PNETCDF_FILE
+    // End independent I/O mode
+    success = NCFUNC(end_indep_data)(ncid_ref);
+    CHECK_EQUAL(0, success);
+#endif
 
     success = NCFUNC(close)(ncid);
     CHECK_EQUAL(0, success);
+
+    success = NCFUNC(close)(ncid_ref);
+    CHECK_EQUAL(0, success);
+
+    // Check T values
+    for (int i = 0; i < size; i++)
+      CHECK_REAL_EQUAL(T_vals_ref[i], T_vals[i], eps);
   }
 }
 #endif
