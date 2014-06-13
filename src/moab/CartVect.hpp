@@ -72,13 +72,13 @@ class CartVect
     inline const double* array() const
       { return d; }
 
-      /** initialize array from this */
+      /** initialize double array from this */
     inline void get( double v[3] ) const
       { v[0] = d[0]; v[1] = d[1]; v[2] = d[2]; }
 
-      /** initialize array from this */
+      /** initialize float array from this */
     inline void get( float v[3] ) const
-      { v[0] = d[0]; v[1] = d[1]; v[2] = d[2]; }
+      { v[0] = static_cast<float>(d[0]); v[1] = static_cast<float>(d[1]); v[2] = static_cast<float>(d[2]); }
 
 };
 
