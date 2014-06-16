@@ -1,19 +1,21 @@
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${MOAB_SOURCE_DIR}/src
-    ${MOAB_SOURCE_DIR}/src/parallel
-    ${MOAB_SOURCE_DIR}/src/moab/point_locater/lotte
-    ${MOAB_SOURCE_DIR}/itaps
-    ${MOAB_SOURCE_DIR}/itaps/imesh
-    ${MOAB_BINARY_DIR}
-    ${MOAB_BINARY_DIR}/src
-    ${MOAB_BINARY_DIR}/src/parallel
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/parallel
+    ${CMAKE_SOURCE_DIR}/src/moab/point_locater/lotte
+    ${CMAKE_SOURCE_DIR}/itaps
+    ${CMAKE_SOURCE_DIR}/itaps/imesh
+    ${CMAKE_BINARY_DIR}/itaps/imesh
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/parallel
 )
 
-set( MBCOUPLER_SRCS
-  Coupler.cpp
-  ElemUtil.cpp
-)
+set( MBCOUPLER_SRCS Coupler.cpp
+                    ElemUtil.cpp )
+
+set( MBCOUPLER_INCLUDE_SRCS Coupler.hpp
+                            ElemUtil.hpp )
 
 set_source_files_properties( ${MBCOUPLER_SRCS}
   COMPILE_FLAGS "${MOAB_DEFINES} -DIS_BUILDING_MB"
@@ -21,27 +23,34 @@ set_source_files_properties( ${MBCOUPLER_SRCS}
 
 add_library( mbcoupler
   ${MBCOUPLER_SRCS}
-)
+  ${MBCOUPLER_INCLUDE_SRCS} )
 
 target_link_libraries( mbcoupler MOAB iMesh )
 if ( MOAB_USE_MPI )
   target_link_libraries( mbcoupler MOABpar )
-endif ( MOAB_USE_MPI )
+endif ( )
 
-enable_testing()
+if ( MOAB_USE_NETCDF )
+  set(netcdf_progs update_coords)
+endif()
+
+install(TARGETS mbcoupler RUNTIME DESTINATION bin
+                          LIBRARY DESTINATION lib
+                          ARCHIVE DESTINATION lib )
+install(FILES ${MBCOUPLER_INCLUDE_SRCS} DESTINATION includes)
 
 
 if ( MOAB_USE_MPI )
   # Exercise the coupler and not just findpt:
   add_executable( mbcoupler_test mbcoupler_test.cpp )
   set_source_files_properties( mbcoupler_test.cpp
-    COMPILE_FLAGS "${MOAB_DEFINES}" )
+    COMPILE_FLAGS "${MOAB_DEFINES} -DMESHDIR=${MOAB_SOURCE_DIR}/MeshFiles/unittest" )
   target_link_libraries( mbcoupler_test mbcoupler MOAB MOABpar )
   add_test( TestMBCoupler ${EXECUTABLE_OUTPUT_PATH}/mbcoupler_test )
 
   add_executable( ssn_test ssn_test.cpp )
   set_source_files_properties( ssn_test.cpp
-    COMPILE_FLAGS "${MOAB_DEFINES}" )
+    COMPILE_FLAGS "${MOAB_DEFINES} -DTEST -DMESHDIR=${MOAB_SOURCE_DIR}/MeshFiles/unittest" )
   target_link_libraries( ssn_test mbcoupler MOAB MOABpar )
-  add_test( TestMBCoupler ${EXECUTABLE_OUTPUT_PATH}/ssn_test )
+  add_test( TestSSN ${EXECUTABLE_OUTPUT_PATH}/ssn_test )
 endif ( MOAB_USE_MPI )

@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <iosfwd>
+#include <float.h>
 
 namespace moab {
 
@@ -57,7 +58,7 @@ class CartVect
 
     inline double length_squared() const;
 
-    inline void normalize(); //!< make unit length
+    inline void normalize(); //!< make unit length, or 0 if length < DBL_MIN
 
     inline void flip(); //!< flip direction
 
@@ -71,9 +72,14 @@ class CartVect
     inline const double* array() const
       { return d; }
 
-      /** initialize array from this */
+      /** initialize double array from this */
     inline void get( double v[3] ) const
       { v[0] = d[0]; v[1] = d[1]; v[2] = d[2]; }
+
+      /** initialize float array from this */
+    inline void get( float v[3] ) const
+      { v[0] = static_cast<float>(d[0]); v[1] = static_cast<float>(d[1]); v[2] = static_cast<float>(d[2]); }
+
 };
 
 inline CartVect operator+( const CartVect& u, const CartVect& v )
@@ -104,7 +110,12 @@ inline double CartVect::length_squared() const
   { return d[0]*d[0] + d[1]*d[1] + d[2]*d[2]; }
 
 inline void CartVect::normalize()
-  { *this /= length(); }
+  { double tmp=length();
+    if (tmp < DBL_MIN)
+      d[0] = d[1] = d[2] = 0;
+    else
+      *this /= tmp; 
+  }
 
 inline void CartVect::flip()
   { d[0] = -d[0]; d[1] = -d[1]; d[2] = -d[2]; }
