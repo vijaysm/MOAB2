@@ -61,6 +61,7 @@ libMOAB_la_SOURCES = \
   FileOptions.cpp \
   GeomUtil.cpp \
   GeomTopoTool.cpp \
+  HalfFacetRep.cpp \
   HigherOrderFactory.cpp \
   HomXform.cpp \
   Internals.hpp \
@@ -157,6 +158,7 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/DualTool.hpp \
   moab/Error.hpp \
   moab/GeomTopoTool.hpp \
+  moab/HalfFacetRep.hpp \
   moab/HigherOrderFactory.hpp \
   moab/HomXform.hpp \
   moab/EntityType.hpp \
