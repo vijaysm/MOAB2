@@ -26,6 +26,7 @@
 #include "moab_mpi.h"
 #include "zoltan_cpp.h"
 #include "moab/Range.hpp"
+#include <time.h>
 
 #ifdef CGM
 #include <map>
