@@ -202,6 +202,14 @@ if test "xyes" = "x$enable_debug"; then
   CXXFLAGS="$CXXFLAGS -g"
   CFLAGS="$CFLAGS -g"
   FCFLAGS="$FCFLAGS -g"
+  # Add -fstack-protector-all option for g++ in debug mode
+  if test "x$cxx_compiler" = "xGNU"; then
+    CXXFLAGS="$CXXFLAGS -fstack-protector-all"
+  fi
+  # Add -fstack-protector-all option for gcc in debug mode
+  if test "x$cc_compiler" = "xGNU"; then
+    CFLAGS="$CFLAGS -fstack-protector-all"
+  fi
 fi
 if test "xyes" = "x$enable_cxx_optimize"; then
   CXXFLAGS="$CXXFLAGS -O2 -DNDEBUG"
