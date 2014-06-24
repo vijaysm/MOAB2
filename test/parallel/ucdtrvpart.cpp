@@ -18,6 +18,7 @@ void test_read_parallel(int num_verts, bool test_nb_nodes);
 void test_multiple_loads_of_same_file();
 
 std::string partition_method;
+const int levels = 26;
 
 int main(int argc, char* argv[])
 {
@@ -192,7 +193,7 @@ void test_multiple_loads_of_same_file()
     }
 
     Tag Ttag0;
-    rval = mb.tag_get_handle("T0", 26, MB_TYPE_DOUBLE, Ttag0, MB_TAG_DENSE);
+    rval = mb.tag_get_handle("T0", levels, MB_TYPE_DOUBLE, Ttag0, MB_TAG_DENSE);
     CHECK_ERR(rval);
 
     int count;
@@ -205,14 +206,14 @@ void test_multiple_loads_of_same_file()
     double* data = (double*) Tbuf;
 
     if (0 == rank) {
-      CHECK_REAL_EQUAL(233.1136, data[0 * 26], eps); // First vert
-      CHECK_REAL_EQUAL(237.1977, data[912 * 26], eps); // Median vert
-      CHECK_REAL_EQUAL(234.9711, data[1824 * 26], eps); // Last vert
+      CHECK_REAL_EQUAL(233.1136, data[0 * levels], eps); // First vert
+      CHECK_REAL_EQUAL(237.1977, data[912 * levels], eps); // Median vert
+      CHECK_REAL_EQUAL(234.9711, data[1824 * levels], eps); // Last vert
     }
     else if (1 == rank) {
-      CHECK_REAL_EQUAL(233.1136, data[0 * 26], eps); // First vert
-      CHECK_REAL_EQUAL(231.0446, data[912 * 26], eps); // Median vert
-      CHECK_REAL_EQUAL(234.0416, data[1824 * 26], eps); // Last vert
+      CHECK_REAL_EQUAL(233.1136, data[0 * levels], eps); // First vert
+      CHECK_REAL_EQUAL(231.0446, data[912 * levels], eps); // Median vert
+      CHECK_REAL_EQUAL(234.0416, data[1824 * levels], eps); // Last vert
     }
   }
 }

@@ -35,6 +35,8 @@ void test_read_fv_ghosting();
 
 ErrorCode get_options(std::string& opts);
 
+const int levels = 26;
+
 int main(int argc, char* argv[])
 {
   int result = 0;
@@ -88,10 +90,10 @@ void test_read_eul_all()
 
   // Check for proper tags
   Tag Ttag0, Ttag1, coordTag;
-  rval = mb.tag_get_handle("T0", 26, MB_TYPE_DOUBLE, Ttag0);
+  rval = mb.tag_get_handle("T0", levels, MB_TYPE_DOUBLE, Ttag0);
   CHECK_ERR(rval);
 
-  rval = mb.tag_get_handle("T1", 26, MB_TYPE_DOUBLE, Ttag1);
+  rval = mb.tag_get_handle("T1", levels, MB_TYPE_DOUBLE, Ttag1);
   CHECK_ERR(rval);
 
   rval = mb.tag_get_handle("COORDS", 3, MB_TYPE_DOUBLE, coordTag);
@@ -123,10 +125,10 @@ void test_read_eul_onevar()
 
   // Check for proper tags
   Tag Ttag0, Ttag1;
-  rval = mb.tag_get_handle("T0", 26, MB_TYPE_DOUBLE, Ttag0);
+  rval = mb.tag_get_handle("T0", levels, MB_TYPE_DOUBLE, Ttag0);
   CHECK_ERR(rval);
 
-  rval = mb.tag_get_handle("T1", 26, MB_TYPE_DOUBLE, Ttag1);
+  rval = mb.tag_get_handle("T1", levels, MB_TYPE_DOUBLE, Ttag1);
   CHECK_ERR(rval);
 
   // Check values of tag T0 (first level) at some strategically chosen places below
@@ -139,7 +141,7 @@ void test_read_eul_onevar()
 #endif
 
   const double eps = 0.0001;
-  double val[8 * 26];
+  double val[8 * levels];
 
   if (1 == procs) {
     Range global_quads;
@@ -151,14 +153,14 @@ void test_read_eul_onevar()
                                        global_quads[48], global_quads[2303], global_quads[2352], global_quads[4607]};
     rval = mb.tag_get_data(Ttag0, &gloabl_quad_ents[0], 8, val);
 
-    CHECK_REAL_EQUAL(252.8529, val[0 * 26], eps); // First global quad
-    CHECK_REAL_EQUAL(234.8390, val[1 * 26], eps); // 2256th global quad
-    CHECK_REAL_EQUAL(232.6458, val[2 * 26], eps); // 2305th global quad
-    CHECK_REAL_EQUAL(205.3905, val[3 * 26], eps); // 4560th global quad
-    CHECK_REAL_EQUAL(252.7116, val[4 * 26], eps); // 49th global quad
-    CHECK_REAL_EQUAL(232.6670, val[5 * 26], eps); // 2304th global quad
-    CHECK_REAL_EQUAL(234.6922, val[6 * 26], eps); // 2353th global quad
-    CHECK_REAL_EQUAL(200.6828, val[7 * 26], eps); // Last global quad
+    CHECK_REAL_EQUAL(252.8529, val[0 * levels], eps); // First global quad
+    CHECK_REAL_EQUAL(234.8390, val[1 * levels], eps); // 2256th global quad
+    CHECK_REAL_EQUAL(232.6458, val[2 * levels], eps); // 2305th global quad
+    CHECK_REAL_EQUAL(205.3905, val[3 * levels], eps); // 4560th global quad
+    CHECK_REAL_EQUAL(252.7116, val[4 * levels], eps); // 49th global quad
+    CHECK_REAL_EQUAL(232.6670, val[5 * levels], eps); // 2304th global quad
+    CHECK_REAL_EQUAL(234.6922, val[6 * levels], eps); // 2353th global quad
+    CHECK_REAL_EQUAL(200.6828, val[7 * levels], eps); // Last global quad
   }
   else if (2 == procs) {
     Range local_quads;
@@ -170,16 +172,16 @@ void test_read_eul_onevar()
     rval = mb.tag_get_data(Ttag0, &local_quad_ents[0], 4, val);
 
     if (0 == rank) {
-      CHECK_REAL_EQUAL(252.8529, val[0 * 26], eps); // First local quad, first global quad
-      CHECK_REAL_EQUAL(234.8390, val[1 * 26], eps); // Median local quad, 2256th global quad
-      CHECK_REAL_EQUAL(232.6458, val[2 * 26], eps); // Median local quad, 2305th global quad
-      CHECK_REAL_EQUAL(205.3905, val[3 * 26], eps); // Last local quad, 4560th global quad
+      CHECK_REAL_EQUAL(252.8529, val[0 * levels], eps); // First local quad, first global quad
+      CHECK_REAL_EQUAL(234.8390, val[1 * levels], eps); // Median local quad, 2256th global quad
+      CHECK_REAL_EQUAL(232.6458, val[2 * levels], eps); // Median local quad, 2305th global quad
+      CHECK_REAL_EQUAL(205.3905, val[3 * levels], eps); // Last local quad, 4560th global quad
     }
     else if (1 == rank) {
-      CHECK_REAL_EQUAL(252.7116, val[0 * 26], eps); // First local quad, 49th global quad
-      CHECK_REAL_EQUAL(232.6670, val[1 * 26], eps); // Median local quad, 2304th global quad
-      CHECK_REAL_EQUAL(234.6922, val[2 * 26], eps); // Median local quad, 2353th global quad
-      CHECK_REAL_EQUAL(200.6828, val[3 * 26], eps); // Last local quad, last global quad
+      CHECK_REAL_EQUAL(252.7116, val[0 * levels], eps); // First local quad, 49th global quad
+      CHECK_REAL_EQUAL(232.6670, val[1 * levels], eps); // Median local quad, 2304th global quad
+      CHECK_REAL_EQUAL(234.6922, val[2 * levels], eps); // Median local quad, 2353th global quad
+      CHECK_REAL_EQUAL(200.6828, val[3 * levels], eps); // Last local quad, last global quad
     }
   }
 }
@@ -198,10 +200,10 @@ void test_read_eul_onetimestep()
 
   // Check for proper tags
   Tag Ttag0, Ttag1;
-  rval = mb.tag_get_handle("T0", 26, MB_TYPE_DOUBLE, Ttag0);
+  rval = mb.tag_get_handle("T0", levels, MB_TYPE_DOUBLE, Ttag0);
   CHECK_EQUAL(rval, MB_TAG_NOT_FOUND);
 
-  rval = mb.tag_get_handle("T1", 26, MB_TYPE_DOUBLE, Ttag1);
+  rval = mb.tag_get_handle("T1", levels, MB_TYPE_DOUBLE, Ttag1);
   CHECK_ERR(rval);
 }
 
@@ -225,10 +227,10 @@ void test_read_eul_nomesh()
 
   // Check for proper tag
   Tag Ttag0, Ttag1;
-  rval = mb.tag_get_handle("T0", 26, MB_TYPE_DOUBLE, Ttag0);
+  rval = mb.tag_get_handle("T0", levels, MB_TYPE_DOUBLE, Ttag0);
   CHECK_ERR(rval);
 
-  rval = mb.tag_get_handle("T1", 26, MB_TYPE_DOUBLE, Ttag1);
+  rval = mb.tag_get_handle("T1", levels, MB_TYPE_DOUBLE, Ttag1);
   CHECK_EQUAL(rval, MB_TAG_NOT_FOUND);
 
   // Now read 2nd timestep with nomesh option
@@ -237,7 +239,7 @@ void test_read_eul_nomesh()
   CHECK_ERR(rval);
 
   // Check for proper tag
-  rval = mb.tag_get_handle("T1", 26, MB_TYPE_DOUBLE, Ttag1);
+  rval = mb.tag_get_handle("T1", levels, MB_TYPE_DOUBLE, Ttag1);
   CHECK_ERR(rval);
 }
 
@@ -265,17 +267,17 @@ void test_read_eul_novars()
 
   // Check for proper tag
   Tag Ttag0, Ttag1;
-  rval = mb.tag_get_handle("T0", 26, MB_TYPE_DOUBLE, Ttag0);
+  rval = mb.tag_get_handle("T0", levels, MB_TYPE_DOUBLE, Ttag0);
   CHECK_EQUAL(rval, MB_TAG_NOT_FOUND);
 
   opts = orig + std::string(";VARIABLE=T;TIMESTEP=0;NOMESH");
   rval = mb.load_file(example_eul, &set, opts.c_str());
   CHECK_ERR(rval);
 
-  rval = mb.tag_get_handle("T0", 26, MB_TYPE_DOUBLE, Ttag0);
+  rval = mb.tag_get_handle("T0", levels, MB_TYPE_DOUBLE, Ttag0);
   CHECK_ERR(rval);
 
-  rval = mb.tag_get_handle("T1", 26, MB_TYPE_DOUBLE, Ttag1);
+  rval = mb.tag_get_handle("T1", levels, MB_TYPE_DOUBLE, Ttag1);
   CHECK_EQUAL(rval, MB_TAG_NOT_FOUND);
 
   // Now read 2nd timestep with nomesh option
@@ -284,7 +286,7 @@ void test_read_eul_novars()
   CHECK_ERR(rval);
 
   // Check for proper tag
-  rval = mb.tag_get_handle("T1", 26, MB_TYPE_DOUBLE, Ttag1);
+  rval = mb.tag_get_handle("T1", levels, MB_TYPE_DOUBLE, Ttag1);
   CHECK_ERR(rval);
 }
 
@@ -302,10 +304,10 @@ void test_read_fv_all()
 
   // Check for proper tags
   Tag Ttag0, Ttag1, coordTag;
-  rval = mb.tag_get_handle("T0", 26, MB_TYPE_DOUBLE, Ttag0);
+  rval = mb.tag_get_handle("T0", levels, MB_TYPE_DOUBLE, Ttag0);
   CHECK_ERR(rval);
 
-  rval = mb.tag_get_handle("T1", 26, MB_TYPE_DOUBLE, Ttag1);
+  rval = mb.tag_get_handle("T1", levels, MB_TYPE_DOUBLE, Ttag1);
   CHECK_ERR(rval);
 
   rval = mb.tag_get_handle("COORDS", 3, MB_TYPE_DOUBLE, coordTag);
@@ -326,10 +328,10 @@ void test_read_fv_onevar()
 
   // Check for proper tags
   Tag Ttag0, Ttag1;
-  rval = mb.tag_get_handle("T0", 26, MB_TYPE_DOUBLE, Ttag0);
+  rval = mb.tag_get_handle("T0", levels, MB_TYPE_DOUBLE, Ttag0);
   CHECK_ERR(rval);
 
-  rval = mb.tag_get_handle("T1", 26, MB_TYPE_DOUBLE, Ttag1);
+  rval = mb.tag_get_handle("T1", levels, MB_TYPE_DOUBLE, Ttag1);
   CHECK_ERR(rval);
 
   // Check values of tag T0 (first level) at some strategically chosen places below
@@ -342,7 +344,7 @@ void test_read_fv_onevar()
 #endif
 
   const double eps = 0.0001;
-  double val[8 * 26];
+  double val[8 * levels];
 
   if (1 == procs) {
     Range global_quads;
@@ -354,14 +356,14 @@ void test_read_fv_onevar()
                                        global_quads[36], global_quads[1655], global_quads[1692], global_quads[3311]};
     rval = mb.tag_get_data(Ttag0, &gloabl_quad_ents[0], 8, val);
 
-    CHECK_REAL_EQUAL(253.6048, val[0 * 26], eps); // First global quad
-    CHECK_REAL_EQUAL(232.2170, val[1 * 26], eps); // 1620th global quad
-    CHECK_REAL_EQUAL(232.7454, val[2 * 26], eps); // 1657th global quad
-    CHECK_REAL_EQUAL(210.2581, val[3 * 26], eps); // 3276th global quad
-    CHECK_REAL_EQUAL(253.6048, val[4 * 26], eps); // 37th global quad
-    CHECK_REAL_EQUAL(232.9553, val[5 * 26], eps); // 1656th global quad
-    CHECK_REAL_EQUAL(232.1704, val[6 * 26], eps); // 1693th global quad
-    CHECK_REAL_EQUAL(210.2581, val[7 * 26], eps); // Last global quad
+    CHECK_REAL_EQUAL(253.6048, val[0 * levels], eps); // First global quad
+    CHECK_REAL_EQUAL(232.2170, val[1 * levels], eps); // 1620th global quad
+    CHECK_REAL_EQUAL(232.7454, val[2 * levels], eps); // 1657th global quad
+    CHECK_REAL_EQUAL(210.2581, val[3 * levels], eps); // 3276th global quad
+    CHECK_REAL_EQUAL(253.6048, val[4 * levels], eps); // 37th global quad
+    CHECK_REAL_EQUAL(232.9553, val[5 * levels], eps); // 1656th global quad
+    CHECK_REAL_EQUAL(232.1704, val[6 * levels], eps); // 1693th global quad
+    CHECK_REAL_EQUAL(210.2581, val[7 * levels], eps); // Last global quad
   }
   else if (2 == procs) {
     Range local_quads;
@@ -373,16 +375,16 @@ void test_read_fv_onevar()
     rval = mb.tag_get_data(Ttag0, &local_quad_ents[0], 4, val);
 
     if (0 == rank) {
-      CHECK_REAL_EQUAL(253.6048, val[0 * 26], eps); // First local quad, first global quad
-      CHECK_REAL_EQUAL(232.2170, val[1 * 26], eps); // Median local quad, 1620th global quad
-      CHECK_REAL_EQUAL(232.7454, val[2 * 26], eps); // Median local quad, 1657th global quad
-      CHECK_REAL_EQUAL(210.2581, val[3 * 26], eps); // Last local quad, 3276th global quad
+      CHECK_REAL_EQUAL(253.6048, val[0 * levels], eps); // First local quad, first global quad
+      CHECK_REAL_EQUAL(232.2170, val[1 * levels], eps); // Median local quad, 1620th global quad
+      CHECK_REAL_EQUAL(232.7454, val[2 * levels], eps); // Median local quad, 1657th global quad
+      CHECK_REAL_EQUAL(210.2581, val[3 * levels], eps); // Last local quad, 3276th global quad
     }
     else if (1 == rank) {
-      CHECK_REAL_EQUAL(253.6048, val[0 * 26], eps); // First local quad, 37th global quad
-      CHECK_REAL_EQUAL(232.9553, val[1 * 26], eps); // Median local quad, 1656th global quad
-      CHECK_REAL_EQUAL(232.1704, val[2 * 26], eps); // Median local quad, 1693th global quad
-      CHECK_REAL_EQUAL(210.2581, val[3 * 26], eps); // Last local quad, last global quad
+      CHECK_REAL_EQUAL(253.6048, val[0 * levels], eps); // First local quad, 37th global quad
+      CHECK_REAL_EQUAL(232.9553, val[1 * levels], eps); // Median local quad, 1656th global quad
+      CHECK_REAL_EQUAL(232.1704, val[2 * levels], eps); // Median local quad, 1693th global quad
+      CHECK_REAL_EQUAL(210.2581, val[3 * levels], eps); // Last local quad, last global quad
     }
   }
 }
@@ -401,10 +403,10 @@ void test_read_fv_onetimestep()
 
   // Check for proper tags
   Tag Ttag0, Ttag1;
-  rval = mb.tag_get_handle("T0", 26, MB_TYPE_DOUBLE, Ttag0);
+  rval = mb.tag_get_handle("T0", levels, MB_TYPE_DOUBLE, Ttag0);
   CHECK_EQUAL(rval, MB_TAG_NOT_FOUND);
 
-  rval = mb.tag_get_handle("T1", 26, MB_TYPE_DOUBLE, Ttag1);
+  rval = mb.tag_get_handle("T1", levels, MB_TYPE_DOUBLE, Ttag1);
   CHECK_ERR(rval);
 
   // Check for some tags with double underscore in the tag name
@@ -439,10 +441,10 @@ void test_read_fv_nomesh()
 
   // Check for proper tag
   Tag Ttag0, Ttag1;
-  rval = mb.tag_get_handle("T0", 26, MB_TYPE_DOUBLE, Ttag0);
+  rval = mb.tag_get_handle("T0", levels, MB_TYPE_DOUBLE, Ttag0);
   CHECK_ERR(rval);
 
-  rval = mb.tag_get_handle("T1", 26, MB_TYPE_DOUBLE, Ttag1);
+  rval = mb.tag_get_handle("T1", levels, MB_TYPE_DOUBLE, Ttag1);
   CHECK_EQUAL(rval, MB_TAG_NOT_FOUND);
 
   // Now read 2nd timestep with nomesh option
@@ -451,7 +453,7 @@ void test_read_fv_nomesh()
   CHECK_ERR(rval);
 
   // Check for proper tag
-  rval = mb.tag_get_handle("T1", 26, MB_TYPE_DOUBLE, Ttag1);
+  rval = mb.tag_get_handle("T1", levels, MB_TYPE_DOUBLE, Ttag1);
   CHECK_ERR(rval);
 }
 
@@ -479,17 +481,17 @@ void test_read_fv_novars()
 
   // Check for proper tag
   Tag Ttag0, Ttag1;
-  rval = mb.tag_get_handle("T0", 26, MB_TYPE_DOUBLE, Ttag0);
+  rval = mb.tag_get_handle("T0", levels, MB_TYPE_DOUBLE, Ttag0);
   CHECK_EQUAL(rval, MB_TAG_NOT_FOUND);
 
   opts = orig + std::string(";VARIABLE=T;TIMESTEP=0;NOMESH");
   rval = mb.load_file(example_fv, &set, opts.c_str());
   CHECK_ERR(rval);
 
-  rval = mb.tag_get_handle("T0", 26, MB_TYPE_DOUBLE, Ttag0);
+  rval = mb.tag_get_handle("T0", levels, MB_TYPE_DOUBLE, Ttag0);
   CHECK_ERR(rval);
 
-  rval = mb.tag_get_handle("T1", 26, MB_TYPE_DOUBLE, Ttag1);
+  rval = mb.tag_get_handle("T1", levels, MB_TYPE_DOUBLE, Ttag1);
   CHECK_EQUAL(rval, MB_TAG_NOT_FOUND);
 
   // Now read 2nd timestep with nomesh option
@@ -498,7 +500,7 @@ void test_read_fv_novars()
   CHECK_ERR(rval);
 
   // Check for proper tag
-  rval = mb.tag_get_handle("T1", 26, MB_TYPE_DOUBLE, Ttag1);
+  rval = mb.tag_get_handle("T1", levels, MB_TYPE_DOUBLE, Ttag1);
   CHECK_ERR(rval);
 }
 

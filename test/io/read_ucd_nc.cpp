@@ -30,6 +30,8 @@ void test_read_conn(); // Test reading connectivity file only
 
 void get_options(std::string& opts);
 
+const int levels = 26;
+
 int main(int argc, char* argv[])
 {
   int result = 0;
@@ -73,10 +75,10 @@ void test_read_all()
 
   // Check for proper tags
   Tag Ttag0, Ttag1;
-  rval = mb.tag_get_handle("T0", 26, MB_TYPE_DOUBLE, Ttag0);
+  rval = mb.tag_get_handle("T0", levels, MB_TYPE_DOUBLE, Ttag0);
   CHECK_ERR(rval);
 
-  rval = mb.tag_get_handle("T1", 26, MB_TYPE_DOUBLE, Ttag1);
+  rval = mb.tag_get_handle("T1", levels, MB_TYPE_DOUBLE, Ttag1);
   CHECK_ERR(rval);
 }
 
@@ -103,9 +105,9 @@ void test_read_onevar()
   if (1 == procs) {
     // Check for proper tags
     Tag Ttag0, Ttag1;
-    rval = mb.tag_get_handle("T0", 26, MB_TYPE_DOUBLE, Ttag0);
+    rval = mb.tag_get_handle("T0", levels, MB_TYPE_DOUBLE, Ttag0);
     CHECK_ERR(rval);
-    rval = mb.tag_get_handle("T1", 26, MB_TYPE_DOUBLE, Ttag1);
+    rval = mb.tag_get_handle("T1", levels, MB_TYPE_DOUBLE, Ttag1);
     CHECK_ERR(rval);
 
     // Get vertices
@@ -125,10 +127,10 @@ void test_read_onevar()
     double* data = (double*) Tbuf;
 
     // Check first level values on 4 strategically selected vertices
-    CHECK_REAL_EQUAL(233.1136, data[0 * 26], eps); // First vert
-    CHECK_REAL_EQUAL(236.1505, data[1728 * 26], eps); // Median vert
-    CHECK_REAL_EQUAL(235.7722, data[1729 * 26], eps); // Median vert
-    CHECK_REAL_EQUAL(234.0416, data[3457 * 26], eps); // Last vert
+    CHECK_REAL_EQUAL(233.1136, data[0 * levels], eps); // First vert
+    CHECK_REAL_EQUAL(236.1505, data[1728 * levels], eps); // Median vert
+    CHECK_REAL_EQUAL(235.7722, data[1729 * levels], eps); // Median vert
+    CHECK_REAL_EQUAL(234.0416, data[3457 * levels], eps); // Last vert
   }
 }
 
@@ -146,10 +148,10 @@ void test_read_onetimestep()
 
   // Check for proper tags
   Tag Ttag0, Ttag1;
-  rval = mb.tag_get_handle("T0", 26, MB_TYPE_DOUBLE, Ttag0);
+  rval = mb.tag_get_handle("T0", levels, MB_TYPE_DOUBLE, Ttag0);
   CHECK_EQUAL(rval, MB_TAG_NOT_FOUND);
 
-  rval = mb.tag_get_handle("T1", 26, MB_TYPE_DOUBLE, Ttag1);
+  rval = mb.tag_get_handle("T1", levels, MB_TYPE_DOUBLE, Ttag1);
   CHECK_ERR(rval);
 }
 
@@ -172,10 +174,10 @@ void test_read_nomesh()
 
   // Check for proper tag
   Tag Ttag0, Ttag1;
-  rval = mb.tag_get_handle("T0", 26, MB_TYPE_DOUBLE, Ttag0);
+  rval = mb.tag_get_handle("T0", levels, MB_TYPE_DOUBLE, Ttag0);
   CHECK_ERR(rval);
 
-  rval = mb.tag_get_handle("T1", 26, MB_TYPE_DOUBLE, Ttag1);
+  rval = mb.tag_get_handle("T1", levels, MB_TYPE_DOUBLE, Ttag1);
   CHECK_EQUAL(rval, MB_TAG_NOT_FOUND);
 
   // Now read 2nd timestep with nomesh option
@@ -184,7 +186,7 @@ void test_read_nomesh()
   CHECK_ERR(rval);
 
   // Check for proper tag
-  rval = mb.tag_get_handle("T1", 26, MB_TYPE_DOUBLE, Ttag1);
+  rval = mb.tag_get_handle("T1", levels, MB_TYPE_DOUBLE, Ttag1);
   CHECK_ERR(rval);
 }
 
@@ -211,17 +213,17 @@ void test_read_novars()
 
   // Check for proper tag
   Tag Ttag0, Ttag1;
-  rval = mb.tag_get_handle("T0", 26, MB_TYPE_DOUBLE, Ttag0);
+  rval = mb.tag_get_handle("T0", levels, MB_TYPE_DOUBLE, Ttag0);
   CHECK_EQUAL(rval, MB_TAG_NOT_FOUND);
 
   opts = orig + std::string(";VARIABLE=T;TIMESTEP=0;NOMESH");
   rval = mb.load_file(example, &set, opts.c_str());
   CHECK_ERR(rval);
 
-  rval = mb.tag_get_handle("T0", 26, MB_TYPE_DOUBLE, Ttag0);
+  rval = mb.tag_get_handle("T0", levels, MB_TYPE_DOUBLE, Ttag0);
   CHECK_ERR(rval);
 
-  rval = mb.tag_get_handle("T1", 26, MB_TYPE_DOUBLE, Ttag1);
+  rval = mb.tag_get_handle("T1", levels, MB_TYPE_DOUBLE, Ttag1);
   CHECK_EQUAL(rval, MB_TAG_NOT_FOUND);
 
   // Now read 2nd timestep with nomesh option
@@ -230,7 +232,7 @@ void test_read_novars()
   CHECK_ERR(rval);
 
   // Check for proper tag
-  rval = mb.tag_get_handle("T1", 26, MB_TYPE_DOUBLE, Ttag1);
+  rval = mb.tag_get_handle("T1", levels, MB_TYPE_DOUBLE, Ttag1);
   CHECK_ERR(rval);
 }
 
@@ -266,7 +268,7 @@ void test_read_coord_vars()
   // Check lev tag size and values on file_set
   rval = mb.tag_get_by_ptr(var_tag, &file_set, 1, &var_data, &var_len);
   CHECK_ERR(rval);
-  CHECK_EQUAL(26, var_len);
+  CHECK_EQUAL(levels, var_len);
   double* lev_val = (double*)var_data;
   const double eps = 1e-10;
   CHECK_REAL_EQUAL(3.54463800000002, lev_val[0], eps);
@@ -307,7 +309,7 @@ void test_read_coord_vars()
   // Check lev tag size and values on file_set2
   rval = mb.tag_get_by_ptr(var_tag, &file_set2, 1, &var_data, &var_len);
   CHECK_ERR(rval);
-  CHECK_EQUAL(26, var_len);
+  CHECK_EQUAL(levels, var_len);
   lev_val = (double*)var_data;
   CHECK_REAL_EQUAL(3.54463800000002, lev_val[0], eps);
   CHECK_REAL_EQUAL(992.556100000005, lev_val[25], eps);
@@ -368,7 +370,7 @@ void test_gather_onevar()
   }
 
   Tag Ttag0, gid_tag;
-  rval = mb.tag_get_handle("T0", 26, MB_TYPE_DOUBLE, Ttag0, MB_TAG_DENSE);
+  rval = mb.tag_get_handle("T0", levels, MB_TYPE_DOUBLE, Ttag0, MB_TAG_DENSE);
   CHECK_ERR(rval);
 
   rval = mb.tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid_tag, MB_TAG_DENSE);
@@ -384,7 +386,7 @@ void test_gather_onevar()
     CHECK_EQUAL((size_t)3458, gather_set_verts.size());
 
     // Get T0 tag values on 4 strategically selected gather set vertices
-    double T0_val[4 * 26];
+    double T0_val[4 * levels];
     EntityHandle vert_ents[] = {gather_set_verts[0], gather_set_verts[1728],
                                 gather_set_verts[1729], gather_set_verts[3457]};
     rval = mb.tag_get_data(Ttag0, vert_ents, 4, T0_val);
@@ -393,10 +395,10 @@ void test_gather_onevar()
     const double eps = 0.001;
 
     // Check first level values
-    CHECK_REAL_EQUAL(233.1136, T0_val[0 * 26], eps); // First vert
-    CHECK_REAL_EQUAL(236.1505, T0_val[1 * 26], eps); // Median vert
-    CHECK_REAL_EQUAL(235.7722, T0_val[2 * 26], eps); // Median vert
-    CHECK_REAL_EQUAL(234.0416, T0_val[3 * 26], eps); // Last vert
+    CHECK_REAL_EQUAL(233.1136, T0_val[0 * levels], eps); // First vert
+    CHECK_REAL_EQUAL(236.1505, T0_val[1 * levels], eps); // Median vert
+    CHECK_REAL_EQUAL(235.7722, T0_val[2 * levels], eps); // Median vert
+    CHECK_REAL_EQUAL(234.0416, T0_val[3 * levels], eps); // Last vert
   }
 #endif
 }
