@@ -163,6 +163,7 @@ AC_CONFIG_HEADERS(config.h) # Don't want this, just working around autoheader is
 AC_CONFIG_HEADERS([iBase_FCDefs.h])
 AC_CONFIG_FILES([Makefile 
                  test/Makefile
+                 doc/lasso.dox
                  iRel-Defs.inc
                  ])
 
