@@ -7,10 +7,10 @@
 using namespace moab;
 
 #ifdef MESHDIR
-static const char example[] = STRINGIFY(MESHDIR) "/io/homme26x3458.t.3.nc";
+static const char example[] = STRINGIFY(MESHDIR) "/io/homme3x3458.t.3.nc";
 static const char conn_fname[] = STRINGIFY(MESHDIR) "/io/HommeMapping.nc";
 #else
-static const char example[] = "/io/homme26x3458.t.3.nc";
+static const char example[] = "/io/homme3x3458.t.3.nc";
 static const char conn_fname[] = "io/HommeMapping.nc";
 #endif
 
@@ -30,7 +30,7 @@ void test_read_conn(); // Test reading connectivity file only
 
 void get_options(std::string& opts);
 
-const int levels = 26;
+const int levels = 3;
 
 int main(int argc, char* argv[])
 {
@@ -272,7 +272,7 @@ void test_read_coord_vars()
   double* lev_val = (double*)var_data;
   const double eps = 1e-10;
   CHECK_REAL_EQUAL(3.54463800000002, lev_val[0], eps);
-  CHECK_REAL_EQUAL(992.556100000005, lev_val[25], eps);
+  CHECK_REAL_EQUAL(13.9672100000001, lev_val[levels - 1], eps);
 
   // Check tag for dummy coordinate variable ncol
   tag_name = "ncol";
@@ -312,7 +312,7 @@ void test_read_coord_vars()
   CHECK_EQUAL(levels, var_len);
   lev_val = (double*)var_data;
   CHECK_REAL_EQUAL(3.54463800000002, lev_val[0], eps);
-  CHECK_REAL_EQUAL(992.556100000005, lev_val[25], eps);
+  CHECK_REAL_EQUAL(13.9672100000001, lev_val[levels - 1], eps);
 
   // Check tag for dummy coordinate variable ncol
   tag_name = "ncol";

@@ -4,11 +4,11 @@
 using namespace moab;
 
 #ifdef MESHDIR
-static const char example_eul[] = STRINGIFY(MESHDIR) "/io/eul26x48x96.t.3.nc";
-static const char example_fv[] = STRINGIFY(MESHDIR) "/io/fv26x46x72.t.3.nc";
+static const char example_eul[] = STRINGIFY(MESHDIR) "/io/eul3x48x96.t.3.nc";
+static const char example_fv[] = STRINGIFY(MESHDIR) "/io/fv3x46x72.t.3.nc";
 #else
-static const char example_eul[] = "/io/eul26x48x96.t.3.nc";
-static const char example_fv[] = "/io/fv26x46x72.t.3.nc";
+static const char example_eul[] = "/io/eul3x48x96.t.3.nc";
+static const char example_fv[] = "/io/fv3x46x72.t.3.nc";
 #endif
 
 #ifdef USE_MPI
@@ -35,7 +35,7 @@ void test_read_fv_ghosting();
 
 ErrorCode get_options(std::string& opts);
 
-const int levels = 26;
+const int levels = 3;
 
 int main(int argc, char* argv[])
 {

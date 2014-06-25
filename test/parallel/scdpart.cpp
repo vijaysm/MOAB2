@@ -8,9 +8,9 @@
 using namespace moab;
 
 #ifdef MESHDIR
-static const char example[] = STRINGIFY(MESHDIR) "/io/eul26x48x96.t.3.nc";
+static const char example[] = STRINGIFY(MESHDIR) "/io/eul3x48x96.t.3.nc";
 #else
-static const char example[] = "/io/eul26x48x96.t.3.nc";
+static const char example[] = "/io/eul3x48x96.t.3.nc";
 #endif
 
 void test_read_parallel(int nverts);
@@ -18,6 +18,7 @@ void test_read_parallel_alljorkori();
 void test_read_parallel_alljkbal();
 void test_read_parallel_sqij();
 void test_read_parallel_sqjk();
+
 std::string partition_method;
 
 int main(int argc, char **argv)
@@ -33,7 +34,6 @@ int main(int argc, char **argv)
   MPI_Finalize();
   return result;
 }
-
 
 void test_read_parallel_alljorkori() 
 {
@@ -89,4 +89,3 @@ void test_read_parallel(int num_verts)
   
   if (0 == pcomm->proc_config().proc_rank()) CHECK_EQUAL(total_verts, num_verts);
 }
-

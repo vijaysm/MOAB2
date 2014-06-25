@@ -8,7 +8,7 @@
 using namespace moab;
 
 #ifdef MESHDIR
-static const char example[] = STRINGIFY(MESHDIR) "/io/homme26x3458.t.3.nc";
+static const char example[] = STRINGIFY(MESHDIR) "/io/homme3x3458.t.3.nc";
 #endif
 
 void test_read_parallel_ucd_trivial();
@@ -18,7 +18,7 @@ void test_read_parallel(int num_verts, bool test_nb_nodes);
 void test_multiple_loads_of_same_file();
 
 std::string partition_method;
-const int levels = 26;
+const int levels = 3;
 
 int main(int argc, char* argv[])
 {
