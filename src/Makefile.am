@@ -226,6 +226,12 @@ if HAVE_CGM
   AM_CPPFLAGS += @CGM_CPPFLAGS@ -DCGM @MOAB_CGM_DEFINES@
 endif
 
+# if ENABLE_ahf
+  # libMOAB_la_SOURCES += HalfFacetRep.cpp
+  # nobase_libMOAB_la_include_HEADERS += moab/HalfFacetRep.hpp
+#  AM_CPPFLAGS += -DUSE_AHF  
+# endif 
+
 MBCN_protos.h: MBCN.h $(top_srcdir)/itaps/mkprotos.sh
 	$(AM_V_GEN)$(top_srcdir)/itaps/mkprotos.sh MBCN MOAB $< $@ MOAB_FCDefs.h
 

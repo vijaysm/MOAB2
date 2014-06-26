@@ -52,14 +52,15 @@ namespace moab {
    VOLUME_MIXED //Volume mesh with embedded curves and surfaces
   };
 
-   
+  class Core;
+
   class HalfFacetRep{
        
   public:
     
-    HalfFacetRep(Interface *impl) : mb(impl) {}
+    HalfFacetRep(Core *impl);
     
-    ~HalfFacetRep() {}
+    ~HalfFacetRep();
 
     // User interface functions
 
@@ -74,6 +75,12 @@ namespace moab {
     //! Prints the tag values.
     ErrorCode print_tags();
     
+
+    ErrorCode get_adjacencies(const EntityHandle source_entity,
+                              const unsigned int target_dimension,
+                              std::vector<EntityHandle> &target_entities);
+
+
     //! Get the upward incidences associated with an entity.
     /** Given an entity of dimension <em>d</em>, gather all the incident <em>D(>d)</em> dimensional entities.
      * Parameters:
@@ -84,7 +91,11 @@ namespace moab {
      * \param lids Vector in which the local id's are returned.
      */
 
-    ErrorCode get_upward_incidences(EntityHandle ent, int out_dim, std::vector<EntityHandle> &adjents, bool local_id = false, std::vector<int> * lids = NULL );
+    ErrorCode get_up_adjacencies(EntityHandle ent,
+                                 int out_dim,
+                                 std::vector<EntityHandle> &adjents,
+                                 bool local_id = false,
+                                 std::vector<int> * lids = NULL );
 
     //! Get the same-dimensional entities connected with an entity.
     /** Given an entity of dimension <em>d</em>, gather all the entities connected via <em>d-1</em> dimensional entities.
@@ -94,7 +105,8 @@ namespace moab {
      * \param adjents Vector in which the neighbor entities are returned.
      */
 
-    ErrorCode get_neighbor_adjacencies(EntityHandle ent, std::vector<EntityHandle> &adjents);
+    ErrorCode get_neighbor_adjacencies(EntityHandle ent,
+                                       std::vector<EntityHandle> &adjents);
 
     // 1D Maps and queries
 
@@ -127,7 +139,10 @@ namespace moab {
      * \param lvids Vector returning the local vertex id's
     */
 
-    ErrorCode get_upward_incidences_1d(EntityHandle vid, std::vector<EntityHandle> &adjents, bool local_id = false, std::vector<int> * lvids = NULL);
+    ErrorCode get_up_adjacencies_1d(EntityHandle vid,
+                                    std::vector<EntityHandle> &adjents,
+                                    bool local_id = false,
+                                    std::vector<int> * lvids = NULL);
 
     //! Given an edge, finds vertex-connected neighbor edges
     /** Given an edge, it gathers all the incident edges of each vertex of the edge.
@@ -136,7 +151,8 @@ namespace moab {
      * \param adjents Vector returning neighbor edges
     */
     
-    ErrorCode get_neighbor_adjacencies_1d(EntityHandle eid, std::vector<EntityHandle> &adjents);
+    ErrorCode get_neighbor_adjacencies_1d(EntityHandle eid,
+                                          std::vector<EntityHandle> &adjents);
     
     
     // 2D Maps and queries    
@@ -161,6 +177,9 @@ namespace moab {
 
     ErrorCode determine_incident_halfedges(Range &faces);
 
+   /* ErrorCode get_up_adjacencies_2d(EntityHandle vid,
+                                       std::vector<EntityHandle> &adjents);*/
+
     //! Given an edge, finds the faces incident on it.
     /** Given an edge, it first finds a matching half-edge corresponding to eid, and then
      * collects all the incident half-edges/faces via the sibhes map.
@@ -171,7 +190,10 @@ namespace moab {
      * \param leids Vector returning local edge ids
     */
 
-    ErrorCode get_upward_incidences_2d(EntityHandle eid, std::vector<EntityHandle> &adjents, bool local_id = false, std::vector<int> * leids = NULL);
+    ErrorCode get_up_adjacencies_2d(EntityHandle eid,
+                                    std::vector<EntityHandle> &adjents,
+                                    bool local_id = false,
+                                    std::vector<int> * leids = NULL);
 
     //! Given a half-edge <fid, leid>, finds the faces incident on it.
     /**
@@ -184,7 +206,12 @@ namespace moab {
      * \param leids Vector returning local edge ids
     */
 
-    ErrorCode get_upward_incidences_2d(EntityHandle fid, int leid, bool add_inent, std::vector<EntityHandle> &adjents, bool local_id = false, std::vector<int> * leids = NULL);
+    ErrorCode get_up_adjacencies_2d(EntityHandle fid,
+                                    int leid,
+                                    bool add_inent,
+                                    std::vector<EntityHandle> &adjents,
+                                    bool local_id = false,
+                                    std::vector<int> * leids = NULL);
 
     //! Given an edge, finds edge-connected neighbor face
     /** Given an face, it gathers all the neighbor faces of each local edge of the face.
@@ -193,7 +220,8 @@ namespace moab {
      * \param adjents Vector returning neighbor faces
     */
        
-    ErrorCode get_neighbor_adjacencies_2d(EntityHandle fid, std::vector<EntityHandle> &adjents);
+    ErrorCode get_neighbor_adjacencies_2d(EntityHandle fid,
+                                          std::vector<EntityHandle> &adjents);
 
     //! Given a range of faces, finds the total number of edges.
     
@@ -229,7 +257,8 @@ namespace moab {
      * \param isborder: A dense tag over all vertices of size 1. Value is true for a border vertex, otherwise is false.
     */
 
-    ErrorCode determine_border_vertices( Range &cells, Tag isborder);
+    ErrorCode determine_border_vertices( Range &cells,
+                                         Tag isborder);
 
     //! Given an edge, finds the cells incident on it.
     /** Given an edge, it first finds a matching local edge in a cell corresponding to eid, and then
@@ -241,7 +270,10 @@ namespace moab {
      * \param leids Vector returning local edge ids
     */
 
-    ErrorCode get_upward_incidences_edg_3d(EntityHandle eid, std::vector<EntityHandle> &adjents, bool local_id = false, std::vector<int> * leids = NULL);
+    ErrorCode get_up_adjacencies_edg_3d(EntityHandle eid,
+                                        std::vector<EntityHandle> &adjents,
+                                        bool local_id = false,
+                                        std::vector<int> * leids = NULL);
 
     //! Given a local edge <cid, leid>, finds the cells incident on it.
     /** Given a local edge, it gathers all the incident cells via the sibhfs map.
@@ -253,7 +285,10 @@ namespace moab {
      * \param leids Vector returning local edge ids
     */
 
-    ErrorCode get_upward_incidences_edg_3d(EntityHandle cid, int leid, std::vector<EntityHandle> &adjents, bool local_id = false, std::vector<int> * leids = NULL);
+    ErrorCode get_up_adjacencies_edg_3d(EntityHandle cid,
+                                        int leid, std::vector<EntityHandle> &adjents,
+                                        bool local_id = false,
+                                        std::vector<int> * leids = NULL);
 
     //! Given an face, finds the cells incident on it.
     /** Given an face, it first finds a matching half-face in a cell corresponding to face, and then
@@ -265,7 +300,10 @@ namespace moab {
      * \param leids Vector returning local face ids
     */
 
-    ErrorCode get_upward_incidences_face_3d(EntityHandle fid, std::vector<EntityHandle> &adjents, bool local_id = false, std::vector<int>  * lfids = NULL);
+    ErrorCode get_up_adjacencies_face_3d(EntityHandle fid,
+                                         std::vector<EntityHandle> &adjents,
+                                         bool local_id = false,
+                                         std::vector<int>  * lfids = NULL);
 
     //! Given a local face <cid, lfid>, finds the cells incident on it.
     /** Given a local face, it gathers all the incident cells via the sibhfs map.
@@ -277,7 +315,11 @@ namespace moab {
      * \param lfids Vector returning local face ids
     */
 
-    ErrorCode get_upward_incidences_face_3d(EntityHandle cid, int lfid, std::vector<EntityHandle> &adjents, bool local_id = false, std::vector<int> * lfids = NULL);
+    ErrorCode get_up_adjacencies_face_3d(EntityHandle cid,
+                                         int lfid,
+                                         std::vector<EntityHandle> &adjents,
+                                         bool local_id = false,
+                                         std::vector<int> * lfids = NULL);
     
     //! Given a cell, finds face-connected neighbor cells
     /** Given a cell, it gathers all the neighbor cells of each local face of the cell.
@@ -286,12 +328,17 @@ namespace moab {
      * \param adjents Vector returning neighbor cells
     */
 
-    ErrorCode get_neighbor_adjacencies_3d(EntityHandle cid, std::vector<EntityHandle> &adjents);
+    ErrorCode get_neighbor_adjacencies_3d(EntityHandle cid,
+                                          std::vector<EntityHandle> &adjents);
     
 
   protected:
 
-    Interface * mb;
+    Core * mb;
+
+    HalfFacetRep();
+
+    bool mInitAHFmaps;
 
     enum {
       MAX_VERTICES = 8,
@@ -351,14 +398,23 @@ namespace moab {
      * queue of half-edges, if they do not already exist in the queue. This function is used to increment the
      * search space for finding a matching half-edge.
      * Parameters:
-     * \param <EntityHandle he_fid, int he_lid>  The query half-edge
-     * \param queue_fid, queue_lid, qsize Array of faces and local edge ids. qsize is the current size of the queue_fid.
+     * \param he_fid EntityHandle of query half-edge
+     * \param he_lid Local id of query half-edge
+     * \param queue_fid
+     * \param queue_lid
+     * \param qsize Array of faces and local edge ids. qsize is the current size of the queue_fid.
      * \param trackfaces Array containing faces. If fid of an incident half-edge doesn't belong to trackfaces,
      *  the half-edge is added to the queue.
      * \param tcount Current size of trackfaces
      */
 
-    ErrorCode get_upward_incidences_2d(EntityHandle he_fid, int he_lid, EntityHandle *queue_fid, int *queue_lid, int *qsize, EntityHandle *trackfaces, int *tcount);
+    ErrorCode get_up_adjacencies_2d(EntityHandle he_fid,
+                                    int he_lid,
+                                    EntityHandle *queue_fid,
+                                    int *queue_lid,
+                                    int *qsize,
+                                    EntityHandle *trackfaces,
+                                    int *tcount);
 
     //! Given an edge, finds a matching half-edge in the surface.
     /** Given an edge eid, it first collects few half-edges belonging to one-ring neighborhood of
@@ -369,7 +425,9 @@ namespace moab {
      * \param hefid, helid: Returns the matching half-edge corresponding to the query edge.
     */
 
-    bool find_matching_halfedge( EntityHandle eid, EntityHandle *hefid, int *helid);
+    bool find_matching_halfedge( EntityHandle eid,
+                                 EntityHandle *hefid,
+                                 int *helid);
 
     //! Gather half-edges to a queue of half-edges.
     /** Given a vertex vid, and a half-edge <he_fid,he_lid>, add another half-edge in the same face sharing the vertex
@@ -381,7 +439,14 @@ namespace moab {
      * \param trackfaces, tcount
     */
 
-    ErrorCode gather_halfedges( EntityHandle vid,  EntityHandle he_fid,  int he_lid, EntityHandle *queue_fid, int *queue_lid, int *qsize, EntityHandle *trackfaces, int *tcount);
+    ErrorCode gather_halfedges( EntityHandle vid,
+                                EntityHandle he_fid,
+                                int he_lid,
+                                EntityHandle *queue_fid,
+                                int *queue_lid,
+                                int *qsize,
+                                EntityHandle *trackfaces,
+                                int *tcount);
 
     //! Obtains another half-edge belonging to the same face as the input half-edge
     /** It uses the local maps to find another half-edge that is either incident or outgoing depending
@@ -392,7 +457,11 @@ namespace moab {
      * \param <EntityHandle he2_fid, int he2_lid>: Returns another half-edge in the same he_fid sharing vid.
     */
 
-    ErrorCode another_halfedge( EntityHandle vid,  EntityHandle he_fid,  int he_lid, EntityHandle *he2_fid, int *he2_lid);
+    ErrorCode another_halfedge( EntityHandle vid,
+                                EntityHandle he_fid,
+                                int he_lid,
+                                EntityHandle *he2_fid,
+                                int *he2_lid);
 
     //! Collect and compare to find a matching half-edge with the given edge connectivity.
     /** Given edge connectivity, compare to an input list of half-edges to find a matching half-edge
@@ -404,7 +473,14 @@ namespace moab {
      * \param <EntityHandle he_fid, int he_lid>: Returns matching half-edge
     */
 
-    bool collect_and_compare(std::vector<EntityHandle> &edg_vert, EntityHandle *queue_fid, int *queue_lid, int *qsize, EntityHandle *trackfaces, int *tcount, EntityHandle *he_fid, int *he_lid);
+    bool collect_and_compare(std::vector<EntityHandle> &edg_vert,
+                             EntityHandle *queue_fid,
+                             int *queue_lid,
+                             int *qsize,
+                             EntityHandle *trackfaces,
+                             int *tcount,
+                             EntityHandle *he_fid,
+                             int *he_lid);
 
 
     //! The local maps for 3D entities.
@@ -469,7 +545,9 @@ namespace moab {
      * \param leid Returns the local id of the edge corresponding to the input edge w.r.t the incident cell.
     */
 
-    bool find_matching_implicit_edge_in_cell( EntityHandle eid, EntityHandle *cid, int *leid);
+    bool find_matching_implicit_edge_in_cell( EntityHandle eid,
+                                              EntityHandle *cid,
+                                              int *leid);
 
     //! Given a face, finds a matching local face in an incident cell.
     /** Find a local face with the same connectivity as the input face, belonging to an incident cell.
@@ -479,9 +557,15 @@ namespace moab {
      * \param lfid Returns the local id of the face corresponding to the input face w.r.t the incident cell.
     */
 
-    bool find_matching_halfface(EntityHandle fid, EntityHandle *cid, int *leid);
+    bool find_matching_halfface(EntityHandle fid,
+                                EntityHandle *cid,
+                                int *leid);
 
-    bool find_match_in_array(EntityHandle ent, EntityHandle *ent_list, int count, bool get_index = false, int *index = NULL);
+    bool find_match_in_array(EntityHandle ent,
+                             EntityHandle *ent_list,
+                             int count,
+                             bool get_index = false,
+                             int *index = NULL);
 
   };
 

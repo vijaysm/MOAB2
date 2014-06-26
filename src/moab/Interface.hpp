@@ -624,7 +624,12 @@ public:
                                       const int to_dimension,
                                       const bool create_if_missing,
                                       std::vector<EntityHandle>& adj_entities,
-                                      const int operation_type = Interface::INTERSECT) = 0;
+                                      const int operation_type = Interface::INTERSECT
+    #ifdef USE_AHF
+      , const bool use_ahf = false) = 0;
+    #else
+      ) = 0;
+    #endif
 
     //! Get the adjacencies associated with a vector of entities to entities of a specfied dimension.
     /** Identical to vector-based get_adjacencies function, except results are returned in a

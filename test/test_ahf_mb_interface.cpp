@@ -16,7 +16,7 @@ static const char example[] = STRINGIFY(MESHDIR) "/hexes_mixed.vtk";
 static const char example[] = "/hexes_mixed.vtk";
 #endif
 
-void ahf_test()
+void ahf_mbintf_test()
 {
 
   Core moab;
@@ -33,12 +33,6 @@ void ahf_test()
   error = mbImpl->get_entities_by_dimension( 0, 2, faces);
   error = mbImpl->get_entities_by_dimension( 0, 3, cells);
 
-  // Create an ahf instance
-  HalfFacetRep ahf(&moab);
-
-  // Call the initialize function which creates the maps for each dimension
-  ahf.initialize();
-
   //Perform queries
   std::vector<EntityHandle> adjents;
   Range mbents, ahfents;
@@ -47,7 +41,7 @@ void ahf_test()
   //IQ1: For every vertex, obtain incident edges
   for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
     adjents.clear();
-    error = ahf.get_up_adjacencies( *i, 1, adjents);
+    error = mbImpl->get_adjacencies( &*i, 1, 1, false, adjents, Interface::INTERSECT, true);
     CHECK_ERR(error);
     mbents.clear();
     error = mbImpl->get_adjacencies( &*i, 1, 1, false, mbents );
@@ -64,7 +58,7 @@ void ahf_test()
   //NQ1:  For every edge, obtain neighbor edges
   for (Range::iterator i = edges.begin(); i != edges.end(); ++i) {
     adjents.clear();
-    error = ahf.get_neighbor_adjacencies( *i, adjents);
+    error = mbImpl->get_adjacencies( &*i, 1, 1, false, adjents, Interface::INTERSECT, true);
     CHECK_ERR(error);
     mbents.clear();
     error = mtu.get_bridge_adjacencies( *i, 0, 1, mbents);
@@ -82,7 +76,7 @@ void ahf_test()
   //IQ2: For every edge, obtain incident faces
   for (Range::iterator i = edges.begin(); i != edges.end(); ++i) {
     adjents.clear();
-    error = ahf.get_up_adjacencies( *i, 2, adjents);
+    error = mbImpl->get_adjacencies( &*i, 1, 2, false, adjents, Interface::INTERSECT, true);
     CHECK_ERR(error);
     mbents.clear();
     error = mbImpl->get_adjacencies( &*i, 1, 2, false, mbents);
@@ -99,7 +93,7 @@ void ahf_test()
   //NQ2: For every face, obtain neighbor faces
   for (Range::iterator i = faces.begin(); i != faces.end(); ++i) {
     adjents.clear();
-    error = ahf.get_neighbor_adjacencies( *i, adjents);
+    error = mbImpl->get_adjacencies( &*i, 1, 2, false, adjents, Interface::INTERSECT, true);
     CHECK_ERR(error);
     mbents.clear();
     error = mtu.get_bridge_adjacencies( *i, 1, 2, mbents);
@@ -117,7 +111,7 @@ void ahf_test()
   // IQ 31: For every edge, obtain incident cells
   for (Range::iterator i = edges.begin(); i != edges.end(); ++i) {
     adjents.clear();
-    error = ahf.get_up_adjacencies( *i, 3, adjents);
+    error = mbImpl->get_adjacencies( &*i, 1, 3, false, adjents, Interface::INTERSECT, true);
     CHECK_ERR(error);
     mbents.clear();
     error = mbImpl->get_adjacencies(&*i, 1, 3, false, mbents);
@@ -134,7 +128,7 @@ void ahf_test()
   //IQ32: For every face, obtain incident cells
   for (Range::iterator i = faces.begin(); i != faces.end(); ++i) {
     adjents.clear();
-    error = ahf.get_up_adjacencies( *i, 3, adjents);
+    error = mbImpl->get_adjacencies( &*i, 1, 3, false, adjents, Interface::INTERSECT, true);
     CHECK_ERR(error);
     mbents.clear();
     error = mbImpl->get_adjacencies(&*i, 1, 3, false, mbents);
@@ -151,7 +145,7 @@ void ahf_test()
   //NQ3: For every cell, obtain neighbor cells
   for (Range::iterator i = cells.begin(); i != cells.end(); ++i) {
     adjents.clear();
-    error = ahf.get_neighbor_adjacencies( *i, adjents);
+    error = mbImpl->get_adjacencies( &*i, 1, 3, false, adjents, Interface::INTERSECT, true);
     CHECK_ERR(error);
     mbents.clear();
     error = mtu.get_bridge_adjacencies( *i, 2, 3, mbents);
@@ -165,8 +159,6 @@ void ahf_test()
     CHECK(!mbents.size());
   }
 
-  //ahf.deinitialize();
-
 }
 
 int main(int argc, char *argv[])
@@ -175,7 +167,7 @@ int main(int argc, char *argv[])
 
   argv[0] = argv[argc - argc]; // Followed read_mpas_nc.cpp test for removing warnings in serial mode about unused variables.
 
-  result += RUN_TEST(ahf_test);
+  result += RUN_TEST(ahf_mbintf_test);
 
   return result;
 }
