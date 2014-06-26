@@ -1205,7 +1205,6 @@ AC_SUBST([AM_CXXFLAGS])
 AC_SUBST([AM_CFLAGS])
   AC_SUBST([AM_FCFLAGS])
   AC_SUBST([AM_FFLAGS])
-AC_SUBST([DISTCHECK_CONFIGURE_FLAGS])
 
 AC_ARG_VAR([FC], [FORTRAN compiler command])
 AC_CONFIG_HEADERS([config.h])
@@ -1260,6 +1259,22 @@ AC_CONFIG_FILES([Makefile
                  ])
 AC_CONFIG_COMMANDS([src/MOAB_FCDefs.h],
   [sed -e "s/FC_FUNC/MOAB_FC_FUNC/" src/FCDefs.h >src/MOAB_FCDefs.h])
+
+# make distcheck will use this DISTCHECK_CONFIGURE_FLAGS 
+#  variable to be passed to configure line
+# some people include a lot of env vars here
+# I think we need only those; only distcheck is affected by this
+# 
+#  for var in CC CFLAGS CPPFLAGS CXX CXXCPP LDFLAGS LIBS F90 FC F77; do
+for var in CC CXX F90 FC F77; do
+  eval isset=\${$var+set}
+  if test "$isset" = 'set' ; then
+    eval val=$`echo $var`
+    DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS  $var=\"$val\""
+  fi
+done
+
+AC_SUBST([DISTCHECK_CONFIGURE_FLAGS])
 
 AC_OUTPUT
 
