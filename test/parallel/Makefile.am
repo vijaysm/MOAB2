@@ -31,8 +31,6 @@ if USE_MPIEXEC
 endif
 
 TESTS = pcomm_unit \
-        parallel_unit_tests \
-        uber_parallel_test \
         scdtest \
         pcomm_serial \
 	par_spatial_locator_test \
@@ -42,7 +40,9 @@ TESTS = pcomm_unit \
         $(MBCSLAM_TESTS)
 
 if PARALLEL_HDF5
-  HDF5_TESTS = parallel_hdf5_test mhdf_parallel parallel_write_test
+  HDF5_TESTS = parallel_hdf5_test mhdf_parallel parallel_write_test \
+        parallel_unit_tests \
+        uber_parallel_test 
 else
   HDF5_TESTS = 
 endif
