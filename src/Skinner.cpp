@@ -1228,7 +1228,7 @@ public:
         default:
           assert(false);
           break;
-        case 4: handles[2] = array[(idx+3)%CORNERS];
+        case 4: handles[2] = array[(idx+3)%CORNERS]; // TODO: This is a violation if CORNERS=3
         case 3: handles[1] = array[(idx+2)%CORNERS];
         case 2: handles[0] = array[(idx+1)%CORNERS];
       }
@@ -1256,7 +1256,7 @@ public:
         default:
           assert(false);
           break;
-        case 4: handles[2] = array[indices[(idx+3)%CORNERS]];
+        case 4: handles[2] = array[indices[(idx+3)%CORNERS]]; // TODO: Violation for instantiation with CORNERS=3
         case 3: handles[1] = array[indices[(idx+2)%CORNERS]];
         case 2: handles[0] = array[indices[(idx+1)%CORNERS]];
       }
@@ -1277,7 +1277,7 @@ public:
         case 4:
           return handles[0] == other.handles[0] 
               && handles[1] == other.handles[1]
-              && handles[2] == other.handles[2];
+              && handles[2] == other.handles[2]; // TODO: VSM: Again a violation for instantiation with CORNERS=3 -- Fix this bad code
         case 3:
           return handles[0] == other.handles[0] 
               && handles[1] == other.handles[1];
