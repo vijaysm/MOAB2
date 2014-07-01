@@ -169,7 +169,7 @@ static ErrorCode gather_set_stats( EntityHandle set, set_stats& stats )
         {
           if (type == MBPOLYGON) {
             edge_vtx_idx[0] = e;
-            edge_vtx_idx[1] = e+1;
+            edge_vtx_idx[1] = (e+1)%num_edges;
           }
           else
             CN::SubEntityVertexIndices( type, 1, e, edge_vtx_idx );
