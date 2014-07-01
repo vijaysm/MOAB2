@@ -64,9 +64,9 @@ if HDF5_FILE
         lloyd_smoother_test
 endif
 
-if ENABLE_ahf
-  TESTS += ahf_mbintf_test
-endif
+# if ENABLE_ahf
+#  TESTS += ahf_mbintf_test
+# endif
 
 #                 merge_test \         # input files no longer exist?
 #                 test_tag_server \    # fails
@@ -161,9 +161,9 @@ lloyd_smoother_test_SOURCES = lloyd_smoother_test.cpp
 
 ahf_test_SOURCES = test_ahf_moab.cpp
 
-if ENABLE_ahf
-ahf_mbintf_test_SOURCES = test_ahf_mb_interface.cpp
-endif
+# if ENABLE_ahf
+# ahf_mbintf_test_SOURCES = test_ahf_mb_interface.cpp
+# endif
 
 
 if PARALLEL

@@ -27,7 +27,7 @@
 
 namespace moab {
 
-  const int MAXSIZE = 500;
+  const int MAXSIZE = 150;
 
   HalfFacetRep::HalfFacetRep(Core *impl)
   {
@@ -573,15 +573,6 @@ namespace moab {
   {
     ErrorCode error;
 
-    EntityHandle start_edge = *edges.begin();
-    int count, *sibhvs_lvid_ptr; EntityHandle *sibhvs_eid_ptr;
-    error = mb->tag_iterate(sibhvs_eid, edges.begin(), edges.end(), count, (void*&)sibhvs_eid_ptr);
-    if (MB_SUCCESS != error) return error;
-    assert(count == (int) edges.size());
-    error = mb->tag_iterate(sibhvs_lvid, edges.begin(), edges.end(), count, (void*&)sibhvs_lvid_ptr);
-    if (MB_SUCCESS != error) return error;
-    assert(count == (int) edges.size());
-
     //Step 1: Create an index list storing the starting position for each vertex
     int nv = _verts.size();
     int *is_index = new int[nv+1];
@@ -595,8 +586,10 @@ namespace moab {
         error = mb->get_connectivity(&*eid, 1, conn);
         if (MB_SUCCESS != error) return error;
 
-        is_index[conn[0]-*_verts.begin()+1] += 1;
-        is_index[conn[1]-*_verts.begin()+1] += 1;
+        int index = _verts.index(conn[0]);
+        is_index[index+1] += 1;
+        index = _verts.index(conn[1]);
+        is_index[index+1] += 1;
       }
     is_index[0] = 0;
 
@@ -615,7 +608,7 @@ namespace moab {
 
         for (int j = 0; j< 2; j++)
           {
-            int v = conn[j] - *_verts.begin();
+            int v = _verts.index(conn[j]);
             v2hv_map_eid[is_index[v]] = *eid;
             v2hv_map_lvid[is_index[v]] = j;
             is_index[v] += 1;
@@ -633,26 +626,59 @@ namespace moab {
         error = mb->get_connectivity(&*eid, 1, conn);
         if (MB_SUCCESS != error) return error;
 
+        EntityHandle sibeid[2];
+        int siblvid[2];
+
+        error = mb->tag_get_data(sibhvs_eid, &*eid, 1, sibeid);
+        if (MB_SUCCESS != error) return error;
+
+        error = mb->tag_get_data(sibhvs_lvid, &*eid, 1, siblvid);
+        if (MB_SUCCESS != error) return error;
+
         for (int k =0; k<2; k++)
           {
-            if (sibhvs_eid_ptr[2*(*eid-start_edge)+k] != 0)
+
+            if (sibeid[k] != 0)
               continue;
 
-            int v = conn[k] - *_verts.begin();
+            int v = _verts.index(conn[k]);
             int last = is_index[v+1] - 1;
             if (last > is_index[v])
               {
                 EntityHandle prev_eid = v2hv_map_eid[last];
                 int prev_lvid = v2hv_map_lvid[last];
+
+                EntityHandle seteid[2];
+                int setlvid[2];
+                error = mb->tag_get_data(sibhvs_eid, &prev_eid, 1, seteid);
+                if (MB_SUCCESS != error) return error;
+
+                error = mb->tag_get_data(sibhvs_lvid, &prev_eid, 1, setlvid);
+                if (MB_SUCCESS != error) return error;
+
                 for (int i=is_index[v]; i<=last; i++)
                   {
                     EntityHandle cur_eid = v2hv_map_eid[i];
                     int cur_lvid = v2hv_map_lvid[i];
-                    sibhvs_eid_ptr[2*(prev_eid-start_edge) + prev_lvid] = cur_eid;
-                    sibhvs_lvid_ptr[2*(prev_eid-start_edge) + prev_lvid] = cur_lvid;
+
+
+                    seteid[prev_lvid] = cur_eid;
+                    setlvid[prev_lvid] = cur_lvid;
+
+                    error = mb->tag_set_data(sibhvs_eid, &prev_eid, 1, seteid);
+                    if (MB_SUCCESS != error) return error;
+
+                    error = mb->tag_set_data(sibhvs_lvid, &prev_eid, 1, setlvid);
+                    if (MB_SUCCESS != error) return error;
 
                     prev_eid = cur_eid;
                     prev_lvid = cur_lvid;
+                    error = mb->tag_get_data(sibhvs_eid, &prev_eid, 1, seteid);
+                    if (MB_SUCCESS != error) return error;
+
+                    error = mb->tag_get_data(sibhvs_lvid, &prev_eid, 1, setlvid);
+                    if (MB_SUCCESS != error) return error;
+
                   }
               }
           }
@@ -663,6 +689,7 @@ namespace moab {
     delete [] is_index;
     delete [] v2hv_map_eid;
     delete [] v2hv_map_lvid;
+
     return MB_SUCCESS;
   }
 
@@ -797,7 +824,7 @@ namespace moab {
     int nepf;
     if (type == MBTRI)  nepf = 3;
     else if (type ==MBQUAD)   nepf = 4;
-    
+
     return nepf;
   }
   /////////////////////////////////////////////////////////////////////////////////
@@ -807,16 +834,13 @@ namespace moab {
     // next: Local ids of next edges
     // prev: Local ids of prev edges
 
-    if (nepf == 3)
-    {  
-      next[0] = 1; next[1] = 2; next[2] = 0;
-      prev[0] = 2; prev[1] = 0; prev[2] = 1;
-    }
-    else if (nepf == 4)
-    {
-      next[0] = 1; next[1] = 2; next[2] = 3; next[3] = 0;
-      prev[0] = 3; prev[1] = 0; prev[2] = 1; prev[3] = 2;
-    }
+    for (int k=0; k<nepf-1; k++)
+       {
+         next[k]=k+1;
+         prev[k+1]=k;
+       }
+       next[nepf-1]=0;
+       prev[0] = nepf-1;
 
     return MB_SUCCESS;
   }
@@ -825,15 +849,6 @@ namespace moab {
   {
     ErrorCode error;
     EntityHandle start_face = *faces.begin();
-
-    // Create pointers to the tags for direct access to memory
-    int count, *sibhes_leid_ptr; EntityHandle *sibhes_fid_ptr;
-    error = mb->tag_iterate(sibhes_fid, faces.begin(), faces.end(), count, (void*&)sibhes_fid_ptr);
-    if (MB_SUCCESS != error) return error;
-    assert(count == (int) faces.size());
-    error = mb->tag_iterate(sibhes_leid, faces.begin(), faces.end(), count, (void*&)sibhes_leid_ptr);
-    if (MB_SUCCESS != error) return error;
-    assert(count == (int) faces.size());
 
     int nepf = local_maps_2d(start_face);
     int * next = new int[nepf];
@@ -847,6 +862,7 @@ namespace moab {
     for (int i =0; i<nv+1; i++)
       is_index[i] = 0;
 
+    int index;
     std::vector<EntityHandle> conn(nepf);
     for (Range::iterator fid = faces.begin(); fid != faces.end(); ++fid)
        {
@@ -856,7 +872,8 @@ namespace moab {
 
          for (int i = 0; i<nepf; i++)
            {
-             is_index[conn[i]-*_verts.begin()+1] += 1;
+             index = _verts.index(conn[i]);
+             is_index[index+1] += 1;
            }
        }
      is_index[0] = 0;
@@ -877,7 +894,7 @@ namespace moab {
 
          for (int j = 0; j< nepf; j++)
            {
-             int v = conn[j] - *_verts.begin();
+             int v = _verts.index(conn[j]);
              v2nv[is_index[v]] = conn[next[j]];
              v2he_map_fid[is_index[v]] = *fid;
              v2he_map_leid[is_index[v]] = j;
@@ -889,6 +906,7 @@ namespace moab {
        is_index[i+1] = is_index[i];
      is_index[0] = 0;
 
+
      //Step 3: Fill up sibling half-verts map
      for (Range::iterator fid = faces.begin(); fid != faces.end(); ++fid)
        {
@@ -896,13 +914,22 @@ namespace moab {
          error = mb->get_connectivity(&*fid, 1, conn);
          if (MB_SUCCESS != error) return error;
 
+         EntityHandle *sibfid = new EntityHandle[nepf];
+         int *sibleid = new int[nepf];
+
+         error = mb->tag_get_data(sibhes_fid, &*fid, 1, sibfid);
+         if (MB_SUCCESS != error) return error;
+
+         error = mb->tag_get_data(sibhes_leid, &*fid, 1, sibleid);
+         if (MB_SUCCESS != error) return error;
+
          for (int k =0; k<nepf; k++)
            {
-             if (sibhes_fid_ptr[nepf*(*fid-start_face)+k] != 0)
+             if (sibfid[k] != 0)
                continue;
 
-             int v = conn[k] - *_verts.begin();
-             int vn = conn[next[k]] - *_verts.begin();
+             int v = _verts.index(conn[k]);
+             int vn = _verts.index(conn[next[k]]);
 
              EntityHandle first_fid = *fid;
              int first_leid = k;
@@ -910,38 +937,87 @@ namespace moab {
              EntityHandle prev_fid = *fid;
              int prev_leid = k;
 
-             for (int index = is_index[vn]; index <= is_index[vn+1]-1; index++)
+             EntityHandle *setfid = new EntityHandle[nepf];
+             int *setleid = new int[nepf];
+
+             for (index = is_index[vn]; index <= is_index[vn+1]-1; index++)
                {
                  if (v2nv[index] == conn[k])
                    {
                      EntityHandle cur_fid = v2he_map_fid[index];
                      int cur_leid = v2he_map_leid[index];
-                     sibhes_fid_ptr[nepf*(prev_fid-start_face)+prev_leid] = cur_fid;
-                     sibhes_leid_ptr[nepf*(prev_fid-start_face)+prev_leid] = cur_leid;
+
+                     error = mb->tag_get_data(sibhes_fid, &prev_fid, 1, setfid);
+                     if (MB_SUCCESS != error) return error;
+
+                     error = mb->tag_get_data(sibhes_leid, &prev_fid, 1, setleid);
+                     if (MB_SUCCESS != error) return error;
+
+                     setfid[prev_leid] = cur_fid;
+                     setleid[prev_leid] = cur_leid;
+
+                     error = mb->tag_set_data(sibhes_fid, &prev_fid, 1, setfid);
+                     if (MB_SUCCESS != error) return error;
+
+                     error = mb->tag_set_data(sibhes_leid, &prev_fid, 1, setleid);
+                     if (MB_SUCCESS != error) return error;
+
                      prev_fid = cur_fid;
                      prev_leid = cur_leid;
+
                    }
                }
 
-             for (int index = is_index[v]; index <= is_index[v+1]-1; index++)
+             for (index = is_index[v]; index <= is_index[v+1]-1; index++)
                {
                  if ((v2nv[index] == conn[next[k]])&&(v2he_map_fid[index] != *fid))
                    {
+
                      EntityHandle cur_fid = v2he_map_fid[index];
                      int cur_leid = v2he_map_leid[index];
-                     sibhes_fid_ptr[nepf*(prev_fid-start_face)+prev_leid] = cur_fid;
-                     sibhes_leid_ptr[nepf*(prev_fid-start_face)+prev_leid] = cur_leid;
+
+                     error = mb->tag_get_data(sibhes_fid, &prev_fid, 1, setfid);
+                     if (MB_SUCCESS != error) return error;
+
+                     error = mb->tag_get_data(sibhes_leid, &prev_fid, 1, setleid);
+                     if (MB_SUCCESS != error) return error;
+
+                     setfid[prev_leid] = cur_fid;
+                     setleid[prev_leid] = cur_leid;
+
+                     error = mb->tag_set_data(sibhes_fid, &prev_fid, 1, setfid);
+                     if (MB_SUCCESS != error) return error;
+
+                     error = mb->tag_set_data(sibhes_leid, &prev_fid, 1, setleid);
+                     if (MB_SUCCESS != error) return error;
+
                      prev_fid = cur_fid;
                      prev_leid = cur_leid;
                    }
                }
 
              if (prev_fid != first_fid){
-               sibhes_fid_ptr[nepf*(prev_fid-start_face) + prev_leid] = first_fid;
-               sibhes_leid_ptr[nepf*(prev_fid-start_face) + prev_leid] = first_leid;
-             }
+                 error = mb->tag_get_data(sibhes_fid, &prev_fid, 1, setfid);
+                 if (MB_SUCCESS != error) return error;
 
+                 error = mb->tag_get_data(sibhes_leid, &prev_fid, 1, setleid);
+                 if (MB_SUCCESS != error) return error;
+
+                 setfid[prev_leid] = first_fid;
+                 setleid[prev_leid] = first_leid;
+
+                 error = mb->tag_set_data(sibhes_fid, &prev_fid, 1, setfid);
+                 if (MB_SUCCESS != error) return error;
+
+                 error = mb->tag_set_data(sibhes_leid, &prev_fid, 1, setleid);
+                 if (MB_SUCCESS != error) return error;
+
+             }
+             delete [] setfid;
+             delete [] setleid;
            }
+         delete [] sibfid;
+         delete [] sibleid;
        }
 
      delete [] next;
@@ -1311,7 +1387,7 @@ namespace moab {
 	error = mb->get_connectivity(&curfid, 1, conn);
 	if (MB_SUCCESS != error) return error;
 
-	int id = next[curlid];
+    int id = next[curlid];
 	if (((conn[curlid]==edg_vert[0])&&(conn[id]==edg_vert[1]))||((conn[curlid]==edg_vert[1])&&(conn[id]==edg_vert[0]))){
 	    *he_fid = curfid;
 	    *he_lid = curlid;
@@ -1336,7 +1412,7 @@ namespace moab {
 	counter += 1;
       }
       
-    delete [] next; 
+    delete [] next;
     delete [] prev;
     return found;
   }
@@ -1417,7 +1493,7 @@ namespace moab {
   }
 
   /////////////////////////////////////////////
-   HalfFacetRep::LocalMaps3D HalfFacetRep::lConnMap3D[4] = 
+   const HalfFacetRep::LocalMaps3D HalfFacetRep::lConnMap3D[4] =
     {
       // Tet
       {4, 6, 4, {3,3,3,3}, {{0,1,3},{1,2,3},{2,0,3},{0,2,1}},   {3,3,3,3},   {{0,2,3},{0,1,3},{1,2,3},{0,1,2}},   {{0,1},{1,2},{2,0},{0,3},{1,3},{2,3}},   {{3,0},{3,1},{3,2},{0,2},{0,1},{1,2}},   {{0,4,3},{1,5,4},{2,3,5},{2,1,0}},     {{-1,0,2,3},{0,-1,1,4},{2,1,-1,5},{3,4,5,-1}}},
@@ -1439,16 +1515,6 @@ namespace moab {
   {
     ErrorCode error;
     EntityHandle start_cell = *cells.begin();
-
-    int count, *sibhfs_lfid_ptr;
-    EntityHandle *sibhfs_cid_ptr;
-    error = mb->tag_iterate(sibhfs_cid, cells.begin(), cells.end(), count, (void*&)sibhfs_cid_ptr);
-    if (MB_SUCCESS != error) return error;
-    assert(count == (int) cells.size());
-    error = mb->tag_iterate(sibhfs_lfid, cells.begin(), cells.end(), count, (void*&)sibhfs_lfid_ptr);
-    if (MB_SUCCESS != error) return error;
-    assert(count == (int) cells.size());
-
     int index = get_index_from_type(start_cell);
     int nvpc = lConnMap3D[index].num_verts_in_cell;
     int nfpc = lConnMap3D[index].num_faces_in_cell;
@@ -1459,6 +1525,7 @@ namespace moab {
     for (int i =0; i<nv+1; i++)
       is_index[i] = 0;
 
+    int vindex;
     std::vector<EntityHandle> conn(nvpc);
     for (Range::iterator cid = cells.begin(); cid != cells.end(); ++cid)
        {
@@ -1476,7 +1543,8 @@ namespace moab {
                 if (v <= conn[id])
                   v = conn[id];
               }
-            is_index[v-*_verts.begin()+1] += 1;
+            vindex = _verts.index(v);
+            is_index[vindex+1] += 1;
           }
       }
      is_index[0] = 0;
@@ -1518,7 +1586,7 @@ namespace moab {
              error = local_maps_2d(nvF, next, prev);
              if (MB_SUCCESS != error) return error;
 
-             int v = vmax - *_verts.begin();
+             int v = _verts.index(vmax);
              v2oe_v1[is_index[v]] = vs[next[lv]];
              v2oe_v2[is_index[v]] = vs[prev[lv]];
              v2hf_map_cid[is_index[v]] = *cid;
@@ -1542,9 +1610,18 @@ namespace moab {
          error = mb->get_connectivity(&*cid, 1, conn);
          if (MB_SUCCESS != error) return error;
 
+         EntityHandle *sibcid = new EntityHandle[nfpc];
+         int *siblfid = new int[nfpc];
+
+         error = mb->tag_get_data(sibhfs_cid, &*cid, 1, sibcid);
+         if (MB_SUCCESS != error) return error;
+
+         error = mb->tag_get_data(sibhfs_lfid, &*cid, 1, siblfid);
+         if (MB_SUCCESS != error) return error;
+
          for (int i =0; i<nfpc; i++)
            {
-             if (sibhfs_cid_ptr[nfpc*(*cid-start_cell)+i] != 0)
+             if (sibcid[i] != 0)
                continue;
 
 
@@ -1568,31 +1645,60 @@ namespace moab {
              error = local_maps_2d(nvF, next, prev);
              if (MB_SUCCESS != error) return error;
 
-             int v = vmax - *_verts.begin();
+             int v = _verts.index(vmax);
              EntityHandle v1 = vs[prev[lv]];
              EntityHandle v2 = vs[next[lv]];
+
+             EntityHandle *setcid = new EntityHandle[nfpc];
+             int *setlfid = new int[nfpc];
 
              for (int ind = is_index[v]; ind <= is_index[v+1]-1; ind++)
                {
                  if ((v2oe_v1[ind] == v1)&&(v2oe_v2[ind] == v2))
                    {
-
+                     // Map to opposite hf
                      EntityHandle cur_cid = v2hf_map_cid[ind];
                      int cur_lfid = v2hf_map_lfid[ind];
 
-                     sibhfs_cid_ptr[nfpc*(*cid-start_cell)+i] = cur_cid;
-                     sibhfs_lfid_ptr[nfpc*(*cid-start_cell)+i] = cur_lfid;
+                     error = mb->tag_get_data(sibhfs_cid, &*cid, 1, setcid);
+                     if (MB_SUCCESS != error) return error;
 
-                     sibhfs_cid_ptr[nfpc*(cur_cid-start_cell)+cur_lfid] = *cid;
-                     sibhfs_lfid_ptr[nfpc*(cur_cid-start_cell)+cur_lfid] = i;
+                     error = mb->tag_get_data(sibhfs_lfid, &*cid, 1, setlfid);
+                     if (MB_SUCCESS != error) return error;
 
+                     setcid[i] = cur_cid;
+                     setlfid[i] = cur_lfid;
+
+                     error = mb->tag_set_data(sibhfs_cid, &*cid, 1, setcid);
+                     if (MB_SUCCESS != error) return error;
+                     error = mb->tag_set_data(sibhfs_lfid, &*cid, 1, setlfid);
+                     if (MB_SUCCESS != error) return error;
+
+                     //Map opposite hf to current cell
+                     error = mb->tag_get_data(sibhfs_cid, &cur_cid, 1, setcid);
+                     if (MB_SUCCESS != error) return error;
+
+                     error = mb->tag_get_data(sibhfs_lfid, &cur_cid, 1, setlfid);
+                     if (MB_SUCCESS != error) return error;
+
+                     setcid[cur_lfid] = *cid;
+                     setlfid[cur_lfid] = i;
+
+                     error = mb->tag_set_data(sibhfs_cid, &cur_cid, 1, setcid);
+                     if (MB_SUCCESS != error) return error;
+                     error = mb->tag_set_data(sibhfs_lfid, &cur_cid, 1, setlfid);
+                     if (MB_SUCCESS != error) return error;
                    }
                }
 
              delete [] next;
              delete [] prev;
              delete [] vs;
+             delete [] setcid;
+             delete [] setlfid;
            }
+         delete sibcid;
+         delete siblfid;
        }
 
 
@@ -2115,10 +2221,8 @@ namespace moab {
   bool HalfFacetRep::find_match_in_array(EntityHandle ent, EntityHandle *ent_list, int count, bool get_index, int *index)
   {
     bool found = false;
-   // std::cout<<"count = "<<count<<std::endl;
     for (int i = 0; i<= count; i++)
       {
-     //   std::cout<<"For i = "<<i<<": ent-ent_list[i] = "<<(int)(ent-ent_list[i])<<std::endl;
         if (!((int)(ent - ent_list[i])))
           {
             found = true;

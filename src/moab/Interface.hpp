@@ -630,6 +630,12 @@ public:
     #else
       ) = 0;
     #endif
+  /*virtual ErrorCode get_adjacencies(const EntityHandle *from_entities,
+                                      const int num_entities,
+                                      const int to_dimension,
+                                      const bool create_if_missing,
+                                      std::vector<EntityHandle>& adj_entities,
+                                      const int operation_type = Interface::INTERSECT) = 0; */
 
     //! Get the adjacencies associated with a vector of entities to entities of a specfied dimension.
     /** Identical to vector-based get_adjacencies function, except results are returned in a

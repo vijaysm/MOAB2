@@ -533,7 +533,7 @@ namespace moab {
       int lookup_leids[MAX_VERTICES][MAX_VERTICES];
     };
 
-    static  LocalMaps3D lConnMap3D[4];
+    static const LocalMaps3D lConnMap3D[4];
 
     int get_index_from_type(EntityHandle cid);
 

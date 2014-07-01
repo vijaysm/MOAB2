@@ -1540,6 +1540,12 @@ ErrorCode Core::get_adjacencies( const EntityHandle *from_entities,
 #else
                                  )
 #endif
+/*ErrorCode Core::get_adjacencies( const EntityHandle *from_entities,
+                                     const int num_entities,
+                                     const int to_dimension,
+                                     const bool create_if_missing,
+                                     std::vector<EntityHandle> &adj_entities,
+                                     const int operation_type)*/
 {
 
 #ifdef USE_AHF
@@ -1558,6 +1564,12 @@ ErrorCode Core::get_adjacencies( const EntityHandle *from_entities,
         std::cout<<"Reverting to MOAB adjacency functionality"<<std::endl;
         can_handle = false;
     }
+    else if (to_dimension == 4)
+    {
+        std::cout<<"Currently Not Supported by MOAB_AHF: meshsets"<<std::endl;
+        std::cout<<"Reverting to MOAB adjacency functionality"<<std::endl;
+        can_handle = false;
+    }
     else if (TYPE_FROM_HANDLE(from_entities[0]) == MBPOLYHEDRON)
     {
         std::cout<<"Currently Not Supported by MOAB_AHF: Polyhedron Meshes"<<std::endl;
@@ -1571,7 +1583,9 @@ ErrorCode Core::get_adjacencies( const EntityHandle *from_entities,
         can_handle = false;
     }
 
+
     if ((use_ahf) && (can_handle))
+    //if (can_handle)
     {
 
         if (operation_type == Interface::INTERSECT)
