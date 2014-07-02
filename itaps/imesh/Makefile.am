@@ -37,9 +37,8 @@ if PARALLEL
   AM_CPPFLAGS += -I$(top_srcdir)/src/parallel -I$(top_srcdir)/src/parallel/moab
 
 #  check_PROGRAMS += partest iMeshP_unit_tests moabtest
-  check_PROGRAMS += partest  
 if PARALLEL_HDF5
-  check_PROGRAMS += MOAB_iMeshP_unit_tests 
+  check_PROGRAMS += MOAB_iMeshP_unit_tests partest
 endif
 #  moabtest_SOURCES = moabtest.F
 

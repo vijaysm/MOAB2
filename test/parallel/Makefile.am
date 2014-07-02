@@ -42,7 +42,7 @@ TESTS = pcomm_unit \
 if PARALLEL_HDF5
   HDF5_TESTS = parallel_hdf5_test mhdf_parallel parallel_write_test \
         parallel_unit_tests \
-        uber_parallel_test 
+        uber_parallel_test parmerge
 else
   HDF5_TESTS = 
 endif
@@ -61,19 +61,28 @@ else
 endif
 endif
 
+
 if ENABLE_mbcoupler
+if PARALLEL_HDF5
   COUPLER_TESTS = par_coupler_test
+else
+  COUPLER_TESTS = 
+endif 
 else
   COUPLER_TESTS = 
 endif
 
 if ENABLE_mbcslam
+if PARALLEL_HDF5
   MBCSLAM_TESTS = par_intx_sph 
+else
+  MBCSLAM_TESTS =
+endif
 else
   MBCSLAM_TESTS = 
 endif
 
-check_PROGRAMS = $(TESTS) mbparallelcomm_test partcheck structured3 parmerge
+check_PROGRAMS = $(TESTS) mbparallelcomm_test partcheck structured3 
 
 pcomm_unit_SOURCES = pcomm_unit.cpp
 parallel_hdf5_test_SOURCES = parallel_hdf5_test.cc

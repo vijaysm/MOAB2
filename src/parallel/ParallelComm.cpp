@@ -8143,9 +8143,11 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
     }
   
     if (MB_SUCCESS != result && print_em) {
+#ifdef HDF5_FILE
       std::ostringstream ent_str;
       ent_str << "mesh." << procConfig.proc_rank() << ".h5m";
       mbImpl->write_mesh(ent_str.str().c_str());
+#endif
     }
   
     return result;
