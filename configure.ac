@@ -851,7 +851,7 @@ if test "xno" != "x$WITH_VTK" -a "x" != "x$WITH_VTK"; then
     x?*)
       VTK_LIB_DIR=
       VTK_INC_DIR=
-      for dir in ${WITH_VTK}/include/vtk ${WITH_VTK}/include ${WITH_VTK}/include/paraview* ${WITH_VTK}/VTK ${WITH_VTK}; do
+      for dir in ${WITH_VTK}/include/vtk* ${WITH_VTK}/include ${WITH_VTK}/include/paraview* ${WITH_VTK}/VTK ${WITH_VTK}; do
         if test "x" = "x$VTK_INC_DIR"; then
           AC_CHECK_FILE([${dir}/vtkUnstructuredGrid.h],[VTK_INC_DIR="-I$dir"])
         fi
