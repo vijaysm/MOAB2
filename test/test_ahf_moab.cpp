@@ -97,7 +97,25 @@ ErrorCode ahf_test(Core *moab)
     }
 
     // 2D Queries
-    //IQ2: For every edge, obtain incident faces
+
+    // IQ21: For every vertex, obtain incident faces
+    for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
+        adjents.clear();
+        error = ahf.get_up_adjacencies( *i, 2, adjents);
+        CHECK_ERR(error);
+        mbents.clear();
+        error = mbImpl->get_adjacencies( &*i, 1, 2, false, mbents);
+        CHECK_ERR(error);
+
+        CHECK_EQUAL(adjents.size(), mbents.size());
+
+        std::sort(adjents.begin(), adjents.end());
+        std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
+        mbents = subtract(mbents, ahfents);
+        CHECK(!mbents.size());
+    }
+
+    //IQ22: For every edge, obtain incident faces
     for (Range::iterator i = edges.begin(); i != edges.end(); ++i) {
         adjents.clear();
         error = ahf.get_up_adjacencies( *i, 2, adjents);
@@ -132,7 +150,24 @@ ErrorCode ahf_test(Core *moab)
     }
 
     // 3D Queries
-    // IQ 31: For every edge, obtain incident cells
+    //IQ 31: For every vertex, obtain incident cells
+    for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
+        adjents.clear();
+        error = ahf.get_up_adjacencies( *i, 3, adjents);
+        CHECK_ERR(error);
+        mbents.clear();
+        error = mbImpl->get_adjacencies(&*i, 1, 3, false, mbents);
+        CHECK_ERR(error);
+
+        CHECK_EQUAL(adjents.size(), mbents.size());
+
+        std::sort(adjents.begin(), adjents.end());
+        std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
+        mbents = subtract(mbents, ahfents);
+        CHECK(!mbents.size());
+    }
+
+    // IQ 32: For every edge, obtain incident cells
     for (Range::iterator i = edges.begin(); i != edges.end(); ++i) {
         adjents.clear();
         error = ahf.get_up_adjacencies( *i, 3, adjents);
@@ -149,7 +184,7 @@ ErrorCode ahf_test(Core *moab)
         CHECK(!mbents.size());
     }
 
-    //IQ32: For every face, obtain incident cells
+    //IQ33: For every face, obtain incident cells
     for (Range::iterator i = faces.begin(); i != faces.end(); ++i) {
         adjents.clear();
         error = ahf.get_up_adjacencies( *i, 3, adjents);

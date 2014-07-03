@@ -315,30 +315,16 @@ public:
             get_adjacencies( from_entities, MB_1D_ENTITY, adjacencies ); 
             \endcode */
 
-  virtual ErrorCode get_adjacencies(const EntityHandle *from_entities,
+   virtual ErrorCode get_adjacencies(const EntityHandle *from_entities,
                                        const int num_entities,
                                        const int to_dimension,
                                        const bool create_if_missing,
                                        std::vector<EntityHandle>& adj_entities,
-                                       const int operation_type = Interface::INTERSECT
-    #ifdef USE_AHF
-      , const bool use_ahf = false);
-    #else
-      );
-    #endif
-
-
-  /*virtual ErrorCode get_adjacencies(const EntityHandle *from_entities,
-                                       const int num_entities,
-                                       const int to_dimension,
-                                       const bool create_if_missing,
-                                       std::vector<EntityHandle>& adj_entities,
-                                       const int operation_type = Interface::INTERSECT);*/
+                                       const int operation_type = Interface::INTERSECT);
 
 
 
-
-    virtual ErrorCode get_adjacencies(const EntityHandle *from_entities,
+   virtual ErrorCode get_adjacencies(const EntityHandle *from_entities,
                                         const int num_entities,
                                          const int to_dimension,
                                          const bool create_if_missing,
@@ -1375,6 +1361,7 @@ private:
 
 #ifdef USE_AHF
   HalfFacetRep *ahfRep;
+  bool mesh_modified;
 #endif
   
 };

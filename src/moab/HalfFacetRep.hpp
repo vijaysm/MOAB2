@@ -62,6 +62,8 @@ namespace moab {
     
     ~HalfFacetRep();
 
+    bool check_mixed_entity_type();
+
     // User interface functions
 
     //! Creates all the necessary tags to store the maps. Constructs the sibling-half-facet and vertex-to-incident-half-facet maps for each dimension present in the input.
@@ -177,8 +179,7 @@ namespace moab {
 
     ErrorCode determine_incident_halfedges(Range &faces);
 
-   /* ErrorCode get_up_adjacencies_2d(EntityHandle vid,
-                                       std::vector<EntityHandle> &adjents);*/
+    ErrorCode get_up_adjacencies_vert_2d(EntityHandle vid, std::vector<EntityHandle> &adjents);
 
     //! Given an edge, finds the faces incident on it.
     /** Given an edge, it first finds a matching half-edge corresponding to eid, and then
@@ -259,6 +260,9 @@ namespace moab {
 
     ErrorCode determine_border_vertices( Range &cells,
                                          Tag isborder);
+
+
+    ErrorCode get_up_adjacencies_vert_3d(EntityHandle vid, std::vector<EntityHandle> &adjents);
 
     //! Given an edge, finds the cells incident on it.
     /** Given an edge, it first finds a matching local edge in a cell corresponding to eid, and then
@@ -353,8 +357,19 @@ namespace moab {
     Tag sibhes_fid, sibhes_leid, v2he_fid, v2he_leid;
     Tag sibhfs_cid, sibhfs_lfid, v2hf_cid, v2hf_lfid;
 
-
+    MESHTYPE thismeshtype;
     MESHTYPE get_mesh_type(int nverts, int nedges, int nfaces, int ncells);
+
+    struct adj_matrix{
+        int val[4][4];
+    };
+
+    static const adj_matrix adjMatrix[7];
+    int get_index_for_meshtype(MESHTYPE mesh_type);
+
+    // These two flags are for checking mixed entity type meshes
+    bool is_mixed;
+    bool chk_mixed;
 
     ErrorCode init_curve();
     ErrorCode init_surface();
@@ -363,6 +378,7 @@ namespace moab {
     ErrorCode deinit_curve();
     ErrorCode deinit_surface();
     ErrorCode deinit_volume();
+
 
     //! Contains the local information for 2D entities
     /** Given a face, find the face type specific information

@@ -619,23 +619,13 @@ public:
             get_adjacencies( from_entities, 2, 1, false, adjacencies, Interface::INTERSECT); 
             \endcode 
     */
+
   virtual ErrorCode get_adjacencies(const EntityHandle *from_entities,
                                       const int num_entities,
                                       const int to_dimension,
                                       const bool create_if_missing,
                                       std::vector<EntityHandle>& adj_entities,
-                                      const int operation_type = Interface::INTERSECT
-    #ifdef USE_AHF
-      , const bool use_ahf = false) = 0;
-    #else
-      ) = 0;
-    #endif
-  /*virtual ErrorCode get_adjacencies(const EntityHandle *from_entities,
-                                      const int num_entities,
-                                      const int to_dimension,
-                                      const bool create_if_missing,
-                                      std::vector<EntityHandle>& adj_entities,
-                                      const int operation_type = Interface::INTERSECT) = 0; */
+                                      const int operation_type = Interface::INTERSECT) = 0;
 
     //! Get the adjacencies associated with a vector of entities to entities of a specfied dimension.
     /** Identical to vector-based get_adjacencies function, except results are returned in a

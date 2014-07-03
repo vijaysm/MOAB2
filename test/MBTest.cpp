@@ -6559,7 +6559,7 @@ ErrorCode mb_skin_verts_common( unsigned dim, bool skin_elems )
     std::cout << "Extra/non-returned elements created: " << extra << std::endl;
     return MB_FAILURE;
   }
-    
+
     // check that each skin vertex has the correct number of adjacent quads
   missing.clear(); extra.clear();
   for (Range::iterator i = expected.begin(); i != expected.end(); ++i) {

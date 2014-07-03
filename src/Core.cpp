@@ -280,6 +280,7 @@ ErrorCode Core::initialize()
   ahfRep = new HalfFacetRep(this);
   if (!ahfRep)
     return MB_MEMORY_ALLOCATION_FAILED;
+  mesh_modified = false;
 #endif
 
   return MB_SUCCESS;
@@ -1353,80 +1354,6 @@ ErrorCode get_adjacencies_union( Core* gMB,
   return result;
 }
 
-
-///////////////////////////
-///
-#ifdef USE_AHF
-template <typename ITER> static inline
-ErrorCode get_adjacencies_intersection_ahf(Core *mb,
-                             ITER begin, ITER end,
-                             const int to_dimension,
-                             std::vector<EntityHandle>& adj_entities )
-{
-  const size_t SORT_THRESHOLD = 200;
-  std::vector<EntityHandle> temp_vec;
-  std::vector<EntityHandle>::iterator adj_it, w_it;
-  ErrorCode result = MB_SUCCESS;
-
-  if (begin == end) {
-    adj_entities.clear(); // intersection
-    return MB_SUCCESS;
-  }
-
-    // First iteration is a special case if input list is empty.
-    // Rather than returning nothing (intersecting with empty
-    // input list), we begin with the adjacencies for the first entity.
-  if (adj_entities.empty()) {
-    EntityType type = TYPE_FROM_HANDLE(*begin);
-
-    if(to_dimension == 0 && type != MBPOLYHEDRON)
-      result = mb->get_connectivity(&(*begin), 1, adj_entities);
-    else
-      result = mb->a_half_facet_rep()->get_adjacencies(*begin, to_dimension, adj_entities);
-    if (MB_SUCCESS != result)
-      return result;
-    ++begin;
-  }
-
-  for (ITER from_it = begin; from_it != end; from_it++)
-  {
-      // running results kept in adj_entities; clear temp_vec, which is working space
-    temp_vec.clear();
-
-      // get the next set of adjacencies
-    EntityType type = TYPE_FROM_HANDLE(*from_it);
-    if(to_dimension == 0 && type != MBPOLYHEDRON)
-      result = mb->get_connectivity(&(*from_it), 1, temp_vec);
-    else
-      result = mb->a_half_facet_rep()->get_adjacencies(*from_it, to_dimension, temp_vec);
-    if (MB_SUCCESS != result)
-      return result;
-
-      // otherwise intersect with the current set of results
-    w_it = adj_it = adj_entities.begin();
-    if (temp_vec.size()*adj_entities.size() < SORT_THRESHOLD) {
-      for (; adj_it != adj_entities.end(); ++adj_it)
-        if (std::find(temp_vec.begin(), temp_vec.end(), *adj_it) != temp_vec.end())
-          { *w_it = *adj_it; ++w_it; }
-    }
-    else {
-      std::sort( temp_vec.begin(), temp_vec.end() );
-      for (; adj_it != adj_entities.end(); ++adj_it)
-        if (std::binary_search(temp_vec.begin(), temp_vec.end(), *adj_it))
-          { *w_it = *adj_it; ++w_it; }
-    }
-    adj_entities.erase( w_it, adj_entities.end() );
-
-      // we're intersecting, so if there are no more results, we're done
-    if (adj_entities.empty())
-      break;
-  }
-
-  return MB_SUCCESS;
-}
-#endif
-///////////////////////////////////////////
-
 template <typename ITER> static inline
 ErrorCode get_adjacencies_intersection( Core* mb,
                              ITER begin, ITER end,
@@ -1529,23 +1456,87 @@ ErrorCode get_adjacencies_intersection( Core* mb,
   return MB_SUCCESS;
 }
 
+///////////////////////////////////////////////////////////////////
+//////////////////////////////////////////
+#ifdef USE_AHF
+
+template <typename ITER> static inline
+ErrorCode get_adjacencies_intersection_ahf(Core *mb,
+                             ITER begin, ITER end,
+                             const int to_dimension,
+                             std::vector<EntityHandle>& adj_entities )
+{
+  const size_t SORT_THRESHOLD = 200;
+  std::vector<EntityHandle> temp_vec;
+  std::vector<EntityHandle>::iterator adj_it, w_it;
+  ErrorCode result = MB_SUCCESS;
+
+  if (begin == end) {
+    adj_entities.clear(); // intersection
+    return MB_SUCCESS;
+  }
+
+    // First iteration is a special case if input list is empty.
+    // Rather than returning nothing (intersecting with empty
+    // input list), we begin with the adjacencies for the first entity.
+  if (adj_entities.empty()) {
+    EntityType type = TYPE_FROM_HANDLE(*begin);
+
+    if(to_dimension == 0 && type != MBPOLYHEDRON)
+      result = mb->get_connectivity(&(*begin), 1, adj_entities);
+    else
+      result = mb->a_half_facet_rep()->get_adjacencies(*begin, to_dimension, adj_entities);
+    if (MB_SUCCESS != result)
+      return result;
+    ++begin;
+  }
+
+  for (ITER from_it = begin; from_it != end; from_it++)
+  {
+      // running results kept in adj_entities; clear temp_vec, which is working space
+    temp_vec.clear();
+
+      // get the next set of adjacencies
+    EntityType type = TYPE_FROM_HANDLE(*from_it);
+    if(to_dimension == 0 && type != MBPOLYHEDRON)
+      result = mb->get_connectivity(&(*from_it), 1, temp_vec);
+    else
+      result = mb->a_half_facet_rep()->get_adjacencies(*from_it, to_dimension, temp_vec);
+    if (MB_SUCCESS != result)
+      return result;
+
+      // otherwise intersect with the current set of results
+    w_it = adj_it = adj_entities.begin();
+    if (temp_vec.size()*adj_entities.size() < SORT_THRESHOLD) {
+      for (; adj_it != adj_entities.end(); ++adj_it)
+        if (std::find(temp_vec.begin(), temp_vec.end(), *adj_it) != temp_vec.end())
+          { *w_it = *adj_it; ++w_it; }
+    }
+    else {
+      std::sort( temp_vec.begin(), temp_vec.end() );
+      for (; adj_it != adj_entities.end(); ++adj_it)
+        if (std::binary_search(temp_vec.begin(), temp_vec.end(), *adj_it))
+          { *w_it = *adj_it; ++w_it; }
+    }
+    adj_entities.erase( w_it, adj_entities.end() );
+
+      // we're intersecting, so if there are no more results, we're done
+    if (adj_entities.empty())
+      break;
+  }
+
+  return MB_SUCCESS;
+}
+#endif
+
+///////////////////////////////////////////
+
 ErrorCode Core::get_adjacencies( const EntityHandle *from_entities,
                                      const int num_entities,
                                      const int to_dimension,
                                      const bool create_if_missing,
                                      std::vector<EntityHandle> &adj_entities,
-                                     const int operation_type
-#ifdef USE_AHF
-                                 , const bool use_ahf)
-#else
-                                 )
-#endif
-/*ErrorCode Core::get_adjacencies( const EntityHandle *from_entities,
-                                     const int num_entities,
-                                     const int to_dimension,
-                                     const bool create_if_missing,
-                                     std::vector<EntityHandle> &adj_entities,
-                                     const int operation_type)*/
+                                     const int operation_type)
 {
 
 #ifdef USE_AHF
@@ -1553,41 +1544,22 @@ ErrorCode Core::get_adjacencies( const EntityHandle *from_entities,
     int source_dim = this->dimension_from_handle(from_entities[0]);
 
     if ((source_dim > to_dimension) && (to_dimension != 0))
-    {
-        std::cout<<"Currently Not Supported by MOAB_AHF: Down Adjacencies"<<std::endl;
-        std::cout<<"Reverting to MOAB adjacency functionality"<<std::endl;
-        can_handle = false;
-    }
-    else if (((source_dim == 0) && (to_dimension == 2))||((source_dim == 0) && (to_dimension == 3)))
-    {
-        std::cout<<"Currently Not Supported by MOAB_AHF: Vertex to face/cell"<<std::endl;
-        std::cout<<"Reverting to MOAB adjacency functionality"<<std::endl;
-        can_handle = false;
-    }
+        can_handle = false; //NOT SUPPORTED: Down adjacencies
     else if (to_dimension == 4)
-    {
-        std::cout<<"Currently Not Supported by MOAB_AHF: meshsets"<<std::endl;
-        std::cout<<"Reverting to MOAB adjacency functionality"<<std::endl;
-        can_handle = false;
-    }
-    else if (TYPE_FROM_HANDLE(from_entities[0]) == MBPOLYHEDRON)
-    {
-        std::cout<<"Currently Not Supported by MOAB_AHF: Polyhedron Meshes"<<std::endl;
-        std::cout<<"Reverting to MOAB adjacency functionality"<<std::endl;
-        can_handle = false;
-    }
+        can_handle = false; // NOT SUPPORTED: meshsets
     else if (create_if_missing)
-    {
-        std::cout<<"Currently Not Supporteded by MOAB_AHF: create_if_missing capability "<<std::endl;
-        std::cout<<"Reverting to MOAB adjacency functionality"<<std::endl;
+        can_handle = false;//NOT SUPPORTED: create_if_missing
+
+    bool mixed = ahfRep->check_mixed_entity_type(); //NOT SUPPORTED: mixed entity types or polygonal/hedrals types
+    if (mixed)
         can_handle = false;
-    }
 
+    if (mesh_modified)
+        can_handle = false;
 
-    if ((use_ahf) && (can_handle))
-    //if (can_handle)
+    if (can_handle)
     {
-
+        ErrorCode result;
         if (operation_type == Interface::INTERSECT)
             return get_adjacencies_intersection_ahf(this, from_entities, from_entities+num_entities,
                                                     to_dimension, adj_entities );
@@ -1595,7 +1567,7 @@ ErrorCode Core::get_adjacencies( const EntityHandle *from_entities,
             return MB_FAILURE;
 
         // do union
-        ErrorCode result;
+
         std::vector<EntityHandle> tmp_storage;
         const EntityHandle* conn;
         int len;
@@ -1668,14 +1640,14 @@ ErrorCode Core::get_adjacencies( const EntityHandle *from_entities,
                                      Range &adj_entities,
                                      const int operation_type )
 {
-  if (operation_type == Interface::INTERSECT)
-    return get_adjacencies_intersection( this, from_entities, from_entities + num_entities,
-                                         to_dimension, create_if_missing, adj_entities );
-  else if (operation_type == Interface::UNION)
-    return get_adjacencies_union( this, from_entities, from_entities + num_entities,
-                                  to_dimension, create_if_missing, adj_entities );
-  else
-    return MB_FAILURE;
+    if (operation_type == Interface::INTERSECT)
+        return get_adjacencies_intersection( this, from_entities, from_entities + num_entities,
+                                             to_dimension, create_if_missing, adj_entities );
+    else if (operation_type == Interface::UNION)
+        return get_adjacencies_union( this, from_entities, from_entities + num_entities,
+                                      to_dimension, create_if_missing, adj_entities );
+    else
+        return MB_FAILURE;
 }
 
 ErrorCode Core::get_connectivity( const Range& from_entities,
@@ -2753,6 +2725,11 @@ ErrorCode Core::create_element(const EntityType type,
   ErrorCode status = sequence_manager()->create_element(type, connectivity, num_nodes, handle);
   if (MB_SUCCESS == status)
     status = aEntityFactory->notify_create_entity( handle, connectivity, num_nodes);
+
+#ifdef USE_AHF
+  mesh_modified = true;
+#endif
+
 
   return status;
 }
