@@ -179,7 +179,6 @@ namespace moab {
 
     MESHTYPE mesh_type = get_mesh_type(nverts, nedges, nfaces, ncells);
     thismeshtype = mesh_type;
-    std::cout<<"MeshType = "<<thismeshtype<<std::endl;
   
     //Initialize mesh type specific maps
     if (mesh_type == CURVE){
@@ -812,7 +811,6 @@ namespace moab {
           }
       }
 
-    std::cout<<"Finished creating sibling half-verts map"<<std::endl;
 
     delete [] is_index;
     delete [] v2hv_map_eid;
@@ -846,7 +844,6 @@ namespace moab {
 	}
       }      
     }  
-    std::cout<<"Finished creating incident half-verts map"<<std::endl;
 
     return MB_SUCCESS;
   }
@@ -1155,7 +1152,6 @@ namespace moab {
      delete [] v2he_map_fid;
      delete [] v2he_map_leid;
 
-     std::cout<<"Finished creating sibling half-edges map"<<std::endl;
      return MB_SUCCESS;
 
   }
@@ -1190,10 +1186,10 @@ namespace moab {
 	  if (MB_SUCCESS != error) return error;
 	  error = mb->tag_set_data(v2he_leid, &v, 1, &lid);
 	  if (MB_SUCCESS != error) return error;
-	}
-      }      
+    }
+      }
     }     
-    std::cout<<"Finished creating incident half-edges map"<<std::endl;
+
     
     return MB_SUCCESS;
   }
@@ -1837,7 +1833,6 @@ namespace moab {
      delete [] v2hf_map_cid;
      delete [] v2hf_map_lfid;
 
-     std::cout<<"Finished creating sibling half-faces map"<<std::endl;
 
      return MB_SUCCESS;
 
@@ -1891,7 +1886,6 @@ namespace moab {
       }
     }
     
-    std::cout<<"Finished creating incident half-faces"<<std::endl;
     return MB_SUCCESS;
   }
   ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
