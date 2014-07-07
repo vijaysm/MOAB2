@@ -302,6 +302,11 @@ void Core::deinitialize()
     delete *vit;
 #endif
 
+#ifdef USE_AHF
+  delete ahfRep;
+  ahfRep = 0;
+#endif
+
   if (aEntityFactory)
     delete aEntityFactory;
 
@@ -334,10 +339,6 @@ void Core::deinitialize()
     MPI_Finalize();
 #endif
 
-#ifdef USE_AHF
-  delete ahfRep;
-  ahfRep = 0;
-#endif
 }
 
 ErrorCode Core::query_interface_type( const std::type_info& type, void*& ptr )

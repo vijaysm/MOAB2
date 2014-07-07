@@ -218,6 +218,8 @@ ErrorCode ahf_test(Core *moab)
         CHECK(!mbents.size());
     }
 
+    ahf.deinitialize();
+
     return MB_SUCCESS;
 
 }

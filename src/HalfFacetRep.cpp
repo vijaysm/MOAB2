@@ -38,16 +38,12 @@ namespace moab {
     is_mixed = false;
   }
 
-  HalfFacetRep::~HalfFacetRep()
-  {
-    ErrorCode result;
-    result = deinitialize();
-    //if (MB_SUCCESS != result) return result;
-  }
+  HalfFacetRep::~HalfFacetRep() {}
+
 
   MESHTYPE HalfFacetRep::get_mesh_type(int nverts, int nedges, int nfaces, int ncells)
   {
-    MESHTYPE mesh_type;
+    MESHTYPE mesh_type = CURVE;
 
     if (nverts && nedges && (!nfaces) && (!ncells))
       mesh_type = CURVE;
@@ -94,7 +90,7 @@ namespace moab {
 
   int HalfFacetRep::get_index_for_meshtype(MESHTYPE mesh_type)
   {
-      int index;
+      int index = 0;
       if (mesh_type == CURVE) index = 0;
       else if (mesh_type == SURFACE) index = 1;
       else if (mesh_type == SURFACE_MIXED) index = 2;
@@ -181,42 +177,42 @@ namespace moab {
     thismeshtype = mesh_type;
   
     //Initialize mesh type specific maps
-    if (mesh_type == CURVE){
+    if (thismeshtype == CURVE){
         error = init_curve();
         if (MB_SUCCESS != error) return error;
       }
     
-    else if (mesh_type == SURFACE){
+    else if (thismeshtype == SURFACE){
       error = init_surface();
       if (MB_SUCCESS != error) return error;
       }
 
-    else if (mesh_type == SURFACE_MIXED){
+    else if (thismeshtype == SURFACE_MIXED){
         error = init_curve();
         if (MB_SUCCESS != error) return error;
         error = init_surface();
         if (MB_SUCCESS != error) return error;
       }
-    else if (mesh_type == VOLUME){
+    else if (thismeshtype == VOLUME){
         error = init_volume();
         if (MB_SUCCESS != error) return error;
       }
 
-    else if (mesh_type == VOLUME_MIXED_1){
+    else if (thismeshtype == VOLUME_MIXED_1){
         error = init_curve();
         if (MB_SUCCESS != error) return error;
         error = init_volume();
         if (MB_SUCCESS != error) return error;
     }
 
-    else if (mesh_type == VOLUME_MIXED_2){
+    else if (thismeshtype == VOLUME_MIXED_2){
         error = init_surface();
         if (MB_SUCCESS != error) return error;
         error = init_volume();
         if (MB_SUCCESS != error) return error;
       }
 
-    else if (mesh_type == VOLUME_MIXED){
+    else if (thismeshtype == VOLUME_MIXED){
         error = init_curve();
         if (MB_SUCCESS != error) return error;
         error = init_surface();
@@ -329,39 +325,38 @@ namespace moab {
    ErrorCode HalfFacetRep::deinitialize()
    {
      ErrorCode error;
-     MESHTYPE mesh_type = get_mesh_type(_verts.size(), _edges.size(), _faces.size(), _cells.size());
 
-     if (mesh_type == CURVE){
+     if (thismeshtype == CURVE){
          error = deinit_curve();
          if (MB_SUCCESS != error) return error;
        }
-     else if (mesh_type == SURFACE){
+     else if (thismeshtype == SURFACE){
          error = deinit_surface();
          if (MB_SUCCESS != error) return error;
        }
-     else if (mesh_type == SURFACE_MIXED){
+     else if (thismeshtype == SURFACE_MIXED){
          error = deinit_curve();
          if (MB_SUCCESS != error) return error;
          error = deinit_surface();
          if (MB_SUCCESS != error) return error;
        }
-     else if (mesh_type == VOLUME){
+     else if (thismeshtype == VOLUME){
          error = deinit_volume();
          if (MB_SUCCESS != error) return error;
        }
-     else if (mesh_type == VOLUME_MIXED_1){
+     else if (thismeshtype == VOLUME_MIXED_1){
          error = deinit_curve();
          if (MB_SUCCESS != error) return error;
          error = deinit_volume();
          if (MB_SUCCESS != error) return error;
        }
-     else if (mesh_type == VOLUME_MIXED_2){
+     else if (thismeshtype == VOLUME_MIXED_2){
          error = deinit_surface();
          if (MB_SUCCESS != error) return error;
          error = deinit_volume();
-         if (MB_SUCCESS != error) return error;         
+         if (MB_SUCCESS != error) return error;
        }
-     else if (mesh_type == VOLUME_MIXED){
+     else if (thismeshtype == VOLUME_MIXED){
          error = deinit_curve();
          if (MB_SUCCESS != error) return error;
          error = deinit_surface();
@@ -946,7 +941,7 @@ namespace moab {
     // nepf: Number of edges per face
     EntityType type = mb->type_from_handle(face);
 
-    int nepf;
+    int nepf = 0;
     if (type == MBTRI)  nepf = 3;
     else if (type ==MBQUAD)   nepf = 4;
 
@@ -1603,7 +1598,7 @@ namespace moab {
 
   int HalfFacetRep::get_index_from_type(EntityHandle cid)
   {
-    int index;
+    int index = 0;
     EntityType type = mb->type_from_handle(cid);
     if (type == MBTET)
       index = 0;
@@ -1822,8 +1817,8 @@ namespace moab {
              delete [] setcid;
              delete [] setlfid;
            }
-         delete sibcid;
-         delete siblfid;
+         delete [] sibcid;
+         delete [] siblfid;
        }
 
 
@@ -1970,7 +1965,7 @@ namespace moab {
               if (MB_SUCCESS != error) return error;
 
               // Local id of vid in the cell and the half-faces incident on it
-              int lv;
+              int lv = -1;
               for (int i = 0; i< nvpc; ++i){
                   if (conn[i] == vid)
                       lv = i;
@@ -2241,7 +2236,7 @@ namespace moab {
         error =mb->get_connectivity(&cell_id, 1, conn);
         if (MB_SUCCESS != error) return error;
 
-        int lv0 = -1, lv1 = -1, lv;
+        int lv0 = -1, lv1 = -1, lv = -1;
 
         //locate v_origin in poped out tet, check if v_end is in
         for (int i = 0; i<nvpc; i++){
@@ -2329,7 +2324,7 @@ namespace moab {
             if (MB_SUCCESS != error) return error;
 
             // Local id of fid_verts[0] in the cell
-            int lv0;
+            int lv0 = -1;
             for (int i = 0; i< nvpc; ++i){
                 if (conn[i] == fid_verts[0])
                 {
