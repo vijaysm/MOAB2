@@ -129,8 +129,13 @@ void read_cylcube_groups_test()
   check_group_data( g_ids, g_names, g_ent_ids );
 }
 
-
-void check_group_data(std::vector<int> & group_ids, std::vector<std::string> & group_names, std::vector<int> & group_ent_ids )
+void check_group_data(std::vector<int> & group_ids, std::vector<std::string> & group_names, std::vector<int> &
+#ifdef HAVE_OCC_STEP
+  /* group_ent_ids */
+#else
+     group_ent_ids
+#endif
+)
 {
 
   // Step files do not contain group data, MOAB shouldn't return errors when trying to access
