@@ -89,6 +89,12 @@ test "xno" = "x$CHECK_FC" || CHECK_FC=yes
 USER_CXXFLAGS="$CXXFLAGS"
 USER_CFLAGS="$CFLAGS"
 
+  # Save these before calling AC_PROG_FC or AC_PROG_F77
+  # because those macros will modify them, and we want
+  # the original user values, not the autoconf defaults.
+USER_FCFLAGS="$FCFLAGS"
+USER_FFLAGS="$FFLAGS"
+
   # Check for Parallel
   # Need to check this early so we can look for the correct compiler
 AC_ARG_WITH( [mpi], AC_HELP_STRING([[--with-mpi@<:@=DIR@:>@]], [Enable parallel support]),
