@@ -89,6 +89,12 @@ test "xno" = "x$CHECK_FC" || CHECK_FC=yes
 USER_CXXFLAGS="$CXXFLAGS"
 USER_CFLAGS="$CFLAGS"
 
+  # Save these before calling AC_PROG_FC or AC_PROG_F77
+  # because those macros will modify them, and we want
+  # the original user values, not the autoconf defaults.
+USER_FCFLAGS="$FCFLAGS"
+USER_FFLAGS="$FFLAGS"
+
   # Check for Parallel
   # Need to check this early so we can look for the correct compiler
 AC_ARG_WITH( [mpi], AC_HELP_STRING([[--with-mpi@<:@=DIR@:>@]], [Enable parallel support]),
@@ -155,6 +161,8 @@ fi
 # before setting up libtool so that it can override libtool settings.
 CFLAGS="$USER_CFLAGS $FATHOM_CC_SPECIAL"
 CXXFLAGS="$USER_CXXFLAGS $FATHOM_CXX_SPECIAL"
+FFLAGS="$USER_FFLAGS $FATHOM_F77_SPECIAL"
+FCFLAGS="$USER_FCFLAGS $FATHOM_FC_SPECIAL"
 
 # On IBM/AIX, the check for OBJEXT fails for the mpcc compiler.
 # (Comment out this hack, it should be fixed correctly now)
@@ -194,6 +202,11 @@ if test "x$enable_debug" = "x"; then
       enable_fc_optimize=yes
     fi
   fi
+  if test "x$enable_f77_optimize" = "x"; then
+    if test "x$USER_FFLAGS" = "x"; then
+      enable_f77_optimize=yes
+    fi
+  fi
 fi
 
 # Choose compiler flags from CLI args
@@ -202,6 +215,7 @@ if test "xyes" = "x$enable_debug"; then
   CXXFLAGS="$CXXFLAGS -g"
   CFLAGS="$CFLAGS -g"
   FCFLAGS="$FCFLAGS -g"
+  FFLAGS="$FFLAGS -g"
   # Add -fstack-protector-all option for g++ in debug mode
   if test "x$cxx_compiler" = "xGNU"; then
     CXXFLAGS="$CXXFLAGS -fstack-protector-all"
@@ -219,6 +233,9 @@ if test "xyes" = "x$enable_cc_optimize"; then
 fi
 if test "xyes" = "x$enable_fc_optimize"; then
   FCFLAGS="$FCFLAGS -O2"
+fi
+if test "xyes" = "x$enable_f77_optimize"; then
+  FFLAGS="$FFLAGS -O2"
 fi
 
   # Check for 32/64 bit.
