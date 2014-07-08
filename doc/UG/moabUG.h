@@ -116,10 +116,9 @@ The MOAB data model describes the basic types used in MOAB and the language used
 
  \ref contents
 
-<tab>
  \subsection twoone 2.1. MOAB Interface 
-</tab>
-MOAB is written in C++.  The primary interface with applications is through member functions of the abstract base class Interface.  The MOAB library is created by instantiating Core, which implements the Interface API.  Multiple instances of MOAB can exist concurrently in the same application; mesh entities are not shared between these instancesi<sup>2</sup>.  MOAB is most easily viewed as a database of mesh objects accessed through the instance.  No other assumptions explicitly made about the nature of the mesh stored there; for example, there is no fundamental requirement that elements fill space or do not overlap each other geometrically.
+
+MOAB is written in C++.  The primary interface with applications is through member functions of the abstract base class Interface.  The MOAB library is created by instantiating Core, which implements the Interface API.  Multiple instances of MOAB can exist concurrently in the same application; mesh entities are not shared between these instances<sup>2</sup>.  MOAB is most easily viewed as a database of mesh objects accessed through the instance.  No other assumptions explicitly made about the nature of the mesh stored there; for example, there is no fundamental requirement that elements fill space or do not overlap each other geometrically.
  
 <sup>2</sup> One exception to this statement is when the parallel interface to MOAB is used; in this case, entity sharing between instances is handled explicitly using message passing.  This is described in more detail in Section 5 of this document.
 
@@ -321,9 +320,9 @@ MOAB uses several pre-defined tag names to define data commonly found in various
 </tr>
 </table>
 
-Table 3 lists the various groups of functions that comprise the MOAB API.  This is listed here strictly as a reference to the various types of functionality supported by MOAB; for a more detailed description of the scope and syntax of the MOAB API, see the online documentation [8].
+Table 3 lists the various groups of functions that comprise the MOAB API.  This is listed here strictly as a reference to the various types of functionality supported by MOAB; for a more detailed description of the scope and syntax of the MOAB API, see the online documentation [7].
 
-  \subsection tablethree Table 3: Groups of functions in MOAB API.  See Ref. [8] for more details.
+  \subsection tablethree Table 3: Groups of functions in MOAB API.  See Ref. [7] for more details.
 
 <table border="1">
 <tr>
@@ -417,7 +416,7 @@ A number of mesh-based services are often used in conjunction with a mesh librar
 
   \subsection fourone 4.1. Visualization
 
-Visualization is one of the most common needs associated with meshes.  The primary tool used to visualize MOAB meshes is VisIt [12].  Users can specify that VisIt read mesh directly out of the MOAB instance, by specifying the ITAPS-MOABC mesh format and a file readable by MOAB (see xxx).
+Visualization is one of the most common needs associated with meshes.  The primary tool used to visualize MOAB meshes is VisIt [12].  Users can specify that VisIt read mesh directly out of the MOAB instance, by specifying the ITAPS_MOAB mesh format and a file readable by MOAB (see http://sigma.mcs.anl.gov/?p=429).
 
 There are some initial capabilities in VisIt for limited viewing and manipulation of tag data and some types of entity sets.  Tag data is visualized using the same mechanisms used to view other field data in VisIt, e.g. using a pseudocolor plot; sets are viewed using VisIt’s SIL window, accessed by selecting the SIL icon in the data selection window.  xxx shows a vertex-based radiation temperature field computed by the Cooper rad-hydro code [1] for a subset of geometric volumes in a mesh.   
 
@@ -987,7 +986,7 @@ Initial results have demonstrated that the data abstraction provided by MOAB is 
 
 [6]	“MOAB Users Email List.”, moab@mcs.anl.gov.
 
-[7]	“MOAB online documentation.”, http://gnep.mcs.anl.gov:8010/moab-docs/
+[7]	“MOAB online documentation.”, http://ftp.mcs.anl.gov/pub/fathom/moab-docs/index.html
 
 [8]	T.J. Tautges, “Canonical numbering systems for finite-element codes,” Communications in Numerical Methods in Engineering,  vol. Online, Mar. 2009.
 
