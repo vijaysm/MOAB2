@@ -382,6 +382,14 @@ enum mhdf_TagDataType {
 typedef long mhdf_index_t;
 #define MHDF_INDEX_TYPE H5T_NATIVE_LONG
 
+
+/**\brief Flag used to indicate if dataset is 1D with and array datatype
+ *
+ * Flag used to indicate if the dataset is 1D with and array datatype, used
+ * for the the newer format changes to the h5m format.
+ */
+ htri_t mhdf_ds1Ddt_array;
+
 /**
  *\defgroup mhdf_group Element group handle
  */

@@ -118,6 +118,17 @@ public:
    *                 never exceed \c max_rows .
    */
   void read( void* buffer, size_t& rows_read );
+
+  /**\brief Reads 1D dataspace composed of an array datatype
+   *
+   * Read up to max_num_rows from dataset that is of an array datatype.
+   *\param buffer       Memory in which to store values read from data set.
+   *\param base_type_id Datatype id of the dataset.
+   *\param dim          Size of the array datatype.
+   *\param rows_read    The actual number of rows read from the table.  Will
+   *                    never exceed \c max_rows .
+   */  
+  void read_dspace_dtypearray( void* buffer, const hid_t base_type_id, const int dim, size_t& rows_read );
   
   /**\brief Return position in \c Range of file IDs at which next read will start
    */

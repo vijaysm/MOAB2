@@ -386,14 +386,20 @@ else
   AC_DEFINE([HAVE_HDF5],[1],[Define if configured with HDF5 support.])
 fi
 AM_CONDITIONAL(HAVE_HDF5, [test "xno" != "x$HAVE_HDF5"])
+
 AM_CPPFLAGS="$HDF5_CPPFLAGS $AM_CPPFLAGS"
 EXPORT_LDFLAGS="$EXPORT_LDFLAGS $HDF5_LDFLAGS"
 AC_SUBST(HDF5_LIBS)
 
+WARN_HAVE_HDF5=no
 WARN_PARALLEL_HDF5=no
 WARN_PARALLEL_HDF5_NO_COMPLEX=no
 HAVE_HDF5_PARALLEL=no
 if test "xno" != "x$HAVE_HDF5"; then
+  AC_CHECK_LIB( [hdf5_hl], [H5LTpath_valid], [HAVE_HDF5=yes],
+      [WARN_HAVE_HDF5=yes; AC_MSG_WARN("libhdf5 library does not include high level support. Support for native HDF5 file format disabled")],
+      [$HDF5_LIBS]
+      )
   if test "xno" != "x$enablempi"; then
     old_LDFLAGS="$LDFLAGS"
     LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"

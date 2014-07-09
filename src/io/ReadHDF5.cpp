@@ -63,7 +63,17 @@
 #include "ReadHDF5VarLen.hpp"
 #include "moab_mpe.h"
 
+size_t g_hyperslabSelectionLimit;
+
 namespace moab {
+
+// Selection of hyperslabs appears to be superlinear.  Don't try to select
+// more than a few thousand at a time or things start to get real slow.
+const size_t DEFAULT_HYPERSLAB_SELECTION_LIMIT = 100;
+const size_t DEFAULT_HYPERSLAB_SELECTION_UNLIMIT = 1e7;
+size_t ReadHDF5Dataset::hyperslabSelectionLimit = DEFAULT_HYPERSLAB_SELECTION_LIMIT;
+void ReadHDF5Dataset::default_hyperslab_selection_limit()
+  { hyperslabSelectionLimit = DEFAULT_HYPERSLAB_SELECTION_LIMIT; }
 
 /* If true, coordinates are read in blocked format (all X values before
  * Y values before Z values.) If undefined, then all coordinates for a
@@ -261,6 +271,8 @@ ErrorCode ReadHDF5::set_up_read(const char* filename,
   mhdf_Status status;
   indepIO = collIO = H5P_DEFAULT;
   mpiComm = 0;
+
+  g_hyperslabSelectionLimit = DEFAULT_HYPERSLAB_SELECTION_LIMIT;
 
   if (MB_SUCCESS != init())
     MB_SET_ERR(MB_FAILURE, "ReadHDF5 Failure");
@@ -666,12 +678,15 @@ ErrorCode ReadHDF5::load_file_impl(const FileOptions&)
   }
 
   dbgOut.tprint(1, "Reading all tags...\n");
+  if( mhdf_ds1Ddt_array == true ) g_hyperslabSelectionLimit = DEFAULT_HYPERSLAB_SELECTION_UNLIMIT;
   for (i = 0; i < fileInfo->num_tag_desc; ++i) {
     rval = read_tag(i);
     if (MB_SUCCESS != rval)
       MB_SET_ERR(rval, "ReadHDF5 Failure");
   }
 
+  g_hyperslabSelectionLimit = DEFAULT_HYPERSLAB_SELECTION_LIMIT;
+  
   dbgOut.tprint(1, "Core read finished.  Cleaning up...\n");
   return MB_SUCCESS;
 }
@@ -938,14 +953,19 @@ ErrorCode ReadHDF5::load_file_partial(const ReaderIface::IDTag* subset_list,
   }
 
   debug_barrier();
-  mpe_event.start("read coords");
-  dbgOut.tprintf(1, "READING NODE COORDINATES (%lu nodes in %lu selects)\n",
-                     (unsigned long)nodes.size(), (unsigned long)nodes.psize());
-
-  // Read node coordinates and create vertices in MOAB
-  // NOTE: This populates the RangeMap with node file ids,
-  //       which is expected by read_node_adj_elems.
-  rval = read_nodes(nodes);
+  if( mhdf_ds1Ddt_array == true ) g_hyperslabSelectionLimit = DEFAULT_HYPERSLAB_SELECTION_UNLIMIT;
+  mpe_event.start( "read coords" );
+  dbgOut.tprintf( 1, "READING NODE COORDINATES (%lu nodes in %lu selects)\n", 
+                     (unsigned long)nodes.size(), (unsigned long)nodes.psize() );
+  
+    // Read node coordinates and create vertices in MOAB
+    // NOTE:  This populates the RangeMap with node file ids,
+    //        which is expected by read_node_adj_elems.
+  
+  if( mhdf_ds1Ddt_array == true ) g_hyperslabSelectionLimit = DEFAULT_HYPERSLAB_SELECTION_UNLIMIT;
+  rval = read_nodes( nodes );
+  g_hyperslabSelectionLimit = DEFAULT_HYPERSLAB_SELECTION_LIMIT;
+  
   mpe_event.end(rval);
   if (MB_SUCCESS != rval)
     MB_SET_ERR(rval, "ReadHDF5 Failure");
@@ -1096,10 +1116,11 @@ ErrorCode ReadHDF5::load_file_partial(const ReaderIface::IDTag* subset_list,
   // Get any contained sets out of file_ids.
   mpe_event.start("reading set contents/parents/children");
   EntityHandle first_set = fileInfo->sets.start_id;
-  sets.merge(file_ids.lower_bound(first_set),
-             file_ids.lower_bound(first_set + fileInfo->sets.count));
-  dbgOut.tprint(1, "  doing read_sets\n");
-  rval = read_sets(sets);
+  sets.merge( file_ids.lower_bound( first_set ),
+              file_ids.lower_bound( first_set + fileInfo->sets.count ) );
+  dbgOut.tprint( 1, "  doing read_sets\n" );
+  if( mhdf_ds1Ddt_array == true ) g_hyperslabSelectionLimit = DEFAULT_HYPERSLAB_SELECTION_UNLIMIT;
+  rval = read_sets( sets );
   mpe_event.end(rval);
   if (MB_SUCCESS != rval)
     MB_SET_ERR(rval, "ReadHDF5 Failure");
@@ -1113,8 +1134,9 @@ ErrorCode ReadHDF5::load_file_partial(const ReaderIface::IDTag* subset_list,
       MB_SET_ERR(rval, "ReadHDF5 Failure");
   }
 
-  dbgOut.tprint(1, "PARTIAL READ COMPLETE.\n");
-
+  g_hyperslabSelectionLimit = DEFAULT_HYPERSLAB_SELECTION_LIMIT;
+  dbgOut.tprint( 1, "PARTIAL READ COMPLETE.\n" );
+  
   return MB_SUCCESS;
 }
 
@@ -1367,8 +1389,9 @@ ErrorCode ReadHDF5::read_nodes(const Range& node_file_ids)
     if (MB_SUCCESS != rval)
       MB_SET_ERR(rval, "ReadHDF5 Failure");
   }
-
-  hid_t data_id = mhdf_openNodeCoordsSimple(filePtr, &status);
+  
+  mhdf_ds1Ddt_array = false;
+  hid_t data_id = mhdf_openNodeCoordsSimple( filePtr, &status );
   if (is_error(status))
     MB_SET_ERR(MB_FAILURE, "ReadHDF5 Failure");
 
@@ -1393,8 +1416,12 @@ ErrorCode ReadHDF5::read_nodes(const Range& node_file_ids)
         size_t count, offset = 0;
         int nn = 0;
         while (!reader.done()) {
-          dbgOut.printf(3, "Reading chunk %d for dimension %d\n", ++nn, d);
-          reader.read(arrays[d] + offset, count);
+          dbgOut.printf(3, "Reading chunk %d for dimension %d\n", ++nn, d );
+          if( mhdf_ds1Ddt_array == true ) {
+	          reader.read_dspace_dtypearray( arrays[d]+offset, H5T_NATIVE_DOUBLE, dim, count );
+	        } else {
+	          reader.read( arrays[d]+offset, count );
+	        }
           offset += count;
         }
         if (offset != num_nodes) {
@@ -1422,7 +1449,12 @@ ErrorCode ReadHDF5::read_nodes(const Range& node_file_ids)
         dbgOut.tprintf(3, "Reading chunk %d of node coords\n", ++nn);
 
         size_t count;
-        reader.read(buffer, count);
+
+        if( mhdf_ds1Ddt_array == true ) {
+          reader.read_dspace_dtypearray( buffer, H5T_NATIVE_DOUBLE, dim, count );
+        } else {
+          reader.read( buffer, count );
+        }
 
         for (size_t i = 0; i < count; ++i)
           for (int d = 0; d < dim; ++d)
@@ -1723,10 +1755,15 @@ ErrorCode ReadHDF5::read_elems(int i, const Range& elems_in, Range& nodes)
     while (!reader.done()) {
       dbgOut.printf(3, "Reading chunk %d of \"%s\" connectivity\n", ++nn, fileInfo->elems[i].handle);
       size_t num_read;
-      reader.read(buffer, num_read);
-      std::sort(buffer, buffer + num_read*node_per_elem);
-      num_read = std::unique(buffer, buffer + num_read*node_per_elem) - buffer;
-      copy_sorted_file_ids(buffer, num_read, nodes);
+
+      if( mhdf_ds1Ddt_array == true ) {
+        reader.read_dspace_dtypearray( buffer, handleType, node_per_elem, num_read );
+      } else {
+        reader.read( buffer, num_read );
+      }
+      std::sort( buffer, buffer + num_read*node_per_elem );
+      num_read = std::unique( buffer, buffer + num_read*node_per_elem ) - buffer;
+      copy_sorted_file_ids( buffer, num_read, nodes );
     }
   }
   catch (ReadHDF5Dataset::Exception) {

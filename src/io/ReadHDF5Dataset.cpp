@@ -23,14 +23,9 @@
 
 #define HDF5_16API (H5_VERS_MAJOR < 2 && H5_VERS_MINOR < 8)
 
-namespace moab {
+extern size_t g_hyperslabSelectionLimit;
 
-// Selection of hyperslabs appears to be superlinear.  Don't try to select
-// more than a few thousand at a time or things start to get real slow.
-const size_t DEFAULT_HYPERSLAB_SELECTION_LIMIT = 200;
-size_t ReadHDF5Dataset::hyperslabSelectionLimit = DEFAULT_HYPERSLAB_SELECTION_LIMIT;
-void ReadHDF5Dataset::default_hyperslab_selection_limit()
-  { hyperslabSelectionLimit = DEFAULT_HYPERSLAB_SELECTION_LIMIT; }
+namespace moab {
 
 H5S_seloper_t ReadHDF5Dataset::hyperslabSelectOp = H5S_SELECT_OR;
 
@@ -352,6 +347,85 @@ void ReadHDF5Dataset::null_read()
   H5Sclose( mem_id );
   if (err < 0)
     throw Exception(__LINE__);
+}
+
+
+void ReadHDF5Dataset::read_dspace_dtypearray( void* buffer,
+				  const hid_t base_type_id,
+				  const int dim,
+				  size_t& rows_read )
+{
+  herr_t err;
+  rows_read = 0;
+  hid_t array_tid; 
+  hsize_t array_dim[1];
+
+  array_dim[0] = (hsize_t)dim;
+
+  array_tid = H5Tarray_create(base_type_id, 1, array_dim);
+  // std::cout << array_dim[0] << std::endl;
+
+  MPE_Log_event(mpeReadEvent.first, (int)readCount, mpeDesc.c_str());
+  if (currOffset != rangeEnd) {
+
+      // Build H5S hyperslab selection describing the portions of the
+      // data set to read
+    H5S_seloper_t sop = H5S_SELECT_SET;
+    Range::iterator new_end = next_end( currOffset );
+    while (currOffset != new_end) {
+      size_t count = *(currOffset.end_of_block()) - *currOffset + 1;
+      if (new_end != rangeEnd && *currOffset + count > *new_end) {
+        count = *new_end - *currOffset;
+      }
+      rows_read += count;
+      dataSetOffset[0] = *currOffset - startID;
+      dataSetCount[0] = count;
+      
+      // std::cout << dataSetOffset[0] << std::endl;
+      // std::cout << dataSetCount[0] << std::endl;
+
+      err = H5Sselect_hyperslab( dataSpace, sop, dataSetOffset, NULL, dataSetCount, 0 );
+      if (err < 0)
+        throw Exception(__LINE__);
+      sop = hyperslabSelectOp; // subsequent calls to select_hyperslab append
+
+      currOffset += count;
+    }
+
+      // Create a data space describing the memory in which to read the data
+    dataSetCount[0] = rows_read;
+
+    hid_t mem_id = H5Screate_simple( 1, dataSetCount, NULL );
+    if (mem_id < 0)
+      throw Exception(__LINE__);
+
+      // Do the actual read
+    err = H5Dread( dataSet, array_tid, mem_id, dataSpace, ioProp, buffer );
+
+    // std::cout << 'after h5dread' << std::endl;
+
+    H5Sclose( mem_id );
+    if (err < 0)
+      throw Exception(__LINE__);
+      
+    if (readCount)
+      --readCount;
+  
+   //  if (doConversion) {
+//       err = H5Tconvert( fileType, dataType, rows_read*columns(), buffer, 0, H5P_DEFAULT);
+//       if (err < 0)
+//         throw Exception(__LINE__);
+//     } 
+    
+  }
+  else if (readCount) {
+    null_read();
+    --readCount;
+  }
+
+  H5Tclose(array_tid);
+
+  MPE_Log_event(mpeReadEvent.second, (int)readCount, mpeDesc.c_str());
 }
 
 } // namespace moab

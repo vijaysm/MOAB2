@@ -22,6 +22,12 @@
 #include "names-and-paths.h"
 #include "util.h"
 #include "file-handle.h"
+#include "stdio.h"
+#include "stdlib.h"
+#include "string.h"
+#include "ctype.h"
+#include "hdf5_hl.h"
+#include "H5LTpublic.h"
 
 
 int
@@ -145,6 +151,9 @@ mhdf_openNodeCoords( mhdf_FileHandle file_handle,
   
   if (!mhdf_check_valid_file( file_ptr, status ))
     return -1;
+
+  
+
   
   table_id = mhdf_open_table2( file_ptr->hdf_handle,
                                NODE_COORD_PATH, 2,
@@ -163,15 +172,43 @@ mhdf_openNodeCoords( mhdf_FileHandle file_handle,
 hid_t
 mhdf_openNodeCoordsSimple( mhdf_FileHandle file_handle, mhdf_Status* status )
 {
+  char *tmp_path = NULL; /* Temporary copy of the path */
   FileHandle* file_ptr = (FileHandle*)file_handle;
   hid_t table_id;
+  int i;
   API_BEGIN;
   
   if (!mhdf_check_valid_file( file_ptr, status ))
     return -1;
   
+  /* 
+   * check if the nodal coordinates are stored as a
+   *   (i) 1D dataset 'COORDINATES' 
+   *   (ii)  2D dataset 'coordinates'
+   */
+
+  tmp_path = (char*)mhdf_malloc(strlen(NODE_COORD_PATH)+1, status );
+  if (NULL == tmp_path) 
+    return -1;
+
+  strncpy( tmp_path, NODE_COORD_PATH, strlen(NODE_COORD_PATH) );
+
+  /* check if the 'COORDINATES' dataset exists */
+  for(i = strlen(NODE_COORD_PATH); i > strlen(NODE_COORD_PATH)-strlen(NODE_COORD_NAME)-1; i-- ) 
+    {
+      tmp_path[i] = toupper( tmp_path[i] );
+    }
+  
+  if ( (mhdf_ds1Ddt_array = H5LTpath_valid( file_ptr->hdf_handle, tmp_path, 1)) == 0 ) {
+    strncpy( tmp_path, NODE_COORD_PATH, strlen(NODE_COORD_PATH) ); 
+  }
+
   table_id = mhdf_open_table_simple( file_ptr->hdf_handle,
-                                     NODE_COORD_PATH, status );
+                                     tmp_path, status );
+
+  if(tmp_path != NULL)
+    free(tmp_path);
+
   if (table_id < 0)
     return -1;
  
