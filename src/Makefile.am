@@ -59,6 +59,9 @@ libMOAB_la_SOURCES = \
   ElementSequence.hpp \
   EntitySequence.cpp \
   EntitySequence.hpp \
+  ErrorHandler.cpp \
+  ErrorOutput.cpp \
+  ErrorOutput.hpp \
   Factory.cpp \
   FBEngine.cpp \
   FileOptions.cpp \
@@ -166,6 +169,7 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/HomXform.hpp \
   moab/EntityType.hpp \
   moab/EntityHandle.hpp \
+  moab/ErrorHandler.hpp \
   moab/FBEngine.hpp \
   moab/FileOptions.hpp \
   moab/FindPtFuncs.h \
