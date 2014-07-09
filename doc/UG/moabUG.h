@@ -426,7 +426,15 @@ Reorganization of VisIt’s set handling is also underway, to increase versatili
 
   \subsection fourtwo 4.2. Parallel Decomposition
 
-To support parallel simulation, applications often need to partition a mesh into parts, designed to balance the load and minimize communication between sets.  MOAB includes the MBZoltan tool for this purpose, constructed on the well-known Zoltan partitioning library [13].  After computing the partition using Zoltan, MBZoltan stores the partition as either tags on individual entities in the partition, or as tagged sets, one set per part.  Since a partition often exhibits locality similar to how the entities were created, storing it as sets (based on Range’s) is often more memory-efficient than an entity tag-based representation.  Xxx shows a partition computed with MBZoltan (and visualized in VisIt). 
+To support parallel simulation, applications often need to partition a mesh into parts, designed to balance the load and minimize communication between sets.  MOAB includes the MBZoltan tool for this purpose, constructed on the well-known Zoltan partitioning library [13].  After computing the partition using Zoltan, MBZoltan stores the partition as either tags on individual entities in the partition, or as tagged sets, one set per part.  Since a partition often exhibits locality similar to how the entities were created, storing it as sets (based on Range’s) is often more memory-efficient than an entity tag-based representation.  Figure ~\ref{fig:bricktet} shows a partition computed with MBZoltan (and visualized in VisIt).
+
+ \begin{figure}
+ \begin{center}
+ \includegraphics[width = \textwidth]{brickTet.png}
+ \caption{}
+ \label{fig:bricktet}
+ \end{center}
+ \end{figure}
 
  \ref contents
 
@@ -759,7 +767,7 @@ Several example option strings controlling parallel reading and initialization a
 
   \subsection functions 5.2.2. Parallel Mesh Initialization Using Functions
 
-After creating the local mesh on each processor, an application can call the following functions in ParallelComm to establish information on shared mesh entities.  See the [ref-directparmesh example] in the MOAB source tree for a complete example of how this is done from an application.
+After creating the local mesh on each processor, an application can call the following functions in ParallelComm to establish information on shared mesh entities.  See the [http://ftp.mcs.anl.gov/pub/fathom/moab-docs/HelloParMOAB_8cpp-example.html example] in the MOAB source tree for a complete example of how this is done from an application.
 
 - ParallelComm::resolve_shared_entities (collective): Resolves shared entities between processors, based on GLOBAL_ID tag values of vertices.  Various forms are available, based on entities to be evaluated and maximum dimension for which entity sharing should be found.
 
