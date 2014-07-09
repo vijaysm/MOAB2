@@ -22,6 +22,12 @@
 #include "file-handle.h"
 #include "status.h"
 #include "names-and-paths.h"
+#include "stdio.h"
+#include "stdlib.h"
+#include "string.h"
+#include "ctype.h"
+#include "hdf5_hl.h"
+
 
 hid_t 
 mhdf_createConnectivity( mhdf_FileHandle file_handle,
@@ -135,8 +141,10 @@ mhdf_openConnectivitySimple( mhdf_FileHandle file_handle,
                              const char* elem_handle,
                              mhdf_Status* status )
 {
+  char *tmp_path = NULL; /* Temporary copy of the path */
   FileHandle* file_ptr;
   hid_t elem_id, table_id;
+  int i;
   API_BEGIN;
   
   file_ptr = (FileHandle*)(file_handle);
@@ -145,8 +153,33 @@ mhdf_openConnectivitySimple( mhdf_FileHandle file_handle,
   
   elem_id = mhdf_elem_group_from_handle( file_ptr, elem_handle, status );
   if (elem_id < 0) return -1;
+
+  /* 
+   * check if the element connectivity are stored as a
+   *   (i) 1D dataset 'CONNECTIVITY' 
+   *   (ii)  2D dataset 'connectivity'
+   */
+
+  tmp_path = (char*)mhdf_malloc(strlen(CONNECTIVITY_NAME)+1, status );
+  if (NULL == tmp_path) 
+    return -1;
+
+  strncpy( tmp_path, CONNECTIVITY_NAME, strlen(CONNECTIVITY_NAME) );
+
+  /* check if the 'CONNECTIVITY' dataset exists */
+  for(i = strlen(CONNECTIVITY_NAME); i > -1; i-- ) 
+    {
+      tmp_path[i] = toupper( tmp_path[i] );
+    }
   
-  table_id = mhdf_open_table_simple( elem_id, CONNECTIVITY_NAME, status );
+  if ( (mhdf_ds1Ddt_array = H5LTpath_valid( file_ptr->hdf_handle, tmp_path, 1)) == 0 ) {
+    strncpy( tmp_path, CONNECTIVITY_NAME, strlen(CONNECTIVITY_NAME) );
+  } 
+
+  table_id = mhdf_open_table_simple( elem_id, tmp_path, status );
+
+  if(tmp_path != NULL)
+    free(tmp_path);
   
   H5Gclose( elem_id );
   if (table_id < 0)

@@ -650,7 +650,7 @@ mhdf_open_table( hid_t group_id,
 #endif
   if (table_id < 0)
   {
-    mhdf_setFail( status, "HDF5 DataSet creation failed.");
+    mhdf_setFail( status, "H5Dopen( \"%s\" ) failed.", path );
     return -1;
   }
   
@@ -754,7 +754,7 @@ mhdf_open_table_simple( hid_t group_id, const char* path, mhdf_Status* status )
 #endif
   if (table_id < 0)
   {
-    mhdf_setFail( status, "HDF5 DataSet creation failed.");
+    mhdf_setFail( status, "HDF5 opening existing dataset failed.");
   }
   else 
   {
