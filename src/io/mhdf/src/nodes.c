@@ -194,20 +194,16 @@ mhdf_openNodeCoordsSimple( mhdf_FileHandle file_handle, mhdf_Status* status )
 
   strncpy( tmp_path, NODE_COORD_PATH, strlen(NODE_COORD_PATH)+1 );
 
-  printf("%s \n",tmp_path);
   /* check if the 'COORDINATES' dataset exists */
   for(i = strlen(NODE_COORD_PATH); i > strlen(NODE_COORD_PATH)-strlen(NODE_COORD_NAME)-1; i-- ) 
     {
       tmp_path[i] = toupper( tmp_path[i] );
     }
-  
-  printf("%s \n",tmp_path);
 
   if ( (mhdf_ds1Ddt_array = H5LTpath_valid( file_ptr->hdf_handle, tmp_path, 1)) == 0 ) {
     strncpy( tmp_path, NODE_COORD_PATH, strlen(NODE_COORD_PATH)+1 ); 
   }
 
-  printf("%s \n",tmp_path);
   table_id = mhdf_open_table_simple( file_ptr->hdf_handle,
                                      tmp_path, status );
 
