@@ -63,8 +63,10 @@
 #include "moab_mpe.h"
 
 size_t g_hyperslabSelectionLimit;
+htri_t mhdf_ds1Ddt_array;
 
 namespace moab {
+
 
 // Selection of hyperslabs appears to be superlinear.  Don't try to select
 // more than a few thousand at a time or things start to get real slow.
@@ -264,6 +266,7 @@ ErrorCode ReadHDF5::init()
   fileInfo = 0;
   debugTrack = false;
   myPcomm = 0;
+  mhdf_ds1Ddt_array = false;
   
   return MB_SUCCESS;
 }
@@ -1466,6 +1469,8 @@ ErrorCode ReadHDF5::read_nodes( const Range& node_file_ids )
         size_t count, offset = 0;
         int nn = 0;
         while (!reader.done()) {
+
+
           dbgOut.printf(3,"Reading chunk %d for dimension %d\n", ++nn, d );
 	  if( mhdf_ds1Ddt_array == true ) {
 	    reader.read_dspace_dtypearray( arrays[d]+offset, H5T_NATIVE_DOUBLE, dim, count );
@@ -1568,6 +1573,7 @@ ErrorCode ReadHDF5::read_elems( const mhdf_ElemDesc& elems, const Range& file_id
   const int nodes_per_elem = elems.desc.vals_per_ent;
   const size_t count = file_ids.size();
   hid_t data_id = mhdf_openConnectivitySimple( filePtr, elems.handle, &status );
+
   if (is_error(status))
     return error(MB_FAILURE);
 
@@ -1592,7 +1598,12 @@ ErrorCode ReadHDF5::read_elems( const mhdf_ElemDesc& elems, const Range& file_id
       dbgOut.printf( 3, "Reading chunk %d for \"%s\"\n", ++nn, elems.handle );
     
       size_t num_read;
-      reader.read( buffer, num_read );
+	if( mhdf_ds1Ddt_array == true ) {
+	  reader.read_dspace_dtypearray( buffer, handleType, nodes_per_elem, num_read );
+	} else {
+	  reader.read( buffer, num_read );
+	}
+
       iter = std::copy( buffer, buffer+num_read*nodes_per_elem, iter );
       
       if (node_ids) {
