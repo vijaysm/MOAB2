@@ -310,7 +310,6 @@ extern "C" {
  */
 /*@{*/
 
-
 /**
  *\defgroup mhdf_status Error handling
  */
@@ -388,7 +387,7 @@ typedef long mhdf_index_t;
  * Flag used to indicate if the dataset is 1D with and array datatype, used
  * for the the newer format changes to the h5m format.
  */
- htri_t mhdf_ds1Ddt_array;
+extern htri_t mhdf_ds1Ddt_array;
 
 /**
  *\defgroup mhdf_group Element group handle

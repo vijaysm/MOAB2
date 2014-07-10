@@ -28,6 +28,7 @@
 #include "ctype.h"
 #include "hdf5_hl.h"
 
+htri_t mhdf_ds1Ddt_array;
 
 hid_t 
 mhdf_createConnectivity( mhdf_FileHandle file_handle,
@@ -163,8 +164,8 @@ mhdf_openConnectivitySimple( mhdf_FileHandle file_handle,
   tmp_path = (char*)mhdf_malloc(strlen(CONNECTIVITY_NAME)+1, status );
   if (NULL == tmp_path) 
     return -1;
-
-  strncpy( tmp_path, CONNECTIVITY_NAME, strlen(CONNECTIVITY_NAME) );
+ 
+  strncpy( tmp_path, CONNECTIVITY_NAME, strlen(CONNECTIVITY_NAME)+1 );
 
   /* check if the 'CONNECTIVITY' dataset exists */
   for(i = strlen(CONNECTIVITY_NAME); i > -1; i-- ) 
@@ -172,8 +173,8 @@ mhdf_openConnectivitySimple( mhdf_FileHandle file_handle,
       tmp_path[i] = toupper( tmp_path[i] );
     }
   
-  if ( (mhdf_ds1Ddt_array = H5LTpath_valid( file_ptr->hdf_handle, tmp_path, 1)) == 0 ) {
-    strncpy( tmp_path, CONNECTIVITY_NAME, strlen(CONNECTIVITY_NAME) );
+  if ( (mhdf_ds1Ddt_array = H5LTpath_valid( elem_id, tmp_path, 1)) == 0 ) {
+    strncpy( tmp_path, CONNECTIVITY_NAME, strlen(CONNECTIVITY_NAME)+1 );
   } 
 
   table_id = mhdf_open_table_simple( elem_id, tmp_path, status );
