@@ -44,7 +44,6 @@ int main(int argc, char **argv)
   ErrorCode error;
   Core moab;
   Interface* mbImpl = &moab;
-  MeshTopoUtil mtu(mbImpl);
 
   error = mbImpl->load_file( filename.c_str());
   if (MB_SUCCESS != error) {
@@ -113,8 +112,6 @@ int main(int argc, char **argv)
 
   //Perform queries
   std::vector<EntityHandle> adjents;
-  std::vector<int> lids;
-  Range mbents;
 
   //1D Queries //
   //IQ1: For every vertex, obtain incident edges
@@ -125,18 +122,8 @@ int main(int argc, char **argv)
     error = ahf.get_up_adjacencies( *i, 1, adjents);
   }
   time_avg = (wtime()-time_start)/(double)verts.size();
-  std::cout<<"MOAB_AHF: Average time taken to compute incident edges to a vertex =  "<< time_avg<<" secs" <<std::endl;
-
-  error = mbImpl->get_adjacencies( &*verts.begin(), 1, 1, false, mbents );
-  time_start = wtime();
-  for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
-    mbents.clear();
-    error = mbImpl->get_adjacencies( &*i, 1, 1, false, mbents );
-  }
-  time_avg = (wtime()-time_start)/(double)verts.size();
-  std::cout<<"MOAB: Average time taken to compute incident edges to a vertex =  "<< time_avg<<" secs" <<std::endl;
+  std::cout<<"QUERY: Vertex -> Edges :: MOAB_AHF: Average time =  "<< time_avg<<" secs" <<std::endl;
   std::cout<<std::endl;
-
 
   //NQ1:  For every edge, obtain neighbor edges  
   time_start = wtime();
@@ -144,39 +131,30 @@ int main(int argc, char **argv)
     adjents.clear();
     error = ahf.get_neighbor_adjacencies( *i, adjents);
   }
-  time_avg = (wtime()-time_start)/(double)edges.size();
-  std::cout<<"MOAB_AHF: Average time taken to compute neighbor edges of an edge = "<<time_avg<<" secs" << std::endl;
-
-  error = mtu.get_bridge_adjacencies( *edges.begin(), 0, 1, mbents);
-  time_start = wtime();
-  for (Range::iterator i = edges.begin(); i != edges.end(); ++i) {
-    mbents.clear();
-    error = mtu.get_bridge_adjacencies( *i, 0, 1, mbents);
-  }
-  time_avg = (wtime()-time_start)/(double)edges.size();
-  std::cout<<"MOAB: Average time taken to compute neighbor edges of an edge = "<<time_avg<<" secs" << std::endl;
+  std::cout<<"QUERY: Edge -> Edges :: MOAB_AHF: Average time = "<<time_avg<<" secs" << std::endl;
   std::cout<<std::endl;
 
 
   // 2D Queries
-  //IQ21: For every edge, obtain incident faces
   std::cout<<"2D QUERIES"<<std::endl;
+  //IQ21: For every vertex, obtain incident faces
+  time_start = wtime();
+  for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
+    adjents.clear();
+    error = ahf.get_up_adjacencies( *i, 2, adjents);
+  }
+  time_avg = (wtime()-time_start)/(double)edges.size();
+  std::cout<<"QUERY: Vertex -> Faces :: MOAB_AHF: Average time =  "<<time_avg<<" secs" <<std::endl;
+  std::cout<<std::endl;
+
+  //IQ22: For every edge, obtain incident faces
   time_start = wtime();
   for (Range::iterator i = edges.begin(); i != edges.end(); ++i) {   
     adjents.clear();
     error = ahf.get_up_adjacencies( *i, 2, adjents);
   }
   time_avg = (wtime()-time_start)/(double)edges.size();
-  std::cout<<"MOAB_AHF: Average time taken to compute incident faces on an edge =  "<<time_avg<<" secs" <<std::endl;
-
-  error = mbImpl->get_adjacencies( &*edges.begin(), 1, 2, false, mbents);
-  time_start = wtime();
-  for (Range::iterator i = edges.begin(); i != edges.end(); ++i) {
-      mbents.clear();
-      error = mbImpl->get_adjacencies( &*i, 1, 2, false, mbents);
-  }
-  time_avg = (wtime()-time_start)/(double)edges.size();
-  std::cout<<"MOAB: Average time taken to compute incident faces on an edge =  "<<time_avg<<" secs" <<std::endl;
+  std::cout<<"QUERY: Edge -> Faces :: MOAB_AHF: Average time =  "<<time_avg<<" secs" <<std::endl;
   std::cout<<std::endl;
 
   //NQ2: For every face, obtain neighbor faces 
@@ -186,58 +164,40 @@ int main(int argc, char **argv)
     error = ahf.get_neighbor_adjacencies( *i, adjents);
   }
   time_avg = (wtime()-time_start)/(double)faces.size();
-  std::cout<<"MOAB_AHF: Average time taken to compute neighbor faces of a face = "<< time_avg<<" secs" <<std::endl;
-
-  error = mtu.get_bridge_adjacencies( *faces.begin(), 1, 2, mbents);
-  time_start = wtime();
-  for (Range::iterator i = faces.begin(); i != faces.end(); ++i) {
-    mbents.clear();
-    error = mtu.get_bridge_adjacencies( *i, 1, 2, mbents);
-  }
-  time_avg = (wtime()-time_start)/(double)faces.size();
-  std::cout<<"MOAB: Average time taken to compute neighbor faces of a face = "<< time_avg<<" secs" <<std::endl;
+  std::cout<<"QUERY: Face -> Faces :: MOAB_AHF: Average time = "<< time_avg<<" secs" <<std::endl;
   std::cout<<std::endl;
-
 
   // 3D Queries
-  // IQ 31: For every edge, obtain incident cells
   std::cout<<"3D QUERIES"<<std::endl;
+  //IQ31: For every vertex, obtain incident cells
   time_start = wtime();
-  for (Range::iterator i = edges.begin(); i != edges.end(); ++i) {
-    adjents.clear();
-    error = ahf.get_up_adjacencies( *i, 3, adjents);
+  for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
+      adjents.clear();
+      error = ahf.get_up_adjacencies(*i, 3, adjents);
   }
   time_avg = (wtime()-time_start)/(double)edges.size();
-  std::cout<<"MOAB_AHF: Average time taken to compute incident cells on an edge  =  "<<time_avg <<" secs"<<std::endl;
-
-  error = mbImpl->get_adjacencies(&*edges.begin(), 1, 3, false, mbents);
-  time_start = wtime();
-  for (Range::iterator i = edges.begin(); i != edges.end(); ++i) {
-    mbents.clear();
-    error = mbImpl->get_adjacencies(&*i, 1, 3, false, mbents);
-  }
-  time_avg = (wtime()-time_start)/(double)edges.size();
-  std::cout<<"MOAB: Average time taken to compute incident cells on an edge  =  "<<time_avg <<" secs"<<std::endl;
+  std::cout<<"QUERY: Vertex -> Cells :: MOAB_AHF: Average time =  "<<time_avg <<" secs"<<std::endl;
   std::cout<<std::endl;
 
-  //IQ32: For every face, obtain incident cells
+  // IQ 32: For every edge, obtain incident cells
+  time_start = wtime();
+  for (Range::iterator i = edges.begin(); i != edges.end(); ++i) {
+    adjents.clear();
+    error = ahf.get_up_adjacencies( *i, 3, adjents);
+  }
+  time_avg = (wtime()-time_start)/(double)edges.size();
+  std::cout<<"QUERY: Edge -> Cells :: MOAB_AHF: Average time =  "<<time_avg <<" secs"<<std::endl;
+  std::cout<<std::endl;
+
+
+  //IQ33: For every face, obtain incident cells
   time_start = wtime();
   for (Range::iterator i = faces.begin(); i != faces.end(); ++i) {
     adjents.clear();
     error = ahf.get_up_adjacencies( *i, 3, adjents);
-
   }
   time_avg = (wtime()-time_start)/(double)faces.size();
-  std::cout<<"MOAB_AHF: Average time taken to compute incident cells on a face  =  "<<time_avg <<" secs"<<std::endl;
-
-  error = mbImpl->get_adjacencies(&*faces.begin(), 1, 3, false, mbents);
-  time_start = wtime();
-  for (Range::iterator i = faces.begin(); i != faces.end(); ++i) {
-    mbents.clear();
-    error = mbImpl->get_adjacencies(&*i, 1, 3, false, mbents);
-  }
-  time_avg = (wtime()-time_start)/(double)faces.size();
-  std::cout<<"MOAB: Average time taken to compute incident cells on a face  =  "<<time_avg <<" secs"<<std::endl;
+  std::cout<<"QUERY: Face -> Cells :: MOAB_AHF: Average time =  "<<time_avg <<" secs"<<std::endl;
   std::cout<<std::endl;
 
   //NQ3: For every cell, obtain neighbor cells
@@ -247,16 +207,7 @@ int main(int argc, char **argv)
     error = ahf.get_neighbor_adjacencies( *i, adjents);
   }
   time_avg = (wtime()-time_start)/(double)cells.size();
-  std::cout<<"MOAB_AHF: Average time taken to compute neighbor cells of a cell =  "<< time_avg <<" secs" << std::endl;
-
-  error = mtu.get_bridge_adjacencies( *cells.begin(), 2, 3, mbents);
-  time_start = wtime();
-  for (Range::iterator i = cells.begin(); i != cells.end(); ++i) {
-    mbents.clear();
-    error = mtu.get_bridge_adjacencies( *i, 2, 3, mbents);
-  }
-  time_avg = (wtime()-time_start)/(double)cells.size();
-  std::cout<<"MOAB: Average time taken to compute neighbor cells of a cell =  "<< time_avg <<" secs" << std::endl;
+  std::cout<<"QUERY: Cell -> Cells :: MOAB_AHF: Average time =  "<< time_avg <<" secs" << std::endl;
   std::cout<<std::endl;
 
   ahf.deinitialize();

@@ -27,8 +27,6 @@
 
 namespace moab {
 
-  const int MAXSIZE = 150;
-
   HalfFacetRep::HalfFacetRep(Core *impl)
   {
     assert(NULL != impl);
@@ -73,19 +71,19 @@ namespace moab {
       {{{0,0,1,0},{0,0,0,0},{1,0,1,0},{0,0,0,0}}},
 
       //SURFACE_MIXED
-      {{{0,1,1,0},{1,1,1,0},{1,0,1,0},{0,0,0,0}}},
+      {{{0,1,1,0},{1,1,1,0},{1,1,1,0},{0,0,0,0}}},
 
       //VOLUME
       {{{0,0,0,1},{0,0,0,0},{0,0,0,0},{1,0,0,1}}},
 
       //VOLUME_MIXED_1
-      {{{0,1,0,1},{1,1,0,1},{0,0,0,0},{1,0,0,1}}},
+      {{{0,1,0,1},{1,1,0,1},{0,0,0,0},{1,1,0,1}}},
 
       //VOLUME_MIXED_2
-      {{{0,0,1,1},{0,0,0,0},{1,0,1,1},{1,0,0,1}}},
+      {{{0,0,1,1},{0,0,0,0},{1,0,1,1},{1,0,1,1}}},
 
       //VOLUME_MIXED
-      {{{0,1,1,1},{1,1,1,1},{1,0,1,1},{1,0,0,1}}}
+      {{{0,1,1,1},{1,1,1,1},{1,1,1,1},{1,1,1,1}}}
   };
 
   int HalfFacetRep::get_index_for_meshtype(MESHTYPE mesh_type)
@@ -278,6 +276,17 @@ namespace moab {
     error = determine_incident_halfedges(_faces);
     if (MB_SUCCESS != error) return error;
 
+    //Create face tags
+    error = mb->tag_get_handle("__VISITED_FACE", 1, MB_TYPE_INTEGER, visited_face, MB_TAG_DENSE | MB_TAG_CREAT, &ival);
+    if (MB_SUCCESS != error) return error;
+
+    //Initialize queues for storing face and local id's during local search
+    for (int i = 0; i< MAXSIZE; i++)
+      {
+        queue_fid[i] = 0;
+        queue_lid[i] = 0;
+      }
+
     delete [] sdefval;
     delete [] sval;
 
@@ -299,6 +308,7 @@ namespace moab {
         sval[i] = 0;
       }
 
+    //Create tags to store ahf maps for volume
     error = mb->tag_get_handle("__SIBHFS_CID", nfpc, MB_TYPE_HANDLE, sibhfs_cid, MB_TAG_DENSE | MB_TAG_CREAT, sdefval);
     if (MB_SUCCESS != error) return error;
     error = mb->tag_get_handle("__SIBHFS_LFID", nfpc, MB_TYPE_INTEGER, sibhfs_lfid, MB_TAG_DENSE | MB_TAG_CREAT, sval);
@@ -308,9 +318,15 @@ namespace moab {
     error = mb->tag_get_handle("__V2HF_LFID", 1, MB_TYPE_INTEGER, v2hf_lfid, MB_TAG_DENSE | MB_TAG_CREAT, &ival);
     if (MB_SUCCESS != error) return error;
 
+    //Construct the maps
     error = determine_sibling_halffaces(_cells);
     if (MB_SUCCESS != error) return error;
     error = determine_incident_halffaces(_cells);
+    if (MB_SUCCESS != error) return error;
+
+
+    //Create cell tag
+    error = mb->tag_get_handle("__VISITED_CELL", 1, MB_TYPE_INTEGER, visited_cell, MB_TAG_DENSE | MB_TAG_CREAT, &ival);
     if (MB_SUCCESS != error) return error;
 
     delete [] sdefval;
@@ -393,6 +409,9 @@ namespace moab {
      error = mb->tag_delete(v2he_leid);
      if (MB_SUCCESS != error) return error;
 
+     error = mb->tag_delete(visited_face);
+     if (MB_SUCCESS != error) return error;
+
      return MB_SUCCESS;
    }
 
@@ -406,6 +425,10 @@ namespace moab {
      if (MB_SUCCESS != error) return error;
      error = mb->tag_delete(v2hf_lfid);
      if (MB_SUCCESS != error) return error;
+
+     error = mb->tag_delete(visited_cell);
+     if (MB_SUCCESS != error) return error;
+
 
      return MB_SUCCESS;
    }
@@ -550,64 +573,20 @@ namespace moab {
 
       if (adj_possible)
       {
-
-          if (source_dimension == 0) // Vertex to up adjacencies
+          if (source_dimension < target_dimension)
           {
-              if (target_dimension == 1)
-              {
-                  error = get_up_adjacencies_1d(source_entity, target_entities);
-                  if (MB_SUCCESS != error) return error;
-              }
-              else if (target_dimension == 2)
-              {
-                  error = get_up_adjacencies_vert_2d(source_entity, target_entities);
-                  if (MB_SUCCESS != error) return error;
-              }
-              else if (target_dimension == 3)
-              {
-                  error = get_up_adjacencies_vert_3d(source_entity, target_entities);
-                  if (MB_SUCCESS != error) return error;
-              }
-          }
-
-          else if (source_dimension == 1) // Edge to up adjacencies
-          {
-              if (target_dimension == 2)
-              {
-                  error = get_up_adjacencies_2d(source_entity, target_entities);
-                  if (MB_SUCCESS != error) return error;
-              }
-              else if (target_dimension == 3)
-              {
-                  error = get_up_adjacencies_edg_3d(source_entity, target_entities);
-                  if (MB_SUCCESS != error) return error;
-              }
-          }
-
-          else if ((source_dimension == 2) && (target_dimension ==3)) // Face to up adjacencies
-          {
-              error = get_up_adjacencies_face_3d(source_entity, target_entities);
+              error = get_up_adjacencies(source_entity, target_dimension, target_entities);
               if (MB_SUCCESS != error) return error;
           }
-
-          else if (source_dimension == target_dimension) // Same dimensional adjacencies
+          else if (source_dimension == target_dimension)
           {
-              if (target_dimension == 1)
-              {
-                  error = get_neighbor_adjacencies_1d(source_entity, target_entities);
-                  if (MB_SUCCESS != error) return error;
-              }
-
-              else if (target_dimension == 2)
-              {
-                  error = get_neighbor_adjacencies_2d(source_entity, target_entities);
-                  if (MB_SUCCESS != error) return error;
-              }
-              else if (target_dimension == 3)
-              {
-                  error = get_neighbor_adjacencies_3d(source_entity, target_entities);
-                  if (MB_SUCCESS != error) return error;
-              }
+              error = get_neighbor_adjacencies(source_entity, target_entities);
+              if (MB_SUCCESS != error) return error;
+          }
+          else
+          {
+              error = get_down_adjacencies(source_entity, target_dimension, target_entities);
+              if (MB_SUCCESS != error) return error;
           }
       }
       else
@@ -686,6 +665,28 @@ namespace moab {
          if (MB_SUCCESS != error) return error;
        }
      return MB_SUCCESS;
+   }
+
+   ErrorCode HalfFacetRep::get_down_adjacencies(EntityHandle ent, int out_dim, std::vector<EntityHandle> &adjents)
+   {
+       ErrorCode error;
+       int in_dim = mb->dimension_from_handle(ent);
+       if ((in_dim == 2)&&(out_dim == 1))
+       {
+           error = get_down_adjacencies_2d(ent, adjents);
+           if (MB_SUCCESS != error) return error;
+       }
+       else if ((in_dim == 3)&&(out_dim == 1))
+       {
+           error = get_down_adjacencies_edg_3d(ent, adjents);
+           if (MB_SUCCESS != error) return error;
+       }
+       else if ((in_dim == 3)&&(out_dim == 2))
+       {
+           error = get_down_adjacencies_face_3d(ent, adjents);
+           if (MB_SUCCESS != error) return error;
+       }
+       return MB_SUCCESS;
    }
 
   /******************************************************** 
@@ -1203,17 +1204,9 @@ namespace moab {
       {
         adjents.push_back(fid);
 
-        EntityHandle queue_fid[MAXSIZE], trackfaces[MAXSIZE];
-        int queue_lid[MAXSIZE];
-        for (int i = 0; i< MAXSIZE; i++)
-          {
-            queue_fid[i] = 0;
-            queue_lid[i] = 0;
-            trackfaces[i] = 0;
-          }
-        int qsize = 0, count = -1;
+        int qsize = 0;
         int num_qvals = 0;
-        error = gather_halfedges(vid, fid, lid, queue_fid, queue_lid, &qsize, trackfaces, &count);
+        error = gather_halfedges(vid, fid, lid, &qsize);
         if (MB_SUCCESS != error) return error;
 
         while (num_qvals < qsize)
@@ -1226,20 +1219,35 @@ namespace moab {
             error = another_halfedge(vid, curfid, curlid, &he2_fid, &he2_lid);
             if (MB_SUCCESS != error) return error;
 
-            bool found_ent = find_match_in_array(he2_fid, trackfaces, count);
+            int val;
+            error = mb->tag_get_data(visited_face, &he2_fid, 1, &val);
+            if (MB_SUCCESS != error) return error;
 
-            if (found_ent)
+            if (val)
               continue;
-            count += 1;
-            trackfaces[count] = he2_fid;
 
-            error = get_up_adjacencies_2d(he2_fid, he2_lid, queue_fid, queue_lid, &qsize, trackfaces, &count);
+            val = 1;
+            error = mb->tag_set_data(visited_face, &he2_fid, 1, &val);
+            if (MB_SUCCESS != error) return error;
+
+            error = get_up_adjacencies_2d(he2_fid, he2_lid, &qsize);
             if (MB_SUCCESS != error) return error;
 
             adjents.push_back(he2_fid);
-
           }
-      }
+
+        //Change the visited faces to false, also empty the queue
+        for (int i = 0; i<qsize; i++)
+        {
+            int val = 0;
+            error = mb->tag_set_data(visited_face, &queue_fid[i], 1, &val);
+            if (MB_SUCCESS != error) return error;
+
+            queue_fid[i] = 0;
+            queue_lid[i] = 0;
+        }
+
+    }
     return MB_SUCCESS;
   }
 
@@ -1251,7 +1259,6 @@ namespace moab {
 {
 
   // Given an explicit edge eid, find the incident faces.
-
     ErrorCode error;
     EntityHandle he_fid=0; int he_lid=0;
 
@@ -1322,11 +1329,8 @@ namespace moab {
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
    ErrorCode HalfFacetRep::get_up_adjacencies_2d(EntityHandle fid,
                                                  int lid,
-                                                 EntityHandle *queue_fid,
-                                                 int *queue_lid,
-                                                 int *qsize,
-                                                 EntityHandle *trackfaces,
-                                                 int *tcount)
+                                                 int *qsize
+                                                )
   {
 
     ErrorCode error; 
@@ -1345,7 +1349,6 @@ namespace moab {
         int index = 0;
         bool found_ent = find_match_in_array(fid, queue_fid, qsize[0]-1, true, &index);
         if ((!found_ent)||((found_ent) && (queue_lid[index] != lid)))
-
           {
             queue_fid[qsize[0]] = fid;
             queue_lid[qsize[0]] = lid;
@@ -1354,14 +1357,14 @@ namespace moab {
       }
 
     while ((curfid != fid)&&(curfid != 0)) {
+        int val;
+        error = mb->tag_get_data(visited_face, &curfid, 1, &val);
+        if (MB_SUCCESS != error) return error;
 
-        bool found = find_match_in_array(curfid, trackfaces, tcount[0]);
-
-        if (!found){
+        if (!val){
             queue_fid[qsize[0]] = curfid;
             queue_lid[qsize[0]] = curlid;
             qsize[0] += 1;
-
           }
 
         sib_fids.clear();
@@ -1396,22 +1399,26 @@ namespace moab {
     bool found = false;
 
     if (fid!=0){
-        EntityHandle queue_fid[MAXSIZE], trackfaces[MAXSIZE];
-        int queue_lid[MAXSIZE];
-        for (int i = 0; i< MAXSIZE; i++)
-          {
-            queue_fid[i] = 0;
-            queue_lid[i] = 0;
-            trackfaces[i] = 0;
-          }
-        int qsize = 0, tcount = -1;
+
+        int qsize = 0;
 
         EntityHandle vid = conn[0];
 
-        error = gather_halfedges(vid, fid, lid, queue_fid, queue_lid, &qsize, trackfaces, &tcount);
+        error = gather_halfedges(vid, fid, lid, &qsize);
         if (MB_SUCCESS != error) return error;
 
-        found =  collect_and_compare(conn, queue_fid, queue_lid, &qsize, trackfaces, &tcount, hefid, helid);
+        found =  collect_and_compare(conn, &qsize, hefid, helid);
+
+        //Change the visited faces to false
+        for (int i = 0; i<qsize; i++)
+        {
+            int val = 0;
+            error = mb->tag_set_data(visited_face, &queue_fid[i], 1, &val);
+            if (MB_SUCCESS != error) return error;
+
+            queue_fid[i] = 0;
+            queue_lid[i] = 0;
+        }
       }
 
     return found;
@@ -1420,11 +1427,8 @@ namespace moab {
    ErrorCode HalfFacetRep::gather_halfedges( EntityHandle vid,
                                              EntityHandle he_fid,
                                              int he_lid,
-                                             EntityHandle *queue_fid,
-                                             int *queue_lid,
-                                             int *qsize,
-                                             EntityHandle *trackfaces,
-                                             int *tcount)
+                                             int *qsize
+                                            )
   {  
     ErrorCode error;
     EntityHandle he2_fid = 0; int he2_lid = 0;
@@ -1436,12 +1440,14 @@ namespace moab {
     *qsize += 1;
     queue_fid[*qsize] = he2_fid; queue_lid[*qsize] = he2_lid;
     *qsize += 1;
-    tcount[0] += 1;
-    trackfaces[tcount[0]] = he_fid;
-    
-    error = get_up_adjacencies_2d(he_fid, he_lid, queue_fid, queue_lid, qsize, trackfaces, tcount);
+
+    int val = 1;
+    error = mb->tag_set_data(visited_face, &he_fid, 1, &val);
     if (MB_SUCCESS != error) return error;
-    error = get_up_adjacencies_2d(he2_fid, he2_lid, queue_fid, queue_lid, qsize, trackfaces, tcount);
+    
+    error = get_up_adjacencies_2d(he_fid, he_lid, qsize);
+    if (MB_SUCCESS != error) return error;
+    error = get_up_adjacencies_2d(he2_fid, he2_lid, qsize);
     if (MB_SUCCESS != error) return error;
 
     return MB_SUCCESS;
@@ -1479,11 +1485,7 @@ namespace moab {
   
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   bool HalfFacetRep::collect_and_compare(std::vector<EntityHandle> &edg_vert,
-                                         EntityHandle *queue_fid,
-                                         int *queue_lid,
-                                         int *qsize,
-                                         EntityHandle *trackfaces,
-                                         int *tcount,
+                                         int *qsize,                                      
                                          EntityHandle *he_fid,
                                          int *he_lid)
   {
@@ -1503,41 +1505,45 @@ namespace moab {
         int curlid = queue_lid[num_qvals];
         num_qvals += 1;       
 
-	std::vector<EntityHandle> conn(nepf);
-	error = mb->get_connectivity(&curfid, 1, conn);
-	if (MB_SUCCESS != error) return error;
+        std::vector<EntityHandle> conn(nepf);
+        error = mb->get_connectivity(&curfid, 1, conn);
+        if (MB_SUCCESS != error) return error;
 
-    int id = next[curlid];
-	if (((conn[curlid]==edg_vert[0])&&(conn[id]==edg_vert[1]))||((conn[curlid]==edg_vert[1])&&(conn[id]==edg_vert[0]))){
-	    *he_fid = curfid;
-	    *he_lid = curlid;
-	    found = true;
-	    break;
-	}
+        int id = next[curlid];
+        if (((conn[curlid]==edg_vert[0])&&(conn[id]==edg_vert[1]))||((conn[curlid]==edg_vert[1])&&(conn[id]==edg_vert[0]))){
+            *he_fid = curfid;
+            *he_lid = curlid;
+            found = true;
+            break;
+        }
 
-	bool found_ent = find_match_in_array(curfid, trackfaces, tcount[0]);
+        int val;
+        error = mb->tag_get_data(visited_face, &curfid, 1, &val);
+        if (MB_SUCCESS != error) return error;
 
-	if (found_ent)
-	  continue;
-	tcount[0] += 1;
-	trackfaces[tcount[0]] = curfid;
+        if (val)
+            continue;
 
-	EntityHandle he2_fid; int he2_lid;
-	error = another_halfedge(edg_vert[0], curfid, curlid, &he2_fid, &he2_lid);
+        val=1;
+        error = mb->tag_set_data(visited_face, &curfid, 1, &val);
+        if (MB_SUCCESS != error) return error;
 
-	if (MB_SUCCESS != error) return error;
-	error = get_up_adjacencies_2d(he2_fid, he2_lid, queue_fid, queue_lid, qsize, trackfaces, tcount);
-	if (MB_SUCCESS != error) return error;      
+        EntityHandle he2_fid; int he2_lid;
+        error = another_halfedge(edg_vert[0], curfid, curlid, &he2_fid, &he2_lid);
 
-	counter += 1;
-      }
-      
+        if (MB_SUCCESS != error) return error;
+        error = get_up_adjacencies_2d(he2_fid, he2_lid, qsize);
+        if (MB_SUCCESS != error) return error;
+
+        counter += 1;
+    }
+
     delete [] next;
     delete [] prev;
     return found;
   }
   
-  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////////////////////////////////
   ErrorCode  HalfFacetRep::get_neighbor_adjacencies_2d( EntityHandle fid,
                                                         std::vector<EntityHandle> &adjents)
   {
@@ -1552,6 +1558,50 @@ namespace moab {
     }
     
     return MB_SUCCESS;
+  }
+
+
+  /////////////////////////////////////////////////////////////////////////////////////////////////
+  ErrorCode HalfFacetRep::get_down_adjacencies_2d(EntityHandle fid, std::vector<EntityHandle> &adjents)
+  {
+      //Returns explicit edges, if any, of the face
+      ErrorCode error;
+      int nepf = local_maps_2d(fid);
+      std::vector<EntityHandle> conn(nepf);
+      error = mb->get_connectivity(&fid, 1, conn);
+      if (error != MB_SUCCESS) return error;
+
+      //Gather all the incident edges on each vertex of the face
+      std::vector< std::vector<EntityHandle> > temp(nepf);
+      for (int i=0; i<nepf; i++)
+      {
+          error = get_up_adjacencies_1d(conn[i], temp[i]);
+          if (error != MB_SUCCESS) return error;
+          std::sort(temp[i].begin(), temp[i].end());
+      }
+
+      //Loop over all the local edges and find the intersection.
+      for (int i = 0; i < nepf; ++i)
+      {
+          std::vector<EntityHandle> common(10);
+          std::vector<EntityHandle>::iterator it;
+          if (i == nepf-1){
+              it = std::set_intersection(temp[i].begin(), temp[i].end(), temp[0].begin(), temp[0].end(), common.begin());
+              if (*common.begin() == 0)
+                  continue;
+
+              adjents.push_back(*common.begin());
+          }
+          else
+          {
+              it = std::set_intersection(temp[i].begin(), temp[i].end(), temp[i+1].begin(), temp[i+1].end(), common.begin());
+              if (*common.begin() == 0)
+                  continue;
+
+              adjents.push_back(*common.begin());
+          }
+      }
+      return MB_SUCCESS;
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2087,15 +2137,15 @@ namespace moab {
 	    {
 	      idx = lConnMap3D[index].hf2v[lfid][j];
 	      if (vert0 == sib_conn[idx])
-		lv0 = idx;
-	      if (vert1 == sib_conn[idx])
-		lv1 = idx;
-	    }
+              lv0 = idx;
+          if (vert1 == sib_conn[idx])
+              lv1 = idx;
+      }
 
-	  assert((lv0 >= 0) && (lv1 >= 0));
-	  cur_leid = lConnMap3D[index].lookup_leids[lv0][lv1];
+      assert((lv0 >= 0) && (lv1 >= 0));
+      cur_leid = lConnMap3D[index].lookup_leids[lv0][lv1];
 
-	  int chk_lfid = lConnMap3D[index].e2hf[cur_leid][0];
+      int chk_lfid = lConnMap3D[index].e2hf[cur_leid][0];
 
 	  if (lfid == chk_lfid)
 	    lface = 1;
@@ -2413,6 +2463,96 @@ namespace moab {
 
     return MB_SUCCESS; 
   }
+
+  /////////////////////////////////////////////////////////////////////////////////////////////////
+  ErrorCode HalfFacetRep::get_down_adjacencies_edg_3d(EntityHandle cid, std::vector<EntityHandle> &adjents)
+  {
+      //Returns explicit edges, if any, of the face
+      ErrorCode error;
+      int index = get_index_from_type(cid);
+      int nvpc = lConnMap3D[index].num_verts_in_cell;
+      int nepc = lConnMap3D[index].num_edges_in_cell;
+
+      std::vector<EntityHandle> conn(nvpc);
+      error = mb->get_connectivity(&cid, 1, conn);
+      if (error != MB_SUCCESS) return error;
+
+      //Gather all the incident edges on each vertex of the face
+      std::vector< std::vector<EntityHandle> > temp(nvpc);
+      for (int i=0; i<nvpc; i++)
+      {
+          error = get_up_adjacencies_1d(conn[i], temp[i]);
+          if (error != MB_SUCCESS) return error;
+          std::sort(temp[i].begin(), temp[i].end());
+      }
+
+      //Loop over all the local edges and find the intersection.
+      for (int i = 0; i < nepc; ++i)
+      {
+          std::vector<EntityHandle> common(10);
+          std::vector<EntityHandle>::iterator it;
+
+          int lv0 = lConnMap3D[index].e2v[i][0];
+          int lv1 = lConnMap3D[index].e2v[i][1];
+
+          it = std::set_intersection(temp[lv0].begin(), temp[lv0].end(), temp[lv1].begin(), temp[lv1].end(), common.begin());
+          if (*common.begin() == 0)
+              continue;
+
+          adjents.push_back(*common.begin());
+      }
+      return MB_SUCCESS;
+  }
+
+  /////////////////////////////////////////////////////////////////////////////////////////////////
+  ErrorCode HalfFacetRep::get_down_adjacencies_face_3d(EntityHandle cid, std::vector<EntityHandle> &adjents)
+  {
+      //Returns explicit edges, if any, of the face
+      ErrorCode error;
+      int index = get_index_from_type(cid);
+      int nvpc = lConnMap3D[index].num_verts_in_cell;
+      int nfpc = lConnMap3D[index].num_faces_in_cell;
+
+      std::vector<EntityHandle> conn(nvpc);
+      error = mb->get_connectivity(&cid, 1, conn);
+      if (error != MB_SUCCESS) return error;
+
+      //Gather all the incident edges on each vertex of the face
+      std::vector< std::vector<EntityHandle> > temp(nvpc);
+      for (int i=0; i<nvpc; i++)
+      {
+          error = get_up_adjacencies_vert_2d(conn[i], temp[i]);
+          if (error != MB_SUCCESS) return error;
+          std::sort(temp[i].begin(), temp[i].end());
+      }
+
+      //Loop over all the local faces and find the intersection.
+      for (int i = 0; i < nfpc; ++i)
+      {
+          std::vector<EntityHandle> results(100);
+          std::vector<EntityHandle>::iterator it;
+
+          int nvF = lConnMap3D[index].hf2v_num[i];
+
+          int lv0 = lConnMap3D[index].hf2v[i][0];
+          int lv1 = lConnMap3D[index].hf2v[i][1];
+          std::set_intersection(temp[lv0].begin(), temp[lv0].end(), temp[lv1].begin(), temp[lv1].end(), std::back_inserter(results));
+
+          std::vector<EntityHandle> common(100);
+          for (int k = 2; k < nvF; k++){
+              common.clear();
+              int lv = lConnMap3D[index].hf2v[i][k];
+              std::set_intersection(temp[lv].begin(), temp[lv].end(), results.begin(), results.end(), std::back_inserter(common));
+          }
+
+          if (*common.begin() == 0)
+              continue;
+
+          adjents.push_back(*common.begin());
+      }
+      return MB_SUCCESS;
+  }
+
 
   ///////////////////////////////////////////////////////////////////////////////////////////
   bool HalfFacetRep::find_match_in_array(EntityHandle ent, EntityHandle *ent_list, int count, bool get_index, int *index)

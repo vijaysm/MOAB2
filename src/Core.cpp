@@ -1542,11 +1542,8 @@ ErrorCode Core::get_adjacencies( const EntityHandle *from_entities,
 
 #ifdef USE_AHF
     bool can_handle = true;
-    int source_dim = this->dimension_from_handle(from_entities[0]);
 
-    if ((source_dim > to_dimension) && (to_dimension != 0))
-        can_handle = false; //NOT SUPPORTED: Down adjacencies
-    else if (to_dimension == 4)
+    if (to_dimension == 4)
         can_handle = false; // NOT SUPPORTED: meshsets
     else if (create_if_missing)
         can_handle = false;//NOT SUPPORTED: create_if_missing
@@ -1555,7 +1552,7 @@ ErrorCode Core::get_adjacencies( const EntityHandle *from_entities,
     if (mixed)
         can_handle = false;
 
-    if (mesh_modified)
+    if (mesh_modified) //NOT SUPPORTED: modified mesh
         can_handle = false;
 
     if (can_handle)

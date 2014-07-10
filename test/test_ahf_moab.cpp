@@ -149,6 +149,30 @@ ErrorCode ahf_test(Core *moab)
         CHECK(!mbents.size());
     }
 
+    //DQ 21: For every face, obtain its edges
+    for (Range::iterator i = faces.begin(); i != faces.end(); ++i) {
+        adjents.clear();
+        error = ahf.get_down_adjacencies( *i, 1, adjents);
+        CHECK_ERR(error);
+        mbents.clear();
+        error = mbImpl->get_adjacencies( &*i, 1, 1, false, mbents);
+        CHECK_ERR(error);
+
+        /*std::cout<<"adjents.size = "<<adjents.size()<<", mbents.size = "<<mbents.size()<<std::endl;
+        for (int k = 0; k< adjents.size(); k++)
+            std::cout<<"adjents["<<k<<"] = "<<adjents[k]<<std::endl;
+
+        for (int k = 0; k< mbents.size(); k++)
+            std::cout<<"mbents["<<k<<"] = "<<mbents[k]<<std::endl;*/
+
+        CHECK_EQUAL(adjents.size(), mbents.size());
+
+        std::sort(adjents.begin(), adjents.end());
+        std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
+        mbents = subtract(mbents, ahfents);
+        CHECK(!mbents.size());
+    }
+
     // 3D Queries
     //IQ 31: For every vertex, obtain incident cells
     for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
@@ -217,6 +241,57 @@ ErrorCode ahf_test(Core *moab)
         mbents = subtract(mbents, ahfents);
         CHECK(!mbents.size());
     }
+
+
+    //DQ 31: For every cell, obtain its edges
+    for (Range::iterator i = cells.begin(); i != cells.end(); ++i) {
+        adjents.clear();
+        error = ahf.get_down_adjacencies( *i, 1, adjents);
+        CHECK_ERR(error);
+        mbents.clear();
+        error = mbImpl->get_adjacencies( &*i, 1, 1, false, mbents);
+        CHECK_ERR(error);
+
+        /*std::cout<<"adjents.size = "<<adjents.size()<<", mbents.size = "<<mbents.size()<<std::endl;
+        for (int k = 0; k< adjents.size(); k++)
+            std::cout<<"adjents["<<k<<"] = "<<adjents[k]<<std::endl;
+
+        for (int k = 0; k< mbents.size(); k++)
+            std::cout<<"mbents["<<k<<"] = "<<mbents[k]<<std::endl;*/
+
+        CHECK_EQUAL(adjents.size(), mbents.size());
+
+        std::sort(adjents.begin(), adjents.end());
+        std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
+        mbents = subtract(mbents, ahfents);
+        CHECK(!mbents.size());
+    }
+
+    //DQ 32: For every cell, obtain its faces
+    for (Range::iterator i = cells.begin(); i != cells.end(); ++i) {
+        adjents.clear();
+        error = ahf.get_down_adjacencies( *i, 2, adjents);
+        CHECK_ERR(error);
+        mbents.clear();
+        error = mbImpl->get_adjacencies( &*i, 1, 2, false, mbents);
+        CHECK_ERR(error);
+
+        /*std::cout<<"adjents.size = "<<adjents.size()<<", mbents.size = "<<mbents.size()<<std::endl;
+        for (int k = 0; k< adjents.size(); k++)
+            std::cout<<"adjents["<<k<<"] = "<<adjents[k]<<std::endl;
+
+        for (int k = 0; k< mbents.size(); k++)
+            std::cout<<"mbents["<<k<<"] = "<<mbents[k]<<std::endl;*/
+
+        CHECK_EQUAL(adjents.size(), mbents.size());
+
+        std::sort(adjents.begin(), adjents.end());
+        std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
+        mbents = subtract(mbents, ahfents);
+        CHECK(!mbents.size());
+    }
+
+
 
     ahf.deinitialize();
 

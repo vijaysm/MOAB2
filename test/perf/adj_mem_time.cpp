@@ -68,6 +68,8 @@ int main(int argc, char **argv)
 
 
   //Storage Costs before calling ahf functionalities
+  std::cout<<std::endl;
+  std::cout<<"STORAGE BEFORE CALLING ADJACENCIES"<<std::endl;
   unsigned long sTotS, sTAS, sES, sAES, sAS, sAAS, sTS, sATS;
   sTotS = sTAS = sES = sAES = sAS = sAAS = sTS = sATS = 0;
   mbImpl->estimated_memory_use(NULL, 0, &sTotS, &sTAS, &sES, &sAES, &sAS, &sAAS, NULL, 0, &sTS, &sATS);
@@ -85,30 +87,12 @@ int main(int argc, char **argv)
 
   double time_start, time_avg;
 
-  //Storage Costs after calling ahf initialize
-  unsigned long TotS, TAS, ES, AES, AS, AAS, TS, ATS;
-  TotS = TAS = ES = AES = AS = AAS = TS = ATS = 0;
-  mbImpl->estimated_memory_use(NULL, 0, &TotS, &TAS, &ES, &AES, &AS, &AAS, NULL, 0, &TS, &ATS);
-  std::cout<<std::endl;
-  std::cout<<"Total storage = "<<TotS<<std::endl;
-  std::cout<<"Total amortized storage = "<<TAS<<std::endl;
-  std::cout<<"Entity storage = "<<ES<<std::endl;
-  std::cout<<"Amortized entity storage = "<<AES<<std::endl;
-  std::cout<<"Adjacency storage = "<<AS<<std::endl;
-  std::cout<<"Amortized adjacency storage = "<<AAS<<std::endl;
-  std::cout<<"Tag storage = "<<TS<<std::endl;
-  std::cout<<"Amortized tag storage = "<<ATS<<std::endl;
-  std::cout<<std::endl;
-
   //Perform queries
   std::vector<EntityHandle> adjents;
-  Range mbents;
+  Range ngbents;
 
-  // This call should create all the necessary ahf maps
+  // This call should create all the necessary ahf maps or adjacency lists
   error = mbImpl->get_adjacencies( &*verts.begin(), 1, 1, false, adjents );
-
-  // This call should create all the necessary moab adjacency lists
-  error = mbImpl->get_adjacencies( &*verts.begin(), 1, 1, false, mbents );
 
   //1D Queries //
   //IQ1: For every vertex, obtain incident edges
@@ -119,18 +103,16 @@ int main(int argc, char **argv)
     error = mbImpl->get_adjacencies( &*i, 1, 1, false, adjents);
   }
   time_avg = (wtime()-time_start)/(double)verts.size();
+#ifdef USE_AHF
   std::cout<<"QUERY: Vertex -> Edges :: MOAB_AHF: Average time =  "<< time_avg<<" secs" <<std::endl;
-
-  time_start = wtime();
-  for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
-    mbents.clear();
-    error = mbImpl->get_adjacencies( &*i, 1, 1, false, mbents );
-  }
-  time_avg = (wtime()-time_start)/(double)verts.size();
+  std::cout<<std::endl;
+#else
   std::cout<<"QUERY: Vertex -> Edges :: MOAB: Average time =  "<< time_avg<<" secs" <<std::endl;
   std::cout<<std::endl;
+#endif
 
   //NQ1:  For every edge, obtain neighbor edges  
+#ifdef USE_AHF
   time_start = wtime();
   for (Range::iterator i = edges.begin(); i != edges.end(); ++i) {    
     adjents.clear();
@@ -138,17 +120,18 @@ int main(int argc, char **argv)
   }
   time_avg = (wtime()-time_start)/(double)edges.size();
   std::cout<<"QUERY: Edge -> Edges :: MOAB_AHF: Average time = "<<time_avg<<" secs" << std::endl;
-
-  error = mtu.get_bridge_adjacencies( *edges.begin(), 0, 1, mbents);
+  std::cout<<std::endl;
+#else
+  error = mtu.get_bridge_adjacencies( *edges.begin(), 0, 1, ngbents);
   time_start = wtime();
   for (Range::iterator i = edges.begin(); i != edges.end(); ++i) {
-    mbents.clear();
-    error = mtu.get_bridge_adjacencies( *i, 0, 1, mbents);
+      ngbents.clear();
+      error = mtu.get_bridge_adjacencies( *i, 0, 1, ngbents);
   }
   time_avg = (wtime()-time_start)/(double)edges.size();
   std::cout<<"QUERY: Edge -> Edges :: MOAB: Average time = "<<time_avg<<" secs" << std::endl;
   std::cout<<std::endl;
-
+#endif
 
   // 2D Queries
   std::cout<<"2D QUERIES"<<std::endl;
@@ -159,17 +142,13 @@ int main(int argc, char **argv)
     error = mbImpl->get_adjacencies( &*i, 1, 2, false, adjents);
   }
   time_avg = (wtime()-time_start)/(double)edges.size();
+#ifdef USE_AHF
   std::cout<<"QUERY: Vertex -> Faces :: MOAB_AHF: Average time =  "<<time_avg<<" secs" <<std::endl;
-
-  error = mbImpl->get_adjacencies( &*edges.begin(), 1, 2, false, mbents);
-  time_start = wtime();
-  for (Range::iterator i = edges.begin(); i != edges.end(); ++i) {
-      mbents.clear();
-      error = mbImpl->get_adjacencies( &*i, 1, 2, false, mbents);
-  }
-  time_avg = (wtime()-time_start)/(double)edges.size();
+  std::cout<<std::endl;
+#else
   std::cout<<"QUERY: Vertex -> Faces :: MOAB: Average time =  "<<time_avg<<" secs" <<std::endl;
   std::cout<<std::endl;
+#endif
 
   //IQ22: For every edge, obtain incident faces
   time_start = wtime();
@@ -178,36 +157,50 @@ int main(int argc, char **argv)
     error = mbImpl->get_adjacencies( &*i, 1, 2, false, adjents);
   }
   time_avg = (wtime()-time_start)/(double)edges.size();
+#ifdef USE_AHF
   std::cout<<"QUERY: Edge -> Faces :: MOAB_AHF: Average time =  "<<time_avg<<" secs" <<std::endl;
-
-  error = mbImpl->get_adjacencies( &*edges.begin(), 1, 2, false, mbents);
-  time_start = wtime();
-  for (Range::iterator i = edges.begin(); i != edges.end(); ++i) {
-      mbents.clear();
-      error = mbImpl->get_adjacencies( &*i, 1, 2, false, mbents);
-  }
-  time_avg = (wtime()-time_start)/(double)edges.size();
+  std::cout<<std::endl;
+#else
   std::cout<<"QUERY: Edge -> Faces :: MOAB: Average time =  "<<time_avg<<" secs" <<std::endl;
   std::cout<<std::endl;
+#endif
 
   //NQ2: For every face, obtain neighbor faces 
+#ifdef USE_AHF
   time_start = wtime();
-  for (Range::iterator i = faces.begin(); i != faces.end(); ++i) {   
-    adjents.clear();
+  for (Range::iterator i = faces.begin(); i != faces.end(); ++i) {
+      adjents.clear();
     error = mbImpl->get_adjacencies( &*i, 1, 2, false, adjents);
   }
   time_avg = (wtime()-time_start)/(double)faces.size();
   std::cout<<"QUERY: Face -> Faces :: MOAB_AHF: Average time = "<< time_avg<<" secs" <<std::endl;
-
-  error = mtu.get_bridge_adjacencies( *faces.begin(), 1, 2, mbents);
+  std::cout<<std::endl;
+#else
+  error = mtu.get_bridge_adjacencies( *faces.begin(), 1, 2, ngbents);
   time_start = wtime();
   for (Range::iterator i = faces.begin(); i != faces.end(); ++i) {
-    mbents.clear();
-    error = mtu.get_bridge_adjacencies( *i, 1, 2, mbents);
+      ngbents.clear();
+      error = mtu.get_bridge_adjacencies( *i, 1, 2, ngbents);
   }
   time_avg = (wtime()-time_start)/(double)faces.size();
- std::cout<<"QUERY: Face -> Faces :: MOAB: Average time = "<< time_avg<<" secs" <<std::endl;
+  std::cout<<"QUERY: Face -> Faces :: MOAB: Average time = "<< time_avg<<" secs" <<std::endl;
   std::cout<<std::endl;
+#endif
+
+  //DQ2: For every face, obtain its edges
+  time_start = wtime();
+  for (Range::iterator i = faces.begin(); i != faces.end(); ++i) {
+    adjents.clear();
+    error = mbImpl->get_adjacencies( &*i, 1, 1, false, adjents);
+  }
+  time_avg = (wtime()-time_start)/(double)faces.size();
+#ifdef USE_AHF
+  std::cout<<"QUERY: Face -> Edges :: MOAB_AHF: Average time =  "<<time_avg<<" secs" <<std::endl;
+  std::cout<<std::endl;
+#else
+  std::cout<<"QUERY: Face -> Edges :: MOAB: Average time =  "<<time_avg<<" secs" <<std::endl;
+  std::cout<<std::endl;
+#endif
 
 
   // 3D Queries
@@ -215,93 +208,128 @@ int main(int argc, char **argv)
   //IQ31: For every vertex, obtain incident cells
   time_start = wtime();
   for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
-    adjents.clear();
-    error = mbImpl->get_adjacencies(&*i, 1, 3, false, adjents);
+      adjents.clear();
+      error = mbImpl->get_adjacencies(&*i, 1, 3, false, adjents);
   }
   time_avg = (wtime()-time_start)/(double)edges.size();
+#ifdef USE_AHF
   std::cout<<"QUERY: Vertex -> Cells :: MOAB_AHF: Average time =  "<<time_avg <<" secs"<<std::endl;
-
-  error = mbImpl->get_adjacencies(&*edges.begin(), 1, 3, false, mbents);
-  time_start = wtime();
-  for (Range::iterator i = edges.begin(); i != edges.end(); ++i) {
-    mbents.clear();
-    error = mbImpl->get_adjacencies(&*i, 1, 3, false, mbents);
-  }
-  time_avg = (wtime()-time_start)/(double)edges.size();
+  std::cout<<std::endl;
+#else
   std::cout<<"QUERY: Vertex -> Cells :: MOAB: Average time =  "<<time_avg <<" secs"<<std::endl;
   std::cout<<std::endl;
-
+#endif
 
   // IQ 32: For every edge, obtain incident cells
   time_start = wtime();
   for (Range::iterator i = edges.begin(); i != edges.end(); ++i) {
-    adjents.clear();
-    error = mbImpl->get_adjacencies(&*i, 1, 3, false, adjents);
+      adjents.clear();
+      error = mbImpl->get_adjacencies(&*i, 1, 3, false, adjents);
   }
   time_avg = (wtime()-time_start)/(double)edges.size();
+#ifdef USE_AHF
   std::cout<<"QUERY: Edge -> Cells :: MOAB_AHF: Average time =  "<<time_avg <<" secs"<<std::endl;
-
-  error = mbImpl->get_adjacencies(&*edges.begin(), 1, 3, false, mbents);
-  time_start = wtime();
-  for (Range::iterator i = edges.begin(); i != edges.end(); ++i) {
-    mbents.clear();
-    error = mbImpl->get_adjacencies(&*i, 1, 3, false, mbents);
-  }
-  time_avg = (wtime()-time_start)/(double)edges.size();
+  std::cout<<std::endl;
+#else
   std::cout<<"QUERY: Edge -> Cells :: MOAB: Average time =  "<<time_avg <<" secs"<<std::endl;
   std::cout<<std::endl;
+#endif
+
 
   //IQ32: For every face, obtain incident cells
   time_start = wtime();
   for (Range::iterator i = faces.begin(); i != faces.end(); ++i) {
-    adjents.clear();
-    error = mbImpl->get_adjacencies(&*i, 1, 3, false, adjents);
+      adjents.clear();
+      error = mbImpl->get_adjacencies(&*i, 1, 3, false, adjents);
   }
   time_avg = (wtime()-time_start)/(double)faces.size();
+#ifdef USE_AHF
   std::cout<<"QUERY: Face -> Cells :: MOAB_AHF: Average time =  "<<time_avg <<" secs"<<std::endl;
-
-  error = mbImpl->get_adjacencies(&*faces.begin(), 1, 3, false, mbents);
-  time_start = wtime();
-  for (Range::iterator i = faces.begin(); i != faces.end(); ++i) {
-    mbents.clear();
-    error = mbImpl->get_adjacencies(&*i, 1, 3, false, mbents);
-  }
-  time_avg = (wtime()-time_start)/(double)faces.size();
+  std::cout<<std::endl;
+#else
   std::cout<<"QUERY: Face -> Cells :: MOAB: Average time =  "<<time_avg <<" secs"<<std::endl;
   std::cout<<std::endl;
+#endif
 
   //NQ3: For every cell, obtain neighbor cells
+#ifdef USE_AHF
   time_start = wtime();
   for (Range::iterator i = cells.begin(); i != cells.end(); ++i) {   
-    adjents.clear();
-    error = mbImpl->get_adjacencies(&*i, 1, 3, false, adjents);
+      adjents.clear();
+      error = mbImpl->get_adjacencies(&*i, 1, 3, false, adjents);
   }
   time_avg = (wtime()-time_start)/(double)cells.size();
   std::cout<<"QUERY: Cell -> Cells :: MOAB_AHF: Average time =  "<< time_avg <<" secs" << std::endl;
-
-  error = mtu.get_bridge_adjacencies( *cells.begin(), 2, 3, mbents);
+  std::cout<<std::endl;
+#else
+  error = mtu.get_bridge_adjacencies( *cells.begin(), 2, 3, ngbents);
   time_start = wtime();
   for (Range::iterator i = cells.begin(); i != cells.end(); ++i) {
-    mbents.clear();
-    error = mtu.get_bridge_adjacencies( *i, 2, 3, mbents);
+    ngbents.clear();
+    error = mtu.get_bridge_adjacencies( *i, 2, 3, ngbents);
   }
   time_avg = (wtime()-time_start)/(double)cells.size();
   std::cout<<"QUERY: Cell -> Cells :: MOAB: Average time =  "<< time_avg <<" secs" << std::endl;
   std::cout<<std::endl;
+#endif
+
+  //DQ31: For every cell, obtain its edges
+  time_start = wtime();
+  for (Range::iterator i = cells.begin(); i != cells.end(); ++i) {
+    adjents.clear();
+    error = mbImpl->get_adjacencies( &*i, 1, 1, false, adjents);
+  }
+  time_avg = (wtime()-time_start)/(double)cells.size();
+#ifdef USE_AHF
+  std::cout<<"QUERY: Cell -> Edges :: MOAB_AHF: Average time =  "<<time_avg<<" secs" <<std::endl;
+  std::cout<<std::endl;
+#else
+  std::cout<<"QUERY: Cell -> Edges :: MOAB: Average time =  "<<time_avg<<" secs" <<std::endl;
+  std::cout<<std::endl;
+#endif
+
+  //DQ32: For every cell, obtain its faces
+  time_start = wtime();
+  for (Range::iterator i = cells.begin(); i != cells.end(); ++i) {
+    adjents.clear();
+    error = mbImpl->get_adjacencies( &*i, 1, 2, false, adjents);
+  }
+  time_avg = (wtime()-time_start)/(double)cells.size();
+#ifdef USE_AHF
+  std::cout<<"QUERY: Cell -> Faces :: MOAB_AHF: Average time =  "<<time_avg<<" secs" <<std::endl;
+  std::cout<<std::endl;
+#else
+  std::cout<<"QUERY: Cell -> Faces :: MOAB: Average time =  "<<time_avg<<" secs" <<std::endl;
+  std::cout<<std::endl;
+#endif
+
 
   //Storage Costs after calling ahf deinitialize
+  std::cout<<std::endl;
+  std::cout<<"STORAGE AFTER CALLING ADJACENCIES"<<std::endl;
   unsigned long eTotS, eTAS, eES, eAES, eAS, eAAS, eTS, eATS;
   eTotS = eTAS = eES = eAES = eAS = eAAS = eTS = eATS = 0;
   mbImpl->estimated_memory_use(NULL, 0, &eTotS, &eTAS, &eES, &eAES, &eAS, &eAAS, NULL, 0, &eTS, &eATS);
   std::cout<<std::endl;
   std::cout<<"Total storage = "<<eTotS<<std::endl;
   std::cout<<"Total amortized storage = "<<eTAS<<std::endl;
+  std::cout<<std::endl;
   std::cout<<"Entity storage = "<<eES<<std::endl;
   std::cout<<"Amortized entity storage = "<<eAES<<std::endl;
-  std::cout<<"Adjacency storage = "<<eAS<<std::endl;
-  std::cout<<"Amortized adjacency storage = "<<eAAS<<std::endl;
+  std::cout<<std::endl;
+#ifdef USE_AHF
+  std::cout<<"AHF adjacency tag storage  = "<<eTS-sTS<<std::endl;
+  std::cout<<"Amortized AHF adjacency tag storage = "<<eATS-sATS<<std::endl;
+  std::cout<<std::endl;
+  std::cout<<"Tag storage = "<<sTS<<std::endl;
+  std::cout<<"Amortized tag storage = "<<sATS<<std::endl;
+#else
+  std::cout<<"Adjacency lists storage = "<<eAS<<std::endl;
+  std::cout<<"Amortized adjacency lists storage = "<<eAAS<<std::endl;
+  std::cout<<std::endl;
   std::cout<<"Tag storage = "<<eTS<<std::endl;
   std::cout<<"Amortized tag storage = "<<eATS<<std::endl;
+#endif
   std::cout<<std::endl;
 
   return 0;

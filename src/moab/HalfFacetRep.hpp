@@ -41,22 +41,24 @@ namespace moab {
  *  \
  */ 
 
-  //! ENUM for the type of input mesh.
-  enum MESHTYPE{
-   CURVE = 0, //Homogeneous curve mesh
-   SURFACE, // Homogeneous surface mesh
-   SURFACE_MIXED, // Mixed surface with embedded curves
-   VOLUME, // Homogeneous volume mesh
-   VOLUME_MIXED_1, // Volume mesh with embedded curves
-   VOLUME_MIXED_2, // Volume mesh with embedded surface
-   VOLUME_MIXED //Volume mesh with embedded curves and surfaces
-  };
+const int MAXSIZE = 150;
 
-  class Core;
+//! ENUM for the type of input mesh.
+enum MESHTYPE{
+    CURVE = 0, //Homogeneous curve mesh
+    SURFACE, // Homogeneous surface mesh
+    SURFACE_MIXED, // Mixed surface with embedded curves
+    VOLUME, // Homogeneous volume mesh
+    VOLUME_MIXED_1, // Volume mesh with embedded curves
+    VOLUME_MIXED_2, // Volume mesh with embedded surface
+    VOLUME_MIXED //Volume mesh with embedded curves and surfaces
+};
 
-  class HalfFacetRep{
-       
-  public:
+class Core;
+
+class HalfFacetRep{
+
+public:
     
     HalfFacetRep(Core *impl);
     
@@ -77,6 +79,7 @@ namespace moab {
     //! Prints the tag values.
     ErrorCode print_tags();
     
+
 
     ErrorCode get_adjacencies(const EntityHandle source_entity,
                               const unsigned int target_dimension,
@@ -109,6 +112,9 @@ namespace moab {
 
     ErrorCode get_neighbor_adjacencies(EntityHandle ent,
                                        std::vector<EntityHandle> &adjents);
+
+    ErrorCode get_down_adjacencies(EntityHandle ent, int out_dim, std::vector<EntityHandle> &adjents);
+
 
     // 1D Maps and queries
 
@@ -224,6 +230,9 @@ namespace moab {
     ErrorCode get_neighbor_adjacencies_2d(EntityHandle fid,
                                           std::vector<EntityHandle> &adjents);
 
+    ErrorCode get_down_adjacencies_2d(EntityHandle fid,
+                                      std::vector<EntityHandle> &adjents);
+
     //! Given a range of faces, finds the total number of edges.
     
     int find_total_edges_2d(Range &faces);
@@ -334,6 +343,11 @@ namespace moab {
 
     ErrorCode get_neighbor_adjacencies_3d(EntityHandle cid,
                                           std::vector<EntityHandle> &adjents);
+
+
+    ErrorCode get_down_adjacencies_edg_3d(EntityHandle cid, std::vector<EntityHandle> &adjents);
+
+    ErrorCode get_down_adjacencies_face_3d(EntityHandle cid, std::vector<EntityHandle> &adjents);
     
 
   protected:
@@ -356,6 +370,13 @@ namespace moab {
     Tag sibhvs_eid, sibhvs_lvid, v2hv_eid, v2hv_lvid;
     Tag sibhes_fid, sibhes_leid, v2he_fid, v2he_leid;
     Tag sibhfs_cid, sibhfs_lfid, v2hf_cid, v2hf_lfid;
+    Tag visited_face, visited_cell;
+
+    EntityHandle queue_fid[MAXSIZE], trackfaces[MAXSIZE];
+    int queue_lid[MAXSIZE];
+
+
+
 
     MESHTYPE thismeshtype;
     MESHTYPE get_mesh_type(int nverts, int nedges, int nfaces, int ncells);
@@ -426,11 +447,7 @@ namespace moab {
 
     ErrorCode get_up_adjacencies_2d(EntityHandle he_fid,
                                     int he_lid,
-                                    EntityHandle *queue_fid,
-                                    int *queue_lid,
-                                    int *qsize,
-                                    EntityHandle *trackfaces,
-                                    int *tcount);
+                                    int *qsize);
 
     //! Given an edge, finds a matching half-edge in the surface.
     /** Given an edge eid, it first collects few half-edges belonging to one-ring neighborhood of
@@ -455,14 +472,10 @@ namespace moab {
      * \param trackfaces, tcount
     */
 
-    ErrorCode gather_halfedges( EntityHandle vid,
+    ErrorCode gather_halfedges(EntityHandle vid,
                                 EntityHandle he_fid,
                                 int he_lid,
-                                EntityHandle *queue_fid,
-                                int *queue_lid,
-                                int *qsize,
-                                EntityHandle *trackfaces,
-                                int *tcount);
+                                int *qsize);
 
     //! Obtains another half-edge belonging to the same face as the input half-edge
     /** It uses the local maps to find another half-edge that is either incident or outgoing depending
@@ -490,11 +503,7 @@ namespace moab {
     */
 
     bool collect_and_compare(std::vector<EntityHandle> &edg_vert,
-                             EntityHandle *queue_fid,
-                             int *queue_lid,
                              int *qsize,
-                             EntityHandle *trackfaces,
-                             int *tcount,
                              EntityHandle *he_fid,
                              int *he_lid);
 
