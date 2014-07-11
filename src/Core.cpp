@@ -500,6 +500,7 @@ ErrorCode Core::load_file( const char* file_name,
       rval = ReadParallel(this,pcomm).load_file( file_name, file_set, opts, &sl );
     else
       rval = ReadParallel(this,pcomm).load_file( file_name, file_set, opts );
+    CHK_ERR(rval);
 #else
     mError->set_last_error( "PARALLEL option not valid, this instance"
                             " compiled for serial execution.\n" );
@@ -511,6 +512,7 @@ ErrorCode Core::load_file( const char* file_name,
       rval = serial_load_file( file_name, file_set, opts, &sl );
     else
       rval = serial_load_file( file_name, file_set, opts );
+    CHK_ERR(rval);
   }
 
   if (MB_SUCCESS == rval && !opts.all_seen()) {
@@ -561,8 +563,9 @@ ErrorCode Core::serial_load_file( const char* file_name,
   status = stat(file_name, &stat_data);
 #endif
   if (status) {
-    mError->set_last_error( "%s: %s", file_name, strerror(errno) );
-    return MB_FILE_DOES_NOT_EXIST;
+    //mError->set_last_error( "%s: %s", file_name, strerror(errno) );
+    //return MB_FILE_DOES_NOT_EXIST;
+    SET_GLB_ERR_STR(MB_FILE_DOES_NOT_EXIST, file_name << ": " << strerror(errno));
   }
 #if defined(WIN32) || defined(WIN64) || defined(MSC_VER)
   else if (stat_data.st_mode & _S_IFDIR) {
@@ -625,6 +628,7 @@ ErrorCode Core::serial_load_file( const char* file_name,
 
   if (MB_SUCCESS != rval) {
     clean_up_failed_read( initial_ents, initial_tags );
+    SET_ERR(rval, "Failed to load file after trying all possible readers");
   }
   else if (file_set) {
     Range new_ents;
