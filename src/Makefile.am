@@ -22,6 +22,7 @@ BUILT_SOURCES = MBCN_protos.h
 
 # Some variables
 AM_CPPFLAGS += -DIS_BUILDING_MB \
+               -DLOCDIR=src/ \
                -I. \
                -I$(srcdir)/io \
                -I$(srcdir)/io/mhdf/include \
