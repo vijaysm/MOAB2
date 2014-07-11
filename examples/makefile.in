@@ -12,7 +12,7 @@ EXAMPLES = HelloMOAB GetEntities SetsNTags LoadPartial structuredmesh Structured
 PAREXAMPLES = HelloParMOAB ReduceExchangeTags LloydRelaxation CrystalRouterExample ReadWriteTest GenLargeMesh
 EXOIIEXAMPLES = TestExodusII
 F90EXAMPLES = DirectAccessNoHolesF90 PushParMeshIntoMoabF90
-ERROREXAMPLES = ErrorHandlingSimulation
+ERROREXAMPLES = ErrorHandlingSimulation TestErrorHandling TestErrorHandlingPar
 
 default: ${EXAMPLES} ${PAREXAMPLES} ${EXOIIEXAMPLES} ${F90EXAMPLES} ${ERROREXAMPLES}
 
@@ -77,6 +77,12 @@ GenLargeMesh: GenLargeMesh.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
 ErrorHandlingSimulation: ErrorHandlingSimulation.o ${MOAB_LIBDIR}/libMOAB.la
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+TestErrorHandling: TestErrorHandling.o ${MOAB_LIBDIR}/libMOAB.la
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+TestErrorHandlingPar: TestErrorHandlingPar.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
 clean:

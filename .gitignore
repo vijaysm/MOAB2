@@ -40,6 +40,7 @@ examples/DeformMeshRemap
 examples/DirectAccessNoHoles
 examples/DirectAccessNoHolesF90
 examples/DirectAccessWithHoles
+examples/ErrorHandlingSimulation
 examples/freem.mod
 examples/GenLargeMesh
 examples/GetEntities
@@ -60,6 +61,8 @@ examples/ReduceExchangeTags
 examples/SetsNTags
 examples/structuredmesh
 examples/StructuredMeshSimple
+examples/TestErrorHandling
+examples/TestErrorHandlingPar
 examples/TestExodusII
 examples/VisTags
 history??.jou
