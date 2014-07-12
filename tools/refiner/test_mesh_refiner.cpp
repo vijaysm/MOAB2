@@ -63,13 +63,18 @@ int TestMeshRefiner( int argc, char* argv[] )
   EntityHandle set_handle;
   std::ostringstream parallel_options;
 #ifdef USE_MPI
-  parallel_options
-    << "PARALLEL=READ_DELETE" << ";" // NB: You can use BCAST_DELETE or READ_DELETE here.
-    //<< "PARALLEL=BCAST_DELETE" << ";" // NB: You can use BCAST_DELETE or READ_DELETE here.
-    << "PARTITION=MATERIAL_SET" << ";"
-    << "PARTITION_DISTRIBUTE" << ";"
-    << "PARALLEL_RESOLVE_SHARED_ENTS" << ";"
-    << "CPUTIME";
+  if (nprocs > 1) {
+    parallel_options
+      << "PARALLEL=READ_DELETE" << ";" // NB: You can use BCAST_DELETE or READ_DELETE here.
+      //<< "PARALLEL=BCAST_DELETE" << ";" // NB: You can use BCAST_DELETE or READ_DELETE here.
+      << "PARTITION=MATERIAL_SET" << ";"
+      << "PARTITION_DISTRIBUTE" << ";"
+      << "PARALLEL_RESOLVE_SHARED_ENTS" << ";"
+      << "CPUTIME";
+  }
+  else {
+    parallel_options << "CPUTIME;";
+  }
 #endif
   ErrorCode rval = imesh->create_meshset(MESHSET_SET, set_handle);
   if (MB_SUCCESS != rval) {
@@ -118,7 +123,8 @@ int TestMeshRefiner( int argc, char* argv[] )
 
   if (do_output) {
     parallel_options.clear();
-    parallel_options << "PARALLEL=WRITE_PART";
+    if (nprocs > 1)
+      parallel_options << "PARALLEL=WRITE_PART";
     omesh->write_file( output_filename.c_str(), NULL, parallel_options.str().c_str() );
   }
   
