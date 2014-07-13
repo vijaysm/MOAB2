@@ -561,6 +561,7 @@ namespace moab {
       ErrorCode error;
 
       unsigned int source_dimension = mb->dimension_from_handle(source_entity);
+      assert((source_dimension <= target_dimension) || (source_dimension > target_dimension));
 
       if (mInitAHFmaps == false)
       {
@@ -584,7 +585,7 @@ namespace moab {
               if (MB_SUCCESS != error) return error;
           }
           else
-          {
+          {           
               error = get_down_adjacencies(source_entity, target_dimension, target_entities);
               if (MB_SUCCESS != error) return error;
           }
@@ -604,6 +605,7 @@ namespace moab {
    {
     ErrorCode error;
     int in_dim = mb->dimension_from_handle(ent);
+    assert((in_dim >=0 && in_dim <= 2) && (out_dim > in_dim));
 
     if (in_dim == 0)
       {
@@ -647,6 +649,7 @@ namespace moab {
    {
      ErrorCode error;
      int in_dim = mb->dimension_from_handle(ent);
+     assert(in_dim >=1 && in_dim <= 3);
 
      if (in_dim == 1)
        {
@@ -671,6 +674,8 @@ namespace moab {
    {
        ErrorCode error;
        int in_dim = mb->dimension_from_handle(ent);
+       assert((in_dim >=2 && in_dim <= 3) && (out_dim < in_dim));
+
        if ((in_dim == 2)&&(out_dim == 1))
        {
            error = get_down_adjacencies_2d(ent, adjents);

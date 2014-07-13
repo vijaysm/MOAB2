@@ -7,15 +7,14 @@ AM_CPPFLAGS += -I$(top_srcdir)/src \
             
 LDADD = $(top_builddir)/src/libMOAB.la
 
-check_PROGRAMS = perf seqperf adj_time perftool adj_mem_time ahf_mem_time
+check_PROGRAMS = perf seqperf adj_time perftool adj_mem_time 
 noinst_PROGRAMS = 
 
 perf_SOURCES = perf.cpp
 seqperf_SOURCES = seqperf.cpp
 adj_time_SOURCES = adj_time.cpp
 perftool_SOURCES = perftool.cpp
-ahf_mem_time_SOURCES = test_ahf_mem_time.cpp
-adj_mem_time_SOURCES = adj_mem_time.cpp
+adj_mem_time_SOURCES = adj_mem_time_test.cpp
 
 if ENABLE_imesh
   LDADD += $(top_builddir)/itaps/imesh/libiMesh.la

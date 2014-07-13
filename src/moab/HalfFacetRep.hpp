@@ -31,13 +31,18 @@ namespace moab {
  *  \        2. V2HF: Maps each vertex to an incident half-facet
  *  \        Using these two maps, a range of adjacency queries is performed. The maps are stored in dense tags over entities and vertices.
  *  \
- *  \        Current support for adjacency functions:
+ *  \        Adjacency functions:
  *  \        1. upward-incidence queries: vertex -> edge, edge -> faces, edge -> cells, face ->cells
  *  \        2. neighborhood (same-dimensional) adjacency queries: edge -> edges, face -> faces, cell -> cells, etc.
- *  \ 
+ *  \        3. downward adjacency queries: face -> edges, cell -> edges, etc.
+ *  \
  *  \        Mesh types supported: 
  *  \        1D(edges), 2D(triangles, quads), 3D(tet, pyramid, prism, hex), Mixed dimensional meshes
- *  \        NOT SUPPORTED: Meshes with mixed entity types of same dimension. Ex. a volume mesh with both tets and prisms.
+ *  \
+ *  \        CURRENTLY NOT SUPPORTED:
+ *  \        1. Meshes with mixed entity types of same dimension. Ex. a volume mesh with both tets and prisms.
+ *  \        2. create_if_missing = true
+ *  \        3. Modified meshes
  *  \
  */ 
 
@@ -79,7 +84,13 @@ public:
     //! Prints the tag values.
     ErrorCode print_tags();
     
-
+    //! Get the adjacencies associated with an entity.
+    /** Given an entity of dimension <em>d</em>, gather all the adjacent <em>D</em> dimensional entities where <em>D >, = , < d </em>.
+     *
+     * \param source_entity EntityHandle to which adjacent entities have to be found.
+     * \param target_dimension Int Dimension of the desired adjacent entities.
+     * \param target_entities Vector in which the adjacent EntityHandle are returned.
+     */
 
     ErrorCode get_adjacencies(const EntityHandle source_entity,
                               const unsigned int target_dimension,
@@ -88,7 +99,7 @@ public:
 
     //! Get the upward incidences associated with an entity.
     /** Given an entity of dimension <em>d</em>, gather all the incident <em>D(>d)</em> dimensional entities.
-     * Parameters:
+     * :
      * \param ent EntityHandle to which incident entities have to be found.
      * \param out_dim Dimension of the desired incidence information.
      * \param adjents Vector in which the incident entities are returned.
@@ -105,13 +116,21 @@ public:
     //! Get the same-dimensional entities connected with an entity.
     /** Given an entity of dimension <em>d</em>, gather all the entities connected via <em>d-1</em> dimensional entities.
      *  Same as bridge_adjacencies in MOAB.
-     * Parameters:
+     *
      * \param ent EntityHandle to which neighbor entities have to be found.
      * \param adjents Vector in which the neighbor entities are returned.
      */
 
     ErrorCode get_neighbor_adjacencies(EntityHandle ent,
                                        std::vector<EntityHandle> &adjents);
+
+    //! Get the downward adjacent entities connected with an entity.
+    /** Given an entity of dimension <em>d</em>, gather all the <em>d-1</em> dimensional entities.
+     *
+     * \param ent EntityHandle to which neighbor entities have to be found.
+     * \param out_dim Dimension of the desired downward adjacency.
+     * \param adjents Vector in which the neighbor entities are returned.
+     */
 
     ErrorCode get_down_adjacencies(EntityHandle ent, int out_dim, std::vector<EntityHandle> &adjents);
 
@@ -122,7 +141,7 @@ public:
     /** Compute all sibling half-vertices for all half-vertices in the given curve. The sibling half-verts is
      *  defined in terms of the containing edge and the local id of the vertex w.r.t that edge.
      *  That is, the map consists of two pieces of information: <EntityHandle eid, int lvid>
-     *  Parameters:
+     *
      * \param edges Range of edges.
     */
     
@@ -131,7 +150,7 @@ public:
     //! Given a range of edges, determines the map for incident half-verts and stores them into V2HV_EID, V2HV_LVID tags.
     /** Compute a map between a vertex and an incident half-vertex. This map is not always required, but is
      * essential for local neighborhood searching as it acts like an anchor to start the search.
-     * Parameters:
+     *
      * \param edges Range of edges
     */
 
@@ -140,7 +159,7 @@ public:
     //! Given a vertex, finds the edges incident on it.
     /** Given a vertex handle, it starts by first finding an incident half-vert by using the incident
      * half-vert map, and then obtaining all the sibling half-verts of the corresponding half-vertex.
-     * Parameters:
+     *
      * \param vid EntityHandle of the query vertex
      * \param adjents Vector returning the incident edges
      * \param local_id False by default. If true, returns the local vertex id's corresponding to vid
@@ -154,7 +173,7 @@ public:
 
     //! Given an edge, finds vertex-connected neighbor edges
     /** Given an edge, it gathers all the incident edges of each vertex of the edge.
-     * Parameters:
+     *
      * \param eid EntityHandle of the query edge
      * \param adjents Vector returning neighbor edges
     */
@@ -169,7 +188,7 @@ public:
     /** Compute all sibling half-edges for all half-edges in the given surface.
      * The sibling half-edges is defined in terms of the containing face and the local id of the edge w.r.t that entity.
      * That is, the map consists of two pieces of information: <EntityHandle fid, int leid>
-     * Parameters:
+     *
      * \param faces Range of faces
     */
     
@@ -179,18 +198,26 @@ public:
     /** Compute a map between a vertex and an incident half-edge.
      * This map is not always required, but is essential for local neighborhood searching as it acts
      * like an anchor to start the search.
-     * 	Parameters:
+     *
      * \param faces Range of faces
     */
 
     ErrorCode determine_incident_halfedges(Range &faces);
+
+    //! Given a vertex, finds the faces incident on it.
+    /** Given a vertex, it first finds an incident half-edge via v2he map, and then
+     * collects all the incident half-edges/faces via the sibhes map.
+     *
+     * \param vid EntityHandle of the query vertex
+     * \param adjents Vector returning the incident faces
+    */
 
     ErrorCode get_up_adjacencies_vert_2d(EntityHandle vid, std::vector<EntityHandle> &adjents);
 
     //! Given an edge, finds the faces incident on it.
     /** Given an edge, it first finds a matching half-edge corresponding to eid, and then
      * collects all the incident half-edges/faces via the sibhes map.
-     * Parameters:
+     *
      * \param eid EntityHandle of the query edge
      * \param adjents Vector returning the incident faces
      * \param local_id By default false. If true, returns the local edge id's corresponding to the input edge
@@ -204,7 +231,7 @@ public:
 
     //! Given a half-edge <fid, leid>, finds the faces incident on it.
     /**
-     * Parameters:
+     *
      * \param fid EntityHandle of the containing face
      * \param leid local id of the edge w.r.t to the face
      * \param add_inent If true, adds the input fid into the returning vector of adjents.
@@ -222,13 +249,21 @@ public:
 
     //! Given an edge, finds edge-connected neighbor face
     /** Given an face, it gathers all the neighbor faces of each local edge of the face.
-     * Parameters:
+     *
      * \param fid EntityHandle of the query face
      * \param adjents Vector returning neighbor faces
     */
        
     ErrorCode get_neighbor_adjacencies_2d(EntityHandle fid,
                                           std::vector<EntityHandle> &adjents);
+
+    //! Given a face, finds its edges.
+    /** Given a face, it first finds incident edges on each vertex of the face, and then
+     *  it performs a set intersection to gather all the edges of the given face.
+     *
+     * \param fid EntityHandle of the query face
+     * \param adjents Vector returning its edges
+    */
 
     ErrorCode get_down_adjacencies_2d(EntityHandle fid,
                                       std::vector<EntityHandle> &adjents);
@@ -243,7 +278,7 @@ public:
     /** Compute all sibling half-faces for all half-faces in the given volume.
      * The sibling half-faces is defined in terms of the containing cell and the local id of the face w.r.t that cell.
      * That is, the map consists of two pieces of information: <EntityHandle cid, int lfid>
-     * Parameters:
+     *
      * \param faces Range of cells
     */
 
@@ -253,7 +288,7 @@ public:
     /** Compute a map between a vertex and an incident half-face.
      * This map is not always required, but is essential for local neighborhood searching as it acts
      * like an anchor to start the search.
-     * 	Parameters:
+     *
      * \param faces Range of cells
     */
     
@@ -262,7 +297,7 @@ public:
     //! Given a range of cells, tags all border vertices with a true value.
     /** Tag border vertices by using the sibhf_cid map. All vertices on half-faces with no sibling
      * half-faces are considered as border vertices.
-     * Parameters:
+     *
      * \param cells Range of cells
      * \param isborder: A dense tag over all vertices of size 1. Value is true for a border vertex, otherwise is false.
     */
@@ -270,13 +305,20 @@ public:
     ErrorCode determine_border_vertices( Range &cells,
                                          Tag isborder);
 
+    //! Given a vertex, finds the cells incident on it.
+    /** Given a vertex, it first finds an incident half-face via v2hf map, and then
+     * collects all the incident half-faces via the sibhfs map.
+     *
+     * \param vid EntityHandle of the query vertex
+     * \param adjents Vector returning the incident cells
+    */
 
     ErrorCode get_up_adjacencies_vert_3d(EntityHandle vid, std::vector<EntityHandle> &adjents);
 
     //! Given an edge, finds the cells incident on it.
     /** Given an edge, it first finds a matching local edge in a cell corresponding to eid, and then
      * collects all the incident cells via the sibhfs map.
-     * Parameters:
+     *
      * \param eid EntityHandle of the query edge
      * \param adjents Vector returning the incident cells
      * \param local_id By default false. If true, returns the local edge id's corresponding to the input edge
@@ -290,7 +332,7 @@ public:
 
     //! Given a local edge <cid, leid>, finds the cells incident on it.
     /** Given a local edge, it gathers all the incident cells via the sibhfs map.
-     * Parameters:
+     *
      * \param cid EntityHandle of the cell containing the local edge
      * \param leid local edge id w.r.t the cell
      * \param adjents Vector returning the incident cells
@@ -306,7 +348,7 @@ public:
     //! Given an face, finds the cells incident on it.
     /** Given an face, it first finds a matching half-face in a cell corresponding to face, and then
      * collects all the incident cells via the sibhfs map.
-     * Parameters:
+     *
      * \param fid EntityHandle of the query face
      * \param adjents Vector returning the incident cells
      * \param local_id By default false. If true, returns the local face id's corresponding to the input face
@@ -320,7 +362,7 @@ public:
 
     //! Given a local face <cid, lfid>, finds the cells incident on it.
     /** Given a local face, it gathers all the incident cells via the sibhfs map.
-     * Parameters:
+     *
      * \param cid EntityHandle of the cell containing the local edge
      * \param lfid local face id w.r.t the cell
      * \param adjents Vector returning the incident cells
@@ -336,7 +378,7 @@ public:
     
     //! Given a cell, finds face-connected neighbor cells
     /** Given a cell, it gathers all the neighbor cells of each local face of the cell.
-     * Parameters:
+     *
      * \param cid EntityHandle of the query cell
      * \param adjents Vector returning neighbor cells
     */
@@ -344,8 +386,23 @@ public:
     ErrorCode get_neighbor_adjacencies_3d(EntityHandle cid,
                                           std::vector<EntityHandle> &adjents);
 
+    //! Given a cell, finds its edges.
+    /** Given a cell, it first finds incident edges on each vertex of the cell, and then
+     *  it performs a set intersection to gather all the edges of the given cell.
+     *
+     * \param cid EntityHandle of the query cell
+     * \param adjents Vector returning its edges
+    */
 
     ErrorCode get_down_adjacencies_edg_3d(EntityHandle cid, std::vector<EntityHandle> &adjents);
+
+    //! Given a cell, finds its faces.
+    /** Given a cell, it first finds incident faces on each vertex of the cell, and then
+     *  performs a set intersection to gather all the faces of the given cell.
+     *
+     * \param cid EntityHandle of the query cell
+     * \param adjents Vector returning its faces
+    */
 
     ErrorCode get_down_adjacencies_face_3d(EntityHandle cid, std::vector<EntityHandle> &adjents);
     
@@ -375,9 +432,6 @@ public:
     EntityHandle queue_fid[MAXSIZE], trackfaces[MAXSIZE];
     int queue_lid[MAXSIZE];
 
-
-
-
     MESHTYPE thismeshtype;
     MESHTYPE get_mesh_type(int nverts, int nedges, int nfaces, int ncells);
 
@@ -403,7 +457,7 @@ public:
 
     //! Contains the local information for 2D entities
     /** Given a face, find the face type specific information
-     * Parameters:
+     *
      * \param face EntityHandle. Used to gather info about the type of face for which local info is required
      * \param nepf: Returns the number of vertices/edges for given face type.
     */
@@ -412,7 +466,7 @@ public:
 
     //! Contains the local information for 2D entities
     /** Given number of edges, returns local indices of next and previous local edges.
-     * Parameters:
+     *
      * \param nepf: The number of vertices/edges for given face type.
      * \param next, prev: Local ids of next and previous edges w.r.t to the face
      *
@@ -434,15 +488,9 @@ public:
     /** Given an half-edge, obtain all the incident half-edges via the sibhes map and add them to a given
      * queue of half-edges, if they do not already exist in the queue. This function is used to increment the
      * search space for finding a matching half-edge.
-     * Parameters:
+     *
      * \param he_fid EntityHandle of query half-edge
      * \param he_lid Local id of query half-edge
-     * \param queue_fid
-     * \param queue_lid
-     * \param qsize Array of faces and local edge ids. qsize is the current size of the queue_fid.
-     * \param trackfaces Array containing faces. If fid of an incident half-edge doesn't belong to trackfaces,
-     *  the half-edge is added to the queue.
-     * \param tcount Current size of trackfaces
      */
 
     ErrorCode get_up_adjacencies_2d(EntityHandle he_fid,
@@ -453,7 +501,7 @@ public:
     /** Given an edge eid, it first collects few half-edges belonging to one-ring neighborhood of
      * the starting vertex of the given edge, and then simultaneously searches and adds to the local list
      * of half-edges for searching, till it finds a matching half-edge.
-     * Parameters:
+     *
      * \param eid EntityHandle of the query edge
      * \param hefid, helid: Returns the matching half-edge corresponding to the query edge.
     */
@@ -464,12 +512,6 @@ public:
 
     //! Gather half-edges to a queue of half-edges.
     /** Given a vertex vid, and a half-edge <he_fid,he_lid>, add another half-edge in the same face sharing the vertex
-     * and add all incident half-edges to the queue via sibhes map.
-     * Parameters:
-     * \param vid EntityHandle of a vertex in a half-edge
-     * \param <EntityHandle he_fid, int he_lid>:  Half-edge
-     * \param queue_fid, queue_lid, count
-     * \param trackfaces, tcount
     */
 
     ErrorCode gather_halfedges(EntityHandle vid,
@@ -480,11 +522,7 @@ public:
     //! Obtains another half-edge belonging to the same face as the input half-edge
     /** It uses the local maps to find another half-edge that is either incident or outgoing depending
      * on vid and input half-edge
-     * Parameters:
-     * \param vid EntityHandle of a vertex in a half-edge
-     * \param <EntityHandle he_fid, int he_lid>:  Half-edge
-     * \param <EntityHandle he2_fid, int he2_lid>: Returns another half-edge in the same he_fid sharing vid.
-    */
+     */
 
     ErrorCode another_halfedge( EntityHandle vid,
                                 EntityHandle he_fid,
@@ -495,11 +533,6 @@ public:
     //! Collect and compare to find a matching half-edge with the given edge connectivity.
     /** Given edge connectivity, compare to an input list of half-edges to find a matching half-edge
      * and add a list of half-edges belonging to the one-ring neighborhood to a queue till it finds a match.
-     * Parameters:
-     * \param edg_vert End vertices of an edge
-     * \param queue_fid, queue_lid, count
-     * \param trackfaces, tcount
-     * \param <EntityHandle he_fid, int he_lid>: Returns matching half-edge
     */
 
     bool collect_and_compare(std::vector<EntityHandle> &edg_vert,
@@ -564,7 +597,7 @@ public:
 
     //! Given an edge, finds a matching local edge in an incident cell.
     /** Find a local edge with the same connectivity as the input edge, belonging to an incident cell.
-     * Parameters:
+     *
      * \param eid EntityHandle of the edge
      * \param cid Returns EntityHandle of the incident cell
      * \param leid Returns the local id of the edge corresponding to the input edge w.r.t the incident cell.
@@ -576,7 +609,7 @@ public:
 
     //! Given a face, finds a matching local face in an incident cell.
     /** Find a local face with the same connectivity as the input face, belonging to an incident cell.
-     * Parameters:
+     *
      * \param fid EntityHandle of the face
      * \param cid Returns EntityHandle of the incident cell
      * \param lfid Returns the local id of the face corresponding to the input face w.r.t the incident cell.

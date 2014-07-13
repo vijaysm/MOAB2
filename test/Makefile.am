@@ -52,7 +52,7 @@ TESTS = range_test \
 	elem_eval_test \
 	spatial_locator_test \
 	test_boundbox \ 
-	ahf_test 
+	adj_moab_test 
 
 
 if HDF5_FILE
@@ -64,9 +64,6 @@ if HDF5_FILE
         lloyd_smoother_test
 endif
 
-if ENABLE_ahf
-  TESTS += ahf_mbintf_test
-endif
 
 #                 merge_test \         # input files no longer exist?
 #                 test_tag_server \    # fails
@@ -159,11 +156,7 @@ coords_connect_iterate_CPPFLAGS = $(AM_CPPFLAGS) $(CPPFLAGS)
 test_boundbox_SOURCES = test_boundbox.cpp
 lloyd_smoother_test_SOURCES = lloyd_smoother_test.cpp
 
-ahf_test_SOURCES = test_ahf_moab.cpp
-
-if ENABLE_ahf
- ahf_mbintf_test_SOURCES = test_ahf_mb_interface.cpp
-endif
+adj_moab_test_SOURCES = adj_moab_test.cpp
 
 
 if PARALLEL
