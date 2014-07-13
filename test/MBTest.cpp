@@ -6044,7 +6044,7 @@ ErrorCode mb_poly_adjacency_test2()
 ErrorCode mb_memory_use_test() 
 {
   Core mb;
-  unsigned long init_total, total_with_elem, total_with_tag, total_with_tag_data;
+  unsigned long long init_total, total_with_elem, total_with_tag, total_with_tag_data;
   mb.estimated_memory_use(0,0,0,&init_total);
   
   double coords[12] = { 1, 2, 0, 3, 4, 0, 5, 6, 0, 7, 8, 0 };
@@ -6060,7 +6060,7 @@ ErrorCode mb_memory_use_test()
   if (total_with_elem <= init_total)
     return MB_FAILURE;
   
-  unsigned long min, am;
+  unsigned long long min, am;
   Range r;
   r.insert( elem );
   mb.estimated_memory_use( r, &min, &am );
