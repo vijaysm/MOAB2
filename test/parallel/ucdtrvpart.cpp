@@ -128,8 +128,10 @@ void test_read_parallel(int num_verts, bool test_nb_nodes)
       CHECK_EQUAL(total_verts, num_verts);
   }
 
+#ifdef HDF5_PARALLEL
   std::string write_options("PARALLEL=WRITE_PART;");
   mb.write_file("test.h5m", NULL, write_options.c_str());
+#endif
 }
 
 void test_multiple_loads_of_same_file()
