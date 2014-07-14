@@ -1,3 +1,4 @@
+\usepackage{graphicx}
 % Set locations to search for graphics files
 \graphicspath{{@builddir@/}{@srcdir@/}}
 

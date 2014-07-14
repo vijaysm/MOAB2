@@ -1,4 +1,4 @@
-/*! \page userguide User's Guide (MOAB 4.6)
+/*! \page userguide User's Guide (MOAB 4.7)
  
   \subpage team 
  
@@ -16,9 +16,11 @@
  <h2>The MOAB Team, including: </h2>
  
  - Timothy J. Tautges (Argonne National Lab, Univ Wisconsin-Madison) 
+ - Vijay S. Mahadevan (Argonne National Lab)
  - Iulian Grindeanu (Argonne National Lab) 
  - Rajeev Jain (Argonne National Lab)
  - Danqing Wu  (Argonne National Lab)
+ - Navamita Ray (Argonne National Lab)
 
 
  <h2>Emeritus members:</h2>
@@ -57,7 +59,9 @@
 
     \ref fourfive    
 
-    \ref foursix  
+    \ref foursix
+
+    \ref fourseven
 
   \ref parallel      
 
@@ -426,15 +430,12 @@ Reorganization of VisIt’s set handling is also underway, to increase versatili
 
   \subsection fourtwo 4.2. Parallel Decomposition
 
-To support parallel simulation, applications often need to partition a mesh into parts, designed to balance the load and minimize communication between sets.  MOAB includes the MBZoltan tool for this purpose, constructed on the well-known Zoltan partitioning library [13].  After computing the partition using Zoltan, MBZoltan stores the partition as either tags on individual entities in the partition, or as tagged sets, one set per part.  Since a partition often exhibits locality similar to how the entities were created, storing it as sets (based on Range’s) is often more memory-efficient than an entity tag-based representation.  Figure ~\ref{fig:bricktet} shows a partition computed with MBZoltan (and visualized in VisIt).
+To support parallel simulation, applications often need to partition a mesh into parts, designed to balance the load and minimize communication between sets.  MOAB includes the MBZoltan tool for this purpose, constructed on the well-known Zoltan partitioning library [13].  After computing the partition using Zoltan, MBZoltan stores the partition as either tags on individual entities in the partition, or as tagged sets, one set per part.  Since a partition often exhibits locality similar to how the entities were created, storing it as sets (based on Range’s) is often more memory-efficient than an entity tag-based representation.  Figure \ref{fig:bricktet} shows a partition computed with MBZoltan (and visualized in VisIt).
 
- \begin{figure}
- \begin{center}
- \includegraphics[width = \textwidth]{brickTet.png}
- \caption{}
- \label{fig:bricktet}
- \end{center}
- \end{figure}
+
+ \image html vis_part.png
+
+
 
  \ref contents
 
@@ -607,6 +608,17 @@ Note that although information about model entities is recovered, MOAB by defaul
   \subsection cgm 4.6.3. CGM Reader
 
 The Common Geometry Module (CGM) [17] is a library for representing solid model and other types of solid geometry data.  The CUBIT mesh generation toolkit uses CGM for its geometric modeling support, and CGM can restore geometric models in the exact state in which they were represented in CUBIT.  MOAB contains a CGM reader, which can be enabled with a configure option.  Using this reader, MOAB can read geometric models, and represent their model topology using entity sets linked by parent/child relations.  The mesh in these models comes directly from the modeling engine faceting routines; these are the same facets used to visualize solid models in other graphics engines.  When used in conjunction with the VisIt visualization tool (see Section 4.1), this provides a solution for visualizing geometric models.  Xxx shows a model imported using MOAB’s CGM reader and visualized with VisIt.
+
+\ref contents
+
+ \subsection fourseven 4.7. AHF Representation
+
+Currently, the upward (vertex to entities) adjacencies are created and stored the first time a query requiring the adjacency is performed. Any non-vertex entity to entity adjacencies are performed using boolean operations on vertex-entity adjacencies. Because of this approach, such adjacency queries might become expensive with increasing dimension. We have added an alternative approach for obtaining adjacencies using the array-based half-facet (AHF) representation[23]. The AHF uses sibling half-facets as a core abstraction which is a generalization of the opposite half-edge and half-face data structure for 2D and 3D manifold meshes. The data structure consists of two essential maps: 1) the mapping between all sibling half-facets (sibhfs) and, 2) the mapping from each vertex to some incident half-facet (v2hf). The entire range of adjacencies (higher-, same- and lower-dimension) can be computed using these two maps.
+
+The easiest way to avail this feature is to configure MOAB with "--enable-ahf" option. The interface "get_adjacencies" to obtain adjacencies is preserved. However, there is one key difference between the native MOAB and AHF based adjacency calls. In native MOAB adjacency calls, the same-dimensional queries return the query entities whereas for AHF it would return the same-dimensional entities connected to the query entities. Thus the entire range: higher-dimensional, same-dimensional, lower-dimensional adjacencies can be obtained using the same interface. Similar to MOAB's native adjacency lists, the AHF maps are created during the first adjacency call which will make the first adjacency call expensive.
+
+In the current release, AHF based adjacencies calls do not support polygon/polyhedral meshes, mixed entity type meshes, meshsets, create_if_missing option set to true and modified meshes. The support for these would be added in the next releases.
+
 
  \ref contents
 
@@ -1025,6 +1037,8 @@ Initial results have demonstrated that the data abstraction provided by MOAB is 
 [21]	T. J. Tautges, “MOAB Wiki.” [Online]. Available: http://trac.mcs.anl.gov/projects/ITAPS/wiki/MOAB. [Accessed: 30-Oct-2012].
 
 [22]	T. J. Tautges, “Canonical numbering systems for finite-element codes,” International Journal for Numerical Methods in Biomedical Engineering, vol. 26, no. 12, pp. 1559–1572, 2010.
+
+[23]    V. Dyedov, N. Ray, D.Einstein, X. Jiao, T. Tautges, “AHF: Array-based half-facet data structure for mixed-dimensional and non-manifold meshes”, In Proceedings of 22nd International Meshing Roundtable, Orlando, Florida, October 2013.
 
 
   \ref contents
