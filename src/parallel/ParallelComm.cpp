@@ -8791,7 +8791,77 @@ ErrorCode ParallelComm::settle_intersection_points(Range & edges, Range & shared
 
   return MB_SUCCESS;
   // end copy
+}
+ErrorCode ParallelComm::delete_entities(Range & to_delete)
+{
+
+  // will not look at shared sets yet, but maybe we should
+  // first, see if any of the entities to delete is shared; then inform the other processors
+  // about their fate (to be deleted), using a crystal router transfer
+  ErrorCode rval=MB_SUCCESS;
+  unsigned char pstat;
+  EntityHandle tmp_handles[MAX_SHARING_PROCS];
+  int tmp_procs[MAX_SHARING_PROCS];
+  unsigned int num_ps;
+  TupleList ents_to_delete;
+  ents_to_delete.initialize(1, 0, 1, 0, to_delete.size() * (MAX_SHARING_PROCS+1) );// a little bit of overkill
+  ents_to_delete.enableWriteAccess();
+  unsigned int i = 0;
+  for (Range::iterator it=to_delete.begin(); it!=to_delete.end(); it++)
+  {
+    EntityHandle eh=*it; // entity to be deleted
+
+    rval = get_sharing_data(eh, tmp_procs, tmp_handles,
+                                   pstat, num_ps);
+    if (rval!=MB_SUCCESS || num_ps==0)
+      continue;
+    // add to the tuple list the information to be sent (to the remote procs)
+
+    for (unsigned int p = 0; p < num_ps; p++)
+    {
+      ents_to_delete.vi_wr[i] = tmp_procs[p];
+      ents_to_delete.vul_wr[i] = (unsigned long)tmp_handles[p];
+      i++;
+      ents_to_delete.inc_n();
+    }
   }
+
+  gs_data::crystal_data *cd = this->procConfig.crystal_router();
+  // all communication happens here; no other mpi calls
+  // also, this is a collective call
+  rval = cd->gs_transfer(1,ents_to_delete,0);
+
+  if (MB_SUCCESS!= rval)
+  {
+    std::cout << "error in tuple transfer\n";
+    return rval;
+  }
+  // add to the range of ents to delete the new ones that were sent from other procs
+  unsigned int received = ents_to_delete.get_n();
+  for (i=0; i< received; i++)
+  {
+    //int from = ents_to_delete.vi_rd[i];
+    unsigned long valrec = ents_to_delete.vul_rd[i];
+    to_delete.insert((EntityHandle)valrec);
+  }
+  rval = mbImpl->delete_entities(to_delete);
+  if (MB_SUCCESS!= rval)
+  {
+    std::cout << "error in deleting actual entities\n";
+    return rval;
+  }
+  std::vector<EntityHandle> good_ents;
+  for (size_t j=0; j<sharedEnts.size(); j++)
+  {
+    int index=to_delete.index(sharedEnts[j]);
+    if (-1==index)
+      good_ents.push_back(sharedEnts[j]);
+  }
+  sharedEnts = good_ents;
+
+  // what about shared sets? who is updating them?
+  return MB_SUCCESS;
+}
 
 void ParallelComm::print_pstatus(unsigned char pstat, std::string &ostr) 
 {
