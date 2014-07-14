@@ -12,6 +12,14 @@ using namespace moab;
 #include <algorithm>
 #include <sstream>
 
+#include "TestUtil.hpp"
+
+#ifdef MESHDIR
+static const char poly_example[] = STRINGIFY(MESHDIR) "/io/poly8-10.vtk";
+#else
+static const char poly_example[] = "poly8-10.vtk";
+#endif
+
 #define DECLARE_TEST(A) \
   bool test_ ## A(); \
   int A ## _reg_var = register_test( &test_ ## A, #A );
@@ -38,6 +46,7 @@ DECLARE_TEST(quad4)
 DECLARE_TEST(quad8)
 DECLARE_TEST(quad9)
 DECLARE_TEST(polygon)
+DECLARE_TEST(polygon_mix)
 DECLARE_TEST(tet4)
 DECLARE_TEST(tet10)
 DECLARE_TEST(hex8)
@@ -155,7 +164,8 @@ int main( int argc, char* argv[] )
 
   return fail_count;
 }
-
+// CHECK is defined in TestUtil now
+#undef CHECK
 #define CHECK(A) if (is_error((A))) return do_error( #A, __LINE__ )
 static bool do_error( const char* string, int line )
 {
@@ -383,6 +393,19 @@ bool test_polygon()
   return test_read_write_element( coords, 13, conn, conn, 16, 2, 7, MBPOLYGON );
 }
 
+bool test_polygon_mix()
+{
+  // just read the polygon file with mixed sequences
+  Core moab;
+  Interface& mb = moab;
+
+  ErrorCode rval = mb.load_file(poly_example);
+  if (MB_SUCCESS!=rval)
+    return false;
+
+  return true;
+
+}
 bool test_tet4()
 {
   const double coords[] = 
