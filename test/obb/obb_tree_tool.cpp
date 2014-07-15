@@ -66,11 +66,13 @@ static void memory_use( unsigned long long& vsize, unsigned long long& rss )
 static void memory_use( unsigned long long& vsize, unsigned long long& rss )
 {
   char buffer[512];
+  unsigned long lvsize;
+  long lrss;
   int filp = open( "/proc/self/stat", O_RDONLY );
   ssize_t r = read( filp, buffer, sizeof(buffer)-1 );
   close( filp );
   if (r < 0) r = 0;
-  vsize = rss = 0;
+  lvsize = lrss = 0;
   buffer[r] = '\0';
   sscanf( buffer, "%*d %*s %*c "         // pid command state
                   "%*d %*d "             // ppid pgrp
@@ -80,8 +82,9 @@ static void memory_use( unsigned long long& vsize, unsigned long long& rss )
                   "%*u %*u %*d %*d " // utime stime cutime cstime
                   "%*d %*d %*d "      // priority nice (unused)
                   "%*d %*u "           // itrealval starttime
-                  "%llu %llu",             &vsize, &rss );
-  rss *= getpagesize();
+                  "%lu %ld",             &lvsize, &lrss );
+  rss = lrss*getpagesize();
+  vsize = lvsize;
 }
 #endif
 

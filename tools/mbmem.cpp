@@ -271,7 +271,7 @@ void print_memory_stats( moab::Interface& mb,
   if (sysstats) {
     std::FILE* filp = std::fopen("/proc/self/stat", "r");
     unsigned long long vsize;
-    long long rss;
+    long rss;
     if (filp && 2 == std::fscanf(filp,
                   "%*d " // pid
                   "%*s " // comm
@@ -296,14 +296,14 @@ void print_memory_stats( moab::Interface& mb,
                   "%*d " // itrealvalue
                   "%*u " // starttime
                   "%llu " // vsize
-                  "%lld", // rss
+                  "%ld", // rss
                   &vsize, &rss )) {
   #ifndef _MSC_VER
-      rss *= getpagesize();
+      long long tmprss = rss * getpagesize();
   #endif
       std::cout << std::endl << "SYSTEM:" 
                 << std::endl << "Virtual memory:    " << memstr(vsize)
-                << std::endl << "Resident set size: " << memstr(rss)
+                << std::endl << "Resident set size: " << memstr(tmprss)
                 << std::endl;
     }
     else {
@@ -313,10 +313,10 @@ void print_memory_stats( moab::Interface& mb,
         std::cerr << "getrusage failed" << std::endl;
       }
       else {
-        long long int tmp_rss = sysdata.ru_maxrss;
-        rss *= getpagesize();
+        rss = sysdata.ru_maxrss;
+        long long tmprss = rss * getpagesize();
         std::cerr << std::endl << "SYSTEM:"
-                  << std::endl << "Resident set size: " << memstr(tmp_rss) 
+                  << std::endl << "Resident set size: " << memstr(tmprss) 
                   << std::endl;
       }
   #endif
