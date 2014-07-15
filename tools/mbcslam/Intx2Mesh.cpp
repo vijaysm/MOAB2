@@ -177,7 +177,7 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
 
   // really, should be something from t1 and t2; blue is 1 (lagrange), red is 2 (euler)
   createTags(); //
-  EntityHandle startBlue, startRed;
+  EntityHandle startBlue=0, startRed=0;
 
   mb->get_entities_by_dimension(mbs1, 2, rs1);
   mb->get_entities_by_dimension(mbs2, 2, rs2);
