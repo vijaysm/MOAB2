@@ -656,7 +656,7 @@ MB_OPTIONAL_TOOL([dagmc],        [no], [yes])
 MB_OPTIONAL_TOOL([gsets],        [yes], [yes])
 MB_OPTIONAL_TOOL([mbdepth],      [yes], [yes])
 MB_OPTIONAL_TOOL([refiner],      [no], [yes])
-MB_OPTIONAL_TOOL([h5mtools],     [yes], [yes])
+MB_OPTIONAL_TOOL([h5mtools],     [${HAVE_HDF5}], [${HAVE_HDF5}])
 MB_OPTIONAL_TOOL([mbcslam],      [no], [yes])
 
 if test "xyes" = "x$ENABLE_refiner"; then
