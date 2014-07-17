@@ -584,7 +584,7 @@ AC_ARG_WITH([vtk],
   ],[WITH_VTK=])
 
 VTKMOAB_DEFAULT=no
-if test "x$WITH_VTK" != "xno" -a "x$WITH_VTK" != "x"; then
+if (test "x$WITH_VTK" != "xno" && test "x$WITH_VTK" != "x"); then
   VTKMOAB_DEFAULT=yes
 fi
   
@@ -610,7 +610,7 @@ AC_ARG_WITH( [vtk-lib-suffix],
 #                           Optional Tools
 ###############################################################################
   # Define a macro to avoid typing this for each individual tool
-  # Usage: MB_OPTIONAL_TOOL( name, default )
+  # Usage: MB_OPTIONAL_TOOL( name, default, default_if_tools_enabled )
   #  name      - name of option
   #  default   - yes/no, $ENABLE_TOOLS overrides this if set
   # Actions:
@@ -618,8 +618,9 @@ AC_ARG_WITH( [vtk-lib-suffix],
   #  creates ENABLE_${tool} automake conditional
 AC_DEFUN([MB_OPTIONAL_TOOL],[
   mb_default_$1=$2
+
   if test "x" != "x$ENABLE_TOOLS"; then
-    mb_default_$1="$ENABLE_TOOLS"
+    mb_default_$1=$3
   fi
   AC_ARG_ENABLE( [$1],
 [AC_HELP_STRING([--enable-$1],[Build tool: $1])
@@ -637,26 +638,26 @@ AC_HELP_STRING([--enable-tools],[Build all tools by default])
 AC_HELP_STRING([--disable-tools],[Disable all tools by default])],
                          [ENABLE_TOOLS=$enableval],[ENABLE_TOOLS=] )
   # Individual tools
-MB_OPTIONAL_TOOL([mbconvert],    [yes])
-MB_OPTIONAL_TOOL([hexmodops],    [yes])
-MB_OPTIONAL_TOOL([qvdual],       [no] )
-MB_OPTIONAL_TOOL([vtkMOABReader],[${VTKMOAB_DEFAULT}] )
-MB_OPTIONAL_TOOL([vtkMOABReaderNew],[${VTKMOAB_DEFAULT}] )
-MB_OPTIONAL_TOOL([mbsize],       [yes])
-MB_OPTIONAL_TOOL([mbskin],       [yes])
-MB_OPTIONAL_TOOL([mbtagprop],    [yes])
-MB_OPTIONAL_TOOL([mbmem],        [yes])
-MB_OPTIONAL_TOOL([mcnpmit],      [no])
-MB_OPTIONAL_TOOL([mbcoupler],    [$ENABLE_mcnpmit] )
-MB_OPTIONAL_TOOL([spheredecomp], [yes])
-MB_OPTIONAL_TOOL([mbsurfplot],   [yes])
-MB_OPTIONAL_TOOL([mbzoltan],     [${WITH_ZOLTAN}] )
-MB_OPTIONAL_TOOL([dagmc],        [yes])
-MB_OPTIONAL_TOOL([gsets],        [yes])
-MB_OPTIONAL_TOOL([mbdepth],      [yes])
-MB_OPTIONAL_TOOL([refiner],      [no])
-MB_OPTIONAL_TOOL([h5mtools],     [yes])
-MB_OPTIONAL_TOOL([mbcslam],      [no])
+MB_OPTIONAL_TOOL([mbconvert],    [yes], [yes])
+MB_OPTIONAL_TOOL([hexmodops],    [yes], [yes])
+MB_OPTIONAL_TOOL([qvdual],       [${VTKMOAB_DEFAULT}], [${VTKMOAB_DEFAULT}])
+MB_OPTIONAL_TOOL([vtkMOABReader],[${VTKMOAB_DEFAULT}], [${VTKMOAB_DEFAULT}])
+MB_OPTIONAL_TOOL([vtkMOABReaderNew],[${VTKMOAB_DEFAULT}], [${VTKMOAB_DEFAULT}])
+MB_OPTIONAL_TOOL([mbsize],       [yes], [yes])
+MB_OPTIONAL_TOOL([mbskin],       [yes], [yes])
+MB_OPTIONAL_TOOL([mbtagprop],    [yes], [yes])
+MB_OPTIONAL_TOOL([mbmem],        [yes], [yes])
+MB_OPTIONAL_TOOL([mcnpmit],      [no], [yes])
+MB_OPTIONAL_TOOL([mbcoupler],    [no], [yes] )
+MB_OPTIONAL_TOOL([spheredecomp], [yes], [yes])
+MB_OPTIONAL_TOOL([mbsurfplot],   [yes], [yes])
+MB_OPTIONAL_TOOL([mbzoltan],     [${WITH_ZOLTAN}], [${WITH_ZOLTAN}] )
+MB_OPTIONAL_TOOL([dagmc],        [no], [yes])
+MB_OPTIONAL_TOOL([gsets],        [yes], [yes])
+MB_OPTIONAL_TOOL([mbdepth],      [yes], [yes])
+MB_OPTIONAL_TOOL([refiner],      [no], [yes])
+MB_OPTIONAL_TOOL([h5mtools],     [${HAVE_HDF5}], [${HAVE_HDF5}])
+MB_OPTIONAL_TOOL([mbcslam],      [no], [yes])
 
 if test "xyes" = "x$ENABLE_refiner"; then
   if test "xyes" != "x$WITH_MPI"; then
@@ -809,8 +810,7 @@ AC_DEFUN([FATHOM_MERGE_LISTS],[
   $1="${$1} $2"
 ])
 
-if test "xno" != "x$WITH_VTK" -a "x" != "x$WITH_VTK"; then
-
+if  (test "x$WITH_VTK" != "xno" && test "x$WITH_VTK" != "x"); then
   AC_PATH_X
   AC_PATH_XTRA
   if test "xyes" = "x$no_x"; then
