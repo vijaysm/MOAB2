@@ -427,9 +427,10 @@ public:
     Tag sibhvs_eid, sibhvs_lvid, v2hv_eid, v2hv_lvid;
     Tag sibhes_fid, sibhes_leid, v2he_fid, v2he_leid;
     Tag sibhfs_cid, sibhfs_lfid, v2hf_cid, v2hf_lfid;
-    Tag visited_face, visited_cell;
 
-    EntityHandle queue_fid[MAXSIZE], trackfaces[MAXSIZE];
+
+    EntityHandle queue_fid[MAXSIZE], Stkcells[MAXSIZE], cellq[MAXSIZE];
+    EntityHandle trackfaces[MAXSIZE], trackcells[MAXSIZE];
     int queue_lid[MAXSIZE];
 
     MESHTYPE thismeshtype;
@@ -495,7 +496,7 @@ public:
 
     ErrorCode get_up_adjacencies_2d(EntityHandle he_fid,
                                     int he_lid,
-                                    int *qsize);
+                                    int *qsize, int *count);
 
     //! Given an edge, finds a matching half-edge in the surface.
     /** Given an edge eid, it first collects few half-edges belonging to one-ring neighborhood of
@@ -517,7 +518,7 @@ public:
     ErrorCode gather_halfedges(EntityHandle vid,
                                 EntityHandle he_fid,
                                 int he_lid,
-                                int *qsize);
+                                int *qsize, int *count);
 
     //! Obtains another half-edge belonging to the same face as the input half-edge
     /** It uses the local maps to find another half-edge that is either incident or outgoing depending
@@ -536,7 +537,7 @@ public:
     */
 
     bool collect_and_compare(std::vector<EntityHandle> &edg_vert,
-                             int *qsize,
+                             int *qsize, int *count,
                              EntityHandle *he_fid,
                              int *he_lid);
 
