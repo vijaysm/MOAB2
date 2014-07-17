@@ -20,49 +20,39 @@ using namespace std;
 
 string test_file_name = string(MESH_DIR) + string("/1hex.g");
 
-int main(int argc, char **argv) {
-
-  if (argc > 1){
-    //user has input a mesh file
+int main(int argc, char **argv)
+{
+  if (argc > 1) {
+    // User has input a mesh file
     test_file_name = argv[1];
-  }  
-    // instantiate & load a mesh from a file
-  Core *mb = new Core();
-  ErrorCode rval = mb->load_mesh(test_file_name.c_str());
-  if (MB_SUCCESS != rval) {
-    delete mb;
-    return 1;
   }
+
+  MBErrorHandler_Init();
+
+  // Instantiate & load a mesh from a file
+  Core* mb = new (std::nothrow) Core;
+  if (NULL == mb)
+    return 1;
+  ErrorCode rval = mb->load_mesh(test_file_name.c_str());CHK_ERR(rval);
 
   Range ents;
 
-    // get all entities in the database
-  rval = mb->get_entities_by_handle(0, ents);
-  if (MB_SUCCESS != rval) {
-    delete mb;
-    return 1;
-  }
+  // Get all entities in the database
+  rval = mb->get_entities_by_handle(0, ents);CHK_ERR(rval);
 
-  for (Range::iterator it = ents.begin(); it != ents.end(); it++) {
+  for (Range::iterator it = ents.begin(); it != ents.end(); ++it) {
     if (MBVERTEX == mb->type_from_handle(*it)) {
       Range adjs;
-      rval = mb->get_adjacencies(&(*it), 1, 3, false, adjs);
-      if (MB_SUCCESS != rval) {
-        delete mb;
-        return 1;
-      }
+      rval = mb->get_adjacencies(&(*it), 1, 3, false, adjs);CHK_ERR(rval);
       cout << "Vertex " << mb->id_from_handle(*it) << " adjacencies:" << endl;
       adjs.print();
     }
     else if (mb->type_from_handle(*it) < MBENTITYSET) {
       const EntityHandle *connect;
       int num_connect;
-      rval = mb->get_connectivity(*it, connect, num_connect);
-      if (MB_SUCCESS != rval) {
-        delete mb;
-        return 1;
-      }
-      cout << CN::EntityTypeName(mb->type_from_handle(*it)) << " " << mb->id_from_handle(*it) << " vertex connectivity is: ";
+      rval = mb->get_connectivity(*it, connect, num_connect);CHK_ERR(rval);
+      cout << CN::EntityTypeName(mb->type_from_handle(*it)) << " " << mb->id_from_handle(*it)
+           << " vertex connectivity is: ";
       for (int i = 0; i < num_connect; i++)
         cout << mb->id_from_handle(connect[i]) << " ";
       cout << endl;
@@ -70,6 +60,8 @@ int main(int argc, char **argv) {
   }
 
   delete mb;
+
+  MBErrorHandler_Finalize();
 
   return 0;
 }

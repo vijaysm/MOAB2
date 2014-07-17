@@ -22,56 +22,60 @@ using namespace std;
 
 string test_file_name = string(MESH_DIR) + string("/1hex.g");
 
-// tag names for these conventional tags come from MBTagConventions.hpp
+// Tag names for these conventional tags come from MBTagConventions.hpp
 const char *tag_nms[] = {MATERIAL_SET_TAG_NAME, DIRICHLET_SET_TAG_NAME, NEUMANN_SET_TAG_NAME};
 
-int main(int argc, char **argv) {
-    // get the material set tag handle
+int main(int argc, char **argv)
+{
+  // Get the material set tag handle
   Tag mtag;
   ErrorCode rval;
   Range sets, set_ents;
 
-    // instantiate & load a file
-  Interface *mb = new Core();
+  MBErrorHandler_Init();
 
-    // need option handling here for input filename
-  if (argc > 1){
-    //user has input a mesh file
+  // Get MOAB instance
+  Interface* mb = new (std::nothrow) Core;
+  if (NULL == mb)
+    return 1;
+
+  // Need option handling here for input filename
+  if (argc > 1) {
+    // User has input a mesh file
     test_file_name = argv[1];
-  }  
+  }
 
-  rval = mb->load_file(test_file_name.c_str());
-  if (MB_SUCCESS != rval) return 1;
+  // Load a file
+  rval = mb->load_file(test_file_name.c_str());CHK_ERR(rval);
 
-    // loop over set types
+  // Loop over set types
   for (int i = 0; i < 3; i++) {
-      // get the tag handle for this tag name; tag should already exist (it was created during file read)
-    rval = mb->tag_get_handle(tag_nms[i], 1, MB_TYPE_INTEGER, mtag);
-    if (MB_SUCCESS != rval) return 1;
+    // Get the tag handle for this tag name; tag should already exist (it was created during file read)
+    rval = mb->tag_get_handle(tag_nms[i], 1, MB_TYPE_INTEGER, mtag);CHK_ERR(rval);
 
-      // get all the sets having that tag (with any value for that tag)
+    // Get all the sets having that tag (with any value for that tag)
     sets.clear();
-    rval = mb->get_entities_by_type_and_tag(0, MBENTITYSET, &mtag, NULL, 1, sets);
-    if (MB_SUCCESS != rval) return 1;
+    rval = mb->get_entities_by_type_and_tag(0, MBENTITYSET, &mtag, NULL, 1, sets);CHK_ERR(rval);
 
-      // iterate over each set, getting the entities and printing them
+    // Iterate over each set, getting the entities and printing them
     Range::iterator set_it;
-    for (set_it = sets.begin(); set_it != sets.end(); set_it++)  {
-        // get the id for this set
+    for (set_it = sets.begin(); set_it != sets.end(); ++set_it) {
+      // Get the id for this set
       int set_id;
-      rval = mb->tag_get_data(mtag, &(*set_it), 1, &set_id);
-      if (MB_SUCCESS != rval) return 1;
+      rval = mb->tag_get_data(mtag, &(*set_it), 1, &set_id);CHK_ERR(rval);
 
-        // get the entities in the set, recursively
-      rval = mb->get_entities_by_handle(*set_it, set_ents, true);
-      if (MB_SUCCESS != rval) return 1;
+      // Get the entities in the set, recursively
+      rval = mb->get_entities_by_handle(*set_it, set_ents, true);CHK_ERR(rval);
 
-      cout << tag_nms[i] << " " << set_id << " has " 
-                << set_ents.size() << " entities:" << endl;
+      cout << tag_nms[i] << " " << set_id << " has " << set_ents.size() << " entities:" << endl;
       set_ents.print("   ");
       set_ents.clear();
     }
   }
 
   delete mb;
+
+  MBErrorHandler_Finalize();
+
+  return 0;
 }

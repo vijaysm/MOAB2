@@ -28,62 +28,66 @@
 // Include header for MOAB instance and range
 #include "moab/Core.hpp"
 
-int main(int argc, char **argv) {
+using namespace moab;
+using namespace std;
 
-  // instantiate & load a file
-  moab::Interface *mb = new moab::Core();
+int main(int argc, char **argv)
+{
+  MBErrorHandler_Init();
 
-  // If no input is specified load ../MeshFiles/unittest/mbtest2.g
-//  const char* test_file_name =  "../MeshFiles/unittest/mbtest2.g";
+  // Get MOAB instance
+  Interface* mb = new (std::nothrow) Core;
+  if (NULL == mb)
+    return 1;
 
-  // get the material set tag handle
-  moab::Tag mtag;
-  moab::ErrorCode rval;
+  // Get the material set tag handle
+  Tag mtag;
+  ErrorCode rval;
   const char *tag_nms[] = {"MATERIAL_SET", "DIRICHLET_SET", "NEUMANN_SET"};
-  moab::Range sets, set_ents;
+  Range sets, set_ents;
 
+  // Load a file
   if (argc == 1) {
-      std::cout << "Running default case, loading ../MeshFiles/unittest/mbtest2.g" << std::endl;
-      std::cout << "Usage: " << argv[0] << " <filename>\n" << std::endl;
-      rval = mb->load_file("../MeshFiles/unittest/mbtest2.g");
-    }
-  else{
-      rval = mb->load_file(argv[argc-1]);
-      std::cout << "Loaded mesh file: " << argv[argc-1] << std::endl;
-    }
+    cout << "Running default case, loading ../MeshFiles/unittest/mbtest2.g" << endl;
+    cout << "Usage: " << argv[0] << " <filename>\n" << endl;
+    rval = mb->load_file("../MeshFiles/unittest/mbtest2.g");CHK_ERR(rval);
+  }
+  else {
+    rval = mb->load_file(argv[argc - 1]);CHK_ERR(rval);
+    cout << "Loaded mesh file: " << argv[argc - 1] << endl;
+  }
 
-  // loop over set types
+  // Loop over set types
   for (int i = 0; i < 3; i++) {
-      rval = mb->tag_get_handle(tag_nms[i], 1, moab::MB_TYPE_INTEGER, mtag);
-      if (moab::MB_SUCCESS != rval) return 1;
+    rval = mb->tag_get_handle(tag_nms[i], 1, MB_TYPE_INTEGER, mtag);CHK_ERR(rval);
 
-      // get all the sets of that type in the mesh
-      sets.clear();
-      rval = mb->get_entities_by_type_and_tag(0, moab::MBENTITYSET, &mtag,
-                                              NULL, 1, sets);
-      if (moab::MB_SUCCESS != rval) return 1;
+    // Get all the sets of that type in the mesh
+    sets.clear();
+    rval = mb->get_entities_by_type_and_tag(0, MBENTITYSET, &mtag, NULL, 1, sets);CHK_ERR(rval);
 
-      // iterate over each set, getting entities
-      moab::Range::iterator set_it;
-      for (set_it = sets.begin(); set_it != sets.end(); set_it++)  {
-          moab::EntityHandle this_set = *set_it;
+    // Iterate over each set, getting entities
+    Range::iterator set_it;
+    for (set_it = sets.begin(); set_it != sets.end(); ++set_it) {
+      EntityHandle this_set = *set_it;
 
-          // get the id for this set
-          int set_id;
-          rval = mb->tag_get_data(mtag, &this_set, 1, &set_id);
-          if (moab::MB_SUCCESS != rval) return 1;
+      // Get the id for this set
+      int set_id;
+      rval = mb->tag_get_data(mtag, &this_set, 1, &set_id);CHK_ERR(rval);
 
-          // get the entities in the set, recursively
-          rval = mb->get_entities_by_handle(this_set, set_ents, true);
-          if (moab::MB_SUCCESS != rval) return 1;
+      // Get the entities in the set, recursively
+      rval = mb->get_entities_by_handle(this_set, set_ents, true);CHK_ERR(rval);
 
-          std::cout << tag_nms[i] << " " << set_id << " has "
-                    << set_ents.size() << " entities:" << std::endl;
+      cout << tag_nms[i] << " " << set_id << " has " << set_ents.size() << " entities:" << endl;
 
-          // print the entities contained in this set
-          set_ents.print("   ");
-          set_ents.clear();
-        }
+      // Print the entities contained in this set
+      set_ents.print("   ");
+      set_ents.clear();
     }
+  }
+
   delete mb;
+
+  MBErrorHandler_Finalize();
+
+  return 0;
 }
