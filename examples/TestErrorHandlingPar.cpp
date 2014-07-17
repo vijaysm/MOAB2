@@ -21,7 +21,7 @@ ErrorCode TestErrorHandlingPar_1()
   Core moab;
   Interface& mb = moab;
 
-  std::string opts = ";;";
+  string opts = ";;";
 #ifdef USE_MPI
   // Use parallel options
   opts += "PARALLEL=READ_PART;PARTITION_METHOD=SQIJ";
@@ -42,7 +42,7 @@ ErrorCode TestErrorHandlingPar_2()
   Core moab;
   Interface& mb = moab;
 
-  std::string opts = ";;";
+  string opts = ";;";
 #ifdef USE_MPI
   // Use parallel options
   opts += "PARALLEL=READ_PART;PARTITION_METHOD=UNKNOWN";

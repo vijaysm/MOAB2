@@ -20,9 +20,14 @@ using namespace std;
 // Note: change the file name below to test a trivial "No such file or directory" error
 string test_file_name = string(MESH_DIR) + string("/3k-tri-sphere.vtk");
 
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
-  Interface* iface = new Core;
+  MBErrorHandler_Init();
+
+  // Get MOAB instance
+  Interface* mb = new (std::nothrow) Core;
+  if (NULL == mb)
+    return 1;
 
   // Need option handling here for input filename
   if (argc > 1) {
@@ -30,28 +35,24 @@ int main(int argc, char** argv)
     test_file_name = argv[1];
   }
 
-  MBErrorHandler_Init();
-
   // Load the mesh from vtk file
-  ErrorCode rval = iface->load_mesh(test_file_name.c_str());CHK_ERR(rval);
+  ErrorCode rval = mb->load_mesh(test_file_name.c_str());CHK_ERR(rval);
 
   // Get verts entities, by type
   Range verts;
-  rval = iface->get_entities_by_type(0, MBVERTEX, verts);CHK_ERR(rval);
+  rval = mb->get_entities_by_type(0, MBVERTEX, verts);CHK_ERR(rval);
 
   // Get edge entities, by type
   Range edges;
-  rval = iface->get_entities_by_type(0, MBEDGE, edges);CHK_ERR(rval);
+  rval = mb->get_entities_by_type(0, MBEDGE, edges);CHK_ERR(rval);
 
   // Get faces, by dimension, so we stay generic to entity type
   Range faces;
-  rval = iface->get_entities_by_dimension(0, 2, faces);CHK_ERR(rval);
+  rval = mb->get_entities_by_dimension(0, 2, faces);CHK_ERR(rval);
 
   // Get regions, by dimension, so we stay generic to entity type
   Range elems;
-  rval = iface->get_entities_by_dimension(0, 3, elems);CHK_ERR(rval);
-
-  MBErrorHandler_Finalize();
+  rval = mb->get_entities_by_dimension(0, 3, elems);CHK_ERR(rval);
 
   // Output the number of entities
   cout << "Number of vertices is " << verts.size() << endl;
@@ -59,7 +60,9 @@ int main(int argc, char** argv)
   cout << "Number of faces is " << faces.size() << endl;
   cout << "Number of elements is " << elems.size() << endl;
 
-  delete iface;
+  delete mb;
+
+  MBErrorHandler_Finalize();
 
   return 0;
 }

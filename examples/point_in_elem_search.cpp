@@ -19,61 +19,65 @@
 #include "moab/SpatialLocator.hpp"
 
 using namespace moab;
+using namespace std;
 
-#define ERR(s) if (MB_SUCCESS != rval) \
-    {std::string str;mb.get_last_error(str); std::cerr << s << str << std::endl; return 1;}
-
-int main(int argc, char **argv) {
-
+int main(int argc, char **argv)
+{
   int num_queries = 1000000;
-  
+
   if (argc < 2 || argc > 3) {
-    std::cout << "Usage: " << argv[0] << "<filename> [num_queries]" << std::endl;
+    cout << "Usage: " << argv[0] << "<filename> [num_queries]" << endl;
     return 0;
   }
-  else if (argc == 3) num_queries = atoi(argv[2]);
+  else if (argc == 3)
+    num_queries = atoi(argv[2]);
 
-    // instantiate & load a file
-  moab::Core mb;
+  MBErrorHandler_Init();
 
-    // load the file
-  ErrorCode rval = mb.load_file(argv[1]); ERR("Error loading file");
-  
-    // get all 3d elements in the file
+  // Instantiate
+  Core mb;
+
+  // Load the file
+  ErrorCode rval = mb.load_file(argv[1]);CHK_ERR1(rval, "Error loading file");
+
+  // Get all 3d elements in the file
   Range elems;
-  rval = mb.get_entities_by_dimension(0, 3, elems); ERR("Error getting 3d elements");
-  
-    // create a tree to use for the location service
+  rval = mb.get_entities_by_dimension(0, 3, elems);CHK_ERR1(rval, "Error getting 3d elements");
+
+  // Create a tree to use for the location service
   AdaptiveKDTree tree(&mb);
 
-    // specify an evaluator based on linear hexes
+  // Specify an evaluator based on linear hexes
   ElemEvaluator el_eval(&mb);
 
-    // build the SpatialLocator
+  // Build the SpatialLocator
   SpatialLocator sl(&mb, elems, &tree);
   
-    // get the box extents
+  // Get the box extents
   CartVect box_extents, pos;
   BoundBox box = sl.local_box();
   box_extents = box.bMax - box.bMin;
-  
-    // query at random places in the tree
+
+  // Query at random places in the tree
   CartVect params;
   int is_inside = 0;
   int num_inside = 0;
   EntityHandle elem;
   for (int i = 0; i < num_queries; i++) {
-    pos = box.bMin + 
-        CartVect(box_extents[0]*.01*(rand()%100), box_extents[1]*.01*(rand()%100), box_extents[2]*.01*(rand()%100));
-    ErrorCode tmp_rval = sl.locate_point(pos.array(), elem, params.array(), &is_inside, 0.0, 0.0);
-    if (MB_SUCCESS != tmp_rval) rval = tmp_rval;
+    pos = box.bMin + CartVect(box_extents[0] * .01 * (rand() % 100), box_extents[1] * .01 * (rand() % 100),
+        box_extents[2] * .01 * (rand() % 100));
+    rval = sl.locate_point(pos.array(), elem, params.array(), &is_inside, 0.0, 0.0);CHK_ERR(rval);
     if (is_inside) num_inside++;
   }
-  
-  std::cout << "Mesh contains " << elems.size() << " elements of type " 
-            << CN::EntityTypeName(mb.type_from_handle(*elems.begin())) << std::endl;
-  std::cout << "Bounding box min-max = (" << box.bMin[0] << "," << box.bMin[1] << "," << box.bMin[2] << ")-("
-            << box.bMax[0] << "," << box.bMax[1] << "," << box.bMax[2] << ")" << std::endl;
-  std::cout << "Queries inside box = " << num_inside << "/" << num_queries << " = " 
-            << 100.0*((double)num_inside)/num_queries << "%" << std::endl;
+
+  cout << "Mesh contains " << elems.size() << " elements of type "
+            << CN::EntityTypeName(mb.type_from_handle(*elems.begin())) << endl;
+  cout << "Bounding box min-max = (" << box.bMin[0] << "," << box.bMin[1] << "," << box.bMin[2] << ")-("
+            << box.bMax[0] << "," << box.bMax[1] << "," << box.bMax[2] << ")" << endl;
+  cout << "Queries inside box = " << num_inside << "/" << num_queries << " = "
+            << 100.0*((double)num_inside) / num_queries << "%" << endl;
+
+  MBErrorHandler_Finalize();
+
+  return 0;
 }

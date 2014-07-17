@@ -13,12 +13,12 @@
  *
  * an example of use
  *
- * VisTags gcrm_rc.nc  out.vtk -O VARIABLE=u -t u0,u1 -l 0,1,2 -d 2
+ * VisTags gcrm_r3.nc out.vtk -O VARIABLE=u -t u0,u1 -l 0,1,2 -d 2
  * (we knew that it had variable u in the file, that it had 256 levels, that there are 2 time
  *  steps, etc)
  *
  * or
- *  VisTags gcrm_rc.nc  out.vtk  -t u0 -l 0,1,2 -d 2
+ *  VisTags gcrm_r3.nc out.vtk  -t u0 -l 0,1,2 -d 2
  *  (it will read all variables, but we need to know that u0 will be created as a tag)
  *
  *  the out.vtk file will contain u0_0, u0_1, as simple dense double tags
@@ -29,153 +29,147 @@
 #include <sstream>
 #include <string>
 
-// Include header for MOAB instance and tag conventions for
+// Include header for MOAB instance and tag conventions
 #include "moab/Core.hpp" 
 #include "MBTagConventions.hpp"
 #include "moab/FileOptions.hpp"
 
+using namespace moab;
+using namespace std;
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
+  if (argc <= 1)
+    return 1;
 
-    // instantiate & load a file 
-    moab::Interface *mb = new moab::Core();
+  MBErrorHandler_Init();
 
-    moab::ErrorCode rval;
-    if (argc <= 1) 
-       return 0;
+  // Instantiate
+  Interface* mb = new (std::nothrow) Core;
+  if (NULL == mb)
+    return 1;
 
-    int dimension = 2;
-    char * file_input = argv[1];
-    char * file_output = argv[2];
-    char * read_opts = NULL;
-    char * tags = NULL; // tags to write, separated by commas; it is the name of the tag
-    // in moab, it may have index after reading (T0, T1, etc)
-    char * levels = NULL; // levels, separated by commas, no spaces ( like 0,1,19 )
-    if (argc>3)
-    {
-      int index=3;
-      while (index<argc)
-      {
-        if (!strcmp( argv[index], "-O")) // this is for reading options, optional
-        {
-          read_opts=argv[++index];
-        }
-        if (!strcmp( argv[index], "-t"))
-        {
-          tags=argv[++index];
-        }
-        if (!strcmp( argv[index], "-l"))
-        {
-          levels=argv[++index];
-        }
-        if (!strcmp( argv[index], "-d"))
-        {
-          dimension=atoi(argv[++index]);
-        }
-        index++;
-      }
+  ErrorCode rval;
+
+  int dimension = 2;
+  char* file_input = argv[1];
+  char* file_output = argv[2];
+  char* read_opts = NULL;
+  char* tags = NULL; // Tags to write, separated by commas; it is the name of the tag
+  // In moab, it may have index after reading (T0, T1, etc)
+  char* levels = NULL; // Levels, separated by commas, no spaces (like 0, 1, 19)
+  if (argc > 3) {
+    int index = 3;
+    while (index < argc) {
+      if (!strcmp(argv[index], "-O")) // This is for reading options, optional
+        read_opts = argv[++index];
+      if (!strcmp(argv[index], "-t"))
+        tags = argv[++index];
+      if (!strcmp(argv[index], "-l"))
+        levels = argv[++index];
+      if (!strcmp(argv[index], "-d"))
+        dimension = atoi(argv[++index]);
+      index++;
     }
-    std::ostringstream opts;
-    opts << ";;TAGS=" << tags << ";LEVELS=" << levels << "\0" ;
-    moab::FileOptions fo(opts.str().c_str());
+  }
 
-    std::vector<std::string> tagsNames;
-    std::vector<int>  levelsArray;
-    fo.get_strs_option("TAGS", tagsNames);
-    fo.get_ints_option("LEVELS", levelsArray);
+  ostringstream opts;
+  opts << ";;TAGS=" << tags << ";LEVELS=" << levels << "\0" ;
+  FileOptions fo(opts.str().c_str());
 
-    // now create double tags for entities of dimension
+  vector<string> tagsNames;
+  vector<int> levelsArray;
+  fo.get_strs_option("TAGS", tagsNames);
+  fo.get_ints_option("LEVELS", levelsArray);
 
-    rval = mb->load_file(file_input, 0, read_opts);
-    if (rval != moab::MB_SUCCESS) {
-      std::cout <<"not loading file\n";
-      return 1;
+  // Load the input file with the specified options
+  rval = mb->load_file(file_input, 0, read_opts);CHK_ERR1(rval, "not loading file");
+
+  Range ents;
+  rval = mb->get_entities_by_dimension(0, dimension, ents);CHK_ERR1(rval, "not getting ents");
+
+  // Now create double tags for entities of dimension
+  for (size_t i = 0; i < tagsNames.size(); i++) {
+    string tagName = tagsNames[i];
+    Tag tagh;
+    rval = mb->tag_get_handle(tagName.c_str(), tagh);
+    if (MB_SUCCESS != rval) {
+      cout << "not getting tag " << tagName.c_str() << "\n";
+      continue;
     }
-    moab::Range ents;
-    rval = mb->get_entities_by_dimension(0, dimension, ents);
-    if (rval != moab::MB_SUCCESS) {
-      std::cout <<"not getting ents\n";
-      return 1;
+
+    int len = 0;
+    rval = mb->tag_get_length(tagh, len);
+    if (MB_SUCCESS != rval) {
+      cout << "not getting tag len " << tagName.c_str() << "\n";
+      continue;
     }
-    for (size_t i=0; i<tagsNames.size(); i++)
-    {
-      std::string tagName = tagsNames[i];
-      moab::Tag tagh;
-      rval = mb->tag_get_handle(tagName.c_str(), tagh);
 
-      if (rval != moab::MB_SUCCESS) {
-        std::cout <<"not getting tag " << tagName.c_str()<<"\n";
-        continue;
-      }
-      int len=0;
-      rval = mb->tag_get_length(tagh, len);
-      if (rval != moab::MB_SUCCESS) {
-        std::cout <<"not getting tag len" << tagName.c_str()<<"\n";
-        continue;
-      }
-      moab::DataType type;
-      rval = mb->tag_get_data_type(tagh, type) ;
-      if (rval != moab::MB_SUCCESS) {
-        std::cout <<"not getting tag type " << tagName.c_str()<<"\n";
-        continue;
-      }
-      int count;
-      void * dataptr;// assume double tags, for simplicity
-      rval = mb->tag_iterate( tagh,
-          ents.begin(),
-          ents.end(),
-          count,
-          dataptr);
-      if (rval != moab::MB_SUCCESS || count != (int)ents.size()) {
-        std::cout <<"not getting tag iterate right " << tagName.c_str()<<"\n";
+    DataType type;
+    rval = mb->tag_get_data_type(tagh, type) ;
+    if (MB_SUCCESS != rval) {
+      cout << "not getting tag type " << tagName.c_str() << "\n";
+      continue;
+    }
+
+    int count;
+    void* dataptr; // Assume double tags, for simplicity
+    rval = mb->tag_iterate(tagh,
+        ents.begin(),
+        ents.end(),
+        count,
+        dataptr);
+    if (MB_SUCCESS != rval || count != (int)ents.size()) {
+      cout << "not getting tag iterate right " << tagName.c_str() << "\n";
+      continue;
+    }
+
+    // Now create a new tag, with a new name, concatenated, and copy data there , for each level
+    for (size_t j = 0; j < levelsArray.size(); j++) {
+      int level = levelsArray[j];
+      if (level >= len) {
+        cout << "level too big at " << level << "\n";
         continue;
       }
 
-      // now create a new tag, with a new name, concatenated, and copy data there , for each level
-      for (size_t j=0; j<levelsArray.size();j++)
-      {
-        int level=levelsArray[j];
-        if (level >= len)
-        {
-          std::cout << "level too big at "<< level << "\n";
-          continue;
-        }
-        std::ostringstream newTagName;
-        newTagName << tagName <<"_" << level  ;
-        moab::Tag newTagh;
-        rval = mb->tag_get_handle(newTagName.str().c_str(), 1, type, newTagh,
-            moab::MB_TAG_DENSE | moab::MB_TAG_CREAT);
-        if (rval != moab::MB_SUCCESS ) {
-          std::cout <<"not getting new tag " << newTagName.str() <<"\n";
-          continue;
-        }
-        void * newDataPtr;
-        rval = mb->tag_iterate( newTagh,
+      ostringstream newTagName;
+      newTagName << tagName << "_" << level  ;
+      Tag newTagh;
+      rval = mb->tag_get_handle(newTagName.str().c_str(), 1, type, newTagh,
+          MB_TAG_DENSE | MB_TAG_CREAT);
+      if (MB_SUCCESS != rval) {
+        cout <<"not getting new tag " << newTagName.str() << "\n";
+        continue;
+      }
+
+      void* newDataPtr;
+      rval = mb->tag_iterate(newTagh,
                             ents.begin(),
                             ents.end(),
                             count,
                             newDataPtr);
-        if (rval != moab::MB_SUCCESS  || count !=(int) ents.size()) {
-          std::cout <<"not getting new tag iterate" << newTagName.str() <<"\n";
-          continue;
-        }
-        if (type==moab::MB_TYPE_DOUBLE)
-        {
-          double * ptrD = (double*) newDataPtr;
-          double *oldData = (double*)dataptr;
-          for (int k=0; k<count; k++, ptrD++)
-          {
-            *ptrD = oldData[level+count*k];
-          }
-        }
+      if (MB_SUCCESS != rval || count != (int) ents.size()) {
+        cout << "not getting new tag iterate " << newTagName.str() << "\n";
+        continue;
       }
-      mb->tag_delete(tagh);// no need for the tag anymore, write it to the new file
-    }
 
-    rval = mb->write_file(file_output);
-    if (rval != moab::MB_SUCCESS)
-      std::cout <<"can't write file " << file_output << "\n";
-    else
-      std::cout <<"successfully wrote file " << file_output<< "\n";
-    return 0;
-} 
+      if (MB_TYPE_DOUBLE == type) {
+        double* ptrD = (double*)newDataPtr;
+        double* oldData = (double*)dataptr;
+        for (int k = 0; k < count; k++, ptrD++)
+          *ptrD = oldData[level + count*k];
+      }
+    } // for (size_t j = 0; j < levelsArray.size(); j++)
+
+    mb->tag_delete(tagh); // No need for the tag anymore, write it to the new file
+  } // for (size_t i = 0; i < tagsNames.size(); i++)
+
+  rval = mb->write_file(file_output);CHK_ERR1_STR(rval, "Can't write file " << file_output);
+  cout << "Successfully wrote file " << file_output << "\n";
+
+  delete mb;
+
+  MBErrorHandler_Finalize();
+
+  return 0;
+}
