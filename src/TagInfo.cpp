@@ -1,5 +1,6 @@
 #include "TagInfo.hpp"
 #include "moab/Error.hpp"
+#include "moab/ErrorHandler.hpp"
 #include <string.h>  /* memcpy */
 #include <stdlib.h>  /* realloc & free */
 #include <assert.h>
@@ -78,15 +79,18 @@ bool TagInfo::check_valid_sizes( const int* sizes, int num_sizes ) const
   return (sum == 0);
 }
 
-ErrorCode TagInfo::validate_lengths( Error* error_handler,
+ErrorCode TagInfo::validate_lengths( Error* /* error_handler */,
                                      const int* lengths, 
                                      size_t num_lengths ) const
 {
   int bits = 0;
   if (variable_length()) {
     if (!lengths) {
+/*
       error_handler->set_last_error("No size specified for variable-length tag");
       return MB_VARIABLE_DATA_LENGTH;
+*/
+      SET_ERR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag");
     }
     const unsigned type_size = size_from_data_type( get_data_type() );
     if (type_size == 1)
@@ -100,8 +104,11 @@ ErrorCode TagInfo::validate_lengths( Error* error_handler,
   }
   if (!bits)
     return MB_SUCCESS;
+/*
   error_handler->set_last_error("Tag data with invalid size");
   return MB_INVALID_SIZE;
+*/
+  SET_ERR(MB_INVALID_SIZE, "Tag data with invalid size");
 }
 
 } // namespace moab
