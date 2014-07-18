@@ -4,6 +4,7 @@
 #include "TagCompare.hpp"
 #include "SequenceManager.hpp"
 #include "moab/Error.hpp"
+#include "moab/ErrorHandler.hpp"
 #include <stdlib.h>
 #include <string.h>
 
@@ -87,9 +88,7 @@ ErrorCode BitTag::set_data( SequenceManager* seqman,
                             size_t num_handles, 
                             const void* gen_data )
 {
-  ErrorCode rval = seqman->check_valid_entities( error, handles, num_handles, true );
-  if (MB_SUCCESS != rval)
-    return rval;
+  ErrorCode rval = seqman->check_valid_entities( error, handles, num_handles, true );CHK_ERR(rval);
 
   EntityType type;
   size_t page;
@@ -116,9 +115,7 @@ ErrorCode BitTag::clear_data( SequenceManager* seqman,
   if (value_len)
     return MB_INVALID_SIZE;
 
-  ErrorCode rval = seqman->check_valid_entities( error, handles, num_handles, true );
-  if (MB_SUCCESS != rval)
-    return rval;
+  ErrorCode rval = seqman->check_valid_entities( error, handles, num_handles, true );CHK_ERR(rval);
     
   EntityType type;
   size_t page;
@@ -194,9 +191,7 @@ ErrorCode BitTag::set_data( SequenceManager* seqman,
                             const Range& handles, 
                             const void* gen_data )
 {
-  ErrorCode rval = seqman->check_valid_entities( error, handles );
-  if (MB_SUCCESS != rval)
-    return rval;
+  ErrorCode rval = seqman->check_valid_entities( error, handles );CHK_ERR(rval);
 
   EntityType type;
   EntityID count;
@@ -236,9 +231,7 @@ ErrorCode BitTag::clear_data( SequenceManager* seqman,
   if (value_len)
     return MB_INVALID_SIZE;
 
-  ErrorCode rval = seqman->check_valid_entities( error, handles );
-  if (MB_SUCCESS != rval)
-    return rval;
+  ErrorCode rval = seqman->check_valid_entities( error, handles );CHK_ERR(rval);
     
   EntityType type;
   EntityID count;
@@ -292,10 +285,13 @@ ErrorCode BitTag::remove_data( SequenceManager*, Error*, const Range& handles )
   return MB_SUCCESS;
 }
 
-static ErrorCode report_unsupported( Error* error)
+static ErrorCode report_unsupported( Error* /* error */)
 {
+/*
   error->set_last_error("Operation not supported for bit tags");
   return MB_TYPE_OUT_OF_RANGE;
+*/
+  SET_ERR(MB_TYPE_OUT_OF_RANGE, "Operation not supported for bit tags");
 }
 
 ErrorCode BitTag::get_data( const SequenceManager*,
@@ -427,7 +423,7 @@ ErrorCode BitTag::num_tagged_entities( const SequenceManager*,
 }
 
 ErrorCode BitTag::find_entities_with_value( const SequenceManager*,
-                                            Error* error,
+                                            Error* /* error */,
                                             Range& output_entities,
                                             const void* value,
                                             int value_bytes,
@@ -435,8 +431,11 @@ ErrorCode BitTag::find_entities_with_value( const SequenceManager*,
                                             const Range* intersect_entities ) const
 {
   if (value_bytes && value_bytes != 1) {
+/*
     error->set_last_error("Inavlid tag size for bit tag: %d bytes\n",value_bytes);
     return MB_INVALID_SIZE;
+*/
+    SET_ERR_STR(MB_INVALID_SIZE, "Inavlid tag size for bit tag: " << value_bytes << " bytes");
   }
     
   const signed char bits = *reinterpret_cast<const unsigned char*>(value);
@@ -479,9 +478,7 @@ ErrorCode BitTag::get_entities_with_bits( const Range &range,
   if (MBMAXTYPE == in_type) {
     ErrorCode rval;
     for (--in_type; in_type >= MBVERTEX; --in_type) {
-      rval = get_entities_with_bits( range, in_type, entities, bits );
-      if (MB_SUCCESS != rval)
-        return rval;
+      rval = get_entities_with_bits( range, in_type, entities, bits );CHK_ERR(rval);
     }
     return MB_SUCCESS;
   }
