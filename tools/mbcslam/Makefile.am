@@ -46,7 +46,7 @@ endif
 
 noinst_PROGRAMS =  proj1 create_dp 
 if PARALLEL
-  noinst_PROGRAMS += cslam_par_test diffusion intx_imesh
+  noinst_PROGRAMS += cslam_par_test intx_imesh
 if ENABLE_FORTRAN
   noinst_PROGRAMS += advection
 endif
@@ -72,6 +72,7 @@ if ENABLE_FORTRAN
   advection_SOURCES = advection.F90
   advection_LDADD = libmbcslam.la  $(top_builddir)/itaps/imesh/libiMesh.la $(top_builddir)/src/libMOAB.la $(FCLIBS)
 endif
+  driver_hm_SOURCES = driver_hm.cpp
 endif 
 
 # Other files to clean up (e.g. output from tests)

@@ -91,6 +91,34 @@ void update_tracer( iMesh_Instance instance, iBase_EntitySetHandle imesh_euler_s
   return;
 }
 
+void create_mesh (iMesh_Instance instance, iBase_EntitySetHandle * imesh_euler_set, double * coords,
+		int * corners,
+      int nc, int nelem, int * ierr)
+{
+ /* double * coords=(double*) icoords;
+  int * corners = (int*) icorners;*/
+  *ierr = 1;
+  moab::Interface * mb =MOABI;
+  EntityHandle euler_set;
+  ErrorCode rval = mb->create_meshset(MESHSET_SET, euler_set);
+
+  ERRORV(rval , "can't create covering set ");
+  *imesh_euler_set = (iBase_EntitySetHandle) euler_set;
+
+ // there are nelem*4 corners, and 3*(nc2+1)*(nc2+1)*nelem coordinates
+  // create first a coarse mesh,
+  int size_corners=4*nelem;
+  int size_coords=3*(nc+1)*(nc+1)*nelem;
+  // order first the corners array, and eliminate duplicates
+  std::vector<int>  corn1(size_corners);
+  std::sort(corn1.begin(), corn1.end());
+  corn1.erase( std::unique( corn1.begin(), corn1.end() ), corn1.end() );
+
+  int num_nodes_coarse=(int)corn1.size();
+
+  *ierr = 0;
+  return ;
+}
 #ifdef __cplusplus
 } // extern "C"
 #endif
