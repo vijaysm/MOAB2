@@ -72,9 +72,6 @@ int TestMeshRefiner( int argc, char* argv[] )
       << "PARALLEL_RESOLVE_SHARED_ENTS" << ";"
       << "CPUTIME";
   }
-  else {
-    parallel_options << "CPUTIME;";
-  }
 #endif
   ErrorCode rval = imesh->create_meshset(MESHSET_SET, set_handle);
   if (MB_SUCCESS != rval) {
@@ -90,7 +87,7 @@ int TestMeshRefiner( int argc, char* argv[] )
   
   // Print out what we have so far, one process at a time
   for ( int i = 0; i < nprocs; ++ i )
-    {
+  {
     MPI_Barrier( MPI_COMM_WORLD );
     if ( i == rank )
       {
@@ -99,7 +96,7 @@ int TestMeshRefiner( int argc, char* argv[] )
       std::cout << "**************\n\n";
       }
     MPI_Barrier( MPI_COMM_WORLD );
-    }
+  }
 
   // The refiner will need an implicit function to be used as an indicator function for subdivision:
   EdgeSizeSimpleImplicit* eval = new EdgeSizeSimpleImplicit();
