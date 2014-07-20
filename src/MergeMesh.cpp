@@ -152,7 +152,7 @@ struct handle_id
 bool compare_handle_id(handle_id ia, handle_id ib) {
 
   if(ia.val == ib.val) {
-    return ia.eh<ia.eh;
+    return ia.eh<ib.eh;
   } else {
     return ia.val<ib.val;
   }
