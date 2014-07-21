@@ -334,7 +334,7 @@ ErrorCode read_file(Interface *mbImpl,
     options << ";PRINT_PARALLEL";
 
   std::vector<ParallelComm*> pcs(filenames.size());
-  ErrorCode result;
+  ErrorCode result = MB_FAILURE;
 
   if (1 < filenames.size()) {
     for (unsigned int i = 0; i < filenames.size(); i++) {
