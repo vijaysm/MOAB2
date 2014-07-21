@@ -430,7 +430,7 @@ Reorganization of VisIt’s set handling is also underway, to increase versatili
 
   \subsection fourtwo 4.2. Parallel Decomposition
 
-To support parallel simulation, applications often need to partition a mesh into parts, designed to balance the load and minimize communication between sets.  MOAB includes the MBZoltan tool for this purpose, constructed on the well-known Zoltan partitioning library [13].  After computing the partition using Zoltan, MBZoltan stores the partition as either tags on individual entities in the partition, or as tagged sets, one set per part.  Since a partition often exhibits locality similar to how the entities were created, storing it as sets (based on Range’s) is often more memory-efficient than an entity tag-based representation.  Figure \ref{fig:bricktet} shows a partition computed with MBZoltan (and visualized in VisIt).
+To support parallel simulation, applications often need to partition a mesh into parts, designed to balance the load and minimize communication between sets.  MOAB includes the MBZoltan tool for this purpose, constructed on the well-known Zoltan partitioning library [13].  After computing the partition using Zoltan, MBZoltan stores the partition as either tags on individual entities in the partition, or as tagged sets, one set per part.  Since a partition often exhibits locality similar to how the entities were created, storing it as sets (based on Range’s) is often more memory-efficient than an entity tag-based representation.  Figure below shows a couple of partitioned meshes computed with MBZoltan (and visualized in VisIt).
 
 
  \image html vis_part.png
@@ -607,18 +607,35 @@ Note that although information about model entities is recovered, MOAB by defaul
 
   \subsection cgm 4.6.3. CGM Reader
 
-The Common Geometry Module (CGM) [17] is a library for representing solid model and other types of solid geometry data.  The CUBIT mesh generation toolkit uses CGM for its geometric modeling support, and CGM can restore geometric models in the exact state in which they were represented in CUBIT.  MOAB contains a CGM reader, which can be enabled with a configure option.  Using this reader, MOAB can read geometric models, and represent their model topology using entity sets linked by parent/child relations.  The mesh in these models comes directly from the modeling engine faceting routines; these are the same facets used to visualize solid models in other graphics engines.  When used in conjunction with the VisIt visualization tool (see Section 4.1), this provides a solution for visualizing geometric models.  Xxx shows a model imported using MOAB’s CGM reader and visualized with VisIt.
+The Common Geometry Module (CGM) [17] is a library for representing solid model and other types of solid geometry data.  The CUBIT mesh generation toolkit uses CGM for its geometric modeling support, and CGM can restore geometric models in the exact state in which they were represented in CUBIT.  MOAB contains a CGM reader, which can be enabled with a configure option.  Using this reader, MOAB can read geometric models, and represent their model topology using entity sets linked by parent/child relations.  The mesh in these models comes directly from the modeling engine faceting routines; these are the same facets used to visualize solid models in other graphics engines.  When used in conjunction with the VisIt visualization tool (see Section 4.1), this provides a solution for visualizing geometric models.  The figure below  shows a model imported using MOAB’s CGM reader and visualized with VisIt.
+
+\image html simple.png
 
 \ref contents
 
  \subsection fourseven 4.7. AHF Representation
 
-Currently, the upward (vertex to entities) adjacencies are created and stored the first time a query requiring the adjacency is performed. Any non-vertex entity to entity adjacencies are performed using boolean operations on vertex-entity adjacencies. Because of this approach, such adjacency queries might become expensive with increasing dimension. We have added an alternative approach for obtaining adjacencies using the array-based half-facet (AHF) representation[23]. The AHF uses sibling half-facets as a core abstraction which is a generalization of the opposite half-edge and half-face data structure for 2D and 3D manifold meshes. The data structure consists of two essential maps: 1) the mapping between all sibling half-facets (sibhfs) and, 2) the mapping from each vertex to some incident half-facet (v2hf). The entire range of adjacencies (higher-, same- and lower-dimension) can be computed using these two maps.
+Currently, the upward (vertex to entities) adjacencies are created and stored the first time a query requiring the adjacency is performed. Any non-vertex entity to entity adjacencies are performed using boolean operations on vertex-entity adjacencies. Because of this approach, such adjacency queries might become expensive with increasing dimension. We have added an alternative approach for obtaining adjacencies using the Array-based Half-Facet (AHF) representation[23]. The AHF uses sibling half-facets as a core abstraction which are generalizations of the opposite half-edge and half-face data structure for 2D and 3D manifold meshes. The AHF data structure consists of two essential maps: 1) the mapping between all sibling half-facets (sibhfs) and, 2) the mapping from each vertex to some incident half-facet (v2hf). The entire range of adjacencies (higher-, same- and lower-dimension) are computed using these two maps.
 
-The easiest way to avail this feature is to configure MOAB with "--enable-ahf" option. The interface "get_adjacencies" to obtain adjacencies is preserved. However, there is one key difference between the native MOAB and AHF based adjacency calls. In native MOAB adjacency calls, the same-dimensional queries return the query entities whereas for AHF it would return the same-dimensional entities connected to the query entities. Thus the entire range: higher-dimensional, same-dimensional, lower-dimensional adjacencies can be obtained using the same interface. Similar to MOAB's native adjacency lists, the AHF maps are created during the first adjacency call which will make the first adjacency call expensive.
+The easiest way to avail this feature is to configure MOAB with " --enable-ahf " option. The adjacency queries can then be performed through calls to the preserved interface function "get_adjacencies" returning the values in a standard vector. Currently, returning adjacent entityhandles in MOAB::Range is not supported for AHF-based queries. There is one key difference between the native MOAB (adjacency-list based) and AHF based adjacency calls using the "get_adjacencies" interface. In native MOAB adjacency calls, the same-dimensional queries return the query entities whereas for AHF it would return the same-dimensional entities connected to the query entities via a lower dimensional facet. Thus the entire range ( higher-dimensional, same-dimensional, lower-dimensional) of adjacencies can be obtained using the same interface. Similar to MOAB's native adjacency lists, the AHF maps are created during the first adjacency call which will make the first adjacency call expensive.
 
-In the current release, AHF based adjacencies calls do not support polygon/polyhedral meshes, mixed entity type meshes, meshsets, create_if_missing option set to true and modified meshes. The support for these would be added in the next releases.
+In the current release, AHF based adjacencies calls do not support the following cases:
+  - polygon/polyhedral meshes,
+  - mixed entity type meshes,
+  - meshsets,
+  - create_if_missing option set to true, and
+  - modified meshes.
 
+The support for these would be gradually added in the next releases. In these cases, any adjacency call would revert back to MOAB's native adjacency list based queries.
+
+If for some reason, the user does not want to configure MOAB with AHF but would still like to use the AHF-based adjacencies for certain queries, they could use the following three interface functions provided in the HalfFacetRep class which implements the AHF maps and adjacency queries:
+  - initialize : This function creates all the necessary AHF maps for the input mesh and hence should be called before any adjacency calls are made.
+  - get_adjacencies: Function for adjacency calls.
+  - deinitialize: This function deletes all the AHF maps and should be called after all AHF-based adjacency calls have been performed.
+
+TODO:: Other features to be added
+  - obtain ring neighborhoods with support for half-rings
+  - efficient extraction of boundaries
 
  \ref contents
 
