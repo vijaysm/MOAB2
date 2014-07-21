@@ -192,6 +192,12 @@ int main( int argc, char* argv[] )
 #endif
   }
 
+#ifdef SRCDIR
+  const char* filename2 = STRINGIFY(MESHDIR) "/64bricks_512hex_256part.h5m";
+#else
+  const char * filename2 = "64bricks_512hex_256part.h5m";
+#endif
+
   if (pause_proc != -1) {
 #if !defined(_MSC_VER) && !defined(__MINGW32__)
     std::cout << "Processor " << rank << " of " << size << " with PID " << getpid() << std::endl;
@@ -227,7 +233,7 @@ int main( int argc, char* argv[] )
   num_errors += RUN_TEST( test_reduce_tags, 0);
   num_errors += RUN_TEST( test_reduce_tag_failures, 0);
   num_errors += RUN_TEST( test_reduce_tag_explicit_dest, 0);
-  num_errors += RUN_TEST( test_delete_entities, filename);
+  num_errors += RUN_TEST( test_delete_entities, filename2);
   
   if (rank == 0) {
     if (!num_errors) 
@@ -1639,9 +1645,8 @@ ErrorCode test_delete_entities( const char* filename )
   ErrorCode rval;
 
   rval = moab.load_file( filename, 0,
-                         "PARALLEL=READ_DELETE;"
-                         "PARTITION=GEOM_DIMENSION;PARTITION_VAL=3;"
-                         "PARTITION_DISTRIBUTE;"
+                         "PARALLEL=READ_PART;"
+                         "PARTITION=PARALLEL_PARTITION;"
                          "PARALLEL_RESOLVE_SHARED_ENTS;" );
   CHKERR(rval);
 
@@ -1658,6 +1663,12 @@ ErrorCode test_delete_entities( const char* filename )
   // delete local 2
   rval = pcomm->delete_entities(local2);
   CHKERR(rval);
+
+  for (Range::iterator it=local2.begin(); it!=local2.end(); it++)
+  {
+    if (mb_instance.is_valid(*it))
+      return MB_FAILURE;
+  }
   const char* opt = "PARALLEL=WRITE_PART";
   rval = moab.write_file("tmpx.h5m", 0, opt);
   CHKERR(rval);
