@@ -15,12 +15,16 @@
   \page team MOAB team members
  <h2>The MOAB Team, including: </h2>
  
- - Timothy J. Tautges (Argonne National Lab, Univ Wisconsin-Madison) 
  - Vijay S. Mahadevan (Argonne National Lab)
+ - Timothy J. Tautges (CD-Adapco, Univ Wisconsin-Madison)
  - Iulian Grindeanu (Argonne National Lab) 
  - Rajeev Jain (Argonne National Lab)
  - Danqing Wu  (Argonne National Lab)
  - Navamita Ray (Argonne National Lab)
+ - Jane Hu (Univ Wisconsin-Madison)
+ - Paul Wilson (Univ Wisconsin-Madison)
+ - Patrick Shriwise (Univ Wisconsin-Madison)
+ - Anthony Scopatz (Univ Wisconsin-Madison)
 
 
  <h2>Emeritus members:</h2>
