@@ -1,4 +1,4 @@
-/*! \page userguide User's Guide (MOAB 4.6)
+/*! \page userguide User's Guide (MOAB 4.7)
  
   \subpage team 
  
@@ -15,10 +15,16 @@
   \page team MOAB team members
  <h2>The MOAB Team, including: </h2>
  
- - Timothy J. Tautges (Argonne National Lab, Univ Wisconsin-Madison) 
+ - Vijay S. Mahadevan (Argonne National Lab)
+ - Timothy J. Tautges (CD-Adapco, Univ Wisconsin-Madison)
  - Iulian Grindeanu (Argonne National Lab) 
  - Rajeev Jain (Argonne National Lab)
  - Danqing Wu  (Argonne National Lab)
+ - Navamita Ray (Argonne National Lab)
+ - Jane Hu (Univ Wisconsin-Madison)
+ - Paul Wilson (Univ Wisconsin-Madison)
+ - Patrick Shriwise (Univ Wisconsin-Madison)
+ - Anthony Scopatz (Univ Wisconsin-Madison)
 
 
  <h2>Emeritus members:</h2>
@@ -57,7 +63,9 @@
 
     \ref fourfive    
 
-    \ref foursix  
+    \ref foursix
+
+    \ref fourseven
 
   \ref parallel      
 
@@ -116,10 +124,9 @@ The MOAB data model describes the basic types used in MOAB and the language used
 
  \ref contents
 
-<tab>
  \subsection twoone 2.1. MOAB Interface 
-</tab>
-MOAB is written in C++.  The primary interface with applications is through member functions of the abstract base class Interface.  The MOAB library is created by instantiating Core, which implements the Interface API.  Multiple instances of MOAB can exist concurrently in the same application; mesh entities are not shared between these instancesi<sup>2</sup>.  MOAB is most easily viewed as a database of mesh objects accessed through the instance.  No other assumptions explicitly made about the nature of the mesh stored there; for example, there is no fundamental requirement that elements fill space or do not overlap each other geometrically.
+
+MOAB is written in C++.  The primary interface with applications is through member functions of the abstract base class Interface.  The MOAB library is created by instantiating Core, which implements the Interface API.  Multiple instances of MOAB can exist concurrently in the same application; mesh entities are not shared between these instances<sup>2</sup>.  MOAB is most easily viewed as a database of mesh objects accessed through the instance.  No other assumptions explicitly made about the nature of the mesh stored there; for example, there is no fundamental requirement that elements fill space or do not overlap each other geometrically.
  
 <sup>2</sup> One exception to this statement is when the parallel interface to MOAB is used; in this case, entity sharing between instances is handled explicitly using message passing.  This is described in more detail in Section 5 of this document.
 
@@ -321,9 +328,9 @@ MOAB uses several pre-defined tag names to define data commonly found in various
 </tr>
 </table>
 
-Table 3 lists the various groups of functions that comprise the MOAB API.  This is listed here strictly as a reference to the various types of functionality supported by MOAB; for a more detailed description of the scope and syntax of the MOAB API, see the online documentation [8].
+Table 3 lists the various groups of functions that comprise the MOAB API.  This is listed here strictly as a reference to the various types of functionality supported by MOAB; for a more detailed description of the scope and syntax of the MOAB API, see the online documentation [7].
 
-  \subsection tablethree Table 3: Groups of functions in MOAB API.  See Ref. [8] for more details.
+  \subsection tablethree Table 3: Groups of functions in MOAB API.  See Ref. [7] for more details.
 
 <table border="1">
 <tr>
@@ -417,7 +424,7 @@ A number of mesh-based services are often used in conjunction with a mesh librar
 
   \subsection fourone 4.1. Visualization
 
-Visualization is one of the most common needs associated with meshes.  The primary tool used to visualize MOAB meshes is VisIt [12].  Users can specify that VisIt read mesh directly out of the MOAB instance, by specifying the ITAPS-MOABC mesh format and a file readable by MOAB (see xxx).
+Visualization is one of the most common needs associated with meshes.  The primary tool used to visualize MOAB meshes is VisIt [12].  Users can specify that VisIt read mesh directly out of the MOAB instance, by specifying the ITAPS_MOAB mesh format and a file readable by MOAB (see http://sigma.mcs.anl.gov/?p=429).
 
 There are some initial capabilities in VisIt for limited viewing and manipulation of tag data and some types of entity sets.  Tag data is visualized using the same mechanisms used to view other field data in VisIt, e.g. using a pseudocolor plot; sets are viewed using VisIt’s SIL window, accessed by selecting the SIL icon in the data selection window.  xxx shows a vertex-based radiation temperature field computed by the Cooper rad-hydro code [1] for a subset of geometric volumes in a mesh.   
 
@@ -427,7 +434,12 @@ Reorganization of VisIt’s set handling is also underway, to increase versatili
 
   \subsection fourtwo 4.2. Parallel Decomposition
 
-To support parallel simulation, applications often need to partition a mesh into parts, designed to balance the load and minimize communication between sets.  MOAB includes the MBZoltan tool for this purpose, constructed on the well-known Zoltan partitioning library [13].  After computing the partition using Zoltan, MBZoltan stores the partition as either tags on individual entities in the partition, or as tagged sets, one set per part.  Since a partition often exhibits locality similar to how the entities were created, storing it as sets (based on Range’s) is often more memory-efficient than an entity tag-based representation.  Xxx shows a partition computed with MBZoltan (and visualized in VisIt). 
+To support parallel simulation, applications often need to partition a mesh into parts, designed to balance the load and minimize communication between sets.  MOAB includes the MBZoltan tool for this purpose, constructed on the well-known Zoltan partitioning library [13].  After computing the partition using Zoltan, MBZoltan stores the partition as either tags on individual entities in the partition, or as tagged sets, one set per part.  Since a partition often exhibits locality similar to how the entities were created, storing it as sets (based on Range’s) is often more memory-efficient than an entity tag-based representation.  Figure below shows a couple of partitioned meshes computed with MBZoltan (and visualized in VisIt).
+
+
+ \image html vis_part.png
+
+
 
  \ref contents
 
@@ -599,7 +611,35 @@ Note that although information about model entities is recovered, MOAB by defaul
 
   \subsection cgm 4.6.3. CGM Reader
 
-The Common Geometry Module (CGM) [17] is a library for representing solid model and other types of solid geometry data.  The CUBIT mesh generation toolkit uses CGM for its geometric modeling support, and CGM can restore geometric models in the exact state in which they were represented in CUBIT.  MOAB contains a CGM reader, which can be enabled with a configure option.  Using this reader, MOAB can read geometric models, and represent their model topology using entity sets linked by parent/child relations.  The mesh in these models comes directly from the modeling engine faceting routines; these are the same facets used to visualize solid models in other graphics engines.  When used in conjunction with the VisIt visualization tool (see Section  ), this provides a solution for visualizing geometric models.  Xxx shows a model imported using MOAB’s CGM reader and visualized with VisIt. 
+The Common Geometry Module (CGM) [17] is a library for representing solid model and other types of solid geometry data.  The CUBIT mesh generation toolkit uses CGM for its geometric modeling support, and CGM can restore geometric models in the exact state in which they were represented in CUBIT.  MOAB contains a CGM reader, which can be enabled with a configure option.  Using this reader, MOAB can read geometric models, and represent their model topology using entity sets linked by parent/child relations.  The mesh in these models comes directly from the modeling engine faceting routines; these are the same facets used to visualize solid models in other graphics engines.  When used in conjunction with the VisIt visualization tool (see Section 4.1), this provides a solution for visualizing geometric models.  The figure below  shows a model imported using MOAB’s CGM reader and visualized with VisIt.
+
+\image html simple.png
+
+\ref contents
+
+ \subsection fourseven 4.7. AHF Representation
+
+Currently, the upward (vertex to entities) adjacencies are created and stored the first time a query requiring the adjacency is performed. Any non-vertex entity to entity adjacencies are performed using boolean operations on vertex-entity adjacencies. Because of this approach, such adjacency queries might become expensive with increasing dimension. We have added an alternative approach for obtaining adjacencies using the Array-based Half-Facet (AHF) representation[23]. The AHF uses sibling half-facets as a core abstraction which are generalizations of the opposite half-edge and half-face data structure for 2D and 3D manifold meshes. The AHF data structure consists of two essential maps: 1) the mapping between all sibling half-facets (sibhfs) and, 2) the mapping from each vertex to some incident half-facet (v2hf). The entire range of adjacencies (higher-, same- and lower-dimension) are computed using these two maps.
+
+The easiest way to avail this feature is to configure MOAB with " --enable-ahf " option. The adjacency queries can then be performed through calls to the preserved interface function "get_adjacencies" returning the values in a standard vector. Currently, returning adjacent entityhandles in MOAB::Range is not supported for AHF-based queries. There is one key difference between the native MOAB (adjacency-list based) and AHF based adjacency calls using the "get_adjacencies" interface. In native MOAB adjacency calls, the same-dimensional queries return the query entities whereas for AHF it would return the same-dimensional entities connected to the query entities via a lower dimensional facet. Thus the entire range ( higher-dimensional, same-dimensional, lower-dimensional) of adjacencies can be obtained using the same interface. Similar to MOAB's native adjacency lists, the AHF maps are created during the first adjacency call which will make the first adjacency call expensive.
+
+In the current release, AHF based adjacencies calls do not support the following cases:
+  - polygon/polyhedral meshes,
+  - mixed entity type meshes,
+  - meshsets,
+  - create_if_missing option set to true, and
+  - modified meshes.
+
+The support for these would be gradually added in the next releases. In these cases, any adjacency call would revert back to MOAB's native adjacency list based queries.
+
+If for some reason, the user does not want to configure MOAB with AHF but would still like to use the AHF-based adjacencies for certain queries, they could use the following three interface functions provided in the HalfFacetRep class which implements the AHF maps and adjacency queries:
+  - initialize : This function creates all the necessary AHF maps for the input mesh and hence should be called before any adjacency calls are made.
+  - get_adjacencies: Function for adjacency calls.
+  - deinitialize: This function deletes all the AHF maps and should be called after all AHF-based adjacency calls have been performed.
+
+TODO:: Other features to be added
+  - obtain ring neighborhoods with support for half-rings
+  - efficient extraction of boundaries
 
  \ref contents
 
@@ -760,7 +800,7 @@ Several example option strings controlling parallel reading and initialization a
 
   \subsection functions 5.2.2. Parallel Mesh Initialization Using Functions
 
-After creating the local mesh on each processor, an application can call the following functions in ParallelComm to establish information on shared mesh entities.  See the [ref-directparmesh example] in the MOAB source tree for a complete example of how this is done from an application.
+After creating the local mesh on each processor, an application can call the following functions in ParallelComm to establish information on shared mesh entities.  See the [http://ftp.mcs.anl.gov/pub/fathom/moab-docs/HelloParMOAB_8cpp-example.html example] in the MOAB source tree for a complete example of how this is done from an application.
 
 - ParallelComm::resolve_shared_entities (collective): Resolves shared entities between processors, based on GLOBAL_ID tag values of vertices.  Various forms are available, based on entities to be evaluated and maximum dimension for which entity sharing should be found.
 
@@ -987,7 +1027,7 @@ Initial results have demonstrated that the data abstraction provided by MOAB is 
 
 [6]	“MOAB Users Email List.”, moab@mcs.anl.gov.
 
-[7]	“MOAB online documentation.”, http://gnep.mcs.anl.gov:8010/moab-docs/
+[7]	“MOAB online documentation.”, http://ftp.mcs.anl.gov/pub/fathom/moab-docs/index.html
 
 [8]	T.J. Tautges, “Canonical numbering systems for finite-element codes,” Communications in Numerical Methods in Engineering,  vol. Online, Mar. 2009.
 
@@ -1018,6 +1058,8 @@ Initial results have demonstrated that the data abstraction provided by MOAB is 
 [21]	T. J. Tautges, “MOAB Wiki.” [Online]. Available: http://trac.mcs.anl.gov/projects/ITAPS/wiki/MOAB. [Accessed: 30-Oct-2012].
 
 [22]	T. J. Tautges, “Canonical numbering systems for finite-element codes,” International Journal for Numerical Methods in Biomedical Engineering, vol. 26, no. 12, pp. 1559–1572, 2010.
+
+[23]    V. Dyedov, N. Ray, D.Einstein, X. Jiao, T. Tautges, “AHF: Array-based half-facet data structure for mixed-dimensional and non-manifold meshes”, In Proceedings of 22nd International Meshing Roundtable, Orlando, Florida, October 2013.
 
 
   \ref contents

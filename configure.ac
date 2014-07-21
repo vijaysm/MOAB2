@@ -1248,7 +1248,6 @@ AC_CONFIG_FILES([Makefile
                  tools/dagmc/Makefile
 		 tools/vtkMOABReader/CMakeLists.txt
 		 tools/vtkMOABReaderNew/CMakeLists.txt
-                 doc/Makefile
                  doc/user.dox
                  doc/config.tex
                  MeshFiles/Makefile

@@ -25,9 +25,9 @@
  * MOAB's API is documented in the moab::Interface class.  Questions and comments should be sent to moab-dev
  * _at_ mcs.anl.gov.
  *
- * \ref userguide "User's Guide (MOAB 4.6)"
+ * \ref userguide "User's Guide (MOAB 4.7)"
  *
- * \ref developerguide "Developer's Guide (MOAB 4.6)"
+ * \ref developerguide "Developer's Guide (MOAB 4.7)"
  *
  * \ref metadata "I/O and Meta-Data Storage Conventions in MOAB"
  *
