@@ -65,6 +65,7 @@ int main(int argc, char **argv)
 {
   int A=2, B=2, C=2, M=1, N=1, K=1;
   int blockSize = 4;
+  double xsize=1., ysize=1., zsize=1.;// the size of the region
 
   bool newMergeMethod=false;
   bool quadratic=false;
@@ -91,6 +92,13 @@ int main(int argc, char **argv)
       std::string("Number of blocks on a task in y dir (default=2)"), &B);
   opts.addOpt<int>(std::string("zblocks,C"),
       std::string("Number of blocks on a task in x dir (default=2)"), &C);
+
+  opts.addOpt<double>(std::string("xsize,x"),
+        std::string("Total size in x direction (default=1.)"), &xsize);
+  opts.addOpt<double>(std::string("ysize,y"),
+        std::string("Total size in y direction (default=1.)"), &ysize);
+  opts.addOpt<double>(std::string("zsize,z"),
+        std::string("Total size in z direction (default=1.)"), &zsize);
 
   opts.addOpt<void>("newMerge,w", "use new merging method",
           &newMergeMethod);
@@ -171,6 +179,10 @@ int main(int argc, char **argv)
   // used for element increments
   int factor = (tetra)? 6 : 1;
 
+  double dx = xsize/(A*M*blockSize*q);// distance between 2 nodes in x direction
+  double dy = ysize/(B*N*blockSize*q);// distance between 2 nodes in y direction
+  double dz = zsize/(C*K*blockSize*q);// distance between 2 nodes in z direction
+
   int NX = (q * M * A * blockSize + 1);
   int NY = (q * N * B * blockSize + 1);
   int nex = M * A * blockSize; // number of elements in x direction, used for global id on element
@@ -238,9 +250,9 @@ int main(int argc, char **argv)
           {
             for (int ii=0; ii<blockSize1; ii++)
             {
-              arrays[0][ix] = (double)x+ii;
-              arrays[1][ix] = (double)y+jj;
-              arrays[2][ix] = (double)z+kk;
+              arrays[0][ix] = (x+ii)*dx;
+              arrays[1][ix] = (y+jj)*dy;
+              arrays[2][ix] = (z+kk)*dz;
               gids[ix] = 1 + (x+ii) + (y+jj) * NX + (z+kk) * (NX*NY) ;
               // set int tags, some nice values?
               EntityHandle v = startv + ix;
