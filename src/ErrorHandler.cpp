@@ -5,6 +5,7 @@
 #endif
 
 #include <stdlib.h>
+#include <assert.h>
 
 namespace moab {
 
@@ -13,7 +14,8 @@ static ErrorOutput* errorOutput = NULL;
 void MBErrorHandler_Init()
 {
   if (NULL == errorOutput) {
-    errorOutput = new ErrorOutput(stderr);
+    errorOutput = new (std::nothrow) ErrorOutput(stderr);
+    assert(NULL != errorOutput);
     errorOutput->use_world_rank();
   }
 }
@@ -33,22 +35,24 @@ bool MBErrorHandler_Initialized()
 
 void MBTraceBackErrorHandler(int line, const char* func, const char* file, const char* dir, const char* err_msg, ErrorType err_type)
 {
+  if (NULL == errorOutput)
+    return;
+
   // For a globally fatal error, get world rank of current processor, so that it is only printed from processor 0
   // For a per-processor relevant error, set rank of current processor to 0, so that it is always printed
   int rank = 0;
-  if (MB_ERROR_TYPE_NEW_GLOBAL == err_type && NULL != errorOutput && errorOutput->have_rank())
+  if (MB_ERROR_TYPE_NEW_GLOBAL == err_type && errorOutput->have_rank())
     rank = errorOutput->get_rank();
 
   if (0 == rank) {
     // Print the error messages if it is a new error
-    if (MB_ERROR_TYPE_EXISTING != err_type && NULL != errorOutput && NULL != err_msg) {
+    if (MB_ERROR_TYPE_EXISTING != err_type && NULL != err_msg) {
       errorOutput->print("--------------------- Error Message ------------------------------------\n");
       errorOutput->printf("%s!\n", err_msg);
     }
 
     // Print a line of stack trace
-    if (NULL != errorOutput)
-      errorOutput->printf("%s() line %d in %s%s\n", func, line, dir, file);
+    errorOutput->printf("%s() line %d in %s%s\n", func, line, dir, file);
   }
   else {
     // Do not print the error messages, since processor 0 will print them
