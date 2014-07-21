@@ -314,7 +314,7 @@ private:
      * For description of arguments, see ScdInterface::compute_partition.
      */
   inline static ErrorCode compute_partition_alljorkori(int np, int nr,
-                                                       const int * const gijk, const int * const gperiodic, 
+                                                       const int gijk[6], const int * const gperiodic,
                                                        int *lijk, int *lperiodic, int *pijk);
   
     //! Compute a partition of structured parameter space
@@ -322,28 +322,28 @@ private:
      * seeking square regions of jk space
      * For description of arguments, see ScdInterface::compute_partition.
      */
-  inline static ErrorCode compute_partition_alljkbal(int np, int nr, const int * const gijk, const int * const gperiodic, 
+  inline static ErrorCode compute_partition_alljkbal(int np, int nr, const int gijk[6], const int * const gperiodic,
                                                      int *lijk, int *lperiodic, int *pijk);
 
     //! Compute a partition of structured parameter space
     /** Partitions the structured parametric space by seeking square ij partitions
      * For description of arguments, see ScdInterface::compute_partition.
      */
-  inline static ErrorCode compute_partition_sqij(int np, int nr, const int * const gijk, const int * const gperiodic, 
+  inline static ErrorCode compute_partition_sqij(int np, int nr, const int gijk[6], const int * const gperiodic,
                                                  int *lijk, int *lperiodic, int *pijk);
   
     //! Compute a partition of structured parameter space
     /** Partitions the structured parametric space by seeking square jk partitions
      * For description of arguments, see ScdInterface::compute_partition.
      */
-  inline static ErrorCode compute_partition_sqjk(int np, int nr, const int * const gijk, const int * const gperiodic, 
+  inline static ErrorCode compute_partition_sqjk(int np, int nr, const int gijk[6], const int * const gperiodic,
                                                  int *lijk, int *lperiodic, int *pijk);
 
     //! Compute a partition of structured parameter space
     /** Partitions the structured parametric space by seeking square ijk partitions
      * For description of arguments, see ScdInterface::compute_partition.
      */
-  inline static ErrorCode compute_partition_sqijk(int np, int nr, const int * const gijk, const int * const gperiodic, 
+  inline static ErrorCode compute_partition_sqijk(int np, int nr, const int gijk[6], const int * const gperiodic,
                                                   int *lijk, int *lperiodic, int *pijk);
 
     //! Get vertices shared with other processors
@@ -775,7 +775,7 @@ inline ErrorCode ScdInterface::compute_partition(int np, int nr, const ScdParDat
 }
 
 inline ErrorCode ScdInterface::compute_partition_alljorkori(int np, int nr,
-                                                            const int * const gijk, const int * const gperiodic, 
+                                                            const int gijk[6], const int * const gperiodic,
                                                             int *ldims, int *lperiodic, int *pijk)
 {
     // partition *the elements* over the parametric space; 1d partition for now, in the j, k, or i
@@ -858,7 +858,7 @@ inline ErrorCode ScdInterface::compute_partition_alljorkori(int np, int nr,
 }
 
 inline ErrorCode ScdInterface::compute_partition_alljkbal(int np, int nr,
-                                                          const int * const gijk, const int * const gperiodic, 
+                                                          const int gijk[6], const int * const gperiodic,
                                                           int *ldims, int *lperiodic, int *pijk)
 {
   int tmp_lp[3], tmp_pijk[3];
@@ -932,7 +932,7 @@ inline ErrorCode ScdInterface::compute_partition_alljkbal(int np, int nr,
 }
 
 inline ErrorCode ScdInterface::compute_partition_sqij(int np, int nr,
-                                                      const int * const gijk, const int * const gperiodic, 
+                                                      const int gijk[6], const int * const gperiodic,
                                                       int *ldims, int *lperiodic, int *pijk)
 {
   int tmp_lp[3], tmp_pijk[3];
@@ -1012,7 +1012,7 @@ inline ErrorCode ScdInterface::compute_partition_sqij(int np, int nr,
 }
 
 inline ErrorCode ScdInterface::compute_partition_sqjk(int np, int nr,
-                                                      const int * const gijk, const int * const gperiodic, 
+                                                      const int gijk[6], const int * const gperiodic,
                                                       int *ldims, int *lperiodic, int *pijk)
 {
   int tmp_lp[3], tmp_pijk[3];

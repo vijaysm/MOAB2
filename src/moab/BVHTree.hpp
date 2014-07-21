@@ -193,7 +193,7 @@ namespace moab {
         unsigned int dim, child;
         double Lmax, Rmin;
         BoundBox box;
-        Node() : dim(-2), child(-1), Lmax(-DBL_MAX), Rmin(DBL_MAX) {}        
+        Node() : dim(UINT_MAX), child(UINT_MAX), Lmax(-DBL_MAX), Rmin(DBL_MAX) {}
         Node &operator=(const Node& f) {
           dim = f.dim; child = f.child;
           Lmax = f.Lmax; Rmin = f.Rmin;

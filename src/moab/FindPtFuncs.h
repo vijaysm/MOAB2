@@ -63,21 +63,29 @@
 #endif
 
 /* apparently uint and ulong can be defined already in standard headers */
-#define uint uint_
-#define ulong ulong_
-#define sint sint_
-#define slong slong_
-
+#ifndef uint
 typedef   signed INTEGER sint;
+#endif
+
+#ifndef uint
 typedef unsigned INTEGER uint;
+#endif
 #undef INTEGER
 
+#ifndef slong
 #ifdef GLOBAL_INT
   typedef   signed GLOBAL_INT slong;
-  typedef unsigned GLOBAL_INT ulong;
 #else
   typedef sint slong;
+#endif
+#endif
+
+#ifndef ulong
+#ifdef GLOBAL_INT
+  typedef unsigned GLOBAL_INT ulong;
+#else
   typedef uint ulong;
+#endif
 #endif
 
 /*======================================================
