@@ -2,50 +2,77 @@
 #include "moab/Range.hpp"
 #include "moab/MergeMesh.hpp"
 #include <iostream>
-
-#define STRINGIFY_(A) #A
-#define STRINGIFY(A) STRINGIFY_(A)
+#include "TestUtil.hpp"
 
 using namespace moab;
 
  const char* meshfile = STRINGIFY(MESHDIR) "/16_unmerged_hex.h5m";
+ const char* meshfile2 = STRINGIFY(MESHDIR) "/merge_with_tag.h5m";
  const char *outfile = "mm_out.h5m";
 
-int main( int argc, char** argv)
+ void mergesimple_test();
+ void merge_with_tag_test();
+
+int main( int /*argc*/, char**/* argv*/)
 {
-    Core moab_core;
-    ErrorCode rval;
-    Interface* iface = &moab_core;
-    // can be generalized to load user defined input/output file
+  int result = 0;
 
-    if (argc>1)
-      meshfile = argv[1];
-    if (argc>2)
-      outfile= argv[2];
-    rval = iface->load_mesh(meshfile);
-    if (MB_SUCCESS != rval) {
-        std::cerr << "Error reading file: " << meshfile << std::endl;
-        exit(2);
-    }
-    int dim = 3;
-    moab::Range ents;
-    iface->get_entities_by_dimension(0, dim, ents);
+  result += RUN_TEST(mergesimple_test);
+  result += RUN_TEST(merge_with_tag_test);
 
-    MergeMesh mm(iface);
-    double merge_tol = 1e-3;
+  return result;
+}
 
-    rval = mm.merge_entities(ents, merge_tol);
-    if (MB_SUCCESS != rval) {
-        std::cerr << "Error in MergeMesh during merging entities" << std::endl;
-        exit(2);
-    }
+void mergesimple_test()
+{
 
-    // Fixed for now
+  ErrorCode rval;
+  Interface* iface = new Core();
+  // can be generalized to load user defined input/output file
 
-    rval = iface->write_file( outfile);
-    if (MB_SUCCESS != rval) {
-        std::cerr << "Error saving file: " << outfile << std::endl;
-        exit(2);
-    }
-    return 0;
+  rval = iface->load_mesh(meshfile);
+  CHECK_ERR(rval);
+  int dim = 3;
+  moab::Range ents;
+  iface->get_entities_by_dimension(0, dim, ents);
+
+  MergeMesh mm(iface);
+  double merge_tol = 1e-3;
+
+  rval = mm.merge_entities(ents, merge_tol);
+  CHECK_ERR(rval);
+
+  // Fixed for now
+
+  rval = iface->write_file( outfile);
+  CHECK_ERR(rval);
+  return ;
+}
+
+void merge_with_tag_test()
+{
+  ErrorCode rval;
+  Interface* iface = new Core();
+  // can be generalized to load user defined input/output file
+
+  rval = iface->load_mesh(meshfile2);
+  CHECK_ERR(rval);
+  int dim = 0;
+  moab::Range verts;
+  iface->get_entities_by_dimension(0, dim, verts);
+  Tag  tag_for_merge;
+  rval = iface->tag_get_handle("IDFTAG", tag_for_merge);
+  CHECK_ERR(rval);
+
+  MergeMesh mm(iface);
+  rval = mm.merge_using_integer_tag(verts, tag_for_merge);
+  CHECK_ERR(rval);
+  rval = iface->write_file( outfile);
+  CHECK_ERR(rval);
+
+  verts.clear();
+  iface->get_entities_by_dimension(0, dim, verts);
+  CHECK_EQUAL( 405, (int)verts.size()) ;
+
+  return;
 }

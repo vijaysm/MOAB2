@@ -32,14 +32,15 @@ public:
   //Identify higher dimension to be merged
   ErrorCode merge_higher_dimensions(Range &elems);
 
+  // merge vertices according to an input tag
+  ErrorCode merge_using_integer_tag(Range & verts, Tag user_tag, Tag merge_tag=0);
+
   //- perform the actual merge
   ErrorCode perform_merge(Tag merged_to);
 private:
   //iMesh_Instance imeshImpl;
 
   double mergeTol, mergeTolSq;
-
-  Tag mergeTag;
 
   //- given a kdtree, set tag on vertices in leaf nodes with vertices
   //- to which they should be merged

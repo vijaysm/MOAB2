@@ -2,6 +2,7 @@ SUBDIRS = io dagmc iGeom
 
 EXTRA_DIST  = 125hex.g \
               16_unmerged_hex.h5m \
+              merge_with_tag.h5m \
               1hex.g \
               1khex.g \
               1tet.g \
