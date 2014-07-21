@@ -17,33 +17,24 @@
 
 namespace moab {
 
-static ErrorCode not_found( Error* /* error */, std::string name, EntityHandle h )
+static ErrorCode not_found( Error* error, std::string name, EntityHandle h )
 {
-/*
-  if (error) {
-    if (h)
-      error->set_last_error( "No var length dense tag %s value for %s %lu", 
-                             name.c_str(),
-                             CN::EntityTypeName(TYPE_FROM_HANDLE(h)), 
-                             (unsigned long)ID_FROM_HANDLE(h));
-    else
-      error->set_last_error( "No var length dense tag %s value for root set", name.c_str() );
-  }
-  
-  return MB_TAG_NOT_FOUND;
-*/
-  if (h)
+  if (h) {
+    error->set_last_error( "No var length dense tag %s value for %s %lu",
+                           name.c_str(),
+                           CN::EntityTypeName(TYPE_FROM_HANDLE(h)),
+                           (unsigned long)ID_FROM_HANDLE(h));
     SET_ERR_STR(MB_TAG_NOT_FOUND, "No variable-length dense tag " << name << " value for " << CN::EntityTypeName(TYPE_FROM_HANDLE(h)) << " " << (unsigned long)ID_FROM_HANDLE(h));
-  else
+  }
+  else {
+    error->set_last_error( "No var length dense tag %s value for root set", name.c_str() );
     SET_ERR_STR(MB_TAG_NOT_FOUND, "No variable-length dense tag " << name << " value for root set");
+  }
 }
 
-static ErrorCode not_var_len( Error* /* error */, std::string name )
+static ErrorCode not_var_len( Error* error, std::string name )
 {
-/*
   error->set_last_error( "No size specified for variable-length tag %s data", name.c_str());
-  return MB_VARIABLE_DATA_LENGTH;
-*/
   SET_ERR_STR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length dense tag " << name << " data");
 }
 
@@ -458,16 +449,13 @@ ErrorCode VarLenDenseTag::remove_data( SequenceManager* seqman,
 
 
 ErrorCode VarLenDenseTag::tag_iterate( SequenceManager*,
-                                       Error* /* error */,
+                                       Error* error,
                                        Range::iterator&,
                                        const Range::iterator&,
                                        void*&,
                                        bool)
 {
-/*
   error->set_last_error( "Cannot iterate over variable-length tag data" );
-  return MB_VARIABLE_DATA_LENGTH;
-*/
   SET_ERR(MB_VARIABLE_DATA_LENGTH, "Cannot iterate over variable-length dense tag data");
 }
 

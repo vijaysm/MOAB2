@@ -285,12 +285,9 @@ ErrorCode BitTag::remove_data( SequenceManager*, Error*, const Range& handles )
   return MB_SUCCESS;
 }
 
-static ErrorCode report_unsupported( Error* /* error */)
+static ErrorCode report_unsupported( Error* error)
 {
-/*
   error->set_last_error("Operation not supported for bit tags");
-  return MB_TYPE_OUT_OF_RANGE;
-*/
   SET_ERR(MB_TYPE_OUT_OF_RANGE, "Operation not supported for bit tags");
 }
 
@@ -423,7 +420,7 @@ ErrorCode BitTag::num_tagged_entities( const SequenceManager*,
 }
 
 ErrorCode BitTag::find_entities_with_value( const SequenceManager*,
-                                            Error* /* error */,
+                                            Error* error,
                                             Range& output_entities,
                                             const void* value,
                                             int value_bytes,
@@ -431,11 +428,8 @@ ErrorCode BitTag::find_entities_with_value( const SequenceManager*,
                                             const Range* intersect_entities ) const
 {
   if (value_bytes && value_bytes != 1) {
-/*
-    error->set_last_error("Inavlid tag size for bit tag: %d bytes\n",value_bytes);
-    return MB_INVALID_SIZE;
-*/
-    SET_ERR_STR(MB_INVALID_SIZE, "Inavlid tag size for bit tag: " << value_bytes << " bytes");
+    error->set_last_error("Invalid tag size for bit tag: %d bytes\n", value_bytes);
+    SET_ERR_STR(MB_INVALID_SIZE, "Invalid tag size for bit tag: " << value_bytes << " bytes");
   }
     
   const signed char bits = *reinterpret_cast<const unsigned char*>(value);

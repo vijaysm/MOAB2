@@ -16,35 +16,27 @@
 
 namespace moab {
 
-static ErrorCode not_found( Error* /* error */, std::string name, EntityHandle h )
+static ErrorCode not_found( Error* error, std::string name, EntityHandle h )
 {
-/*
-  if (h)
+  if (h) {
     error->set_last_error( "No dense tag %s value for %s %ld", 
                            name.c_str(),
                            CN::EntityTypeName(TYPE_FROM_HANDLE(h)), 
                            (unsigned long)ID_FROM_HANDLE(h));
-  else
-    error->set_last_error( "No tag value for root set" );
-    
-  return MB_TAG_NOT_FOUND;
-*/
-  if (h)
     SET_ERR_STR(MB_TAG_NOT_FOUND, "No dense tag " << name << " value for " << CN::EntityTypeName(TYPE_FROM_HANDLE(h)) << " " << (unsigned long)ID_FROM_HANDLE(h));
-  else
+  }
+  else {
+    error->set_last_error( "No tag value for root set" );
     SET_ERR_STR(MB_TAG_NOT_FOUND, "No dense tag " << name << " value for root set");
+  }
 }
 
-static ErrorCode ent_not_found( Error* /* error */, std::string name, EntityHandle h )
+static ErrorCode ent_not_found( Error* error, std::string name, EntityHandle h )
 {
-/*
   error->set_last_error( "Invalid entity handle setting tag %s: %s %ld", 
                          name.c_str(),
                          CN::EntityTypeName(TYPE_FROM_HANDLE(h)), 
                          (unsigned long)ID_FROM_HANDLE(h));
-    
-  return MB_ENTITY_NOT_FOUND;
-*/
   SET_ERR_STR(MB_ENTITY_NOT_FOUND, "Invalid entity handle setting tag " << name << ": " << CN::EntityTypeName(TYPE_FROM_HANDLE(h)) << " " << (unsigned long)ID_FROM_HANDLE(h));
 }
 
@@ -178,10 +170,7 @@ ErrorCode DenseTag::get_array( SequenceManager* seqman,
   if (!mem && allocate) {
     mem = seq->data()->allocate_tag_array( mySequenceArray, get_size(), get_default_value() );
     if (!mem) {
-/*
       error->set_last_error("Memory allocation failed for tag data");
-      return MB_MEMORY_ALLOCATION_FAILED;
-*/
       SET_ERR(MB_MEMORY_ALLOCATION_FAILED, "Memory allocation failed for tag data");
     }
     
@@ -603,11 +592,8 @@ ErrorCode DenseTag::find_entities_with_value( const SequenceManager* seqman,
                                               const Range* intersect_entities ) const
 {
   if (value_bytes && value_bytes != get_size()) {
-/*
     error->set_last_error( "Cannot compare data of size %d with tag of size %d",
                            value_bytes, get_size() );
-    return MB_INVALID_SIZE;
-*/
     SET_ERR_STR(MB_INVALID_SIZE, "Cannot compare data of size " << value_bytes << " with tag of size " << get_size());
   }
 
