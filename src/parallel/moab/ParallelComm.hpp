@@ -932,6 +932,12 @@ namespace moab {
     ErrorCode settle_intersection_points(Range & edges, Range & shared_edges_owned,
         std::vector<std::vector<EntityHandle> *> & extraNodesVec, double tolerance);
 
+    /* \brief delete entities from moab database
+     * will check the shared ents array, and clean it if necessary
+     *
+     */
+    ErrorCode delete_entities(Range & to_delete);
+
   private:
 
     ErrorCode reduce_void(int tag_data_type, const MPI_Op mpi_op, int num_ents, void *old_vals, void *new_vals);
