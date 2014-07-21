@@ -20,6 +20,7 @@ std::string TestDir(".");
 #endif
 
 std::string filename;
+std::string read_options;
 
 int number_tests_successful = 0;
 int number_tests_failed = 0;
@@ -42,11 +43,21 @@ ErrorCode ahf_test(Core *moab)
     Interface* mbImpl = &*moab;
     MeshTopoUtil mtu(mbImpl);
 
-    ErrorCode error = mbImpl->load_file(filename.c_str());
+    read_options = "PARALLEL=READ_PART;PARTITION_METHOD=TRIVIAL;PARALLEL_RESOLVE_SHARED_ENTS;VARIABLE=";
+
+    ErrorCode error = mbImpl->load_file(filename.c_str(), NULL, read_options.c_str());
     CHECK_ERR(error);
 
+    ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
+    int procs = pcomm->proc_config().proc_size();
+    int rank = pcomm->proc_config().proc_rank();
+
+    rval = pcomm->check_all_shared_handles();
+    CHECK_ERR(rval);
+
+
     /*Create ranges for handles of explicit elements of the mixed mesh*/
-    Range verts, edges, faces, cells;
+    Range local_verts, local_edges, local_faces, local_cells;
     error = mbImpl->get_entities_by_dimension( 0, 0, verts);
     error = mbImpl->get_entities_by_dimension( 0, 1, edges);
     error = mbImpl->get_entities_by_dimension( 0, 2, faces);
@@ -283,6 +294,12 @@ ErrorCode ahf_test(Core *moab)
 
 int main(int argc, char *argv[])
 {
+    MPI_Init(&argc, &argv);
+
+    int nprocs, rank;
+    MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
     filename = TestDir + "/hexes_mixed.vtk";
 
     if (argc==1)
@@ -301,6 +318,8 @@ int main(int argc, char *argv[])
     result = ahf_test(&moab);
     handle_error_code(result, number_tests_failed, number_tests_successful);
     std::cout<<"\n";
+
+    MPI_Finalize();
 
     return number_tests_failed;
 }
