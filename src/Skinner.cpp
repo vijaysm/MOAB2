@@ -1222,20 +1222,17 @@ public:
      */
     Side( const EntityHandle* array, int idx,
           EntityHandle adj, unsigned short  ) 
-      : adj_elem(adj) /*, elem_side(side)*/ 
+      : adj_elem(adj) 
     {
       switch (CORNERS) {
+        case 3: handles[1] = array[(idx+2)%CORNERS];
+        case 2: handles[0] = array[(idx+1)%CORNERS]; break;
         default:
           assert(false);
           break;
-        case 4: handles[2] = array[(idx+3)%CORNERS]; // TODO: This is a violation if CORNERS=3
-        case 3: handles[1] = array[(idx+2)%CORNERS];
-        case 2: handles[0] = array[(idx+1)%CORNERS];
-      }
+     }
       if (CORNERS == 3 && handles[1] > handles[0])
         std::swap( handles[0], handles[1] );
-      if (CORNERS == 4 && handles[2] > handles[0])
-        std::swap( handles[0], handles[2] );
     }
     
     /** construct from connectivity of parent element
@@ -1250,20 +1247,17 @@ public:
     Side( const EntityHandle* array,  int idx,
           EntityHandle adj, unsigned short ,
           const short* indices ) 
-      : adj_elem(adj) /*, elem_side(side)*/ 
+      : adj_elem(adj)
     {
       switch (CORNERS) {
+        case 3: handles[1] = array[indices[(idx+2)%CORNERS]];
+        case 2: handles[0] = array[indices[(idx+1)%CORNERS]]; break;
         default:
           assert(false);
           break;
-        case 4: handles[2] = array[indices[(idx+3)%CORNERS]]; // TODO: Violation for instantiation with CORNERS=3
-        case 3: handles[1] = array[indices[(idx+2)%CORNERS]];
-        case 2: handles[0] = array[indices[(idx+1)%CORNERS]];
-      }
+     }
       if (CORNERS == 3 && handles[1] > handles[0])
         std::swap( handles[0], handles[1] );
-      if (CORNERS == 4 && handles[2] > handles[0])
-        std::swap( handles[0], handles[2] );
     }
    
     // Compare two side instances.  Relies in the ordering of 
@@ -1271,21 +1265,18 @@ public:
     bool operator==( const Side& other ) const 
     {
       switch (CORNERS) {
-        default:
-          assert(false);
-          return false;
-        case 4:
-          return handles[0] == other.handles[0] 
-              && handles[1] == other.handles[1]
-              && handles[2] == other.handles[2]; // TODO: VSM: Again a violation for instantiation with CORNERS=3 -- Fix this bad code
         case 3:
           return handles[0] == other.handles[0] 
               && handles[1] == other.handles[1];
         case 2:
           return handles[0] == other.handles[0];
-      }
+        default:
+          assert(false);
+          return false;
+     }
     }
   };
+
 
 private:
 
@@ -1391,6 +1382,59 @@ public:
     }
   }
 };
+
+/** construct from connectivity of side
+  *\param array The connectivity of the element side.
+  *\param idx   The index of the implicit vertex (contained
+  *             in all sides in the list.)
+  *\param adj   The element that this is a side of.
+  */
+template<>
+AdjSides<4>::Side::Side( const EntityHandle* array, int idx,
+      EntityHandle adj, unsigned short  ) 
+  : adj_elem(adj)
+{
+  const unsigned int CORNERS=4;
+  handles[2] = array[(idx+3)%CORNERS];
+  handles[1] = array[(idx+2)%CORNERS];
+  handles[0] = array[(idx+1)%CORNERS];
+  if (handles[2] > handles[0])
+    std::swap( handles[0], handles[2] );
+}
+
+/** construct from connectivity of parent element
+  *\param array The connectivity of the parent element
+  *\param idx   The index of the implicit vertex (contained
+  *             in all sides in the list.)  This is an index
+  *             into 'indices', not 'array'.
+  *\param adj   The element that this is a side of.
+  *\param indices  The indices into 'array' at which the vertices
+  *             representing the side occur.
+  */
+template<>
+AdjSides<4>::Side::Side( const EntityHandle* array,  int idx,
+      EntityHandle adj, unsigned short ,
+      const short* indices ) 
+  : adj_elem(adj)
+{
+  const unsigned int CORNERS=4;
+  handles[2] = array[indices[(idx+3)%CORNERS]];
+  handles[1] = array[indices[(idx+2)%CORNERS]];
+  handles[0] = array[indices[(idx+1)%CORNERS]];
+  if (handles[2] > handles[0])
+    std::swap( handles[0], handles[2] );
+}
+
+// Compare two side instances.  Relies in the ordering of 
+// vertex handles as described above.
+template<>
+bool AdjSides<4>::Side::operator==( const Side& other ) const 
+{
+  return handles[0] == other.handles[0] 
+      && handles[1] == other.handles[1]
+      && handles[2] == other.handles[2];
+}
+
 
 // Utiltiy function used by find_skin_vertices_2D and
 // find_skin_vertices_3D to create elements representing
