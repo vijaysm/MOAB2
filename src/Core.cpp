@@ -241,6 +241,9 @@ ErrorCode Core::initialize()
   }
 #endif
 
+  if (!MBErrorHandler_Initialized())
+    MBErrorHandler_Init();
+
   geometricDimension = 3;
   materialTag      = 0;
   neumannBCTag     = 0;
@@ -248,15 +251,17 @@ ErrorCode Core::initialize()
   geomDimensionTag = 0;
   globalIdTag      = 0;
 
-  sequenceManager = new SequenceManager;
+  sequenceManager = new (std::nothrow) SequenceManager;
   if (!sequenceManager)
     return MB_MEMORY_ALLOCATION_FAILED;
 
-  aEntityFactory = new AEntityFactory(this);
+  aEntityFactory = new (std::nothrow) AEntityFactory(this);
   if (!aEntityFactory)
     return MB_MEMORY_ALLOCATION_FAILED;
 
-  mError = new Error;
+  mError = new (std::nothrow) Error;
+  if (!mError)
+    return MB_MEMORY_ALLOCATION_FAILED;
 
   mMBWriteUtil = NULL;
   mMBReadUtil = NULL;
@@ -266,7 +271,7 @@ ErrorCode Core::initialize()
     // Do this after pointers are initialized. (Pointers should
     // really be initialized in constructor to avoid this kind
     // of thing -- j.kraftcheck.)
-  readerWriterSet = new ReaderWriterSet( this, mError );
+  readerWriterSet = new (std::nothrow) ReaderWriterSet( this, mError );
   if (!readerWriterSet)
     return MB_MEMORY_ALLOCATION_FAILED;
 
@@ -339,6 +344,8 @@ void Core::deinitialize()
     MPI_Finalize();
 #endif
 
+  if (MBErrorHandler_Initialized())
+    MBErrorHandler_Finalize();
 }
 
 ErrorCode Core::query_interface_type( const std::type_info& type, void*& ptr )
@@ -475,6 +482,7 @@ ErrorCode Core::load_file( const char* file_name,
 
   assert(!file_set || (*file_set && is_valid(*file_set)));
   if (file_set && !*file_set) {
+    mError->set_last_error( "Non-NULL file set pointer should point to non-NULL set.\n" );
     SET_GLB_ERR(MB_FAILURE, "Non-NULL file set pointer should point to non-NULL set");
   }
 
@@ -502,6 +510,8 @@ ErrorCode Core::load_file( const char* file_name,
       rval = ReadParallel(this,pcomm).load_file( file_name, file_set, opts );CHK_ERR(rval);
     }
 #else
+    mError->set_last_error( "PARALLEL option not valid, this instance"
+                            " compiled for serial execution.\n" );
     SET_GLB_ERR(MB_NOT_IMPLEMENTED, "PARALLEL option not valid, this instance compiled for serial execution");
 #endif
   }
@@ -516,10 +526,14 @@ ErrorCode Core::load_file( const char* file_name,
 
   if (MB_SUCCESS == rval && !opts.all_seen()) {
     std::string bad_opt;
-    if (MB_SUCCESS == opts.get_unseen_option( bad_opt ))
+    if (MB_SUCCESS == opts.get_unseen_option( bad_opt )) {
+      mError->set_last_error( "Unrecognized option: \"%s\"", bad_opt.c_str() );
       SET_ERR_STR(MB_UNHANDLED_OPTION, "Unrecognized option: \"" << bad_opt << "\"");
-    else
+    }
+    else {
+      mError->set_last_error( "Unrecognized option." );
       SET_ERR(MB_UNHANDLED_OPTION, "Unrecognized option");
+    }
   }
 
   return MB_SUCCESS;
@@ -561,6 +575,7 @@ ErrorCode Core::serial_load_file( const char* file_name,
   status = stat(file_name, &stat_data);
 #endif
   if (status) {
+    mError->set_last_error( "%s: %s", file_name, strerror(errno) );
     SET_GLB_ERR_STR(MB_FILE_DOES_NOT_EXIST, file_name << ": " << strerror(errno));
   }
 #if defined(WIN32) || defined(WIN64) || defined(MSC_VER)
@@ -568,6 +583,7 @@ ErrorCode Core::serial_load_file( const char* file_name,
 #else
   else if (S_ISDIR(stat_data.st_mode)) {
 #endif
+    mError->set_last_error( "%s: Cannot read directory/folder.", file_name );
     SET_GLB_ERR_STR(MB_FILE_DOES_NOT_EXIST, file_name << ": Cannot read directory/folder");
   }
 
@@ -719,6 +735,7 @@ ErrorCode Core::write_file( const char* file_name,
 
   rval = opts.get_null_option( "CREATE" );
   if (rval == MB_TYPE_OUT_OF_RANGE) {
+    mError->set_last_error( "Unexpected value for CREATE option\n" );
     SET_GLB_ERR(MB_FAILURE, "Unexpected value for CREATE option");
   }
   bool overwrite = (rval == MB_ENTITY_NOT_FOUND);
@@ -750,8 +767,10 @@ ErrorCode Core::write_file( const char* file_name,
     }
   }
 
-  if (file_type && rval == MB_TYPE_OUT_OF_RANGE)
+  if (file_type && rval == MB_TYPE_OUT_OF_RANGE) {
+    mError->set_last_error( "Unrecognized file type \"%s\"", file_type);
     SET_ERR_STR(rval, "Unrecognized file type \"" << file_type << "\"");
+  }
   // Should we use default writer (e.g. HDF5)?
   else if (MB_SUCCESS != rval) {
     DefaultWriter writer(this);
@@ -762,13 +781,17 @@ ErrorCode Core::write_file( const char* file_name,
 
   if (MB_SUCCESS == rval && !opts.all_seen()) {
     std::string bad_opt;
-    if (MB_SUCCESS == opts.get_unseen_option( bad_opt ))
+    if (MB_SUCCESS == opts.get_unseen_option( bad_opt )) {
+      mError->set_last_error( "Unrecognized option: \"%s\"", bad_opt.c_str() );
       SET_ERR_STR(MB_UNHANDLED_OPTION, "Unrecognized option: \"" << bad_opt << "\"");
-    else
+    }
+    else {
+      mError->set_last_error( "Unrecognized option." );
       SET_ERR(MB_UNHANDLED_OPTION, "Unrecognized option");
+    }
   }
 
-  return rval;
+  return MB_SUCCESS;
 }
 
 
@@ -865,10 +888,12 @@ ErrorCode Core::coords_iterate(Range::const_iterator iter,
   ErrorCode rval = sequence_manager()->find(*iter, seq);
   if (MB_SUCCESS != rval) {
     xcoords_ptr = ycoords_ptr = zcoords_ptr = NULL;
+    mError->set_last_error("Couldn't find sequence for start handle.");
     SET_ERR(rval, "Couldn't find sequence for start handle");
   }
   VertexSequence *vseq = dynamic_cast<VertexSequence*>(seq);
   if (!vseq) {
+    mError->set_last_error("Couldn't find sequence for start handle.");
     SET_ERR(MB_ENTITY_NOT_FOUND, "Couldn't find sequence for start handle");
   }
 
@@ -912,9 +937,7 @@ ErrorCode  Core::get_coords(const Range& entities, double *coords) const
     }
 
     double const *x, *y, *z;
-    ErrorCode rval = vseq->get_coordinate_arrays( x, y, z );
-    if (MB_SUCCESS != rval)
-      return rval;
+    ErrorCode rval = vseq->get_coordinate_arrays( x, y, z );CHK_ERR(rval);
     x += offset;
     y += offset;
     z += offset;
@@ -1025,10 +1048,8 @@ ErrorCode  Core::get_coords(const EntityHandle* entities,
       static std::vector<double> dum_pos(3*CN::MAX_NODES_PER_ELEMENT);
       static const EntityHandle *conn;
       static int num_conn;
-      status = get_connectivity(*iter, conn, num_conn, false, &dum_conn);
-      if (MB_SUCCESS != status) return status;
-      status = get_coords(conn, num_conn, &dum_pos[0]);
-      if (MB_SUCCESS != status) return status;
+      status = get_connectivity(*iter, conn, num_conn, false, &dum_conn);CHK_ERR(status);
+      status = get_coords(conn, num_conn, &dum_pos[0]);CHK_ERR(status);
       coords[0] = coords[1] = coords[2] = 0.0;
       for (int i = 0; i < num_conn; i++) {
         coords[0] += dum_pos[3*i];
@@ -1251,8 +1272,7 @@ ErrorCode  Core::set_connectivity(const EntityHandle entity_handle,
 
   const EntityHandle* old_conn;
   int len;
-  status = static_cast<ElementSequence*>(seq)->get_connectivity(entity_handle, old_conn, len);
-  if (status != MB_SUCCESS) return status;
+  status = static_cast<ElementSequence*>(seq)->get_connectivity(entity_handle, old_conn, len);CHK_ERR(status);
 
   aEntityFactory->notify_change_connectivity(
     entity_handle, old_conn, connect, num_connect);
@@ -1719,6 +1739,7 @@ ErrorCode Core::connect_iterate(Range::const_iterator iter,
 
   connect = eseq->get_connectivity_array();
   if (!connect) {
+    mError->set_last_error("Couldn't find connectivity array for start handle.");
     SET_ERR(MB_FAILURE, "Couldn't find connectivity array for start handle");
   }
 
@@ -2753,12 +2774,8 @@ ErrorCode Core::merge_entities( EntityHandle entity_to_keep,
   {
     std::vector<EntityHandle> conn, conn2;
 
-    result = get_connectivity(&entity_to_keep, 1, conn);
-    if(result != MB_SUCCESS)
-      return result;
-    result = get_connectivity(&entity_to_remove, 1, conn2);
-    if(result != MB_SUCCESS)
-      return result;
+    result = get_connectivity(&entity_to_keep, 1, conn);CHK_ERR(result);
+    result = get_connectivity(&entity_to_remove, 1, conn2);CHK_ERR(result);
 
       // Check to see if we can merge before pulling adjacencies.
     int dum1, dum2;
@@ -3143,8 +3160,7 @@ ErrorCode Core::high_order_node(const EntityHandle parent_handle,
   const EntityHandle *parent_conn;
   int num_parent_vertices;
   ErrorCode result = get_connectivity(parent_handle, parent_conn,
-                                         num_parent_vertices, false);
-  if (result != MB_SUCCESS) return result;
+                                         num_parent_vertices, false);CHK_ERR(result);
 
     // find whether this entity has ho nodes
   int mid_nodes[4];
@@ -3927,6 +3943,7 @@ ErrorCode Core::remove_set_iterator(SetIterator *set_iter)
 {
   std::vector<SetIterator*>::iterator vit = std::find(setIterators.begin(), setIterators.end(), set_iter);
   if (vit == setIterators.end()) {
+    mError->set_last_error("Didn't find that iterator.");
     SET_ERR(MB_FAILURE, "Didn't find that iterator");
   }
 
