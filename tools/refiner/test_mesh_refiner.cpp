@@ -63,13 +63,15 @@ int TestMeshRefiner( int argc, char* argv[] )
   EntityHandle set_handle;
   std::ostringstream parallel_options;
 #ifdef USE_MPI
-  parallel_options
-    << "PARALLEL=READ_DELETE" << ";" // NB: You can use BCAST_DELETE or READ_DELETE here.
-    //<< "PARALLEL=BCAST_DELETE" << ";" // NB: You can use BCAST_DELETE or READ_DELETE here.
-    << "PARTITION=MATERIAL_SET" << ";"
-    << "PARTITION_DISTRIBUTE" << ";"
-    << "PARALLEL_RESOLVE_SHARED_ENTS" << ";"
-    << "CPUTIME";
+  if (nprocs > 1) {
+    parallel_options
+      << "PARALLEL=READ_DELETE" << ";" // NB: You can use BCAST_DELETE or READ_DELETE here.
+      //<< "PARALLEL=BCAST_DELETE" << ";" // NB: You can use BCAST_DELETE or READ_DELETE here.
+      << "PARTITION=MATERIAL_SET" << ";"
+      << "PARTITION_DISTRIBUTE" << ";"
+      << "PARALLEL_RESOLVE_SHARED_ENTS" << ";"
+      << "CPUTIME";
+  }
 #endif
   ErrorCode rval = imesh->create_meshset(MESHSET_SET, set_handle);
   if (MB_SUCCESS != rval) {
@@ -85,7 +87,7 @@ int TestMeshRefiner( int argc, char* argv[] )
   
   // Print out what we have so far, one process at a time
   for ( int i = 0; i < nprocs; ++ i )
-    {
+  {
     MPI_Barrier( MPI_COMM_WORLD );
     if ( i == rank )
       {
@@ -94,7 +96,7 @@ int TestMeshRefiner( int argc, char* argv[] )
       std::cout << "**************\n\n";
       }
     MPI_Barrier( MPI_COMM_WORLD );
-    }
+  }
 
   // The refiner will need an implicit function to be used as an indicator function for subdivision:
   EdgeSizeSimpleImplicit* eval = new EdgeSizeSimpleImplicit();
@@ -118,7 +120,8 @@ int TestMeshRefiner( int argc, char* argv[] )
 
   if (do_output) {
     parallel_options.clear();
-    parallel_options << "PARALLEL=WRITE_PART";
+    if (nprocs > 1)
+      parallel_options << "PARALLEL=WRITE_PART";
     omesh->write_file( output_filename.c_str(), NULL, parallel_options.str().c_str() );
   }
   
