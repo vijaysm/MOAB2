@@ -657,6 +657,11 @@ MB_OPTIONAL_TOOL([mbdepth],      [yes], [yes])
 MB_OPTIONAL_TOOL([refiner],      [no], [yes])
 MB_OPTIONAL_TOOL([h5mtools],     [${HAVE_HDF5}], [${HAVE_HDF5}])
 MB_OPTIONAL_TOOL([mbcslam],      [no], [yes])
+MB_OPTIONAL_TOOL([ahf],          [no], [no])
+
+if test "xyes" = "x$ENABLE_ahf"; then
+  AM_CPPFLAGS="$AM_CPPFLAGS -DUSE_AHF"
+fi
 
 if test "xyes" = "x$ENABLE_refiner"; then
   if test "xyes" != "x$WITH_MPI"; then
@@ -1321,4 +1326,28 @@ if test "x$WARN_PARALLEL_HDF5_NO_COMPLEX" = "xyes"; then
 *     significant impact on IO performance.
 *************************************************************************])
 fi
+
+################################################################################
+#                             AHF OPTIONS
+################################################################################
+#AC_ARG_ENABLE([ahf],
+#[AC_HELP_STRING([--enable-ahf],[use the half facet representation])],
+#[ case "${enableval}" in 
+#	yes) ahf1=true ;;
+#        no) ahf1=false ;;
+#	*) AC_MSG_ERROR([bad value]) ;; 
+#esac],[ahf1=false])	
+ #ENABLE_AHF=$enableval],[ENABLE_AHF=no] )
+
+#if test "x$ENABLE_AHF" = "xyes"; then
+#   AM_CPPFLAGS="$AM_CPPFLAGS -DUSE_AHF"
+#fi
+#AM_CONDITIONAL([ENABLE_AHF],[test x$ahf1 = xtrue])
+#AC_SUBST(ENABLE_AHF)
+
+
+#test "xyes" != "x$WITH_AHF" || AM_CPPFLAGS="$AM_CPPFLAGS -DUSE_AHF"
+#AM_CONDITIONAL(USE_AHF, [test "xno" != "x$WITH_AHF"])
+
+
 

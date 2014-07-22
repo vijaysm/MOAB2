@@ -619,6 +619,7 @@ public:
             get_adjacencies( from_entities, 2, 1, false, adjacencies, Interface::INTERSECT); 
             \endcode 
     */
+
   virtual ErrorCode get_adjacencies(const EntityHandle *from_entities,
                                       const int num_entities,
                                       const int to_dimension,

@@ -35,6 +35,10 @@ class EntitySequence;
 class FileOptions;
 class SetIterator;
 
+#ifdef USE_AHF
+class HalfFacetRep;
+#endif
+
 #ifdef XPCOM_MB
 
 #define MBCORE_CID \
@@ -311,14 +315,16 @@ public:
             get_adjacencies( from_entities, MB_1D_ENTITY, adjacencies ); 
             \endcode */
 
-    virtual ErrorCode get_adjacencies(const EntityHandle *from_entities,
-                                         const int num_entities,
-                                         const int to_dimension,
-                                         const bool create_if_missing,
-                                         std::vector<EntityHandle>& adj_entities,
-                                         const int operation_type = Interface::INTERSECT);
+   virtual ErrorCode get_adjacencies(const EntityHandle *from_entities,
+                                       const int num_entities,
+                                       const int to_dimension,
+                                       const bool create_if_missing,
+                                       std::vector<EntityHandle>& adj_entities,
+                                       const int operation_type = Interface::INTERSECT);
 
-    virtual ErrorCode get_adjacencies(const EntityHandle *from_entities,
+
+
+   virtual ErrorCode get_adjacencies(const EntityHandle *from_entities,
                                         const int num_entities,
                                          const int to_dimension,
                                          const bool create_if_missing,
@@ -1126,7 +1132,12 @@ public:
     //! return the a_entity_factory pointer
   AEntityFactory *a_entity_factory() { return aEntityFactory; }
   const AEntityFactory *a_entity_factory() const { return aEntityFactory; }
-  
+
+#ifdef USE_AHF
+  HalfFacetRep *a_half_facet_rep() { return ahfRep; }
+  const HalfFacetRep *a_half_facet_rep() const {return ahfRep; }
+#endif
+
     //! return set of registered IO tools
   ReaderWriterSet* reader_writer_set() { return readerWriterSet; }
 
@@ -1347,6 +1358,11 @@ private:
 
     //! list of iterators 
   std::vector<SetIterator*> setIterators;
+
+#ifdef USE_AHF
+  HalfFacetRep *ahfRep;
+  bool mesh_modified;
+#endif
   
 };
 
