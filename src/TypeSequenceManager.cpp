@@ -807,8 +807,8 @@ ErrorCode TypeSequenceManager::notify_prepended( iterator seq )
   return rval;
 }
 
-void TypeSequenceManager::get_memory_use( unsigned long& entity_storage,
-                                          unsigned long& total_storage ) const
+void TypeSequenceManager::get_memory_use( unsigned long long& entity_storage,
+                                          unsigned long long& total_storage ) const
 {
   entity_storage = total_storage = 0;
   if (empty())
@@ -825,8 +825,8 @@ void TypeSequenceManager::get_memory_use( unsigned long& entity_storage,
 void TypeSequenceManager::append_memory_use( EntityHandle first,
                                              EntityHandle last,
                                              const SequenceData* data,
-                                             unsigned long& entity_storage,
-                                             unsigned long& total_storage ) const
+                                             unsigned long long& entity_storage,
+                                             unsigned long long& total_storage ) const
 {
   const unsigned long allocated_count = data->size();
 
@@ -865,8 +865,8 @@ void TypeSequenceManager::append_memory_use( EntityHandle first,
 
 void TypeSequenceManager::get_memory_use( EntityHandle first,
                                           EntityHandle last,
-                                          unsigned long& entity_storage,
-                                          unsigned long& total_storage ) const
+                                          unsigned long long& entity_storage,
+                                          unsigned long long& total_storage ) const
 {
   entity_storage = total_storage = 0;
   

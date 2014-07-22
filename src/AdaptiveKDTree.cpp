@@ -2154,7 +2154,7 @@ namespace moab {
       all.merge( elem2d );
       all.merge( elem3d );
       tree_sets.insert( myRoot );
-      unsigned long set_used, set_amortized, set_store_used, set_store_amortized,
+      unsigned long long set_used, set_amortized, set_store_used, set_store_amortized,
           set_tag_used, set_tag_amortized, elem_used, elem_amortized;
       moab()->estimated_memory_use( tree_sets, 
                                        &set_used, &set_amortized, 

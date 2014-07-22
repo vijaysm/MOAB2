@@ -1043,16 +1043,16 @@ public:
    */
   virtual void estimated_memory_use( const EntityHandle* ent_array = 0,
                              unsigned long  num_ents = 0,
-                             unsigned long* total_storage = 0,
-                             unsigned long* total_amortized_storage = 0,
-                             unsigned long* entity_storage = 0,
-                             unsigned long* amortized_entity_storage = 0,
-                             unsigned long* adjacency_storage = 0,
-                             unsigned long* amortized_adjacency_storage = 0,
+                             unsigned long long* total_storage = 0,
+                             unsigned long long* total_amortized_storage = 0,
+                             unsigned long long* entity_storage = 0,
+                             unsigned long long* amortized_entity_storage = 0,
+                             unsigned long long* adjacency_storage = 0,
+                             unsigned long long* amortized_adjacency_storage = 0,
                              const Tag*   tag_array = 0,
                              unsigned       num_tags = 0,
-                             unsigned long* tag_storage = 0,
-                             unsigned long* amortized_tag_storage = 0 ) = 0;
+                             unsigned long long* tag_storage = 0,
+                             unsigned long long* amortized_tag_storage = 0 ) = 0;
 
   /**\brief Calculate amount of memory used to store MOAB data
    *
@@ -1082,16 +1082,16 @@ public:
    *                   for all tags.
    */
   virtual void estimated_memory_use( const Range& ents,
-                             unsigned long* total_storage = 0,
-                             unsigned long* total_amortized_storage = 0,
-                             unsigned long* entity_storage = 0,
-                             unsigned long* amortized_entity_storage = 0,
-                             unsigned long* adjacency_storage = 0,
-                             unsigned long* amortized_adjacency_storage = 0,
+                             unsigned long long* total_storage = 0,
+                             unsigned long long* total_amortized_storage = 0,
+                             unsigned long long* entity_storage = 0,
+                             unsigned long long* amortized_entity_storage = 0,
+                             unsigned long long* adjacency_storage = 0,
+                             unsigned long long* amortized_adjacency_storage = 0,
                              const Tag*   tag_array = 0,
                              unsigned       num_tags = 0,
-                             unsigned long* tag_storage = 0,
-                             unsigned long* amortized_tag_storage = 0 ) = 0;
+                             unsigned long long* tag_storage = 0,
+                             unsigned long long* amortized_tag_storage = 0 ) = 0;
     /**@}*/
 
     /** \name Higher-order elements */

@@ -163,11 +163,11 @@ public:
   ErrorCode merge_adjust_adjacencies(EntityHandle entity_to_keep,
                                        EntityHandle entity_to_remove);
   
-  void get_memory_use( unsigned long& total_entity_storage,
-                       unsigned long& total_storage );
+  void get_memory_use( unsigned long long& total_entity_storage,
+                       unsigned long long& total_storage );
   ErrorCode get_memory_use( const Range& entities,
-                              unsigned long& total_entity_storage,
-                              unsigned long& total_amortized_storage );
+                              unsigned long long& total_entity_storage,
+                              unsigned long long& total_amortized_storage );
   
 private:
 
