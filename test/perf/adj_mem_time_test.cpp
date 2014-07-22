@@ -70,7 +70,7 @@ int main(int argc, char **argv)
   //Storage Costs before calling ahf functionalities
   std::cout<<std::endl;
   std::cout<<"STORAGE BEFORE CALLING ADJACENCIES"<<std::endl;
-  unsigned long sTotS, sTAS, sES, sAES, sAS, sAAS, sTS, sATS;
+  unsigned long long sTotS, sTAS, sES, sAES, sAS, sAAS, sTS, sATS;
   sTotS = sTAS = sES = sAES = sAS = sAAS = sTS = sATS = 0;
   mbImpl->estimated_memory_use(NULL, 0, &sTotS, &sTAS, &sES, &sAES, &sAS, &sAAS, NULL, 0, &sTS, &sATS);
   std::cout<<std::endl;
@@ -307,7 +307,7 @@ int main(int argc, char **argv)
   //Storage Costs after calling ahf deinitialize
   std::cout<<std::endl;
   std::cout<<"STORAGE AFTER CALLING ADJACENCIES"<<std::endl;
-  unsigned long eTotS, eTAS, eES, eAES, eAS, eAAS, eTS, eATS;
+  unsigned long long eTotS, eTAS, eES, eAES, eAS, eAAS, eTS, eATS;
   eTotS = eTAS = eES = eAES = eAS = eAAS = eTS = eATS = 0;
   mbImpl->estimated_memory_use(NULL, 0, &eTotS, &eTAS, &eES, &eAES, &eAS, &eAAS, NULL, 0, &eTS, &eATS);
   std::cout<<std::endl;
