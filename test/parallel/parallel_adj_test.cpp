@@ -50,10 +50,6 @@ ErrorCode para_ahf_test(const char* filename)
     ErrorCode error = mbImpl->load_file(filename, 0, read_options.c_str());
     CHECK_ERR(error);
 
-   // ParallelComm* pcomm = ParallelComm::get_pcomm(&*mbImpl, 0);
-
-   // std::cout<<"DB: Read file"<<std::endl;
-
     /*Create ranges for handles of explicit elements of the mixed mesh*/
     Range local_verts, local_edges, local_faces, local_cells;
     error = mbImpl->get_entities_by_dimension( 0, 0, local_verts);
@@ -61,15 +57,11 @@ ErrorCode para_ahf_test(const char* filename)
     error = mbImpl->get_entities_by_dimension( 0, 2, local_faces);
     error = mbImpl->get_entities_by_dimension( 0, 3, local_cells);
 
-    //std::cout<<"DB: Obtain local entities"<<std::endl;
-
     // Create an ahf instance
     HalfFacetRep ahf(&moab);
 
     // Call the initialize function which creates the maps for each dimension
     ahf.initialize();
-
-    //std::cout<<"DB: Initialized AHF maps"<<std::endl;
 
     //Perform queries
     std::vector<EntityHandle> adjents;
@@ -93,8 +85,6 @@ ErrorCode para_ahf_test(const char* filename)
         CHECK(!mbents.size());
     }
 
-   // std::cout<<"DB: Finished IQ1"<<std::endl;
-
     //NQ1:  For every edge, obtain neighbor edges
     for (Range::iterator i = local_edges.begin(); i != local_edges.end(); ++i) {
         adjents.clear();
@@ -111,8 +101,6 @@ ErrorCode para_ahf_test(const char* filename)
         mbents = subtract(mbents, ahfents);
         CHECK(!mbents.size());
     }
-
-   //  std::cout<<"DB: Finished NQ1"<<std::endl;
 
     // 2D Queries
 
@@ -133,8 +121,6 @@ ErrorCode para_ahf_test(const char* filename)
         CHECK(!mbents.size());
     }
 
-  //   std::cout<<"DB: Finished IQ21"<<std::endl;
-
     //IQ22: For every edge, obtain incident faces
     for (Range::iterator i = local_edges.begin(); i != local_edges.end(); ++i) {
         adjents.clear();
@@ -151,8 +137,6 @@ ErrorCode para_ahf_test(const char* filename)
         mbents = subtract(mbents, ahfents);
         CHECK(!mbents.size());
     }
-
-   //  std::cout<<"DB: Finished IQ22"<<std::endl;
 
     //NQ2: For every face, obtain neighbor faces
     for (Range::iterator i = local_faces.begin(); i != local_faces.end(); ++i) {
@@ -171,8 +155,6 @@ ErrorCode para_ahf_test(const char* filename)
         CHECK(!mbents.size());
     }
 
-  //   std::cout<<"DB: Finished NQ2"<<std::endl;
-
     //DQ 21: For every face, obtain its edges
     for (Range::iterator i = local_faces.begin(); i != local_faces.end(); ++i) {
         adjents.clear();
@@ -189,8 +171,6 @@ ErrorCode para_ahf_test(const char* filename)
         mbents = subtract(mbents, ahfents);
         CHECK(!mbents.size());
     }
-
-  //   std::cout<<"DB: Finished DQ21"<<std::endl;
 
     // 3D Queries
     //IQ 31: For every vertex, obtain incident cells
@@ -210,8 +190,6 @@ ErrorCode para_ahf_test(const char* filename)
         CHECK(!mbents.size());
     }
 
- //    std::cout<<"DB: Finished IQ31"<<std::endl;
-
     // IQ 32: For every edge, obtain incident cells
     for (Range::iterator i = local_edges.begin(); i != local_edges.end(); ++i) {
         adjents.clear();
@@ -228,8 +206,6 @@ ErrorCode para_ahf_test(const char* filename)
         mbents = subtract(mbents, ahfents);
         CHECK(!mbents.size());
     }
-
-  //   std::cout<<"DB: Finished IQ32"<<std::endl;
 
     //IQ33: For every face, obtain incident cells
     for (Range::iterator i = local_faces.begin(); i != local_faces.end(); ++i) {
@@ -248,8 +224,6 @@ ErrorCode para_ahf_test(const char* filename)
         CHECK(!mbents.size());
     }
 
-  //   std::cout<<"DB: Finished IQ33"<<std::endl;
-
     //NQ3: For every cell, obtain neighbor cells
     for (Range::iterator i = local_cells.begin(); i != local_cells.end(); ++i) {
         adjents.clear();
@@ -266,8 +240,6 @@ ErrorCode para_ahf_test(const char* filename)
         mbents = subtract(mbents, ahfents);
         CHECK(!mbents.size());
     }
-
-  //   std::cout<<"DB: Finished NQ3"<<std::endl;
 
     //DQ 31: For every cell, obtain its edges
     for (Range::iterator i = local_cells.begin(); i != local_cells.end(); ++i) {
@@ -286,8 +258,6 @@ ErrorCode para_ahf_test(const char* filename)
         CHECK(!mbents.size());
     }
 
-   //  std::cout<<"DB: Finished DQ31"<<std::endl;
-
     //DQ 32: For every cell, obtain its faces
     for (Range::iterator i = local_cells.begin(); i != local_cells.end(); ++i) {
         adjents.clear();
@@ -304,8 +274,6 @@ ErrorCode para_ahf_test(const char* filename)
         mbents = subtract(mbents, ahfents);
         CHECK(!mbents.size());
     }
-
-  //  std::cout<<"DB: Finished DQ32"<<std::endl;
 
     ahf.deinitialize();
 
@@ -340,7 +308,6 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    //Core moab;
     ErrorCode result;
     if (rank == 0)
         std::cout<<" para_ahf_test: ";
