@@ -642,7 +642,6 @@ MB_OPTIONAL_TOOL([mbconvert],    [yes], [yes])
 MB_OPTIONAL_TOOL([hexmodops],    [yes], [yes])
 MB_OPTIONAL_TOOL([qvdual],       [${VTKMOAB_DEFAULT}], [${VTKMOAB_DEFAULT}])
 MB_OPTIONAL_TOOL([vtkMOABReader],[${VTKMOAB_DEFAULT}], [${VTKMOAB_DEFAULT}])
-MB_OPTIONAL_TOOL([vtkMOABReaderNew],[${VTKMOAB_DEFAULT}], [${VTKMOAB_DEFAULT}])
 MB_OPTIONAL_TOOL([mbsize],       [yes], [yes])
 MB_OPTIONAL_TOOL([mbskin],       [yes], [yes])
 MB_OPTIONAL_TOOL([mbtagprop],    [yes], [yes])
@@ -668,14 +667,6 @@ fi
 if test "xyes" = "x$ENABLE_vtkMOABReader"; then
   if test "xno" == "x$WITH_VTK"; then
     AC_MSG_ERROR([vtkMOABReader requires VTK])
-  elif test "x" == "x$WITH_VTK"; then 
-    WITH_VTK=yes
-  fi
-fi
-
-if test "xyes" = "x$ENABLE_vtkMOABReaderNew"; then
-  if test "xno" == "x$WITH_VTK"; then
-    AC_MSG_ERROR([vtkMOABReaderNew requires VTK])
   elif test "x" == "x$WITH_VTK"; then 
     WITH_VTK=yes
   fi
@@ -1247,7 +1238,6 @@ AC_CONFIG_FILES([Makefile
                  tools/qvdual/Makefile
                  tools/dagmc/Makefile
 		 tools/vtkMOABReader/CMakeLists.txt
-		 tools/vtkMOABReaderNew/CMakeLists.txt
                  doc/user.dox
                  doc/config.tex
                  MeshFiles/Makefile
