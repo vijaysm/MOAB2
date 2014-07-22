@@ -14,6 +14,8 @@
 #include <iostream>
 #include <iomanip>
 
+#include <stdlib.h>
+
 namespace moab {
 
 ErrorCode MergeMesh::merge_entities(EntityHandle *elems,
@@ -149,12 +151,14 @@ struct handle_id
 
 // handle structure comparison function for qsort
 // if the id is the same , compare the handle.
-bool compare_handle_id(handle_id ia, handle_id ib) {
+int compare_handle_id(const void * a, const void * b) {
 
-  if(ia.val == ib.val) {
-    return ia.eh<ib.eh;
+  handle_id * ia = (handle_id*) a;
+  handle_id * ib = (handle_id*) b;
+  if(ia->val == ib->val) {
+    return (ia->eh<ib->eh)? -1 : 1;
   } else {
-    return ia.val<ib.val;
+    return (ia->val - ib->val);
   }
 }
 
@@ -190,8 +194,8 @@ ErrorCode MergeMesh::merge_using_integer_tag(Range & verts, Tag user_tag, Tag me
     handles[i].val = vals[i];
     i++;
   }
-  std::sort(handles.begin(), handles.end(), compare_handle_id);
-
+  //std::sort(handles.begin(), handles.end(), compare_handle_id);
+  qsort(&handles[0], handles.size(), sizeof(handle_id), compare_handle_id);
   i=0;
   while (i<(int)verts.size()-1)
   {
