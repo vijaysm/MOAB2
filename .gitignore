@@ -276,6 +276,7 @@ tools/mbskin
 tools/mbsurfplot
 tools/mbtagprop
 tools/mbzoltan/Config.moab
+tools/refiner/test_mesh_refiner
 tools/spheredecomp
 tools/vtkMOABReader/CMakeLists.txt
 tools/vtkMOABReaderNew/CMakeLists.txt
