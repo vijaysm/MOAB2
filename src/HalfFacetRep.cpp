@@ -276,10 +276,6 @@ namespace moab {
     error = determine_incident_halfedges(_faces);
     if (MB_SUCCESS != error) return error;
 
-    //Create face tags
-   // error = mb->tag_get_handle("__VISITED_FACE", 1, MB_TYPE_INTEGER, visited_face, MB_TAG_DENSE | MB_TAG_CREAT, &ival);
-   // if (MB_SUCCESS != error) return error;
-
     //Initialize queues for storing face and local id's during local search
     for (int i = 0; i< MAXSIZE; i++)
       {
@@ -324,11 +320,6 @@ namespace moab {
     if (MB_SUCCESS != error) return error;
     error = determine_incident_halffaces(_cells);
     if (MB_SUCCESS != error) return error;
-
-
-    //Create cell tag
-  //  error = mb->tag_get_handle("__VISITED_CELL", 1, MB_TYPE_INTEGER, visited_cell, MB_TAG_DENSE | MB_TAG_CREAT, &ival);
-  //  if (MB_SUCCESS != error) return error;
 
     //Initialize queues for storing face and local id's during local search
     for (int i = 0; i< MAXSIZE; i++)
