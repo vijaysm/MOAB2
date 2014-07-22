@@ -640,7 +640,7 @@ AC_HELP_STRING([--disable-tools],[Disable all tools by default])],
   # Individual tools
 MB_OPTIONAL_TOOL([mbconvert],    [yes], [yes])
 MB_OPTIONAL_TOOL([hexmodops],    [yes], [yes])
-MB_OPTIONAL_TOOL([qvdual],       [${VTKMOAB_DEFAULT}], [${VTKMOAB_DEFAULT}])
+MB_OPTIONAL_TOOL([qvdual],       [no], [no])
 MB_OPTIONAL_TOOL([vtkMOABReader],[${VTKMOAB_DEFAULT}], [${VTKMOAB_DEFAULT}])
 MB_OPTIONAL_TOOL([mbsize],       [yes], [yes])
 MB_OPTIONAL_TOOL([mbskin],       [yes], [yes])
