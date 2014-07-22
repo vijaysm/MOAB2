@@ -8,15 +8,23 @@
 #include "moab/HalfFacetRep.hpp"
 #include "TestUtil.hpp"
 
-using namespace moab;
-
-#ifdef MESHDIR
-std::string TestDir(STRINGIFY(MESHDIR));
-#else
-std::string TestDir(".");
+#ifdef USE_MPI
+#include "moab/ParallelComm.hpp"
+#include "MBParallelConventions.h"
+#include "ReadParallel.hpp"
+#include "moab/FileOptions.hpp"
+#include "MBTagConventions.hpp"
+#include "moab_mpi.h"
 #endif
 
-std::string filename;
+using namespace moab;
+
+#define STRINGIFY_(X) #X
+#define STRINGIFY(X) STRINGIFY_(X)
+
+#ifdef USE_MPI
+std::string read_options;
+#endif
 
 int number_tests_successful = 0;
 int number_tests_failed = 0;
@@ -24,7 +32,14 @@ int number_tests_failed = 0;
 void handle_error_code(ErrorCode rv, int &number_failed, int &number_successful)
 {
   if (rv == MB_SUCCESS) {
-    std::cout << "Success";
+#ifdef USE_MPI
+      int rank = 0;
+      MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+      if (rank==0)
+          std::cout << "Success";
+#else
+      std::cout << "Success";
+#endif
     number_successful++;
   } else {
     std::cout << "Failure";
@@ -33,14 +48,31 @@ void handle_error_code(ErrorCode rv, int &number_failed, int &number_successful)
 }
 
 
-ErrorCode ahf_test(Core *moab)
+ErrorCode ahf_test(const char* filename)
 {
 
-    Interface* mbImpl = &*moab;
+    Core moab;
+    Interface* mbImpl = &moab;
     MeshTopoUtil mtu(mbImpl);
+    ErrorCode error;
 
-    ErrorCode error = mbImpl->load_file(filename.c_str());
+#ifdef USE_MPI
+    int procs = 1;
+    MPI_Comm_size(MPI_COMM_WORLD, &procs);
+
+    if (procs > 1){
+    read_options = "PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;PARALLEL_GHOSTS=3.0.1.3";
+
+    error = mbImpl->load_file(filename, 0, read_options.c_str());
     CHECK_ERR(error);
+    }
+    else if (procs == 1) {
+#endif
+    error = mbImpl->load_file(filename);
+    CHECK_ERR(error);
+#ifdef USE_MPI
+    }
+#endif
 
     /*Create ranges for handles of explicit elements of the mixed mesh*/
     Range verts, edges, faces, cells;
@@ -50,7 +82,7 @@ ErrorCode ahf_test(Core *moab)
     error = mbImpl->get_entities_by_dimension( 0, 3, cells);
 
     // Create an ahf instance
-    HalfFacetRep ahf(&*moab);
+    HalfFacetRep ahf(&moab);
 
     // Call the initialize function which creates the maps for each dimension
     ahf.initialize();
@@ -280,10 +312,34 @@ ErrorCode ahf_test(Core *moab)
 
 int main(int argc, char *argv[])
 {
-    filename = TestDir + "/hexes_mixed.vtk";
+
+#ifdef USE_MPI
+    MPI_Init(&argc, &argv);
+
+    int nprocs, rank;
+    MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#endif
+
+    const char* filename = 0;
+#ifdef SRCDIR
+    filename = STRINGIFY(MESHDIR) "/32hex_ef.h5m";
+#else
+    filename = "32hex_ef.h5m";
+#endif
+
+//    filename = TestDir + "/hexes_mixed.vtk";
 
     if (argc==1)
+    {
+#ifdef USE_MPI
+        if (rank == 0)
+            std::cout<<"Using default input file:"<<filename<<std::endl;
+#else
         std::cout<<"Using default input file:"<<filename<<std::endl;
+#endif
+    }
+
     else if (argc==2)
         filename = argv[1];
     else {
@@ -291,13 +347,22 @@ int main(int argc, char *argv[])
             return 1;
     }
 
-    Core moab;
     ErrorCode result;
 
-    std::cout<<" ahf_test: ";
-    result = ahf_test(&moab);
+#ifdef USE_MPI
+    if (rank == 0)
+        std::cout<<" para_ahf_test: ";
+#else
+    std::cout<<"ahf_test:";
+#endif
+
+    result = ahf_test(filename);
     handle_error_code(result, number_tests_failed, number_tests_successful);
     std::cout<<"\n";
+
+#ifdef USE_MPI
+    MPI_Finalize();
+#endif
 
     return number_tests_failed;
 }

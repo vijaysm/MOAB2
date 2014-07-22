@@ -108,7 +108,7 @@ mpastrvpart_SOURCES = mpastrvpart.cpp
 gcrm_par_SOURCES = gcrm_par.cpp
 write_nc_par_SOURCES = ../io/write_nc.cpp
 par_spatial_locator_test_SOURCES = par_spatial_locator_test.cpp
-parallel_adj_SOURCES = parallel_adj_test.cpp
+parallel_adj_SOURCES = ../adj_moab_test.cpp
 
 if ENABLE_mbcoupler
   par_coupler_test_SOURCES = par_coupler_test.cpp
