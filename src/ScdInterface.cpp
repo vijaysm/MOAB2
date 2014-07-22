@@ -127,8 +127,8 @@ ErrorCode ScdInterface::construct_box(HomCoord low, HomCoord high, const double 
     rval = compute_partition(par_data->pComm->size(), par_data->pComm->rank(), *par_data, 
                              ldims, tmp_lper, par_data->pDims);
     ERRORR(rval, "Error returned from compute_partition.");
-    low.set(ldims);
-    high.set(ldims+3);
+    low.set(ldims[0],ldims[1],ldims[2]);
+    high.set(ldims[3],ldims[4],ldims[5]);
     if (par_data->pComm->get_debug_verbosity() > 0) {
       std::cout << "Proc " << par_data->pComm->rank() << ": " << *par_data;
       std::cout << "Proc " << par_data->pComm->rank() << " local dims: " 
