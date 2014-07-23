@@ -323,15 +323,17 @@ int main(int argc, char *argv[])
 
     const char* filename = 0;
 #ifdef SRCDIR
-#ifdef USE_MPI
+ #ifdef HDF5_FILE
     filename = STRINGIFY(MESHDIR) "/32hex_ef.h5m";
-#endif 
+ #else
     filename = STRINGIFY(MESHDIR) "/hexes_mixed.vtk";
+ #endif
 #else
-#ifdef USE_MPI
+ #ifdef HDF5_FILE
     filename = "32hex_ef.h5m";
-#endif 
+ #else
     filename = "hexes_mixed.vtk";
+ #endif
 #endif
 
 

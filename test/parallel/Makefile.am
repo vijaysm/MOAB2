@@ -37,13 +37,12 @@ TESTS = pcomm_unit \
         $(NETCDF_TESTS) \
         $(HDF5_TESTS) \
         $(COUPLER_TESTS) \
-        $(MBCSLAM_TESTS) \
-	parallel_adj
+        $(MBCSLAM_TESTS) 
 
 if PARALLEL_HDF5
   HDF5_TESTS = parallel_hdf5_test mhdf_parallel parallel_write_test \
         parallel_unit_tests \
-        uber_parallel_test
+        uber_parallel_test parallel_adj
 else
   HDF5_TESTS = 
 endif
