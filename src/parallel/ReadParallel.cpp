@@ -234,8 +234,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
                    subset_list, file_id_tag,
                    reader_rank, cputime, 
                    resolve_dim, shared_dim,
-                   ghost_dim, bridge_dim, num_layers, addl_ents);
-  CHK_ERR(result);
+                   ghost_dim, bridge_dim, num_layers, addl_ents);CHK_ERR(result);
                    
   if (parallel_mode == POPT_BCAST_DELETE && !is_reader)
     opts.mark_all_seen();
@@ -523,12 +522,14 @@ ErrorCode ReadParallel::load_file(const char **file_names,
     if (MB_SUCCESS != tmp_result) {
       result = tmp_result;
       if (myPcomm->proc_config().proc_size() != 1) {
-        //std::ostringstream ostr;
-        //ostr << "Failed in step " << ParallelActionsNames[*vit] << std::endl;
-        //std::string tmp_str;
-        //if (MB_SUCCESS == mbImpl->get_last_error(tmp_str)) ostr << tmp_str << std::endl;
-        //RR(ostr.str());
-        SET_ERR_STR(result, "Failed in step " << ParallelActionsNames[*vit]);
+        std::ostringstream ostr;
+        ostr << "Failed in step " << ParallelActionsNames[*vit] << std::endl;
+        std::string tmp_str;
+        if (MB_SUCCESS == mbImpl->get_last_error(tmp_str)) ostr << tmp_str << std::endl;
+        if (MB_SUCCESS != result) {
+          mError->set_last_error(ostr.str());
+          SET_ERR_STR(result, "Failed in step " << ParallelActionsNames[*vit]);
+        }
       }
       break;
     }
