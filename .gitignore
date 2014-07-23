@@ -122,6 +122,7 @@ src/parallel/stamp-h4
 src/stamp-h5
 stamp-h1
 test/adaptive_kd_tree_tests
+test/adj_moab_test
 test/bsp_tree_poly_test
 test/bsp_tree_test
 test/CMakeLists.txt
@@ -195,6 +196,7 @@ test/parallel/mpastrvpart
 test/parallel/*.nc
 test/parallel/par_coupler_test
 test/parallel/par_intx_sph
+test/parallel/parallel_adj
 test/parallel/parallel_hdf5_test
 test/parallel/parallel_unit_tests
 test/parallel/parallel_write_test
@@ -213,6 +215,7 @@ test/parallel/uber_parallel_test
 test/parallel/ucdtrvpart
 test/parallel/*.vtk
 test/parallel/write_nc_par
+test/perf/adj_mem_time
 test/perf/adj_time
 test/perf/perf
 test/perf/perftool
