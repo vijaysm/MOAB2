@@ -241,8 +241,11 @@ ErrorCode Core::initialize()
   }
 #endif
 
-  if (!MBErrorHandler_Initialized())
+  initErrorHandlerInCore = false;
+  if (!MBErrorHandler_Initialized()) {
     MBErrorHandler_Init();
+    initErrorHandlerInCore = true;
+  }
 
   geometricDimension = 3;
   materialTag      = 0;
@@ -344,7 +347,7 @@ void Core::deinitialize()
     MPI_Finalize();
 #endif
 
-  if (MBErrorHandler_Initialized())
+  if (initErrorHandlerInCore)
     MBErrorHandler_Finalize();
 }
 
@@ -1600,16 +1603,12 @@ ErrorCode Core::get_adjacencies( const EntityHandle *from_entities,
         int len;
         for (int i = 0; i < num_entities; ++i) {
             if(to_dimension == 0 && TYPE_FROM_HANDLE(from_entities[0]) != MBPOLYHEDRON) {
-                result = get_connectivity(from_entities[i], conn, len, false, &tmp_storage);
+                result = get_connectivity(from_entities[i], conn, len, false, &tmp_storage);CHK_ERR(result);
                 adj_entities.insert( adj_entities.end(), conn, conn+len );
-                if (MB_SUCCESS != result)
-                    return result;
             }
             else {
                 result = aEntityFactory->get_adjacencies(from_entities[i], to_dimension,
-                                                         create_if_missing, adj_entities);
-                if (MB_SUCCESS != result)
-                    return result;
+                                                         create_if_missing, adj_entities);CHK_ERR(result);
             }
         }
         std::sort( adj_entities.begin(), adj_entities.end() );
@@ -1619,21 +1618,6 @@ ErrorCode Core::get_adjacencies( const EntityHandle *from_entities,
 
 
 #ifdef USE_AHF
-
-    // do union
-  ErrorCode result;
-  std::vector<EntityHandle> tmp_storage;
-  const EntityHandle* conn;
-  int len;
-  for (int i = 0; i < num_entities; ++i) {
-    if(to_dimension == 0 && TYPE_FROM_HANDLE(from_entities[0]) != MBPOLYHEDRON) {
-      result = get_connectivity(from_entities[i], conn, len, false, &tmp_storage);
-      adj_entities.insert( adj_entities.end(), conn, conn+len );CHK_ERR(result);
-    }
-    else {
-      result = aEntityFactory->get_adjacencies(from_entities[i], to_dimension,
-                                               create_if_missing, adj_entities);CHK_ERR(result);
-
     }
 #endif
 

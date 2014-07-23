@@ -1356,6 +1356,7 @@ private:
   Error* mError;
   bool mpiFinalize;
   int writeMPELog;
+  bool initErrorHandlerInCore;
 
     //! list of iterators 
   std::vector<SetIterator*> setIterators;
