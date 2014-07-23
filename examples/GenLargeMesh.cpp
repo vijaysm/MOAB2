@@ -63,6 +63,11 @@
  *
  *  -o <out_file> controls the name of the output file; it needs to have extension h5m,
  *   because the file is written in parallel.
+ *
+ *   -k will keep the edges and faces that are generated as part of resolving shared entities
+ *   (by default these edges and faces are removed) ; when -f option is used, the
+ *   -k option is enabled too (so no faces and edges are deleted)
+ *
  */
 
 #include "moab/Core.hpp"
