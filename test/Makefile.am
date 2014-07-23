@@ -51,7 +51,7 @@ TESTS = range_test \
 	coords_connect_iterate \
 	elem_eval_test \
 	spatial_locator_test \
-	test_boundbox \ 
+	test_boundbox \
 	adj_moab_test 
 
 
