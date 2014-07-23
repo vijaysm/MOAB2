@@ -1,16 +1,15 @@
 /** @example GenLargeMesh.cpp \n
  * \brief Create a large structured mesh, partitioned \n
- * <b>To run</b>: mpiexec -np 2 GenLargeMesh \n
+ * <b>To run</b>:  ./GenLargeMesh \n
  *
- *  It shows how to load create a mesh on the fly, on multiple
- *  processors, block wise
+ *  It shows how to create a mesh on the fly, on multiple processors
  *  Each processor will create its version of a block mesh, partitioned
  *  as AxBxC blocks. Each block will be with blockSize^3 hexahedrons, and will get a
  *  different PARALLEL_PARTITION tag
- *  When -t option is used, instead of each hex, we are creating 6 tetrahedrons
  *
  *  The number of tasks will be MxNxK, and it must match the mpi size
- *  Each task will generate its mesh at location (m,n,k)
+ *  Each task p will generate its mesh at location (m,n,k) , and it is
+ *  lexicographic ordering: rank = m + n * M + k * M * N
  *
  *  By default M=1, N=1, K=1, so by default it should be launched on 1 proc
  *  By default, blockSize is 4, and A=2, B=2, C=2, so each task will generate locally
@@ -18,21 +17,21 @@
  *   (if -t, multiple by 6 for total number of cells/tets)
  *  The total number of partitions will be A*B*C*M*N*K (default 8)
  *
- *  Each part in partition will get a proper tag
+ *  Each part in partition will get a proper tag, and the numbering is in
+ *  lexicographic ordering; x direction varies first, then y , then z.
+ *  The same principle is used for global id numbering of the nodes and cells.
+ *  (x varies first)
  *
  *  The vertices will get a proper global id, which will be used to resolve the
  *  shared entities
  *  The output will be written in parallel, and we will try sizes as big as we can
  *  (up to a billion vertices, because we use int for global ids)
  *
- *  Within each partition, the hexas will be numbered contiguously, and also the
+ *  Within each partition, the hexas entitiy handles will be contiguous, and also the
  *  vertices; The global id will be determined easily, for a vertex, but the entity
  *  handle space will be more interesting to handle, within a partition (we want
- *  contiguous handles within a partition)
- *
- *  We may or may not use ScdInterface, because we want control over global id and
- *  entity handle within a partition
- *
+ *  contiguous handles within a partition). After merging the vertices, some fragmentation
+ *  will occur in the vertices handle space, within each partition.
  *
  *  to run: ./GenLargeMesh
  *
@@ -44,6 +43,26 @@
  *
  *  We also added -q option; it works now only for hexa mesh, it will generate
  *  quadratic hex27 elements
+ *
+ *  -t option will generate tetrahedrons instead of hexahedra. Each hexahedra is
+ *  decomposed into 6 tetrahedrons.
+ *
+ *  -f option will also generate all edges and faces in the model.
+ *  -w will use a newer merging method locally. Merging is necessary to merge
+ *  vertices on the local task, and the new method does not use a searching tree,
+ *  but rather the global id set on the vertices in a consistent manner
+ *
+ *  -d and -i options can be used to add some artificial tags on the model ;
+ *  you can have multiple -d and -i options; -i <tag_name> will set an integer
+ *  tag with name tag_name on the vertices; -d < tag_name2> will generate
+ *  double tags on cells (3d elements). You can have multiple tags , like
+ *  -i tag1 -i tag2 -i tag3 -d tag4
+ *
+ *  -x, -y, -z options will control the geometric dimensions of the final mesh, in
+ *  x, y and z directions.
+ *
+ *  -o <out_file> controls the name of the output file; it needs to have extension h5m,
+ *   because the file is written in parallel.
  */
 
 #include "moab/Core.hpp"
@@ -122,8 +141,8 @@ int main(int argc, char **argv)
   string firstDoubleTag;
   opts.addOpt<string>(std::string("double_tag_cell,d"), string("add double tag on cells"), &firstDoubleTag);
 
-  string outFileName="test1.h5m";
-  opts.addOpt<std::string> ("outFile,o", "Specify the output file name string (default test1.h5m)", &outFileName );
+  string outFileName="GenLargeMesh.h5m";
+  opts.addOpt<std::string> ("outFile,o", "Specify the output file name string (default GenLargeMesh.h5m)", &outFileName );
 
   opts.parseCommandLine(argc, argv);
 
