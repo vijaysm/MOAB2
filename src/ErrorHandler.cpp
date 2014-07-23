@@ -10,6 +10,7 @@
 namespace moab {
 
 static ErrorOutput* errorOutput = NULL;
+static bool hasError = false;
 
 void MBErrorHandler_Init()
 {
@@ -17,6 +18,7 @@ void MBErrorHandler_Init()
     errorOutput = new (std::nothrow) ErrorOutput(stderr);
     assert(NULL != errorOutput);
     errorOutput->use_world_rank();
+    hasError = false;
   }
 }
 
@@ -25,6 +27,7 @@ void MBErrorHandler_Finalize()
   if (NULL != errorOutput) {
     delete errorOutput;
     errorOutput = NULL;
+    hasError = false;
   }
 }
 
@@ -49,10 +52,12 @@ void MBTraceBackErrorHandler(int line, const char* func, const char* file, const
     if (MB_ERROR_TYPE_EXISTING != err_type && NULL != err_msg) {
       errorOutput->print("--------------------- Error Message ------------------------------------\n");
       errorOutput->printf("%s!\n", err_msg);
+      hasError = true;
     }
 
-    // Print a line of stack trace
-    errorOutput->printf("%s() line %d in %s%s\n", func, line, dir, file);
+    // Print a line of stack trace for a new error or an existing one
+    if (hasError)
+      errorOutput->printf("%s() line %d in %s%s\n", func, line, dir, file);
   }
   else {
     // Do not print the error messages, since processor 0 will print them

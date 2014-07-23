@@ -83,62 +83,6 @@ ErrorCode MBError(int line, const char* func, const char* file, const char* dir,
       SET_ERR_STR(err_code, err_msg_str_to_set); \
   } while (false)
 
-//! Check returned error code against MB_SUCCESS
-//! Set a new error with passed error code and passed error message string
-#define CHK_ERR2(err_code, err_code_to_set, err_msg_to_set) \
-  do { \
-    if (MB_SUCCESS != err_code) \
-      SET_ERR(err_code_to_set, err_msg_to_set); \
-  } while (false)
-
-//! Check returned error code against MB_SUCCESS
-//! Set a new error with passed error code and passed error message string stream
-#define CHK_ERR2_STR(err_code, err_code_to_set, err_msg_str_to_set) \
-  do { \
-    if (MB_SUCCESS != err_code) \
-      SET_ERR_STR(err_code_to_set, err_msg_str_to_set); \
-  } while (false)
-
-//! Check returned error code against an expected one
-//! Set a new error with default error code and default error message string
-#define CHK_EQL(err_code, exp_err_code) \
-  do { \
-    if (exp_err_code != err_code) \
-      SET_ERR(MB_FAILURE, "Returned error code is not expected"); \
-  } while (false)
-
-//! Check returned error code against an expected one
-//! Set a new error with default error code and passed error message string
-#define CHK_EQL1(err_code, exp_err_code, err_msg_to_set) \
-  do { \
-    if (exp_err_code != err_code) { \
-      SET_ERR(MB_FAILURE, err_msg_to_set); \
-    } \
-  } while (false)
-
-//! Check returned error code against an expected one
-//! Set a new error with default error code and passed error message string stream
-#define CHK_EQL1_STR(err_code, exp_err_code, err_msg_str_to_set) \
-  do { \
-    if (exp_err_code != err_code) \
-      SET_ERR_STR(MB_FAILURE, err_msg_str_to_set); \
-  } while (false)
-
-//! Check returned error code against an expected one
-//! Set a new error with passed error code and passed error message string
-#define CHK_EQL2(err_code, exp_err_code, err_code_to_set, err_msg_to_set) \
-  do { \
-    if (exp_err_code != err_code) \
-      SET_ERR(err_code_to_set, err_msg_to_set); \
-  } while (false)
-
-//! Check returned error code against an expected one
-//! Set a new error with passed error code and passed error message string stream
-#define CHK_EQL2_STR(err_code, exp_err_code, err_code_to_set, err_msg_str_to_set) \
-  do { \
-    if (exp_err_code != err_code) \
-      SET_ERR_STR(err_code_to_set, err_msg_str_to_set); \
-  } while (false)
-#endif
-
 } // namespace moab
+
+#endif
