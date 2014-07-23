@@ -29,8 +29,6 @@ using namespace std;
 
 int main(int argc, char **argv) 
 {
-  MBErrorHandler_Init();
-
   argv[0] = argv[argc - argc]; // To remove the warnings about unused parameters
   int I, J, K;
   // ProgOptions?
@@ -81,8 +79,6 @@ int main(int argc, char **argv)
   // 4. Release the structured mesh interface and destroy the MOAB instance
   mb->release_interface(scdiface); // Tell MOAB we're done with the ScdInterface
   delete mb;
-
-  MBErrorHandler_Finalize();
 
   return 0;
 }

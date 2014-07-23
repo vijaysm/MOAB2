@@ -27,8 +27,6 @@ int main(int argc, char **argv)
     test_file_name = argv[1];
   }
 
-  MBErrorHandler_Init();
-
   // Instantiate & load a mesh from a file
   Core* mb = new (std::nothrow) Core;
   if (NULL == mb)
@@ -60,8 +58,6 @@ int main(int argc, char **argv)
   }
 
   delete mb;
-
-  MBErrorHandler_Finalize();
 
   return 0;
 }

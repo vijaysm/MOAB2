@@ -124,8 +124,6 @@ int main(int argc, char **argv)
 
   dbgprint("********** reduce_exchange_tags **********\n");
 
-  MBErrorHandler_Init();
-
   // Create the moab instance
   Interface* mbi = new (std::nothrow) Core;
   if (NULL == mbi)
@@ -215,8 +213,6 @@ int main(int argc, char **argv)
   delete mbi;
 
   dbgprint("\n********** reduce_exchange_tags DONE! **********");
-
-  MBErrorHandler_Finalize();
 
   MPI_Finalize();
 

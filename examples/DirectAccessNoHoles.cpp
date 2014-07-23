@@ -42,8 +42,6 @@ ErrorCode create_mesh_no_holes(Interface *mbImpl, int nquads);
 
 int main(int argc, char **argv)
 {
-  MBErrorHandler_Init();
-
   // Get MOAB instance
   Interface* mbImpl = new (std::nothrow) Core;
   if (NULL == mbImpl)
@@ -144,8 +142,6 @@ int main(int argc, char **argv)
 
   // Ok, we're done, shut down MOAB
   delete mbImpl;
-
-  MBErrorHandler_Finalize();
 
   return 0;
 }

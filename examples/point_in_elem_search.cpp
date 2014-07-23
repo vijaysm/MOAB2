@@ -32,8 +32,6 @@ int main(int argc, char **argv)
   else if (argc == 3)
     num_queries = atoi(argv[2]);
 
-  MBErrorHandler_Init();
-
   // Instantiate
   Core mb;
 
@@ -76,8 +74,6 @@ int main(int argc, char **argv)
             << box.bMax[0] << "," << box.bMax[1] << "," << box.bMax[2] << ")" << endl;
   cout << "Queries inside box = " << num_inside << "/" << num_queries << " = "
             << 100.0*((double)num_inside) / num_queries << "%" << endl;
-
-  MBErrorHandler_Finalize();
 
   return 0;
 }

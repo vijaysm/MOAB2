@@ -42,8 +42,6 @@ int main(int argc, char **argv)
   if (argc <= 1)
     return 1;
 
-  MBErrorHandler_Init();
-
   // Instantiate
   Interface* mb = new (std::nothrow) Core;
   if (NULL == mb)
@@ -168,8 +166,6 @@ int main(int argc, char **argv)
   cout << "Successfully wrote file " << file_output << "\n";
 
   delete mb;
-
-  MBErrorHandler_Finalize();
 
   return 0;
 }

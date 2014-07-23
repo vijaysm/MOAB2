@@ -32,8 +32,6 @@ int main(int argc, char **argv)
   ErrorCode rval;
   Range sets, set_ents;
 
-  MBErrorHandler_Init();
-
   // Get MOAB instance
   Interface* mb = new (std::nothrow) Core;
   if (NULL == mb)
@@ -74,8 +72,6 @@ int main(int argc, char **argv)
   }
 
   delete mb;
-
-  MBErrorHandler_Finalize();
 
   return 0;
 }

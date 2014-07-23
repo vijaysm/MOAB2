@@ -33,8 +33,6 @@ using namespace std;
 
 int main(int argc, char **argv)
 {
-  MBErrorHandler_Init();
-
   // Get MOAB instance
   Interface* mb = new (std::nothrow) Core;
   if (NULL == mb)
@@ -86,8 +84,6 @@ int main(int argc, char **argv)
   }
 
   delete mb;
-
-  MBErrorHandler_Finalize();
 
   return 0;
 }

@@ -22,8 +22,6 @@ string test_file_name = string(MESH_DIR) + string("/3k-tri-sphere.vtk");
 
 int main(int argc, char **argv)
 {
-  MBErrorHandler_Init();
-
   // Get MOAB instance
   Interface* mb = new (std::nothrow) Core;
   if (NULL == mb)
@@ -61,8 +59,6 @@ int main(int argc, char **argv)
   cout << "Number of elements is " << elems.size() << endl;
 
   delete mb;
-
-  MBErrorHandler_Finalize();
 
   return 0;
 }

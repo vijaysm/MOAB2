@@ -24,8 +24,6 @@ int main(int argc, char **argv)
 {
   MPI_Init(&argc, &argv);
 
-  MBErrorHandler_Init();
-
   string options;
 
   // Need option handling here for input filename
@@ -85,8 +83,6 @@ int main(int argc, char **argv)
   }
 
   delete mb;
-
-  MBErrorHandler_Finalize();
 
   MPI_Finalize();
 
