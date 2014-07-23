@@ -42,8 +42,6 @@ int main(int argc, char **argv)
   MPI_Init(&argc, &argv);
 #endif
 
-  MBErrorHandler_Init();
-
   ProgOptions opts;
   opts.addOpt<int>(string("dim,d"), string("Dimension of mesh (default=3)"),
                    &dim);
@@ -111,8 +109,6 @@ int main(int argc, char **argv)
   // 5. Release the structured mesh interface and destroy the MOAB instance
   mb->release_interface(scdiface); // Tell MOAB we're done with the ScdInterface
   delete mb;
-
-  MBErrorHandler_Finalize();
 
 #ifdef USE_MPI
   MPI_Finalize();

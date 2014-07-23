@@ -42,8 +42,6 @@ int main(int argc, char **argv)
   MPI_Init(&argc, &argv);
 #endif
 
-  MBErrorHandler_Init();
-
   // Need option handling here for input filename
   if (argc > 1) {
     // User has input a mesh file
@@ -106,8 +104,6 @@ int main(int argc, char **argv)
 
   // Delete MOAB instance
   delete mb;
-
-  MBErrorHandler_Finalize();
 
 #ifdef USE_MPI
   MPI_Finalize();

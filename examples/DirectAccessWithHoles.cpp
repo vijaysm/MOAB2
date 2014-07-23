@@ -45,8 +45,6 @@ struct tag_struct {double *avg_ptr; int *nv_ptr;};
 
 int main(int argc, char **argv)
 {
-  MBErrorHandler_Init();
-
   // Get MOAB instance
   Interface* mbImpl = new (std::nothrow) Core;
   if (NULL == mbImpl)
@@ -198,8 +196,6 @@ int main(int argc, char **argv)
 
   // Ok, we're done, shut down MOAB
   delete mbImpl;
-
-  MBErrorHandler_Finalize();
 
   return 0;
 }
