@@ -34,7 +34,9 @@ static inline bool all_root_set( Error* error, std::string name, const EntityHan
 static ErrorCode not_found( Error* error, std::string name )
 {
   error->set_last_error( "No mesh tag %s value for global/mesh tag", name.c_str());
-  SET_ERR_STR(MB_TAG_NOT_FOUND, "No mesh tag " << name << " value for global/mesh tag");
+
+  // MB_TAG_NOT_FOUND could be a non-error condition, do not call SET_ERR on it
+  return MB_TAG_NOT_FOUND;
 }
 
 static ErrorCode var_len( Error* error, std::string name )
@@ -312,6 +314,5 @@ ErrorCode MeshTag::get_memory_use( const SequenceManager*,
   per_entity = 0;
   return MB_SUCCESS;
 }
-
 
 } // namespace moab

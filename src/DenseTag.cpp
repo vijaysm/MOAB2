@@ -18,17 +18,16 @@ namespace moab {
 
 static ErrorCode not_found( Error* error, std::string name, EntityHandle h )
 {
-  if (h) {
+  if (h)
     error->set_last_error( "No dense tag %s value for %s %ld", 
                            name.c_str(),
                            CN::EntityTypeName(TYPE_FROM_HANDLE(h)), 
                            (unsigned long)ID_FROM_HANDLE(h));
-    SET_ERR_STR(MB_TAG_NOT_FOUND, "No dense tag " << name << " value for " << CN::EntityTypeName(TYPE_FROM_HANDLE(h)) << " " << (unsigned long)ID_FROM_HANDLE(h));
-  }
-  else {
-    error->set_last_error( "No tag value for root set" );
-    SET_ERR_STR(MB_TAG_NOT_FOUND, "No dense tag " << name << " value for root set");
-  }
+  else
+    error->set_last_error( "No dense tag %s value for root set", name.c_str() );
+
+  // MB_TAG_NOT_FOUND could be a non-error condition, do not call SET_ERR on it
+  return MB_TAG_NOT_FOUND;
 }
 
 static ErrorCode ent_not_found( Error* error, std::string name, EntityHandle h )
@@ -37,7 +36,9 @@ static ErrorCode ent_not_found( Error* error, std::string name, EntityHandle h )
                          name.c_str(),
                          CN::EntityTypeName(TYPE_FROM_HANDLE(h)), 
                          (unsigned long)ID_FROM_HANDLE(h));
-  SET_ERR_STR(MB_ENTITY_NOT_FOUND, "Invalid entity handle setting tag " << name << ": " << CN::EntityTypeName(TYPE_FROM_HANDLE(h)) << " " << (unsigned long)ID_FROM_HANDLE(h));
+
+  // MB_ENTITY_NOT_FOUND could be a non-error condition, do not call SET_ERR on it
+  return MB_ENTITY_NOT_FOUND;
 }
 
 DenseTag::DenseTag( int index,

@@ -19,17 +19,16 @@ namespace moab {
 
 static ErrorCode not_found( Error* error, std::string name, EntityHandle h )
 {
-  if (h) {
-    error->set_last_error( "No var length dense tag %s value for %s %lu",
+  if (h)
+    error->set_last_error( "No variable-length length dense tag %s value for %s %lu",
                            name.c_str(),
                            CN::EntityTypeName(TYPE_FROM_HANDLE(h)),
                            (unsigned long)ID_FROM_HANDLE(h));
-    SET_ERR_STR(MB_TAG_NOT_FOUND, "No variable-length dense tag " << name << " value for " << CN::EntityTypeName(TYPE_FROM_HANDLE(h)) << " " << (unsigned long)ID_FROM_HANDLE(h));
-  }
-  else {
-    error->set_last_error( "No var length dense tag %s value for root set", name.c_str() );
-    SET_ERR_STR(MB_TAG_NOT_FOUND, "No variable-length dense tag " << name << " value for root set");
-  }
+  else
+    error->set_last_error( "No variable-length length dense tag %s value for root set", name.c_str() );
+
+  // MB_TAG_NOT_FOUND could be a non-error condition, do not call SET_ERR on it
+  return MB_TAG_NOT_FOUND;
 }
 
 static ErrorCode not_var_len( Error* error, std::string name )
@@ -141,10 +140,7 @@ ErrorCode VarLenDenseTag::get_array( SequenceManager* seqman,
   if (!mem && allocate) {
     mem = seq->data()->allocate_tag_array( mySequenceArray, sizeof(VarLenTag) );
     if (!mem) {
-/*
-      error->set_last_error( "Memory allocation for var-len tag data failed" );
-      return MB_MEMORY_ALLOCATION_FAILED;
-*/
+      error->set_last_error( "Memory allocation for variable-length tag data failed" );
       SET_ERR(MB_MEMORY_ALLOCATION_FAILED, "Memory allocation for variable-length dense tag data failed");
     }
     
