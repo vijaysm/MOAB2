@@ -59,6 +59,7 @@ int main(int argc, char **argv)
 {
   MPI_Init(&argc, &argv);
 
+  // Initialize error handler, required for this example (not using a moab instance)
   MBErrorHandler_Init();
 
   ProcConfig pc(MPI_COMM_WORLD);
@@ -168,6 +169,7 @@ int main(int argc, char **argv)
     tt = clock();
   }
 
+  // Finalize error handler, required for this example (not using a moab instance)
   MBErrorHandler_Finalize();
 
   MPI_Finalize();
