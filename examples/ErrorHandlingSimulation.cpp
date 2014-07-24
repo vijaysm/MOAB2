@@ -2,6 +2,8 @@
  * Description: This example simulates MOAB's enhanced error handling in parallel. \n
  * All of the errors are contrived, used for simulation purpose only. \n
  *
+ * Note: We do not need a moab instance for this example
+ *
  * <b>To run</b>: mpiexec -np 4 ./ErrorHandlingSimulation <test_case_num(1 to 4)> \n
  */
 
@@ -80,6 +82,7 @@ int main(int argc, char** argv)
   MPI_Init(&argc, &argv);
 #endif
 
+  // Initialize error handler, required for this example (not using a moab instance)
   MBErrorHandler_Init();
 
   int test_case_num = atoi(argv[1]);
@@ -90,6 +93,7 @@ int main(int argc, char** argv)
 
   ErrorCode rval = FunctionA(test_case_num, rank);CHK_ERR(rval);
 
+  // Finalize error handler, required for this example (not using a moab instance)
   MBErrorHandler_Finalize();
 
 #ifdef USE_MPI

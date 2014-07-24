@@ -64,6 +64,7 @@ int main(int argc, char** argv)
   MPI_Init(&argc, &argv);
 #endif
 
+  // Initialize error handler, optional for this example (using moab instances)
   MBErrorHandler_Init();
 
   ErrorCode rval = MB_SUCCESS;
@@ -83,6 +84,7 @@ int main(int argc, char** argv)
       break;
   }
 
+  // Finalize error handler, optional for this example (using moab instances)
   MBErrorHandler_Finalize();
 
 #ifdef USE_MPI
