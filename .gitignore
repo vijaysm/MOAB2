@@ -51,11 +51,13 @@ examples/LloydRelaxation
 examples/LoadPartial
 examples/point_in_elem_search
 examples/PushParMeshIntoMoabF90
+examples/ReadWriteTest
 examples/ReduceExchangeTags
 examples/SetsNTags
 examples/structuredmesh
 examples/StructuredMeshSimple
 examples/TestExodusII
+examples/VisTags
 history??.jou
 hpctoolkit-*
 *.hpcstruct

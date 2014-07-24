@@ -8,8 +8,8 @@ include ${MOAB_DIR}/lib/iMesh-Defs.inc
 # MESH_DIR is the directory containing mesh files that come with MOAB source
 MESH_DIR="@abs_top_srcdir@/MeshFiles/unittest"
 
-EXAMPLES = HelloMOAB GetEntities SetsNTags LoadPartial structuredmesh StructuredMeshSimple DirectAccessWithHoles DirectAccessNoHoles point_in_elem_search DeformMeshRemap
-PAREXAMPLES = HelloParMOAB ReduceExchangeTags LloydRelaxation CrystalRouterExample GenLargeMesh
+EXAMPLES = HelloMOAB GetEntities SetsNTags LoadPartial structuredmesh StructuredMeshSimple DirectAccessWithHoles DirectAccessNoHoles point_in_elem_search DeformMeshRemap VisTags
+PAREXAMPLES = HelloParMOAB ReduceExchangeTags LloydRelaxation CrystalRouterExample ReadWriteTest GenLargeMesh
 EXOIIEXAMPLES = TestExodusII
 F90EXAMPLES = DirectAccessNoHolesF90 PushParMeshIntoMoabF90
 
