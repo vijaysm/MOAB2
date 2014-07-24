@@ -519,9 +519,7 @@ ScdBox::~ScdBox()
   if (boxSet) {
     // It is possible that the box set entity has been deleted (e.g. by Core::clean_up_failed_read)
     Core* mbcore = dynamic_cast<Core*>(scImpl->mbImpl);
-    SequenceManager* seq_mgr = mbcore->sequence_manager();
-    const EntitySequence* ptr = NULL;
-    if (MB_SUCCESS == seq_mgr->find(boxSet, ptr)) {
+    if (mbcore->is_valid(boxSet)) {
       ScdBox* tmp_ptr = NULL;
       scImpl->mbImpl->tag_set_data(scImpl->box_set_tag(), &boxSet, 1, &tmp_ptr);
     }
