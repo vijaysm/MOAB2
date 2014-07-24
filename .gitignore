@@ -36,8 +36,8 @@ examples/DeformMeshRemap
 examples/DirectAccessNoHoles
 examples/DirectAccessNoHolesF90
 examples/DirectAccessWithHoles
-examples/examples.make
 examples/freem.mod
+examples/GenLargeMesh
 examples/GetEntities
 examples/*.h5m
 examples/HelloMOAB
