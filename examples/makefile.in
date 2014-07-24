@@ -1,11 +1,12 @@
 # MOAB_DIR points to top-level install dir, below which MOAB's lib/ and include/ are located
+MOAB_DIR := @prefix@
 include ${MOAB_DIR}/lib/moab.make
 include ${MOAB_DIR}/lib/iMesh-Defs.inc
 
 .SUFFIXES: .o .cpp .F90
 
 # MESH_DIR is the directory containing mesh files that come with MOAB source
-MESH_DIR="../MeshFiles/unittest"
+MESH_DIR="@abs_top_srcdir@/MeshFiles/unittest"
 
 EXAMPLES = HelloMOAB GetEntities SetsNTags LoadPartial structuredmesh StructuredMeshSimple DirectAccessWithHoles DirectAccessNoHoles point_in_elem_search DeformMeshRemap
 PAREXAMPLES = HelloParMOAB ReduceExchangeTags LloydRelaxation CrystalRouterExample
