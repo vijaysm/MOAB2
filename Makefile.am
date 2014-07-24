@@ -73,9 +73,6 @@ install-data-hook:
 	echo -n "@EXPORT_LDFLAGS@ -L$(libdir) -lMOAB @LIBS@ @PNETCDF_LIBS@ @NETCDF_LIBS@ @CGNS_LIBS@ @HDF5_LIBS@ @CCMIO_LIBS@ @CGM_LIBS@" | \
 	   sed -e 's/^ *//;s/ *$$/\")\n/' >> $(DESTDIR)$(cfgdir)/MOABConfig.cmake
 
-#dist-hook:
-#	cp -r $(srcdir)/examples $(distdir)/ 2>/dev/null
-
 # Generate a file to be installed in $libdir containing the configuration
 # options used for this MOAB build.
 # Note: If you modify this, verify that it works correctly for option
