@@ -193,9 +193,9 @@ int main( int argc, char* argv[] )
   }
 
 #ifdef SRCDIR
-  const char* filename2 = STRINGIFY(MESHDIR) "/64bricks_512hex_256part.h5m";
+  const char* filename2 = STRINGIFY(MESHDIR) "/64bricks_1khex.h5m";
 #else
-  const char * filename2 = "64bricks_512hex_256part.h5m";
+  const char * filename2 = "64bricks_1khex.h5m";
 #endif
 
   if (pause_proc != -1) {
