@@ -515,9 +515,20 @@ ScdBox::ScdBox(ScdInterface *impl, EntityHandle bset,
 
 ScdBox::~ScdBox() 
 {
-    // reset the tag on the set
-  ScdBox *tmp_ptr = NULL;
-  if (boxSet) scImpl->mbImpl->tag_set_data(scImpl->box_set_tag(), &boxSet, 1, &tmp_ptr);
+  // Reset the tag on the set
+  if (boxSet) {
+    // It is possible that the box set entity has been deleted (e.g. by Core::clean_up_failed_read)
+    Core* mbcore = dynamic_cast<Core*>(scImpl->mbImpl);
+    SequenceManager* seq_mgr = mbcore->sequence_manager();
+    const EntitySequence* ptr = NULL;
+    if (MB_SUCCESS == seq_mgr->find(boxSet, ptr)) {
+      ScdBox* tmp_ptr = NULL;
+      scImpl->mbImpl->tag_set_data(scImpl->box_set_tag(), &boxSet, 1, &tmp_ptr);
+    }
+    else
+      boxSet = 0;
+  }
+
   scImpl->remove_box(this);
 }
 
