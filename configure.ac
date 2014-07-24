@@ -4,6 +4,7 @@
 AC_INIT(MOAB, 4.7.0pre)
 AC_CONFIG_SRCDIR([moab.make.in])
 AC_CONFIG_SRCDIR([MOABConfig.cmake.in])
+AC_CONFIG_SRCDIR([examples/makefile.in])
 AC_CONFIG_MACRO_DIR([config])
 AC_CONFIG_AUX_DIR([config])
 AC_CANONICAL_SYSTEM
@@ -1192,6 +1193,14 @@ if test "x" = "x$docdir"; then
   AC_SUBST(docdir)
 fi
 
+# Let us define examplesdir. 
+# Define it if autoconf did not already.
+if test "x" = "x$examplesdir"; then
+  examplesdir='${datadir}/examples'
+  AC_SUBST(examplesdir)
+fi
+
+
 AC_SUBST([AM_CPPFLAGS])
 AM_LDFLAGS="$AM_LDFLAGS $EXPORT_LTFLAGS $EXPORT_LDFLAGS"
 AC_SUBST([AM_LDFLAGS])
@@ -1210,15 +1219,16 @@ AC_CONFIG_HEADERS([src/moab/Version.h
                    src/FCDefs.h])
 AC_CONFIG_FILES([Makefile 
                  moab.make                  
-		 MOABConfig.cmake
+                 MOABConfig.cmake
+                 examples/makefile
                  src/Makefile
                  src/io/Makefile
                  src/io/mhdf/Makefile
-		 src/LocalDiscretization/Makefile
+                 src/LocalDiscretization/Makefile
                  src/parallel/Makefile
                  src/oldinc/Makefile
                  test/Makefile
-		 test/dagmc/Makefile
+                 test/dagmc/Makefile
                  test/h5file/Makefile
                  test/dual/Makefile
                  test/obb/Makefile
@@ -1227,11 +1237,11 @@ AC_CONFIG_FILES([Makefile
                  test/io/Makefile
                  test/parallel/Makefile
                  test/oldinc/Makefile
-		 itaps/iBase_f.h
+                 itaps/iBase_f.h
                  itaps/Makefile
                  itaps/imesh/Makefile
                  itaps/imesh/iMesh-Defs.inc
-		 itaps/igeom/Makefile
+                 itaps/igeom/Makefile
                  itaps/igeom/FBiGeom-Defs.inc
                  tools/Makefile
                  tools/refiner/Makefile
@@ -1242,7 +1252,7 @@ AC_CONFIG_FILES([Makefile
                  tools/mcnpmit/Makefile
                  tools/qvdual/Makefile
                  tools/dagmc/Makefile
-		 tools/vtkMOABReader/CMakeLists.txt
+                 tools/vtkMOABReader/CMakeLists.txt
                  doc/user.dox
                  doc/config.tex
                  MeshFiles/Makefile
