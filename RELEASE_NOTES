@@ -23,12 +23,13 @@ B. NEW FEATURES
 
 ***Readers/Writers***
 
- 1. New reader/writer formats (CGNS, MPAS, GCRM); Improve support for several existing formats (Climate-NC, HOMME, CAM-Euler, CAM-FV)
- 2. Introduce padded polygons option for lower memory fragmentation in MPAS and GCRM climate readers
- 3. Add climate data NC writer, in serial and parallel, for all data formats supported by the NC reader with options to append, read time-series with concatenation
- 4. Add Zoltan repartitioning for MPAS reader
- 5. Improvements in CUBIT reader for boundary conditions data, support CUBIT 14.0 format changes, endianness for BG/Q, variable length tags for saving block attributes and headers
- 6. Add TET4 as supported element in Exodus reader
+ 1. New reader/writer format (CGNS)
+ 2. New climate data NC reader formats (MPAS, GCRM); Improve support for several existing formats (CAM-Euler, CAM-FV, HOMME)
+ 3. Introduce padded polygons option for lower memory fragmentation in MPAS and GCRM readers
+ 4. Add Zoltan repartitioning for MPAS and GCRM readers
+ 5. New climate data NC writer, in serial and parallel, for all data formats supported by the NC reader with options to use append mode or rename a variable
+ 6. Improvements in CUBIT reader for boundary conditions data, support CUBIT 14.0 format changes, endianness for BG/Q, variable length tags for saving block attributes and headers
+ 7. Add TET4 as supported element in Exodus reader
 
 ***General***
 
@@ -49,16 +50,19 @@ C. API CHANGES
  1. Added meshset argument for methods in ParallelComm and Skinner
  2. New options for NC reader 
      - rename PARTITION_METHOD=TRIVIAL_PARTITION to PARTITION_METHOD=TRIVIAL
-     - add NO_MIXED_ELEMENTS option fo reading polygon data (it means padded)
-     - add NO_EDGES option for MPAS reader
-     - RENAME option for renaming a variable at writing an nc file
-     - TIMESTEP option for reading nc files
- 3. Changes in Core::list_entities to print dense tag information
- 4. Changes in memory evaluators, move from type long to type long long
- 5. Changes to ScdInterface, mostly to support new partitioning method (sqijk) but also to allow for periodic meshes in all 3 directions
- 6. Install TupleList for serial builds also
- 7. New method in MergeMesh that allows stitching a mesh based on an integer tag defined on vertices (GLOBAL_ID)
- 8. Introduced interface to delete entities in ParallelComm
+     - add NO_MIXED_ELEMENTS option for reading MPAS polygon data (it means padded, and is always enforced for GCRM reader)
+     - add NO_EDGES option for MPAS and GCRM readers
+     - add GATHER_SET option for creating a gather set on specified processor (HOMME, MPAS, GCRM)
+     - add TIMESTEPBASE option for reading time-series across nc files, to create a concatenated file with NC writer
+ 3. New options for NC writer 
+     - add APPEND option for appending data to an existing nc file
+     - add RENAME option for renaming a variable at writing an nc file
+ 4. Changes in Core::list_entities to print dense tag information
+ 5. Changes in memory evaluators, move from type long to type long long
+ 6. Changes to ScdInterface, mostly to support new partitioning method (sqijk) but also to allow for periodic meshes in all 3 directions
+ 7. Install TupleList for serial builds also
+ 8. New method in MergeMesh that allows stitching a mesh based on an integer tag defined on vertices, similar to GLOBAL_ID
+ 9. Introduced interface to delete entities in ParallelComm
 
 D. FUTURE WORK
 --------------
