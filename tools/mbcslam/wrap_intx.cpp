@@ -14,6 +14,9 @@
 #include "moab/Range.hpp"
 #include "Intx2MeshOnSphere.hpp"
 #include "moab/ReadUtilIface.hpp"
+#include "moab/ParallelComm.hpp"
+#include "MBTagConventions.hpp"
+#include <mpi.h>
 
 using namespace moab;
 double radius = 1.;
@@ -95,34 +98,35 @@ struct vertex_id {
   int position_corner;
 };
 
-// handle structure comparison function for qsort
-// if the id is the same , compare the handle.
-bool compare_vertex_id(vertex_id * ia, vertex_id * ib) {
-
-  if (ia->id == ib->id) {
-    return ia->position_corner < ib->position_corner;
-  } else {
-    return ia->id < ib->id;
-  }
-}
 
 void create_mesh(iMesh_Instance instance,
     iBase_EntitySetHandle * imesh_euler_set, double * coords, int * corners,
-    int nc, int nelem, int * ierr) {
+    int nc, int nelem, MPI_Fint comm, int * ierr) {
   /* double * coords=(double*) icoords;
    int * corners = (int*) icorners;*/
   *ierr = 1;
-  moab::Interface * mb = MOABI;
+  Interface * mb = MOABI;
+  MPI_Comm  mpicomm = MPI_Comm_f2c(comm);
+  // instantiate parallel comm now or not?
+  ParallelComm *pcomm= new ParallelComm(mb, mpicomm);
+
+  int rank = pcomm->proc_config().proc_rank();
   EntityHandle euler_set;
   ErrorCode rval = mb->create_meshset(MESHSET_SET, euler_set);
-
   ERRORV(rval, "can't create euler set ");
-  *imesh_euler_set = (iBase_EntitySetHandle) euler_set;
 
-  Tag tagc; // tag at corners
-  rval = mb->tag_get_handle("corner", 1, MB_TYPE_INTEGER, tagc,
+  *imesh_euler_set = (iBase_EntitySetHandle) euler_set; // with coarse mesh
+
+  Tag tagid; // global id at corners
+  rval = mb->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, tagid,
       MB_TAG_DENSE | MB_TAG_CREAT);
   ERRORV(rval, "can't create corner tag ");
+
+  int dum_id = -1;
+  Tag partitionTag;
+  mb->tag_get_handle(PARALLEL_PARTITION_TAG_NAME,
+                                                  1, MB_TYPE_INTEGER, partitionTag,
+                                                    MB_TAG_SPARSE|MB_TAG_CREAT, &dum_id);
 
   // there are nelem*4 corners, and 3*(nc2+1)*(nc2+1)*nelem coordinates
   // create first a coarse mesh,
@@ -154,29 +158,39 @@ void create_mesh(iMesh_Instance instance,
   ERRORV(rval, "can't get node coords ");
 // fill it up
   int stride = (nc + 1) * (nc + 1); // 16, for nc ==3
-  //int order_in_coord[] = {0, 12, 15, 3}; // for nc=3
+  //int order_in_coord[] = {0, 3, 15, 12}; // for nc=3
   /*
-   *  first i, then j, so this is the order of the points in coords array
+
+   *  first j, then i, so this is the order of the points in coords array, now:
    *
-   *   nc, 2*nc+1, ...     (nc+1)*(nc+1)-1
+   *   nc(nc+1),   ...      (nc+1)*(nc+1)-1
    *
-   *   2
-   *   1, nc+2,
-   *   0, nc+1, 2(nc+1), .... nc(nc+1)
+   *   2(nc+1),
+   *   nc+1,   nc+2,            2*(nc+1)-1
+   *   0,      1 ,    2, ..........., nc
    */
-  int order_in_coord[] = { 0, nc * (nc + 1), (nc + 1) * (nc + 1) - 1, nc };
+  int order_in_coord[] = { 0, nc , (nc + 1) * (nc + 1) - 1, nc * (nc + 1)};
   for (int i = 0; i < size_corners; i++) {
     int id = corners[i];
     int index = index_map[id];
 
-    if (index_used[index])
-      continue;
     int j = i % 4;
     int ind_coord = i / 4;
     ind_coord = (ind_coord * stride + order_in_coord[j]) * 3;
+    if (index_used[index])
+    {
+      if ( fabs(coordv[0][index]-coords[ind_coord])>0.000001 )
+        std::cout<<" id:" << corners[i] << " i:" << i << " j:" << j << " " <<
+        coordv[0][index] << " " << coords[ind_coord] << "\n";
+      continue;
+    }
     coordv[0][index] = coords[ind_coord];
     coordv[1][index] = coords[ind_coord + 1];
     coordv[2][index] = coords[ind_coord + 2];
+    index_used[index]=1;
+    EntityHandle vertexh = start_vert + index;
+    rval = mb->tag_set_data(tagid, &vertexh, 1, (void*) &id);
+    ERRORV(rval, "can't set tag id on vertex ");
   }
 // create quads; one quad for each edge
   rval = read_iface->get_element_connect(nelem, 4, MBQUAD, 0, start_elem,
@@ -188,48 +202,20 @@ void create_mesh(iMesh_Instance instance,
       int index_v = index_map[corners[i * 4 + j]];
       connect[i * 4 + j] = start_vert + index_v;
     }
-
   }
+
   Range quads(start_elem, start_elem + nelem - 1);
 
   mb->add_entities(euler_set, quads);
 
-  rval = mb->write_file("euler1.vtk", 0, 0, &euler_set, 1);
+  rval = pcomm->resolve_shared_ents(euler_set, 2, 0); // resolve just vertices
+  ERRORV(rval, "can't resolve shared vertices ");
+
+  mb->tag_set_data(partitionTag, &euler_set, 1, &rank);
+
+  rval = mb->write_file("coarse.h5m", 0, "PARALLEL=WRITE_PART", &euler_set, 1);
+  ERRORV(rval, "can't write in parallel coarse mesh");
   // coarse mesh, from corners
-  std::vector<double *> coordv1;
-
-  rval = read_iface->get_node_coords(3, nelem * 4, 0, start_vert, coordv1);
-  ERRORV(rval, "can't get coords second coarse mesh");
-
-  rval = read_iface->get_element_connect(nelem, 4, MBQUAD, 0, start_elem,
-      connect);
-  ERRORV(rval, "can't create elements second coarse mesh");
-  Range quads2(start_elem, start_elem + nelem - 1);
-  int iv = 0;
-  for (int i = 0; i < nelem; i++) {
-    // just duplicate nodes,
-    int index_coords = stride * i;
-    for (int j = 0; j < 4; j++) {
-      EntityHandle vertexh = start_vert + iv;
-      int indx2 = 3 * (index_coords + order_in_coord[j]);
-      coordv1[0][iv] = coords[indx2];
-      coordv1[1][iv] = coords[indx2 + 1];
-      coordv1[2][iv] = coords[indx2 + 2];
-      connect[i * 4 + j] = vertexh; // duplicate all vertices
-      rval = mb->tag_set_data(tagc, &vertexh, 1, (void*) (&corners[4 * i + j]));
-      ERRORV(rval, "can't set tag on vertex ");
-      iv++;
-    }
-  }
-  EntityHandle set2;
-  rval = mb->create_meshset(MESHSET_SET, set2);
-
-  ERRORV(rval, "can't create set 2 ");
-
-  mb->add_entities(set2, quads2);
-
-  mb->write_file("coarse2.vtk", 0, 0, &set2, 1);
-  ERRORV(rval, "can't write set 2 ");
 
   // fine mesh, with all coordinates
   std::vector<double *> coordv2;
@@ -243,7 +229,7 @@ void create_mesh(iMesh_Instance instance,
       start_elem, connect);
   ERRORV(rval, "can't create elements fine mesh");
   Range quads3(start_elem, start_elem + nelem * nc * nc - 1);
-  iv = 0;
+  int iv = 0;
   int ic = 0;
   for (int i = 0; i < nelem; i++) {
     // just duplicate nodes,
@@ -257,12 +243,12 @@ void create_mesh(iMesh_Instance instance,
     }
     EntityHandle v00 = start_vert + stride * i;
     // fill now the matrix of quads; vertices are from 0 to (nc+1)*(nc+1)-1
-    for (int i1 = 0; i1 < nc; i1++) {
-      for (int j1 = 0; j1 < nc; j1++) {
-        connect[ic++] = v00 + i1 * (nc + 1) + j1; // first one
-        connect[ic++] = v00 + (i1 + 1) * (nc + 1) + j1; //
-        connect[ic++] = v00 + (i1 + 1) * (nc + 1) + j1 + 1; // opp diagonal
-        connect[ic++] = v00 + i1 * (nc + 1) + j1 + 1; //
+    for (int j1 = 0; j1 < nc; j1++) {
+      for (int i1 = 0; i1 < nc; i1++) {
+        connect[ic++] = v00 + j1 * (nc + 1)       + i1; // first one
+        connect[ic++] = v00 + j1 * (nc + 1)       + i1 + 1; //
+        connect[ic++] = v00 + (j1 + 1) * (nc + 1) + i1 + 1; // opp diagonal
+        connect[ic++] = v00 + (j1 + 1) * (nc + 1) + i1 ; //
       }
     }
   }
@@ -273,7 +259,11 @@ void create_mesh(iMesh_Instance instance,
 
   mb->add_entities(set3, quads3);
 
-  mb->write_file("fine.vtk", 0, 0, &set3, 1);
+
+
+  mb->tag_set_data(partitionTag, &set3, 1, &rank);
+
+  mb->write_file("fine.h5m", 0, "PARALLEL=WRITE_PART", &set3, 1);
   ERRORV(rval, "can't write set 3, fine ");
 
   *ierr = 0;
