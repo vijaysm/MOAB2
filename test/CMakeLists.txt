@@ -173,7 +173,7 @@ if ( MOAB_USE_MPI AND MPI_FOUND )
     set_source_files_properties( parallel/mhdf_parallel.c
       COMPILE_FLAGS "-DTEST ${MOAB_DEFINES} -DMESHDIR=${MOAB_SOURCE_DIR}/MeshFiles/unittest" )
     add_executable( mhdf_parallel parallel/mhdf_parallel.c )
-    target_link_libraries( mhdf_parallel MOAB MOABpar )
+    target_link_libraries( mhdf_parallel MOAB MOABpar ${HDF5_LIBRARIES} )
     add_test( TestMHDFParallel ${EXECUTABLE_OUTPUT_PATH}/mhdf_parallel )
   endif ( MOAB_USE_HDF )
 

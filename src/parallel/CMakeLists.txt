@@ -45,6 +45,7 @@ set_source_files_properties( ${moab_PARALLEL_SRCS}
 )
 add_library( MOABpar STATIC ${moab_PARALLEL_INSTALL_HDRS} ${moab_PARALLEL_SRCS} )
 
+set( MOAB_INSTALL_TARGETS ${MOAB_INSTALL_TARGETS} MOABpar)
 target_link_libraries( MOABpar
   ${MPI_LIBRARY}
   ${MPI_EXTRA_LIBRARY}
