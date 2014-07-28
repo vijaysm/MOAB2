@@ -173,16 +173,16 @@ if ( MOAB_USE_MPI AND MPI_FOUND )
     set_source_files_properties( parallel/mhdf_parallel.c
       COMPILE_FLAGS "-DTEST ${MOAB_DEFINES} -DMESHDIR=${MOAB_SOURCE_DIR}/MeshFiles/unittest" )
     add_executable( mhdf_parallel parallel/mhdf_parallel.c )
-    target_link_libraries( mhdf_parallel MOAB MOABpar ${HDF5_LIBRARIES} )
+    target_link_libraries( mhdf_parallel MOAB ${HDF5_LIBRARIES} )
     add_test( TestMHDFParallel ${EXECUTABLE_OUTPUT_PATH}/mhdf_parallel )
   endif ( MOAB_USE_HDF )
 
   set_source_files_properties( parallel/parallel_unit_tests.cpp
     COMPILE_FLAGS "-DTEST ${MOAB_DEFINES} -DMESHDIR=${MOAB_SOURCE_DIR}/MeshFiles/unittest" )
   add_executable ( parallel_unit_tests parallel/parallel_unit_tests.cpp )
-  target_link_libraries( parallel_unit_tests MOAB )
+  target_link_libraries( parallel_unit_tests MOAB ${MPI_LIBRARIES} )
   add_test( TestParallel
-    ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 2 ${MPIEXEC_PREFLAGS})
+    ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 2 ${MPIEXEC_PREFLAGS} ${EXECUTABLE_OUTPUT_PATH}/parallel_unit_tests ${MPIEXEC_POSTFLAGS} )
 
   set_source_files_properties( parallel/pcomm_serial.cpp
     COMPILE_FLAGS "-DTEST ${MOAB_DEFINES} -DMESHDIR=${MOAB_SOURCE_DIR}/MeshFiles/unittest" )
