@@ -21,8 +21,8 @@
 using namespace moab;
 
 #define FILE_NAME_BASE "portable"
-#ifdef SRCDIR
-#  define BASE_NAME STRINGIFY(SRCDIR) "/" FILE_NAME_BASE
+#ifdef MESHDIR
+#  define BASE_NAME STRINGIFY(MESHDIR) "/" FILE_NAME_BASE
 #else 
 #  define BASE_NAME FILE_NAME_BASE
 #endif
