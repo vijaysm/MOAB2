@@ -1,7 +1,7 @@
 /** @example TestErrorHandling.cpp \n
  * Description: This example tests MOAB's trace back error handler in serial. \n
  *
- * <b>To run</b>: ./TestErrorHandling <test_case_num(1 to 3)> \n
+ * <b>To run</b>: ./TestErrorHandling <test_case_num(1 to 4)> \n
  */
 
 #include "moab/Core.hpp"
@@ -46,9 +46,35 @@ ErrorCode TestErrorHandling_3()
   Core moab;
   Interface& mb = moab;
 
-  // Load a CAM-FV file with  and a NULL file set
+  // Load a CAM-FV file with NOMESH option and a NULL file set
   string test_file = string(MESH_DIR) + string("/io/fv3x46x72.t.3.nc");
   ErrorCode rval = mb.load_file(test_file.c_str(), NULL, "NOMESH;VARIABLE=");CHK_ERR(rval);
+
+  return MB_SUCCESS;
+}
+
+// In this test case, an error MB_VARIABLE_DATA_LENGTH is returned by MOAB
+ErrorCode TestErrorHandling_4()
+{
+  Core moab;
+  Interface& mb = moab;
+
+  // Create 100 vertices
+  const int NUM_VTX = 100;
+  std::vector<double> coords(3 * NUM_VTX);
+  Range verts;
+  ErrorCode rval = mb.create_vertices(&coords[0], NUM_VTX, verts);CHK_ERR(rval);
+
+  // Create a variable-length dense tag
+  Tag tag;
+  rval = mb.tag_get_handle("var_len_den", 1, MB_TYPE_INTEGER, tag,
+                          MB_TAG_VARLEN | MB_TAG_DENSE | MB_TAG_CREAT);CHK_ERR(rval);
+
+  // Attempt to iterate over a variable-length tag, which will never be possible
+  void* ptr = NULL;
+  int count = 0;
+  rval = mb.tag_iterate(tag, verts.begin(), verts.end(),
+                        count, ptr);CHK_ERR1_STR(rval, "Failed to iterate over tag on " << NUM_VTX << " vertices");
 
   return MB_SUCCESS;
 }
@@ -56,7 +82,7 @@ ErrorCode TestErrorHandling_3()
 int main(int argc, char** argv)
 {
   if (argc < 2) {
-    cout << "Usage: " << argv[0] << " <test_case_num(1 to 3)>" << endl;
+    cout << "Usage: " << argv[0] << " <test_case_num(1 to 4)>" << endl;
     return 0;
   }
 
@@ -79,6 +105,9 @@ int main(int argc, char** argv)
       break;
     case 3:
       rval = TestErrorHandling_3();CHK_ERR(rval);
+      break;
+    case 4:
+      rval = TestErrorHandling_4();CHK_ERR(rval);
       break;
     default:
       break;
