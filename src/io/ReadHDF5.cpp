@@ -1747,12 +1747,15 @@ ErrorCode ReadHDF5::read_elems(int i, const Range& elems_in, Range& nodes)
 
   // We don't support version 3 style poly element data
   if (fileInfo->elems[i].desc.vals_per_ent <= 0)
-    MB_CHK_ERR(MB_TYPE_OUT_OF_RANGE);
-
+    return error(MB_TYPE_OUT_OF_RANGE);
+  
+  mhdf_ds1Ddt_array = false;
   mhdf_Status status;
   hid_t table = mhdf_openConnectivitySimple(filePtr, fileInfo->elems[i].handle, &status);
   if (is_error(status))
     MB_SET_ERR(MB_FAILURE, "ReadHDF5 Failure");
+
+  if( mhdf_ds1Ddt_array == true ) g_hyperslabSelectionLimit = DEFAULT_HYPERSLAB_SELECTION_UNLIMIT;
 
   try {
     ReadHDF5Dataset reader(fileInfo->elems[i].handle, table, nativeParallel, mpiComm);
