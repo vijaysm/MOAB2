@@ -4,25 +4,40 @@
 #include "moab/Range.hpp"
 #include "moab/MeshTopoUtil.hpp"
 #include "moab/DualTool.hpp"
+#include "../TestUtil.hpp"
 #include <iostream>
 #include <string>
 
 using namespace moab;
 
+#ifdef MESHDIR
+const char default_input[] = STRINGIFY(MESHDIR) "/hex01.vtk" ;
+#else
+const char default_input[] = "hex01.vtk" ;
+#endif
+const char default_output[] = "dual.vtk";
+
 Interface *gMB;
 
 int main(int argc, char* argv[])
 {
-  if (argc <= 1)
+  const char * f1 = default_input;
+  const char * f2 = default_output;
+  if (argc <= 2)
   {
-    std::cout << "Usage: dual_test <mesh_file_name>" << std::endl;
-    return 0;
+    std::cout << "Usage: dual_test <mesh_file_name> <out file>" << std::endl;
+    std::cout << "using default input : " << default_input << " and output " << default_output << "\n";
+  }
+  else
+  {
+    f1 = argv[1];
+    f2 = argv[2];
   }
 
   gMB = new Core();
 
     // read the mesh file
-  ErrorCode result = gMB->load_mesh(argv[1]);
+  ErrorCode result = gMB->load_mesh(f1);
   if (MB_SUCCESS != result) {
     std::cout << "Problems reading file " << argv[1] << "." << std::endl;
     return 0;
@@ -109,6 +124,6 @@ int main(int argc, char* argv[])
   }
 
     // write GMV file
-  gMB->write_file( argv[1], "GMV" );
+  gMB->write_file( f2 );
   delete gMB;
 }
