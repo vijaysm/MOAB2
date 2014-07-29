@@ -173,7 +173,7 @@ void ReadHDF5Dataset::set_column( unsigned column )
 
 Range::const_iterator ReadHDF5Dataset::next_end( Range::const_iterator iter )
 {
-  size_t slabs_remaining = hyperslabSelectionLimit;
+  size_t slabs_remaining = g_hyperslabSelectionLimit;
   size_t avail = bufferSize;
   while (iter != rangeEnd && slabs_remaining) {
     size_t count = *(iter.end_of_block()) - *iter + 1;
