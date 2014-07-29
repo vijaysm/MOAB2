@@ -1,11 +1,10 @@
 /** @example GenLargeMesh.cpp \n
  * \brief Create a large structured mesh, partitioned \n
- * <b>To run</b>: ./GenLargeMesh \n
  *
  *  It shows how to create a mesh on the fly, on multiple processors
  *  Each processor will create its version of a block mesh, partitioned
- *  as AxBxC blocks. Each block will be with blockSize^3 hexahedrons, and will get a
- *  different PARALLEL_PARTITION tag
+ *  as AxBxC blocks. Each block will be with blockSize^3 hexahedrons, and
+ *  will get a different PARALLEL_PARTITION tag
  *
  *  The number of tasks will be MxNxK, and it must match the mpi size
  *  Each task p will generate its mesh at location (m,n,k), and it is
@@ -65,15 +64,14 @@
  *  because the file is written in parallel.
  *
  *  -k will keep the edges and faces that are generated as part of resolving shared entities
- *  (by default these edges and faces are removed); when -f option is used, the
- *  -k option is enabled too (so no faces and edges are deleted)
+ *  (by default these edges and faces are removed); when -f option is used, the -k option is
+ *  enabled too (so no faces and edges are deleted)
  *
  */
 
 #include "moab/Core.hpp"
 #include "moab/ProgOptions.hpp"
 #include "moab/ParallelComm.hpp"
-#include "moab/CN.hpp"
 #include "moab/ReadUtilIface.hpp"
 #include "moab/MergeMesh.hpp"
 
@@ -185,7 +183,7 @@ int main(int argc, char **argv)
   // So there are a total of N * B * blockSize elements in y direction (so N * B * blockSize + 1 verts in y direction)
   // So there are a total of K * C * blockSize elements in z direction (so K * C * blockSize + 1 verts in z direction)
 
-  // There are (M * A blockSize)      * (N * B * blockSize)      * (K * C * blockSize)     hexas
+  // There are (M * A blockSize)       * (N * B * blockSize)     * (K * C * blockSize)     hexas
   // There are (M * A * blockSize + 1) * (N * B * blockSize + 1) * (K * C * blockSize + 1) vertices
   // x is the first dimension that varies
 
@@ -255,7 +253,7 @@ int main(int argc, char **argv)
         EntityHandle startv;
         rval = iface->get_node_coords(3, num_nodes, 0, startv, arrays);CHK_ERR1(rval, "Can't get node coords");
 
-        // will start with the lower corner:
+        // Will start with the lower corner:
         int x = m*A*q*blockSize + a*q*blockSize;
         int y = n*B*q*blockSize + b*q*blockSize;
         int z = k*C*q*blockSize + c*q*blockSize;
@@ -379,11 +377,11 @@ int main(int argc, char **argv)
                 EntityHandle AA = corner;
                 EntityHandle BB = corner + 1;
                 EntityHandle CC = corner + 1 + ystride;
-                EntityHandle D = corner +     ystride;
-                EntityHandle E = corner +               zstride;
-                EntityHandle F = corner + 1 +           zstride;
-                EntityHandle G = corner + 1 + ystride + zstride;
-                EntityHandle H = corner +     ystride + zstride;
+                EntityHandle D =  corner +     ystride;
+                EntityHandle E =  corner +               zstride;
+                EntityHandle F =  corner + 1 +           zstride;
+                EntityHandle G =  corner + 1 + ystride + zstride;
+                EntityHandle H =  corner +     ystride + zstride;
 
                 // tet EDHG
                 conn[ix]    = E;
@@ -425,7 +423,7 @@ int main(int argc, char **argv)
                   gids[ie] = gids[ie-1] + 1; // 6 more for tetra
 
                   eh = starte + ie;
-                  for (size_t i = 0; i<doubleTags.size(); i++) {
+                  for (size_t i = 0; i < doubleTags.size(); i++) {
                     double valv = gids[ie]/30. + i*5000.;
                     rval = mb->tag_set_data(doubleTags[i], &eh, 1, &valv);CHK_ERR1(rval, "Can't set double tag on an element");
                   }
@@ -475,7 +473,7 @@ int main(int argc, char **argv)
 
   if (0 == rank) {
     cout << "generate local mesh: "
-          << (clock() - tt) / (double) CLOCKS_PER_SEC << " seconds" << endl;
+         << (clock() - tt) / (double)CLOCKS_PER_SEC << " seconds" << endl;
     tt = clock();
   }
 
@@ -501,7 +499,7 @@ int main(int argc, char **argv)
 
     if (0 == rank) {
        cout << "merge locally: "
-        << (clock() - tt) / (double) CLOCKS_PER_SEC << " seconds" << endl;
+            << (clock() - tt) / (double)CLOCKS_PER_SEC << " seconds" << endl;
        tt = clock();
     }
   }
@@ -516,7 +514,7 @@ int main(int argc, char **argv)
 
     if (0 == rank) {
        cout << "resolve shared entities: "
-        << (clock() - tt) / (double) CLOCKS_PER_SEC << " seconds" << endl;
+            << (clock() - tt) / (double)CLOCKS_PER_SEC << " seconds" << endl;
        tt = clock();
     }
 
@@ -531,7 +529,7 @@ int main(int argc, char **argv)
 
       if (0 == rank) {
         cout << "delete edges and faces, and correct sharedEnts: "
-         << (clock() - tt) / (double) CLOCKS_PER_SEC << " seconds" << endl;
+             << (clock() - tt) / (double)CLOCKS_PER_SEC << " seconds" << endl;
         tt = clock();
       }
     }
@@ -541,7 +539,7 @@ int main(int argc, char **argv)
 
   if (0 == rank) {
     cout << "write file " << outFileName << " in "
-     << (clock() - tt) / (double) CLOCKS_PER_SEC << " seconds" << endl;
+         << (clock() - tt) / (double)CLOCKS_PER_SEC << " seconds" << endl;
     tt = clock();
   }
 

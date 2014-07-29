@@ -61,14 +61,14 @@ ErrorCode TestErrorHandling_4()
 
   // Create 100 vertices
   const int NUM_VTX = 100;
-  std::vector<double> coords(3 * NUM_VTX);
+  vector<double> coords(3 * NUM_VTX);
   Range verts;
-  ErrorCode rval = mb.create_vertices(&coords[0], NUM_VTX, verts);CHK_ERR(rval);
+  ErrorCode rval = mb.create_vertices(&coords[0], NUM_VTX, verts);CHK_ERR1(rval, "Failed to create vertices");
 
   // Create a variable-length dense tag
   Tag tag;
   rval = mb.tag_get_handle("var_len_den", 1, MB_TYPE_INTEGER, tag,
-                          MB_TAG_VARLEN | MB_TAG_DENSE | MB_TAG_CREAT);CHK_ERR(rval);
+                          MB_TAG_VARLEN | MB_TAG_DENSE | MB_TAG_CREAT);CHK_ERR1(rval, "Failed to create a tag");
 
   // Attempt to iterate over a variable-length tag, which will never be possible
   void* ptr = NULL;
