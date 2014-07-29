@@ -1806,7 +1806,10 @@ ErrorCode ReadHDF5::read_elems( int i, const Range& elems_in, Range& nodes )
     return error(MB_TYPE_OUT_OF_RANGE);
   
   mhdf_Status status;
+  
+  mhdf_ds1Ddt_array = false;
   hid_t table = mhdf_openConnectivitySimple( filePtr, fileInfo->elems[i].handle, &status );
+  if( mhdf_ds1Ddt_array == true ) g_hyperslabSelectionLimit = DEFAULT_HYPERSLAB_SELECTION_UNLIMIT;
 
   if (is_error(status))
     return error(MB_FAILURE);
