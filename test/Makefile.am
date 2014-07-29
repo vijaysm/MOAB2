@@ -18,7 +18,7 @@ MESHDIR = $(top_srcdir)/MeshFiles/unittest
 
 AM_CPPFLAGS += -DIS_BUILDING_MB \
                -DSRCDIR=$(srcdir) \
-		-DMESHDIR=$(MESHDIR) \
+               -DMESHDIR=$(MESHDIR) \
                -I$(top_builddir)/src \
                -I$(top_srcdir)/src  \
                -I$(top_srcdir)/src/LocalDiscretization

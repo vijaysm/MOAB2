@@ -4,14 +4,18 @@
 #include <iostream>
 #include "TestUtil.hpp"
 
+#ifndef MESHDIR
+#error Specify MESHDIR to compile test
+#endif
+
 using namespace moab;
 
- const char* meshfile = STRINGIFY(MESHDIR) "/16_unmerged_hex.h5m";
- const char* meshfile2 = STRINGIFY(MESHDIR) "/merge_with_tag.h5m";
- const char *outfile = "mm_out.h5m";
+const char* meshfile = STRINGIFY(MESHDIR) "/16_unmerged_hex.h5m";
+const char* meshfile2 = STRINGIFY(MESHDIR) "/merge_with_tag.h5m";
+const char *outfile = "mm_out.h5m";
 
- void mergesimple_test();
- void merge_with_tag_test();
+void mergesimple_test();
+void merge_with_tag_test();
 
 int main( int /*argc*/, char**/* argv*/)
 {

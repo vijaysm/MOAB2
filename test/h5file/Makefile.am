@@ -5,6 +5,7 @@ EXTRA_DIST = v3_dodec.h5m \
 	     portable_power_32.h5m
 
 AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
+               -DMESHDIR=$(srcdir) \
                -I.. -I$(srcdir)/.. \
                -I$(top_srcdir)/src \
                -I$(top_srcdir)/src/io \

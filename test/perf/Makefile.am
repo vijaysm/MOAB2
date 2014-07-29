@@ -1,8 +1,10 @@
 SUBDIRS = point_location
+MESHDIR = $(top_srcdir)/MeshFiles/unittest
 
 AM_CPPFLAGS += -I$(top_srcdir)/src \
                -I$(top_srcdir)/src/io/mhdf/include \
                -I$(top_builddir)/src \
+               -DMESHDIR=$(MESHDIR) \
                -DIS_BUILDING_MB
             
 LDADD = $(top_builddir)/src/libMOAB.la
