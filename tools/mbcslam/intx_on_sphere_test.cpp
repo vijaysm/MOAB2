@@ -13,10 +13,8 @@
 #include "moab/Core.hpp"
 #include "moab/Interface.hpp"
 #include "Intx2MeshOnSphere.hpp"
+#include "../test/TestUtil.hpp"
 #include <math.h>
-
-#define STRINGIFY_(X) #X
-#define STRINGIFY(X) STRINGIFY_(X)
 
 using namespace moab;
 
@@ -24,8 +22,8 @@ int main(int argc, char* argv[])
 {
   // check command line arg// Euler grid is red, arrival, Lagrangian is blue, departure
   // will will keep the
-  const char *filename_mesh1 = STRINGIFY(SRCDIR) "/lagrangeHomme.vtk";
-  const char *filename_mesh2 = STRINGIFY(SRCDIR) "/eulerHomme.vtk";
+  const char *filename_mesh1 = STRINGIFY(MESHDIR) "/mbcslam/lagrangeHomme.vtk";
+  const char *filename_mesh2 = STRINGIFY(MESHDIR) "/mbcslam/eulerHomme.vtk";
   double R = 6. * sqrt(3.) / 2; // input
   const char *newFile = "intx.vtk";
   if (argc == 5)
