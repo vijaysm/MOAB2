@@ -43,7 +43,7 @@ static ErrorCode not_found( Error* error, std::string name, EntityHandle h )
 
 static ErrorCode invalid_size( Error* error, std::string name, int expected, int actual )
 {
-  error->set_last_error( "Invalid data size %d specified for tag %s of size %d", actual, name.c_str(), expected );
+  error->set_last_error( "Invalid data size %d specified for sparse tag %s of size %d", actual, name.c_str(), expected );
   SET_ERR_STR(MB_INVALID_SIZE, "Invalid data size " << actual << " specified for sparse tag " << name.c_str() << " of size " << expected);
 }
 

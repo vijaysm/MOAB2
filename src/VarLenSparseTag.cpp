@@ -43,7 +43,7 @@ static ErrorCode not_found( Error* error, std::string name, EntityHandle h )
 static ErrorCode not_var_len( Error* error, std::string name )
 {
   error->set_last_error( "No size specified for variable-length tag %s data", name.c_str());
-  SET_ERR_STR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length sparse tag " << name << " data");
+  SET_ERR_STR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << name << " data");
 }
 
 VarLenSparseTag::VarLenSparseTag( const char* name,
@@ -290,7 +290,7 @@ ErrorCode VarLenSparseTag::tag_iterate( SequenceManager*,
                                         bool)
 {
   error->set_last_error( "Cannot iterate over variable-length tag data" );
-  SET_ERR(MB_VARIABLE_DATA_LENGTH, "Cannot iterate over variable-length sparse tag data");
+  SET_ERR(MB_VARIABLE_DATA_LENGTH, "Cannot iterate over variable-length tag data");
 }
 
 template <class Container> static inline

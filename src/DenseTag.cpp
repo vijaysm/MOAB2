@@ -171,8 +171,8 @@ ErrorCode DenseTag::get_array( SequenceManager* seqman,
   if (!mem && allocate) {
     mem = seq->data()->allocate_tag_array( mySequenceArray, get_size(), get_default_value() );
     if (!mem) {
-      error->set_last_error("Memory allocation failed for tag data");
-      SET_ERR(MB_MEMORY_ALLOCATION_FAILED, "Memory allocation failed for tag data");
+      error->set_last_error("Memory allocation for dense tag data failed");
+      SET_ERR(MB_MEMORY_ALLOCATION_FAILED, "Memory allocation for dense tag data failed");
     }
     
     if (!get_default_value()) 
