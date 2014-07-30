@@ -37,7 +37,7 @@ void test_moab_v3_poly_format()
   ErrorCode rval;
   
     // load file containing a dodecahedron
-  rval = mb.load_mesh( STRINGIFY(MESHDIR) "/v3_dodec.h5m" );
+  rval = mb.load_mesh( STRINGIFY(MESHDIR) "/h5file/v3_dodec.h5m" );
   CHECK_ERR(rval);
   
     // get entities from file

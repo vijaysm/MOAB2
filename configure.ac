@@ -1260,6 +1260,8 @@ AC_CONFIG_FILES([Makefile
                  MeshFiles/unittest/io/Makefile
                  MeshFiles/unittest/iGeom/Makefile
                  MeshFiles/unittest/dagmc/Makefile
+                 MeshFiles/unittest/mbcslam/Makefile
+                 MeshFiles/unittest/h5file/Makefile
                  ])
 AC_CONFIG_COMMANDS([src/MOAB_FCDefs.h],
   [sed -e "s/FC_FUNC/MOAB_FC_FUNC/" src/FCDefs.h >src/MOAB_FCDefs.h])

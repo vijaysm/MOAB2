@@ -22,9 +22,9 @@ using namespace moab;
 
 #define FILE_NAME_BASE "portable"
 #ifdef MESHDIR
-#  define BASE_NAME STRINGIFY(MESHDIR) "/" FILE_NAME_BASE
+#  define BASE_NAME STRINGIFY(MESHDIR) "/h5file/" FILE_NAME_BASE
 #else 
-#  define BASE_NAME FILE_NAME_BASE
+#error Define MESHDIR to compile unit tests
 #endif
 #define NATIVE_NAME FILE_NAME_BASE ".h5m"
 #define READ_OPTS "BUFFER_SIZE=256"
