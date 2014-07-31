@@ -28,7 +28,6 @@ EXTRA_INTEL_FLAGS='-Wall'
 FATHOM_CHECK_COMPILERS([yes],[yes],[$ENABLE_FORTRAN])
 AM_CONDITIONAL(PARALLEL,[test "x$WITH_MPI" != "xno"])
 AM_CONDITIONAL(ENABLE_FORTRAN,[test "x$ENABLE_FORTRAN" != "xno"])
-LIBS="$LIBS -lm"
 
 AC_PROG_LN_S
 AC_PROG_MAKE_SET
@@ -70,7 +69,7 @@ if test "xyes" = "x$ENABLE_FORTRAN" && test "x" != "x$FC"; then
 fi
 
 ################################################################################
-#                           Check for need for extra flags to support cray pointers
+#            Check for need for extra flags to support cray pointers
 ################################################################################
 if test "xyes" = "x$ENABLE_FORTRAN" && test "x" != "x$F77"; then
   PAC_PROG_F77_CRAY_POINTER([
@@ -107,7 +106,6 @@ AC_ARG_ENABLE([old-headers],
      [Do not install no-namespace headers for compatability with MOAB 3.0 API])],
  [OLD_HEADERS=$enableval],[OLD_HEADERS=yes])
 AM_CONDITIONAL([OLD_HEADERS],[test "xyes" = "x$OLD_HEADERS"])
-
 
 ################################################################################
 #                              HANDLE SIZE
@@ -158,6 +156,22 @@ if test "x$SIZEOF_MBENTITYHANDLE" = "x0"; then
     fi]
   )
 fi
+
+### Checks for other standard libraries.
+AC_CHECK_LIB(pthread, pthread_create,
+  [ CPPFLAGS="$CPPFLAGS -D_REENTRANT -D_POSIX_PTHREAD_SEMANTICS"
+    LIBS="$LIBS -lpthread" ],
+  AC_CHECK_LIB(c_r, pthread_create,
+    [ CPPFLAGS="$CPPFLAGS -D_THREAD_SAFE"
+      LIBS="$LIBS -pthread"],
+    AC_MSG_ERROR([POSIX threads not found.])
+  )
+)
+AC_CHECK_LIB(dl, dlopen, LIBS="$LIBS -ldl")
+AC_CHECK_LIB(m, pow, LIBS="$LIBS -lm")
+AC_CHECK_LIB(z, compress, LIBS="$LIBS -lz")
+
+AC_CHECK_LIB(stdc++, main, LIBS="$LIBS -lstdc++")
 
 
 ################################################################################
@@ -647,27 +661,28 @@ MB_OPTIONAL_TOOL([mbsize],       [yes], [yes])
 MB_OPTIONAL_TOOL([mbskin],       [yes], [yes])
 MB_OPTIONAL_TOOL([mbtagprop],    [yes], [yes])
 MB_OPTIONAL_TOOL([mbmem],        [yes], [yes])
-MB_OPTIONAL_TOOL([mcnpmit],      [no], [yes])
-MB_OPTIONAL_TOOL([mbcoupler],    [no], [yes] )
 MB_OPTIONAL_TOOL([spheredecomp], [yes], [yes])
 MB_OPTIONAL_TOOL([mbsurfplot],   [yes], [yes])
 MB_OPTIONAL_TOOL([mbzoltan],     [${WITH_ZOLTAN}], [${WITH_ZOLTAN}] )
 MB_OPTIONAL_TOOL([dagmc],        [no], [yes])
 MB_OPTIONAL_TOOL([gsets],        [yes], [yes])
 MB_OPTIONAL_TOOL([mbdepth],      [yes], [yes])
-MB_OPTIONAL_TOOL([refiner],      [no], [yes])
+if test "x$WITH_MPI" != "xno"; then
+  MB_OPTIONAL_TOOL([mbcoupler],    [no], [yes] )
+  MB_OPTIONAL_TOOL([mcnpmit],      [no], [yes])
+  MB_OPTIONAL_TOOL([refiner],      [no], [yes])
+else
+  AS_ECHO("Disabling mbcoupler and refiner since these tools require MPI/parallel configuration")
+  MB_OPTIONAL_TOOL([mbcoupler],    [no], [no] )
+  MB_OPTIONAL_TOOL([mcnpmit],      [no], [no])
+  MB_OPTIONAL_TOOL([refiner],      [no], [no])
+fi
 MB_OPTIONAL_TOOL([h5mtools],     [${HAVE_HDF5}], [${HAVE_HDF5}])
 MB_OPTIONAL_TOOL([mbcslam],      [no], [yes])
 MB_OPTIONAL_TOOL([ahf],          [no], [no])
 
 if test "xyes" = "x$ENABLE_ahf"; then
   AM_CPPFLAGS="$AM_CPPFLAGS -DUSE_AHF"
-fi
-
-if test "xyes" = "x$ENABLE_refiner"; then
-  if test "xyes" != "x$WITH_MPI"; then
-    AC_MSG_ERROR([refiner requires MPI/parallel configuration])
-  fi
 fi
 
 if test "xyes" = "x$ENABLE_vtkMOABReader"; then
