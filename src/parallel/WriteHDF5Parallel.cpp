@@ -119,7 +119,7 @@ const char* mpi_err_str( int errorcode ) {
 template <typename T> inline 
 void VALGRIND_MAKE_VEC_UNDEFINED( std::vector<T>& v ) {
   if (v.size()) {}
-    VALGRIND_MAKE_MEM_UNDEFINED( &v[0], v.size() * sizeof(T) );
+    (void)VALGRIND_MAKE_MEM_UNDEFINED( &v[0], v.size() * sizeof(T) );
 }
 
 
@@ -1024,7 +1024,7 @@ ErrorCode WriteHDF5Parallel::create_dataset( int num_datasets,
  
     // gather entity counts for each processor on root
   std::vector<long> counts( rank ? 0 : nproc * num_datasets );
-  VALGRIND_CHECK_MEM_IS_DEFINED( &num_owned, sizeof(long) );
+  (void)VALGRIND_CHECK_MEM_IS_DEFINED( &num_owned, sizeof(long) );
   result = MPI_Gather( const_cast<long*>(num_owned), num_datasets, MPI_LONG, &counts[0], num_datasets, MPI_LONG, 0, comm );
   CHECK_MPI(result);
   
@@ -1095,7 +1095,7 @@ ErrorCode WriteHDF5Parallel::create_dataset( int num_datasets,
   
     // send each proc it's offset in the table
   if (rank == 0) {
-    VALGRIND_CHECK_MEM_IS_DEFINED( &counts[0], num_datasets*nproc*sizeof(long) );
+    (void)VALGRIND_CHECK_MEM_IS_DEFINED( &counts[0], num_datasets*nproc*sizeof(long) );
   }
   result = MPI_Scatter( &counts[0], num_datasets, MPI_LONG, offsets_out, num_datasets, MPI_LONG, 0, comm );
   CHECK_MPI(result);
@@ -1171,7 +1171,7 @@ ErrorCode WriteHDF5Parallel::negotiate_type_list()
     // Get list of types on this processor
   typedef std::vector< std::pair<int,int> > typelist;
   typelist my_types(num_types);
-  VALGRIND_MAKE_VEC_UNDEFINED( my_types );
+  (void)VALGRIND_MAKE_VEC_UNDEFINED( my_types );
   typelist::iterator viter = my_types.begin();
   for (std::list<ExportSet>::iterator eiter = exportList.begin();
        eiter != exportList.end(); ++eiter)
@@ -1224,14 +1224,14 @@ ErrorCode WriteHDF5Parallel::negotiate_type_list()
 
       // Get list of types from each processor
     std::vector<int> displs(myPcomm->proc_config().proc_size() + 1);
-    VALGRIND_MAKE_VEC_UNDEFINED( displs );
+    (void)VALGRIND_MAKE_VEC_UNDEFINED( displs );
     displs[0] = 0;
     for (unsigned long i = 1; i <= myPcomm->proc_config().proc_size(); ++i)
       displs[i] = displs[i-1] + counts[i-1];
     int total = displs[myPcomm->proc_config().proc_size()];
     typelist alltypes(total/2);
-    VALGRIND_MAKE_VEC_UNDEFINED( alltypes );
-    VALGRIND_CHECK_MEM_IS_DEFINED( &non_root_types[0], non_root_types.size()*sizeof(int) );
+    (void)VALGRIND_MAKE_VEC_UNDEFINED( alltypes );
+    (void)VALGRIND_CHECK_MEM_IS_DEFINED( &non_root_types[0], non_root_types.size()*sizeof(int) );
     result = MPI_Gatherv( &non_root_types[0], 2*non_root_count, MPI_INT,
                           &alltypes[0], &counts[0], &displs[0], MPI_INT, 0, comm );
     CHECK_MPI(result);

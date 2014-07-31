@@ -490,7 +490,7 @@ void gs_data::crystal_data::send_(uint target, int recvn)
   crystal_buf *t;
   int i;
 
-  VALGRIND_CHECK_MEM_IS_DEFINED( &send->n, sizeof(uint) );
+  (void)VALGRIND_CHECK_MEM_IS_DEFINED( &send->n, sizeof(uint) );
   MPI_Isend(&send->n,sizeof(uint),MPI_UNSIGNED_CHAR,
       target ,_id ,_comm,&req[ 0]);
   for (i=0; i<recvn; ++i)
@@ -506,7 +506,7 @@ void gs_data::crystal_data::send_(uint target, int recvn)
   recv[1]=recv[0]+count[0];
   keep->n=sum;
 
-  VALGRIND_CHECK_MEM_IS_DEFINED( send->buf.ptr,send->n*sizeof(uint) );
+  (void)VALGRIND_CHECK_MEM_IS_DEFINED( send->buf.ptr,send->n*sizeof(uint) );
   MPI_Isend(send->buf.ptr,send->n*sizeof(uint),
       MPI_UNSIGNED_CHAR,target,_id,_comm,&req[0]);
   if (recvn)
@@ -763,8 +763,8 @@ ErrorCode gs_data::initialize(uint n, const long *label, const ulong *ulabel,
 #else
   moab::TupleList::buffer buf;
 #endif
-  VALGRIND_CHECK_MEM_IS_DEFINED(label, nlabels * sizeof(long));
-  VALGRIND_CHECK_MEM_IS_DEFINED(ulabel, nlabels * sizeof(ulong));
+  (void)VALGRIND_CHECK_MEM_IS_DEFINED(label, nlabels * sizeof(long));
+  (void)VALGRIND_CHECK_MEM_IS_DEFINED(ulabel, nlabels * sizeof(ulong));
 #ifdef USE_MPI
   MPI_Comm_dup(crystal->_comm,&this->_comm);
 #else
