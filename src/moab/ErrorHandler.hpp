@@ -43,9 +43,9 @@ ErrorCode MBError(int line, const char* func, const char* file, const char* dir,
 //! Set a new error with passed error code and passed error message string stream
 #define SET_ERR_STR(err_code, err_msg_str) \
   do { \
-    std::ostringstream ostr; \
-    ostr << err_msg_str; \
-    return MBError(__LINE__, __func__, __FILENAME__, __SDIR__, err_code, ostr.str().c_str(), MB_ERROR_TYPE_NEW_LOCAL); \
+    std::ostringstream err_ostr; \
+    err_ostr << err_msg_str; \
+    return MBError(__LINE__, __func__, __FILENAME__, __SDIR__, err_code, err_ostr.str().c_str(), MB_ERROR_TYPE_NEW_LOCAL); \
   } while (false)
 
 //! Set a new global error with passed error code and passed error message string
@@ -55,9 +55,9 @@ ErrorCode MBError(int line, const char* func, const char* file, const char* dir,
 //! Set a new global error with passed error code and passed error message string stream
 #define SET_GLB_ERR_STR(err_code, err_msg_str) \
   do { \
-    std::ostringstream ostr; \
-    ostr << err_msg_str; \
-    return MBError(__LINE__, __func__, __FILENAME__, __SDIR__, err_code, ostr.str().c_str(), MB_ERROR_TYPE_NEW_GLOBAL); \
+    std::ostringstream err_ostr; \
+    err_ostr << err_msg_str; \
+    return MBError(__LINE__, __func__, __FILENAME__, __SDIR__, err_code, err_ostr.str().c_str(), MB_ERROR_TYPE_NEW_GLOBAL); \
   } while (false)
 
 //! Check returned error code against MB_SUCCESS
