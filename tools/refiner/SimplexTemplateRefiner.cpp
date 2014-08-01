@@ -285,9 +285,9 @@ bool SimplexTemplateRefiner::refine_2_simplex(
   void* midpt0t;
   void* midpt1t;
   void* midpt2t;
-  EntityHandle midpt0h;
-  EntityHandle midpt1h;
-  EntityHandle midpt2h;
+  EntityHandle midpt0h = 0;
+  EntityHandle midpt1h = 0;
+  EntityHandle midpt2h = 0;
 
   if ( max_depth-- > 0 )
     {
@@ -429,12 +429,12 @@ bool SimplexTemplateRefiner::refine_3_simplex(
   void* midpt4t;
   void* midpt5t;
 
-  EntityHandle midpt0h;
-  EntityHandle midpt1h;
-  EntityHandle midpt2h;
-  EntityHandle midpt3h;
-  EntityHandle midpt4h;
-  EntityHandle midpt5h;
+  EntityHandle midpt0h = 0;
+  EntityHandle midpt1h = 0;
+  EntityHandle midpt2h = 0;
+  EntityHandle midpt3h = 0;
+  EntityHandle midpt4h = 0;
+  EntityHandle midpt5h = 0;
 
   if ( max_depth-- > 0 )
     {
