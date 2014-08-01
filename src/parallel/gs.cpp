@@ -80,7 +80,7 @@
 #ifdef VALGRIND
 #  include <valgrind/memcheck.h>
 #elif !defined(VALGRIND_CHECK_MEM_IS_DEFINED)
-#  define VALGRIND_CHECK_MEM_IS_DEFINED(a,b)
+#  define VALGRIND_CHECK_MEM_IS_DEFINED(a,b) ((void)0)
 #endif
 
 #endif

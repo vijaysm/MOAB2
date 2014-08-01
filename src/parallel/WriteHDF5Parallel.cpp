@@ -106,13 +106,13 @@ const char* mpi_err_str( int errorcode ) {
 #  include <valgrind/memcheck.h>
 #else
 #  ifndef VALGRIND_CHECK_MEM_IS_DEFINED
-#    define VALGRIND_CHECK_MEM_IS_DEFINED(a,b)
+#    define VALGRIND_CHECK_MEM_IS_DEFINED(a,b) ((void)0)
 #  endif
 #  ifndef VALGRIND_CHECK_MEM_IS_ADDRESSABLE
-#    define VALGRIND_CHECK_MEM_IS_ADDRESSABLE(a, b)
+#    define VALGRIND_CHECK_MEM_IS_ADDRESSABLE(a, b) ((void)0)
 #  endif
 #  ifndef VALGRIND_MAKE_MEM_UNDEFINED
-#    define VALGRIND_MAKE_MEM_UNDEFINED(a, b)
+#    define VALGRIND_MAKE_MEM_UNDEFINED(a, b) ((void)0)
 #  endif
 #endif
 
