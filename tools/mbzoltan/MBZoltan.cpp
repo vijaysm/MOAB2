@@ -404,7 +404,7 @@ ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
 
   // Get a mesh from MOAB and diide it across processors.
 
-  ErrorCode result;
+  ErrorCode result = MB_SUCCESS;
   
     // short-circuit everything if RR partition is requested
   if (!strcmp(zmethod, "RR")) {
