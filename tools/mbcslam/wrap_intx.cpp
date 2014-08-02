@@ -16,6 +16,7 @@
 #include "moab/ReadUtilIface.hpp"
 #include "moab/ParallelComm.hpp"
 #include "MBTagConventions.hpp"
+#include "moab/ParallelMergeMesh.hpp"
 #include <mpi.h>
 
 using namespace moab;
@@ -295,6 +296,21 @@ ErrorCode fill_coord_on_edges(Interface * mb, std::vector<double*> & coordv2, do
   }
   return rval ;
 }
+
+ErrorCode resolve_interior_verts_on_bound_edges(Interface * mb, ParallelComm * pcomm,
+    Range & edges)
+{
+  // edges are coarse edges;
+  /*ErrorCode rval;
+  int rank=pcomm->proc_config().proc_rank();
+  Range sharedCoarseEdges=edges;// filter the non shared ones
+  rval = pcomm->filter_pstatus(sharedCoarseEdges, PSTATUS_SHARED, PSTATUS_AND);
+  ERRORR(rval, "can't filter coarse edges  ");*/
+  ParallelMergeMesh pmerge(pcomm, 0.0001);
+  ErrorCode rval = pmerge.merge();
+
+  return rval;
+}
 ErrorCode create_fine_mesh(Interface * mb, ParallelComm * pcomm,
     EntityHandle coarseSet, EntityHandle fine_set, double * coords,
    int nc, int nelem) {
@@ -497,10 +513,25 @@ ErrorCode create_fine_mesh(Interface * mb, ParallelComm * pcomm,
   }
 
   mb->add_entities(fine_set, quads3);
+  // notify MOAB of the new elements
+  rval = read_iface->update_adjacencies(start_elem, nelem * nc * nc, 4, connect);
+  ERRORR(rval,"can't update adjacencies on fine quads");
 
-  mb->tag_set_data(partitionTag, &fine_set, 1, &rank);
+  rval = mb->tag_set_data(partitionTag, &fine_set, 1, &rank);
+  ERRORR(rval,"can't set partition tag on fine set");
 
-  mb->write_file("fine.h5m", 0, "PARALLEL=WRITE_PART", &fine_set, 1);
+/*
+  // delete the coarse mesh, except vertices
+  mb->delete_entities(coarseQuads);
+  mb->delete_entities(edges);
+*/
+
+  // the vertices on the boundary edges of the partition need to be shared and resolved
+  ParallelMergeMesh pmerge(pcomm, 0.0001);
+  rval = pmerge.merge();
+  ERRORR(rval, "can't resolve vertices on interior of boundary edges ");
+
+  rval = mb->write_file("fine.h5m", 0, "PARALLEL=WRITE_PART", &fine_set, 1);
   ERRORR(rval, "can't write set 3, fine ");
 
   return rval;
