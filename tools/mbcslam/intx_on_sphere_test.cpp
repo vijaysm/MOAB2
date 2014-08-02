@@ -25,22 +25,24 @@ int main(int argc, char* argv[])
   const char *filename_mesh1 = STRINGIFY(MESHDIR) "/mbcslam/lagrangeHomme.vtk";
   const char *filename_mesh2 = STRINGIFY(MESHDIR) "/mbcslam/eulerHomme.vtk";
   double R = 6. * sqrt(3.) / 2; // input
+  double epsrel=1.e-8;
   const char *newFile = "intx.vtk";
-  if (argc == 5)
+  if (argc == 6)
   {
     filename_mesh1 = argv[1];
     filename_mesh2 = argv[2];
     R = atof(argv[3]);
-    newFile = argv[4];
+    epsrel = atof(argv[4]);
+    newFile = argv[5];
   }
   else
   {
-    printf("Usage: %s <mesh_filename1> <mesh_filename2> <radius>  <newFile>\n",
+    printf("Usage: %s <mesh_filename1> <mesh_filename2> <radius> <epsrel> <newFile>\n",
         argv[0]);
     if (argc != 1)
       return 1;
-    printf("No files specified.  Defaulting to: %s  %s  %f %s\n",
-        filename_mesh1, filename_mesh2, R, newFile);
+    printf("No files specified.  Defaulting to: %s  %s  %f %f %s\n",
+        filename_mesh1, filename_mesh2, R, epsrel, newFile);
   }
 
   // read meshes in 2 file sets
@@ -66,9 +68,26 @@ int main(int argc, char* argv[])
   if (MB_SUCCESS != rval)
     return 1;
 
+  // CslamUtils
+  rval = fix_degenerate_quads(mb, sf1);
+  if (MB_SUCCESS != rval)
+    return 1;
+  rval = fix_degenerate_quads(mb, sf2);
+  if (MB_SUCCESS != rval)
+    return 1;
+
+  rval =positive_orientation(mb, sf1, R);
+  if (MB_SUCCESS != rval)
+    return 1;
+
+  rval =positive_orientation(mb, sf2, R);
+  if (MB_SUCCESS != rval)
+    return 1;
+
+
   Intx2MeshOnSphere  worker(mb);
 
-  worker.SetErrorTolerance(R*1.e-8);
+  worker.SetErrorTolerance(R*epsrel);
   //worker.SetEntityType(moab::MBQUAD);
   worker.SetRadius(R);
   //worker.enable_debug();

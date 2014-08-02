@@ -1225,6 +1225,82 @@ ErrorCode create_span_quads(Interface * mb, EntityHandle euler_set, int rank)
 
 }
 
+// looking at quad connectivity, collapse to triangle if 2 nodes equal
+// then delete the old quad
+ErrorCode fix_degenerate_quads(Interface * mb, EntityHandle set)
+{
+  Range quads;
+  ErrorCode rval=mb->get_entities_by_type(set, MBQUAD, quads);
+  if (MB_SUCCESS != rval)
+    return rval;
+  for (Range::iterator qit=quads.begin(); qit!=quads.end(); qit++)
+  {
+    EntityHandle quad =*qit;
+    const EntityHandle * conn4=NULL;
+    int num_nodes=0;
+    rval = mb->get_connectivity(quad, conn4, num_nodes);
+    if (MB_SUCCESS != rval)
+      return rval;
+    for (int i=0;i<num_nodes; i++)
+    {
+      int next_node_index=(i+1)%num_nodes;
+      if (conn4[i]==conn4[next_node_index])
+      {
+        // form a triangle and delete the quad
+        int i2=(i+2)%num_nodes;
+        int i3=(i+3)%num_nodes;
+        EntityHandle conn3[3]={conn4[i], conn4[i2], conn4[i3]};
+        EntityHandle tri;
+        rval = mb->create_element(MBTRI, conn3, 3, tri);
+        if (MB_SUCCESS != rval)
+          return rval;
+        mb->add_entities(set, &tri, 1);
+        mb->remove_entities(set, &quad, 1);
+        mb->delete_entities(&quad, 1);
+      }
+    }
+  }
+  return MB_SUCCESS;
+}
+
+
+ErrorCode positive_orientation(Interface * mb, EntityHandle set, double R)
+{
+  Range cells2d;
+  ErrorCode rval=mb->get_entities_by_dimension(set, 2, cells2d);
+  if (MB_SUCCESS != rval)
+    return rval;
+  for (Range::iterator qit=cells2d.begin(); qit!=cells2d.end(); qit++)
+  {
+    EntityHandle cell =*qit;
+    const EntityHandle * conn=NULL;
+    int num_nodes=0;
+    rval = mb->get_connectivity(cell, conn, num_nodes);
+    if (MB_SUCCESS != rval)
+      return rval;
+    if (num_nodes<3)
+      return MB_FAILURE;
+
+    double coords[9];
+    rval = mb->get_coords(conn, 3, coords);
+    if (MB_SUCCESS != rval)
+      return rval;
+
+    double area= area_spherical_triangle_lHuiller( coords, coords+3, coords+6, R);
+    if (area<0)
+    {
+      std::vector<EntityHandle> newconn(num_nodes);
+      for (int i=0; i<num_nodes; i++)
+      {
+        newconn[num_nodes-1-i] = conn[i];
+      }
+      rval = mb->set_connectivity(cell, &newconn[0], num_nodes);
+      if (MB_SUCCESS != rval)
+        return rval;
+    }
+  }
+  return MB_SUCCESS;
+}
 // distance along a great circle on a sphere of radius 1
 // page 4
 double distance_on_sphere(double la1, double te1, double la2, double te2)

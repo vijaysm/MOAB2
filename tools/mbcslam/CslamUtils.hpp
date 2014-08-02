@@ -138,6 +138,10 @@ ErrorCode enforce_convexity(Interface * mb, EntityHandle set, int rank = 0);
 // then delete the new entities (vertices) and the set of quads
 ErrorCode create_span_quads(Interface * mb, EntityHandle euler_set, int rank);
 
+// looking at quad connectivity, collapse to triangle if 2 nodes equal
+// then delete the old quad
+ErrorCode fix_degenerate_quads(Interface * mb, EntityHandle set);
+
 // distance along a great circle on a sphere of radius 1
 double distance_on_sphere(double la1, double te1, double la2, double te2);
 // page 4 Nair Lauritzen paper
@@ -149,6 +153,8 @@ double smooth_field(double lam, double tet, double * params);
 double slotted_cylinder_field(double lam, double tet, double * params);
 
 double area_spherical_element(Interface * mb, EntityHandle  elem, double R);
+
+ErrorCode positive_orientation(Interface * mb, EntityHandle set, double R);
 
 
 }
