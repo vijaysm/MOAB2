@@ -167,10 +167,22 @@ AC_CHECK_LIB(pthread, pthread_create,
     AC_MSG_ERROR([POSIX threads not found.])
   )
 )
+AC_CHECK_LIB(z, compress, LIBS="$LIBS -lz")
 AC_CHECK_LIB(dl, dlopen, LIBS="$LIBS -ldl")
 AC_CHECK_LIB(m, pow, LIBS="$LIBS -lm")
-AC_CHECK_LIB(z, compress, LIBS="$LIBS -lz")
 
+# check how to link against C++ runtime for fortran programs especially
+AC_LANG_PUSH([Fortran])
+my_save_cflags="$LDFLAGS"
+LDFLAGS=-cxxlib
+AC_MSG_CHECKING([whether $FC supports -cxxlib])
+AC_LINK_IFELSE([AC_LANG_PROGRAM([])],
+    [AC_MSG_RESULT([yes])]
+    [FFLAGS="$FFLAGS -cxxlib",FCFLAGS="$FCFLAGS -cxxlib"],
+    [AC_MSG_RESULT([no])]
+)
+LDFLAGS="$my_save_cflags"
+AC_LANG_POP([Fortran])
 AC_CHECK_LIB(stdc++, main, LIBS="$LIBS -lstdc++")
 
 
