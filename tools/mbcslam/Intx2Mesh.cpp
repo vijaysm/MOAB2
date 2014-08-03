@@ -32,6 +32,7 @@ Intx2Mesh::Intx2Mesh(Interface * mbimpl): mb(mbimpl)
   redParentTag =0;
   blueParentTag = 0;
   countTag = 0;
+  counting = 0;
 }
 
 Intx2Mesh::~Intx2Mesh()
@@ -227,18 +228,16 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
     mb->tag_set_data(RedFlagTag, &startRed, 1, &used);
     while (!redQueue.empty())
     {
-      // flags for the side : 0 means a blue quad not found on side
+      // flags for the side : 0 means a blue cell not found on side
       // a paired blue not found yet for the neighbors of red
       EntityHandle n[MAXEDGES] = { EntityHandle(0) };
 
-      int nsidesRed; // will be initialized later, when we compute intersection
       EntityHandle currentRed = redQueue.front();
-
       redQueue.pop();
-      //        for (k=0; k<m_numPos; k++)
-      //          redFlag[k] = 0;
-      //        redFlag[m_numPos] = 1; // to guard for the boundary
-      // all reds that were tagged, are now cleared
+      int nsidesRed; // will be initialized now
+      double areaRedCell = setup_red_cell(currentRed, nsidesRed); // this is the area in the gnomonic plane
+      double recoveredArea = 0;
+      // all blue cells that were tagged, are now cleared
       for (Range::iterator itr = toResetBlues.begin(); itr != toResetBlues.end();
           itr++)
       {
@@ -246,13 +245,6 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
         rval = mb->tag_set_data(BlueFlagTag, &ttt, 1, &unused);
         ERRORR(rval, "can't set blue unused tag");
       }
-      //rval = mb2->tag_set_data(RedFlagTag, toResetReds, &unused);
-      /*if (dbg_1)
-      {
-        std::cout << "reset blues: ";
-        mb->list_entities(toResetBlues);
-      }*/
-      //rval = mb2->tag_set_data(RedFlagTag, toResetReds, &unused);
       if (dbg_1)
       {
         std::cout << "reset blues: ";
@@ -273,6 +265,8 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
       //mb2->set_tag_data
       std::queue<EntityHandle> localBlue;
       localBlue.push(currentBlue);
+      int countingStart = counting;
+
       while (!localBlue.empty())
       {
         //
@@ -347,6 +341,8 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
           }
           if (nP > 1) // this will also construct triangles/polygons in the new mesh, if needed
             findNodes(currentRed, nsidesRed, blueT, nsidesBlue, P, nP);
+
+          recoveredArea+=area;
         }
         else if (dbg_1)
         /*{
@@ -361,6 +357,10 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
         }
 
       } // end while (!localBlue.empty())
+      if (fabs((recoveredArea-areaRedCell)/areaRedCell) > epsilon_area)
+      {
+        std::cout << " red area: " << areaRedCell << " recovered :" <<recoveredArea << " redID: " << mb->id_from_handle(currentRed) << " countingStart:" << countingStart <<  "\n";
+      }
       // here, we are finished with redCurrent, take it out of the rs22 range (red, arrival mesh)
       rs22.erase(currentRed);
       // also, look at its neighbors, and add to the seeds a next one
@@ -444,6 +444,7 @@ void Intx2Mesh::clean()
   mb->tag_delete(countTag);
   RedEdges.clear();
   localEnts.clear();*/
+  counting = 0; // reset counting to original value
 
 }
 // this method will reduce number of nodes, collapse edges that are of length 0

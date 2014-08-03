@@ -26,20 +26,14 @@ Intx2MeshOnSphere::~Intx2MeshOnSphere()
   // TODO Auto-generated destructor stub
 }
 
-/* the elements are convex for sure, then do a gnomonic projection of both,
- *  compute intersection in the plane, then go back to the sphere for the points
- *  */
-int Intx2MeshOnSphere::computeIntersectionBetweenRedAndBlue(EntityHandle red, EntityHandle blue,
-    double * P, int & nP, double & area, int markb[MAXEDGES], int markr[MAXEDGES],
-    int & nsBlue, int & nsRed, bool check_boxes_first)
-{
-  // the points will be at most 40; they will describe a convex patch, after the points will be ordered and
-  // collapsed (eliminate doubles)
-  // the area is not really required, except to see if it is greater than 0
+/*
+ * return also the area for robustness verification
+ */
+double Intx2MeshOnSphere::setup_red_cell(EntityHandle red, int & nsRed){
 
-  // gnomonic projection
-  // int plane = 0;
+
   // get coordinates of the red quad, to decide the gnomonic plane
+  double cellArea =0;
 
   int num_nodes;
   ErrorCode rval = mb->get_connectivity(red, redConn, num_nodes);
@@ -61,8 +55,37 @@ int Intx2MeshOnSphere::computeIntersectionBetweenRedAndBlue(EntityHandle red, En
   middle = 1./nsRed * middle;
 
   decide_gnomonic_plane(middle, plane);// output the plane
+  for (int j = 0; j < nsRed; j++)
+  {
+    // populate coords in the plane for intersection
+    // they should be oriented correctly, positively
+    int rc = gnomonic_projection(redCoords[j],  R, plane, redCoords2D[2 * j],
+        redCoords2D[2 * j + 1]);
+    if (rc != 0)
+      return 1;
+  }
+
+  for (int j=1; j<nsRed-1; j++)
+    cellArea += area2D(&redCoords2D[0], &redCoords2D[2*j], &redCoords2D[2*j+2]);
+
+  // take red coords in order and compute area in plane
+  return cellArea;
+}
+
+/* the elements are convex for sure, then do a gnomonic projection of both,
+ *  compute intersection in the plane, then go back to the sphere for the points
+ *  */
+int Intx2MeshOnSphere::computeIntersectionBetweenRedAndBlue(EntityHandle red, EntityHandle blue,
+    double * P, int & nP, double & area, int markb[MAXEDGES], int markr[MAXEDGES],
+    int & nsBlue, int & nsRed, bool check_boxes_first)
+{
+  // the area will be used from now on, to see how well we fill the red cell with polygons
+  // the points will be at most 40; they will describe a convex patch, after the points will be ordered and
+  // collapsed (eliminate doubles)
+
   //CartVect bluecoords[4];
-  rval = mb->get_connectivity(blue, blueConn, num_nodes);
+  int num_nodes=0;
+  ErrorCode rval = mb->get_connectivity(blue, blueConn, num_nodes);
   if (MB_SUCCESS != rval )
     return 1;
   nsBlue = num_nodes;
@@ -73,6 +96,16 @@ int Intx2MeshOnSphere::computeIntersectionBetweenRedAndBlue(EntityHandle red, En
   if (MB_SUCCESS != rval)
     return 1;
 
+  area = 0.;
+  nP = 0; // number of intersection points we are marking the boundary of blue!
+  if (check_boxes_first)
+  {
+    // look at the boxes formed with vertices; if they are far away, return false early
+    // make sure the red is setup already
+    setup_red_cell(red, nsRed); // we do not need area here
+    if (!GeomUtil::bounding_boxes_overlap(redCoords, nsRed, blueCoords, nsBlue, box_error))
+      return 0; // no error, but no intersection, decide early to get out
+  }
   if (dbg_1)
   {
     std::cout << "red " << mb->id_from_handle(red) << "\n";
@@ -87,25 +120,8 @@ int Intx2MeshOnSphere::computeIntersectionBetweenRedAndBlue(EntityHandle red, En
     }
     mb->list_entities(&red, 1);
     mb->list_entities(&blue, 1);
-    std::cout << "middle " << middle << "  plane:" << plane << "\n";
   }
-  area = 0.;
-  nP = 0; // number of intersection points we are marking the boundary of blue!
-  if (check_boxes_first)
-  {
-    // look at the boxes formed with vertices; if they are far away, return false early
-    if (!GeomUtil::bounding_boxes_overlap(redCoords, nsRed, blueCoords, nsBlue, box_error))
-      return 0; // no error, but no intersection, decide early to get out
-  }
-  for (int j = 0; j < nsRed; j++)
-  {
-    // populate coords in the plane for intersection
-    // they should be oriented correctly, positively
-    int rc = gnomonic_projection(redCoords[j],  R, plane, redCoords2D[2 * j],
-        redCoords2D[2 * j + 1]);
-    if (rc != 0)
-      return 1;
-  }
+
   for (int j=0; j<nsBlue; j++)
   {
     int rc = gnomonic_projection(blueCoords[j], R, plane, blueCoords2D[2 * j],
@@ -288,20 +304,24 @@ int Intx2MeshOnSphere::findNodes(EntityHandle red, int nsRed, EntityHandle blue,
           // if not, create a new point, (check the id)
           // get the coordinates of the extra points so far
           int nbExtraNodesSoFar = expts->size();
-          CartVect * coords1 = new CartVect[nbExtraNodesSoFar];
-          mb->get_coords(&(*expts)[0], nbExtraNodesSoFar, &(coords1[0][0]));
-          //std::list<int>::iterator it;
-          for (int k = 0; k < nbExtraNodesSoFar && !found; k++)
+          if (nbExtraNodesSoFar>0)
           {
-            //int pnt = *it;
-            double d2 = (pos - coords1[k]).length_squared();
-            if (d2 < epsilon_1)
+            CartVect * coords1 = new CartVect[nbExtraNodesSoFar];
+            mb->get_coords(&(*expts)[0], nbExtraNodesSoFar, &(coords1[0][0]));
+            //std::list<int>::iterator it;
+            for (int k = 0; k < nbExtraNodesSoFar && !found; k++)
             {
-              found = 1;
-              foundIds[i] = (*expts)[k];
-              if (dbg_1)
-                std::cout << " found node:" << foundIds[i] << std::endl;
+              //int pnt = *it;
+              double d2 = (pos - coords1[k]).length_squared();
+              if (d2 < epsilon_1)
+              {
+                found = 1;
+                foundIds[i] = (*expts)[k];
+                if (dbg_1)
+                  std::cout << " found node:" << foundIds[i] << std::endl;
+              }
             }
+            delete[] coords1;
           }
           if (!found)
           {
@@ -317,7 +337,7 @@ int Intx2MeshOnSphere::findNodes(EntityHandle red, int nsRed, EntityHandle blue,
             if (dbg_1)
               std::cout << " new node: " << outNode << std::endl;
           }
-          delete[] coords1;
+
         }
       }
     }
@@ -359,14 +379,13 @@ int Intx2MeshOnSphere::findNodes(EntityHandle red, int nsRed, EntityHandle blue,
     id = rs2.index(red);
     mb->tag_set_data(redParentTag, &polyNew, 1, &id);
 
-    static int count=0;
-    count++;
-    mb->tag_set_data(countTag, &polyNew, 1, &count);
+    counting++;
+    mb->tag_set_data(countTag, &polyNew, 1, &counting);
 
     if (dbg_1)
     {
 
-      std::cout << "Count: " << count << "\n";
+      std::cout << "Counting: " << counting << "\n";
       std::cout << " polygon " << mb->id_from_handle(polyNew) << "  nodes: " << nP << " :";
       for (int i1 = 0; i1 < nP; i1++)
         std::cout << " " << mb->id_from_handle(foundIds[i1]);
@@ -377,7 +396,7 @@ int Intx2MeshOnSphere::findNodes(EntityHandle red, int nsRed, EntityHandle blue,
         std::cout << foundIds[i1]<< " " << posi[i1] << "\n";
 
       std::stringstream fff;
-      fff << "file0" <<  count<< ".vtk";
+      fff << "file0" <<  counting<< ".vtk";
          mb->write_mesh(fff.str().c_str(), &outSet, 1);
     }
 
