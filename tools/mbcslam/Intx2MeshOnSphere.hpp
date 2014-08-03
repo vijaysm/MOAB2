@@ -19,8 +19,10 @@ public:
   virtual ~Intx2MeshOnSphere();
 
   void SetRadius(double radius) { R=radius ;}
-  // main method to intersect meshes on a sphere
 
+  double setup_red_cell(EntityHandle red, int & nsRed);
+
+  // main method to intersect meshes on a sphere
 
   int computeIntersectionBetweenRedAndBlue(EntityHandle red, EntityHandle blue,
           double * P, int & nP, double & area, int markb[MAXEDGES], int markr[MAXEDGES],
