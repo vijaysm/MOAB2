@@ -530,9 +530,13 @@ void ReadCGM::set_cgm_attributes(bool const act_attributes, bool const verbose)
   return MB_SUCCESS;
 }
 
-  ErrorCode ReadCGM::create_curve_facets( std::map<RefEntity*,EntityHandle>& curve_map,
-					  std::map<RefEntity*,EntityHandle>& vertex_map,
-                                        int norm_tol, 
+ErrorCode ReadCGM::create_curve_facets( std::map<RefEntity*,EntityHandle>& curve_map,
+                                        std::map<RefEntity*,EntityHandle>& vertex_map,
+#if CGM_MAJOR_VERSION > 12
+                                        int norm_tol,
+#else
+                                        int /* norm_tol */,
+#endif
                                         double faceting_tol, 
                                         bool verbose_warn )
 {
@@ -556,11 +560,11 @@ void ReadCGM::set_cgm_attributes(bool const act_attributes, bool const verbose)
     Curve* curve = edge->get_curve_ptr();
     //clean out previous curve information
     data.clean_out();
-    //facet curve accoring to parameters and CGM version
-#if  CGM_MAJOR_VERSION>12
-    s = edge->get_graphics( data, norm_tol, faceting_tol);
+    //facet curve according to parameters and CGM version
+#if CGM_MAJOR_VERSION > 12
+    s = edge->get_graphics(data, norm_tol, faceting_tol);
 #else
-    s = edge->get_graphics( data, faceting_tol);
+    s = edge->get_graphics(data, faceting_tol);
 #endif
      if (CUBIT_SUCCESS != s)
         return MB_FAILURE;
