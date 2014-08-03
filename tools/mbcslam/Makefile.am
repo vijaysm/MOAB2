@@ -72,11 +72,6 @@ if PARALLEL
   advection_LDADD = $(LDADD) $(top_builddir)/itaps/imesh/libiMesh.la -lstdc++ 
 endif 
 
-EXTRA_DIST  = lagrangeHomme.vtk  \
-              eulerHomme.vtk \
-              m1.vtk \
-              m2.vtk 
-
 # Other files to clean up (e.g. output from tests)
 MOSTLYCLEANFILES = intersect1.h5m \
                    lagr.h5m \

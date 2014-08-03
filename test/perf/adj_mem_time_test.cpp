@@ -7,6 +7,7 @@
 #include "moab/Range.hpp"
 #include "moab/MeshTopoUtil.hpp"
 #include "moab/HalfFacetRep.hpp"
+#include "../TestUtil.hpp"
 #include <sys/time.h>
 
 using namespace moab;
@@ -14,7 +15,7 @@ using namespace moab;
 #ifdef MESHDIR
 std::string TestDir(STRINGIFY(MESHDIR));
 #else
-std::string TestDir(".");
+#error MESHDIR needs to be defined for running unit tests
 #endif
 
 std::string filename;

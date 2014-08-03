@@ -1,4 +1,4 @@
-SUBDIRS = io dagmc iGeom
+SUBDIRS = dagmc h5file io iGeom mbcslam
 
 EXTRA_DIST  = 125hex.g \
               16_unmerged_hex.h5m \

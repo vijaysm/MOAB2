@@ -322,7 +322,7 @@ int main(int argc, char *argv[])
 #endif
 
     const char* filename = 0;
-#ifdef SRCDIR
+#ifdef MESHDIR
  #ifdef HDF5_FILE
     filename = STRINGIFY(MESHDIR) "/32hex_ef.h5m";
  #else

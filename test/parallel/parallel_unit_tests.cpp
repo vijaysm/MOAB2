@@ -185,14 +185,14 @@ int main( int argc, char* argv[] )
   }
 
   if (!filename) {
-#ifdef SRCDIR
+#ifdef MESHDIR
     filename = STRINGIFY(MESHDIR) "/64bricks_512hex.h5m";
 #else
     filename = "64bricks_512hex.h5m";
 #endif
   }
 
-#ifdef SRCDIR
+#ifdef MESHDIR
   const char* filename2 = STRINGIFY(MESHDIR) "/64bricks_1khex.h5m";
 #else
   const char * filename2 = "64bricks_1khex.h5m";
@@ -407,7 +407,7 @@ ErrorCode test_elements_on_several_procs( const char* filename )
   Interface& moab = mb_instance;
   ErrorCode rval;
   const char* geom_names[] = { "vertex", "curve", "surface", "volume", "unknown" };
-  
+
   rval = moab.load_file( filename, 0, 
                          "PARALLEL=READ_DELETE;"
                          "PARTITION=GEOM_DIMENSION;PARTITION_VAL=3;"
@@ -1647,7 +1647,7 @@ ErrorCode test_delete_entities( const char* filename )
   rval = moab.load_file( filename, 0,
                          "PARALLEL=READ_PART;"
                          "PARTITION=PARALLEL_PARTITION;"
-                         "PARALLEL_RESOLVE_SHARED_ENTS;" );
+                         "PARALLEL_RESOLVE_SHARED_ENTS" );
   CHKERR(rval);
 
     // Get ghost elements

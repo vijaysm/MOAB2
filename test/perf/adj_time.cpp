@@ -1,18 +1,17 @@
 #include "moab/Core.hpp"
 #include "moab/Range.hpp"
+#include "../TestUtil.hpp"
 #include <iostream>
 #include <assert.h>
 #include <time.h>
 
 using namespace moab;
 
-#define STRINGIFY_(X) #X
-#define STRINGIFY(X) STRINGIFY_(X)
-#ifndef SRCDIR
-# define SRCDIR .
+#ifndef MESHDIR
+#error Specify MESHDIR to compile test
 #endif
 
-const char* default_input_file = "../mb_big_test.g";
+const char* default_input_file = STRINGIFY(MESHDIR) "/mb_big_test.g";
 
 int main()
 {
