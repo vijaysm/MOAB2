@@ -27,7 +27,6 @@ Intx2Mesh::Intx2Mesh(Interface * mbimpl): mb(mbimpl)
   dbg_1=0;
   box_error=0;
   my_rank=0;
-  BlueFlagTag=0;
   RedFlagTag=0;
   redParentTag =0;
   blueParentTag = 0;
@@ -54,17 +53,11 @@ void Intx2Mesh::createTags()
     mb->tag_delete(blueParentTag);
   if (countTag)
     mb->tag_delete(countTag);
-    /*RedEdges.clear();
-    localEnts.clear()*/
 
   unsigned char def_data_bit = 0; // unused by default
-  ErrorCode rval = mb->tag_get_handle("blueFlag", 1, MB_TYPE_BIT, BlueFlagTag,
-      MB_TAG_CREAT, &def_data_bit);
-  if (MB_SUCCESS != rval)
-    return;
   // maybe the red tag is better to be deleted every time, and recreated;
   // or is it easy to set all values to something again? like 0?
-  rval = mb->tag_get_handle("redFlag", 1, MB_TYPE_BIT, RedFlagTag, MB_TAG_CREAT,
+  ErrorCode rval = mb->tag_get_handle("redFlag", 1, MB_TYPE_BIT, RedFlagTag, MB_TAG_CREAT,
       &def_data_bit);
   ERRORV(rval, "can't get red flag tag");
 
@@ -186,6 +179,12 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
                  // advance ; rs2 is needed for marking the polygon to the red parent
   while (!rs22.empty())
   {
+    if (rs22.size()<rs2.size())
+    {
+      std::stringstream fff;
+      fff << "file0" <<  counting<< ".vtk";
+      mb->write_mesh(fff.str().c_str(), &outputSet, 1);
+    }
     for (Range::iterator it = rs1.begin(); it != rs1.end(); it++)
     {
       startBlue = *it;
@@ -223,28 +222,47 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
     /*if (my_rank==0)
       dbg_1 = 1;*/
     unsigned char used = 1;
-    unsigned char unused = 0; // for red flags
-    // mark the start blue quad as used, so it will not come back again
+    // mark the start red quad as used, so it will not come back again
     mb->tag_set_data(RedFlagTag, &startRed, 1, &used);
     while (!redQueue.empty())
     {
       // flags for the side : 0 means a blue cell not found on side
       // a paired blue not found yet for the neighbors of red
-      EntityHandle n[MAXEDGES] = { EntityHandle(0) };
+      Range nextBlue[MAXEDGES]; // there are new ranges of possible next blue cells for seeding the side j of red cell
 
       EntityHandle currentRed = redQueue.front();
       redQueue.pop();
       int nsidesRed; // will be initialized now
       double areaRedCell = setup_red_cell(currentRed, nsidesRed); // this is the area in the gnomonic plane
       double recoveredArea = 0;
-      // all blue cells that were tagged, are now cleared
-      for (Range::iterator itr = toResetBlues.begin(); itr != toResetBlues.end();
-          itr++)
+      // get the neighbors of red, and if they are solved already, do not bother with that side of red
+      EntityHandle redNeighbors[MAXEDGES];
+      rval = GetOrderedNeighbors(mbs2, currentRed, redNeighbors);
+      ERRORR(rval, "can't get neighbors of current red");
+      if (dbg_1)
       {
-        EntityHandle ttt = *itr;
-        rval = mb->tag_set_data(BlueFlagTag, &ttt, 1, &unused);
-        ERRORR(rval, "can't set blue unused tag");
+        std::cout << "Next: neighbors for current red ";
+        for (int kk = 0; kk < nsidesRed; kk++)
+        {
+          if (redNeighbors[kk] > 0)
+            std::cout << mb->id_from_handle(redNeighbors[kk]) << " ";
+          else
+            std::cout << 0 << " ";
+        }
+        std::cout << std::endl;
       }
+      // now get the status of neighbors; if already solved, make them 0, so not to bother anymore on that side of red
+      for (int j = 0; j < nsidesRed; j++)
+      {
+        EntityHandle redNeigh = redNeighbors[j];
+        unsigned char status = 1;
+        if (redNeigh == 0)
+          continue;
+        mb->tag_get_data(RedFlagTag, &redNeigh, 1, &status); // status 0 is unused
+        if (1==status)
+          redNeighbors[j]=0; // so will not look anymore on this side of red
+      }
+
       if (dbg_1)
       {
         std::cout << "reset blues: ";
@@ -260,8 +278,6 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
       toResetBlues.clear(); // empty the range of used blues, will have to be set unused again,
       // at the end of red element processing
       toResetBlues.insert(currentBlue);
-      rval = mb->tag_set_data(BlueFlagTag, &currentBlue, 1, &used);
-      ERRORR(rval, "can't set blue tag");
       //mb2->set_tag_data
       std::queue<EntityHandle> localBlue;
       localBlue.push(currentBlue);
@@ -309,35 +325,26 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
           for (int nn = 0; nn < nsidesBlue; nn++)
           {
             EntityHandle neighbor = neighbors[nn];
-            if (neighbor > 0 && nb[nn]>0) // advance across blue boundary n
+            if (neighbor > 0 && nb[nn]>0) // advance across blue boundary nn
             {
-              //n[nn] = redT; // start from 0!!
-              unsigned char status = 0;
-              mb->tag_get_data(BlueFlagTag, &neighbor, 1, &status);
-              if (status == 0)
+              if (toResetBlues.find(neighbor)==toResetBlues.end())
               {
                 localBlue.push(neighbor);
-                /*if (dbg_1)
-                {
-                  std::cout << " local blue elem "
-                      << mb->list_entities(&neighbor, 1) << "\n  for red:"
-                      << mb->list_entities(&currentRed, 1) << "\n";
-                }*/
                 if (dbg_1)
                 {
                   std::cout << " local blue elem " << mb->id_from_handle(neighbor)
                       << " for red:" << mb->id_from_handle(currentRed) << "\n";
                   mb->list_entities(&neighbor, 1);
                 }
-                rval = mb->tag_set_data(BlueFlagTag, &neighbor, 1, &used);
-                //redFlag[neighbor] = 1; // flag it to not be added anymore
-                toResetBlues.insert(neighbor); // this is used to reset the red flag
+                toResetBlues.insert(neighbor);
               }
             }
-            // n(find(nc>0))=ac;        % ac is starting candidate for neighbor
-            if (nr[nn] > 0)
-              n[nn] = blueT;
-
+          }
+          // n(find(nc>0))=ac;        % ac is starting candidate for neighbor
+          for (int nn=0; nn<nsidesRed; nn++)
+          {
+            if (nr[nn] > 0 && redNeighbors[nn]>0)
+              nextBlue[nn].insert(blueT); // potential blue cell that can intersect the red neighbor nn
           }
           if (nP > 1) // this will also construct triangles/polygons in the new mesh, if needed
             findNodes(currentRed, nsidesRed, blueT, nsidesBlue, P, nP);
@@ -345,19 +352,14 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
           recoveredArea+=area;
         }
         else if (dbg_1)
-        /*{
-          std::cout << " red, blue, do not intersect: "
-              << mb->list_entities(&currentRed, 1) << " "
-              << mb->list_entities(&blueT, 1) << "\n";
-        }*/
         {
           std::cout << " red, blue, do not intersect: "
               << mb->id_from_handle(currentRed) << " "
               << mb->id_from_handle(blueT) << "\n";
         }
-
       } // end while (!localBlue.empty())
-      if (fabs((recoveredArea-areaRedCell)/areaRedCell) > epsilon_area)
+      double redRecovery=fabs((recoveredArea-areaRedCell)/areaRedCell); // 0 means everythinng got recovered
+      if ( redRecovery > epsilon_1)
       {
         std::cout << " red area: " << areaRedCell << " recovered :" <<recoveredArea << " redID: " << mb->id_from_handle(currentRed) << " countingStart:" << countingStart <<  "\n";
       }
@@ -365,38 +367,37 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
       rs22.erase(currentRed);
       // also, look at its neighbors, and add to the seeds a next one
 
-      EntityHandle redNeighbors[MAXEDGES];
-      rval = GetOrderedNeighbors(mbs2, currentRed, redNeighbors);
-      ERRORR(rval, "can't get neighbors");
-      if (dbg_1)
-      {
-        std::cout << "Next: neighbors for current red ";
-        for (int kk = 0; kk < nsidesRed; kk++)
-        {
-          if (redNeighbors[kk] > 0)
-            std::cout << mb->id_from_handle(redNeighbors[kk]) << " ";
-          else
-            std::cout << 0 << " ";
-        }
-        std::cout << std::endl;
-      }
       for (int j = 0; j < nsidesRed; j++)
       {
         EntityHandle redNeigh = redNeighbors[j];
-        unsigned char status = 1;
-        if (redNeigh == 0)
+        if (redNeigh==0)
           continue;
-        mb->tag_get_data(RedFlagTag, &redNeigh, 1, &status); // status 0 is unused
-        if (status == 0 && n[j] > 0) // not treated yet and marked as a neighbor
+        assert(nextBlue[j].size()>0);
+        int nsidesRed2=0;
+        setup_red_cell(redNeigh, nsidesRed2); // find possible intersection with blue cell from nextBlue
+        for (Range::iterator nit =nextBlue[j].begin(); nit!=nextBlue[j].end(); nit++)
         {
-          // we identified red quad n[j] as intersecting with neighbor j of the blue quad
-          redQueue.push(redNeigh);
-          blueQueue.push(n[j]);
-          if (dbg_1)
-            std::cout << "new polys pushed: blue, red:"
-                << mb->id_from_handle(redNeigh) << " "
-                << mb->id_from_handle(n[j]) << std::endl;
-          mb->tag_set_data(RedFlagTag, &redNeigh, 1, &used);
+          EntityHandle nextB=*nit;
+          // we identified red quad n[j] as possibly intersecting with neighbor j of the blue quad
+          double P[10*MAXEDGES], area; //
+          int nP = 0;
+          int nb[MAXEDGES] = {0};
+          int nr[MAXEDGES] = {0};
+
+          int nsidesBlue; ///
+          computeIntersectionBetweenRedAndBlue(/* red */redNeigh, nextB, P, nP,
+                      area, nb, nr, nsidesBlue, nsidesRed2);
+          if (area>0)
+          {
+            redQueue.push(redNeigh);
+            blueQueue.push(nextB);
+            if (dbg_1)
+              std::cout << "new polys pushed: blue, red:"
+                  << mb->id_from_handle(redNeigh) << " "
+                  << mb->id_from_handle(nextB) << std::endl;
+            mb->tag_set_data(RedFlagTag, &redNeigh, 1, &used);
+            break; // so we are done with this side of red, we have found a proper next seed
+          }
         }
       }
 
@@ -429,21 +430,12 @@ void Intx2Mesh::clean()
   for (Range::iterator eit = RedEdges.begin(); eit != RedEdges.end();
       eit++, indx++)
   {
-    //EntityHandle edge = *eit;
-    //delete extraNodesMap[edge];
     delete extraNodesVec[indx];
   }
   //extraNodesMap.clear();
   extraNodesVec.clear();
   // also, delete some bit tags, used to mark processed reds and blues
-  mb->tag_delete(RedFlagTag);// to mark blue quads already considered
-  mb->tag_delete(BlueFlagTag);
-
-  /*mb->tag_delete(redParentTag);
-  mb->tag_delete(blueParentTag);
-  mb->tag_delete(countTag);
-  RedEdges.clear();
-  localEnts.clear();*/
+  mb->tag_delete(RedFlagTag);
   counting = 0; // reset counting to original value
 
 }

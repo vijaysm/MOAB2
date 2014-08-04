@@ -119,9 +119,7 @@ protected: // so it can be accessed in derived classes, InPlane and OnSphere
 
   EntityHandle outSet; // will contain intersection
 
-  // tags used in computation, advanced front
-  Tag BlueFlagTag; // to mark blue quads already considered
-
+  // tags used in computation, advancing front
   Tag RedFlagTag; // to mark red quads already considered
 
   Range RedEdges; //
