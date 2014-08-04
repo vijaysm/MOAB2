@@ -401,7 +401,7 @@ int Intx2MeshOnSphere::findNodes(EntityHandle red, int nsRed, EntityHandle blue,
     }
 
   }
-  disable_debug();
+  //disable_debug();
   delete[] foundIds;
   foundIds = NULL;
   return 0;
