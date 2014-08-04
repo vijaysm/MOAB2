@@ -48,7 +48,10 @@ endif
 
 noinst_PROGRAMS =  proj1 create_dp 
 if PARALLEL
-  noinst_PROGRAMS +=cslam_par_test diffusion  intx_imesh advection
+  noinst_PROGRAMS +=cslam_par_test diffusion  intx_imesh 
+if ENABLE_FORTRAN
+  noinst_PROGRAMS += advection
+endif
 endif
 
 check_PROGRAMS = $(TESTS) 
@@ -68,8 +71,10 @@ if PARALLEL
   intx_imesh_LDADD = $(LDADD) $(top_builddir)/itaps/imesh/libiMesh.la
   cslam_par_test_SOURCES = cslam_par_test.cpp
   intx_mpas_SOURCES = intx_mpas.cpp
+if ENABLE_FORTRAN
   advection_SOURCES = advection.F90
   advection_LDADD = $(LDADD) $(top_builddir)/itaps/imesh/libiMesh.la -lstdc++ 
+endif
 endif 
 
 # Other files to clean up (e.g. output from tests)
