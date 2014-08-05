@@ -183,7 +183,6 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([])],
 )
 LDFLAGS="$my_save_cflags"
 AC_LANG_POP([Fortran])
-AC_CHECK_LIB(stdc++, main, LIBS="$LIBS -lstdc++")
 
 
 ################################################################################
