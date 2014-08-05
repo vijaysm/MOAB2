@@ -10,8 +10,8 @@ AC_DEFUN([FATHOM_CHECK_CCMIO],[
 
 AC_MSG_CHECKING([if CCMIO support is enabled])
 AC_ARG_WITH(ccmio, 
-[AC_HELP_STRING([--with-ccmio=DIR], [Specify CCMIO location])
-AC_HELP_STRING([--without-ccmio], [Disable support for CCMIO file format])],
+[AS_HELP_STRING([--with-ccmio=DIR], [Specify CCMIO location])
+AS_HELP_STRING([--without-ccmio], [Disable support for CCMIO file format])],
 [CCMIO_ARG=$withval
 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-ccmio=\"${withval}\""
 ]

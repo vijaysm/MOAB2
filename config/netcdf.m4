@@ -51,8 +51,8 @@ AC_DEFUN([FATHOM_CHECK_NETCDF],[
 
 AC_MSG_CHECKING([if NetCDF support is enabled])
 AC_ARG_WITH(netcdf, 
-[AC_HELP_STRING([--with-netcdf@<:@=DIR@:>@], [Specify NetCDF library to use for ExodusII file format])
-AC_HELP_STRING([--without-netcdf], [Disable support for ExodusII file format])],
+[AS_HELP_STRING([--with-netcdf@<:@=DIR@:>@], [Specify NetCDF library to use for ExodusII file format])
+AS_HELP_STRING([--without-netcdf], [Disable support for ExodusII file format])],
 [NETCDF_ARG=$withval
 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-netcdf=\"${withval}\""
 ]
@@ -149,8 +149,8 @@ fi
 AC_DEFUN([FATHOM_CHECK_PNETCDF],[
 
 AC_ARG_WITH(pnetcdf, 
-[AC_HELP_STRING([--with-pnetcdf@<:@=DIR@:>@], [Specify Pnetcdf library to use])
-AC_HELP_STRING([--without-pnetcdf], [Disable support for Pnetcdf-based file formats])],
+[AS_HELP_STRING([--with-pnetcdf@<:@=DIR@:>@], [Specify Pnetcdf library to use])
+AS_HELP_STRING([--without-pnetcdf], [Disable support for Pnetcdf-based file formats])],
 [PNETCDF_ARG=$withval
 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-pnetcdf=\"${withval}\""
 ]

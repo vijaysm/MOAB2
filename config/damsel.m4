@@ -10,8 +10,8 @@ AC_DEFUN([FATHOM_CHECK_DAMSEL],[
 
 AC_MSG_CHECKING([if DAMSEL support is enabled])
 AC_ARG_WITH(damsel, 
-[AC_HELP_STRING([--with-damsel=DIR], [Specify DAMSEL location])
-AC_HELP_STRING([--without-damsel], [Disable support for DAMSEL file format])],
+[AS_HELP_STRING([--with-damsel=DIR], [Specify DAMSEL location])
+AS_HELP_STRING([--without-damsel], [Disable support for DAMSEL file format])],
 [DAMSEL_ARG=$withval
 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-damsel=\"${withval}\""
 ]
