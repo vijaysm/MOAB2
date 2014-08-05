@@ -249,8 +249,8 @@ ErrorCode time_integrate(Interface *mbi, int method, Tag tag, Range &elems, doub
       rval = mbi->get_connectivity(*rit, connect, nconn); CHK(rval, "get_connectivity");
       rval = mbi->get_coords(connect, nconn, vcoords[0].array()); CHK(rval, "get_coords");
       rval = get_elem_map(mbi->type_from_handle(*rit), vcoords, nconn, elemmap); CHK(rval, "get_elem_map");
-      rval = mbi->tag_get_data(tag, connect, nconn, tagval.data()); CHK(rval, "tag_get_data");
-      integral = elemmap->integrate_scalar_field(tagval.data());
+      rval = mbi->tag_get_data(tag, connect, nconn, &tagval[0]); CHK(rval, "tag_get_data");
+      integral = elemmap->integrate_scalar_field(&tagval[0]);
     }
   }
   inttime = mytime() - inttime;
@@ -265,7 +265,7 @@ ErrorCode put_random_field(Interface &mbi, Tag &tag, Range &elems)
   std::vector<double> tag_vals(verts.size());
   for (unsigned int i = 0; i < verts.size(); i++)
     tag_vals[i] = ((double)rand())/RAND_MAX;
-  rval = mbi.tag_set_data(tag, verts, tag_vals.data());
+  rval = mbi.tag_set_data(tag, verts, &tag_vals[0]);
   return rval;
 }
 
