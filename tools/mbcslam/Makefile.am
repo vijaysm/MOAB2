@@ -39,7 +39,7 @@ libmbcslam_la_includedir = $(includedir)
 cfgdir = $(libdir)
 
 TESTS = intx_on_sphere_test  intx_in_plane_test spherical_area_test \
-         case1_test  
+         case1_test  arc_intx_tests
 if PARALLEL
      TESTS += intx_mpas
 endif
@@ -61,6 +61,7 @@ spherical_area_test_SOURCES = spherical_area_test.cpp
 case1_test_SOURCES = case1_test.cpp
 proj1_SOURCES = proj1.cpp
 create_dp_SOURCES = create_dp.cpp
+arc_intx_tests_SOURCES = arc_intx_tests.cpp
 
 if PARALLEL
   diffusion_SOURCES = diffusion.cpp
