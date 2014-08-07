@@ -156,6 +156,18 @@ double area_spherical_element(Interface * mb, EntityHandle  elem, double R);
 
 ErrorCode positive_orientation(Interface * mb, EntityHandle set, double R);
 
-
+/*
+ * given 2 arcs AB and CD, compute the unique intersection point, if it exists
+ *  in between
+ */
+ErrorCode intersect_great_circle_arcs(double * A, double * B, double * C, double * D, double R,
+     double * E);
+/*
+ * given 2 arcs AB and CD, compute the intersection points, if it exists
+ *  AB is a great circle arc
+ *  CD is a constant latitude arc
+ */
+ErrorCode intersect_great_circle_arc_with_clat_arc(double * A, double * B, double * C, double * D, double R,
+     double * E, int & np);
 }
 #endif /* CSLAMUTILS_HPP_ */

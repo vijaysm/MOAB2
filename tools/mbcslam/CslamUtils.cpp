@@ -1381,4 +1381,226 @@ double slotted_cylinder_field(double lam, double tet, double * params)
   return value;
 }
 
+/*
+ * given 2 great circle arcs, AB and CD, compute the unique intersection point, if it exists
+ *  in between
+ */
+ErrorCode intersect_great_circle_arcs(double * A, double * B, double * C, double * D, double R,
+     double * E)
+{
+  // first verify A, B, C, D are on the same sphere
+  CartVect a(A), b(B), c(C), d(D);
+  double R2= R*R;
+  if( fabs(a.length_squared()-R2) +  fabs(b.length_squared()-R2) +  fabs(c.length_squared()-R2) +
+      fabs(a.length_squared()-R2) > 1.e-6)
+    return MB_FAILURE;
+
+  CartVect n1=a*b;
+  if (n1.length_squared()<1.e-12*R2)
+    return MB_FAILURE;
+
+  CartVect n2=c*d;
+  if (n2.length_squared()<1.e-12*R2)
+    return MB_FAILURE;
+  CartVect n3=n1*n2;
+  n3.normalize();
+
+  n3 = R*n3;
+  // the intersection is either n3 or -n3
+  CartVect n4=a*n3, n5=n3*b;
+  if (n1%n4>=0 && n1%n5>=0)
+  {
+    // n3 is good for ab, see if it is good for cd
+    n4=c*n3; n5=n3*d;
+    if (n2%n4>=0 && n2%n5>=0)
+    {
+      E[0]=n3[0]; E[1]=n3[1]; E[2]=n3[2];
+    }
+    else
+      return MB_FAILURE;
+  }
+  else
+  {
+    // try -n3
+    n3=-n3;
+    n4=a*n3, n5=n3*b;
+    if (n1%n4>=0 && n1%n5>=0)
+    {
+      // n3 is good for ab, see if it is good for cd
+      n4=c*n3; n5=n3*d;
+      if (n2%n4>=0 && n2%n5>=0)
+      {
+        E[0]=n3[0]; E[1]=n3[1]; E[2]=n3[2];
+      }
+      else
+        return MB_FAILURE;
+    }
+    else
+      return MB_FAILURE;
+  }
+
+  return MB_SUCCESS;
+}
+// verify that result is in between a and b on a great circle arc, and between c and d on a constant
+// latitude arc
+bool verify(CartVect a, CartVect b, CartVect c, CartVect d, double x, double y, double z)
+{
+  // to check, the point has to be between a and b on a great arc, and between c and d on a const lat circle
+  CartVect s(x, y, z);
+  CartVect n1 = a*b;
+  CartVect n2 = a*s;
+  CartVect n3 = s*b;
+  if (n1%n2< 0 || n1%n3 <0)
+    return false;
+
+  // do the same for c, d, s, in plane z=0
+  c[2]=d[2]=s[2]=0.; // bring everything in the same plane, z=0;
+
+  n1 = c*d;
+  n2 = c*s;
+  n3 = s*d;
+  if (n1%n2<0 || n1%n3<0)
+    return false;
+
+  return true;
+}
+ErrorCode intersect_great_circle_arc_with_clat_arc(double * A, double * B, double * C, double * D, double R,
+     double * E, int & np)
+{
+  const double distTol = R*1.e-6;
+  const double Tolerance  = R*R*1.e-12; // radius should be 1, usually
+  np = 0; // number of points in intersection
+  CartVect a(A), b(B), c(C), d(D);
+  // check input first
+  double R2= R*R;
+  if( fabs(a.length_squared()-R2) +  fabs(b.length_squared()-R2) +  fabs(c.length_squared()-R2) +
+       fabs(a.length_squared()-R2) > Tolerance)
+    return MB_FAILURE;
+
+  if ( (a-b).length_squared() < Tolerance )
+    return MB_FAILURE;
+  if ( (c-d).length_squared() < Tolerance ) // edges are too short
+    return MB_FAILURE;
+
+  // CD is the const latitude arc
+  if (fabs(C[2]-D[2]) > distTol)  // cd is not on the same z (constant latitude)
+    return MB_FAILURE;
+
+  if (fabs(R-C[2]) < distTol || fabs(R+C[2]) < distTol)
+    return MB_FAILURE ; // too close to the poles
+
+  // find the points on the circle P(teta) = (r*sin(teta), r*cos(teta), C[2]) that are on the great circle arc AB
+  // normal to the AB circle:
+  CartVect n1= a*b; // the normal to the great circle arc (circle)
+  // solve the system of equations:
+  /*
+   *    n1%(x, y, z) = 0  // on the great circle
+   *     z = C[2];
+   *    x^2+y^2+z^2 = R^2
+   */
+  double  z=C[2];
+  if ( fabs(n1[0])+fabs(n1[1]) < 2*Tolerance)
+  {
+    // it is the Equator; check if the const lat edge is Equator too
+    if (fabs(C[2])>distTol)
+    {
+      return MB_FAILURE; // no intx, too far from Eq
+    }
+    else
+    {
+      // are there in between or not? overlapped or not?
+      // np 3 means they are coincident, do 3 points, endpoints of intx + one in the middle
+    }
+  }
+  {
+    if (fabs(n1[0])<=fabs(n1[1]))
+    {
+      //resolve eq in x:  n0 * x + n1 * y +n2*z = 0; y = -n2/n1*z -n0/n1*x
+      //  (u+v*x)^2+x^2=R2-z^2
+      //  (v^2+1)*x^2 + 2*u*v *x + u^2+z^2-R^2 = 0
+      //  delta = 4*u^2*v^2 - 4*(v^2-1)(u^2+z^2-R^2)
+      // x1,2 =
+      double u=-n1[2]/n1[1]*z, v=-n1[0]/n1[1];
+      double a1=v*v+1, b1=2*u*v, c1=u*u+z*z-R2;
+      double delta = b1*b1 - 4*a1*c1;
+      if (delta< -Tolerance)
+        return MB_FAILURE; // no intersection
+      if (delta >Tolerance) // 2 solutions possible
+      {
+        double x1=(-b1+sqrt(delta))/2/a1;
+        double x2=(-b1-sqrt(delta))/2/a1;
+        double y1= u+v*x1;
+        double y2 = u+v*x2;
+        if (verify (a, b, c, d, x1, y1, z))
+        {
+          E[0]=x1; E[1]= y1; E[2]=z;
+          np++;
+        }
+        if (verify (a, b, c, d, x2, y2, z))
+        {
+          E[3*np+0]=x2; E[3*np+1]= y2; E[3*np+2]=z;
+          np++;
+        }
+      }
+      else
+      {
+        // one solution
+        double x1 = -b1/2/a1;
+        double y1= u+v*x1;
+        if (verify (a, b, c, d, x1, y1, z))
+        {
+          E[0]=x1; E[1]= y1; E[2]=z;
+          np++;
+        }
+      }
+    }
+    else {
+      // resolve eq in y, reverse
+      //   n0 * x + n1 * y +n2*z = 0; x = -n2/n0*z -n1/n0*y = u+v*y
+      //  (u+v*y)^2+y^2 -R2+z^2 =0
+      //  (v^2+1)*y^2 + 2*u*v *y + u^2+z^2-R^2 = 0
+      //
+      // x1,2 =
+      double u = -n1[2] / n1[0] * z, v = -n1[1] / n1[0];
+      double a1 = v * v + 1, b1 = 2 * u * v, c1 = u * u + z * z - R2;
+      double delta = b1 * b1 - 4 * a1 * c1;
+      if (delta < -Tolerance)
+        return MB_FAILURE; // no intersection
+      if (delta > Tolerance) // 2 solutions possible
+      {
+        double y1 = (-b1 + sqrt(delta)) / 2 / a1;
+        double y2 = (-b1 - sqrt(delta)) / 2 / a1;
+        double x1 = u + v * y1;
+        double x2 = u + v * y2;
+        if (verify(a, b, c, d, x1, y1, z)) {
+          E[0] = x1;
+          E[1] = y1;
+          E[2] = z;
+          np++;
+        }
+        if (verify(a, b, c, d, x2, y2, z)) {
+          E[3 * np + 0] = x2;
+          E[3 * np + 1] = y2;
+          E[3 * np + 2] = z;
+          np++;
+        }
+      }
+      else
+      {
+        // one solution
+        double y1 = -b1/2/a1;
+        double x1= u+v*y1;
+        if (verify (a, b, c, d, x1, y1, z))
+        {
+          E[0]=x1; E[1]= y1; E[2]=z;
+          np++;
+        }
+      }
+    }
+  }
+
+  if (np<=0)
+    return MB_FAILURE;
+  return MB_SUCCESS;
+}
 } //namespace moab
