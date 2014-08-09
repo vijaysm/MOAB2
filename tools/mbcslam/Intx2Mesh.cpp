@@ -89,15 +89,15 @@ void Intx2Mesh::createTags()
   int defaultInt = 0;
 
   rval = mb->tag_get_handle("RedParent", 1, MB_TYPE_INTEGER, redParentTag,
-      MB_TAG_SPARSE | MB_TAG_CREAT, &defaultInt);
+      MB_TAG_DENSE | MB_TAG_CREAT, &defaultInt);
   ERRORV(rval, "can't create positive tag");
 
   rval = mb->tag_get_handle("BlueParent", 1, MB_TYPE_INTEGER, blueParentTag,
-      MB_TAG_SPARSE | MB_TAG_CREAT, &defaultInt);
+      MB_TAG_DENSE | MB_TAG_CREAT, &defaultInt);
   ERRORV(rval, "can't create negative tag");
 
   rval = mb->tag_get_handle("Counting", 1, MB_TYPE_INTEGER, countTag,
-        MB_TAG_SPARSE | MB_TAG_CREAT, &defaultInt);
+        MB_TAG_DENSE | MB_TAG_CREAT, &defaultInt);
   ERRORV(rval, "can't create Counting tag");
 
   return;
@@ -358,7 +358,7 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
               << mb->id_from_handle(blueT) << "\n";
         }
       } // end while (!localBlue.empty())
-      double redRecovery=fabs((recoveredArea-areaRedCell)/areaRedCell); // 0 means everythinng got recovered
+      double redRecovery=fabs((recoveredArea-areaRedCell)/areaRedCell); // 0 means everything got recovered
       if ( redRecovery > epsilon_1)
       {
         std::cout << " red area: " << areaRedCell << " recovered :" <<recoveredArea << " redID: " << mb->id_from_handle(currentRed) << " countingStart:" << countingStart <<  "\n";

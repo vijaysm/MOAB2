@@ -215,7 +215,87 @@ int EdgeIntersections2(double * blue, int nsBlue, double * red, int nsRed,
   }
   return 0;
 }
+// special one, for intersection between rll (constant latitude)  and cs quads
+int EdgeIntxRllCs(double * blue, CartVect * bluec, int * blueEdgeType, int nsBlue, double * red, CartVect * redc,
+    int nsRed, int markb[MAXEDGES], int markr[MAXEDGES], int plane, double R, double * points, int & nPoints)
+{
+ // if blue edge type is 1, intersect in 3d then project to 2d by gnomonic projection
+  // everything else the same (except if there are 2 points resulting, which is rare)
+  for (int i=0; i<4; i++){ // always at most 4 , so maybe don't bother
+    markb[i]=markr[i] = 0;
+  }
 
+  for (int i = 0; i < nsBlue; i++)
+  {
+    int iPlus1 = (i + 1) % nsBlue;
+    if(blueEdgeType[i]==0) // old style, just 2d
+    {
+      for (int j = 0; j < nsRed; j++)
+      {
+        double b[2];
+        double a[2][2]; // 2*2
+
+        int jPlus1 = (j + 1) % nsRed;
+        for (int k = 0; k < 2; k++)
+        {
+          b[k] = red[2 * j + k] - blue[2 * i + k];
+          // row k of a: a(k, 0), a(k, 1)
+          a[k][0] = blue[2 * iPlus1 + k] - blue[2 * i + k];
+          a[k][1] = red[2 * j + k] - red[2 * jPlus1 + k];
+
+        }
+        double delta = a[0][0] * a[1][1] - a[0][1] * a[1][0];
+        if (delta != 0.)
+        {
+          // not parallel
+          double alfa = (b[0] * a[1][1] - a[0][1] * b[1]) / delta;
+          double beta = (-b[0] * a[1][0] + b[1] * a[0][0]) / delta;
+          if (0 <= alfa && alfa <= 1. && 0 <= beta && beta <= 1.)
+          {
+            // the intersection is good
+            for (int k = 0; k < 2; k++)
+            {
+              points[2 * nPoints + k] = blue[2 * i + k]
+                  + alfa * (blue[2 * iPlus1 + k] - blue[2 * i + k]);
+            }
+            markb[i] = 1; // so neighbor number i of blue will be considered too.
+            markr[j] = 1; // this will be used in advancing red around blue quad
+            nPoints++;
+          }
+        }
+      }
+    }
+    else // edge type is 1, so use 3d intersection
+    {
+      CartVect  & C =  bluec[i];
+      CartVect  & D =  bluec[iPlus1];
+      for (int j = 0; j < nsRed; j++)
+      {
+        int jPlus1 = (j+1)%nsRed; // nsRed is just 4, forget about it, usually
+        CartVect & A = redc[j];
+        CartVect & B = redc[jPlus1];
+        int np=0;
+        double E[9];
+        intersect_great_circle_arc_with_clat_arc(A.array(), B.array(), C.array(), D.array(), R, E, np);
+        if (np==0)
+          continue;
+        if (np>=2)
+        {
+          std::cout << "intersection with 2 points :" << A << B << C << D << "\n";
+        }
+        for (int k=0; k<np; k++)
+        {
+          gnomonic_projection( CartVect(E+k*3),  R,  plane,
+              points[2 * nPoints],  points[2 * nPoints +1]);
+          nPoints++;
+        }
+        markb[i] = 1; // so neighbor number i of blue will be considered too.
+        markr[j] = 1; // this will be used in advancing red around blue quad
+      }
+    }
+  }
+  return 0;
+}
 
 // vec utils related to gnomonic projection on a sphere
 
@@ -1389,18 +1469,21 @@ ErrorCode intersect_great_circle_arcs(double * A, double * B, double * C, double
      double * E)
 {
   // first verify A, B, C, D are on the same sphere
-  CartVect a(A), b(B), c(C), d(D);
   double R2= R*R;
+  const double Tolerance = 1.e-12*R2;
+
+  CartVect a(A), b(B), c(C), d(D);
+
   if( fabs(a.length_squared()-R2) +  fabs(b.length_squared()-R2) +  fabs(c.length_squared()-R2) +
-      fabs(a.length_squared()-R2) > 1.e-6)
+      fabs(d.length_squared()-R2) > 10*Tolerance)
     return MB_FAILURE;
 
   CartVect n1=a*b;
-  if (n1.length_squared()<1.e-12*R2)
+  if (n1.length_squared()< Tolerance)
     return MB_FAILURE;
 
   CartVect n2=c*d;
-  if (n2.length_squared()<1.e-12*R2)
+  if (n2.length_squared()<Tolerance)
     return MB_FAILURE;
   CartVect n3=n1*n2;
   n3.normalize();
@@ -1408,11 +1491,11 @@ ErrorCode intersect_great_circle_arcs(double * A, double * B, double * C, double
   n3 = R*n3;
   // the intersection is either n3 or -n3
   CartVect n4=a*n3, n5=n3*b;
-  if (n1%n4>=0 && n1%n5>=0)
+  if (n1%n4>=-Tolerance && n1%n5>=-Tolerance)
   {
     // n3 is good for ab, see if it is good for cd
     n4=c*n3; n5=n3*d;
-    if (n2%n4>=0 && n2%n5>=0)
+    if (n2%n4>=-Tolerance && n2%n5>=-Tolerance)
     {
       E[0]=n3[0]; E[1]=n3[1]; E[2]=n3[2];
     }
@@ -1424,11 +1507,11 @@ ErrorCode intersect_great_circle_arcs(double * A, double * B, double * C, double
     // try -n3
     n3=-n3;
     n4=a*n3, n5=n3*b;
-    if (n1%n4>=0 && n1%n5>=0)
+    if (n1%n4>=-Tolerance && n1%n5>=-Tolerance)
     {
       // n3 is good for ab, see if it is good for cd
       n4=c*n3; n5=n3*d;
-      if (n2%n4>=0 && n2%n5>=0)
+      if (n2%n4>=-Tolerance && n2%n5>=-Tolerance)
       {
         E[0]=n3[0]; E[1]=n3[1]; E[2]=n3[2];
       }
@@ -1474,7 +1557,7 @@ ErrorCode intersect_great_circle_arc_with_clat_arc(double * A, double * B, doubl
   // check input first
   double R2= R*R;
   if( fabs(a.length_squared()-R2) +  fabs(b.length_squared()-R2) +  fabs(c.length_squared()-R2) +
-       fabs(a.length_squared()-R2) > Tolerance)
+       fabs(d.length_squared()-R2) > 10*Tolerance)
     return MB_FAILURE;
 
   if ( (a-b).length_squared() < Tolerance )
@@ -1601,6 +1684,49 @@ ErrorCode intersect_great_circle_arc_with_clat_arc(double * A, double * B, doubl
 
   if (np<=0)
     return MB_FAILURE;
+  return MB_SUCCESS;
+}
+
+ErrorCode  set_edge_type_flag(Interface * mb, EntityHandle sf1)
+{
+  Range cells;
+  ErrorCode rval = mb->get_entities_by_dimension(sf1, 2, cells);
+  if (MB_SUCCESS!= rval)
+    return rval;
+  Range edges;
+  rval = mb->get_adjacencies(cells, 1, true, edges, Interface::UNION);
+  if (MB_SUCCESS!= rval)
+    return rval;
+
+  Tag edgeTypeTag;
+  int default_int=0;
+  rval = mb->tag_get_handle("edge_type", 1, MB_TYPE_INTEGER, edgeTypeTag,
+          MB_TAG_DENSE | MB_TAG_CREAT, &default_int);
+  if (MB_SUCCESS!= rval)
+    return rval;
+  // add edges to the set? not yet, maybe later
+  // if edge horizontal, set value to 1
+  int type_constant_lat=1;
+  for (Range::iterator eit=edges.begin(); eit!=edges.end(); eit++)
+  {
+    EntityHandle edge = *eit;
+    const EntityHandle *conn=0;
+    int num_n=0;
+    rval = mb->get_connectivity(edge, conn, num_n );
+    if (MB_SUCCESS!= rval)
+      return rval;
+    double coords[6];
+    rval = mb->get_coords(conn, 2, coords);
+    if (MB_SUCCESS!= rval)
+      return rval;
+    if (fabs( coords[2]-coords[5] )< 1.e-6 )
+    {
+      rval = mb->tag_set_data(edgeTypeTag, &edge, 1, &type_constant_lat);
+      if (MB_SUCCESS!= rval)
+        return rval;
+    }
+  }
+
   return MB_SUCCESS;
 }
 } //namespace moab
