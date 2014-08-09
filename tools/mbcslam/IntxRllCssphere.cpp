@@ -1,34 +1,27 @@
 /*
- * Intx2MeshOnSphere.cpp
+ * IntxRllCssphere.cpp
  *
- *  Created on: Oct 3, 2012
+ *  Created on: Aug 8, 2014
+ *      Author: iulian
  */
 
-#include "Intx2MeshOnSphere.hpp"
+#include "IntxRllCssphere.hpp"
 #include "moab/GeomUtil.hpp"
-#include "MBTagConventions.hpp"
-#ifdef USE_MPI
-#include "moab/ParallelComm.hpp"
-#endif
 
 namespace moab {
 
-
-Intx2MeshOnSphere::Intx2MeshOnSphere(Interface * mbimpl):Intx2Mesh(mbimpl)
-{
+IntxRllCssphere::IntxRllCssphere(Interface * mbimpl):Intx2Mesh(mbimpl) {
   // TODO Auto-generated constructor stub
 
 }
 
-Intx2MeshOnSphere::~Intx2MeshOnSphere()
-{
+IntxRllCssphere::~IntxRllCssphere() {
   // TODO Auto-generated destructor stub
 }
-
 /*
  * return also the area for robustness verification
  */
-double Intx2MeshOnSphere::setup_red_cell(EntityHandle red, int & nsRed){
+double IntxRllCssphere::setup_red_cell(EntityHandle red, int & nsRed){
 
 
   // get coordinates of the red quad, to decide the gnomonic plane
@@ -40,9 +33,7 @@ double Intx2MeshOnSphere::setup_red_cell(EntityHandle red, int & nsRed){
   if (MB_SUCCESS != rval )
     return 1;
   nsRed = num_nodes;
-  // account for possible padded polygons
-  while (redConn[nsRed-2]==redConn[nsRed-1] && nsRed>3)
-    nsRed--;
+  // these edges will never be polygons, only quads or triangles
 
   //CartVect coords[4];
   rval = mb->get_coords(redConn, nsRed, &(redCoords[0][0]));
@@ -74,7 +65,7 @@ double Intx2MeshOnSphere::setup_red_cell(EntityHandle red, int & nsRed){
 /* the elements are convex for sure, then do a gnomonic projection of both,
  *  compute intersection in the plane, then go back to the sphere for the points
  *  */
-int Intx2MeshOnSphere::computeIntersectionBetweenRedAndBlue(EntityHandle red, EntityHandle blue,
+int IntxRllCssphere::computeIntersectionBetweenRedAndBlue(EntityHandle red, EntityHandle blue,
     double * P, int & nP, double & area, int markb[MAXEDGES], int markr[MAXEDGES],
     int & nsBlue, int & nsRed, bool check_boxes_first)
 {
@@ -88,13 +79,20 @@ int Intx2MeshOnSphere::computeIntersectionBetweenRedAndBlue(EntityHandle red, En
   if (MB_SUCCESS != rval )
     return 1;
   nsBlue = num_nodes;
-  // account for possible padded polygons
-  while (blueConn[nsBlue-2]==blueConn[nsBlue-1] && nsBlue>3)
-    nsBlue--;
   rval = mb->get_coords(blueConn, nsBlue, &(blueCoords[0][0]));
   if (MB_SUCCESS != rval)
     return 1;
 
+  // determine the type of edge: const lat or not?
+  // just look at the consecutive z coordinates for the edge
+  for (int i=0; i<nsBlue; i++)
+  {
+    int nexti=(i+1)%nsBlue;
+    if ( fabs(blueCoords[i][2]- blueCoords[nexti][2]) < 1.e-6 )
+      blueEdgeType[i]=1;
+    else
+      blueEdgeType[i]=0;
+  }
   area = 0.;
   nP = 0; // number of intersection points we are marking the boundary of blue!
   if (check_boxes_first)
@@ -142,7 +140,8 @@ int Intx2MeshOnSphere::computeIntersectionBetweenRedAndBlue(EntityHandle red, En
     }
   }
 
-  int ret = EdgeIntersections2(blueCoords2D, nsBlue, redCoords2D, nsRed, markb, markr, P, nP);
+  int ret = EdgeIntxRllCs(blueCoords2D, blueCoords, blueEdgeType, nsBlue, redCoords2D, redCoords, nsRed, markb, markr,
+      plane, R, P, nP);
   if (ret != 0)
     return 1; // some unforeseen error
 
@@ -205,7 +204,7 @@ int Intx2MeshOnSphere::computeIntersectionBetweenRedAndBlue(EntityHandle red, En
 // also, we could just create new vertices every time, and merge only in the end;
 // could be too expensive, and the tolerance for merging could be an
 // interesting topic
-int Intx2MeshOnSphere::findNodes(EntityHandle red, int nsRed, EntityHandle blue, int nsBlue,
+int IntxRllCssphere::findNodes(EntityHandle red, int nsRed, EntityHandle blue, int nsBlue,
     double * iP, int nP)
 {
   // first of all, check against red and blue vertices
@@ -405,7 +404,7 @@ int Intx2MeshOnSphere::findNodes(EntityHandle red, int nsRed, EntityHandle blue,
   foundIds = NULL;
   return 0;
 }
-bool Intx2MeshOnSphere::is_inside_element(double xyz[3], EntityHandle eh)
+bool IntxRllCssphere::is_inside_element(double xyz[3], EntityHandle eh)
 {
   int num_nodes;
   ErrorCode rval = mb->get_connectivity(eh, redConn, num_nodes);
@@ -445,151 +444,5 @@ bool Intx2MeshOnSphere::is_inside_element(double xyz[3], EntityHandle eh)
   return false;
 }
 
-ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagElem, Tag & tagArea)
-{
-  EntityHandle dum = 0;
 
-  Tag corrTag;
-  ErrorCode rval = mb->tag_get_handle(CORRTAGNAME,
-                                           1, MB_TYPE_HANDLE, corrTag,
-                                           MB_TAG_DENSE, &dum); // it should have been created
-  ERRORR(rval, "can't get correlation tag");
-
-  Tag gid;
-  rval = mb->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid, MB_TAG_DENSE);
-  ERRORR(rval,"can't get global ID tag" );
-
-  // get all polygons out of out_set; then see where are they coming from
-  Range polys;
-  rval = mb->get_entities_by_dimension(out_set, 2, polys);
-  ERRORR(rval, "can't get polygons out");
-
-  // rs2 is the red range, arrival; rs1 is blue, departure;
-  // there is a connection between rs1 and rs2, through the corrTag
-  // corrTag is __correlation
-  // basically, mb->tag_get_data(corrTag, &(redPoly), 1, &bluePoly);
-  // also,  mb->tag_get_data(corrTag, &(bluePoly), 1, &redPoly);
-  // we start from rs2 existing, then we have to update something
-  std::vector<double>  currentVals(rs2.size());
-  rval = mb->tag_get_data(tagElem, rs2, &currentVals[0]);
-  ERRORR(rval, "can't get existing tag values");
-
-  // for each polygon, we have 2 indices: red and blue parents
-  // we need index blue to update index red?
-  std::vector<double> newValues(rs2.size(), 0.);// initialize with 0 all of them
-  // area of the polygon * conc on red (old) current quantity
-  // finaly, divide by the area of the red
-  double check_intx_area=0.;
-  for (Range::iterator it= polys.begin(); it!=polys.end(); it++)
-  {
-    EntityHandle poly=*it;
-    int blueIndex, redIndex;
-    rval =  mb->tag_get_data(blueParentTag, &poly, 1, &blueIndex);
-    ERRORR(rval, "can't get blue tag");
-    EntityHandle blue = rs1[blueIndex];
-    rval =  mb->tag_get_data(redParentTag, &poly, 1, &redIndex);
-    ERRORR(rval, "can't get red tag");
-    //EntityHandle red = rs2[redIndex];
-    // big assumption here, red and blue are "parallel" ;we should have an index from
-    // blue to red (so a deformed blue corresponds to an arrival red)
-    double areap = area_spherical_element(mb, poly, R);
-    check_intx_area+=areap;
-    // so the departure cell at time t (blueIndex) covers a portion of a redCell
-    // that quantity will be transported to the redCell at time t+dt
-    // the blue corresponds to a red arrival
-    EntityHandle redArr;
-    rval = mb->tag_get_data(corrTag, &blue, 1, &redArr);
-    if (0==redArr || MB_TAG_NOT_FOUND==rval)
-    {
-#ifdef USE_MPI
-      if (!remote_cells)
-        ERRORR( MB_FAILURE, "no remote cells, failure\n");
-      // maybe the element is remote, from another processor
-      int global_id_blue;
-      rval = mb->tag_get_data(gid, &blue, 1, &global_id_blue);
-      ERRORR(rval, "can't get arrival red for corresponding blue gid");
-      // find the
-      int index_in_remote = remote_cells->find(1, global_id_blue);
-      if (index_in_remote==-1)
-        ERRORR( MB_FAILURE, "can't find the global id element in remote cells\n");
-      remote_cells->vr_wr[index_in_remote] += currentVals[redIndex]*areap;
-#endif
-    }
-    else if (MB_SUCCESS==rval)
-    {
-      int arrRedIndex = rs2.index(redArr);
-      if (-1 == arrRedIndex)
-        ERRORR(MB_FAILURE, "can't find the red arrival index");
-      newValues[arrRedIndex] += currentVals[redIndex]*areap;
-    }
-
-    else
-      ERRORR(rval, "can't get arrival red for corresponding ");
-  }
-  // now, send back the remote_cells to the processors they came from, with the updated values for
-  // the tracer mass in a cell
-#ifdef USE_MPI
-  if (remote_cells)
-  {
-    // so this means that some cells will be sent back with tracer info to the procs they were sent from
-    (parcomm->proc_config().crystal_router())->gs_transfer(1, *remote_cells, 0);
-    // now, look at the global id, find the proper "red" cell with that index and update its mass
-    //remote_cells->print("remote cells after routing");
-    int n = remote_cells->get_n();
-    for (int j=0; j<n; j++)
-    {
-      EntityHandle redCell = remote_cells->vul_rd[j];// entity handle sent back
-      int arrRedIndex = rs2.index(redCell);
-      if (-1 == arrRedIndex)
-        ERRORR(MB_FAILURE, "can't find the red arrival index");
-      newValues[arrRedIndex] += remote_cells->vr_rd[j];
-    }
-  }
-#endif /* USE_MPI */
-  // now divide by red area (current)
-  int j=0;
-  Range::iterator iter = rs2.begin();
-  void * data=NULL; //used for stored area
-  int count =0;
-  double total_mass_local=0.;
-  while (iter != rs2.end())
-  {
-    rval = mb->tag_iterate(tagArea, iter, rs2.end(), count, data);
-    ERRORR(rval, "can't tag iterate");
-    double * ptrArea=(double*)data;
-    for (int i=0; i<count; i++, iter++, j++, ptrArea++)
-    {
-      total_mass_local+=newValues[j];
-      newValues[j]/= (*ptrArea);
-    }
-  }
-  rval = mb->tag_set_data(tagElem, rs2, &newValues[0]);
-  ERRORR(rval, "can't set new values tag");
-
-
-#ifdef USE_MPI
-  double total_mass=0.;
-  double total_intx_area =0;
-  int mpi_err = MPI_Reduce(&total_mass_local, &total_mass, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  if (MPI_SUCCESS != mpi_err) return MB_FAILURE;
-  // now reduce total area
-  mpi_err = MPI_Reduce(&check_intx_area, &total_intx_area, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  if (MPI_SUCCESS != mpi_err) return MB_FAILURE;
-  if (my_rank==0)
-  {
-    std::cout <<"total mass now:" << total_mass << "\n";
-    std::cout <<"check: total intersection area: (4 * M_PI * R^2): " << 4 * M_PI * R*R << " " << total_intx_area << "\n";
-  }
-
-  if (remote_cells)
-  {
-    delete remote_cells;
-    remote_cells=NULL;
-  }
-#else
-  std::cout <<"total mass now:" << total_mass_local << "\n";
-  std::cout <<"check: total intersection area: (4 * M_PI * R^2): "  << 4 * M_PI * R*R << " " << check_intx_area << "\n";
-#endif
-  return MB_SUCCESS;
-}
 } /* namespace moab */

@@ -28,6 +28,9 @@ int SortAndRemoveDoubles2(double * P, int & nP, double epsilon);
 int EdgeIntersections2(double * blue, int nsBlue, double * red, int nsRed,
     int markb[MAXEDGES], int markr[MAXEDGES], double * points, int & nPoints);
 
+// special one, for intersection between rll (constant latitude)  and cs quads
+int EdgeIntxRllCs(double * blue, CartVect * bluec, int * blueEdgeType, int nsBlue, double * red, CartVect * redc,
+    int nsRed, int markb[MAXEDGES], int markr[MAXEDGES], int plane, double Radius, double * points, int & nPoints);
 // vec utils related to gnomonic projection on a sphere
 
 // vec utils
@@ -169,5 +172,7 @@ ErrorCode intersect_great_circle_arcs(double * A, double * B, double * C, double
  */
 ErrorCode intersect_great_circle_arc_with_clat_arc(double * A, double * B, double * C, double * D, double R,
      double * E, int & np);
+
+ErrorCode  set_edge_type_flag(Interface * mb, EntityHandle sf1);
 }
 #endif /* CSLAMUTILS_HPP_ */
