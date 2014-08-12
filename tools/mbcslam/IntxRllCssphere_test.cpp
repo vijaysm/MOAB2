@@ -11,8 +11,8 @@ int main(int argc, char* argv[])
 {
   // check command line arg// Euler grid is red, arrival, Lagrangian is blue, departure
   // will will keep the
-  const char *filename_mesh1 = "outRLLMesh.g";
-  const char *filename_mesh2 = "outCSMesh.g";
+  const char *filename_mesh1 = STRINGIFY(MESHDIR) "/mbcslam/outRLLMesh.g";
+  const char *filename_mesh2 = STRINGIFY(MESHDIR) "/mbcslam/outCSMesh.g";
   double R = 1.; // input
   double epsrel=1.e-8;
   const char *newFile = "intx.vtk";
