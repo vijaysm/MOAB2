@@ -38,7 +38,6 @@ private:
   double R; // radius of the sphere
   int plane; // current gnomonic plane, will still be used for projection
   int blueEdgeType[4]; // at most 4
-  double blue_lat[2], blue_lon[2]; // those would be for the current box of the blue cell in intersection
   // these could be from [-PI/2, +PI/2] and [0 to 2*PI]
 };
 

@@ -1591,9 +1591,106 @@ ErrorCode intersect_great_circle_arc_with_clat_arc(double * A, double * B, doubl
     }
     else
     {
-      // are there in between or not? overlapped or not?
-      // np 3 means they are coincident, do 3 points, endpoints of intx + one in the middle
+      // all points are on the equator
+      //
+      CartVect cd=c*d;
+      // by convention,  c<d, positive is from c to d
+      // is a or b between c , d?
+      CartVect ca = c*a;
+      CartVect ad = a*d;
+      CartVect cb = c*b;
+      CartVect bd = b*d;
+      bool agtc = (ca%cd>=-Tolerance); // a>c?
+      bool dgta = (ad%cd>=-Tolerance); // d>a?
+      bool bgtc = (cb%cd>=-Tolerance); // b>c?
+      bool dgtb = (bd%cd>=-Tolerance); // d>b?
+      if (agtc)
+      {
+        if (dgta)
+        {
+          // a is for sure a point
+          E[0]=a[0]; E[1]=a[1]; E[2]=a[2];
+          np++;
+          if (bgtc)
+          {
+            if (dgtb)
+            {
+              // b is also in between c and d
+              E[3]=b[0]; E[4]=b[1]; E[5]=b[2];
+              np++;
+            }
+            else
+            {
+              // then order is c a d b, intx is ad
+              E[3]=d[0]; E[4]=d[1]; E[5]=d[2];
+              np++;
+            }
+          }
+          else
+          {
+            // b is less than c, so b c a d, intx is ac
+            E[3]=c[0]; E[4]=c[1]; E[5]=c[2];
+            np++; // what if E[0] is E[3]?
+          }
+        }
+        else // c < d < a
+        {
+          if (dgtb)  // d is for sure in
+          {
+            E[0]=d[0]; E[1]=d[1]; E[2]=d[2];
+            np++;
+            if (bgtc) // c<b<d<a
+            {
+              // another point is b
+              E[3]=b[0]; E[4]=b[1]; E[5]=b[2];
+              np++;
+            }
+            else // b<c<d<a
+            {
+              // another point is c
+              E[3]=c[0]; E[4]=c[1]; E[5]=c[2];
+              np++;
+            }
+          }
+          else
+          {
+            // nothing, order is c, d < a, b
+          }
+        }
+      }
+      else // a < c < d
+      {
+        if (bgtc)
+        {
+          // c is for sure in
+          E[0]=c[0]; E[1]=c[1]; E[2]=c[2];
+          np++;
+          if (dgtb)
+          {
+            // a < c < b < d; second point is b
+            E[3]=b[0]; E[4]=b[1]; E[5]=b[2];
+            np++;
+          }
+          else
+          {
+            // a < c < d < b; second point is d
+            E[3]=d[0]; E[4]=d[1]; E[5]=d[2];
+            np++;
+          }
+        }
+        else // a, b < c < d
+        {
+          // nothing
+        }
+
+      }
+
     }
+    // for the 2 points selected, see if it is only one?
+    // no problem, maybe it will be collapsed later anyway
+    if (np>0)
+      return MB_SUCCESS;
+    return MB_FAILURE;// no intersection
   }
   {
     if (fabs(n1[0])<=fabs(n1[1]))
@@ -1686,7 +1783,7 @@ ErrorCode intersect_great_circle_arc_with_clat_arc(double * A, double * B, doubl
     return MB_FAILURE;
   return MB_SUCCESS;
 }
-
+#if 0
 ErrorCode  set_edge_type_flag(Interface * mb, EntityHandle sf1)
 {
   Range cells;
@@ -1729,4 +1826,55 @@ ErrorCode  set_edge_type_flag(Interface * mb, EntityHandle sf1)
 
   return MB_SUCCESS;
 }
+#endif
+// decide in a different metric if the corners of CS quad are
+// in the interior of an RLL quad
+int  borderPointsOfCSinRLL(CartVect * redc, double * red2dc, int nsRed, CartVect *bluec, int nsBlue, int * blueEdgeType,
+    double * P, int * side, double epsil)
+{
+  int extraPoints=0;
+  // first decide the blue z coordinates
+  CartVect A, B, C, D;
+  for (int i=0; i<nsBlue; i++)
+  {
+    if (blueEdgeType[i]==0)
+    {
+      int iP1=(i+1)%nsBlue;
+      if (bluec[i][2]>bluec[iP1][2])
+      {
+        A = bluec[i];
+        B = bluec[iP1];
+        C = bluec[(i+2)%nsBlue];
+        D = bluec[(i+3)%nsBlue]; // it could be back to A, if triangle on top
+        break;
+      }
+    }
+  }
+  if (nsBlue==3 && B[2]<0)
+  {
+    // select D to be C
+    D=C; C=B; // B is the south pole then
+  }
+  // so we have A, B, C, D, with A at the top, b going down, then C, D, D > C, A > B
+  // AB is const longitude, BC and DA constant latitude
+  // check now each of the red points if they are inside this rectangle
+  for (int i=0; i<nsRed; i++)
+  {
+    CartVect & X = redc[i];
+    if (X[2]>A[2] || X[2]<B[2])
+      continue; // it is above or below the rectangle
+    // now decide if it is between the planes OAB and OCD
+    if ( ( (A*B)%X >= -epsil ) && ( (C*D)%X>= -epsil) )
+    {
+      side[i] = 1;//
+      // it means point X is in the rectangle that we want , on the sphere
+      // pass the coords 2d
+      P[extraPoints * 2] = red2dc[2*i];
+      P[extraPoints * 2 + 1] = red2dc[2*i+1];
+      extraPoints++;
+    }
+  }
+  return extraPoints;
+}
+
 } //namespace moab

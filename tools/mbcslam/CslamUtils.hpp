@@ -173,6 +173,9 @@ ErrorCode intersect_great_circle_arcs(double * A, double * B, double * C, double
 ErrorCode intersect_great_circle_arc_with_clat_arc(double * A, double * B, double * C, double * D, double R,
      double * E, int & np);
 
-ErrorCode  set_edge_type_flag(Interface * mb, EntityHandle sf1);
+//ErrorCode  set_edge_type_flag(Interface * mb, EntityHandle sf1);
+
+int  borderPointsOfCSinRLL(CartVect * redc, double * red2dc, int nsRed, CartVect *bluec, int nsBlue, int * blueEdgeType,
+    double * P, int * side, double epsil);
 }
 #endif /* CSLAMUTILS_HPP_ */
