@@ -145,8 +145,8 @@ int IntxRllCssphere::computeIntersectionBetweenRedAndBlue(EntityHandle red, Enti
   if (ret != 0)
     return 1; // some unforeseen error
 
-  int side[MAXEDGES] = { 0 };// this refers to what side? blue or red?
-  int extraPoints = borderPointsOfXinY2(blueCoords2D, nsBlue, redCoords2D, nsRed, &(P[2 * nP]), side, epsilon_area);
+  int side[MAXEDGES] = { 0 };// this refers to what side? blue or red?// more tolerant here with epsilon_area
+  int extraPoints = borderPointsOfXinY2(blueCoords2D, nsBlue, redCoords2D, nsRed, &(P[2 * nP]), side, 2*epsilon_area);
   if (extraPoints >= 1)
   {
     for (int k = 0; k < nsBlue; k++)
@@ -166,7 +166,8 @@ int IntxRllCssphere::computeIntersectionBetweenRedAndBlue(EntityHandle red, Enti
   }
   nP += extraPoints;
 
-  extraPoints = borderPointsOfXinY2(redCoords2D, nsRed, blueCoords2D, nsBlue, &(P[2 * nP]), side, epsilon_area);
+  extraPoints = borderPointsOfCSinRLL(redCoords, redCoords2D, nsRed, blueCoords, nsBlue, blueEdgeType, &(P[2 * nP]), side,
+      100*epsilon_area); // we need to compare with 0 a volume from 3 vector product; // lots of round off errors at stake
   if (extraPoints >= 1)
   {
     for (int k = 0; k < nsRed; k++)

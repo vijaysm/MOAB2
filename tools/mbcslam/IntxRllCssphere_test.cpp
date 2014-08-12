@@ -70,11 +70,11 @@ int main(int argc, char* argv[])
   if (MB_SUCCESS != rval)
     return 1;
 
-  // set the edge tags on all elements sf1
+  /*// set the edge tags on all elements sf1
   rval = set_edge_type_flag(mb, sf1); // form all edges, and set on them type 1 if constant latitude
   // add them to the set after this, just so we have them
   if (MB_SUCCESS != rval)
-    return 1;
+    return 1;*/
 
   IntxRllCssphere  worker(mb);
 
