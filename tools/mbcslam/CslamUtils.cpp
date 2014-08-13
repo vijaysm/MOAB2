@@ -191,7 +191,7 @@ int EdgeIntersections2(double * blue, int nsBlue, double * red, int nsRed,
 
       }
       double delta = a[0][0] * a[1][1] - a[0][1] * a[1][0];
-      if (delta != 0.)
+      if (fabs(delta) > 1.e-14)// this is close to machine epsilon
       {
         // not parallel
         double alfa = (b[0] * a[1][1] - a[0][1] * b[1]) / delta;
@@ -209,7 +209,7 @@ int EdgeIntersections2(double * blue, int nsBlue, double * red, int nsRed,
           nPoints++;
         }
       }
-      // the case delta == 0. will be considered by the interior points logic
+      // the case delta ~ 0. will be considered by the interior points logic
 
     }
   }
@@ -245,7 +245,7 @@ int EdgeIntxRllCs(double * blue, CartVect * bluec, int * blueEdgeType, int nsBlu
 
         }
         double delta = a[0][0] * a[1][1] - a[0][1] * a[1][0];
-        if (delta != 0.)
+        if (fabs(delta) > 1.e-14)
         {
           // not parallel
           double alfa = (b[0] * a[1][1] - a[0][1] * b[1]) / delta;
@@ -262,7 +262,7 @@ int EdgeIntxRllCs(double * blue, CartVect * bluec, int * blueEdgeType, int nsBlu
             markr[j] = 1; // this will be used in advancing red around blue quad
             nPoints++;
           }
-        }
+        }// if the edges are too "parallel", skip them
       }
     }
     else // edge type is 1, so use 3d intersection
