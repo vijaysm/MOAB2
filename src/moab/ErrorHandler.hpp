@@ -36,11 +36,25 @@ ErrorCode MBError(int line, const char* func, const char* file, const char* dir,
 #define __SDIR__ ""
 #endif
 
-//! Set a new error with passed error code and passed error message string
+//! Set a new error with passed error message and return passed error code
+//! Used in functions which return ErrorCode
 #define SET_ERR(err_code, err_msg) \
   return MBError(__LINE__, __func__, __FILENAME__, __SDIR__, err_code, err_msg, MB_ERROR_TYPE_NEW_LOCAL)
 
-//! Set a new error with passed error code and passed error message string stream
+//! Set a new error with passed error message and return (void)
+//! Used in functions which return void
+#define SET_ERRV(err_msg) \
+  do { \
+    MBError(__LINE__, __func__, __FILENAME__, __SDIR__, MB_FAILURE, err_msg, MB_ERROR_TYPE_NEW_LOCAL); \
+    return; \
+  } while (false)
+
+//! Set a new error with passed error message and continue
+//! Used in functions which return any data type
+#define SET_ERRC(err_msg) \
+  MBError(__LINE__, __func__, __FILENAME__, __SDIR__, MB_FAILURE, err_msg, MB_ERROR_TYPE_NEW_LOCAL)
+
+//! Similar to SET_ERR except that the passed error message is a stream instead of a string
 #define SET_ERR_STR(err_code, err_msg_str) \
   do { \
     std::ostringstream err_ostr; \
@@ -48,16 +62,61 @@ ErrorCode MBError(int line, const char* func, const char* file, const char* dir,
     return MBError(__LINE__, __func__, __FILENAME__, __SDIR__, err_code, err_ostr.str().c_str(), MB_ERROR_TYPE_NEW_LOCAL); \
   } while (false)
 
-//! Set a new global error with passed error code and passed error message string
+//! Similar to SET_ERRV except that the passed error message is a stream instead of a string
+#define SET_ERRV_STR(err_msg_str) \
+  do { \
+    std::ostringstream err_ostr; \
+    err_ostr << err_msg_str; \
+    MBError(__LINE__, __func__, __FILENAME__, __SDIR__, MB_FAILURE, err_ostr.str().c_str(), MB_ERROR_TYPE_NEW_LOCAL); \
+    return; \
+  } while (false)
+
+//! Similar to SET_ERRC except that the passed error message is a stream instead of a string
+#define SET_ERRC_STR(err_code, err_msg_str) \
+  do { \
+    std::ostringstream err_ostr; \
+    err_ostr << err_msg_str; \
+    MBError(__LINE__, __func__, __FILENAME__, __SDIR__, MB_FAILURE, err_ostr.str().c_str(), MB_ERROR_TYPE_NEW_LOCAL); \
+  } while (false)
+
+//! Similar to SET_ERR except that the error is considered globally fatal
 #define SET_GLB_ERR(err_code, err_msg) \
   return MBError(__LINE__, __func__, __FILENAME__, __SDIR__, err_code, err_msg, MB_ERROR_TYPE_NEW_GLOBAL)
 
-//! Set a new global error with passed error code and passed error message string stream
+//! Similar to SET_ERRV except that the error is considered globally fatal
+#define SET_GLB_ERRV(err_msg) \
+  do { \
+    MBError(__LINE__, __func__, __FILENAME__, __SDIR__, MB_FAILURE, err_msg, MB_ERROR_TYPE_NEW_GLOBAL); \
+    return; \
+  } while (false)
+
+//! Similar to SET_ERRC except that the error is considered globally fatal
+#define SET_GLB_ERRC(err_msg) \
+  MBError(__LINE__, __func__, __FILENAME__, __SDIR__, MB_FAILURE, err_msg, MB_ERROR_TYPE_NEW_GLOBAL)
+
+//! Similar to SET_ERR_STR except that the error is considered globally fatal
 #define SET_GLB_ERR_STR(err_code, err_msg_str) \
   do { \
     std::ostringstream err_ostr; \
     err_ostr << err_msg_str; \
     return MBError(__LINE__, __func__, __FILENAME__, __SDIR__, err_code, err_ostr.str().c_str(), MB_ERROR_TYPE_NEW_GLOBAL); \
+  } while (false)
+
+//! Similar to SET_ERRV_STR except that the error is considered globally fatal
+#define SET_GLB_ERRV_STR(err_msg_str) \
+  do { \
+    std::ostringstream err_ostr; \
+    err_ostr << err_msg_str; \
+    MBError(__LINE__, __func__, __FILENAME__, __SDIR__, MB_FAILURE, err_ostr.str().c_str(), MB_ERROR_TYPE_NEW_GLOBAL); \
+    return; \
+  } while (false)
+
+//! Similar to SET_ERRC_STR except that the error is considered globally fatal
+#define SET_GLB_ERRC_STR(err_code, err_msg_str) \
+  do { \
+    std::ostringstream err_ostr; \
+    err_ostr << err_msg_str; \
+    MBError(__LINE__, __func__, __FILENAME__, __SDIR__, MB_FAILURE, err_ostr.str().c_str(), MB_ERROR_TYPE_NEW_GLOBAL); \
   } while (false)
 
 //! Check returned error code against MB_SUCCESS
