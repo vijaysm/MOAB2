@@ -26,7 +26,6 @@ namespace moab {
 class ReaderIface;
 class WriterIface;
 class Core;
-class Error;
 
 /**
  *\brief Maintain list of readers and writers.
@@ -42,7 +41,7 @@ class ReaderWriterSet
     typedef ReaderIface* (*reader_factory_t)( Interface* );
     typedef WriterIface* (*writer_factory_t)( Interface* );
   
-    ReaderWriterSet( Core* mdb, Error* handler );
+    ReaderWriterSet( Core* mdb );
   
     ~ReaderWriterSet();
     
@@ -159,7 +158,6 @@ class ReaderWriterSet
   private:
   
     Core* mbCore;
-    Error* mbError;
   
     std::list<Handler> handlerList;
 };

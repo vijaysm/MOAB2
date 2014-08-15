@@ -274,7 +274,7 @@ ErrorCode Core::initialize()
     // Do this after pointers are initialized. (Pointers should
     // really be initialized in constructor to avoid this kind
     // of thing -- j.kraftcheck.)
-  readerWriterSet = new (std::nothrow) ReaderWriterSet( this, mError );
+  readerWriterSet = new (std::nothrow) ReaderWriterSet(this);
   if (!readerWriterSet)
     return MB_MEMORY_ALLOCATION_FAILED;
 
@@ -485,7 +485,6 @@ ErrorCode Core::load_file( const char* file_name,
 
   assert(!file_set || (*file_set && is_valid(*file_set)));
   if (file_set && !*file_set) {
-    mError->set_last_error( "Non-NULL file set pointer should point to non-NULL set.\n" );
     SET_GLB_ERR(MB_FAILURE, "Non-NULL file set pointer should point to non-NULL set");
   }
 
@@ -513,9 +512,7 @@ ErrorCode Core::load_file( const char* file_name,
       rval = ReadParallel(this,pcomm).load_file( file_name, file_set, opts );CHK_ERR(rval);
     }
 #else
-    mError->set_last_error( "PARALLEL option not valid, this instance"
-                            " compiled for serial execution.\n" );
-    SET_GLB_ERR(MB_NOT_IMPLEMENTED, "PARALLEL option not valid, this instance compiled for serial execution");
+    SET_GLB_ERR(MB_FAILURE, "PARALLEL option not valid, this instance compiled for serial execution");
 #endif
   }
   else {
@@ -530,11 +527,9 @@ ErrorCode Core::load_file( const char* file_name,
   if (MB_SUCCESS == rval && !opts.all_seen()) {
     std::string bad_opt;
     if (MB_SUCCESS == opts.get_unseen_option( bad_opt )) {
-      mError->set_last_error( "Unrecognized option: \"%s\"", bad_opt.c_str() );
       SET_ERR_STR(MB_UNHANDLED_OPTION, "Unrecognized option: \"" << bad_opt << "\"");
     }
     else {
-      mError->set_last_error( "Unrecognized option." );
       SET_ERR(MB_UNHANDLED_OPTION, "Unrecognized option");
     }
   }
@@ -578,7 +573,6 @@ ErrorCode Core::serial_load_file( const char* file_name,
   status = stat(file_name, &stat_data);
 #endif
   if (status) {
-    mError->set_last_error( "%s: %s", file_name, strerror(errno) );
     SET_GLB_ERR_STR(MB_FILE_DOES_NOT_EXIST, file_name << ": " << strerror(errno));
   }
 #if defined(WIN32) || defined(WIN64) || defined(MSC_VER)
@@ -586,7 +580,6 @@ ErrorCode Core::serial_load_file( const char* file_name,
 #else
   else if (S_ISDIR(stat_data.st_mode)) {
 #endif
-    mError->set_last_error( "%s: Cannot read directory/folder.", file_name );
     SET_GLB_ERR_STR(MB_FILE_DOES_NOT_EXIST, file_name << ": Cannot read directory/folder");
   }
 
@@ -738,7 +731,6 @@ ErrorCode Core::write_file( const char* file_name,
 
   rval = opts.get_null_option( "CREATE" );
   if (rval == MB_TYPE_OUT_OF_RANGE) {
-    mError->set_last_error( "Unexpected value for CREATE option\n" );
     SET_GLB_ERR(MB_FAILURE, "Unexpected value for CREATE option");
   }
   bool overwrite = (rval == MB_ENTITY_NOT_FOUND);
@@ -771,7 +763,6 @@ ErrorCode Core::write_file( const char* file_name,
   }
 
   if (file_type && rval == MB_TYPE_OUT_OF_RANGE) {
-    mError->set_last_error( "Unrecognized file type \"%s\"", file_type);
     SET_ERR_STR(rval, "Unrecognized file type \"" << file_type << "\"");
   }
   // Should we use default writer (e.g. HDF5)?
@@ -785,11 +776,9 @@ ErrorCode Core::write_file( const char* file_name,
   if (MB_SUCCESS == rval && !opts.all_seen()) {
     std::string bad_opt;
     if (MB_SUCCESS == opts.get_unseen_option( bad_opt )) {
-      mError->set_last_error( "Unrecognized option: \"%s\"", bad_opt.c_str() );
       SET_ERR_STR(MB_UNHANDLED_OPTION, "Unrecognized option: \"" << bad_opt << "\"");
     }
     else {
-      mError->set_last_error( "Unrecognized option." );
       SET_ERR(MB_UNHANDLED_OPTION, "Unrecognized option");
     }
   }
@@ -891,12 +880,10 @@ ErrorCode Core::coords_iterate(Range::const_iterator iter,
   ErrorCode rval = sequence_manager()->find(*iter, seq);
   if (MB_SUCCESS != rval) {
     xcoords_ptr = ycoords_ptr = zcoords_ptr = NULL;
-    mError->set_last_error("Couldn't find sequence for start handle.");
     SET_ERR(rval, "Couldn't find sequence for start handle");
   }
   VertexSequence *vseq = dynamic_cast<VertexSequence*>(seq);
   if (!vseq) {
-    mError->set_last_error("Couldn't find sequence for start handle.");
     SET_ERR(MB_ENTITY_NOT_FOUND, "Couldn't find sequence for start handle");
   }
 
@@ -1723,7 +1710,6 @@ ErrorCode Core::connect_iterate(Range::const_iterator iter,
 
   connect = eseq->get_connectivity_array();
   if (!connect) {
-    mError->set_last_error("Couldn't find connectivity array for start handle.");
     SET_ERR(MB_FAILURE, "Couldn't find connectivity array for start handle");
   }
 
@@ -3927,7 +3913,6 @@ ErrorCode Core::remove_set_iterator(SetIterator *set_iter)
 {
   std::vector<SetIterator*>::iterator vit = std::find(setIterators.begin(), setIterators.end(), set_iter);
   if (vit == setIterators.end()) {
-    mError->set_last_error("Didn't find that iterator.");
     SET_ERR(MB_FAILURE, "Didn't find that iterator");
   }
 
