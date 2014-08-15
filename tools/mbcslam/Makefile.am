@@ -19,11 +19,12 @@ AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
 lib_LTLIBRARIES = libmbcslam.la
 libmbcslam_la_LIBADD = $(top_builddir)/src/libMOAB.la $(top_builddir)/itaps/imesh/libiMesh.la 
          
-LDADD = libmbcslam.la  $(top_builddir)/src/libMOAB.la 
+LDADD = libmbcslam.la  $(top_builddir)/src/libMOAB.la  
 
 libmbcslam_la_SOURCES = \
    Intx2Mesh.cpp Intx2Mesh.hpp Intx2MeshOnSphere.cpp Intx2MeshOnSphere.hpp \
-     CslamUtils.cpp CslamUtils.hpp Intx2MeshInPlane.cpp Intx2MeshInPlane.hpp IntxRllCssphere.hpp IntxRllCssphere.cpp
+     CslamUtils.cpp CslamUtils.hpp Intx2MeshInPlane.cpp Intx2MeshInPlane.hpp IntxRllCssphere.hpp IntxRllCssphere.cpp \
+     PolyExoWriter.cpp PolyExoWriter.hpp 
      
 if PARALLEL     
     libmbcslam_la_SOURCES += wrap_intx.cpp 
@@ -41,7 +42,7 @@ libmbcslam_la_includedir = $(includedir)
 cfgdir = $(libdir)
 
 TESTS = intx_on_sphere_test  intx_in_plane_test spherical_area_test \
-         case1_test  arc_intx_tests  IntxRllCssphere_test
+         case1_test  arc_intx_tests  IntxRllCssphere_test  PolyExoWriter_test
 if PARALLEL
      TESTS+=intx_mpas
 endif
@@ -64,7 +65,9 @@ create_dp_SOURCES = create_dp.cpp
 arc_intx_tests_SOURCES = arc_intx_tests.cpp
 # this test is for netcdf only ; maybe convert to vtk for the test
 IntxRllCssphere_test_SOURCES = IntxRllCssphere_test.cpp
+PolyExoWriter_test_SOURCES = PolyExoWriter_test.cpp
 
+PolyExoWriter_test_LDADD = libmbcslam.la -lnetcdf_c++  $(top_builddir)/src/libMOAB.la
 if PARALLEL
   diffusion_SOURCES = diffusion.cpp
   intx_imesh_SOURCES = intx_imesh.cpp
