@@ -1,5 +1,4 @@
 #include "moab/LloydSmoother.hpp"
-#include "moab/Error.hpp"
 #include "moab/Skinner.hpp"
 #include "moab/CN.hpp"
 #include "moab/CartVect.hpp"
@@ -12,10 +11,6 @@
 
 #include <iostream>
 
-#define RR(a) if (MB_SUCCESS != rval) {        \
-    errorHandler->set_last_error(a);                \
-    return rval;}
-
 namespace moab {
   
 LloydSmoother::LloydSmoother(Interface *impl, ParallelComm *pc, Range &elms, Tag ctag,
@@ -23,8 +18,6 @@ LloydSmoother::LloydSmoother(Interface *impl, ParallelComm *pc, Range &elms, Tag
         : mbImpl(impl), myPcomm(pc), myElems(elms), coordsTag(ctag), fixedTag(ftag), absTol(at), relTol(rt),
           reportIts(0), numIts(0), iCreatedTag(false)
 {
-  ErrorCode rval = mbImpl->query_interface(errorHandler);
-  if (rval) throw rval;
 }
 
 LloydSmoother::~LloydSmoother() 
@@ -34,18 +27,16 @@ LloydSmoother::~LloydSmoother()
     if (rval) throw rval;
   }
 }
-    
+
 ErrorCode LloydSmoother::perform_smooth() 
 {
   ErrorCode rval;
 
   if (myElems.empty()) {
-    rval = MB_FAILURE;
-    RR("No elements specified to Lloyd smoother.");
+    SET_ERR(MB_FAILURE, "No elements specified to Lloyd smoother");
   }
   else if (mbImpl->dimension_from_handle(*myElems.begin()) != mbImpl->dimension_from_handle(*myElems.rbegin())) {
-    rval = MB_FAILURE;
-    RR("Elements of unequal dimension specified to Lloyd smoother.");
+    SET_ERR(MB_FAILURE, "Elements of unequal dimension specified to Lloyd smoother");
   }    
 
   int dim = mbImpl->dimension_from_handle(*myElems.begin());
@@ -54,19 +45,16 @@ ErrorCode LloydSmoother::perform_smooth()
   if (0 > absTol) {
       // no tolerance set - get one relative to bounding box around elements
     BoundBox bb;
-    rval = bb.update(*mbImpl, myElems);
-    RR("Failed to compute bounding box around elements.");
+    rval = bb.update(*mbImpl, myElems);CHK_ERR1(rval, "Failed to compute bounding box around elements");
     absTol = relTol * bb.diagonal_length();
   }
 
     // initialize if we need to
-  rval = initialize();
-  RR("Failed to initialize.");
+  rval = initialize();CHK_ERR1(rval, "Failed to initialize");
 
     // get all vertices
   Range verts;
-  rval = mbImpl->get_adjacencies(myElems, 0, false, verts, Interface::UNION);
-  RR("Failed to get all vertices.");
+  rval = mbImpl->get_adjacencies(myElems, 0, false, verts, Interface::UNION);CHK_ERR1(rval, "Failed to get all vertices");
   
     // perform Lloyd relaxation:
     // 1. setup: set vertex centroids from vertex coords; filter to owned verts; get fixed tags
@@ -75,26 +63,23 @@ ErrorCode LloydSmoother::perform_smooth()
     // we'll just be setting to their fixed coords
   std::vector<double> vcentroids(3*verts.size());
   if (!coordsTag) {
-    rval = mbImpl->get_coords(verts, &vcentroids[0]); RR("Failed to get vert coords.");
+    rval = mbImpl->get_coords(verts, &vcentroids[0]);CHK_ERR1(rval, "Failed to get vert coords");
   }
   else {
-    rval = mbImpl->tag_get_data(coordsTag, verts, &vcentroids[0]); RR("Failed to get vert coords tag values.");
+    rval = mbImpl->tag_get_data(coordsTag, verts, &vcentroids[0]);CHK_ERR1(rval, "Failed to get vert coords tag values");
   }
 
   Tag centroid;
-  rval = mbImpl->tag_get_handle("", 3, MB_TYPE_DOUBLE, centroid, MB_TAG_CREAT | MB_TAG_DENSE); 
-  RR("Couldn't get tag handle.");
-  rval = mbImpl->tag_set_data(centroid, verts, &vcentroids[0]); RR("Failed setting centroid tag.");
+  rval = mbImpl->tag_get_handle("", 3, MB_TYPE_DOUBLE, centroid, MB_TAG_CREAT | MB_TAG_DENSE);CHK_ERR1(rval, "Couldn't get tag handle");
+  rval = mbImpl->tag_set_data(centroid, verts, &vcentroids[0]);CHK_ERR1(rval, "Failed setting centroid tag");
 
   Range owned_verts, shared_owned_verts;
 #ifdef USE_MPI
     // filter verts down to owned ones and get fixed tag for them
   if (myPcomm && myPcomm->size() > 1) {
-    rval = myPcomm->filter_pstatus(verts, PSTATUS_NOT_OWNED, PSTATUS_NOT, -1, &owned_verts);
-    RR("Failed to filter on pstatus.");
+    rval = myPcomm->filter_pstatus(verts, PSTATUS_NOT_OWNED, PSTATUS_NOT, -1, &owned_verts);CHK_ERR1(rval, "Failed to filter on pstatus");
       // get shared owned verts, for exchanging tags
-    rval = myPcomm->filter_pstatus(owned_verts, PSTATUS_SHARED, PSTATUS_AND, -1, &shared_owned_verts);
-    RR("Failed to filter for shared owned.");
+    rval = myPcomm->filter_pstatus(owned_verts, PSTATUS_SHARED, PSTATUS_AND, -1, &shared_owned_verts);CHK_ERR1(rval, "Failed to filter for shared owned");
       // workaround: if no shared owned verts, put a non-shared one in the list, to prevent exchanging tags
       // for all shared entities
     if (shared_owned_verts.empty()) shared_owned_verts.insert(*verts.begin());
@@ -106,12 +91,12 @@ ErrorCode LloydSmoother::perform_smooth()
 #endif
   
   std::vector<unsigned char> fix_tag(owned_verts.size());
-  rval = mbImpl->tag_get_data(fixedTag, owned_verts, &fix_tag[0]); RR("Failed to get fixed tag.");
+  rval = mbImpl->tag_get_data(fixedTag, owned_verts, &fix_tag[0]);CHK_ERR1(rval, "Failed to get fixed tag");
 
     // now fill vcentroids array with positions of just owned vertices, since those are the ones
     // we're actually computing
   vcentroids.resize(3*owned_verts.size());
-  rval = mbImpl->tag_get_data(centroid, owned_verts, &vcentroids[0]); RR("Failed to get centroid tag.");
+  rval = mbImpl->tag_get_data(centroid, owned_verts, &vcentroids[0]);CHK_ERR1(rval, "Failed to get centroid tag");
 
     // some declarations for later iterations
   std::vector<double> fcentroids(3*myElems.size()); // fcentroids for element centroids
@@ -132,9 +117,9 @@ ErrorCode LloydSmoother::perform_smooth()
     // 2a. foreach elem: centroid = sum(vertex centroids)/num_verts_in_cell
     for (eit = myElems.begin(), e = 0; eit != myElems.end(); eit++, e++) {
         // get verts for this elem
-      rval = mbImpl->get_connectivity(*eit, conn, nconn); RR("Failed to get connectivity.");
+      rval = mbImpl->get_connectivity(*eit, conn, nconn);CHK_ERR1(rval, "Failed to get connectivity");
         // get centroid tags for those verts
-      rval = mbImpl->tag_get_data(centroid, conn, nconn, &ctag[0]); RR("Failed to get centroid.");
+      rval = mbImpl->tag_get_data(centroid, conn, nconn, &ctag[0]);CHK_ERR1(rval, "Failed to get centroid");
       fcentroids[3*e+0] = fcentroids[3*e+1] = fcentroids[3*e+2] = 0.0;
       for (v = 0; v < nconn; v++) {
         fcentroids[3*e+0] += ctag[3*v+0];
@@ -143,7 +128,7 @@ ErrorCode LloydSmoother::perform_smooth()
       }
       for (v = 0; v < 3; v++) fcentroids[3*e+v] /= nconn;
     }
-    rval = mbImpl->tag_set_data(centroid, myElems, &fcentroids[0]); RR("Failed to set elem centroid.");
+    rval = mbImpl->tag_set_data(centroid, myElems, &fcentroids[0]);CHK_ERR1(rval, "Failed to set elem centroid");
 
       // 2b. foreach owned vertex: 
     for (vit = owned_verts.begin(), v = 0; vit != owned_verts.end(); vit++, v++) {
@@ -151,9 +136,8 @@ ErrorCode LloydSmoother::perform_smooth()
       if (fix_tag[v]) continue;
         // vertex centroid = sum(cell centroids)/ncells
       adj_elems.clear();
-      rval = mbImpl->get_adjacencies(&(*vit), 1, dim, false, adj_elems); RR("Failed getting adjs.");
-      rval = mbImpl->tag_get_data(centroid, &adj_elems[0], adj_elems.size(), &fcentroids[0]); 
-      RR("Failed to get elem centroid.");
+      rval = mbImpl->get_adjacencies(&(*vit), 1, dim, false, adj_elems);CHK_ERR1(rval, "Failed getting adjs");
+      rval = mbImpl->tag_get_data(centroid, &adj_elems[0], adj_elems.size(), &fcentroids[0]);CHK_ERR1(rval, "Failed to get elem centroid");
       double vnew[] = {0.0, 0.0, 0.0};
       for (e = 0; e < (int)adj_elems.size(); e++) {
         vnew[0] += fcentroids[3*e+0];
@@ -168,12 +152,12 @@ ErrorCode LloydSmoother::perform_smooth()
 
       // set the centroid tag; having them only in vcentroids array isn't enough, as vertex centroids are
       // accessed randomly in loop over faces
-    rval = mbImpl->tag_set_data(centroid, owned_verts, &vcentroids[0]); RR("Failed to set vertex centroid.");
+    rval = mbImpl->tag_set_data(centroid, owned_verts, &vcentroids[0]);CHK_ERR1(rval, "Failed to set vertex centroid");
 
 #ifdef USE_MPI
     // 2c. exchange tags on owned verts
     if (myPcomm && myPcomm->size() > 1) {
-      rval = myPcomm->exchange_tags(centroid, shared_owned_verts); RR("Failed to exchange tags.");
+      rval = myPcomm->exchange_tags(centroid, shared_owned_verts);CHK_ERR1(rval, "Failed to exchange tags");
     }
 #endif
 
@@ -192,11 +176,10 @@ ErrorCode LloydSmoother::perform_smooth()
   
     // write the tag back onto vertex coordinates
   if (!coordsTag) {
-    rval = mbImpl->set_coords(owned_verts, &vcentroids[0]); RR("Failed to set vertex coords.");
+    rval = mbImpl->set_coords(owned_verts, &vcentroids[0]);CHK_ERR1(rval, "Failed to set vertex coords");
   }
   else {
-    rval = mbImpl->tag_set_data(coordsTag, owned_verts, &vcentroids[0]); 
-    RR("Failed to set vert coords tag values.");
+    rval = mbImpl->tag_set_data(coordsTag, owned_verts, &vcentroids[0]);CHK_ERR1(rval, "Failed to set vert coords tag values");
   }
 
   return MB_SUCCESS;
@@ -209,32 +192,27 @@ ErrorCode LloydSmoother::initialize()
     // first, check for tag; if we don't have it, make one and mark skin as fixed
   if (!fixedTag) {
     unsigned char fixed = 0x0;
-    rval = mbImpl->tag_get_handle("", 1, MB_TYPE_OPAQUE, fixedTag, MB_TAG_DENSE|MB_TAG_CREAT, &fixed);
-    RR("Trouble making fixed tag.");
+    rval = mbImpl->tag_get_handle("", 1, MB_TYPE_OPAQUE, fixedTag, MB_TAG_DENSE | MB_TAG_CREAT, &fixed);CHK_ERR1(rval, "Trouble making fixed tag");
     iCreatedTag = true;
   
       // get the skin; get facets, because we might need to filter on shared entities
     Skinner skinner(mbImpl);
     Range skin, skin_verts;
-    rval = skinner.find_skin(0, myElems, false, skin);
-    RR("Unable to find skin.");
+    rval = skinner.find_skin(0, myElems, false, skin);CHK_ERR1(rval, "Unable to find skin");
 
 #ifdef USE_MPI
       // need to do a little extra if we're working in parallel
     if (myPcomm) {
         // filter out ghost and interface facets
-      rval = myPcomm->filter_pstatus(skin, PSTATUS_GHOST|PSTATUS_INTERFACE, PSTATUS_NOT);
-      RR("Failed to filter on shared status.");
+      rval = myPcomm->filter_pstatus(skin, PSTATUS_GHOST | PSTATUS_INTERFACE, PSTATUS_NOT);CHK_ERR1(rval, "Failed to filter on shared status");
     }
 #endif
       // get the vertices from those entities
-    rval = mbImpl->get_adjacencies(skin, 0, false, skin_verts, Interface::UNION);
-    RR("Trouble getting vertices.");
+    rval = mbImpl->get_adjacencies(skin, 0, false, skin_verts, Interface::UNION);CHK_ERR1(rval, "Trouble getting vertices");
     
       // mark them fixed
     std::vector<unsigned char> marks(skin_verts.size(), 0x1);
-    rval = mbImpl->tag_set_data(fixedTag, skin_verts, &marks[0]);
-    RR("Unable to set tag on skin.");
+    rval = mbImpl->tag_set_data(fixedTag, skin_verts, &marks[0]);CHK_ERR1(rval, "Unable to set tag on skin");
   }
   
   return MB_SUCCESS;
