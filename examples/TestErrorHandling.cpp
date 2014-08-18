@@ -63,18 +63,18 @@ ErrorCode TestErrorHandling_4()
   const int NUM_VTX = 100;
   vector<double> coords(3 * NUM_VTX);
   Range verts;
-  ErrorCode rval = mb.create_vertices(&coords[0], NUM_VTX, verts);CHK_ERR1(rval, "Failed to create vertices");
+  ErrorCode rval = mb.create_vertices(&coords[0], NUM_VTX, verts);CHK_SET_ERR(rval, "Failed to create vertices");
 
   // Create a variable-length dense tag
   Tag tag;
   rval = mb.tag_get_handle("var_len_den", 1, MB_TYPE_INTEGER, tag,
-                          MB_TAG_VARLEN | MB_TAG_DENSE | MB_TAG_CREAT);CHK_ERR1(rval, "Failed to create a tag");
+                          MB_TAG_VARLEN | MB_TAG_DENSE | MB_TAG_CREAT);CHK_SET_ERR(rval, "Failed to create a tag");
 
   // Attempt to iterate over a variable-length tag, which will never be possible
   void* ptr = NULL;
   int count = 0;
   rval = mb.tag_iterate(tag, verts.begin(), verts.end(),
-                        count, ptr);CHK_ERR1_STR(rval, "Failed to iterate over tag on " << NUM_VTX << " vertices");
+                        count, ptr);CHK_SET_ERR_STR(rval, "Failed to iterate over tag on " << NUM_VTX << " vertices");
 
   return MB_SUCCESS;
 }

@@ -36,11 +36,11 @@ int main(int argc, char **argv)
   Core mb;
 
   // Load the file
-  ErrorCode rval = mb.load_file(argv[1]);CHK_ERR1(rval, "Error loading file");
+  ErrorCode rval = mb.load_file(argv[1]);CHK_SET_ERR(rval, "Error loading file");
 
   // Get all 3d elements in the file
   Range elems;
-  rval = mb.get_entities_by_dimension(0, 3, elems);CHK_ERR1(rval, "Error getting 3d elements");
+  rval = mb.get_entities_by_dimension(0, 3, elems);CHK_SET_ERR(rval, "Error getting 3d elements");
 
   // Create a tree to use for the location service
   AdaptiveKDTree tree(&mb);
