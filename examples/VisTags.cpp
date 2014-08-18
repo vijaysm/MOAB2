@@ -81,10 +81,10 @@ int main(int argc, char **argv)
   fo.get_ints_option("LEVELS", levelsArray);
 
   // Load the input file with the specified options
-  rval = mb->load_file(file_input, 0, read_opts);CHK_ERR1(rval, "not loading file");
+  rval = mb->load_file(file_input, 0, read_opts);CHK_SET_ERR(rval, "not loading file");
 
   Range ents;
-  rval = mb->get_entities_by_dimension(0, dimension, ents);CHK_ERR1(rval, "not getting ents");
+  rval = mb->get_entities_by_dimension(0, dimension, ents);CHK_SET_ERR(rval, "not getting ents");
 
   // Now create double tags for entities of dimension
   for (size_t i = 0; i < tagsNames.size(); i++) {
@@ -162,7 +162,7 @@ int main(int argc, char **argv)
     mb->tag_delete(tagh); // No need for the tag anymore, write it to the new file
   } // for (size_t i = 0; i < tagsNames.size(); i++)
 
-  rval = mb->write_file(file_output);CHK_ERR1_STR(rval, "Can't write file " << file_output);
+  rval = mb->write_file(file_output);CHK_SET_ERR_STR(rval, "Can't write file " << file_output);
   cout << "Successfully wrote file " << file_output << "\n";
 
   delete mb;
