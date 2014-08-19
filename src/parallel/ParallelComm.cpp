@@ -1311,7 +1311,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         continue;
 
       ErrorCode result = mbImpl->get_connectivity(*rit, connect, num_connect, 
-                                                  false, &dum_connect_vec);CHK_SET_ERR(result, "Failed to get connectivity to estimate buffer size");
+                                                  false, &dum_connect_vec);CHK_SET_ERR_RET_VAL(result, "Failed to get connectivity to estimate buffer size", -1);
 
       // Number, type, nodes per entity
       buff_size += 3*sizeof(int);
@@ -1338,14 +1338,14 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
     for (; rit != entities.end(); ++rit) {
       unsigned int options;
-      result = mbImpl->get_meshset_options(*rit, options);CHK_SET_ERR(result, "Failed to get meshset options");
+      result = mbImpl->get_meshset_options(*rit, options);CHK_SET_ERR_RET_VAL(result, "Failed to get meshset options", -1);
 
       buff_size += sizeof(int);
 
       Range set_range;
       if (options & MESHSET_SET) {
         // Range-based set; count the subranges
-        result = mbImpl->get_entities_by_handle(*rit, set_range);CHK_SET_ERR(result, "Failed to get set entities");
+        result = mbImpl->get_entities_by_handle(*rit, set_range);CHK_SET_ERR_RET_VAL(result, "Failed to get set entities", -1);
 
         // Set range
         buff_size += RANGE_SIZE(set_range);
@@ -1353,7 +1353,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       else if (options & MESHSET_ORDERED) {
         // Just get the number of entities in the set
         int num_ents;
-        result = mbImpl->get_number_entities_by_handle(*rit, num_ents);CHK_SET_ERR(result, "Failed to get number entities in ordered set");
+        result = mbImpl->get_number_entities_by_handle(*rit, num_ents);CHK_SET_ERR_RET_VAL(result, "Failed to get number entities in ordered set", -1);
 
         // Set vec
         buff_size += sizeof(EntityHandle) * num_ents + sizeof(int);
@@ -1361,8 +1361,8 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
       // Get numbers of parents/children
       int num_par, num_ch;
-      result = mbImpl->num_child_meshsets(*rit, &num_ch);CHK_SET_ERR(result, "Failed to get num children");
-      result = mbImpl->num_parent_meshsets(*rit, &num_par);CHK_SET_ERR(result, "Failed to get num parents");
+      result = mbImpl->num_child_meshsets(*rit, &num_ch);CHK_SET_ERR_RET_VAL(result, "Failed to get num children", -1);
+      result = mbImpl->num_parent_meshsets(*rit, &num_par);CHK_SET_ERR_RET_VAL(result, "Failed to get num parents", -1);
 
       buff_size += (num_ch + num_par) * sizeof(EntityHandle) + 2*sizeof(int);
     }
@@ -1387,8 +1387,9 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     // 3. vertex/entity info
 
     // Get an estimate of the buffer size & pre-allocate buffer size
-    unsigned int buff_size = estimate_ents_buffer_size(entities, 
-                                                       store_remote_handles);
+    int buff_size = estimate_ents_buffer_size(entities, store_remote_handles);
+    if (buff_size < 0)
+      SET_ERR(MB_FAILURE, "Failed to estimate ents buffer size");
     buff->check_space(buff_size);
 
     WriteUtilIface *wu;
@@ -2893,6 +2894,8 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     Range all_sets = entities.subset_by_type(MBENTITYSET);
 
     int buff_size = estimate_sets_buffer_size(all_sets, store_remote_handles);
+    if (buff_size < 0)
+      SET_ERR(MB_FAILURE, "Failed to estimate sets buffer size");
     buff->check_space(buff_size);
 
     // Number of sets
