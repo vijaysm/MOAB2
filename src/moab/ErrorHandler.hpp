@@ -83,6 +83,19 @@ ErrorCode MBError(int line, const char* func, const char* file, const char* dir,
     return ret_val; \
   } while (false)
 
+//! Set a new error with the given error message and continue
+//! Used in functions which return any data type
+#define SET_ERR_CONT(err_msg) \
+  MBError(__LINE__, __func__, __FILENAME__, __SDIR__, MB_FAILURE, err_msg, MB_ERROR_TYPE_NEW_LOCAL)
+
+//! Similar to SET_ERR_CONT except that the given error message is a stream instead of a string
+#define SET_ERR_STR_CONT(err_msg_str) \
+  do { \
+    std::ostringstream err_ostr; \
+    err_ostr << err_msg_str; \
+    MBError(__LINE__, __func__, __FILENAME__, __SDIR__, MB_FAILURE, err_ostr.str().c_str(), MB_ERROR_TYPE_NEW_LOCAL); \
+  } while (false)
+
 //! Similar to SET_ERR except that the error is considered globally fatal
 #define SET_GLB_ERR(err_code, err_msg) \
   return MBError(__LINE__, __func__, __FILENAME__, __SDIR__, err_code, err_msg, MB_ERROR_TYPE_NEW_GLOBAL)
@@ -127,6 +140,18 @@ ErrorCode MBError(int line, const char* func, const char* file, const char* dir,
     return ret_val; \
   } while (false)
 
+//! Similar to SET_ERR_CONT except that the error is considered globally fatal
+#define SET_GLB_ERR_CONT(err_msg) \
+  MBError(__LINE__, __func__, __FILENAME__, __SDIR__, MB_FAILURE, err_msg, MB_ERROR_TYPE_NEW_GLOBAL)
+
+//! Similar to SET_ERR_STR_CONT except that the error is considered globally fatal
+#define SET_GLB_ERR_STR_CONT(err_msg_str) \
+  do { \
+    std::ostringstream err_ostr; \
+    err_ostr << err_msg_str; \
+    MBError(__LINE__, __func__, __FILENAME__, __SDIR__, MB_FAILURE, err_ostr.str().c_str(), MB_ERROR_TYPE_NEW_GLOBAL); \
+  } while (false)
+
 //! Check error code, if not MB_SUCCESS, call the error handler and return the given error code
 //! Used in functions which return ErrorCode
 #define CHK_ERR(err_code) \
@@ -152,6 +177,15 @@ ErrorCode MBError(int line, const char* func, const char* file, const char* dir,
     if (MB_SUCCESS != err_code) { \
       MBError(__LINE__, __func__, __FILENAME__, __SDIR__, err_code, "", MB_ERROR_TYPE_EXISTING); \
       return ret_val; \
+    } \
+  } while (false)
+
+//! Check error code, if not MB_SUCCESS, call the error handler and continue
+//! Used in functions which return any data type
+#define CHK_ERR_CONT(err_code) \
+  do { \
+    if (MB_SUCCESS != err_code) { \
+      MBError(__LINE__, __func__, __FILENAME__, __SDIR__, err_code, "", MB_ERROR_TYPE_EXISTING); \
     } \
   } while (false)
 
@@ -198,6 +232,21 @@ ErrorCode MBError(int line, const char* func, const char* file, const char* dir,
   do { \
     if (MB_SUCCESS != err_code) \
       SET_ERR_STR_RET_VAL(err_msg_str, ret_val); \
+  } while (false)
+
+//! Check error code, if not MB_SUCCESS, set a new error with the given error message and continue
+//! Used in functions which return any data type
+#define CHK_SET_ERR_CONT(err_code, err_msg) \
+  do { \
+    if (MB_SUCCESS != err_code) \
+      SET_ERR_CONT(err_msg); \
+  } while (false)
+
+//! Similar to CHK_SET_ERR_CONT except that the given error message is a stream instead of a string
+#define CHK_SET_ERR_STR_CONT(err_code, err_msg_str) \
+  do { \
+    if (MB_SUCCESS != err_code) \
+      SET_ERR_STR_CONT(err_msg_str); \
   } while (false)
 
 } // namespace moab
