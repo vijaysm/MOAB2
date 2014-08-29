@@ -1834,7 +1834,7 @@ int  borderPointsOfCSinRLL(CartVect * redc, double * red2dc, int nsRed, CartVect
 {
   int extraPoints=0;
   // first decide the blue z coordinates
-  CartVect A, B, C, D;
+  CartVect A(0.), B(0.), C(0.), D(0.);
   for (int i=0; i<nsBlue; i++)
   {
     if (blueEdgeType[i]==0)
