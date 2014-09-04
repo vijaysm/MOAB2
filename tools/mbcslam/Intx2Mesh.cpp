@@ -1165,6 +1165,7 @@ ErrorCode Intx2Mesh::correct_intersection_points_positions()
         true); // only the edges owned by the current processor
     ERRORR(rval, "can't get shared edges owned");
 
+    shared_edges_owned = intersect(RedEdges, shared_edges_owned);
     rval = parcomm->settle_intersection_points(RedEdges, shared_edges_owned, extraNodesVec, epsilon_1);
     ERRORR(rval, "can't settle intx points");
   }

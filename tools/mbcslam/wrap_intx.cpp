@@ -17,6 +17,7 @@
 #include "moab/ParallelComm.hpp"
 #include "MBTagConventions.hpp"
 #include "moab/ParallelMergeMesh.hpp"
+#include <sstream>
 #include <mpi.h>
 
 using namespace moab;
@@ -572,16 +573,22 @@ ErrorCode create_fine_mesh(Interface * mb, ParallelComm * pcomm,
 
   Range entities[4];
   entities[0]=verts;
+  entities[2]=quads3;
   /*ErrorCode ParallelComm::assign_global_ids( Range entities[],
                                                const int dimension,
                                                const int start_id,
                                                const bool parallel,
                                                const bool owned_only) */
-  rval = pcomm->assign_global_ids(entities, 0, 1, true, false);
+  rval = pcomm->assign_global_ids(entities, 2, 1, true, false);
   ERRORR(rval, "can't assign global ids for vertices ");
+
+  std::stringstream fff;
+  fff << "fine0" <<  pcomm->proc_config().proc_rank() << ".h5m";
+  mb->write_mesh(fff.str().c_str(), &fine_set, 1);
 
   rval = mb->write_file("fine.h5m", 0, "PARALLEL=WRITE_PART", &fine_set, 1);
   ERRORR(rval, "can't write set 3, fine ");
+
 
   return rval;
 }
@@ -693,6 +700,8 @@ void intersection_at_level(iMesh_Instance instance,
 
   worker.SetErrorTolerance(gtol);
 
+  worker.set_box_error(100*gtol);
+
   EntityHandle covering_lagr_set;
 
   rval = mb->create_meshset(MESHSET_SET, covering_lagr_set);
@@ -703,7 +712,10 @@ void intersection_at_level(iMesh_Instance instance,
     ERRORV(rval, "can't populate covering set ");
 
     if (debug) {
-      rval = mb->write_file("lagr.h5m", 0, 0, &covering_lagr_set, 1);
+      std::stringstream fff;
+      fff << "lagr0" <<  pcomm->proc_config().proc_rank() << ".h5m";
+      rval =  mb->write_mesh(fff.str().c_str(), &covering_lagr_set, 1);
+
       ERRORV(rval, "can't write covering set ");
     }
 
