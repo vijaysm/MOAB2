@@ -75,7 +75,6 @@ if ENABLE_FORTRAN
   advection_SOURCES = advection.F90
   advection_LDADD = libmbcslam.la  $(top_builddir)/itaps/imesh/libiMesh.la $(top_builddir)/src/libMOAB.la $(FCLIBS)
 endif
-  driver_hm_SOURCES = driver_hm.cpp
 endif 
 
 # Other files to clean up (e.g. output from tests)
