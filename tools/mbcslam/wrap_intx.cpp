@@ -26,6 +26,20 @@ bool debug = true;
 
 #define  NC  3
 
+/*
+ *  methods defined here:
+ *  void update_tracer(iMesh_Instance instance,
+      iBase_EntitySetHandle imesh_euler_set, int * ierr);
+
+    void create_mesh(iMesh_Instance instance,
+      iBase_EntitySetHandle * imesh_euler_set, double * coords, int * corners,
+      int nc, int nelem, MPI_Fint comm, int * ierr) ;
+
+    void intersection_at_level(iMesh_Instance instance,
+     iBase_EntitySetHandle fine_set, iBase_EntitySetHandle * intx_set, double * dep_coords, double radius,
+     int nc, int nelem, MPI_Fint comm, int * ierr)
+
+ */
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -296,21 +310,21 @@ ErrorCode fill_coord_on_edges(Interface * mb, std::vector<double*> & coordv2, do
   }
   return rval ;
 }
-
+/*
 ErrorCode resolve_interior_verts_on_bound_edges(Interface * mb, ParallelComm * pcomm,
     Range & edges)
 {
   // edges are coarse edges;
-  /*ErrorCode rval;
+  ErrorCode rval;
   int rank=pcomm->proc_config().proc_rank();
   Range sharedCoarseEdges=edges;// filter the non shared ones
   rval = pcomm->filter_pstatus(sharedCoarseEdges, PSTATUS_SHARED, PSTATUS_AND);
-  ERRORR(rval, "can't filter coarse edges  ");*/
+  ERRORR(rval, "can't filter coarse edges  ");
   ParallelMergeMesh pmerge(pcomm, 0.0001);
   ErrorCode rval = pmerge.merge();
 
   return rval;
-}
+}*/
 ErrorCode create_fine_mesh(Interface * mb, ParallelComm * pcomm,
     EntityHandle coarseSet, EntityHandle fine_set, double * coords,
    int nc, int nelem) {
@@ -373,6 +387,17 @@ ErrorCode create_fine_mesh(Interface * mb, ParallelComm * pcomm,
 
   int iv = (nc-1)*edges.size(); // iv is in the coordv2 array indices
   start_vert=start_vert+(nc-1)*edges.size();
+
+  // add a child to the mesh set, with the ordered vertices, as they come out in the list of coordinates
+  EntityHandle vertSet;
+  rval = mb->create_meshset(MESHSET_ORDERED, vertSet);
+  ERRORR(rval, "can't create vertex set ");
+
+  rval = mb->add_parent_child(fine_set, vertSet);
+  ERRORR(rval, "can't create parent child relation between fine set and vertSet ");
+
+  std::vector<EntityHandle>  vertList;
+  vertList.reserve(nelem*(nc+1)*(nc+1));// will have a list of vertices, in order
   // now fill coordinates on interior nodes; also mark the start for each interior vertex in a coarse quad
   for (int ie = 0; ie < nelem; ie++) {
     // just fill coordinates for an array of (nc-1)*(nc-1) vertices
@@ -510,7 +535,18 @@ ErrorCode create_fine_mesh(Interface * mb, ParallelComm * pcomm,
         connect[ic++] = arr2[i1  ][j1+1]; //
       }
     }
+
+    for (int j1=0; j1<=nc; j1++)
+    {
+      for (int i1=0; i1<=nc; i1++)
+      {
+        vertList.push_back(arr2[i1][j1]);
+      }
+    }
   }
+
+  rval = mb->add_entities(vertSet, &vertList[0], (int)vertList.size());
+  ERRORR(rval,"can't add to the vert set the list of ordered vertices");
 
   mb->add_entities(fine_set, quads3);
   // notify MOAB of the new elements
@@ -530,6 +566,19 @@ ErrorCode create_fine_mesh(Interface * mb, ParallelComm * pcomm,
   ParallelMergeMesh pmerge(pcomm, 0.0001);
   rval = pmerge.merge();
   ERRORR(rval, "can't resolve vertices on interior of boundary edges ");
+
+  rval = mb->get_connectivity(quads3, verts);
+  ERRORR(rval, "can't get vertices ");
+
+  Range entities[4];
+  entities[0]=verts;
+  /*ErrorCode ParallelComm::assign_global_ids( Range entities[],
+                                               const int dimension,
+                                               const int start_id,
+                                               const bool parallel,
+                                               const bool owned_only) */
+  rval = pcomm->assign_global_ids(entities, 0, 1, true, false);
+  ERRORR(rval, "can't assign global ids for vertices ");
 
   rval = mb->write_file("fine.h5m", 0, "PARALLEL=WRITE_PART", &fine_set, 1);
   ERRORR(rval, "can't write set 3, fine ");
@@ -561,11 +610,119 @@ void create_mesh(iMesh_Instance instance,
   ERRORV(rval, "can't create coarse set ");
 
   rval = create_fine_mesh(mb, pcomm, coarseSet, fine_set, coords, nc, nelem);
-  ERRORV(rval, "can't create coarse set ");
+  ERRORV(rval, "can't create fine mesh set ");
 
   *imesh_euler_set = (iBase_EntitySetHandle) fine_set; // with coarse mesh
 
   *ierr = 0;
+  return;
+}
+ErrorCode set_departure_tag(Interface * mb, EntityHandle fineMeshSet, double * dep_coords, double radius2,
+  int nc, int nelem)
+{
+
+  Range fine_quads;
+  ErrorCode rval = mb->get_entities_by_type(fineMeshSet, MBQUAD, fine_quads);
+  ERRORR(rval, "can't get fine quads");
+
+  Range all_verts;
+  rval = mb->get_connectivity(fine_quads, all_verts);
+  ERRORR(rval, "can't get vertices");
+
+  std::vector<EntityHandle> vertList;
+  rval = mb->get_child_meshsets(fineMeshSet, vertList );
+
+  if (vertList.size()!=1)
+    return MB_FAILURE;
+
+  EntityHandle vertSet=vertList[0];
+  vertList.clear();
+
+  // now get the vertices, in order of the coordinates (and departure points)
+  rval = mb->get_entities_by_handle(vertSet, vertList);
+  ERRORR(rval, "can't get vert list");
+
+  Tag dpTag = 0;
+  std::string tag_name("DP");
+  rval = mb->tag_get_handle(tag_name.c_str(), 3, MB_TYPE_DOUBLE, dpTag, MB_TAG_DENSE|MB_TAG_CREAT);
+  ERRORR(rval, "can't get DP tag");
+
+  std::set<EntityHandle> alreadyDefined;
+
+  for (size_t i=0; i<vertList.size(); i++)
+  {
+    EntityHandle v=vertList[i];
+    if (alreadyDefined.find(v)==alreadyDefined.end())
+    {
+      SphereCoords sph;
+      sph.R=radius2;
+      sph.lat = dep_coords[2*i];
+      sph.lon = dep_coords[2*i+1];
+
+      CartVect depPoint = spherical_to_cart(sph);
+      rval = mb->tag_set_data(dpTag, &v, 1, (void*)depPoint.array() );
+      ERRORR(rval, "can't set DP tag");
+      alreadyDefined.insert(v);
+    }
+
+  }
+
+  return MB_SUCCESS;
+}
+void intersection_at_level(iMesh_Instance instance,
+   iBase_EntitySetHandle fine_set, iBase_EntitySetHandle * intx_set, double * dep_coords, double radius2,
+   int nc, int nelem, MPI_Fint comm, int * ierr)
+{
+  *ierr = 1;
+  Interface * mb = MOABI;
+  MPI_Comm mpicomm = MPI_Comm_f2c(comm);
+  // instantiate parallel comm now or not?
+
+  EntityHandle fineMeshSet = (EntityHandle) fine_set;
+
+  // set the departure tag on the fine mesh vertices
+  ErrorCode rval = set_departure_tag(mb, fineMeshSet, dep_coords, radius2, nc, nelem);
+  ERRORV(rval, "can't set departure tag");
+
+  ParallelComm *pcomm =  ParallelComm::get_pcomm(mb, 0);
+  if (NULL==pcomm)
+    return; // error is 1
+
+  Intx2MeshOnSphere worker(mb);
+  worker.SetRadius(radius2);
+
+  worker.SetErrorTolerance(gtol);
+
+  EntityHandle covering_lagr_set;
+
+  rval = mb->create_meshset(MESHSET_SET, covering_lagr_set);
+    ERRORV(rval, "can't create covering set ");
+
+    // we need to update the correlation tag and remote tuples
+    rval = worker.create_departure_mesh_2nd_alg(fineMeshSet, covering_lagr_set);
+    ERRORV(rval, "can't populate covering set ");
+
+    if (debug) {
+      rval = mb->write_file("lagr.h5m", 0, 0, &covering_lagr_set, 1);
+      ERRORV(rval, "can't write covering set ");
+    }
+
+    //
+   /* rval = enforce_convexity(mb, covering_lagr_set);
+    ERRORV(rval, "can't write covering set ");*/
+
+    EntityHandle outputSet;
+    rval = mb->create_meshset(MESHSET_SET, outputSet);
+    ERRORV(rval, "can't create output set ");
+
+    rval = worker.intersect_meshes(covering_lagr_set, fineMeshSet, outputSet);
+    ERRORV(rval, "can't intersect ");
+
+    if (debug) {
+      rval = mb->write_file("output.vtk", 0, 0, &outputSet, 1);
+      ERRORV(rval, "can't write covering set ");
+    }
+  *intx_set = (iBase_EntitySetHandle)outputSet;
   return;
 }
 #ifdef __cplusplus
