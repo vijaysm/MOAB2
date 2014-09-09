@@ -188,24 +188,10 @@ AC_ARG_ENABLE( optimize, AC_HELP_STRING([--enable-optimize],[Compile optimized (
 DEBUG=no
 if test "x$enable_debug" = "x"; then
   if test "x$enable_cxx_optimize" = "x"; then
-    if test "x$USER_CXXFLAGS" = "x"; then
-      enable_cxx_optimize=yes
-    fi
-  fi
-  if test "x$enable_cc_optimize" = "x"; then
-    if test "x$USER_CFLAGS" = "x"; then
-      enable_cc_optimize=yes
-    fi
-  fi
-  if test "x$enable_fc_optimize" = "x"; then
-    if test "x$USER_FCFLAGS" = "x"; then
-      enable_fc_optimize=yes
-    fi
-  fi
-  if test "x$enable_f77_optimize" = "x"; then
-    if test "x$USER_FFLAGS" = "x"; then
-      enable_f77_optimize=yes
-    fi
+    enable_cxx_optimize=yes
+    enable_cc_optimize=yes
+    enable_fc_optimize=yes
+    enable_f77_optimize=yes
   fi
 fi
 
