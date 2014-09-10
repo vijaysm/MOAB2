@@ -1573,9 +1573,9 @@ namespace moab {
       for (int i = 0; i < nepf; ++i)
       {
           std::vector<EntityHandle> common(10);
-          std::vector<EntityHandle>::iterator it;
+          //std::vector<EntityHandle>::iterator it;
           if (i == nepf-1){
-              it = std::set_intersection(temp[i].begin(), temp[i].end(), temp[0].begin(), temp[0].end(), common.begin());
+              std::set_intersection(temp[i].begin(), temp[i].end(), temp[0].begin(), temp[0].end(), common.begin());
               if (*common.begin() == 0)
                   continue;
 
@@ -2480,12 +2480,12 @@ namespace moab {
       for (int i = 0; i < nepc; ++i)
       {
           std::vector<EntityHandle> common(10);
-          std::vector<EntityHandle>::iterator it;
+          //std::vector<EntityHandle>::iterator it;
 
           int lv0 = lConnMap3D[index].e2v[i][0];
           int lv1 = lConnMap3D[index].e2v[i][1];
 
-          it = std::set_intersection(temp[lv0].begin(), temp[lv0].end(), temp[lv1].begin(), temp[lv1].end(), common.begin());
+          std::set_intersection(temp[lv0].begin(), temp[lv0].end(), temp[lv1].begin(), temp[lv1].end(), common.begin());
           if (*common.begin() == 0)
               continue;
 
