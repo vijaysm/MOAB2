@@ -1583,7 +1583,7 @@ namespace moab {
           }
           else
           {
-              it = std::set_intersection(temp[i].begin(), temp[i].end(), temp[i+1].begin(), temp[i+1].end(), common.begin());
+              std::set_intersection(temp[i].begin(), temp[i].end(), temp[i+1].begin(), temp[i+1].end(), common.begin());
               if (*common.begin() == 0)
                   continue;
 
