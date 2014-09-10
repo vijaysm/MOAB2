@@ -70,7 +70,7 @@ install-data-hook:
 	echo -n "SET(MOAB_LIBRARIES \"" >> $(DESTDIR)$(cfgdir)/MOABConfig.cmake
 # next line: get the post-substitution set of link commands, then filter out leading
 # and trailing spaces, then terminate with close-quote and close-paren
-	echo -n "@EXPORT_LDFLAGS@ -L$(libdir) -lMOAB @LIBS@ @PNETCDF_LIBS@ @NETCDF_LIBS@ @CGNS_LIBS@ @HDF5_LIBS@ @CCMIO_LIBS@ @CGM_LIBS@" | \
+	echo -n "@EXPORT_LDFLAGS@ -L$(libdir) -lMOAB @DAGMC_LDFLAGS@ @LIBS@ @PNETCDF_LIBS@ @NETCDF_LIBS@ @CGNS_LIBS@ @HDF5_LIBS@ @CCMIO_LIBS@ @CGM_LIBS@" | \
 	   sed -e 's/^ *//;s/ *$$/\")\n/' >> $(DESTDIR)$(cfgdir)/MOABConfig.cmake
 
 # Generate a file to be installed in $libdir containing the configuration
