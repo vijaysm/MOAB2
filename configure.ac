@@ -693,7 +693,7 @@ MB_OPTIONAL_TOOL([mbcslam],      [no], [yes])
 MB_OPTIONAL_TOOL([ahf],          [no], [no])
 
 if test "xyes" = "x$ENABLE_dagmc"; then
-   DAGMC_LDFLAGS="-ldagmc"
+   DAGMC_LDFLAGS="-ldagmc -lMOAB"
    AC_SUBST(DAGMC_LDFLAGS)
 fi
 
