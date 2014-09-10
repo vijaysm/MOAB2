@@ -692,6 +692,11 @@ MB_OPTIONAL_TOOL([h5mtools],     [${HAVE_HDF5}], [${HAVE_HDF5}])
 MB_OPTIONAL_TOOL([mbcslam],      [no], [yes])
 MB_OPTIONAL_TOOL([ahf],          [no], [no])
 
+if test "xyes" = "x$ENABLE_dagmc"; then
+   DAGMC_LDFLAGS="-ldagmc"
+   AC_SUBST(DAGMC_LDFLAGS)
+fi
+
 if test "xyes" = "x$ENABLE_ahf"; then
   AM_CPPFLAGS="$AM_CPPFLAGS -DUSE_AHF"
 fi
