@@ -160,12 +160,12 @@ void test_eul_read_write_T()
   CHECK_ERR(rval);
 
   // Read non-set variable T and set variable gw
-  read_opts += ";VARIABLE=T,gw;DEBUG_IO=0";
+  read_opts += ";VARIABLE=T,gw;DEBUG_IO=3";
   rval = mb.load_file(example_eul, &set, read_opts.c_str());
   CHECK_ERR(rval);
 
   // Write variables T and gw
-  std::string write_opts = ";;VARIABLE=T,gw;DEBUG_IO=0";
+  std::string write_opts = ";;VARIABLE=T,gw;DEBUG_IO=3";
 #ifdef USE_MPI
   // Use parallel options
   write_opts += ";PARALLEL=WRITE_PART";
