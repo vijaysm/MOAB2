@@ -56,6 +56,7 @@ public:
   void assign_tags( EntityHandle vhandle, const void* vtags );
 
   virtual EntityHandle map_vertex( EntityHandle vhash, const double* vcoords, const void* vtags );
+  using EntityRefinerOutputFunctor::operator();
   virtual EntityHandle operator () ( int nvhash, EntityHandle* vhash, const double* vcoords, const void* vtags );
   virtual void operator () ( EntityHandle h );
   virtual void operator () ( EntityType etyp );
