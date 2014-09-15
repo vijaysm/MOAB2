@@ -350,7 +350,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
               != pa_vec.end()) {
             use_id_tag = true;
             if (!file_id_tag) {
-              tmp_result = mbImpl->tag_get_handle( "", 1, MB_TYPE_INTEGER,id_tag, MB_TAG_DENSE|MB_TAG_CREAT );
+              tmp_result = mbImpl->tag_get_handle( "", 1, MB_TYPE_HANDLE,id_tag, MB_TAG_DENSE|MB_TAG_CREAT );
               if (MB_SUCCESS != tmp_result)
                 break;
               file_id_tag = &id_tag;
