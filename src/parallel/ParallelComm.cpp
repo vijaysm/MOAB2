@@ -3848,7 +3848,7 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
     std::vector<long> lgid_data(skin_ents[0].size());
     // size is either long or int
     // on 64 bit is 8 or 4
-    if (8 == bytes_per_tag &&  ( (MB_TYPE_HANDLE == tag_type) || (MB_TYPE_OPAQUE==tag_type) ))// it is a special id tag
+    if (sizeof(long) == bytes_per_tag &&  ( (MB_TYPE_HANDLE == tag_type) || (MB_TYPE_OPAQUE==tag_type) ))// it is a special id tag
     {
       result = mbImpl->tag_get_data(gid_tag, skin_ents[0], &lgid_data[0]);
       RRA("Couldn't get gid tag for skin vertices.");
