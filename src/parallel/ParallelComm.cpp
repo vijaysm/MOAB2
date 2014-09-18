@@ -7772,7 +7772,7 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
   
     // set tag on set
     // FIXME: need to assign valid global id
-    int val = 0;
+    int val = this->rank();
     rval = mbImpl->tag_set_data( part_tag(), &set_out, 1, &val );
     if (MB_SUCCESS != rval) {
       mbImpl->delete_entities( &set_out, 1 );
