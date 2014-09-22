@@ -7771,8 +7771,7 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
       return rval;
   
     // set tag on set
-    // FIXME: need to assign valid global id
-    int val = this->rank();
+    int val = proc_config().proc_rank();
     rval = mbImpl->tag_set_data( part_tag(), &set_out, 1, &val );
     if (MB_SUCCESS != rval) {
       mbImpl->delete_entities( &set_out, 1 );
@@ -7785,6 +7784,11 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
         mbImpl->delete_entities( &set_out, 1 );
         return rval;
       }
+    }
+
+    moab::Range& pSets=this->partition_sets();
+    if (pSets.index(set_out) < 0) {
+      pSets.insert(set_out);
     }
   
     return MB_SUCCESS;
@@ -7800,6 +7804,10 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
       rval = mbImpl->remove_entities( get_partitioning(), &part_id, 1 );
       if (MB_SUCCESS != rval)
         return rval;
+    }
+    moab::Range& pSets=this->partition_sets();
+    if (pSets.index(part_id) >= 0) {
+      pSets.erase(part_id);
     }
     return mbImpl->delete_entities( &part_id, 1 );
   }
