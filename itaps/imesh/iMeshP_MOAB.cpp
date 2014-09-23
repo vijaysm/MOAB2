@@ -666,6 +666,7 @@ void iMeshP_createPart( iMesh_Instance instance,
   ErrorCode rval = pcomm->create_part( h );
   CHKERR(rval,"Part creation failed");
   *part_handle = itaps_cast<iMeshP_PartHandle>(h);
+  RETURN (iBase_SUCCESS);
 }
 
 void iMeshP_destroyPart( iMesh_Instance instance,
