@@ -206,12 +206,14 @@ subroutine create_mesh( &
   iBase_EntityHandle, pointer :: verts(:), ents(:)
   iBase_EntityHandle, allocatable :: conn(:)
   iBase_EntitySetHandle root_set
+  iBase_EntitySetHandle file_set
 #ifdef USE_MPI
   IBASE_HANDLE_T mpi_comm_c
   TYPE(C_PTR) :: partsPtr
   iMeshP_PartHandle, pointer :: parts(:)
   iMeshP_PartHandle part
   integer partsa, partso
+  character (len=10) filename
 #endif
 
   ! create the Mesh instance
@@ -280,11 +282,32 @@ subroutine create_mesh( &
   ! now resolve shared verts and exchange ghost cells
   call iMeshP_syncMeshAll(%VAL(imesh), %VAL(imeshp), ierr)
   ERROR(ierr)
+  ! write the mesh that exists on every processor now
+  call iMesh_getRootSet(%VAL(imesh), root_set, ierr)
+  ERROR(ierr)
+  write(filename, "(A5,I1,A4)") "part_",comm_rank,".h5m"
+  call iMesh_save(%VAL(imesh), %VAL(root_set),filename, "", ierr, %VAL(10), %VAL(0) )
+  ERROR(ierr)
+
+  ! this will save the mesh in parallel
   call iMeshP_saveAll(%VAL(imesh), %VAL(imeshp), %VAL(part), "test2.h5m", " moab:PARALLEL=WRITE_PART ", ierr) 
   ERROR(ierr)
-  call iMesh_getRootSet(%VAL(imesh), root_set, ierr)
+
   call iMeshP_getNumOfTypeAll(%VAL(imesh), %VAL(imeshp), %VAL(root_set), %VAL(iBase_VERTEX), iv, ierr)
+  ERROR(ierr)
   call iMeshP_getNumOfTypeAll(%VAL(imesh), %VAL(imeshp), %VAL(root_set), %VAL(iBase_FACE), ie, ierr)
+  ERROR(ierr)
+
+  ! see if save works with a file set, that has the part too
+  call iMesh_createEntSet(%VAL(imesh), %VAL(0), file_set, ierr)
+  ERROR(ierr)
+  call iMesh_addEntSet(%VAL(imesh), %VAL(part), %VAL(file_set), ierr)
+  ERROR(ierr)
+  ! write using the file set, we should get similar result
+  call iMeshP_saveAll(%VAL(imesh), %VAL(imeshp), %VAL(file_set), "test3.h5m", &
+  " moab:PARALLEL=WRITE_PART ", ierr)
+  ERROR(ierr)
+
   if (comm_rank .eq. 0) then
      write(0,*) "After syncMeshAll:"
      write(0,*) "   Number of vertices = ", iv
@@ -292,14 +315,22 @@ subroutine create_mesh( &
   endif
 
   call iMeshP_createGhostEntsAll(%VAL(imesh), %VAL(imeshp), %VAL(2), %VAL(1), %VAL(1), %VAL(0), ierr)
+  ERROR(ierr)
   call iMeshP_getNumOfTypeAll(%VAL(imesh), %VAL(imeshp), %VAL(root_set), %VAL(iBase_VERTEX), iv, ierr)
+  ERROR(ierr)
   call iMeshP_getNumOfTypeAll(%VAL(imesh), %VAL(imeshp), %VAL(root_set), %VAL(iBase_FACE), ie, ierr)
-
+  ERROR(ierr)
   if (comm_rank .eq. 0) then
      write(0,*) "After createGhostEntsAll:"
      write(0,*) "   Number of vertices = ", iv
      write(0,*) "   Number of entities = ", ie
   endif
+
+  ! write now the root set on each process, each mesh should have the ghost too
+  write(filename, "(A5,I1,A4)") "after",comm_rank,".h5m"
+  call iMesh_save(%VAL(imesh), %VAL(root_set),filename, "", ierr, %VAL(10), %VAL(0) )
+  ERROR(ierr)
+
 #endif
 
   return
