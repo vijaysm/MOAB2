@@ -10,6 +10,7 @@
 !   make MOAB_DIR=<moab install dir> FCFLAGS="-DUSE_MPI -I/usr/lib/openmpi/include -pthread -I/usr/lib/openmpi/lib -L/usr/lib/openmpi/lib -lmpi_f90 -lmpi_f77 -lmpi -lopen-rte -lopen-pal -ldl -Wl,--export-dynamic -lnsl -lutil -lm -ldl" PushParMeshIntoMoabF90
 !
 ! Usage: PushParMeshIntoMoab
+#define ERROR(rval) if (0 .ne. rval) call exit(1)
 
 program PushParMeshIntoMoab
 
@@ -54,11 +55,11 @@ program PushParMeshIntoMoab
 !    integer MPI_COMM_WORLD
 #endif
 
-  ! vertex positions, latlon coords, (lat, lon, lev), fortran ordering
+  ! vertex positions, cube; side 2
   ! (first index varying fastest)
   data coords / &
-       0.0, -45.0,   0.0,  90.0, -45.0,   0.0, 180.0, -45.0,   0.0, 270.0, -45.0,   0.0, &
-       0.0,  45.0,   0.0,  90.0,  45.0,   0.0, 180.0,  45.0,   0.0, 270.0,  45.0,   0.0 /
+       -1., -1., -1,  1., -1., -1.,  1., 1., -1.,  -1., 1., -1., &
+       -1., -1.,  1,  1., -1.,  1.,  1., 1.,  1.,  -1., 1.,  1. /
 
   ! quad index numbering, each quad ccw, sides then bottom then top
   data iconn / & 
@@ -82,6 +83,7 @@ program PushParMeshIntoMoab
   call MPI_INIT(ierr)
   call MPI_COMM_SIZE(MPI_COMM_WORLD, sz, ierr)
   call MPI_COMM_RANK(MPI_COMM_WORLD, rank, ierr)
+  ERROR(ierr)
   ! compute starting/ending element numbers
   lnume = NUME / sz
   istart = rank * lnume
@@ -126,23 +128,29 @@ program PushParMeshIntoMoab
   imeshp = 0
   call create_mesh(imesh, imeshp, MPI_COMM_WORLD, lnumv, lnume, gvids, lvpe, ltp, lcoords, lconn, &
        vertsPtr, entsPtr, ierr)
+  ERROR(ierr)
   call c_f_pointer(vertsPtr, verts, [lnumv])
   call c_f_pointer(entsPtr, ents, [lnume])
 
   ! get/report number of vertices, elements
   call iMesh_getRootSet(%VAL(imesh), root_set, ierr)
+  ERROR(ierr)
   iv = 0
   ie = 0
 #ifdef USE_MPI
   call iMeshP_getNumOfTypeAll(%VAL(imesh), %VAL(imeshp), %VAL(root_set), %VAL(iBase_VERTEX), iv, ierr)
+  ERROR(ierr)
   call iMeshP_getNumOfTypeAll(%VAL(imesh), %VAL(imeshp), %VAL(root_set), %VAL(iBase_FACE), ie, ierr)
+  ERROR(ierr)
   if (rank .eq. 0) then
      write(0,*) "Number of vertices = ", iv
      write(0,*) "Number of entities = ", ie
   endif
 #else
   call iMesh_getNumOfTypeAll(%VAL(imesh), %VAL(root_set), %VAL(iBase_VERTEX), iv, ierr)
+  ERROR(ierr)
   call iMesh_getNumOfTypeAll(%VAL(imesh), %VAL(root_set), %VAL(iBase_FACE), ie, ierr)
+  ERROR(ierr)
   write(0,*) "Number of vertices = ", iv
   write(0,*) "Number of entities = ", ie
 #endif
@@ -214,22 +222,29 @@ subroutine create_mesh( &
 #ifdef USE_MPI
   if (imeshp .eq. 0) then
      call iMeshP_getCommunicator(%VAL(imesh), MPI_COMM_WORLD, mpi_comm_c, ierr)
+     ERROR(ierr)
      call iMeshP_createPartitionAll(%VAL(imesh), %VAL(mpi_comm_c), imeshp, ierr)
+     ERROR(ierr)
      call iMeshP_createPart(%VAL(imesh), %VAL(imeshp), part, ierr)
+     ERROR(ierr)
   else 
      partsa = 0
      call iMeshP_getLocalParts(%VAL(imesh), %VAL(imeshp), partsPtr, partsa, partso, ierr)
+     ERROR(ierr)
      call c_f_pointer(partsPtr, parts, [partso])
      part = parts(1)
   end if
   call MPI_COMM_RANK(comm, comm_rank, ierr)
+  ERROR(ierr)
   call MPI_COMM_SIZE(comm, comm_sz, ierr)
+  ERROR(ierr)
 #endif
 
   ! create the vertices, all in one call
   numa = 0
   call iMesh_createVtxArr(%VAL(imesh), %VAL(numv), %VAL(iBase_INTERLEAVED), posn, %VAL(3*numv), &
        vertsPtr, numa, numo, ierr)
+  ERROR(ierr)
 
   ! fill in the connectivity array, based on indexing from iconn
   allocate (conn(0:nvpe*nume-1))
@@ -252,16 +267,21 @@ subroutine create_mesh( &
   ! add entities to part, using iMesh
   call c_f_pointer(entsPtr, ents, [numo])
   call iMesh_addEntArrToSet(%VAL(imesh), ents, %VAL(numo), %VAL(part), ierr)
+  ERROR(ierr)
   ! set global ids on vertices, needed for sharing between procs
   call iMesh_getTagHandle(%VAL(imesh), "GLOBAL_ID", tagh, ierr, %VAL(9))
   if (iBase_SUCCESS .ne. ierr) then
      ! didn't get handle, need to create the tag
-     call iMesh_createTag(%VAL(imesh), "GLOBAL_ID", %VAL(iBase_INTEGER), tagh, ierr, %VAL(9))
+     call iMesh_createTag(%VAL(imesh), "GLOBAL_ID", %VAL(iBase_INTEGER), tagh, ierr)
+     ERROR(ierr)
   end if
   call iMesh_setIntArrData(%VAL(imesh), verts, %VAL(numv), %VAL(tagh), vgids, %VAL(numv), ierr)
-
+  ERROR(ierr)
   ! now resolve shared verts and exchange ghost cells
   call iMeshP_syncMeshAll(%VAL(imesh), %VAL(imeshp), ierr)
+  ERROR(ierr)
+  call iMeshP_saveAll(%VAL(imesh), %VAL(imeshp), %VAL(part), "test2.h5m", " moab:PARALLEL=WRITE_PART ", ierr) 
+  ERROR(ierr)
   call iMesh_getRootSet(%VAL(imesh), root_set, ierr)
   call iMeshP_getNumOfTypeAll(%VAL(imesh), %VAL(imeshp), %VAL(root_set), %VAL(iBase_VERTEX), iv, ierr)
   call iMeshP_getNumOfTypeAll(%VAL(imesh), %VAL(imeshp), %VAL(root_set), %VAL(iBase_FACE), ie, ierr)
@@ -272,6 +292,9 @@ subroutine create_mesh( &
   endif
 
   call iMeshP_createGhostEntsAll(%VAL(imesh), %VAL(imeshp), %VAL(2), %VAL(1), %VAL(1), %VAL(0), ierr)
+  call iMeshP_getNumOfTypeAll(%VAL(imesh), %VAL(imeshp), %VAL(root_set), %VAL(iBase_VERTEX), iv, ierr)
+  call iMeshP_getNumOfTypeAll(%VAL(imesh), %VAL(imeshp), %VAL(root_set), %VAL(iBase_FACE), ie, ierr)
+
   if (comm_rank .eq. 0) then
      write(0,*) "After createGhostEntsAll:"
      write(0,*) "   Number of vertices = ", iv
