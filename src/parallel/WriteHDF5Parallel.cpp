@@ -526,11 +526,11 @@ struct serial_tag_data {
   
   static size_t def_val_bytes( int def_val_len, DataType type ) {
     switch (type) {
-      case MB_TYPE_BIT:     return def_val_len ? 1 : 0;             break;
-      case MB_TYPE_OPAQUE:  return def_val_len;                     break;
-      case MB_TYPE_INTEGER: return def_val_len*sizeof(int);         break;
-      case MB_TYPE_DOUBLE:  return def_val_len*sizeof(double);      break;
-      case MB_TYPE_HANDLE:  return def_val_len*sizeof(EntityHandle);break;
+      case MB_TYPE_BIT:     return def_val_len ? 1 : 0;
+      case MB_TYPE_OPAQUE:  return def_val_len;
+      case MB_TYPE_INTEGER: return def_val_len*sizeof(int);
+      case MB_TYPE_DOUBLE:  return def_val_len*sizeof(double);
+      case MB_TYPE_HANDLE:  return def_val_len*sizeof(EntityHandle);
     }
     return 0;
   }
