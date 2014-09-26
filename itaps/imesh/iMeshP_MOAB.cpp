@@ -32,7 +32,7 @@ using namespace moab;
 /******** Type-safe casting between MOAB and ITAPS types *********/
 
 #ifndef TEMPLATE_FUNC_SPECIALIZATION
-// if no template specializtion, disable some type checking
+// if no template specialization, disable some type checking
 template <typename T, typename S> inline
 T itaps_cast( S handle )
 {
@@ -166,6 +166,7 @@ static inline ErrorCode get_entities( Interface* iface,
     return iface->get_entities_by_handle( set, entities );
 }
 
+/*
 static inline ErrorCode remove_not_owned( ParallelComm* pcomm, Range& ents )
 {
   ErrorCode rval;
@@ -186,6 +187,7 @@ static inline ErrorCode remove_not_owned( ParallelComm* pcomm, Range& ents )
 
   return MB_SUCCESS;
 }
+*/
 
 static inline ErrorCode count_owned( ParallelComm* pcomm, const Range& ents, int& n )
 {
@@ -300,7 +302,7 @@ class SetIntersectIter : public MBIter<Container>
       : MBIter<Container>( type, topology, set, array_sz ),
         otherSet( other_set )
       {}
-
+    virtual ~SetIntersectIter() {}
 
     inline ErrorCode intersect_with_set( Interface* mb, Range& range )
     {
