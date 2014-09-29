@@ -303,7 +303,9 @@ void print_memory_stats( moab::Interface& mb,
   #endif
       std::cout << std::endl << "SYSTEM:" 
                 << std::endl << "Virtual memory:    " << memstr(vsize)
+  #ifndef _MSC_VER
                 << std::endl << "Resident set size: " << memstr(tmprss)
+  #endif
                 << std::endl;
     }
     else {
