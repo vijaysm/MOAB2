@@ -47,7 +47,36 @@ std::string TestDir(".");
       return result;\
     }
 
-void print_usage();
+// Print usage
+void print_usage() {
+  std::cerr << "Usage: ";
+  std::cerr << "mbcoupler_test -meshes <source_mesh> <target_mesh> -itag <interp_tag> [-gnorm <gnorm_tag>] [-ssnorm <ssnorm_tag> <ssnorm_selection>] [-ropts <roptions>] [-outfile <out_file> [-wopts <woptions>]] [-dbgout [<dbg_file>]]" << std::endl;
+  std::cerr << "    -meshes" << std::endl;
+  std::cerr << "        Read in mesh files <source_mesh> and <target_mesh>." << std::endl;
+  std::cerr << "    -itag" << std::endl;
+  std::cerr << "        Interpolate tag <interp_tag> from source mesh to target mesh." << std::endl;
+  std::cerr << "    -gnorm" << std::endl;
+  std::cerr << "        Normalize the value of tag <gnorm_tag> over then entire mesh and save to" << std::endl;
+  std::cerr << "        tag \"<gnorm_tag>_normf\" on the mesh set.  Do this for all meshes." << std::endl;
+  std::cerr << "    -ssnorm" << std::endl;
+  std::cerr << "        Normalize the value of tag <ssnorm_tag> over subsets of a mesh and save to" << std::endl;
+  std::cerr << "        tag \"<ssnorm_tag>_normf\" on the Entity Set for each subset.  Subsets are selected" << std::endl;
+  std::cerr << "        using criteria in <ssnorm_selection>.  Do this for all meshes." << std::endl;
+  std::cerr << "    -ropts" << std::endl;
+  std::cerr << "        Read in the mesh files using options in <roptions>." << std::endl;
+  std::cerr << "    -outfile" << std::endl;
+  std::cerr << "        Write out target mesh to <out_file>." << std::endl;
+  std::cerr << "    -wopts" << std::endl;
+  std::cerr << "        Write out mesh files using options in <woptions>." << std::endl;
+  std::cerr << "    -dbgout" << std::endl;
+  std::cerr << "        Write stdout and stderr streams to the file \'<dbg_file>.txt\'." << std::endl;
+  std::cerr << "    -eps" << std::endl;
+  std::cerr << "        epsilon" << std::endl;
+  std::cerr << "    -meth <method> (0=CONSTANT, 1=LINEAR_FE, 2=QUADRATIC_FE, 3=SPECTRAL)" << std::endl;
+}
+
+
+#ifdef HDF5_FILE
 
 ErrorCode get_file_options(int argc, char **argv, 
                            std::vector<std::string> &meshFiles,
@@ -252,34 +281,6 @@ ErrorCode report_iface_ents(Interface *mbImpl,
   }
   
   return result;
-}
-
-// Print usage
-void print_usage() {
-  std::cerr << "Usage: ";
-  std::cerr << "mbcoupler_test -meshes <source_mesh> <target_mesh> -itag <interp_tag> [-gnorm <gnorm_tag>] [-ssnorm <ssnorm_tag> <ssnorm_selection>] [-ropts <roptions>] [-outfile <out_file> [-wopts <woptions>]] [-dbgout [<dbg_file>]]" << std::endl;
-  std::cerr << "    -meshes" << std::endl;
-  std::cerr << "        Read in mesh files <source_mesh> and <target_mesh>." << std::endl;
-  std::cerr << "    -itag" << std::endl;
-  std::cerr << "        Interpolate tag <interp_tag> from source mesh to target mesh." << std::endl;
-  std::cerr << "    -gnorm" << std::endl;
-  std::cerr << "        Normalize the value of tag <gnorm_tag> over then entire mesh and save to" << std::endl;
-  std::cerr << "        tag \"<gnorm_tag>_normf\" on the mesh set.  Do this for all meshes." << std::endl;
-  std::cerr << "    -ssnorm" << std::endl;
-  std::cerr << "        Normalize the value of tag <ssnorm_tag> over subsets of a mesh and save to" << std::endl;
-  std::cerr << "        tag \"<ssnorm_tag>_normf\" on the Entity Set for each subset.  Subsets are selected" << std::endl;
-  std::cerr << "        using criteria in <ssnorm_selection>.  Do this for all meshes." << std::endl;
-  std::cerr << "    -ropts" << std::endl;
-  std::cerr << "        Read in the mesh files using options in <roptions>." << std::endl;
-  std::cerr << "    -outfile" << std::endl;
-  std::cerr << "        Write out target mesh to <out_file>." << std::endl;
-  std::cerr << "    -wopts" << std::endl;
-  std::cerr << "        Write out mesh files using options in <woptions>." << std::endl;
-  std::cerr << "    -dbgout" << std::endl;
-  std::cerr << "        Write stdout and stderr streams to the file \'<dbg_file>.txt\'." << std::endl;
-  std::cerr << "    -eps" << std::endl;
-  std::cerr << "        epsilon" << std::endl;
-  std::cerr << "    -meth <method> (0=CONSTANT, 1=LINEAR_FE, 2=QUADRATIC_FE, 3=SPECTRAL)" << std::endl;
 }
 
 // Check first character for a '-'.
@@ -745,3 +746,14 @@ ErrorCode test_interpolation(Interface *mbImpl,
     // done
   return MB_SUCCESS;
 }
+
+#else
+
+int main(int /*argc*/, char** /*argv*/)
+{
+  print_usage();
+  return 0;
+}
+
+#endif
+

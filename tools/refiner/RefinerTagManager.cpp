@@ -287,7 +287,7 @@ void RefinerTagManager::get_output_vertex_tag( int i, Tag& tag, int& byte_offset
   */
 int RefinerTagManager::get_input_gids( int n, const EntityHandle* ents, std::vector<int>& gids )
 {
-  int stat;
+  int stat=0;
   gids.clear();
   for ( int i = 0; i < n; ++ i )
     {
@@ -315,7 +315,7 @@ int RefinerTagManager::get_input_gids( int n, const EntityHandle* ents, std::vec
   */
 int RefinerTagManager::get_output_gids( int n, const EntityHandle* ents, std::vector<int>& gids )
 {
-  int stat;
+  int stat=0;
   gids.clear();
   for ( int i = 0; i < n; ++ i )
     {

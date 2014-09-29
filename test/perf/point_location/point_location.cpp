@@ -143,7 +143,7 @@ int main( int argc, char* argv[] )
   
     // GET MEMORY USE BEFORE BUILDING TREE
   
-  unsigned long init_total_storage;
+  unsigned long long init_total_storage;
   mb.estimated_memory_use( 0, 0, &init_total_storage );
   
     // RUN TIMING TEST
@@ -159,7 +159,7 @@ int main( int argc, char* argv[] )
       break;
   }
   
-  unsigned long fini_total_storage;
+  unsigned long long fini_total_storage;
   mb.estimated_memory_use( 0, 0, &fini_total_storage );
   
     // VALIDATE RESULTS

@@ -1,198 +1,230 @@
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}
+                    ${CMAKE_CURRENT_BINARY_DIR}
+                    parallel
+                    LocalDiscretization
+                    io io/mhdf
+                    ${MOAB_BINARY_DIR}/src/parallel )
 
-  # MOAB Library
-  set ( MOABCORE_LIB_SRCS
-    AdaptiveKDTree.cpp
-    AEntityFactory.cpp
-    AffineXform.cpp
-    AxisBox.cpp
-    BitPage.cpp
-    BitTag.cpp
-    BoundBox.cpp
-    BSPTree.cpp
-    BSPTreePoly.cpp
-    CN.cpp
-    CartVect.cpp
-    Core.cpp
-    DebugOutput.cpp
-    DenseTag.cpp
-    DualTool.cpp
-    EntitySequence.cpp
-    Factory.cpp
-    FileOptions.cpp
-    GeomUtil.cpp
-    GeomTopoTool.cpp
-    HigherOrderFactory.cpp
-    HomXform.cpp
-    MeshSet.cpp
-    MeshSetSequence.cpp
-    MeshTag.cpp
-    MeshTopoUtil.cpp
-    OrientedBox.cpp
-    OrientedBoxTreeTool.cpp
-    PolyElementSeq.cpp
-    Range.cpp
-    RangeSeqIntersectIter.cpp
-    ReadUtil.cpp
-    ScdElementData.cpp
-    ScdInterface.cpp
-    ScdVertexData.cpp
-    SequenceData.cpp
-    SequenceManager.cpp
-    SetIterator.cpp
-    Skinner.cpp
-    SparseTag.cpp
-    StructuredElementSeq.cpp
-    SweptElementData.cpp
-    SweptElementSeq.cpp
-    SweptVertexData.cpp
-    SysUtil.cpp
-    TagInfo.cpp
-    Tree.cpp
-    TupleList.cpp
-    Types.cpp
-    TypeSequenceManager.cpp
-    UnstructuredElemSeq.cpp
-    Util.cpp
-    VarLenDenseTag.cpp
-    VarLenSparseTag.cpp
-    VertexSequence.cpp
-    WriteUtil.cpp
-  )
+if(MOAB_USE_MPI AND MPI_FOUND)
+  add_subdirectory(parallel)
+  set( MOAB_MPI MOABpar )
+endif()
 
-  set ( MOABPTLOC_LIB_SRCS
-    lotte/findpt.c
-    lotte/errmem.c
-    lotte/poly.c
-    lotte/tensor.c
-  )
+#create the FCDefs.h and src/MOAB_FCDefs.h files
+configure_file(FCDefs.h.in "${CMAKE_CURRENT_BINARY_DIR}/FCDefs.h" @ONLY)
+#sed -e "s/FC_FUNC/MOAB_FC_FUNC/" src/FCDefs.h >src/MOAB_FCDefs.h
+file(READ ${CMAKE_CURRENT_BINARY_DIR}/FCDefs.h infile)
+string( REGEX REPLACE "FC_FUNC" "MOAB_FC_FUNC" outstring "${infile}" )
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/MOAB_FCDefs.h" "${outstring}")
 
-  set ( MOABIO_LIB_SRCS
-    io/IODebugTrack.cpp
-    io/ExoIIUtil.cpp
-    io/FileTokenizer.cpp
-    io/GmshUtil.cpp
-    io/ReadABAQUS.cpp
-    io/ReadGmsh.cpp
-    io/ReadIDEAS.cpp
-    io/ReadMCNP5.cpp
-    io/ReadNASTRAN.cpp
-    io/ReadSmf.cpp
-    io/ReadSms.cpp
-    io/ReadSTL.cpp
-    io/ReadTemplate.cpp
-    io/ReadTetGen.cpp
-    io/ReadTxt.cpp
-    io/ReadVtk.cpp
-    io/SMF_State.cpp
-    io/Tqdcfr.cpp
-    io/VtkUtil.cpp
-    io/WriteAns.cpp
-    io/WriteGMV.cpp
-    io/WriteGmsh.cpp
-    io/WriteSTL.cpp
-    io/WriteSmf.cpp
-    io/WriteTemplate.cpp
-    io/WriteVtk.cpp
-    ReaderWriterSet.cpp
-  )
+#Create the moab/EntityHandle.hpp file
+file(READ ${CMAKE_CURRENT_SOURCE_DIR}/moab/EntityHandle.hpp.in infile2)
+string( REGEX REPLACE "#undef" "#cmakedefine" outstring2 "${infile2}" )
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/moab/EntityHandle.hpp.in" "${outstring2}")
+configure_file(${CMAKE_CURRENT_BINARY_DIR}/moab/EntityHandle.hpp.in ${CMAKE_CURRENT_BINARY_DIR}/moab/EntityHandle.hpp)
 
-  set ( MOABLD_LIB_SRCS
-    LocalDiscretization/ElemEvaluator.cpp
-    LocalDiscretization/LinearHex.cpp
-    LocalDiscretization/LinearQuad.cpp
-    LocalDiscretization/LinearTet.cpp
-    LocalDiscretization/LinearTri.cpp
-    LocalDiscretization/QuadraticHex.cpp
-#    LocalDiscretization/SpectralHex.cpp
-#    LocalDiscretization/SpectralQuad.cpp
-  ) 
+#generate the Version.h file
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/moab/Version.h.cmake.in "${CMAKE_CURRENT_BINARY_DIR}/moab/Version.h" @ONLY)
 
-  include_directories(
-    ${MOAB_SOURCE_DIR}/src
-    ${MOAB_SOURCE_DIR}/src/io
-    ${MOAB_SOURCE_DIR}/src/parallel
-    ${MOAB_SOURCE_DIR}/src/LocalDiscretization
-    ${MOAB_SOURCE_DIR}/src/moab/point_locater/lotte
-    ${MOAB_BINARY_DIR}
-    ${MOAB_BINARY_DIR}/src
-    ${MOAB_BINARY_DIR}/src/parallel
-  )
+set(moab_link_lib)
+add_subdirectory(io)
+add_subdirectory(LocalDiscretization)
+add_subdirectory(oldinc)
 
-  if ( NetCDF_FOUND )
-    set ( MOAB_DEFINES "${MOAB_DEFINES} -DNETCDF_FILE" )
-    set ( MOABIO_LIB_SRCS
-      ${MOABIO_LIB_SRCS}
-      io/ReadNC.cpp
-      io/ReadNCDF.cpp
-      io/WriteNCDF.cpp
-      io/WriteSLAC.cpp
-      io/NCHelper.cpp
-      io/NCHelperEuler.cpp
-      io/NCHelperFV.cpp
-      io/NCHelperHOMME.cpp
-      io/NCHelperMPAS.cpp
-      io/NCHelperGCRM.cpp
-      SpectralMeshTool.cpp
-    )
-    include_directories(
-      ${NetCDF_INCLUDE_DIRECTORIES}
-    )
-  endif ( NetCDF_FOUND )
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/MBCN_protos.h
+  COMMAND ${CMAKE_COMMAND}
+          -DDEF:STRING=MOAB
+          -Dinput_file:STRING=${CMAKE_CURRENT_SOURCE_DIR}/MBCN.h
+          -Doutput_file:STRING=${CMAKE_CURRENT_BINARY_DIR}/MBCN_protos.h
+          -Dprefix:STRING=MBCN
+          -P ${CMAKE_SOURCE_DIR}/config/ITAPSFortranMangling.cmake
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/MBCN.h )
 
-  if ( HDF5_FOUND )
-    set ( MOAB_DEFINES "${MOAB_DEFINES} -DHDF5_FILE" )
-    check_function_exists( H5Pset_fapl_mpio MOAB_HDF_HAVE_PARALLEL )
-    set ( MOABIO_LIB_SRCS
-      ${MOABIO_LIB_SRCS}
-      io/HDF5Common.cpp
-      io/ReadHDF5.cpp
-      io/ReadHDF5Dataset.cpp
-      io/ReadHDF5VarLen.cpp
-      io/WriteHDF5.cpp
-    )
+if( MOAB_USE_HDF )
+  include_directories(${HDF5_INCLUDES})
+  set( MOAB_HDF_LIBS ${HDF5_LIBRARIES} )
+endif()
+if( MOAB_USE_NETCDF )
+  include_directories(${NetCDF_INCLUDES})
+  if ( MOAB_USE_MPI )
+    set( MOAB_NETCDF_LIBS ${PNetCDF_LIBRARIES} ${NetCDF_LIBRARIES} )
+  else ( MOAB_USE_MPI )
+    set( MOAB_NETCDF_LIBS ${NetCDF_LIBRARIES} )
+  endif ( MOAB_USE_MPI )
+endif()
 
-    include_directories(
-      ${HDF5_INCLUDE_DIR}
-      io/mhdf/include
-    )
-    add_subdirectory( io/mhdf )
-  endif ( HDF5_FOUND )
+set(MOAB_LIB_SOURCES
+        AdaptiveKDTree.cpp
+        AEntityFactory.hpp AEntityFactory.cpp
+        AffineXform.hpp    AffineXform.cpp
+        AxisBox.hpp        AxisBox.cpp
+        BitPage.hpp        BitPage.cpp
+        BitTag.hpp         BitTag.cpp
+        BoundBox.cpp
+        BSPTree.cpp
+        BSPTreePoly.cpp
+        BVHTree.cpp
+        CN.cpp
+        CartVect.cpp
+        Core.cpp
+        DebugOutput.hpp DebugOutput.cpp
+        DenseTag.hpp    DenseTag.cpp
+        DualTool.cpp
+        ElementSequence.hpp
+        EntitySequence.hpp  EntitySequence.cpp
+        Factory.cpp
+        FBEngine.cpp
+        FileOptions.cpp
+        GeomUtil.cpp
+        GeomTopoTool.cpp
+        HigherOrderFactory.cpp
+        HomXform.cpp
+        Internals.hpp
+        MBCNArrays.hpp
+        MergeMesh.cpp
+        MeshSet.hpp         MeshSet.cpp
+        MeshSetSequence.hpp MeshSetSequence.cpp
+        MeshTag.hpp         MeshTag.cpp
+        MeshTopoUtil.cpp
+        OrientedBox.hpp     OrientedBox.cpp
+        OrientedBoxTreeTool.cpp
+        lotte/poly.c
+        lotte/findpt.c
+        lotte/errmem.c
+        lotte/tensor.c
+        PolyElementSeq.hpp  PolyElementSeq.cpp
+        ProgOptions.cpp
+        Range.cpp
+        RangeSeqIntersectIter.hpp RangeSeqIntersectIter.cpp
+        ReadUtil.hpp              ReadUtil.cpp
+        ReaderWriterSet.cpp
+        ReorderTool.cpp
+        ScdElementData.hpp        ScdElementData.cpp
+        ScdInterface.cpp
+        ScdVertexData.hpp         ScdVertexData.cpp
+        SequenceData.hpp          SequenceData.cpp
+        SequenceManager.hpp       SequenceManager.cpp
+        SetIterator.cpp
+        Skinner.cpp
+        SmoothCurve.hpp           SmoothCurve.cpp
+        SmoothFace.hpp            SmoothFace.cpp
+        SparseTag.hpp             SparseTag.cpp
+        SpatialLocator.cpp
+        SpectralMeshTool.cpp
+        StructuredElementSeq.hpp  StructuredElementSeq.cpp
+        SweptElementData.hpp      SweptElementData.cpp
+        SweptElementSeq.hpp       SweptElementSeq.cpp
+        SweptVertexData.hpp       SweptVertexData.cpp
+        SysUtil.hpp               SysUtil.cpp
+        TagCompare.hpp
+        TagInfo.hpp               TagInfo.cpp
+        TupleList.cpp
+        Tree.cpp
+        Types.cpp
+        TypeSequenceManager.hpp   TypeSequenceManager.cpp
+        UnstructuredElemSeq.hpp   UnstructuredElemSeq.cpp
+        Util.cpp
+        VarLenDenseTag.hpp        VarLenDenseTag.cpp
+        VarLenSparseTag.hpp       VarLenSparseTag.cpp
+        VarLenTag.hpp      
+        VertexSequence.hpp        VertexSequence.cpp
+        WriteUtil.hpp             WriteUtil.cpp
+        moab_mpe.h )
 
+set( MOAB_INSTALL_HEADERS
+        moab/AdaptiveKDTree.hpp
+        moab/BoundBox.hpp
+        moab/BSPTree.hpp
+        moab/BSPTreePoly.hpp
+        moab/BVHTree.hpp
+        moab/CN.hpp
+        moab/CartVect.hpp
+        moab/Compiler.hpp
+        moab/Core.hpp
+        moab/CpuTimer.hpp
+        moab/DualTool.hpp
+        moab/Error.hpp
+        moab/GeomTopoTool.hpp
+        moab/HigherOrderFactory.hpp
+        moab/HomXform.hpp
+        moab/EntityType.hpp
+        moab/FBEngine.hpp
+        moab/FileOptions.hpp
+        moab/FindPtFuncs.h
+        moab/Forward.hpp
+        moab/GeomUtil.hpp
+        moab/Interface.hpp
+        moab/point_locater/tree/common_tree.hpp
+        moab/point_locater/tree/element_tree.hpp
+        moab/point_locater/tree/bvh_tree.hpp
+        moab/point_locater/io.hpp 
+        moab/point_locater/element_maps/linear_hex_map.hpp 
+        moab/point_locater/element_maps/linear_tet_map.hpp 
+        moab/point_locater/element_maps/spectral_hex_map.hpp 
+        moab/point_locater/element_maps/quadratic_hex_map.hpp 
+        moab/point_locater/point_locater.hpp
+        moab/point_locater/parametrizer.hpp
+        moab/Matrix3.hpp
+        moab/MergeMesh.hpp
+        moab/MeshTopoUtil.hpp
+        moab/OrientedBoxTreeTool.hpp
+        moab/ProgOptions.hpp
+        moab/Range.hpp
+        moab/RangeMap.hpp
+        moab/ReadUtilIface.hpp
+        moab/ReaderIface.hpp
+        moab/ReaderWriterSet.hpp
+        moab/ReorderTool.hpp
+        moab/ScdInterface.hpp
+        moab/SetIterator.hpp
+        moab/Skinner.hpp
+        moab/SpatialLocator.hpp
+        moab/SpectralMeshTool.hpp
+        moab/Tree.hpp
+        moab/TreeStats.hpp
+        moab/Types.hpp
+        moab/UnknownInterface.hpp
+        moab/Util.hpp
+        moab/WriteUtilIface.hpp
+        moab/WriterIface.hpp
+        MBEntityType.h
+        MBCN.h
+        MBTagConventions.hpp )
 
-  SET(MOAB_LIB_SRCS ${MOABCORE_LIB_SRCS} ${MOABPTLOC_LIB_SRCS} ${MOABIO_LIB_SRCS} ${MOABLD_LIB_SRCS})
+set( MOAB_GENERATED_INSTALL_HEADERS
+     ${CMAKE_CURRENT_BINARY_DIR}/MOAB_FCDefs.h
+     ${CMAKE_CURRENT_BINARY_DIR}/MBCN_protos.h
+     ${CMAKE_CURRENT_BINARY_DIR}/moab/EntityHandle.hpp )
 
-  set_source_files_properties( ${MOAB_LIB_SRCS}
-    COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}"
-  )
-  add_library( MOAB
-    ${MOAB_LIB_SRCS}
-  )
+if( CGM_FOUND )
+  set( MOAB_CGM_LIBS ${CGM_LIBRARIES} )
+endif()
 
-  if ( MOAB_USE_NETCDF AND NetCDF_FOUND )
-    target_link_libraries( MOAB ${NetCDF_LIBRARIES} )
-  endif ( MOAB_USE_NETCDF AND NetCDF_FOUND )
+if (MOAB_USE_ZOLTAN)
+  set( MOAB_LIB_SOURCES ${MOAB_LIB_SOURCES}
+          ${CMAKE_SOURCE_DIR}/tools/mbzoltan/MBZoltan.cpp )
+  set( MOAB_INSTALL_HEADERS ${MOAB_INSTALL_HEADERS}
+          ${CMAKE_SOURCE_DIR}/tools/mbzoltan/MBZoltan.hpp )
+  include_directories( ${Zoltan_INCLUDES} )
+  list(APPEND MOAB_DEP_LIBRARIES ${Zoltan_LIBRARIES})
+endif()
+add_library( MOAB ${MOAB_LIB_SOURCES} ${MOAB_INSTALL_HEADERS} ${MOAB_GENERATED_INSTALL_HEADERS}
+                  $<TARGET_OBJECTS:moabio> 
+                  $<TARGET_OBJECTS:moab_loc_discr> 
+                  ${MDHF_OBJ} )
+target_link_libraries( MOAB ${MOAB_MPI} ${MOAB_DEP_LIBRARIES} ${MOAB_LIBS} ${MOAB_CGM_LIBS} )
+set_target_properties( MOAB PROPERTIES COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}")
 
-  if ( MOAB_USE_HDF AND HDF5_FOUND )
-    target_link_libraries( MOAB mhdf ${HDF5_LIBRARIES} )
-  endif ( MOAB_USE_HDF AND HDF5_FOUND )
-
-  if ( MOAB_USE_MPI AND MPI_FOUND )
-    add_subdirectory( parallel )
-    target_link_libraries( MOAB MOABpar )
-  endif ( MOAB_USE_MPI AND MPI_FOUND )
-
-  include( ${MOAB_SOURCE_DIR}/config/AutoconfHeader.cmake )
-  # Define some more variables so they will be substituted properly in the autoconf files.
-  set( MB_VERSION        "\"${MOAB_VERSION}\"" )
-  set( MB_VERSION_MAJOR  ${MOAB_VERSION_MAJOR} )
-  set( MB_VERSION_MINOR  ${MOAB_VERSION_MINOR} )
-  if ( DEFINED MOAB_VERSION_PATCH )
-    set( MB_VERSION_PATCH  ${MOAB_VERSION_PATCH} )
-  endif ( DEFINED MOAB_VERSION_PATCH )
-  set( MB_VERSION_STRING "\"${MOAB_VERSION_STRING}\"" )
-
-  autoconf_header( ${MOAB_SOURCE_DIR}/src/moab/Version.h.in ${MOAB_BINARY_DIR}/src/moab/Version.h )
-  autoconf_header( ${MOAB_SOURCE_DIR}/src/moab/EntityHandle.hpp.in ${MOAB_BINARY_DIR}/src/moab/EntityHandle.hpp )
-  autoconf_header( ${MOAB_SOURCE_DIR}/src/parallel/moab_mpi_config.h.in ${MOAB_BINARY_DIR}/src/parallel/moab_mpi_config.h )
-  autoconf_header( ${MOAB_SOURCE_DIR}/src/FCDefs.h.in ${MOAB_BINARY_DIR}/MOAB_FCDefs.h )
-  file( WRITE ${MOAB_BINARY_DIR}/src/MBCN_protos.h "" )
+install(TARGETS MOAB EXPORT MOABTargets
+                     RUNTIME DESTINATION bin
+                     LIBRARY DESTINATION lib
+                     ARCHIVE DESTINATION lib )
+set( MOAB_INSTALL_TARGETS ${MOAB_INSTALL_TARGETS} MOAB)
+include(AutoconfHeader)
+moab_install_headers(${MOAB_INSTALL_HEADERS})
+foreach (header ${MOAB_GENERATED_INSTALL_HEADERS})
+    STRING(REGEX REPLACE "^${CMAKE_CURRENT_BINARY_DIR}/" "" relative ${header})
+    string(REGEX MATCH "(.*)/" DIR ${relative})
+    install(FILES ${header} DESTINATION include/${DIR})
+endforeach()

@@ -35,6 +35,10 @@ class EntitySequence;
 class FileOptions;
 class SetIterator;
 
+#ifdef USE_AHF
+class HalfFacetRep;
+#endif
+
 #ifdef XPCOM_MB
 
 #define MBCORE_CID \
@@ -311,14 +315,16 @@ public:
             get_adjacencies( from_entities, MB_1D_ENTITY, adjacencies ); 
             \endcode */
 
-    virtual ErrorCode get_adjacencies(const EntityHandle *from_entities,
-                                         const int num_entities,
-                                         const int to_dimension,
-                                         const bool create_if_missing,
-                                         std::vector<EntityHandle>& adj_entities,
-                                         const int operation_type = Interface::INTERSECT);
+   virtual ErrorCode get_adjacencies(const EntityHandle *from_entities,
+                                       const int num_entities,
+                                       const int to_dimension,
+                                       const bool create_if_missing,
+                                       std::vector<EntityHandle>& adj_entities,
+                                       const int operation_type = Interface::INTERSECT);
 
-    virtual ErrorCode get_adjacencies(const EntityHandle *from_entities,
+
+
+   virtual ErrorCode get_adjacencies(const EntityHandle *from_entities,
                                         const int num_entities,
                                          const int to_dimension,
                                          const bool create_if_missing,
@@ -640,12 +646,13 @@ public:
      *\param tag_handle    Output: the resulting tag handle.
      *\param flags         Bitwise OR of values from \c TagType
      *\param default_value Optional default value for tag.
-     *\param created       Optional returned boolean indicating that the
+     *\param created       Optional returned boolean indicating that the tag
      *                     was created.
-     *\return - \c MB_TAG_ALREADY_ALLOCATED if tag exists and \c MB_TAG_EXCL is specified
+     *\return - \c MB_ALREADY_ALLOCATED     if tag exists and \c MB_TAG_EXCL is specified, or default values
+     *                                      do not match (and \c MB_TAG_ANY or \c MB_TAG_DFTOK not specified).
      *        - \c MB_TAG_NOT_FOUND         if tag does not exist and \c MB_TAG_CREAT is not specified
-     *        - \c MB_INVALID_SIZE          if tag value size is not a multiple of 
-     *                                      the size of the data type (and \c MB_TAG_ANY not specified).
+     *        - \c MB_INVALID_SIZE          if tag value size is not a multiple of the size of the data type
+     *                                      (and \c MB_TAG_ANY not specified).
      *        - \c MB_TYPE_OUT_OF_RANGE     invalid or inconsistent parameter
      *        - \c MB_VARIABLE_DATA_LENGTH  if \c MB_TAG_VARLEN and \c default_value is non-null and
      *                                      \c default_value_size is not specified.
@@ -1126,7 +1133,12 @@ public:
     //! return the a_entity_factory pointer
   AEntityFactory *a_entity_factory() { return aEntityFactory; }
   const AEntityFactory *a_entity_factory() const { return aEntityFactory; }
-  
+
+#ifdef USE_AHF
+  HalfFacetRep *a_half_facet_rep() { return ahfRep; }
+  const HalfFacetRep *a_half_facet_rep() const {return ahfRep; }
+#endif
+
     //! return set of registered IO tools
   ReaderWriterSet* reader_writer_set() { return readerWriterSet; }
 
@@ -1224,16 +1236,16 @@ public:
    */
   void estimated_memory_use( const EntityHandle* ent_array = 0,
                              unsigned long  num_ents = 0,
-                             unsigned long* total_storage = 0,
-                             unsigned long* total_amortized_storage = 0,
-                             unsigned long* entity_storage = 0,
-                             unsigned long* amortized_entity_storage = 0,
-                             unsigned long* adjacency_storage = 0,
-                             unsigned long* amortized_adjacency_storage = 0,
+                             unsigned long long* total_storage = 0,
+                             unsigned long long* total_amortized_storage = 0,
+                             unsigned long long* entity_storage = 0,
+                             unsigned long long* amortized_entity_storage = 0,
+                             unsigned long long* adjacency_storage = 0,
+                             unsigned long long* amortized_adjacency_storage = 0,
                              const Tag*   tag_array = 0,
                              unsigned       num_tags = 0,
-                             unsigned long* tag_storage = 0,
-                             unsigned long* amortized_tag_storage = 0 );
+                             unsigned long long* tag_storage = 0,
+                             unsigned long long* amortized_tag_storage = 0 );
 
   /**\brief Calculate amount of memory used to store MOAB data
    *
@@ -1262,16 +1274,16 @@ public:
    *                   all tags.
    */
   void estimated_memory_use( const Range& ents,
-                             unsigned long* total_storage = 0,
-                             unsigned long* total_amortized_storage = 0,
-                             unsigned long* entity_storage = 0,
-                             unsigned long* amortized_entity_storage = 0,
-                             unsigned long* adjacency_storage = 0,
-                             unsigned long* amortized_adjacency_storage = 0,
+                             unsigned long long* total_storage = 0,
+                             unsigned long long* total_amortized_storage = 0,
+                             unsigned long long* entity_storage = 0,
+                             unsigned long long* amortized_entity_storage = 0,
+                             unsigned long long* adjacency_storage = 0,
+                             unsigned long long* amortized_adjacency_storage = 0,
                              const Tag*   tag_array = 0,
                              unsigned       num_tags = 0,
-                             unsigned long* tag_storage = 0,
-                             unsigned long* amortized_tag_storage = 0 );
+                             unsigned long long* tag_storage = 0,
+                             unsigned long long* amortized_tag_storage = 0 );
                                      
 
   void print_database() const;
@@ -1284,16 +1296,16 @@ private:
   Core& operator=( const Core& copy );
 
   void estimated_memory_use_internal( const Range* ents,
-                            unsigned long* total_storage,
-                            unsigned long* total_amortized_storage,
-                            unsigned long* entity_storage,
-                            unsigned long* amortized_entity_storage,
-                            unsigned long* adjacency_storage,
-                            unsigned long* amortized_adjacency_storage,
+                            unsigned long long* total_storage,
+                            unsigned long long* total_amortized_storage,
+                            unsigned long long* entity_storage,
+                            unsigned long long* amortized_entity_storage,
+                            unsigned long long* adjacency_storage,
+                            unsigned long long* amortized_adjacency_storage,
                             const Tag*   tag_array,
                             unsigned       num_tags,
-                            unsigned long* tag_storage,
-                            unsigned long* amortized_tag_storage );
+                            unsigned long long* tag_storage,
+                            unsigned long long* amortized_tag_storage );
 
     //! database init and de-init routines
   ErrorCode initialize();
@@ -1347,6 +1359,11 @@ private:
 
     //! list of iterators 
   std::vector<SetIterator*> setIterators;
+
+#ifdef USE_AHF
+  HalfFacetRep *ahfRep;
+  bool mesh_modified;
+#endif
   
 };
 

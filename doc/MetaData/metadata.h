@@ -131,7 +131,7 @@ Boundary conditions are often specified in terms of geometric model entities, si
 <H3> Parallel Mesh Constructs </H3>
 (Data: Entity sets, entities; Tag(s): PARALLEL_PARTITION/I, PSTATUS/C*1, PARALLEL_SHARED_PROC/I, PARALLEL/SHARED_HANDLE/H, PARALLEL_SHARED_PROCS/I*NP, PARALLEL_SHARED_HANDLES/H*NP)
 
-On a parallel computer, MOAB can represent the mesh on each processor as well as information about entities shared with neighboring processors.  Some of this information is also relevant even when the mesh is represented on a serial machine.  MOAB uses several tag and set conventions to describe the parallel nature of a mesh.  This information is summarized here; for a more complete description of MOAB’s parallel mesh representation and functionality, see [ref-moabpar].
+On a parallel computer, MOAB can represent the mesh on each processor as well as information about entities shared with neighboring processors.  Some of this information is also relevant even when the mesh is represented on a serial machine.  MOAB uses several tag and set conventions to describe the parallel nature of a mesh.  This information is summarized here; for a more complete description of MOAB’s parallel mesh representation and functionality, see [3].
 
 - <B> Parallel partition, parts </B>
 
@@ -186,7 +186,7 @@ The Spectral Element Method (SEM) is a high-order method, using a polynomial Leg
 
 All mesh file readers and writers in MOAB take an option string as an argument.  By default, the semicolon (“;”) delimits individual options in the option string.  Options used in multiple readers are described in this section; the options enabled in specific readers/writers are described in the corresponding appendix at the end of this document.
 
-<H3>variable=<var_name>[,...]</H3>
+<H3>variable=\<var_name\>[,...]</H3>
 
 By default, all field data stored with the mesh is read with the mesh, and stored as tags on the associated mesh entities.  This option lists specific variables that should be read along with the mesh (note also the “nomesh” option, described elsewhere in this document).  The variable name listed will be read into a tag with the same name.  For time-dependent variables, the time step number will be appended to the variable name to form the tag name.  If no “timestep” or “timeval” option is given, all time steps will be read, resulting in several tags being created.  If the “nomesh” option is given, the application must pass the entity set resulting from the original mesh read in to the function, that this set must contain the mesh read only from that file.  The mesh in the file is checked against the mesh in the set to verify that the two correspond.  The special name “MOAB_ALL_VARIABLES” can be used to indicate that all variables should be read.  Multiple variable names can be specified, separated from each other by commas.
 
@@ -223,6 +223,7 @@ Indicates that no edges should be created and no edge variables will be read. Th
 [1]     T.J. Tautges, R. Meyers, K. Merkley, C. Stimpson, and C. Ernst, MOAB: A Mesh-Oriented Database, Sandia National Laboratories, 2004.
 
 [2]     L. Diachin, A. Bauer, B. Fix, J. Kraftcheck, K. Jansen, X. Luo, M. Miller, C. Ollivier-Gooch, M.S. Shephard, T. Tautges, and H. Trease, “Interoperable mesh and geometry tools for advanced petascale simulations,” Journal of Physics: Conference Series,  vol. 78, 2007, p. 012015.
+[3]     T.J. Tautges, J.A. Kraftcheck, N. Bertram, V. Sachdeva, and J. Magerlein,  "Mesh Interface Resolution and Ghost Exchange in a Parallel Mesh Representation", In Proceedings of the 2012 IEEE 26th International Parallel and Distributed Processing Symposium Workshops & PhD Forum (IPDPSW '12), 2012.
 
 \ref md-contents "Top"
 

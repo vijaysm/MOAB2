@@ -83,13 +83,13 @@ struct file { uint32_t magic; hid_t handle; };
 #  include <valgrind/memcheck.h>
 #else
 #  ifndef VALGRIND_CHECK_MEM_IS_DEFINED
-#    define VALGRIND_CHECK_MEM_IS_DEFINED(a, b)
+#    define VALGRIND_CHECK_MEM_IS_DEFINED(a, b) ((void)0)
 #  endif
 #  ifndef VALGRIND_CHECK_MEM_IS_ADDRESSABLE
-#    define VALGRIND_CHECK_MEM_IS_ADDRESSABLE(a, b)
+#    define VALGRIND_CHECK_MEM_IS_ADDRESSABLE(a, b) ((void)0)
 #  endif
 #  ifndef VALGRIND_MAKE_MEM_UNDEFINED
-#    define VALGRIND_MAKE_MEM_UNDEFINED(a, b)
+#    define VALGRIND_MAKE_MEM_UNDEFINED(a, b) ((void)0)
 #  endif
 #endif
 
@@ -97,7 +97,7 @@ namespace moab {
 
 template <typename T> inline 
 void VALGRIND_MAKE_VEC_UNDEFINED( std::vector<T>& v ) {
-    VALGRIND_MAKE_MEM_UNDEFINED( &v[0], v.size() * sizeof(T) );
+    (void)VALGRIND_MAKE_MEM_UNDEFINED( &v[0], v.size() * sizeof(T) );
 }
 
 #define WRITE_HDF5_BUFFER_SIZE (40*1024*1024)
@@ -930,7 +930,7 @@ ErrorCode WriteHDF5::write_nodes( )
   dbgOut.printf(3, "Writing %ld nodes in %ld blocks of %d\n", remaining, (remaining+chunk_size-1)/chunk_size, chunk_size);
   while (remaining)
   {
-    VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
+    (void)VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
     long count = chunk_size < remaining ? chunk_size : remaining;
     remaining -= count;
     Range::const_iterator end = iter;
@@ -1040,7 +1040,7 @@ ErrorCode WriteHDF5::write_elems( ExportSet& elems )
   
   while (remaining)
   {
-    VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
+    (void)VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
     long count = chunk_size < remaining ? chunk_size : remaining;
     remaining -= count;
   
@@ -1782,7 +1782,7 @@ ErrorCode WriteHDF5::write_adjacencies( const ExportSet& elements )
   id_t* buffer = (id_t*)dataBuffer;
   long chunk_size = bufferSize / sizeof(id_t); 
   long num_writes = (elements.max_num_adjs + chunk_size - 1)/chunk_size;
-  VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
+  (void)VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
   count = 0;
   for (iter = elements.range.begin(); iter != end; ++iter)
   {
@@ -1799,7 +1799,7 @@ ErrorCode WriteHDF5::write_adjacencies( const ExportSet& elements )
       track.record_io( offset, count );
       mhdf_writeAdjacencyWithOpt( table, offset, count, id_type, buffer, writeProp, &status );
       CHK_MHDF_ERR_1(status, table);
-      VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
+      (void)VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
       
       offset += count;
       count = 0;
@@ -1924,7 +1924,7 @@ ErrorCode WriteHDF5::write_sparse_ids( const TagDesc& tag_data,
   Range::const_iterator iter = range.begin();
   while (remaining)
   {
-    VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
+    (void)VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
 
       // write "chunk_size" blocks of data
     long count = (unsigned long)remaining > chunk_size ? chunk_size : remaining;
@@ -2058,7 +2058,7 @@ ErrorCode WriteHDF5::write_var_len_indices( const TagDesc& tag_data,
   Range::const_iterator iter = range.begin();
   while (remaining)
   {
-    VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
+    (void)VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
 
       // write "chunk_size" blocks of data
     size_t count = remaining > chunk_size ? chunk_size : remaining;
@@ -2322,7 +2322,7 @@ ErrorCode WriteHDF5::write_tag_values( Tag tag_id,
   }
   while (remaining)
   {
-    VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
+    (void)VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
  
       // write "chunk_size" blocks of data
     long count = (unsigned long)remaining > chunk_size ? chunk_size : remaining;
@@ -2567,7 +2567,43 @@ ErrorCode WriteHDF5::serial_create_file( const char* filename,
     rval = assign_ids( ex_itor->range, ex_itor->first_id );
     CHK_MB_ERR_0(rval);
   }
+  // create set tables
+  writeSets = !setSet.range.empty();
+  if (writeSets)
+  {
+    long contents_len, children_len, parents_len;
 
+    setSet.total_num_ents = setSet.range.size();
+    setSet.max_num_ents = setSet.total_num_ents;
+    rval = create_set_meta(setSet.total_num_ents, first_id);
+    CHK_MB_ERR_0(rval);
+
+    setSet.first_id = (id_t) first_id;
+    rval = assign_ids(setSet.range, setSet.first_id);
+    CHK_MB_ERR_0(rval);
+
+    rval = count_set_size(setSet.range, contents_len, children_len,
+        parents_len);
+    CHK_MB_ERR_0(rval);
+
+    rval = create_set_tables(contents_len, children_len, parents_len);
+    CHK_MB_ERR_0(rval);
+
+    setSet.offset = 0;
+    setContentsOffset = 0;
+    setChildrenOffset = 0;
+    setParentsOffset = 0;
+    writeSetContents = !!contents_len;
+    writeSetChildren = !!children_len;
+    writeSetParents = !!parents_len;
+
+    maxNumSetContents = contents_len;
+    maxNumSetChildren = children_len;
+    maxNumSetParents = parents_len;
+  } // if(!setSet.range.empty())
+
+  // create adjacency table after set table, because sets do not have yet an id
+  // some entities are adjacent to sets (exodus?)
     // create node adjacency table
   id_t num_adjacencies;
 #ifdef MB_H5M_WRITE_NODE_ADJACENCIES  
@@ -2605,39 +2641,6 @@ ErrorCode WriteHDF5::serial_create_file( const char* filename,
     }
   }
   
-    // create set tables
-  writeSets = !setSet.range.empty();
-  if (writeSets)
-  {
-    long contents_len, children_len, parents_len;
-    
-    setSet.total_num_ents = setSet.range.size();
-    setSet.max_num_ents = setSet.total_num_ents;
-    rval = create_set_meta( setSet.total_num_ents, first_id );
-    CHK_MB_ERR_0(rval);
-
-    setSet.first_id = (id_t)first_id;
-    rval = assign_ids( setSet.range, setSet.first_id );
-    CHK_MB_ERR_0(rval);
-    
-    rval = count_set_size( setSet.range, contents_len, children_len, parents_len );
-    CHK_MB_ERR_0(rval);
-    
-    rval = create_set_tables( contents_len, children_len, parents_len );
-    CHK_MB_ERR_0(rval);
-   
-    setSet.offset = 0;
-    setContentsOffset = 0;
-    setChildrenOffset = 0;
-    setParentsOffset = 0;
-    writeSetContents = !!contents_len;
-    writeSetChildren = !!children_len;
-    writeSetParents = !!parents_len;
-    
-    maxNumSetContents = contents_len;
-    maxNumSetChildren = children_len;
-    maxNumSetParents = parents_len;
-  } // if(!setSet.range.empty())
   
   
   dbgOut.tprint( 1, "Gathering Tags\n" );

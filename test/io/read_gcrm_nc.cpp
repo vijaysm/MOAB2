@@ -48,7 +48,7 @@ int main(int argc, char* argv[])
   result += RUN_TEST(test_read_nomesh);
   result += RUN_TEST(test_read_novars);
   result += RUN_TEST(test_read_no_edges);
-  //result += RUN_TEST(test_gather_onevar);
+  result += RUN_TEST(test_gather_onevar);
 
 #ifdef USE_MPI
   fail = MPI_Finalize();
@@ -70,8 +70,6 @@ void test_read_all()
   // Read mesh and read all variables at all timesteps
   ErrorCode rval = mb.load_file(example, 0, opts.c_str());
   CHECK_ERR(rval);
-
-  mb.write_file("gcrm.h5m");
 
   int procs = 1;
 #ifdef USE_MPI
@@ -494,7 +492,80 @@ void test_read_no_edges()
 
 void test_gather_onevar()
 {
-  // TBD
+  Core moab;
+  Interface& mb = moab;
+
+  EntityHandle file_set;
+  ErrorCode rval = mb.create_meshset(MESHSET_SET, file_set);
+  CHECK_ERR(rval);
+
+  std::string opts;
+  get_options(opts);
+
+  // Read cell variable vorticity and create gather set on processor 0
+  opts += ";VARIABLE=vorticity;GATHER_SET=0";
+  rval = mb.load_file(example, &file_set, opts.c_str());
+  CHECK_ERR(rval);
+
+#ifdef USE_MPI
+  ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
+  int rank = pcomm->proc_config().proc_rank();
+
+  Range cells, cells_owned;
+  rval = mb.get_entities_by_type(file_set, MBPOLYGON, cells);
+  CHECK_ERR(rval);
+
+  // Get local owned cells
+  rval = pcomm->filter_pstatus(cells, PSTATUS_NOT_OWNED, PSTATUS_NOT, -1, &cells_owned);
+  CHECK_ERR(rval);
+
+  EntityHandle gather_set = 0;
+  if (0 == rank) {
+    // Get gather set
+    ReadUtilIface* readUtilIface;
+    mb.query_interface(readUtilIface);
+    rval = readUtilIface->get_gather_set(gather_set);
+    CHECK_ERR(rval);
+    assert(gather_set != 0);
+  }
+
+  Tag vorticity_tag0, gid_tag;
+  rval = mb.tag_get_handle("vorticity0", layers, MB_TYPE_DOUBLE, vorticity_tag0, MB_TAG_DENSE);
+  CHECK_ERR(rval);
+
+  rval = mb.tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid_tag, MB_TAG_DENSE);
+  CHECK_ERR(rval);
+
+  pcomm->gather_data(cells_owned, vorticity_tag0, gid_tag, gather_set, 0);
+
+  if (0 == rank) {
+    // Get gather set cells
+    Range gather_set_cells;
+    rval = mb.get_entities_by_type(gather_set, MBPOLYGON, gather_set_cells);
+    CHECK_ERR(rval);
+    CHECK_EQUAL((size_t)642, gather_set_cells.size());
+    CHECK_EQUAL((size_t)1, gather_set_cells.psize());
+
+    // Check vorticity0 tag values on 4 gather set cells: first cell, two median cells, and last cell
+    EntityHandle cell_ents[] = {gather_set_cells[0], gather_set_cells[320],
+                                gather_set_cells[321], gather_set_cells[641]};
+    double vorticity0_val[4 * layers];
+    rval = mb.tag_get_data(vorticity_tag0, cell_ents, 4, vorticity0_val);
+    CHECK_ERR(rval);
+
+    // Only check first two layers
+    // Layer 0
+    CHECK_REAL_EQUAL(3.629994, vorticity0_val[0 * layers], eps);
+    CHECK_REAL_EQUAL(0.131688, vorticity0_val[1 * layers], eps);
+    CHECK_REAL_EQUAL(-0.554888, vorticity0_val[2 * layers], eps);
+    CHECK_REAL_EQUAL(-0.554888, vorticity0_val[3 * layers], eps);
+    // Layer 1
+    CHECK_REAL_EQUAL(3.629944, vorticity0_val[0 * layers + 1], eps);
+    CHECK_REAL_EQUAL(0.131686, vorticity0_val[1 * layers + 1], eps);
+    CHECK_REAL_EQUAL(-0.554881, vorticity0_val[2 * layers + 1], eps);
+    CHECK_REAL_EQUAL(-0.554881, vorticity0_val[3 * layers + 1], eps);
+  }
+#endif
 }
 
 void get_options(std::string& opts)

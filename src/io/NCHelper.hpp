@@ -40,16 +40,13 @@ public:
 
 protected:
   //! Separate set and non-set variables (common to scd mesh and ucd mesh)
-  ErrorCode read_variable_setup(std::vector<std::string>& var_names,
+  ErrorCode read_variables_setup(std::vector<std::string>& var_names,
                                             std::vector<int>& tstep_nums,
                                             std::vector<ReadNC::VarData>& vdatas,
                                             std::vector<ReadNC::VarData>& vsetdatas);
 
   //! Read set variables (common to scd mesh and ucd mesh)
-  ErrorCode read_variable_to_set(std::vector<ReadNC::VarData>& vdatas, std::vector<int>& tstep_nums);
-
-  //! Convert variables in place
-  ErrorCode convert_variable(ReadNC::VarData& var_data, int tstep_num);
+  ErrorCode read_variables_to_set(std::vector<ReadNC::VarData>& vdatas, std::vector<int>& tstep_nums);
 
   ErrorCode read_coordinate(const char* var_name, int lmin, int lmax,
                             std::vector<double>& cvals);
@@ -72,8 +69,8 @@ protected:
   ErrorCode create_dummy_variables();
 
 private:
-  //! Used by read_variable_to_set()
-  ErrorCode read_variable_to_set_allocate(std::vector<ReadNC::VarData>& vdatas, std::vector<int>& tstep_nums);
+  //! Used by read_variables_to_set()
+  ErrorCode read_variables_to_set_allocate(std::vector<ReadNC::VarData>& vdatas, std::vector<int>& tstep_nums);
 
 protected:
   //! Allow NCHelper to directly access members of ReadNC
@@ -129,15 +126,15 @@ private:
   virtual ErrorCode read_variables(std::vector<std::string>& var_names, std::vector<int>& tstep_nums);
 
   //! Read non-set variables for scd mesh
-  ErrorCode read_scd_variable_to_nonset_allocate(std::vector<ReadNC::VarData>& vdatas,
+  ErrorCode read_scd_variables_to_nonset_allocate(std::vector<ReadNC::VarData>& vdatas,
                                                  std::vector<int>& tstep_nums);
-  ErrorCode read_scd_variable_to_nonset(std::vector<ReadNC::VarData>& vdatas,
+  ErrorCode read_scd_variables_to_nonset(std::vector<ReadNC::VarData>& vdatas,
                                         std::vector<int>& tstep_nums);
 
   //! Create COORDS tag for quads coordinate
   ErrorCode create_quad_coordinate_tag();
 
-  template <typename T> ErrorCode kji_to_jik(size_t ni, size_t nj, size_t nk, void* dest, T* source)
+  template <typename T> void kji_to_jik(size_t ni, size_t nj, size_t nk, void* dest, T* source)
   {
     size_t nik = ni * nk, nij = ni * nj;
     T* tmp_data = reinterpret_cast<T*>(dest);
@@ -145,7 +142,6 @@ private:
       for (std::size_t i = 0; i != ni; i++)
         for (std::size_t k = 0; k != nk; k++)
           tmp_data[j*nik + i*nk + k] = source[k*nij + j*ni + i];
-    return MB_SUCCESS;
   }
 
 protected:
@@ -197,20 +193,20 @@ private:
                                    std::vector<int> &tstep_nums);
 
   //! Read non-set variables for ucd mesh (implemented differently in child classes)
-  virtual ErrorCode read_ucd_variable_to_nonset_allocate(std::vector<ReadNC::VarData>& vdatas,
+  virtual ErrorCode read_ucd_variables_to_nonset_allocate(std::vector<ReadNC::VarData>& vdatas,
                                                          std::vector<int>& tstep_nums) = 0;
 #ifdef PNETCDF_FILE
-  virtual ErrorCode read_ucd_variable_to_nonset_async(std::vector<ReadNC::VarData>& vdatas,
+  virtual ErrorCode read_ucd_variables_to_nonset_async(std::vector<ReadNC::VarData>& vdatas,
                                                       std::vector<int>& tstep_nums) = 0;
 #else
-  virtual ErrorCode read_ucd_variable_to_nonset(std::vector<ReadNC::VarData>& vdatas,
+  virtual ErrorCode read_ucd_variables_to_nonset(std::vector<ReadNC::VarData>& vdatas,
                                                 std::vector<int>& tstep_nums) = 0;
 #endif
 
 protected:
   //! This version takes as input the moab range, from which we actually need just the
   //! size of each sequence, for a proper transpose of the data
-  template <typename T> ErrorCode kji_to_jik_stride(size_t , size_t nj, size_t nk, void* dest, T* source, Range& localGid)
+  template <typename T> void kji_to_jik_stride(size_t , size_t nj, size_t nk, void* dest, T* source, Range& localGid)
   {
     std::size_t idxInSource = 0; // Position of the start of the stride
     // For each subrange, we will transpose a matrix of size
@@ -226,7 +222,6 @@ protected:
             tmp_data[idxInSource + j*nik + i*nk + k] = source[idxInSource + k*nij + j*size_range + i];
       idxInSource += (size_range*nj*nk);
     }
-    return MB_SUCCESS;
   }
 
   //! Dimensions of global grid in file

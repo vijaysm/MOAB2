@@ -10,8 +10,6 @@ AM_CPPFLAGS += -I$(top_srcdir)/src \
 lib_LTLIBRARIES = libMOABrefiner.la
 libMOABrefiner_la_LIBADD = $(top_builddir)/src/libMOAB.la
 
-LDADD = libMOABrefiner.la 
-
 libMOABrefiner_la_SOURCES = \
   EdgeSizeEvaluator.cpp \
   EdgeSizeEvaluator.hpp \
@@ -49,5 +47,5 @@ cfgdir = $(libdir)
 TESTS = test_mesh_refiner
 check_PROGRAMS = $(TESTS)
 test_mesh_refiner_SOURCES = test_mesh_refiner.cpp
-test_mesh_refiner_LDADD = libMOABrefiner.la
+test_mesh_refiner_LDADD = libMOABrefiner.la $(top_builddir)/src/libMOAB.la
 test_mesh_refiner_CPPFLAGS = $(AM_CPPFLAGS)

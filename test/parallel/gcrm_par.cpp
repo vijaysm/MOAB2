@@ -54,8 +54,8 @@ int main(int argc, char* argv[])
   result += RUN_TEST(test_read_mesh_parallel_rcbzoltan);
 #endif
 
-  //result += RUN_TEST(test_gather_onevar_on_rank0);
-  //result += RUN_TEST(test_gather_onevar_on_rank1);
+  result += RUN_TEST(test_gather_onevar_on_rank0);
+  result += RUN_TEST(test_gather_onevar_on_rank1);
 
   result += RUN_TEST(test_multiple_loads_of_same_file);
 
@@ -508,33 +508,39 @@ void gather_one_cell_var(int gather_set_rank)
     assert(gather_set != 0);
   }
 
-  Tag ke_tag0, gid_tag;
-  rval = mb.tag_get_handle("ke0", 1, MB_TYPE_DOUBLE, ke_tag0, MB_TAG_DENSE);
+  Tag vorticity_tag0, gid_tag;
+  rval = mb.tag_get_handle("vorticity0", layers, MB_TYPE_DOUBLE, vorticity_tag0, MB_TAG_DENSE);
   CHECK_ERR(rval);
 
   rval = mb.tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid_tag, MB_TAG_DENSE);
   CHECK_ERR(rval);
 
-  pcomm->gather_data(cells_owned, ke_tag0, gid_tag, gather_set, gather_set_rank);
+  pcomm->gather_data(cells_owned, vorticity_tag0, gid_tag, gather_set, gather_set_rank);
 
   if (gather_set_rank == rank) {
     // Get gather set cells
     Range gather_set_cells;
     rval = mb.get_entities_by_type(gather_set, MBPOLYGON, gather_set_cells);
     CHECK_EQUAL((size_t)642, gather_set_cells.size());
-    CHECK_EQUAL((size_t)2, gather_set_cells.psize());
+    CHECK_EQUAL((size_t)1, gather_set_cells.psize());
 
-    // Check ke0 tag values on 4 gather set cells: first pentagon, last pentagon,
-    // first hexagon and last hexagon
-    EntityHandle cell_ents[] = {gather_set_cells[0], gather_set_cells[11],
-                                gather_set_cells[12], gather_set_cells[641]};
-    double ke0_val[4];
-    rval = mb.tag_get_data(ke_tag0, &cell_ents[0], 4, ke0_val);
+    // Check vorticity0 tag values on 4 gather set cells: first cell, two median cells, and last cell
+    EntityHandle cell_ents[] = {gather_set_cells[0], gather_set_cells[320],
+                                gather_set_cells[321], gather_set_cells[641]};
+    double vorticity0_val[4 * layers];
+    rval = mb.tag_get_data(vorticity_tag0, &cell_ents[0], 4, vorticity0_val);
 
-    CHECK_REAL_EQUAL(15.001, ke0_val[0], eps);
-    CHECK_REAL_EQUAL(15.012, ke0_val[1], eps);
-    CHECK_REAL_EQUAL(16.013, ke0_val[2], eps);
-    CHECK_REAL_EQUAL(16.642, ke0_val[3], eps);
+    // Only check first two layers
+    // Layer 0
+    CHECK_REAL_EQUAL(3.629994, vorticity0_val[0 * layers], eps);
+    CHECK_REAL_EQUAL(0.131688, vorticity0_val[1 * layers], eps);
+    CHECK_REAL_EQUAL(-0.554888, vorticity0_val[2 * layers], eps);
+    CHECK_REAL_EQUAL(-0.554888, vorticity0_val[3 * layers], eps);
+    // Layer 1
+    CHECK_REAL_EQUAL(3.629944, vorticity0_val[0 * layers + 1], eps);
+    CHECK_REAL_EQUAL(0.131686, vorticity0_val[1 * layers + 1], eps);
+    CHECK_REAL_EQUAL(-0.554881, vorticity0_val[2 * layers + 1], eps);
+    CHECK_REAL_EQUAL(-0.554881, vorticity0_val[3 * layers + 1], eps);
   }
 }
 

@@ -28,18 +28,9 @@ if test "xyes" != "x$HAVE_LIB_HDF5"; then
   
   HAVE_LIB_HDF5=no
   FATHOM_HDF5_LIBS_HELPER
-  FATHOM_HDF5_LIBS_HELPER([-ldl])
-  if test $HAVE_ZLIB = yes; then
-    FATHOM_HDF5_LIBS_HELPER([-lz -ldl])
-    FATHOM_HDF5_LIBS_HELPER([-lz -ldl -lpthread])
-  fi
+  FATHOM_HDF5_LIBS_HELPER([$LIBS])
   if test $HAVE_SZIP = yes; then
-    FATHOM_HDF5_LIBS_HELPER([-lsz -ldl])
-    FATHOM_HDF5_LIBS_HELPER([-lsz -ldl -lpthread])
-    if test $HAVE_ZLIB = yes; then
-      FATHOM_HDF5_LIBS_HELPER([-lsz -lz -ldl])
-      FATHOM_HDF5_LIBS_HELPER([-lsz -lz -ldl -lpthread])
-    fi
+    FATHOM_HDF5_LIBS_HELPER([-lsz $LIBS])
   fi
 fi
 ])

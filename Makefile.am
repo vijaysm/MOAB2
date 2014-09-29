@@ -5,7 +5,7 @@ AUTOMAKE_OPTIONS = foreign
 ACLOCAL_AMFLAGS = -I config
 
 # Subdirectories to build
-SUBDIRS = src MeshFiles $(itaps_dir) tools test doc
+SUBDIRS = src MeshFiles $(itaps_dir) tools test 
 
 if ENABLE_igeom
   itaps_dir_igeom = itaps
@@ -26,7 +26,29 @@ build-check:
 doc_DATA = ANNOUNCE KNOWN_ISSUES LICENSE README README.IO README.IMESH \
 	RELEASE_NOTES
 
-EXTRA_DIST = $(doc_DATA)
+examples_DATA = examples/DeformMeshRemap.cpp \
+                examples/HelloParMOAB.cpp \
+                examples/TestExodusII.cpp \
+                examples/CrystalRouterExample.cpp \
+                examples/LoadPartial.cpp \
+                examples/LloydRelaxation.cpp \
+                examples/StructuredMeshSimple.cpp \
+                examples/ReduceExchangeTags.cpp \
+                examples/GetEntities.cpp \
+                examples/PushParMeshIntoMoabF90.F90 \
+                examples/makefile.in \
+                examples/VisTags.cpp \
+                examples/DirectAccessNoHoles.cpp \
+                examples/ReadWriteTest.cpp \
+                examples/HelloMOAB.cpp \
+                examples/GenLargeMesh.cpp \
+                examples/DirectAccessWithHoles.cpp \
+                examples/DirectAccessNoHolesF90.F90 \
+                examples/point_in_elem_search.cpp \
+                examples/structuredmesh.cpp \
+                examples/SetsNTags.cpp
+
+EXTRA_DIST = $(doc_DATA) $(examples_DATA)
 
 
 # Automake doesn't seem to have a directory defined for

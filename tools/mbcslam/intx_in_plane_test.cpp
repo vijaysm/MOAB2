@@ -12,18 +12,16 @@
 #include "moab/Core.hpp"
 #include "moab/Interface.hpp"
 #include "Intx2MeshInPlane.hpp"
+#include "../test/TestUtil.hpp"
 #include <math.h>
-
-#define STRINGIFY_(X) #X
-#define STRINGIFY(X) STRINGIFY_(X)
 
 using namespace moab;
 
 int main(int argc, char* argv[])
 {
   // check command line arg
-  const char *filename_mesh1 = STRINGIFY(SRCDIR) "/m1.vtk";
-  const char *filename_mesh2 = STRINGIFY(SRCDIR) "/m2.vtk";
+  const char *filename_mesh1 = STRINGIFY(MESHDIR) "/mbcslam/m1.vtk";
+  const char *filename_mesh2 = STRINGIFY(MESHDIR) "/mbcslam/m2.vtk";
   const char *newFile = "intx1.vtk";
   const char *edgesFile = "polyWithEdges.vtk";
   if (argc == 4)
