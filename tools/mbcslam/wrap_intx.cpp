@@ -25,6 +25,25 @@ double radius = 1.;
 double gtol = 1.e-9;
 bool debug = true;
 
+// this mapping to coordinates will keep an index into the coords and dep_coords array
+// more exactly, the fine vertices are in a Range fineVerts;
+// then the vertex index i in fineVerts , fineVerts[i] will have 3 coordinates at
+// index  mapping_to_coords[i] * 3
+// more exactly, x = coords[ mapping_to_coords[i] * 3    ]
+//               y = coords[ mapping_to_coords[i] * 3 + 1]
+//               z = coords[ mapping_to_coords[i] * 3 + 2]
+
+// in the same way, departure position for vertex depVerts[i] will be at index
+//   mapping_to_coords[i] * 2 in dep_coords array (it has just latitude and longitude)
+//
+int * mapping_to_coords = NULL;
+int numVertices = 0;
+// this will be instantiated at create mesh step
+// should be cleaned up at the end
+Intx2MeshOnSphere * pworker = NULL;
+
+// should get rid of this; instead of using array[NC+1][NC+1], use  row based indexing (C-style):
+// parray =  new int[ (NC+1)*(NC+1) ] , and instead of array[i][j], use parray[ i*(NC+1) + j ]
 #define  NC  3
 
 /*
@@ -389,17 +408,19 @@ ErrorCode create_fine_mesh(Interface * mb, ParallelComm * pcomm,
   int iv = (nc-1)*edges.size(); // iv is in the coordv2 array indices
   start_vert=start_vert+(nc-1)*edges.size();
 
-  // add a child to the mesh set, with the ordered vertices, as they come out in the list of coordinates
+ /* // add a child to the mesh set, with the ordered vertices, as they come out in the list of coordinates
   EntityHandle vertSet;
   rval = mb->create_meshset(MESHSET_ORDERED, vertSet);
   ERRORR(rval, "can't create vertex set ");
 
   rval = mb->add_parent_child(fine_set, vertSet);
-  ERRORR(rval, "can't create parent child relation between fine set and vertSet ");
+  ERRORR(rval, "can't create parent child relation between fine set and vertSet ");*/
 
   std::vector<EntityHandle>  vertList;
   vertList.reserve(nelem*(nc+1)*(nc+1));// will have a list of vertices, in order
-  // now fill coordinates on interior nodes; also mark the start for each interior vertex in a coarse quad
+
+  // now fill coordinates on interior nodes; also mark the start for each interior vertex
+  //  in a coarse quad
   for (int ie = 0; ie < nelem; ie++) {
     // just fill coordinates for an array of (nc-1)*(nc-1) vertices
     EntityHandle firstVert = start_vert+(nc-1)*(nc-1)*ie;
@@ -545,9 +566,9 @@ ErrorCode create_fine_mesh(Interface * mb, ParallelComm * pcomm,
       }
     }
   }
-
+/*
   rval = mb->add_entities(vertSet, &vertList[0], (int)vertList.size());
-  ERRORR(rval,"can't add to the vert set the list of ordered vertices");
+  ERRORR(rval,"can't add to the vert set the list of ordered vertices");*/
 
   mb->add_entities(fine_set, quads3);
   // notify MOAB of the new elements
@@ -589,13 +610,56 @@ ErrorCode create_fine_mesh(Interface * mb, ParallelComm * pcomm,
   rval = mb->write_file("fine.h5m", 0, "PARALLEL=WRITE_PART", &fine_set, 1);
   ERRORR(rval, "can't write set 3, fine ");
 
+  // we need to keep a mapping index, from the coords array to the vertex handles
+  // so, for a given vertex entity handle, at what index in the coords array the vertex
+  // coordinates are?
+  // in the coords array, vertices are repeated 2 times if they are interior to a coarse edge, and
+  // repeated 3 or 4 times if they are a corner vertex in a coarse quad
+
+  numVertices = (int)verts.size() ;
+  mapping_to_coords = new int [numVertices] ;
+  for (int k=0; k<numVertices; k++)
+    mapping_to_coords[k] = -1; // it means it was not located yet in vertList
+  // vertList is parallel to the coords and dep_coords array
+
+  // now loop over vertsList, and see where
+  // vertList has nelem * (nc+1)*(nc+1) vertices; loop over them, and see where are they located
+
+  for (int kk=0; kk<(int)vertList.size(); kk++)
+  {
+    EntityHandle v = vertList[kk];
+    int index = verts.index(v);
+    if (-1==index)
+    {
+      std::cout << " can't locate vertex " << v << " in vertex Range \n" ;
+      return MB_FAILURE;
+    }
+    if (mapping_to_coords[index] == -1 ) // it means the vertex v was not yet encountered in the vertList
+    {
+      mapping_to_coords[index] = kk;
+    }
+  }
+  // check that every mapping has an index different from -1
+  for (int k=0; k<numVertices; k++)
+  {
+    if ( mapping_to_coords[k] == -1)
+    {
+      {
+        std::cout << " vertex at index " << k << " in vertex Range " << verts[k] << " is not mapped \n" ;
+        return MB_FAILURE; //
+      }
+    }
+  }
 
   return rval;
 }
 
 // this is called from Fortran 90
 void create_mesh(iMesh_Instance instance,
-    iBase_EntitySetHandle * imesh_euler_set, double * coords, int * corners,
+    iBase_EntitySetHandle * imesh_euler_set,
+    iBase_EntitySetHandle * imesh_departure_set,
+    iBase_EntitySetHandle * imesh_intx_set,
+    double * coords, int * corners,
     int nc, int nelem, MPI_Fint comm, int * ierr) {
   /* double * coords=(double*) icoords;
    int * corners = (int*) icorners;*/
@@ -614,127 +678,173 @@ void create_mesh(iMesh_Instance instance,
 
   EntityHandle fine_set;
   rval = mb->create_meshset(MESHSET_SET, fine_set);
-  ERRORV(rval, "can't create coarse set ");
+  ERRORV(rval, "can't create fine set ");
 
   rval = create_fine_mesh(mb, pcomm, coarseSet, fine_set, coords, nc, nelem);
   ERRORV(rval, "can't create fine mesh set ");
 
-  *imesh_euler_set = (iBase_EntitySetHandle) fine_set; // with coarse mesh
+  *imesh_euler_set = (iBase_EntitySetHandle) fine_set;
+
+  EntityHandle lagr_set;
+  rval = mb->create_meshset(MESHSET_SET, lagr_set);
+  ERRORV(rval, "can't create lagrange set ");
+  *imesh_departure_set = (iBase_EntitySetHandle) lagr_set;
+
+  // call in cslam utils
+  // it will copy the lagr set from euler set
+  rval = create_lagr_mesh(mb, fine_set, lagr_set);
+  ERRORV(rval, "can't populate lagrange set ");
+
+  EntityHandle intx_set;
+  rval = mb->create_meshset(MESHSET_SET, intx_set);
+  ERRORV(rval, "can't create output set ");
+
+  *imesh_intx_set = (iBase_EntitySetHandle) intx_set;
+
+  pworker = new Intx2MeshOnSphere(mb);
+
+  pworker->set_box_error(100*gtol);
+  Range local_verts;
+  rval = pworker->build_processor_euler_boxes(fine_set, local_verts);// output also the local_verts
+  ERRORV(rval, "can't compute euler boxes ");
+  pworker->SetErrorTolerance(gtol);
 
   *ierr = 0;
   return;
 }
-ErrorCode set_departure_tag(Interface * mb, EntityHandle fineMeshSet, double * dep_coords, double radius2,
-  int nc, int nelem)
+ErrorCode set_departure_points_position(Interface * mb, EntityHandle lagrSet, double * dep_coords,
+  double radius2)
 {
 
-  Range fine_quads;
-  ErrorCode rval = mb->get_entities_by_type(fineMeshSet, MBQUAD, fine_quads);
-  ERRORR(rval, "can't get fine quads");
+  // the departure quads are created in the same order as the fine quads
+  // for each coarse element, there are nc*nc fine quads
+  // their vertices are in order
+  Range lagr_quads;
+  ErrorCode rval = mb->get_entities_by_type(lagrSet, MBQUAD, lagr_quads);
+  ERRORR(rval, "can't get lagrange quads");
 
-  Range all_verts;
-  rval = mb->get_connectivity(fine_quads, all_verts);
-  ERRORR(rval, "can't get vertices");
+  // get all vertices from lagr_quads
+  Range lVerts;
+  rval = mb->get_connectivity(lagr_quads, lVerts);
+  ERRORR(rval, "can't get lagrangian vertices (departure)");
 
-  std::vector<EntityHandle> vertList;
-  rval = mb->get_child_meshsets(fineMeshSet, vertList );
+  // they are parallel to the verts Array, they must have the same number of vertices
+  assert(numVertices == (int)lVerts.size());
 
-  if (vertList.size()!=1)
-    return MB_FAILURE;
-
-  EntityHandle vertSet=vertList[0];
-  vertList.clear();
-
-  // now get the vertices, in order of the coordinates (and departure points)
-  rval = mb->get_entities_by_handle(vertSet, vertList);
-  ERRORR(rval, "can't get vert list");
-
-  Tag dpTag = 0;
-  std::string tag_name("DP");
-  rval = mb->tag_get_handle(tag_name.c_str(), 3, MB_TYPE_DOUBLE, dpTag, MB_TAG_DENSE|MB_TAG_CREAT);
-  ERRORR(rval, "can't get DP tag");
-
-  std::set<EntityHandle> alreadyDefined;
-
-  for (size_t i=0; i<vertList.size(); i++)
+  for (int i=0; i<numVertices; i++)
   {
-    EntityHandle v=vertList[i];
-    if (alreadyDefined.find(v)==alreadyDefined.end())
-    {
-      SphereCoords sph;
-      sph.R=radius2;
-      sph.lat = dep_coords[2*i];
-      sph.lon = dep_coords[2*i+1];
+    EntityHandle v=lVerts[i];
+    int index = mapping_to_coords[i];
+    assert(-1!=index);
 
-      CartVect depPoint = spherical_to_cart(sph);
-      rval = mb->tag_set_data(dpTag, &v, 1, (void*)depPoint.array() );
-      ERRORR(rval, "can't set DP tag");
-      alreadyDefined.insert(v);
-    }
+    SphereCoords sph;
+    sph.R=radius2;
+    sph.lat = dep_coords[2*index];
+    sph.lon = dep_coords[2*index+1];
 
+    CartVect depPoint = spherical_to_cart(sph);
+    rval = mb->set_coords( &v, 1, (double*)depPoint.array() );
+    ERRORR(rval, "can't set position of vertex");
   }
 
   return MB_SUCCESS;
 }
 void intersection_at_level(iMesh_Instance instance,
-   iBase_EntitySetHandle fine_set, iBase_EntitySetHandle * intx_set, double * dep_coords, double radius2,
-   int nc, int nelem, MPI_Fint comm, int * ierr)
+   iBase_EntitySetHandle fine_set, iBase_EntitySetHandle lagr_set, iBase_EntitySetHandle intx_set,
+   double * dep_coords, double radius2, int * ierr)
 {
   *ierr = 1;
   Interface * mb = MOABI;
-  MPI_Comm mpicomm = MPI_Comm_f2c(comm);
+  //MPI_Comm mpicomm = MPI_Comm_f2c(comm);
   // instantiate parallel comm now or not?
 
-  EntityHandle fineMeshSet = (EntityHandle) fine_set;
+  EntityHandle lagrMeshSet = (EntityHandle) lagr_set;
 
   // set the departure tag on the fine mesh vertices
-  ErrorCode rval = set_departure_tag(mb, fineMeshSet, dep_coords, radius2, nc, nelem);
+  ErrorCode rval = set_departure_points_position(mb, lagrMeshSet, dep_coords, radius2);
   ERRORV(rval, "can't set departure tag");
 
   ParallelComm *pcomm =  ParallelComm::get_pcomm(mb, 0);
   if (NULL==pcomm)
     return; // error is 1
 
-  Intx2MeshOnSphere worker(mb);
-  worker.SetRadius(radius2);
+  // it should be done earlier
+  pworker->SetRadius(radius);
 
-  worker.SetErrorTolerance(gtol);
+  EntityHandle covering_set;
+  rval = pworker->create_departure_mesh_3rd_alg(lagrMeshSet, covering_set);
+  ERRORV(rval, "can't compute covering set ");
 
-  worker.set_box_error(100*gtol);
+  if (debug) {
+    std::stringstream fff;
+    fff << "lagr0" <<  pcomm->proc_config().proc_rank() << ".h5m";
+    rval =  mb->write_mesh(fff.str().c_str(), &covering_set, 1);
 
-  EntityHandle covering_lagr_set;
+    ERRORV(rval, "can't write covering set ");
+  }
+  EntityHandle intxSet = (EntityHandle) intx_set;
+  rval = pworker->intersect_meshes(covering_set, (EntityHandle)fine_set, intxSet);
+  ERRORV(rval, "can't intersect ");
 
-  rval = mb->create_meshset(MESHSET_SET, covering_lagr_set);
-    ERRORV(rval, "can't create covering set ");
+  if (debug) {
+    std::stringstream fff;
+    fff << "intx0" <<  pcomm->proc_config().proc_rank() << ".h5m";
+    rval = mb->write_mesh(fff.str().c_str(), &intxSet, 1);
+    ERRORV(rval, "can't write covering set ");
+  }
 
-    // we need to update the correlation tag and remote tuples
-    rval = worker.create_departure_mesh_2nd_alg(fineMeshSet, covering_lagr_set);
-    ERRORV(rval, "can't populate covering set ");
+  return;
+}
+void cleanup_after_intersection(iMesh_Instance instance,
+   iBase_EntitySetHandle fine_set, iBase_EntitySetHandle lagr_set, iBase_EntitySetHandle intx_set, int * ierr)
+{
+  *ierr = 1;
+  Interface * mb = MOABI;
+  // delete elements
+  // delete now the polygons and the elements of out_set
+  // also, all verts that are not in euler set or lagr_set
+  Range allVerts;
+  ErrorCode rval = mb->get_entities_by_dimension(0, 0, allVerts);
+  ERRORV(rval, "can't get all vertices");
 
-    if (debug) {
-      std::stringstream fff;
-      fff << "lagr0" <<  pcomm->proc_config().proc_rank() << ".h5m";
-      rval =  mb->write_mesh(fff.str().c_str(), &covering_lagr_set, 1);
+  Range allElems;
+  rval = mb->get_entities_by_dimension(0, 2, allElems);
+  ERRORV(rval, "can't get all elems");
 
-      ERRORV(rval, "can't write covering set ");
-    }
+  Range polys; // first euler polys
+  rval = mb->get_entities_by_dimension((EntityHandle) fine_set, 2, polys);
 
-    //
-   /* rval = enforce_convexity(mb, covering_lagr_set);
-    ERRORV(rval, "can't write covering set ");*/
+  // add to polys range the lagr polys
+  rval = mb->get_entities_by_dimension((EntityHandle) lagr_set, 2, polys); // do not delete lagr set either, with its vertices
+  ERRORV(rval, "can't get all polys from lagr set");
+ // add to the connecVerts range all verts, from all initial polys
+  Range vertsToStay;
+  rval = mb->get_connectivity(polys, vertsToStay);
+  ERRORV(rval, "get verts that stay");
 
-    EntityHandle outputSet;
-    rval = mb->create_meshset(MESHSET_SET, outputSet);
-    ERRORV(rval, "can't create output set ");
+  Range todeleteVerts = subtract(allVerts, vertsToStay);
 
-    rval = worker.intersect_meshes(covering_lagr_set, fineMeshSet, outputSet);
-    ERRORV(rval, "can't intersect ");
+  Range todeleteElem = subtract(allElems, polys); // this is coarse mesh too (if still here)
 
-    if (debug) {
-      rval = mb->write_file("output.vtk", 0, 0, &outputSet, 1);
-      ERRORV(rval, "can't write covering set ");
-    }
-  *intx_set = (iBase_EntitySetHandle)outputSet;
+  // empty the out mesh set
+  EntityHandle out_set=(EntityHandle)intx_set;
+  rval = mb->clear_meshset(&out_set, 1);
+  ERRORV(rval, "clear mesh set");
+
+  rval = mb->delete_entities(todeleteElem);
+  ERRORV(rval, "delete intx elements");
+  rval = mb->delete_entities(todeleteVerts);
+  ERRORV(rval, "failed to delete intx vertices");
+
+  *ierr = 0;
+  return;
+}
+
+void cleanup_after_simulation(int * ierr)
+{
+  delete [] mapping_to_coords;
+  numVertices = 0;
+  *ierr = 0;
   return;
 }
 #ifdef __cplusplus

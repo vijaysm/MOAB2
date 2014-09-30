@@ -12,6 +12,7 @@
 // #include "ElemUtil.hpp"
 #include "moab/MergeMesh.hpp"
 #include "moab/ReadUtilIface.hpp"
+#include "MBTagConventions.hpp"
 #include <iostream>
 // this is for sstream
 #include <sstream>
@@ -19,6 +20,9 @@
 #include <queue>
 
 namespace moab {
+
+#define CHECK_ERR( A )   if (MB_SUCCESS!=A) { std::cout << "error:" <<  __LINE__ <<" " << __FILE__ "\n"; return rval;}
+
 // vec utilities that could be common between quads on a plane or sphere
 double dist2(double * a, double * b)
 {
@@ -1875,6 +1879,94 @@ int  borderPointsOfCSinRLL(CartVect * redc, double * red2dc, int nsRed, CartVect
     }
   }
   return extraPoints;
+}
+// this simply copies the euler mesh into lagr mesh, and sets some correlation tags
+// for easy mapping back and forth
+ErrorCode  create_lagr_mesh(Interface * mb, EntityHandle euler_set, EntityHandle lagr_set)
+{
+  // create the handle tag for the corresponding element / vertex
+
+  EntityHandle dum = 0;
+  Tag corrTag=0; // it will be created here
+  ErrorCode rval = mb->tag_get_handle(CORRTAGNAME,
+                                           1, MB_TYPE_HANDLE, corrTag,
+                                           MB_TAG_DENSE|MB_TAG_CREAT, &dum);
+  CHECK_ERR(rval);
+
+  // give the same global id to new verts and cells created in the lagr(departure) mesh
+  Tag gid;
+  rval = mb->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid, MB_TAG_DENSE);
+  CHECK_ERR(rval);
+
+  Range polys;
+  rval = mb->get_entities_by_dimension(euler_set, 2, polys);
+  CHECK_ERR(rval);
+
+  Range connecVerts;
+  rval = mb->get_connectivity(polys, connecVerts);
+  CHECK_ERR(rval);
+
+  std::map<EntityHandle, EntityHandle> newNodes;
+  for (Range::iterator vit = connecVerts.begin(); vit != connecVerts.end(); vit++)
+  {
+    EntityHandle oldV = *vit;
+    CartVect posi;
+    rval = mb->get_coords(&oldV, 1, &(posi[0]));
+    CHECK_ERR(rval);
+    int global_id;
+    rval = mb->tag_get_data(gid, &oldV, 1, &global_id);
+    CHECK_ERR(rval);
+    EntityHandle new_vert;
+    rval = mb->create_vertex(&(posi[0]), new_vert); // duplicate the position
+    CHECK_ERR(rval);
+    newNodes[oldV] = new_vert;
+    // set also the correspondent tag :)
+    rval = mb->tag_set_data(corrTag, &oldV, 1, &new_vert);
+    CHECK_ERR(rval);
+    // also the other side
+    // need to check if we really need this; the new vertex will never need the old vertex
+    // we have the global id which is the same
+    /*rval = mb->tag_set_data(corrTag, &new_vert, 1, &oldV);
+    CHECK_ERR(rval);*/
+    // set the global id on the corresponding vertex the same as the initial vertex
+    rval = mb->tag_set_data(gid, &new_vert, 1, &global_id);
+    CHECK_ERR(rval);
+
+  }
+  for (Range::iterator it = polys.begin(); it != polys.end(); it++)
+  {
+    EntityHandle q = *it;
+    int nnodes;
+    const EntityHandle * conn;
+    rval = mb->get_connectivity(q, conn, nnodes);
+    CHECK_ERR(rval);
+    int global_id;
+    rval = mb->tag_get_data(gid, &q, 1, &global_id);
+    CHECK_ERR(rval);
+    EntityType typeElem = mb->type_from_handle(q);
+    std::vector<EntityHandle> new_conn(nnodes);
+    for (int i = 0; i < nnodes; i++)
+    {
+      EntityHandle v1 = conn[i];
+      new_conn[i] = newNodes[v1];
+    }
+    EntityHandle newElement;
+    rval = mb->create_element(typeElem, &new_conn[0], nnodes, newElement);
+    CHECK_ERR(rval);
+    //set the corresponding tag; not sure we need this one, from old to new
+    /*rval = mb->tag_set_data(corrTag, &q, 1, &newElement);
+    CHECK_ERR(rval);*/
+    rval = mb->tag_set_data(corrTag, &newElement, 1, &q);
+    CHECK_ERR(rval);
+    // set the global id
+    rval = mb->tag_set_data(gid, &newElement, 1, &global_id);
+    CHECK_ERR(rval);
+
+    rval = mb->add_entities(lagr_set, &newElement, 1);
+    CHECK_ERR(rval);
+  }
+
+  return MB_SUCCESS;
 }
 
 } //namespace moab
