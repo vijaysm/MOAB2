@@ -1880,9 +1880,9 @@ int  borderPointsOfCSinRLL(CartVect * redc, double * red2dc, int nsRed, CartVect
   }
   return extraPoints;
 }
-// this simply copies the euler mesh into lagr mesh, and sets some correlation tags
+// this simply copies the one mesh set into another, and sets some correlation tags
 // for easy mapping back and forth
-ErrorCode  create_lagr_mesh(Interface * mb, EntityHandle euler_set, EntityHandle lagr_set)
+ErrorCode  deep_copy_set(Interface * mb, EntityHandle source_set, EntityHandle dest_set)
 {
   // create the handle tag for the corresponding element / vertex
 
@@ -1899,7 +1899,7 @@ ErrorCode  create_lagr_mesh(Interface * mb, EntityHandle euler_set, EntityHandle
   CHECK_ERR(rval);
 
   Range polys;
-  rval = mb->get_entities_by_dimension(euler_set, 2, polys);
+  rval = mb->get_entities_by_dimension(source_set, 2, polys);
   CHECK_ERR(rval);
 
   Range connecVerts;
@@ -1926,8 +1926,8 @@ ErrorCode  create_lagr_mesh(Interface * mb, EntityHandle euler_set, EntityHandle
     // also the other side
     // need to check if we really need this; the new vertex will never need the old vertex
     // we have the global id which is the same
-    /*rval = mb->tag_set_data(corrTag, &new_vert, 1, &oldV);
-    CHECK_ERR(rval);*/
+    rval = mb->tag_set_data(corrTag, &new_vert, 1, &oldV);
+    CHECK_ERR(rval);
     // set the global id on the corresponding vertex the same as the initial vertex
     rval = mb->tag_set_data(gid, &new_vert, 1, &global_id);
     CHECK_ERR(rval);
@@ -1954,15 +1954,15 @@ ErrorCode  create_lagr_mesh(Interface * mb, EntityHandle euler_set, EntityHandle
     rval = mb->create_element(typeElem, &new_conn[0], nnodes, newElement);
     CHECK_ERR(rval);
     //set the corresponding tag; not sure we need this one, from old to new
-    /*rval = mb->tag_set_data(corrTag, &q, 1, &newElement);
-    CHECK_ERR(rval);*/
+    rval = mb->tag_set_data(corrTag, &q, 1, &newElement);
+    CHECK_ERR(rval);
     rval = mb->tag_set_data(corrTag, &newElement, 1, &q);
     CHECK_ERR(rval);
     // set the global id
     rval = mb->tag_set_data(gid, &newElement, 1, &global_id);
     CHECK_ERR(rval);
 
-    rval = mb->add_entities(lagr_set, &newElement, 1);
+    rval = mb->add_entities(dest_set, &newElement, 1);
     CHECK_ERR(rval);
   }
 

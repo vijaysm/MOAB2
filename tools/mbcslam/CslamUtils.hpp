@@ -178,9 +178,10 @@ ErrorCode intersect_great_circle_arc_with_clat_arc(double * A, double * B, doubl
 int  borderPointsOfCSinRLL(CartVect * redc, double * red2dc, int nsRed, CartVect *bluec, int nsBlue, int * blueEdgeType,
     double * P, int * side, double epsil);
 
-// copy the euler mesh into a new set, lagr_set
+// copy the euler mesh into a new set, lagr_set (or lagr set into a new euler set)
 // it will be used in 3rd method, when the positions of nodes are modified, no new nodes are
 //  created
-ErrorCode  create_lagr_mesh(Interface * mb, EntityHandle euler_set, EntityHandle lagr_set);
+// it will also be used to
+ErrorCode  deep_copy_set(Interface * mb, EntityHandle source, EntityHandle dest);
 }
 #endif /* CSLAMUTILS_HPP_ */

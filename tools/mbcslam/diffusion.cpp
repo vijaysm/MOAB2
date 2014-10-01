@@ -530,7 +530,7 @@ int main(int argc, char **argv)
   // copy the initial mesh in the lagrangian set
   // initial vertices will be at the same position as euler;
 
-  rval = create_lagr_mesh(&mb, euler_set, lagr_set);
+  rval = deep_copy_set(&mb, euler_set, lagr_set);
   CHECK_ERR(rval);
 
   Intx2MeshOnSphere worker(&mb);
