@@ -1307,6 +1307,7 @@ AC_CONFIG_FILES([Makefile
                  src/LocalDiscretization/Makefile
                  src/parallel/Makefile
                  src/oldinc/Makefile
+                 src/verdict/Makefile
                  test/Makefile
                  test/dagmc/Makefile
                  test/h5file/Makefile

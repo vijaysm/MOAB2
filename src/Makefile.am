@@ -5,15 +5,15 @@ AUTOMAKE_OPTIONS = foreign subdir-objects
 lib_LTLIBRARIES = libMOAB.la 
 
 # Subdirectories to build
-SUBDIRS = 
-libMOAB_la_LIBADD = 
+SUBDIRS =
+libMOAB_la_LIBADD =
 if PARALLEL
   SUBDIRS += parallel
   libMOAB_la_LIBADD += parallel/libMOABpar.la
   AM_CPPFLAGS += -I$(srcdir)/parallel
 endif
-SUBDIRS += io LocalDiscretization .
-libMOAB_la_LIBADD += io/libmoabio.la LocalDiscretization/libLocalDiscretization.la
+SUBDIRS += io LocalDiscretization verdict .
+libMOAB_la_LIBADD += io/libmoabio.la LocalDiscretization/libLocalDiscretization.la verdict/libmoabverdict.la
 if OLD_HEADERS
   SUBDIRS += oldinc
 endif
@@ -26,7 +26,8 @@ AM_CPPFLAGS += -DIS_BUILDING_MB \
                -I$(srcdir)/io \
                -I$(srcdir)/io/mhdf/include \
                -I$(srcdir)/parallel \
-               -I$(srcdir)/LocalDiscretization
+               -I$(srcdir)/LocalDiscretization \
+               -I$(srcdir)/verdict
 
 # The directory in which to install headers
 libMOAB_la_includedir = $(includedir)
