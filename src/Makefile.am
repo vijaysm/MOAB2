@@ -12,8 +12,10 @@ if PARALLEL
   libMOAB_la_LIBADD += parallel/libMOABpar.la
   AM_CPPFLAGS += -I$(srcdir)/parallel
 endif
-SUBDIRS += io LocalDiscretization verdict .
-libMOAB_la_LIBADD += io/libmoabio.la LocalDiscretization/libLocalDiscretization.la verdict/libmoabverdict.la
+
+SUBDIRS += io LocalDiscretization verdict RefineMesh .
+libMOAB_la_LIBADD += io/libmoabio.la LocalDiscretization/libLocalDiscretization.la verdict/libmoabverdict.la RefineMesh/libRefineMesh.la
+
 if OLD_HEADERS
   SUBDIRS += oldinc
 endif
@@ -28,7 +30,8 @@ AM_CPPFLAGS += -DIS_BUILDING_MB \
                -I$(srcdir)/io/mhdf/include \
                -I$(srcdir)/parallel \
                -I$(srcdir)/LocalDiscretization \
-               -I$(srcdir)/verdict
+               -I$(srcdir)/verdict \
+	       -I$(srcdir)/RefineMesh
 
 # The directory in which to install headers
 libMOAB_la_includedir = $(includedir)

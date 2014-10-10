@@ -245,7 +245,7 @@ public:
                                     bool add_inent,
                                     std::vector<EntityHandle> &adjents,
                                     bool local_id = false,
-                                    std::vector<int> * leids = NULL);
+                                    std::vector<int> * leids = NULL, bool orient = false, std::vector<int> *adj_orients = NULL);
 
     //! Given an edge, finds edge-connected neighbor face
     /** Given an face, it gathers all the neighbor faces of each local edge of the face.
@@ -343,7 +343,7 @@ public:
     ErrorCode get_up_adjacencies_edg_3d(EntityHandle cid,
                                         int leid, std::vector<EntityHandle> &adjents,
                                         bool local_id = false,
-                                        std::vector<int> * leids = NULL);
+                                        std::vector<int> * leids = NULL, bool orient = false, std::vector<int> *adj_orients = NULL);
 
     //! Given an face, finds the cells incident on it.
     /** Given an face, it first finds a matching half-face in a cell corresponding to face, and then
@@ -405,6 +405,12 @@ public:
     */
 
     ErrorCode get_down_adjacencies_face_3d(EntityHandle cid, std::vector<EntityHandle> &adjents);
+
+    /* Find the number of edges and faces of given range of cells
+     * */
+    ErrorCode find_total_edges_faces_3d(Range cells, int *nedges, int *nfaces);
+
+     ErrorCode count_subentities(Range faces, Range cells, int *nedges, int *nfaces);
     
 
   protected:

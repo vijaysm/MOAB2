@@ -687,6 +687,26 @@ namespace moab {
        return MB_SUCCESS;
    }
 
+   ErrorCode HalfFacetRep::count_subentities(Range faces, Range cells, int *nedges, int *nfaces)
+   {
+     ErrorCode error;
+     if (!faces.size() && !cells.size())
+       {
+         nedges[0] = 0;
+         nfaces[0] = 0;
+       }
+     else if (faces.size() && !cells.size())
+       {
+         nedges[0] = find_total_edges_2d(faces);
+         nfaces[0] = 0;
+       }
+     else if (cells.size())
+       {
+         error = find_total_edges_faces_3d(cells, nedges, nfaces);
+         if (error != MB_SUCCESS) return error;
+       }
+   }
+
   /******************************************************** 
   * 1D: sibhvs, v2hv, incident and neighborhood queries   *
   *********************************************************/
@@ -1270,12 +1290,12 @@ namespace moab {
   }
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  ErrorCode HalfFacetRep::get_up_adjacencies_2d( EntityHandle fid,
+  ErrorCode HalfFacetRep::get_up_adjacencies_2d(EntityHandle fid,
                                                  int leid,
                                                  bool add_inent,
                                                  std::vector<EntityHandle> &fids,
                                                  bool local_id,
-                                                 std::vector<int> * leids)
+                                                 std::vector<int> * leids, bool orient, std::vector<int> *adj_orients)
   {
     // Given an implicit half-edge <fid, leid>, find the incident half-edges.
     ErrorCode error;
@@ -1315,6 +1335,11 @@ namespace moab {
       
       curfid = sib_fids[curlid];
       curlid = sib_lids[curlid];
+
+      if (orient)
+        {
+          //get connectivity and match their directions
+        }
     }
 
     return MB_SUCCESS;
@@ -1613,7 +1638,7 @@ namespace moab {
 	adj_fids.clear();
 	adj_lids.clear();
 
-	int id = nepf*(*f-firstF)+l;
+	int id = nepf*(faces.index(*f))+l;
 	if (!trackF[id])
 	  {
 	    error = get_up_adjacencies_2d(*f,l, false, adj_fids, true, &adj_lids);
@@ -1622,7 +1647,7 @@ namespace moab {
 	    total_edges -= adj_fids.size();
 
 	    for (int i = 0; i < (int)adj_fids.size(); i++)
-	      trackF[nepf*(adj_fids[i]-firstF)+adj_lids[i]] = true;
+	      trackF[nepf*(faces.index(adj_fids[i])+adj_lids[i]] = true;
 	  };
       };
    };
@@ -2068,7 +2093,9 @@ namespace moab {
                                                      int leid,
                                                      std::vector<EntityHandle> &adjents,
                                                      bool local_id,
-                                                     std::vector<int> * leids)
+                                                     std::vector<int> * leids,
+                                                     bool orient,
+                                                     std::vector<int> *adj_orients)
   {
     ErrorCode error;
 
@@ -2551,7 +2578,67 @@ namespace moab {
 
       return MB_SUCCESS;
   }
+  ////////////////////////////////////////////////////////////////////////////////////////////
+  ErrorCode HalfFacetRep::find_total_edges_faces_3d(Range cells, int *nedges, int *nfaces)
+  {
+    ErrorCode error;
+    int index = get_index_from_type(cells.begin());
+    int nepc = lConnMap3D[index].num_edges_in_cell;
+    int nfpc = lConnMap3D[index].num_faces_in_cell;
+    int ncells = cells.size();
+    int total_edges = nepc*ncells;
+    int total_faces = nfpc*ncells;
 
+    std::vector<int> trackE(total_edges, 0);
+    std::vector<int> trackF(total_faces,0);
+
+    std::vector<EntityHandle> inc_cids, sib_cids;
+    std::vector<int> inc_leids, sib_lfids;
+
+    for (Range::iterator it = cells.begin(); it != cells.end; it++)
+      {
+        //Count edges
+        for (int i=0; i<nepc; i++)
+          {
+            inc_cids.clear();
+            inc_leids.clear();
+
+            int id = nepc*(cells.index(*it))+i;
+            if (!trackE[id])
+              {
+                error = get_up_adjacencies_edg_3d(*it, i, inc_cids, true, inc_leids);
+                if (error != MB_SUCCESS) return error;
+
+                total_edges -= inc_cids.size() -1;
+                for (int j=0; j < (int)inc_cids.size(); j++)
+                  trackE[nepc*(cells.index(inc_cids[j]))+inc_leids[j]] = 1;
+              }
+          }
+
+        //Count faces
+        for (int i=0; i<nfpc; i++)
+          {
+            sib_cids.clear();
+            sib_lfids.clear();
+
+            int id = nfpc*(cells.index(*it))+i;
+            if (!trackF[id])
+              {
+                error = get_up_adjacencies_face_3d(*it, i, sib_cids, true, sib_lfids);
+                if (error != MB_SUCCESS) return error;
+
+                total_faces -= sib_cids.size() -1;
+                trackF[nfpc*(cells.index(sib_cids[0]))+sib_lfids[0]] = 1;
+              }
+          }
+      }
+
+    nedges[0] = total_edges;
+    nfaces[0] = total_faces;
+
+    delete [] trackE;
+    delete [] trackF;
+  }
 
   ///////////////////////////////////////////////////////////////////////////////////////////
   bool HalfFacetRep::find_match_in_array(EntityHandle ent, EntityHandle *ent_list, int count, bool get_index, int *index)
