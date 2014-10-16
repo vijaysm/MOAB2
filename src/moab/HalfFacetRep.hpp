@@ -64,7 +64,7 @@ class Core;
 class HalfFacetRep{
 
 public:
-    
+
     HalfFacetRep(Core *impl);
     
     ~HalfFacetRep();
@@ -245,7 +245,7 @@ public:
                                     bool add_inent,
                                     std::vector<EntityHandle> &adjents,
                                     bool local_id = false,
-                                    std::vector<int> * leids = NULL, bool orient = false, std::vector<int> *adj_orients = NULL);
+                                    std::vector<int>  *leids = NULL, bool orient = false, std::vector<int> *adj_orients = NULL);
 
     //! Given an edge, finds edge-connected neighbor face
     /** Given an face, it gathers all the neighbor faces of each local edge of the face.
@@ -410,7 +410,7 @@ public:
      * */
     ErrorCode find_total_edges_faces_3d(Range cells, int *nedges, int *nfaces);
 
-     ErrorCode count_subentities(Range faces, Range cells, int *nedges, int *nfaces);
+     ErrorCode count_subentities(Range edges, Range faces, Range cells, int *nedges, int *nfaces);
     
 
   protected:
