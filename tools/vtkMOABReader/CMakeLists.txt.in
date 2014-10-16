@@ -1,50 +1,42 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.2 FATAL_ERROR)
-SET(MOAB_DIR "@abs_builddir@/../.." CACHE PATH "MOAB base directory")
-if (MOAB_DIR)
-  INCLUDE_DIRECTORIES(${MOAB_DIR}/include @srcdir@)
-  LINK_DIRECTORIES(${MOAB_DIR}/lib)
-  LINK_LIBRARIES(MOAB)
 
-  FIND_PACKAGE (ParaView REQUIRED)
-  IF(ParaView_FOUND)
-    include (${PARAVIEW_USE_FILE})
-  ELSE(ParaView_FOUND)
-    message(FATAL_ERROR "Please set the path to ParaView build")
-  ENDIF(ParaView_FOUND)
-  
-  if(APPLE)
-    ADD_EXECUTABLE(TestMOABModelReader MACOSX_BUNDLE
-      TestMOABModelReader.cxx
-      vtkMOABReader.cxx)
-  else(APPLE)
-    ADD_EXECUTABLE(TestMOABModelReader
-      TestMOABModelReader.cxx
-      vtkMOABReader.cxx)
-  endif(APPLE)
-  
-  if(VTK_LIBRARIES)
-    SET(VTK_LIBS ${VTK_LIBRARIES})
-  else(VTK_LIBRARIES)
-    SET(VTK_LIBS
-      vtkHybrid
-      vtkRendering)
-  endif(VTK_LIBRARIES)
+project(vtkMoabReader)
 
-  ADD_PARAVIEW_PLUGIN(vtkMOABReader "4.0" 
-    SERVER_MANAGER_XML @srcdir@/vtkMOABReader.xml
-    SERVER_MANAGER_SOURCES @srcdir@/vtkMOABReader.cxx 
-    GUI_RESOURCE_FILES @srcdir@/vtkMOABReaderGUI.xml)
-  
-  FIND_LIBRARY(MOAB_LIBRARY MOAB)
-  if(MOAB_LIBRARY)
-    TARGET_LINK_LIBRARIES(TestMOABModelReader
-      ${VTK_LIBS}
-      ${MOAB_LIBRARY})
-    TARGET_LINK_LIBRARIES(vtkMOABReaderPlugin
-      ${VTK_LIBS}
-      ${MOAB_LIBRARY})
-  else(MOAB_LIBRARY)
-    MESSAGE(FATAL_ERROR "Please set the path to MOAB library")
-  endif(MOAB_LIBRARY)
+find_library(MOAB_LIBRARY MOAB REQUIRED)
 
-endif (MOAB_DIR)
+# Use MOAB_INCLUDE_DIRS to find all the required dependencies
+# to building the VTK plugin
+find_path(MOAB_INCLUDE_DIRS Core.hpp REQUIRED)
+include_directories(${MOAB_INCLUDE_DIRS})
+
+# Use the Paraview includes to build the plugin for right version
+find_package(ParaView REQUIRED)
+include(${PARAVIEW_USE_FILE})
+include_directories(${PARAVIEW_INCLUDE_DIRS})
+include_directories(@srcdir@)
+include_directories(@srcdir@/detail)
+
+set(headers
+  @srcdir@/CellSets.h
+  @srcdir@/DataSetConverter.h
+  @srcdir@/detail/CellTypeToType.h
+  @srcdir@/detail/ContinousCellInfo.h
+  @srcdir@/detail/LoadGeometry.h
+  @srcdir@/detail/MixedCellConnectivity.h
+  @srcdir@/detail/ReadSparseTag.h
+  @srcdir@/detail/ReduceSpectralMesh.h
+  @srcdir@/detail/ReduceSpectralMesh.h
+  @srcdir@/detail/UsageTable.h
+  @srcdir@/ExtractShell.h
+  @srcdir@/FaceSets.h
+  @srcdir@/SimpleMoab.h
+  )
+
+add_paraview_plugin(vtkMoabReaderPlugin "5.0"
+   SERVER_MANAGER_XML @srcdir@/vtkMoabReader.xml
+   SERVER_MANAGER_SOURCES @srcdir@/vtkMoabReader.cxx
+   SERVER_SOURCES ${headers}
+   GUI_RESOURCE_FILES @srcdir@/vtkMoabReaderGUI.xml)
+
+target_link_libraries(vtkMoabReaderPlugin
+                      ${MOAB_LIBRARY})

@@ -404,7 +404,7 @@ ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
 
   // Get a mesh from MOAB and diide it across processors.
 
-  ErrorCode result;
+  ErrorCode result = MB_SUCCESS;
   
     // short-circuit everything if RR partition is requested
   if (!strcmp(zmethod, "RR")) {
@@ -1120,7 +1120,7 @@ ErrorCode MBZoltan::partition_surface(const int nparts,
   bool b_stop = false;
   do {
     // get max and min load processors
-    int max_proc, min_proc;
+    int max_proc = nparts, min_proc = 0;
     double min_load = std::numeric_limits<double>::max();
     double max_load = std::numeric_limits<double>::min();
     for (i = 0; i < nparts; i++) {
@@ -1407,7 +1407,7 @@ ErrorCode MBZoltan::partition_child_entities(const int dim,
     // find the minimum load processor and put it
     // at the front of the shared_procs list
     if (s_proc.size() > 1) {
-      int min_proc;
+      int min_proc = 0;
       double min_load = std::numeric_limits<double>::max();
       std::set<int>::iterator iter = s_proc.begin();
       std::set<int>::iterator end_iter = s_proc.end();

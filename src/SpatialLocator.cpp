@@ -92,7 +92,7 @@ namespace moab
       spd.gPeriodic[0] = spd.gPeriodic[1] = spd.gPeriodic[2] = 0;
       double lg = log10((localBox.bMax - localBox.bMin).length());
       double mfactor = pow(10.0, 6 - lg);
-      int ldims[3], lper[3];
+      int ldims[6], lper[3];
       double dgijk[6];
       localBox.get(dgijk);
       for (int i = 0; i < 6; i++) spd.gDims[i] = dgijk[i] * mfactor;

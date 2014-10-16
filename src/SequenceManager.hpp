@@ -236,16 +236,16 @@ class SequenceManager
     const TypeSequenceManager& entity_map( EntityType type ) const
       { return typeData[type]; }
     
-    void get_memory_use( unsigned long& total_entity_storage,
-                         unsigned long& total_storage ) const;
+    void get_memory_use( unsigned long long& total_entity_storage,
+                         unsigned long long& total_storage ) const;
                          
     void get_memory_use( EntityType type,
-                         unsigned long& total_entity_storage,
-                         unsigned long& total_storage ) const;
+                         unsigned long long& total_entity_storage,
+                         unsigned long long& total_storage ) const;
     
     void get_memory_use( const Range& entities,
-                         unsigned long& total_entity_storage,
-                         unsigned long& total_amortized_storage ) const;
+                         unsigned long long& total_entity_storage,
+                         unsigned long long& total_amortized_storage ) const;
     
   
   

@@ -75,8 +75,8 @@ private:
   void append_memory_use( EntityHandle first,
                           EntityHandle last,
                           const SequenceData* data,
-                          unsigned long& entity_storage,
-                          unsigned long& total_storage ) const;
+                          unsigned long long& entity_storage,
+                          unsigned long long& total_storage ) const;
 
     // check if sequence at passed iterator should be merged with
     // the subsequent sequence, and if so merge them retaining i.
@@ -332,12 +332,12 @@ public:
      */
   ErrorCode notify_appended( iterator seq );
     
-  void get_memory_use( unsigned long& total_entity_storage,
-                       unsigned long& total_storage ) const;
+  void get_memory_use( unsigned long long& total_entity_storage,
+                       unsigned long long& total_storage ) const;
   
   void get_memory_use( EntityHandle start, EntityHandle end,
-                       unsigned long& total_entity_storage,
-                       unsigned long& total_amortized_storage ) const;
+                       unsigned long long& total_entity_storage,
+                       unsigned long long& total_amortized_storage ) const;
                        
   unsigned long get_sequence_count() const
     { return sequenceSet.size(); }

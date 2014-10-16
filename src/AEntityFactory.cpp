@@ -1473,8 +1473,8 @@ ErrorCode AEntityFactory::set_adjacency_ptr( EntityHandle entity,
 }
 
   
-void AEntityFactory::get_memory_use( unsigned long& entity_total,
-                                     unsigned long& memory_total )
+void AEntityFactory::get_memory_use( unsigned long long& entity_total,
+                                     unsigned long long& memory_total )
 {
   entity_total = memory_total = 0;
 
@@ -1506,8 +1506,8 @@ void AEntityFactory::get_memory_use( unsigned long& entity_total,
   
     
 ErrorCode AEntityFactory::get_memory_use( const Range& ents_in,
-                                       unsigned long& min_per_ent,
-                                       unsigned long& amortized )
+                                       unsigned long long& min_per_ent,
+                                       unsigned long long& amortized )
 {
   min_per_ent = amortized = 0;
   SequenceData* prev_data = 0;

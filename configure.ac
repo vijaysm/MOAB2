@@ -1,9 +1,10 @@
 ################################################################################
 #                           Standard Stuff
 ################################################################################
-AC_INIT(MOAB, 4.7.0pre)
+AC_INIT(MOAB, 4.7.1pre)
 AC_CONFIG_SRCDIR([moab.make.in])
 AC_CONFIG_SRCDIR([MOABConfig.cmake.in])
+AC_CONFIG_SRCDIR([examples/makefile.in])
 AC_CONFIG_MACRO_DIR([config])
 AC_CONFIG_AUX_DIR([config])
 AC_CANONICAL_SYSTEM
@@ -27,7 +28,6 @@ EXTRA_INTEL_FLAGS='-Wall'
 FATHOM_CHECK_COMPILERS([yes],[yes],[$ENABLE_FORTRAN])
 AM_CONDITIONAL(PARALLEL,[test "x$WITH_MPI" != "xno"])
 AM_CONDITIONAL(ENABLE_FORTRAN,[test "x$ENABLE_FORTRAN" != "xno"])
-LIBS="$LIBS -lm"
 
 AC_PROG_LN_S
 AC_PROG_MAKE_SET
@@ -69,7 +69,7 @@ if test "xyes" = "x$ENABLE_FORTRAN" && test "x" != "x$FC"; then
 fi
 
 ################################################################################
-#                           Check for need for extra flags to support cray pointers
+#            Check for need for extra flags to support cray pointers
 ################################################################################
 if test "xyes" = "x$ENABLE_FORTRAN" && test "x" != "x$F77"; then
   PAC_PROG_F77_CRAY_POINTER([
@@ -106,7 +106,6 @@ AC_ARG_ENABLE([old-headers],
      [Do not install no-namespace headers for compatability with MOAB 3.0 API])],
  [OLD_HEADERS=$enableval],[OLD_HEADERS=yes])
 AM_CONDITIONAL([OLD_HEADERS],[test "xyes" = "x$OLD_HEADERS"])
-
 
 ################################################################################
 #                              HANDLE SIZE
@@ -157,6 +156,33 @@ if test "x$SIZEOF_MBENTITYHANDLE" = "x0"; then
     fi]
   )
 fi
+
+### Checks for other standard libraries.
+AC_CHECK_LIB(pthread, pthread_create,
+  [ CPPFLAGS="$CPPFLAGS -D_REENTRANT -D_POSIX_PTHREAD_SEMANTICS"
+    LIBS="$LIBS -lpthread" ],
+  AC_CHECK_LIB(c_r, pthread_create,
+    [ CPPFLAGS="$CPPFLAGS -D_THREAD_SAFE"
+      LIBS="$LIBS -pthread"],
+    AC_MSG_ERROR([POSIX threads not found.])
+  )
+)
+AC_CHECK_LIB(z, compress, LIBS="$LIBS -lz")
+AC_CHECK_LIB(dl, dlopen, LIBS="$LIBS -ldl")
+AC_CHECK_LIB(m, pow, LIBS="$LIBS -lm")
+
+# check how to link against C++ runtime for fortran programs especially
+AC_LANG_PUSH([Fortran])
+my_save_cflags="$LDFLAGS"
+LDFLAGS=-cxxlib
+AC_MSG_CHECKING([whether $FC supports -cxxlib])
+AC_LINK_IFELSE([AC_LANG_PROGRAM([])],
+    [AC_MSG_RESULT([yes])]
+    [FFLAGS="$FFLAGS -cxxlib",FCFLAGS="$FCFLAGS -cxxlib"],
+    [AC_MSG_RESULT([no])]
+)
+LDFLAGS="$my_save_cflags"
+AC_LANG_POP([Fortran])
 
 
 ################################################################################
@@ -591,7 +617,7 @@ AC_ARG_WITH([vtk],
   ],[WITH_VTK=])
 
 VTKMOAB_DEFAULT=no
-if test "x$WITH_VTK" != "xno" -a "x$WITH_VTK" != "x"; then
+if (test "x$WITH_VTK" != "xno" && test "x$WITH_VTK" != "x"); then
   VTKMOAB_DEFAULT=yes
 fi
   
@@ -617,7 +643,7 @@ AC_ARG_WITH( [vtk-lib-suffix],
 #                           Optional Tools
 ###############################################################################
   # Define a macro to avoid typing this for each individual tool
-  # Usage: MB_OPTIONAL_TOOL( name, default )
+  # Usage: MB_OPTIONAL_TOOL( name, default, default_if_tools_enabled )
   #  name      - name of option
   #  default   - yes/no, $ENABLE_TOOLS overrides this if set
   # Actions:
@@ -625,8 +651,9 @@ AC_ARG_WITH( [vtk-lib-suffix],
   #  creates ENABLE_${tool} automake conditional
 AC_DEFUN([MB_OPTIONAL_TOOL],[
   mb_default_$1=$2
+
   if test "x" != "x$ENABLE_TOOLS"; then
-    mb_default_$1="$ENABLE_TOOLS"
+    mb_default_$1=$3
   fi
   AC_ARG_ENABLE( [$1],
 [AC_HELP_STRING([--enable-$1],[Build tool: $1])
@@ -644,44 +671,41 @@ AC_HELP_STRING([--enable-tools],[Build all tools by default])
 AC_HELP_STRING([--disable-tools],[Disable all tools by default])],
                          [ENABLE_TOOLS=$enableval],[ENABLE_TOOLS=] )
   # Individual tools
-MB_OPTIONAL_TOOL([mbconvert],    [yes])
-MB_OPTIONAL_TOOL([hexmodops],    [yes])
-MB_OPTIONAL_TOOL([qvdual],       [no] )
-MB_OPTIONAL_TOOL([vtkMOABReader],[${VTKMOAB_DEFAULT}] )
-MB_OPTIONAL_TOOL([vtkMOABReaderNew],[${VTKMOAB_DEFAULT}] )
-MB_OPTIONAL_TOOL([mbsize],       [yes])
-MB_OPTIONAL_TOOL([mbskin],       [yes])
-MB_OPTIONAL_TOOL([mbtagprop],    [yes])
-MB_OPTIONAL_TOOL([mbmem],        [yes])
-MB_OPTIONAL_TOOL([mcnpmit],      [no])
-MB_OPTIONAL_TOOL([mbcoupler],    [$ENABLE_mcnpmit] )
-MB_OPTIONAL_TOOL([spheredecomp], [yes])
-MB_OPTIONAL_TOOL([mbsurfplot],   [yes])
-MB_OPTIONAL_TOOL([mbzoltan],     [${WITH_ZOLTAN}] )
-MB_OPTIONAL_TOOL([dagmc],        [yes])
-MB_OPTIONAL_TOOL([gsets],        [yes])
-MB_OPTIONAL_TOOL([mbdepth],      [yes])
-MB_OPTIONAL_TOOL([refiner],      [no])
-MB_OPTIONAL_TOOL([h5mtools],     [yes])
-MB_OPTIONAL_TOOL([mbcslam],      [no])
+MB_OPTIONAL_TOOL([mbconvert],    [yes], [yes])
+MB_OPTIONAL_TOOL([hexmodops],    [yes], [yes])
+MB_OPTIONAL_TOOL([qvdual],       [no], [no])
+MB_OPTIONAL_TOOL([vtkMOABReader],[${VTKMOAB_DEFAULT}], [${VTKMOAB_DEFAULT}])
+MB_OPTIONAL_TOOL([mbsize],       [yes], [yes])
+MB_OPTIONAL_TOOL([mbskin],       [yes], [yes])
+MB_OPTIONAL_TOOL([mbtagprop],    [yes], [yes])
+MB_OPTIONAL_TOOL([mbmem],        [yes], [yes])
+MB_OPTIONAL_TOOL([spheredecomp], [yes], [yes])
+MB_OPTIONAL_TOOL([mbsurfplot],   [yes], [yes])
+MB_OPTIONAL_TOOL([mbzoltan],     [${WITH_ZOLTAN}], [${WITH_ZOLTAN}] )
+MB_OPTIONAL_TOOL([dagmc],        [no], [yes])
+MB_OPTIONAL_TOOL([gsets],        [yes], [yes])
+MB_OPTIONAL_TOOL([mbdepth],      [yes], [yes])
+if test "x$WITH_MPI" != "xno"; then
+  MB_OPTIONAL_TOOL([mbcoupler],    [no], [yes] )
+  MB_OPTIONAL_TOOL([mcnpmit],      [no], [yes])
+  MB_OPTIONAL_TOOL([refiner],      [no], [yes])
+else
+  AS_ECHO("Disabling mbcoupler and refiner since these tools require MPI/parallel configuration")
+  MB_OPTIONAL_TOOL([mbcoupler],    [no], [no] )
+  MB_OPTIONAL_TOOL([mcnpmit],      [no], [no])
+  MB_OPTIONAL_TOOL([refiner],      [no], [no])
+fi
+MB_OPTIONAL_TOOL([h5mtools],     [${HAVE_HDF5}], [${HAVE_HDF5}])
+MB_OPTIONAL_TOOL([mbcslam],      [no], [yes])
+MB_OPTIONAL_TOOL([ahf],          [no], [no])
 
-if test "xyes" = "x$ENABLE_refiner"; then
-  if test "xyes" != "x$WITH_MPI"; then
-    AC_MSG_ERROR([refiner requires MPI/parallel configuration])
-  fi
+if test "xyes" = "x$ENABLE_ahf"; then
+  AM_CPPFLAGS="$AM_CPPFLAGS -DUSE_AHF"
 fi
 
 if test "xyes" = "x$ENABLE_vtkMOABReader"; then
   if test "xno" == "x$WITH_VTK"; then
     AC_MSG_ERROR([vtkMOABReader requires VTK])
-  elif test "x" == "x$WITH_VTK"; then 
-    WITH_VTK=yes
-  fi
-fi
-
-if test "xyes" = "x$ENABLE_vtkMOABReaderNew"; then
-  if test "xno" == "x$WITH_VTK"; then
-    AC_MSG_ERROR([vtkMOABReaderNew requires VTK])
   elif test "x" == "x$WITH_VTK"; then 
     WITH_VTK=yes
   fi
@@ -816,8 +840,7 @@ AC_DEFUN([FATHOM_MERGE_LISTS],[
   $1="${$1} $2"
 ])
 
-if test "xno" != "x$WITH_VTK" -a "x" != "x$WITH_VTK"; then
-
+if  (test "x$WITH_VTK" != "xno" && test "x$WITH_VTK" != "x"); then
   AC_PATH_X
   AC_PATH_XTRA
   if test "xyes" = "x$no_x"; then
@@ -1203,6 +1226,14 @@ if test "x" = "x$docdir"; then
   AC_SUBST(docdir)
 fi
 
+# Let us define examplesdir. 
+# Define it if autoconf did not already.
+if test "x" = "x$examplesdir"; then
+  examplesdir='${datadir}/examples'
+  AC_SUBST(examplesdir)
+fi
+
+
 AC_SUBST([AM_CPPFLAGS])
 AM_LDFLAGS="$AM_LDFLAGS $EXPORT_LTFLAGS $EXPORT_LDFLAGS"
 AC_SUBST([AM_LDFLAGS])
@@ -1221,15 +1252,16 @@ AC_CONFIG_HEADERS([src/moab/Version.h
                    src/FCDefs.h])
 AC_CONFIG_FILES([Makefile 
                  moab.make                  
-		 MOABConfig.cmake
+                 MOABConfig.cmake
+                 examples/makefile
                  src/Makefile
                  src/io/Makefile
                  src/io/mhdf/Makefile
-		 src/LocalDiscretization/Makefile
+                 src/LocalDiscretization/Makefile
                  src/parallel/Makefile
                  src/oldinc/Makefile
                  test/Makefile
-		 test/dagmc/Makefile
+                 test/dagmc/Makefile
                  test/h5file/Makefile
                  test/dual/Makefile
                  test/obb/Makefile
@@ -1238,11 +1270,11 @@ AC_CONFIG_FILES([Makefile
                  test/io/Makefile
                  test/parallel/Makefile
                  test/oldinc/Makefile
-		 itaps/iBase_f.h
+                 itaps/iBase_f.h
                  itaps/Makefile
                  itaps/imesh/Makefile
                  itaps/imesh/iMesh-Defs.inc
-		 itaps/igeom/Makefile
+                 itaps/igeom/Makefile
                  itaps/igeom/FBiGeom-Defs.inc
                  tools/Makefile
                  tools/refiner/Makefile
@@ -1253,9 +1285,7 @@ AC_CONFIG_FILES([Makefile
                  tools/mcnpmit/Makefile
                  tools/qvdual/Makefile
                  tools/dagmc/Makefile
-		 tools/vtkMOABReader/CMakeLists.txt
-		 tools/vtkMOABReaderNew/CMakeLists.txt
-                 doc/Makefile
+                 tools/vtkMOABReader/CMakeLists.txt
                  doc/user.dox
                  doc/config.tex
                  MeshFiles/Makefile
@@ -1263,6 +1293,8 @@ AC_CONFIG_FILES([Makefile
                  MeshFiles/unittest/io/Makefile
                  MeshFiles/unittest/iGeom/Makefile
                  MeshFiles/unittest/dagmc/Makefile
+                 MeshFiles/unittest/mbcslam/Makefile
+                 MeshFiles/unittest/h5file/Makefile
                  ])
 AC_CONFIG_COMMANDS([src/MOAB_FCDefs.h],
   [sed -e "s/FC_FUNC/MOAB_FC_FUNC/" src/FCDefs.h >src/MOAB_FCDefs.h])
@@ -1339,4 +1371,28 @@ if test "x$WARN_PARALLEL_HDF5_NO_COMPLEX" = "xyes"; then
 *     significant impact on IO performance.
 *************************************************************************])
 fi
+
+################################################################################
+#                             AHF OPTIONS
+################################################################################
+#AC_ARG_ENABLE([ahf],
+#[AC_HELP_STRING([--enable-ahf],[use the half facet representation])],
+#[ case "${enableval}" in 
+#	yes) ahf1=true ;;
+#        no) ahf1=false ;;
+#	*) AC_MSG_ERROR([bad value]) ;; 
+#esac],[ahf1=false])	
+ #ENABLE_AHF=$enableval],[ENABLE_AHF=no] )
+
+#if test "x$ENABLE_AHF" = "xyes"; then
+#   AM_CPPFLAGS="$AM_CPPFLAGS -DUSE_AHF"
+#fi
+#AM_CONDITIONAL([ENABLE_AHF],[test x$ahf1 = xtrue])
+#AC_SUBST(ENABLE_AHF)
+
+
+#test "xyes" != "x$WITH_AHF" || AM_CPPFLAGS="$AM_CPPFLAGS -DUSE_AHF"
+#AM_CONDITIONAL(USE_AHF, [test "xno" != "x$WITH_AHF"])
+
+
 

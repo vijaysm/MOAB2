@@ -142,7 +142,7 @@ const EntityType elem_types[] = { MBTRI,
                                     MBPRISM,
                                     MBHEX,
                                     MBMAXTYPE };
-const int num_elem_types = sizeof(elem_types)/sizeof(elem_types[0]) - 1;
+// const int num_elem_types = sizeof(elem_types)/sizeof(elem_types[0]) - 1;
 
 void test_dimension_pair()
 {

@@ -224,7 +224,7 @@ bool SimplexTemplateRefiner::refine_1_simplex(
   const double* v0, const void* t0, EntityHandle h0,
   const double* v1, const void* t1, EntityHandle h1 )
 {
-  bool edge_code = false;
+  int edge_code = 0;
 
   double* midptc;
   void* midptt;
@@ -243,9 +243,9 @@ bool SimplexTemplateRefiner::refine_1_simplex(
       midptc[i] = ( v0[i] + v1[i] ) / 2.;
 
     (*this->tag_assigner)( v0, t0, h0, midptc, midptt, v1, t1, h1 );
-    edge_code = this->edge_size_evaluator->evaluate_edge( v0, t0, midptc, midptt, v1, t1 );
-    if ( edge_code )
+    if (this->edge_size_evaluator->evaluate_edge( v0, t0, midptc, midptt, v1, t1 ))
       {
+      edge_code = 1;
       midpth = (*this->output_functor)( h0, h1, midptc, midptt );
       }
     }
@@ -266,7 +266,7 @@ bool SimplexTemplateRefiner::refine_1_simplex(
     break;
     }
 
-  return edge_code;
+  return (0 == edge_code) ? false : true;
 }
 
 /**\brief Refine a triangle.
@@ -285,9 +285,9 @@ bool SimplexTemplateRefiner::refine_2_simplex(
   void* midpt0t;
   void* midpt1t;
   void* midpt2t;
-  EntityHandle midpt0h;
-  EntityHandle midpt1h;
-  EntityHandle midpt2h;
+  EntityHandle midpt0h = 0;
+  EntityHandle midpt1h = 0;
+  EntityHandle midpt2h = 0;
 
   if ( max_depth-- > 0 )
     {
@@ -429,12 +429,12 @@ bool SimplexTemplateRefiner::refine_3_simplex(
   void* midpt4t;
   void* midpt5t;
 
-  EntityHandle midpt0h;
-  EntityHandle midpt1h;
-  EntityHandle midpt2h;
-  EntityHandle midpt3h;
-  EntityHandle midpt4h;
-  EntityHandle midpt5h;
+  EntityHandle midpt0h = 0;
+  EntityHandle midpt1h = 0;
+  EntityHandle midpt2h = 0;
+  EntityHandle midpt3h = 0;
+  EntityHandle midpt4h = 0;
+  EntityHandle midpt5h = 0;
 
   if ( max_depth-- > 0 )
     {
@@ -522,7 +522,7 @@ bool SimplexTemplateRefiner::refine_3_simplex(
     edge_length2[5] += tmp * tmp;
     }
 
-  if ( ! edge_code )
+  if ( 0 == edge_code )
     {
     // No edges to subdivide
     (*this->output_functor)( h0 );

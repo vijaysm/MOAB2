@@ -40,7 +40,12 @@ void read_file( Interface* moab, const char* input_file );
 int geom_id_by_handle( Interface* moab, const EntityHandle set );
 
 //Function for checking retrieved group data
-void check_group_data( std::vector<int> & group_ids, std::vector<std::string> & group_names, std::vector<int> & group_ent_ids );
+void check_group_data( std::vector<int> & group_ids, std::vector<std::string> & group_names,
+#ifdef HAVE_OCC_STEP
+                      std::vector<int> & );
+#else
+                      std::vector<int> & group_ent_ids );
+#endif
 
 //Function for loading all reference data
 void load_group_references( std::vector<int>& ids, std::vector<std::string>& names, std::vector<int>& ent_ids);
@@ -129,15 +134,13 @@ void read_cylcube_groups_test()
   check_group_data( g_ids, g_names, g_ent_ids );
 }
 
-void check_group_data(std::vector<int> & group_ids, std::vector<std::string> & group_names, std::vector<int> &
+void check_group_data(std::vector<int>& group_ids, std::vector<std::string>& group_names,
 #ifdef HAVE_OCC_STEP
-  /* group_ent_ids */
+                      std::vector<int>& /*group_ent_ids*/ )
 #else
-     group_ent_ids
+                      std::vector<int>& group_ent_ids )
 #endif
-)
 {
-
   // Step files do not contain group data, MOAB shouldn't return errors when trying to access
   // this data but there shouldn't be any found.
 #ifdef HAVE_OCC_STEP

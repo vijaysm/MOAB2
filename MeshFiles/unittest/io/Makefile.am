@@ -30,5 +30,6 @@ EXTRA_DIST = HommeMapping.nc \
              cube.stp \
              cylcube.sat \
              cylcube.stp \
+             poly8-10.vtk \
              gcrm_r3.nc
 

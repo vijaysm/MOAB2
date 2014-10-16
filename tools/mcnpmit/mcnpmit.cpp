@@ -8,9 +8,9 @@
 moab::Interface* mb_instance();
 
 // Parameters
-const double pi   = 3.141592653589793;
+//const double pi   = 3.141592653589793;
 const double c2pi = 0.1591549430918954;
-const double cpi  = 0.3183098861837907;
+//const double cpi  = 0.3183098861837907;
 
 MCNPError next_number(std::string, double&, int&);
 int how_many_numbers(std::string);
@@ -425,10 +425,10 @@ MCNPError McnpData::transform_point(double *p, double *r, int csys, double *rmat
         break;
         case SPHERICAL :
           return MCNP_FAILURE;
-        break;
+        //break;
         default :
           return MCNP_FAILURE;
-        break;
+        //break;
       }
 
       return MCNP_SUCCESS;

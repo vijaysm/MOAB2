@@ -900,8 +900,8 @@ unsigned Range::num_of_type( EntityType type ) const
     if (start_type > type)
       break;
    
-    int sid = start_type < type ? 1 : ID_FROM_HANDLE((*iter).first);
-    int eid = end_type > type ? MB_END_ID : ID_FROM_HANDLE((*iter).second);
+    EntityID sid = start_type < type ? 1 : ID_FROM_HANDLE((*iter).first);
+    EntityID eid = end_type > type ? MB_END_ID : ID_FROM_HANDLE((*iter).second);
     count += eid - sid + 1;
   }
 

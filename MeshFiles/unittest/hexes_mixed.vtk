@@ -1,0 +1,45 @@
+# vtk DataFile Version 3.0
+This file was written using writevtk_unstr.m
+ASCII
+DATASET UNSTRUCTURED_GRID
+POINTS 18 double
+0 -1 0
+0 1 0
+1 -1 0
+1 1 0
+-1 1 0
+-1 -1 0
+0 -1 1
+0 1 1
+1 -1 1
+1 1 1
+-1 1 1
+-1 -1 1
+0 -1 -1
+0 1 -1
+1 -1 -1 
+1 1 -1
+-1 1 -1
+-1 -1 -1
+
+CELLS 9 59
+2 0 1
+4 0 1 7 6
+4 0 2 3 1
+4 0 12 13 1
+4 0 1 4 5
+8 0 2 3 1 6 8 9 7
+8 5 0 1 4 11 6 7 10
+8 12 14 15 13 0 2 3 1
+8 17 12 13 16 5 0 1 4
+
+CELL_TYPES 9
+3
+9
+9
+9
+9
+12
+12
+12
+12

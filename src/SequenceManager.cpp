@@ -767,13 +767,13 @@ SequenceManager::replace_subsequence( EntitySequence* new_seq )
   return typeData[type].replace_subsequence( new_seq, &tagSizes[0], tagSizes.size() );
 }
 
-void SequenceManager::get_memory_use( unsigned long& total_entity_storage,
-                                      unsigned long& total_storage ) const
+void SequenceManager::get_memory_use( unsigned long long& total_entity_storage,
+                                      unsigned long long& total_storage ) const
 
 {
   total_entity_storage = 0;
   total_storage = 0;
-  unsigned long temp_entity, temp_total;
+  unsigned long long temp_entity, temp_total;
   for (EntityType i = MBVERTEX; i < MBMAXTYPE; ++i) {
     temp_entity = temp_total = 0;
     get_memory_use( i, temp_entity, temp_total );
@@ -783,19 +783,19 @@ void SequenceManager::get_memory_use( unsigned long& total_entity_storage,
 }
 
 void SequenceManager::get_memory_use( EntityType type,
-                                      unsigned long& total_entity_storage,
-                                      unsigned long& total_storage ) const
+                                      unsigned long long& total_entity_storage,
+                                      unsigned long long& total_storage ) const
 {
   typeData[type].get_memory_use( total_entity_storage, total_storage );
 }
 
 void SequenceManager::get_memory_use( const Range& entities,
-                                      unsigned long& total_entity_storage,
-                                      unsigned long& total_amortized_storage ) const
+                                      unsigned long long& total_entity_storage,
+                                      unsigned long long& total_amortized_storage ) const
 {
   total_entity_storage = 0;
   total_amortized_storage = 0;
-  unsigned long temp_entity, temp_total;
+  unsigned long long temp_entity, temp_total;
   Range::const_pair_iterator i;
   for (i = entities.const_pair_begin(); i != entities.const_pair_end(); ++i) {
     const EntityType t1 = TYPE_FROM_HANDLE(i->first);
