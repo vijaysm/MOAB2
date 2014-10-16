@@ -131,6 +131,8 @@ ErrorCode test_reduce_tags( const char* );
 ErrorCode test_reduce_tag_failures( const char* );
 // Test reduce_tags with explicit destination tag
 ErrorCode test_reduce_tag_explicit_dest(const char *);
+// Test delete_entities
+ErrorCode test_delete_entities(const char *);
 
 
 /**************************************************************************
@@ -183,12 +185,18 @@ int main( int argc, char* argv[] )
   }
 
   if (!filename) {
-#ifdef SRCDIR
+#ifdef MESHDIR
     filename = STRINGIFY(MESHDIR) "/64bricks_512hex.h5m";
 #else
     filename = "64bricks_512hex.h5m";
 #endif
   }
+
+#ifdef MESHDIR
+  const char* filename2 = STRINGIFY(MESHDIR) "/64bricks_1khex.h5m";
+#else
+  const char * filename2 = "64bricks_1khex.h5m";
+#endif
 
   if (pause_proc != -1) {
 #if !defined(_MSC_VER) && !defined(__MINGW32__)
@@ -225,6 +233,7 @@ int main( int argc, char* argv[] )
   num_errors += RUN_TEST( test_reduce_tags, 0);
   num_errors += RUN_TEST( test_reduce_tag_failures, 0);
   num_errors += RUN_TEST( test_reduce_tag_explicit_dest, 0);
+  num_errors += RUN_TEST( test_delete_entities, filename2);
   
   if (rank == 0) {
     if (!num_errors) 
@@ -398,7 +407,7 @@ ErrorCode test_elements_on_several_procs( const char* filename )
   Interface& moab = mb_instance;
   ErrorCode rval;
   const char* geom_names[] = { "vertex", "curve", "surface", "volume", "unknown" };
-  
+
   rval = moab.load_file( filename, 0, 
                          "PARALLEL=READ_DELETE;"
                          "PARTITION=GEOM_DIMENSION;PARTITION_VAL=3;"
@@ -1625,6 +1634,47 @@ ErrorCode test_reduce_tag_explicit_dest(const char *)
   rval = mb.tag_delete(src_tag); CHKERR(rval);
   rval = mb.tag_delete(dest_tag); CHKERR(rval);
   
+  return MB_SUCCESS;
+}
+
+
+ErrorCode test_delete_entities( const char* filename )
+{
+  Core mb_instance;
+  Interface& moab = mb_instance;
+  ErrorCode rval;
+
+  rval = moab.load_file( filename, 0,
+                         "PARALLEL=READ_PART;"
+                         "PARTITION=PARALLEL_PARTITION;"
+                         "PARALLEL_RESOLVE_SHARED_ENTS" );
+  CHKERR(rval);
+
+    // Get ghost elements
+  ParallelComm* pcomm = ParallelComm::get_pcomm(&moab, 0);
+  // get some edges and faces, and delete some
+  Range local;
+  rval = moab.get_entities_by_dimension( 0, 1, local ); CHKERR(rval);
+  rval = moab.get_entities_by_dimension( 0, 2, local ); CHKERR(rval); // it is appending to range
+
+  Range local2; // extract about half of those
+  std::copy(local.begin(), local.begin()+local.size()/2, range_inserter(local2));
+
+  // delete local 2
+  rval = pcomm->delete_entities(local2);
+  CHKERR(rval);
+
+  for (Range::iterator it=local2.begin(); it!=local2.end(); it++)
+  {
+    if (mb_instance.is_valid(*it))
+      return MB_FAILURE;
+  }
+  const char* opt = "PARALLEL=WRITE_PART";
+  rval = moab.write_file("tmpx.h5m", 0, opt);
+  CHKERR(rval);
+  if (pcomm->proc_config().proc_rank()==0)
+    remove( "tmpx.h5m" );
+
   return MB_SUCCESS;
 }
 

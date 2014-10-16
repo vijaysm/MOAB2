@@ -31,18 +31,18 @@ if USE_MPIEXEC
 endif
 
 TESTS = pcomm_unit \
-        parallel_unit_tests \
-        uber_parallel_test \
         scdtest \
         pcomm_serial \
 	par_spatial_locator_test \
         $(NETCDF_TESTS) \
         $(HDF5_TESTS) \
         $(COUPLER_TESTS) \
-        $(MBCSLAM_TESTS)
+        $(MBCSLAM_TESTS) 
 
 if PARALLEL_HDF5
-  HDF5_TESTS = parallel_hdf5_test mhdf_parallel parallel_write_test
+  HDF5_TESTS = parallel_hdf5_test mhdf_parallel parallel_write_test \
+        parallel_unit_tests \
+        uber_parallel_test parallel_adj
 else
   HDF5_TESTS = 
 endif
@@ -61,19 +61,31 @@ else
 endif
 endif
 
+
 if ENABLE_mbcoupler
+if PARALLEL_HDF5
   COUPLER_TESTS = par_coupler_test
+else
+  COUPLER_TESTS = 
+endif 
 else
   COUPLER_TESTS = 
 endif
 
 if ENABLE_mbcslam
+if PARALLEL_HDF5
   MBCSLAM_TESTS = par_intx_sph 
+else
+  MBCSLAM_TESTS =
+endif
 else
   MBCSLAM_TESTS = 
 endif
 
-check_PROGRAMS = $(TESTS) mbparallelcomm_test partcheck structured3 parmerge
+check_PROGRAMS = $(TESTS) mbparallelcomm_test partcheck structured3 
+if PARALLEL_HDF5
+  check_PROGRAMS += parmerge
+endif
 
 pcomm_unit_SOURCES = pcomm_unit.cpp
 parallel_hdf5_test_SOURCES = parallel_hdf5_test.cc
@@ -95,6 +107,7 @@ mpastrvpart_SOURCES = mpastrvpart.cpp
 gcrm_par_SOURCES = gcrm_par.cpp
 write_nc_par_SOURCES = ../io/write_nc.cpp
 par_spatial_locator_test_SOURCES = par_spatial_locator_test.cpp
+parallel_adj_SOURCES = ../adj_moab_test.cpp
 
 if ENABLE_mbcoupler
   par_coupler_test_SOURCES = par_coupler_test.cpp

@@ -13,17 +13,17 @@ using namespace std;
 using namespace moab;
 
 // Number of cells in each direction:
-const int NC = 2;
+// const int NC = 2;
 
 const int NI = 2;
 const int NJ = 2;
 const int NK = 1;
 
 // Number of processes:
-const int NPROCS = 4;
+// const int NPROCS = 4;
 
 // Domain size:
-const double DSIZE = 10.0;
+// const double DSIZE = 10.0;
 
 // MOAB objects:
 Interface *mbint = NULL;

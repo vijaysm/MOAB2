@@ -1,6 +1,9 @@
-SUBDIRS = . io dual obb perf dagmc
+SUBDIRS = . io dual obb perf
 if HDF5_FILE
   SUBDIRS += h5file
+endif
+if ENABLE_dagmc
+  SUBDIRS += dagmc
 endif
 if PARALLEL
   SUBDIRS += parallel
@@ -15,7 +18,7 @@ MESHDIR = $(top_srcdir)/MeshFiles/unittest
 
 AM_CPPFLAGS += -DIS_BUILDING_MB \
                -DSRCDIR=$(srcdir) \
-		-DMESHDIR=$(MESHDIR) \
+               -DMESHDIR=$(MESHDIR) \
                -I$(top_builddir)/src \
                -I$(top_srcdir)/src  \
                -I$(top_srcdir)/src/LocalDiscretization
@@ -48,7 +51,8 @@ TESTS = range_test \
 	coords_connect_iterate \
 	elem_eval_test \
 	spatial_locator_test \
-	test_boundbox 
+	test_boundbox \
+	adj_moab_test 
 
 
 if HDF5_FILE
@@ -59,6 +63,7 @@ if HDF5_FILE
         mbground_test \
         lloyd_smoother_test
 endif
+
 
 #                 merge_test \         # input files no longer exist?
 #                 test_tag_server \    # fails
@@ -150,6 +155,9 @@ coords_connect_iterate_CPPFLAGS = $(AM_CPPFLAGS) $(CPPFLAGS)
 
 test_boundbox_SOURCES = test_boundbox.cpp
 lloyd_smoother_test_SOURCES = lloyd_smoother_test.cpp
+
+adj_moab_test_SOURCES = adj_moab_test.cpp
+
 
 if PARALLEL
 moab_test_CPPFLAGS += -I$(top_srcdir)/src/parallel

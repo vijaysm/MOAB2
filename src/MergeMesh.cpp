@@ -14,6 +14,8 @@
 #include <iostream>
 #include <iomanip>
 
+#include <stdlib.h>
+
 namespace moab {
 
 ErrorCode MergeMesh::merge_entities(EntityHandle *elems,
@@ -139,7 +141,81 @@ ErrorCode MergeMesh::perform_merge(Tag merge_tag)
   result = mbImpl->delete_entities(deadEnts);
   return result;
 }
+// merge vertices according to an input tag
+// merge them if the tags are equal
+struct handle_id
+{
+  EntityHandle eh;
+  int val;
+};
 
+// handle structure comparison function for qsort
+// if the id is the same , compare the handle.
+int compare_handle_id(const void * a, const void * b) {
+
+  handle_id * ia = (handle_id*) a;
+  handle_id * ib = (handle_id*) b;
+  if(ia->val == ib->val) {
+    return (ia->eh<ib->eh)? -1 : 1;
+  } else {
+    return (ia->val - ib->val);
+  }
+}
+
+ErrorCode MergeMesh::merge_using_integer_tag(Range & verts, Tag user_tag, Tag merge_tag)
+{
+  ErrorCode rval;
+  DataType tag_type;
+  rval = mbImpl->tag_get_data_type(user_tag, tag_type);
+  if (rval!=MB_SUCCESS || tag_type!=MB_TYPE_INTEGER)
+    return MB_FAILURE;
+
+  std::vector<int> vals(verts.size());
+  rval = mbImpl->tag_get_data(user_tag, verts, &vals[0]);
+  if (rval!=MB_SUCCESS)
+    return rval;
+
+  if (0 == merge_tag)
+  {
+    EntityHandle def_val = 0;
+    rval = mbImpl->tag_get_handle("__merge_tag", 1, MB_TYPE_HANDLE, mbMergeTag,
+        MB_TAG_DENSE | MB_TAG_EXCL, &def_val);
+    if (MB_SUCCESS != rval)
+      return rval;
+  }
+  else
+    mbMergeTag = merge_tag;
+
+  std::vector<handle_id>  handles(verts.size());
+  int i=0;
+  for (Range::iterator vit = verts.begin(); vit!= verts.end(); vit++ )
+  {
+    handles[i].eh=*vit;
+    handles[i].val = vals[i];
+    i++;
+  }
+  //std::sort(handles.begin(), handles.end(), compare_handle_id);
+  qsort(&handles[0], handles.size(), sizeof(handle_id), compare_handle_id);
+  i=0;
+  while (i<(int)verts.size()-1)
+  {
+    handle_id  first = handles[i];
+    int j=i+1;
+    while (handles[j].val == first.val && j<(int)verts.size())
+    {
+      rval= mbImpl->tag_set_data(mbMergeTag, &(handles[j].eh), 1, &(first.eh));
+      if (rval!=MB_SUCCESS)
+        return rval;
+      deadEnts.insert(handles[j].eh);
+      j++;
+    }
+    i=j;
+  }
+
+  rval = perform_merge(mbMergeTag);
+
+  return rval;
+}
 ErrorCode MergeMesh::find_merged_to(EntityHandle &tree_root,
     AdaptiveKDTree &tree, Tag merge_tag)
 {

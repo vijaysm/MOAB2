@@ -71,31 +71,6 @@ public:
                              std::vector<int>& tag_values_out,
                              const SubsetList* subset_list = 0 );
 
-  ErrorCode set_options( const FileOptions& opts,
-                                int& norm_tol,
-                                double& faceting_tol,
-                                double& len_tol,
-			        bool& act_att,
-                                bool& verbose_warnings);
-
-  ErrorCode create_entity_sets( Interface* moab,
-                                std::map<RefEntity*,EntityHandle> (&entmap)[5] );
-
-  ErrorCode create_topology( Interface* moab, 
-                             std::map<RefEntity*,EntityHandle> entitymap[5] );
-
-  ErrorCode store_surface_senses( std::map<RefEntity*,EntityHandle> entitymap[5] );
-
-  ErrorCode store_curve_senses( std::map<RefEntity*,EntityHandle> entitymap[5] );
-
-  ErrorCode store_groups( Interface* moab, std::map<RefEntity*,EntityHandle>* entitymap );
-
-  ErrorCode create_group_entsets( Interface* moab, 
-                                   std::map<RefEntity*,EntityHandle>& entitymap );
-
-  ErrorCode store_group_content( Interface* moab, std::map<RefEntity*,EntityHandle>* entitymap );
-
-  void set_cgm_attributes(bool const act_attributes, bool const verbost);
 
    //! Constructor
    ReadCGM(Interface* impl = NULL);
@@ -104,6 +79,49 @@ public:
   virtual ~ReadCGM();
 
 private:
+
+  ErrorCode set_options( const FileOptions& opts,
+                                int& norm_tol,
+                                double& faceting_tol,
+                                double& len_tol,
+			        bool& act_att,
+                                bool& verbose_warnings);
+
+  ErrorCode create_entity_sets( std::map<RefEntity*,EntityHandle> (&entmap)[5] );
+
+  ErrorCode create_topology( std::map<RefEntity*,EntityHandle> (&entitymap)[5] );
+
+  ErrorCode store_surface_senses( std::map<RefEntity*,EntityHandle>& surface_map,
+				  std::map<RefEntity*,EntityHandle>& volume_map );
+
+  ErrorCode store_curve_senses( std::map<RefEntity*,EntityHandle>& curve_map,
+				std::map<RefEntity*,EntityHandle>& surface_map );
+
+  ErrorCode store_groups( std::map<RefEntity*,EntityHandle> (&entitymap)[5] );
+
+  ErrorCode create_group_entsets( std::map<RefEntity*,EntityHandle>& group_map );
+
+  ErrorCode store_group_content( std::map<RefEntity*,EntityHandle> (&entitymap)[5] );
+
+
+  void set_cgm_attributes(bool const act_attributes, bool const verbose);
+
+
+  ErrorCode create_vertices( std::map<RefEntity*,EntityHandle> &vertex_map );
+
+
+  ErrorCode create_curve_facets( std::map<RefEntity*,EntityHandle>& curve_map,
+				 std::map<RefEntity*,EntityHandle>& vertex_map,
+                                 int norm_tol,
+                                 double faceting_tol,
+                                 bool verbose_warn = false );
+
+  ErrorCode create_surface_facets( std::map<RefEntity*,EntityHandle>& surface_map,
+				   std::map<RefEntity*,EntityHandle>& vertex_map,
+                                   int norm_tol, 
+                                   double facet_tol, 
+                                   double length_tol );
+
 
   ReadUtilIface* readUtilIface;
 

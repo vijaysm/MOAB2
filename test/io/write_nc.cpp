@@ -4,21 +4,21 @@
 using namespace moab;
 
 #ifdef MESHDIR
-static const char example_eul[] = STRINGIFY(MESHDIR) "/io/eul26x48x96.t.3.nc";
-static const char example_eul_t0[] = STRINGIFY(MESHDIR) "/io/eul26x48x96.t0.nc";
-static const char example_eul_t1[] = STRINGIFY(MESHDIR) "/io/eul26x48x96.t1.nc";
-static const char example_eul_t2[] = STRINGIFY(MESHDIR) "/io/eul26x48x96.t2.nc";
-static const char example_fv[] = STRINGIFY(MESHDIR) "/io/fv26x46x72.t.3.nc";
-static const char example_homme[] = STRINGIFY(MESHDIR) "/io/homme26x3458.t.3.nc";
+static const char example_eul[] = STRINGIFY(MESHDIR) "/io/eul3x48x96.t.3.nc";
+static const char example_eul_t0[] = STRINGIFY(MESHDIR) "/io/eul3x48x96.t0.nc";
+static const char example_eul_t1[] = STRINGIFY(MESHDIR) "/io/eul3x48x96.t1.nc";
+static const char example_eul_t2[] = STRINGIFY(MESHDIR) "/io/eul3x48x96.t2.nc";
+static const char example_fv[] = STRINGIFY(MESHDIR) "/io/fv3x46x72.t.3.nc";
+static const char example_homme[] = STRINGIFY(MESHDIR) "/io/homme3x3458.t.3.nc";
 static const char example_mpas[] = STRINGIFY(MESHDIR) "/io/mpasx1.642.t.2.nc";
 static const char example_gcrm[] = STRINGIFY(MESHDIR) "/io/gcrm_r3.nc";
 #else
-static const char example_eul[] = "/io/eul26x48x96.t.3.nc";
-static const char example_eul_t0[] = "/io/eul26x48x96.t0.nc";
-static const char example_eul_t1[] = "/io/eul26x48x96.t1.nc";
-static const char example_eul_t2[] = "/io/eul26x48x96.t2.nc";
-static const char example_fv[] = "/io/fv26x46x72.t.3.nc";
-static const char example_homme[] = "/io/homme26x3458.t.3.nc";
+static const char example_eul[] = "/io/eul3x48x96.t.3.nc";
+static const char example_eul_t0[] = "/io/eul3x48x96.t0.nc";
+static const char example_eul_t1[] = "/io/eul3x48x96.t1.nc";
+static const char example_eul_t2[] = "/io/eul3x48x96.t2.nc";
+static const char example_fv[] = "/io/fv3x46x72.t.3.nc";
+static const char example_homme[] = "/io/homme3x3458.t.3.nc";
 static const char example_mpas[] = "/io/mpasx1.642.t.2.nc";
 static const char example_gcrm[] = "/io/gcrm_r3.nc";
 #endif
@@ -82,7 +82,8 @@ void get_homme_read_options(std::string& opts);
 void get_mpas_read_options(std::string& opts);
 
 const double eps = 1e-10;
-const int levels = 3; // Number of levels to be checked (e.g. 3 out of 26)
+const int levels = 3;
+const int mpas_levels = 1;
 
 int main(int argc, char* argv[])
 {
@@ -730,10 +731,10 @@ void test_mpas_check_vars()
 #endif
 
     NCDF_SIZE start[] = {0, 0, 0};
-    NCDF_SIZE count[] = {2, 1, 1};
-    const int size1 = 2 * 1280;
-    const int size2 = 2 * 1920;
-    const int size3 = 2 * 642;
+    NCDF_SIZE count[] = {2, 1, mpas_levels};
+    const int size1 = 2 * 1280 * mpas_levels;
+    const int size2 = 2 * 1920 * mpas_levels;
+    const int size3 = 2 * 642 * mpas_levels;
 
     // Read vertex variable vorticity from output file
     count[1] = 1280;
@@ -933,10 +934,10 @@ void test_gcrm_check_vars()
 #endif
 
     NCDF_SIZE start[] = {0, 0, 0};
-    NCDF_SIZE count[] = {2, 1, 3};
-    const int size1 = 2 * 1280 * 3;
-    const int size2 = 2 * 1920 * 3;
-    const int size3 = 2 * 642 * 3;
+    NCDF_SIZE count[] = {2, 1, levels};
+    const int size1 = 2 * 1280 * levels;
+    const int size2 = 2 * 1920 * levels;
+    const int size3 = 2 * 642 * levels;
 
     // Read vertex variable u from output file
     count[1] = 1280;
@@ -971,12 +972,12 @@ void test_gcrm_check_vars()
     success = NCFUNC(get_vara_double)(ncid_ref, vorticity_id_ref, start, count, vorticity_vals_ref);
     CHECK_EQUAL(0, success);
 
-    // Read variable pressure from output file
+    // Read cell variable pressure from output file
     double pressure_vals[size3];
     success = NCFUNC(get_vara_double)(ncid, pressure_id, start, count, pressure_vals);
     CHECK_EQUAL(0, success);
 
-    // Read variable pressure from reference file
+    // Read cell variable pressure from reference file
     double pressure_vals_ref[size3];
     success = NCFUNC(get_vara_double)(ncid_ref, pressure_id_ref, start, count, pressure_vals_ref);
     CHECK_EQUAL(0, success);
@@ -1007,7 +1008,7 @@ void test_gcrm_check_vars()
     for (int i = 0; i < size2; i++)
       CHECK_REAL_EQUAL(wind_vals_ref[i], wind_vals[i], eps);
 
-    // Check vorticity and pressuer values
+    // Check vorticity and pressure values
     for (int i = 0; i < size3; i++) {
       CHECK_REAL_EQUAL(vorticity_vals_ref[i], vorticity_vals[i], eps);
       CHECK_REAL_EQUAL(pressure_vals_ref[i], pressure_vals[i], eps);

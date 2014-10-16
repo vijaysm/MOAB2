@@ -25,9 +25,9 @@
  * MOAB's API is documented in the moab::Interface class.  Questions and comments should be sent to moab-dev
  * _at_ mcs.anl.gov.
  *
- * \ref userguide "User's Guide (MOAB 4.6)"
+ * \ref userguide "User's Guide (MOAB 4.7)"
  *
- * \ref developerguide "Developer's Guide (MOAB 4.6)"
+ * \ref developerguide "Developer's Guide (MOAB 4.7)"
  *
  * \ref metadata "I/O and Meta-Data Storage Conventions in MOAB"
  *
@@ -619,6 +619,7 @@ public:
             get_adjacencies( from_entities, 2, 1, false, adjacencies, Interface::INTERSECT); 
             \endcode 
     */
+
   virtual ErrorCode get_adjacencies(const EntityHandle *from_entities,
                                       const int num_entities,
                                       const int to_dimension,
@@ -1043,16 +1044,16 @@ public:
    */
   virtual void estimated_memory_use( const EntityHandle* ent_array = 0,
                              unsigned long  num_ents = 0,
-                             unsigned long* total_storage = 0,
-                             unsigned long* total_amortized_storage = 0,
-                             unsigned long* entity_storage = 0,
-                             unsigned long* amortized_entity_storage = 0,
-                             unsigned long* adjacency_storage = 0,
-                             unsigned long* amortized_adjacency_storage = 0,
+                             unsigned long long* total_storage = 0,
+                             unsigned long long* total_amortized_storage = 0,
+                             unsigned long long* entity_storage = 0,
+                             unsigned long long* amortized_entity_storage = 0,
+                             unsigned long long* adjacency_storage = 0,
+                             unsigned long long* amortized_adjacency_storage = 0,
                              const Tag*   tag_array = 0,
                              unsigned       num_tags = 0,
-                             unsigned long* tag_storage = 0,
-                             unsigned long* amortized_tag_storage = 0 ) = 0;
+                             unsigned long long* tag_storage = 0,
+                             unsigned long long* amortized_tag_storage = 0 ) = 0;
 
   /**\brief Calculate amount of memory used to store MOAB data
    *
@@ -1082,16 +1083,16 @@ public:
    *                   for all tags.
    */
   virtual void estimated_memory_use( const Range& ents,
-                             unsigned long* total_storage = 0,
-                             unsigned long* total_amortized_storage = 0,
-                             unsigned long* entity_storage = 0,
-                             unsigned long* amortized_entity_storage = 0,
-                             unsigned long* adjacency_storage = 0,
-                             unsigned long* amortized_adjacency_storage = 0,
+                             unsigned long long* total_storage = 0,
+                             unsigned long long* total_amortized_storage = 0,
+                             unsigned long long* entity_storage = 0,
+                             unsigned long long* amortized_entity_storage = 0,
+                             unsigned long long* adjacency_storage = 0,
+                             unsigned long long* amortized_adjacency_storage = 0,
                              const Tag*   tag_array = 0,
                              unsigned       num_tags = 0,
-                             unsigned long* tag_storage = 0,
-                             unsigned long* amortized_tag_storage = 0 ) = 0;
+                             unsigned long long* tag_storage = 0,
+                             unsigned long long* amortized_tag_storage = 0 ) = 0;
     /**@}*/
 
     /** \name Higher-order elements */
@@ -1216,12 +1217,13 @@ public:
      *\param tag_handle    Output: the resulting tag handle.
      *\param flags         Bitwise OR of values from TagType
      *\param default_value Optional default value for tag.
-     *\param created       Optional returned boolean indicating that the
+     *\param created       Optional returned boolean indicating that the tag
      *                     was created.
-     *\return - \c MB_TAG_ALREADY_ALLOCATED if tag exists and \c MB_TAG_EXCL is specified
+     *\return - \c MB_ALREADY_ALLOCATED     if tag exists and \c MB_TAG_EXCL is specified, or default values
+     *                                      do not match (and \c MB_TAG_ANY or \c MB_TAG_DFTOK not specified).
      *        - \c MB_TAG_NOT_FOUND         if tag does not exist and \c MB_TAG_CREAT is not specified
-     *        - \c MB_INVALID_SIZE          if tag value size is not a multiple of 
-     *                                      the size of the data type (and \c mb_TAG_COUNT not specified).
+     *        - \c MB_INVALID_SIZE          if tag value size is not a multiple of the size of the data type
+     *                                      (and \c MB_TAG_ANY not specified).
      *        - \c MB_TYPE_OUT_OF_RANGE     invalid or inconsistent parameter
      *        - \c MB_VARIABLE_DATA_LENGTH  if \c MB_TAG_VARLEN and \c default_value is non-null and
      *                                      \c default_value_size is not specified.
@@ -1233,7 +1235,7 @@ public:
      *
      * Examples:
      *
-     * Retreive a handle for an existing tag, returning a non-success error
+     * Retrieve a handle for an existing tag, returning a non-success error
      * code if the tag does not exist or does not store 1 integer value per
      * entity:
      *\code

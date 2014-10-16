@@ -6,7 +6,7 @@
  * used for stress test of reader/writer
  *  report times to read and write
  *
- *  example ReadWriteTest ../MeshFiles/io/fv26x46x72.t.3.nc out.nc  \
+ *  example ReadWriteTest ../MeshFiles/io/fv3x46x72.t.3.nc out.nc  \
  *  -O PARALLEL=READ_PART;PARTITION_METHOD=SQIJ;PARALLEL_RESOLVE_SHARED_ENTS;VARIABLE=T,U;  \
  *  -o PARALLEL=WRITE_PART;VARIABLE=T,U
  */

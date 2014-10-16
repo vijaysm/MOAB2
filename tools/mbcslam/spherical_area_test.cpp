@@ -7,16 +7,14 @@
 #include "moab/Core.hpp"
 #include "moab/Interface.hpp"
 #include "CslamUtils.hpp"
-
-#define STRINGIFY_(X) #X
-#define STRINGIFY(X) STRINGIFY_(X)
+#include "../test/TestUtil.hpp"
 
 using namespace moab;
 
 int main(int/* argc*/, char** /* argv[]*/)
 {
   // check command line arg
-  const char *filename_mesh = STRINGIFY(SRCDIR) "/eulerHomme.vtk";
+  const char *filename_mesh = STRINGIFY(MESHDIR) "/mbcslam/eulerHomme.vtk";
 
   // read input mesh in a set
   ErrorCode rval = MB_SUCCESS;
