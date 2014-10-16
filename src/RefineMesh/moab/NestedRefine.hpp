@@ -3,7 +3,7 @@
 
 #include "moab/Range.hpp"
 #include "moab/HalfFacetRep.hpp"
-#include "Templates.hpp"
+//#include "Templates.hpp"
 
 namespace moab
 {
@@ -17,16 +17,19 @@ namespace moab
 #define MAX_LEVELS 10
 
 
-  class Core;
+  //class Core;
   //class HalfFacetRep;
 
-  class NestedRefine{
+  class NestedRefine: public HalfFacetRep
+  {
   protected: 
-    Core * mb;
-   // HalfFacetRep * ahf;
+  //  Core * mb;
+  //  HalfFacetRep * ahf;
     
   public:
+
     NestedRefine(Core *mesh_in);
+    //NestedRefine();
     
     ~NestedRefine() {}
     
@@ -41,9 +44,9 @@ namespace moab
     ErrorCode get_connectivity(EntityHandle ent, int num_corners, int level, std::vector<EntityHandle> conn);
     ErrorCode get_coordinates(std::vector<EntityHandle> conn, int num_corners, int cur_level, double *coords);
 
-    //ErrorCode get_adjacencies();
-    //ErrorCode tag_get_data();
-    //ErrorCode tag_set_data();
+    //ErrorCode get_adjacencies(); // Called directly from the AHF class
+    //ErrorCode tag_get_data(); // Get meta data for the new levels
+    //ErrorCode tag_set_data(); // Set meta data for the new levels
 
     //2nd class: Interlevel
     //ErrorCode interpolate_data();
@@ -68,7 +71,6 @@ namespace moab
       int ents_conn[MAX_CHILDRENS][MAX_CONN]; //Connectivity of the new entities
       int ents_opphfs[MAX_CHILDRENS][2*MAX_CONN]; // Opposite half-facet map of the new entities
       int ents_on_pent[MAX_HF][MAX_HF]; //Stores map between half-edges/edges of children to parent edges
-    //  int ents_on_faces[MAX_HF][MAX_HF]; //Stores map between half-faces of children to parent faces
 
       short int num_ents; //AField: Number of child entities. This is required for tet where the template is given using mixed tets and octs.
     };
@@ -93,12 +95,12 @@ namespace moab
       int mat[MAX_HF][MAX_HF];
     };
 
-    static const pmat permute_matrix[2][MAX_CONN];
+    static const pmat permute_matrix[2];
 
     // HM Storage Helper
     struct level_memory{
-      EntityHandle start_vertex, start_edge, start_face, start_cell;
       int num_verts, num_edges, num_faces, num_cells;
+      EntityHandle start_vertex, start_edge, start_face, start_cell;
       std::vector<double *> coordinates;
       EntityHandle *edge_conn, *face_conn, *cell_conn;
     };
@@ -107,24 +109,24 @@ namespace moab
 
     //Basic Functions
     //Generate HM
-    ErrorCode generate_hm(int *level_degrees, int num_level, int hmest[][4], EntityHandle *hm_set);
+    ErrorCode generate_hm(int *level_degrees, int num_level, int *hmest, EntityHandle *hm_set);
 
     //Estimate and create storage for the levels
-    ErrorCode estimate_hm_storage(int *level_degrees, int num_level, int hmest[][4]);
-    ErrorCode create_hm_storage(EntityHandle set, int cur_level, int estL[4]);
+    ErrorCode estimate_hm_storage(int *level_degrees, int num_level, int *hmest);
+    ErrorCode create_hm_storage_single_level(EntityHandle set, int cur_level, int *estL);
 
     //Construct the hierarchical mesh: 1D, 2D, 3D
     ErrorCode construct_hm_entities(int cur_level, int deg);
-    ErrorCode construct_hm_1D(int cur_level, int deg, EntityHandle *vbuffer);
-    ErrorCode construct_hm_2D(int cur_level, int deg, EntityHandle *vbuffer);
-    ErrorCode construct_hm_3D(int cur_level, int deg, EntityHandle *vbuffer);
+    ErrorCode construct_hm_1D(int cur_level, int deg);
+    ErrorCode construct_hm_2D(int cur_level, int deg);
+    ErrorCode construct_hm_3D(int cur_level, int deg);
 
     ErrorCode subdivide_cells(EntityHandle cell,  EntityType type, std::vector<EntityHandle> conn, int cur_level, int deg, EntityHandle *vbuffer, int *count);
     ErrorCode subdivide_tets(std::vector<EntityHandle> conn, int cur_level, int deg, EntityHandle *vbuffer, int *count);
 
     // Helper functions
     ErrorCode copy_vertices_from_prev_level(int cur_level);
-    ErrorCode update_tracking_verts(EntityHandle cidl, int deg, std::vector<EntityHandle> trackvertsC_edg, std::vector<EntityHandle> trackvertsC_face, EntityHandle *vbuffer);
+    ErrorCode update_tracking_verts(EntityHandle cidl, int cur_level, int deg, std::vector<EntityHandle> trackvertsC_edg, std::vector<EntityHandle> trackvertsC_face, EntityHandle *vbuffer);
     ErrorCode match_and_reorder_vertices(EntityType type, int cur_level, int deg, EntityHandle cell, int lfid, EntityHandle sib_cell, int sib_lfid, int *id_sib);
     int find_shortest_diagonal_octahedron( double *coords);
 
@@ -132,15 +134,27 @@ namespace moab
     ErrorCode compute_coordinates(int cur_level, int deg, EntityType type, EntityHandle *vbuffer, int vtotal, double *corner_coords);
 
     // Update the ahf maps
-    //ErrorCode update_sibhf_map(int cur_level, int deg, EntityType type, EntityHandle parent, EntityHandle *ent_buffer, int etotal);
 
     ErrorCode update_local_ahf(int deg, EntityType type, EntityHandle *ent_buffer, int etotal);
 
-    ErrorCode update_local_ahf(int deg, std::vector<int> nents_flag, std::vector<int> idx_buffer);
+    ErrorCode update_local_ahf(int cur_level, int deg, std::vector<int> nents_flag, std::vector<int> idx_buffer);
 
-    ErrorCode get_sibling_tag(EntityType type, std::vector<EntityHandle> ents, int num_ents, std::vector<EntityHandle> sib_entids, std::vector<int> sib_lids);
+    ErrorCode update_global_ahf(EntityType type, int cur_level, int deg);
 
-    ErrorCode set_sibling_tag(EntityType type, std::vector<EntityHandle> ents, int num_ents, std::vector<EntityHandle> set_entids, std::vector<int> set_lids);
+    ErrorCode update_global_ahf_1D(int cur_level, int deg);
+
+    ErrorCode update_global_ahf_2D(int cur_level, int deg);
+
+    ErrorCode update_global_ahf_3D(int cur_level, int deg);
+
+    ErrorCode get_sibling_tag(EntityType type, EntityHandle *ents, int num_ents, std::vector<EntityHandle> sib_entids, std::vector<int> sib_lids);
+
+    ErrorCode set_sibling_tag(EntityType type, EntityHandle *ents, int num_ents, std::vector<EntityHandle> set_entids, std::vector<int> set_lids);
+
+    ErrorCode get_incident_tag(EntityType type, EntityHandle vid, EntityHandle inci_entid, int inci_lid);
+
+    ErrorCode set_incident_tag(EntityType type, EntityHandle vid, EntityHandle inci_entid, int inci_lid);
+
 
   };
 } //name space moab
