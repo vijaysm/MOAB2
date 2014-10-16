@@ -12,6 +12,6 @@ if ( MOAB_USE_ZOLTAN )
   add_executable( mbpart mbpart.cpp )
   set_source_files_properties( mbpart.cpp
     COMPILE_FLAGS "${MOAB_DEFINES} -DMESHDIR=${MOAB_SOURCE_DIR}/MeshFiles/unittest" )
-  target_link_libraries( mbpart MOAB MOABpar ${Zoltan_LIBRARIES} )
+  target_link_libraries( mbpart MOAB ${Zoltan_LIBRARIES} )
 
 endif ( MOAB_USE_ZOLTAN )
