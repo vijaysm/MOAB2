@@ -56,6 +56,7 @@
 # Try to find the MPI driver program
 find_program(MPI_COMPILER
   NAMES mpicxx mpic++ mpiCC sxmpic++ hcp mpxlC_r mpxlC mpixlcxx_r mpixlcxx mpg++ mpc++ mpCC cmpic++ mpiFCC 
+  HINTS ${MPI_DIR}/bin ${MPI_DIR}
   DOC "MPI compiler. Used only to detect MPI compilation flags.")
 mark_as_advanced(MPI_COMPILER)
 

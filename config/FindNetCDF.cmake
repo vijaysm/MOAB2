@@ -9,11 +9,12 @@ set (NetCDF_DIR "" CACHE PATH "Path to search for NetCDF header and library file
 set (NetCDF_FOUND NO CACHE INTERNAL "Found NetCDF components successfully." )
 
 find_path( NetCDF_INCLUDE_DIR netcdf.h
-  ${NetCDF_DIR}
+  HINTS ${NetCDF_DIR}
   ${NetCDF_DIR}/include
-  /usr/local/include
-  /usr/include
+  ENV CPLUS_INCLUDE_PATH
+  NO_DEFAULT_PATH
 )
+message (STATUS "---   NetCDF include DIR :: ${NetCDF_INCLUDE_DIR}")
 
 find_library( NetCDF_C_LIBRARY
   NAMES netcdf
