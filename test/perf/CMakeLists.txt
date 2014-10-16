@@ -9,10 +9,12 @@ if(MOAB_BUILD_IMESH)
   set(LIBS ${LIBS} iMesh)
 endif()
 
+set(TEST_COMP_FLAGS "-DMESHDIR=${CMAKE_SOURCE_DIR}/MeshFiles/unittest")
+
 foreach( fname ${TESTS} )
   string( REPLACE ".cpp" "" tmp ${fname} )
   string( REPLACE ".cc" "" base ${tmp} )
   add_executable( ${base} ${CMAKE_SOURCE_DIR}/test/TestUtil.hpp ${fname})
-  set_target_properties( ${base} PROPERTIES COMPILE_FLAGS "${MOAB_DEFINES} -DIS_BUILDING_MB -DMESHDIR=${MOAB_SOURCE_DIR}/MeshFiles/unittest" )
+  set_target_properties( ${base} PROPERTIES COMPILE_FLAGS "${MOAB_DEFINES} ${TEST_COMP_FLAGS} -DIS_BUILDING_MB" )
   target_link_libraries( ${base} ${LIBS} )
 endforeach()
