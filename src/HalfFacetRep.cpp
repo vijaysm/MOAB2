@@ -687,12 +687,12 @@ namespace moab {
        return MB_SUCCESS;
    }
 
-   ErrorCode HalfFacetRep::count_subentities(Range faces, Range cells, int *nedges, int *nfaces)
+   ErrorCode HalfFacetRep::count_subentities(Range edges, Range faces, Range cells, int *nedges, int *nfaces)
    {
      ErrorCode error;
-     if (!faces.size() && !cells.size())
+     if (edges.size() && !faces.size() && !cells.size())
        {
-         nedges[0] = 0;
+         nedges[0] = edges.size();
          nfaces[0] = 0;
        }
      else if (faces.size() && !cells.size())
@@ -1295,7 +1295,7 @@ namespace moab {
                                                  bool add_inent,
                                                  std::vector<EntityHandle> &fids,
                                                  bool local_id,
-                                                 std::vector<int> * leids, bool orient, std::vector<int> *adj_orients)
+                                                 std::vector<int> *leids, bool orient, std::vector<int> *adj_orients)
   {
     // Given an implicit half-edge <fid, leid>, find the incident half-edges.
     ErrorCode error;
@@ -1647,7 +1647,7 @@ namespace moab {
 	    total_edges -= adj_fids.size();
 
 	    for (int i = 0; i < (int)adj_fids.size(); i++)
-	      trackF[nepf*(faces.index(adj_fids[i])+adj_lids[i]] = true;
+	      trackF[nepf*(faces.index(adj_fids[i]))+adj_lids[i]] = true;
 	  };
       };
    };
@@ -2582,7 +2582,7 @@ namespace moab {
   ErrorCode HalfFacetRep::find_total_edges_faces_3d(Range cells, int *nedges, int *nfaces)
   {
     ErrorCode error;
-    int index = get_index_from_type(cells.begin());
+    int index = get_index_from_type(*cells.begin());
     int nepc = lConnMap3D[index].num_edges_in_cell;
     int nfpc = lConnMap3D[index].num_faces_in_cell;
     int ncells = cells.size();
@@ -2595,7 +2595,7 @@ namespace moab {
     std::vector<EntityHandle> inc_cids, sib_cids;
     std::vector<int> inc_leids, sib_lfids;
 
-    for (Range::iterator it = cells.begin(); it != cells.end; it++)
+    for (Range::iterator it = cells.begin(); it != cells.end(); it++)
       {
         //Count edges
         for (int i=0; i<nepc; i++)
@@ -2606,7 +2606,7 @@ namespace moab {
             int id = nepc*(cells.index(*it))+i;
             if (!trackE[id])
               {
-                error = get_up_adjacencies_edg_3d(*it, i, inc_cids, true, inc_leids);
+                error = get_up_adjacencies_edg_3d(*it, i, inc_cids, true, &inc_leids);
                 if (error != MB_SUCCESS) return error;
 
                 total_edges -= inc_cids.size() -1;
@@ -2624,7 +2624,7 @@ namespace moab {
             int id = nfpc*(cells.index(*it))+i;
             if (!trackF[id])
               {
-                error = get_up_adjacencies_face_3d(*it, i, sib_cids, true, sib_lfids);
+                error = get_up_adjacencies_face_3d(*it, i, sib_cids, true, &sib_lfids);
                 if (error != MB_SUCCESS) return error;
 
                 total_faces -= sib_cids.size() -1;
@@ -2636,8 +2636,6 @@ namespace moab {
     nedges[0] = total_edges;
     nfaces[0] = total_faces;
 
-    delete [] trackE;
-    delete [] trackF;
   }
 
   ///////////////////////////////////////////////////////////////////////////////////////////

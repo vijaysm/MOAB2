@@ -25,7 +25,8 @@ AM_CPPFLAGS += -DIS_BUILDING_MB \
                -I$(top_builddir)/src \
                -I$(top_srcdir)/src  \
                -I$(top_srcdir)/src/LocalDiscretization \
-               -I$(top_srcdir)/src/verdict
+               -I$(top_srcdir)/src/verdict \
+	       -I$(top_srcdir)/src/RefineMesh
 
 if PARALLEL
   AM_CPPFLAGS += -I$(top_srcdir)/src/parallel
@@ -56,7 +57,8 @@ TESTS = range_test \
 	elem_eval_test \
 	spatial_locator_test \
 	test_boundbox \
-        adj_moab_test \
+        adj_moab_test \ 
+        uref_mesh_test \
         verdict_test
 
 
@@ -160,7 +162,7 @@ test_boundbox_SOURCES = test_boundbox.cpp
 lloyd_smoother_test_SOURCES = lloyd_smoother_test.cpp
 
 adj_moab_test_SOURCES = adj_moab_test.cpp
-
+uref_mesh_test_SOURCES = urefine_mesh_test.cpp
 
 if PARALLEL
 moab_test_CPPFLAGS += -I$(top_srcdir)/src/parallel
