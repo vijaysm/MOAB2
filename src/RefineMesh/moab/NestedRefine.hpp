@@ -22,14 +22,9 @@ namespace moab
 
   class NestedRefine: public HalfFacetRep
   {
-  protected: 
-  //  Core * mb;
-  //  HalfFacetRep * ahf;
     
   public:
-
     NestedRefine(Core *mesh_in);
-    //NestedRefine();
     
     ~NestedRefine() {}
     
@@ -70,7 +65,7 @@ namespace moab
 
       int ents_conn[MAX_CHILDRENS][MAX_CONN]; //Connectivity of the new entities
       int ents_opphfs[MAX_CHILDRENS][2*MAX_CONN]; // Opposite half-facet map of the new entities
-      int ents_on_pent[MAX_HF][MAX_HF]; //Stores map between half-edges/edges of children to parent edges
+      int ents_on_pent[MAX_HF][MAX_CHILDRENS]; //Stores map between half-edges/edges of children to parent edges
 
       short int num_ents; //AField: Number of child entities. This is required for tet where the template is given using mixed tets and octs.
     };
