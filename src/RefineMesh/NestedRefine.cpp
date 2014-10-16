@@ -602,11 +602,12 @@ namespace moab{
         if (error != MB_SUCCESS) return error;
       }
 
+    // Update the global maps
+    error = update_global_ahf(type, cur_level, deg);
+    if (error != MB_SUCCESS) return error;
+
     return MB_SUCCESS;
   }
-
-
-
 
   ErrorCode NestedRefine::subdivide_cells(EntityHandle cell, EntityType type, std::vector<EntityHandle> conn, int cur_level, int deg, EntityHandle *vbuffer, int *count)
   {
@@ -1086,7 +1087,7 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
    nhf = 2;
    nchilds = refTemplates[0][deg].total_new_ents;
    if (cur_level)
-     nents_prev = level_mesh[cur_level-1].num_cells;
+     nents_prev = level_mesh[cur_level-1].num_edges;
    else
      nents_prev = _edges.size();
 
@@ -1161,9 +1162,71 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
    nhf = local_maps_2d(*_faces.begin());
    nchilds = refTemplates[type-1][deg].total_new_ents;
    if (cur_level)
-     nents_prev = level_mesh[cur_level-1].num_cells;
+     nents_prev = level_mesh[cur_level-1].num_edges;
    else
-     nents_prev = _faces.size();
+     nents_prev = _edges.size();
+
+   //Loop over all entities and the half-facets of the previous mesh
+   for (int i=0; i< nents_prev; i++)
+     {
+       EntityHandle ent;
+       if (cur_level)
+         ent = level_mesh[cur_level-1].start_edge + i;
+       else
+         ent = _edges[i];
+
+       std::vector<EntityHandle> sib_entids;
+       std::vector<int> sib_lids;
+
+       error = get_sibling_tag(MBEDGE, &ent, 1, sib_entids, sib_lids);
+       if (error != MB_SUCCESS) return error;
+
+       int id, idx;
+
+       for (int l=0; l < nhf; l++)
+         {
+           //Find the child incident on the half-facet
+           id = refTemplates[0][deg].ents_on_pent[l][0];
+           idx = nchilds*i;
+           EntityHandle child_ent = level_mesh[cur_level].start_edge + idx+id ;
+           int ch_lid = refTemplates[0][deg].ents_on_pent[l][1];
+
+           //Find the sibling of the child
+           std::vector<EntityHandle> sib_childs;
+           std::vector<int> sib_chlids;
+
+           error = get_sibling_tag(MBEDGE, &child_ent, 1, sib_childs, sib_chlids);
+           if (error != MB_SUCCESS) return error;
+
+           //If the sibling already exists, dont do anything
+           if (sib_childs[ch_lid])
+             continue;
+
+           //Get the correponding child of the sibling of the current parent
+           int psib;
+           if (cur_level)
+             psib = sib_entids[l] - level_mesh[cur_level].start_edge;
+           else
+             psib = sib_entids[l] - *_edges.begin();
+
+           int plid = sib_lids[l];
+
+           id = refTemplates[0][deg].ents_on_pent[plid][0];
+           idx = nchilds*psib;
+
+           EntityHandle psib_child = level_mesh[cur_level].start_edge + idx+id ;
+           int psib_chlid = refTemplates[0][deg].ents_on_pent[plid][1];
+
+           //Set the siblings
+           sib_childs[ch_lid] = psib_child;
+           sib_chlids[ch_lid] = psib_chlid;
+
+           error = get_sibling_tag(MBEDGE, &child_ent, 1, sib_childs, sib_chlids);
+           if (error != MB_SUCCESS) return error;
+         }
+     }
+
+   return MB_SUCCESS;
 
  }
 
@@ -1176,9 +1239,71 @@ ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg)
   nhf = lConnMap3D[index].num_faces_in_cell;
   nchilds = refTemplates[type-1][deg].total_new_ents;
   if (cur_level)
-    nents_prev = level_mesh[cur_level-1].num_cells;
+    nents_prev = level_mesh[cur_level-1].num_edges;
   else
-    nents_prev = _cells.size();
+    nents_prev = _edges.size();
+
+  //Loop over all entities and the half-facets of the previous mesh
+  for (int i=0; i< nents_prev; i++)
+    {
+      EntityHandle ent;
+      if (cur_level)
+        ent = level_mesh[cur_level-1].start_edge + i;
+      else
+        ent = _edges[i];
+
+      std::vector<EntityHandle> sib_entids;
+      std::vector<int> sib_lids;
+
+      error = get_sibling_tag(MBEDGE, &ent, 1, sib_entids, sib_lids);
+      if (error != MB_SUCCESS) return error;
+
+      int id, idx;
+
+      for (int l=0; l < nhf; l++)
+        {
+          //Find the child incident on the half-facet
+          id = refTemplates[0][deg].ents_on_pent[l][0];
+          idx = nchilds*i;
+          EntityHandle child_ent = level_mesh[cur_level].start_edge + idx+id ;
+          int ch_lid = refTemplates[0][deg].ents_on_pent[l][1];
+
+          //Find the sibling of the child
+          std::vector<EntityHandle> sib_childs;
+          std::vector<int> sib_chlids;
+
+          error = get_sibling_tag(MBEDGE, &child_ent, 1, sib_childs, sib_chlids);
+          if (error != MB_SUCCESS) return error;
+
+          //If the sibling already exists, dont do anything
+          if (sib_childs[ch_lid])
+            continue;
+
+          //Get the correponding child of the sibling of the current parent
+          int psib;
+          if (cur_level)
+            psib = sib_entids[l] - level_mesh[cur_level].start_edge;
+          else
+            psib = sib_entids[l] - *_edges.begin();
+
+          int plid = sib_lids[l];
+
+          id = refTemplates[0][deg].ents_on_pent[plid][0];
+          idx = nchilds*psib;
+
+          EntityHandle psib_child = level_mesh[cur_level].start_edge + idx+id ;
+          int psib_chlid = refTemplates[0][deg].ents_on_pent[plid][1];
+
+          //Set the siblings
+          sib_childs[ch_lid] = psib_child;
+          sib_chlids[ch_lid] = psib_chlid;
+
+          error = get_sibling_tag(MBEDGE, &child_ent, 1, sib_childs, sib_chlids);
+          if (error != MB_SUCCESS) return error;
+        }
+    }
+
+  return MB_SUCCESS;
 }
 
 /*****************************
