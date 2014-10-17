@@ -104,7 +104,6 @@ mark_as_advanced(
     MOAB_FORCE_32_BIT_HANDLES
   )
 
-
 ################################################################################
 # Check for system include files
 ################################################################################
@@ -151,6 +150,14 @@ endif ( NOT MOAB_FORCE_64_BIT_HANDLES AND NOT MOAB_FORCE_32_BIT_HANDLES )
 ################################################################################
 # Find packages
 ################################################################################
+
+if ( BUILD_SHARED_LIBS EQUAL OFF )
+#Static start
+set_target_properties(MOAB PROPERTIES LINK_SEARCH_START_STATIC 1)
+set_target_properties(MOAB PROPERTIES LINK_SEARCH_END_STATIC 1)
+set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+endif ( BUILD_SHARED_LIBS EQUAL OFF )
+
 find_package( verdict REQUIRED )
 
 # check for MPI package
