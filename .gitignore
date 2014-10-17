@@ -134,6 +134,7 @@ test/dagmc/dagmc_pointinvol_test
 test/dagmc/dagmc_rayfire_test
 test/dagmc/dagmc_simple_test
 test/dual/dual_test
+test/dual/dual.vtk
 test/elem_eval_test
 test/file_options_test
 test/*.h5m
