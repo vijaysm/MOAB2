@@ -14,15 +14,15 @@ else()
 
 FIND_PATH(HDF5_INCLUDE_DIR
   NAMES hdf5.h H5public.h
-  PATHS ${HDF5_DIR}/include
-  /usr/local/include
-  /usr/include
-  /opt/local/include
+  HINTS ${HDF5_DIR}/include
+  HINTS ${HDF5_DIR}
+  ENV CPLUS_INCLUDE_PATH
+  NO_DEFAULT_PATH
 )
 
 foreach (VARIANT dl m z )
   FIND_LIBRARY(hdf5_deplibs_${VARIANT} ${VARIANT}
-    PATHS /lib /usr/local/lib /usr/lib /opt/local/lib
+    HINTS ${HDF5_DIR}/lib /lib /lib64 /usr/local/lib /usr/lib /opt/local/lib
   )
   list(APPEND HDF5_DEP_LIBRARIES ${hdf5_deplibs_${VARIANT}})
 endforeach()
@@ -30,36 +30,33 @@ endforeach()
 FIND_LIBRARY(HDF5_BASE_LIBRARY hdf5 hdf5d)
 
 FIND_LIBRARY(HDF5_BASE_LIBRARY NAMES hdf5 hdf5d
-  PATHS ${HDF5_DIR}/lib /usr/local/lib /usr/lib /opt/local/lib
+  HINTS ${HDF5_DIR} ${HDF5_DIR}/lib /usr/local/lib /usr/lib /opt/local/lib
 )
 FIND_LIBRARY(HDF5_HLBASE_LIBRARY hdf5_hl hdf5_hld
-  PATHS ${HDF5_DIR}/lib /usr/local/lib /usr/lib /opt/local/lib
+  HINTS ${HDF5_DIR} ${HDF5_DIR}/lib /usr/local/lib /usr/lib /opt/local/lib
 )
 
 IF (NOT HDF5_FOUND)
   IF (HDF5_INCLUDE_DIR AND HDF5_BASE_LIBRARY)
     FIND_LIBRARY(HDF5_CXX_LIBRARY hdf5_cxx
-      PATHS ${HDF5_DIR}/lib /usr/local/lib /usr/lib /opt/local/lib
+      HINTS ${HDF5_DIR} ${HDF5_DIR}/lib /usr/local/lib /usr/lib /opt/local/lib
     )
     FIND_LIBRARY(HDF5_HLCXX_LIBRARY hdf5_hl_cxx
-      PATHS ${HDF5_DIR}/lib /usr/local/lib /usr/lib /opt/local/lib
+      HINTS ${HDF5_DIR} ${HDF5_DIR}/lib /usr/local/lib /usr/lib /opt/local/lib
     )
     FIND_LIBRARY(HDF5_FORT_LIBRARY hdf5_fortran
-      PATHS ${HDF5_DIR}/lib /usr/local/lib /usr/lib /opt/local/lib
+      HINTS ${HDF5_DIR} ${HDF5_DIR}/lib /usr/local/lib /usr/lib /opt/local/lib
     )
     FIND_LIBRARY(HDF5_HLFORT_LIBRARY
       NAMES hdf5hl_fortran hdf5_hl_fortran
-      PATHS ${HDF5_DIR}/lib /usr/local/lib /usr/lib /opt/local/lib
+      HINTS ${HDF5_DIR} ${HDF5_DIR}/lib /usr/local/lib /usr/lib /opt/local/lib
     )
     SET( HDF5_INCLUDES "${HDF5_INCLUDE_DIR}" )
     if (HDF5_FORT_LIBRARY)
       FIND_PATH(HDF5_FORT_INCLUDE_DIR
         NAMES hdf5.mod
-        PATHS ${HDF5_DIR}/include
+        HINTS ${HDF5_DIR}/include
         ${HDF5_DIR}/include/fortran
-        /usr/local/include
-        /usr/include
-        /opt/local/include
       )
       if (HDF5_FORT_INCLUDE_DIR AND NOT ${HDF5_FORT_INCLUDE_DIR} STREQUAL ${HDF5_INCLUDE_DIR})
         SET( HDF5_INCLUDES "${HDF5_INCLUDES} ${HDF5_FORT_INCLUDE_DIR}" )

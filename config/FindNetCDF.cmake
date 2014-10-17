@@ -21,12 +21,6 @@ find_library( NetCDF_C_LIBRARY
   HINTS ${NetCDF_DIR}
   ${NetCDF_DIR}/lib64
   ${NetCDF_DIR}/lib
-  /usr/local/lib64
-  /usr/lib64
-  /usr/lib64/netcdf
-  /usr/local/lib
-  /usr/lib
-  /usr/lib/netcdf
 )
 
 find_library( NetCDF_CXX_LIBRARY
@@ -34,12 +28,6 @@ find_library( NetCDF_CXX_LIBRARY
   HINTS ${NetCDF_DIR}
   ${NetCDF_DIR}/lib64
   ${NetCDF_DIR}/lib
-  /usr/local/lib64
-  /usr/lib64
-  /usr/lib64/netcdf
-  /usr/local/lib
-  /usr/lib
-  /usr/lib/netcdf
 )
 
 find_library( NetCDF_FORTRAN_LIBRARY
@@ -47,12 +35,6 @@ find_library( NetCDF_FORTRAN_LIBRARY
   HINTS ${NetCDF_DIR}
   ${NetCDF_DIR}/lib64
   ${NetCDF_DIR}/lib
-  /usr/local/lib64
-  /usr/lib64
-  /usr/lib64/netcdf
-  /usr/local/lib
-  /usr/lib
-  /usr/lib/netcdf
 )
 
 IF (NOT NetCDF_FOUND)
