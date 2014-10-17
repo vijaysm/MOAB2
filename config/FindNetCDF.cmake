@@ -17,10 +17,11 @@ find_path( NetCDF_INCLUDE_DIR netcdf.h
 message (STATUS "---   NetCDF include DIR :: ${NetCDF_INCLUDE_DIR}")
 
 find_library( NetCDF_C_LIBRARY
-  NAMES netcdf
+  NAMES libnetcdf.a netcdf
   HINTS ${NetCDF_DIR}
   ${NetCDF_DIR}/lib64
   ${NetCDF_DIR}/lib
+  NO_DEFAULT_PATH
 )
 
 find_library( NetCDF_CXX_LIBRARY
@@ -28,13 +29,15 @@ find_library( NetCDF_CXX_LIBRARY
   HINTS ${NetCDF_DIR}
   ${NetCDF_DIR}/lib64
   ${NetCDF_DIR}/lib
+  NO_DEFAULT_PATH
 )
 
 find_library( NetCDF_FORTRAN_LIBRARY
-  NAMES netcdf_g77 netcdf_ifc netcdf_x86_64
+  NAMES netcdf_g77 netcdff netcdf_ifc netcdf_x86_64
   HINTS ${NetCDF_DIR}
   ${NetCDF_DIR}/lib64
   ${NetCDF_DIR}/lib
+  NO_DEFAULT_PATH
 )
 
 IF (NOT NetCDF_FOUND)
@@ -70,8 +73,8 @@ IF (MOAB_USE_MPI)
   find_path( PNetCDF_INCLUDES pnetcdf.h
     ${PNetCDF_DIR}
     ${PNetCDF_DIR}/include
-    /usr/local/include
-    /usr/include
+    ENV CPLUS_INCLUDE_PATH
+    NO_DEFAULT_PATH
   )
 
   find_library( PNetCDF_LIBRARIES
@@ -79,12 +82,7 @@ IF (MOAB_USE_MPI)
     HINTS ${PNetCDF_DIR}
     ${PNetCDF_DIR}/lib64
     ${PNetCDF_DIR}/lib
-    /usr/local/lib64
-    /usr/lib64
-    /usr/lib64/pnetcdf
-    /usr/local/lib
-    /usr/lib
-    /usr/lib/pnetcdf
+    NO_DEFAULT_PATH
   )
 
   IF (NOT PNetCDF_FOUND)

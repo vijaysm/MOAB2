@@ -27,29 +27,27 @@ foreach (VARIANT dl m z )
   list(APPEND HDF5_DEP_LIBRARIES ${hdf5_deplibs_${VARIANT}})
 endforeach()
 
-FIND_LIBRARY(HDF5_BASE_LIBRARY hdf5 hdf5d)
-
-FIND_LIBRARY(HDF5_BASE_LIBRARY NAMES hdf5 hdf5d
-  HINTS ${HDF5_DIR} ${HDF5_DIR}/lib /usr/local/lib /usr/lib /opt/local/lib
+FIND_LIBRARY(HDF5_BASE_LIBRARY NAMES libhdf5.a libhdf5d.a hdf5 hdf5d
+  HINTS ${HDF5_DIR} ${HDF5_DIR}/lib 
 )
-FIND_LIBRARY(HDF5_HLBASE_LIBRARY hdf5_hl hdf5_hld
-  HINTS ${HDF5_DIR} ${HDF5_DIR}/lib /usr/local/lib /usr/lib /opt/local/lib
+FIND_LIBRARY(HDF5_HLBASE_LIBRARY libhdf5_hl.a libhdf5_hld.a hdf5_hl hdf5_hld
+  HINTS ${HDF5_DIR} ${HDF5_DIR}/lib
 )
 
 IF (NOT HDF5_FOUND)
   IF (HDF5_INCLUDE_DIR AND HDF5_BASE_LIBRARY)
-    FIND_LIBRARY(HDF5_CXX_LIBRARY hdf5_cxx
-      HINTS ${HDF5_DIR} ${HDF5_DIR}/lib /usr/local/lib /usr/lib /opt/local/lib
+    FIND_LIBRARY(HDF5_CXX_LIBRARY libhdf5_cxx.a hdf5_cxx
+      HINTS ${HDF5_DIR} ${HDF5_DIR}/lib NO_DEFAULT_PATH
     )
-    FIND_LIBRARY(HDF5_HLCXX_LIBRARY hdf5_hl_cxx
-      HINTS ${HDF5_DIR} ${HDF5_DIR}/lib /usr/local/lib /usr/lib /opt/local/lib
+    FIND_LIBRARY(HDF5_HLCXX_LIBRARY libhdf5_hl_cxx.a hdf5_hl_cxx
+      HINTS ${HDF5_DIR} ${HDF5_DIR}/lib NO_DEFAULT_PATH
     )
-    FIND_LIBRARY(HDF5_FORT_LIBRARY hdf5_fortran
-      HINTS ${HDF5_DIR} ${HDF5_DIR}/lib /usr/local/lib /usr/lib /opt/local/lib
+    FIND_LIBRARY(HDF5_FORT_LIBRARY libhdf5_fortran.a hdf5_fortran
+      HINTS ${HDF5_DIR} ${HDF5_DIR}/lib NO_DEFAULT_PATH
     )
     FIND_LIBRARY(HDF5_HLFORT_LIBRARY
-      NAMES hdf5hl_fortran hdf5_hl_fortran
-      HINTS ${HDF5_DIR} ${HDF5_DIR}/lib /usr/local/lib /usr/lib /opt/local/lib
+      NAMES libhdf5hl_fortran.a libhdf5_hl_fortran.a hdf5hl_fortran hdf5_hl_fortran
+      HINTS ${HDF5_DIR} ${HDF5_DIR}/lib NO_DEFAULT_PATH
     )
     SET( HDF5_INCLUDES "${HDF5_INCLUDE_DIR}" )
     if (HDF5_FORT_LIBRARY)
