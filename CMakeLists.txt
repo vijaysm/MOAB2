@@ -241,6 +241,17 @@ set(AM_CFLAGS)
 set(MOAB_FFLAGS)
 set(AM_FFLAGS)
 
-configure_file(MOABConfig.new.cmake.in
-  "${PROJECT_BINARY_DIR}/MOABConfig.cmake" @ONLY)
-install( FILES "${PROJECT_BINARY_DIR}/MOABConfig.cmake" DESTINATION lib )
+configure_file(MOABConfig.new.cmake.in "${PROJECT_BINARY_DIR}/MOABConfig.cmake" @ONLY)
+configure_file(moab.make.in "${PROJECT_BINARY_DIR}/lib/moab.make" @ONLY)
+if ( ENABLE_IGEOM )
+  configure_file(itaps/igeom/iGeom-Defs.inc.in "${PROJECT_BINARY_DIR}/lib/iGeom-Defs.inc" @ONLY)
+  install( FILES "${PROJECT_BINARY_DIR}/lib/iGeom-Defs.inc" DESTINATION lib )
+endif ( ENABLE_IGEOM )
+
+if ( ENABLE_IMESH )
+  configure_file(itaps/imesh/iMesh-Defs.inc.in "${PROJECT_BINARY_DIR}/lib/iMesh-Defs.inc" @ONLY)
+  install( FILES "${PROJECT_BINARY_DIR}/lib/iMesh-Defs.inc" DESTINATION lib )
+endif ( ENABLE_IMESH )
+install( FILES "${PROJECT_BINARY_DIR}/MOABConfig.cmake" "${PROJECT_BINARY_DIR}/lib/moab.make" DESTINATION lib )
+
+# All done.
