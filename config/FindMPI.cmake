@@ -171,17 +171,19 @@ elseif (MPI_COMPILE_CMDLINE)
   # line
   string(REGEX MATCHALL "-l([^\" ]+|\"[^\"]+\")" MPI_LIBNAMES "${MPI_LINK_CMDLINE}")
 
+  # MESSAGE( "MPI_LIBNAMES: ${MPI_LIBNAMES}")
+  # MESSAGE( "MPI_LINK_PATH: ${MPI_LINK_PATH}")
   # Determine full path names for all of the libraries that one needs
   # to link against in an MPI program
   set(MPI_LIBRARIES)
   foreach(LIB ${MPI_LIBNAMES})
     string(REGEX REPLACE "^-l" "" LIB ${LIB})
     set(MPI_LIB "MPI_LIB-NOTFOUND" CACHE FILEPATH "Cleared" FORCE)
-    find_library(MPI_LIB ${LIB} PATHS ${MPI_LINK_PATH})
+    find_library(MPI_LIB ${LIB} PATHS ${MPI_LINK_PATH} NO_DEFAULT_PATH)
     if (MPI_LIB)
       list(APPEND MPI_LIBRARIES ${MPI_LIB})
     else (MPI_LIB)
-      status(ERROR "Unable to find MPI library ${LIB}")
+      MESSAGE("Warning: Unable to find MPI library ${LIB}")
     endif (MPI_LIB)
   endforeach(LIB)
   set(MPI_LIB "MPI_LIB-NOTFOUND" CACHE INTERNAL "Scratch variable for MPI detection" FORCE)
@@ -189,19 +191,36 @@ elseif (MPI_COMPILE_CMDLINE)
   # Chop MPI_LIBRARIES into the old-style MPI_LIBRARY and
   # MPI_EXTRA_LIBRARY.
   list(LENGTH MPI_LIBRARIES MPI_NUMLIBS)
-  if (MPI_NUMLIBS GREATER 0)
-    list(GET MPI_LIBRARIES 0 MPI_LIBRARY_WORK)
-    set(MPI_LIBRARY ${MPI_LIBRARY_WORK} CACHE FILEPATH "MPI library to link against" FORCE)
-  else (MPI_NUMLIBS GREATER 0)
-    set(MPI_LIBRARY "MPI_LIBRARY-NOTFOUND" CACHE STRING "MPI library to link against" FORCE)
-  endif (MPI_NUMLIBS GREATER 0)
   if (MPI_NUMLIBS GREATER 1)
-    set(MPI_EXTRA_LIBRARY_WORK ${MPI_LIBRARIES})
-    list(REMOVE_AT MPI_EXTRA_LIBRARY_WORK 0)
-    set(MPI_EXTRA_LIBRARY ${MPI_EXTRA_LIBRARY_WORK} CACHE STRING "Extra MPI libraries to link against" FORCE)
-  else (MPI_NUMLIBS GREATER 1)
-    set(MPI_EXTRA_LIBRARY "MPI_EXTRA_LIBRARY-NOTFOUND" CACHE STRING "Extra MPI libraries to link against" FORCE)
+    list(GET MPI_LIBRARIES 0 MPI_LIBRARY_WORK0)
+    string(REGEX MATCH "(.*)libmpi(.|ch.)(a|so|dylib)" MPI_LIBRARY_WORK ${MPI_LIBRARY_WORK0})
+    if (MPI_LIBRARY_WORK MATCHES "libmpi(.*)")
+      set(MPI_LIBRARY ${MPI_LIBRARY_WORK0} CACHE FILEPATH "MPI library to link against" FORCE)
+      set(MPI_EXTRA_LIBRARY_WORK ${MPI_LIBRARIES})
+      list(REMOVE_AT MPI_EXTRA_LIBRARY_WORK 0)
+    else (MPI_LIBRARY_WORK MATCHES "libmpi(.*)")
+      list(GET MPI_LIBRARIES 1 MPI_LIBRARY_WORK1)
+      string(REGEX MATCH "(.*)libmpi(.|ch.)(a|so|dylib)" MPI_LIBRARY_WORK ${MPI_LIBRARY_WORK1})
+      if (MPI_LIBRARY_WORK MATCHES "libmpi(.*)")
+        set(MPI_LIBRARY ${MPI_LIBRARY_WORK0} ${MPI_LIBRARY_WORK1} CACHE FILEPATH "MPI library to link against" FORCE)
+        set(MPI_EXTRA_LIBRARY_WORK ${MPI_LIBRARIES})
+        list(REMOVE_AT MPI_EXTRA_LIBRARY_WORK 0)
+        list(REMOVE_AT MPI_EXTRA_LIBRARY_WORK 1)
+      endif (MPI_LIBRARY_WORK MATCHES "libmpi(.*)")
+    endif (MPI_LIBRARY_WORK MATCHES "libmpi(.*)")
+  else (MPI_NUMLIBS GREATER 1) 
+    if (MPI_NUMLIBS GREATER 0)
+      list(GET MPI_LIBRARIES 0 MPI_LIBRARY_WORK)
+      set(MPI_LIBRARY ${MPI_LIBRARY_WORK} CACHE FILEPATH "MPI library to link against" FORCE)
+    else (MPI_NUMLIBS GREATER 0)
+      set(MPI_LIBRARY "MPI_LIBRARY-NOTFOUND" CACHE STRING "MPI library to link against" FORCE)
+    endif (MPI_NUMLIBS GREATER 0)
   endif (MPI_NUMLIBS GREATER 1)
+  if (MPI_EXTRA_LIBRARY_WORK)
+    set(MPI_EXTRA_LIBRARY ${MPI_EXTRA_LIBRARY_WORK} CACHE STRING "Extra MPI libraries to link against" FORCE)
+  else (MPI_EXTRA_LIBRARY_WORK)
+    set(MPI_EXTRA_LIBRARY "MPI_EXTRA_LIBRARY-NOTFOUND" CACHE STRING "Extra MPI libraries to link against" FORCE)
+  endif (MPI_EXTRA_LIBRARY_WORK)
 
   # Set up all of the appropriate cache entries
   set(MPI_COMPILE_FLAGS ${MPI_COMPILE_FLAGS_WORK} CACHE STRING "MPI compilation flags" FORCE)
@@ -209,32 +228,30 @@ elseif (MPI_COMPILE_CMDLINE)
   set(MPI_LINK_FLAGS ${MPI_LINK_FLAGS_WORK} CACHE STRING "MPI linking flags" FORCE)
 else (MPI_COMPILE_CMDLINE)
   find_path(MPI_INCLUDE_PATH mpi.h
-    /usr/local/include
-    /usr/include
-    /usr/include/mpi
-    /usr/local/mpi/include
-    "C:/Program Files/MPICH/SDK/Include"
-    "$ENV{SystemDrive}/Program Files/MPICH2/include"
-    "$ENV{SystemDrive}/Program Files/Microsoft Compute Cluster Pack/Include"
+    ${MPI_DIR} ${MPI_DIR}/include
+    NO_DEFAULT_PATH
     )
 
   # TODO: How do we know whether we're building 32-bit vs. 64-bit for MS-MPI?
   find_library(MPI_LIBRARY
     NAMES mpi mpich
-    PATHS /usr/lib /usr/local/lib /usr/local/mpi/lib
+    HINTS ${MPI_DIR}/lib ${MPI_DIR}
     "C:/Program Files/MPICH/SDK/Lib"
     "$ENV{SystemDrive}/Program Files/MPICH/SDK/Lib"
     "$ENV{SystemDrive}/Program Files/Microsoft Compute Cluster Pack/Lib/i386"
+    NO_DEFAULT_PATH
     )
   find_library(MPI_LIBRARY
     NAMES mpich2
-    PATHS
-    "$ENV{SystemDrive}/Program Files/MPICH2/Lib")
+    HINTS ${MPI_DIR}/lib ${MPI_DIR}
+    "$ENV{SystemDrive}/Program Files/MPICH2/Lib"
+    NO_DEFAULT_PATH)
 
   find_library(MPI_EXTRA_LIBRARY
     NAMES mpi++
-    PATHS /usr/lib /usr/local/lib /usr/local/mpi/lib
+    HINTS ${MPI_DIR}/lib ${MPI_DIR}
     "C:/Program Files/MPICH/SDK/Lib"
+    NO_DEFAULT_PATH
     DOC "Extra MPI libraries to link against.")
 
   set(MPI_COMPILE_FLAGS "" CACHE STRING "MPI compilation flags")
