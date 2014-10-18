@@ -1,6 +1,7 @@
 cmake_minimum_required( VERSION 2.8.12 )
 cmake_policy( SET CMP0003 NEW )
 cmake_policy(SET CMP0020 NEW)
+cmake_policy(SET CMP0042 NEW)
 if ( MPI_DIR )
   SET(CMAKE_USER_CXX_COMPILER_PATH ${MPI_DIR}/bin ${MPI_DIR})
   SET(CMAKE_GENERATOR_CC mpicc mpixlc_r mpixlc hcc mpxlc_r mpxlc sxmpicc mpifcc mpgcc mpcc cmpicc)

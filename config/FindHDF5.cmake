@@ -7,6 +7,7 @@
 
 set( HDF5_DIR "" CACHE PATH "Path to search for HDF5 header and library files" )
 set (HDF5_FOUND NO CACHE INTERNAL "Found HDF5 components successfully." )
+set( SZIP_DIR "" CACHE PATH "Path to search for SZIP header and library files" )
 
 if(EXISTS "${HDF5_DIR}/share/cmake/hdf5/hdf5-config.cmake")
   include(${HDF5_DIR}/share/cmake/hdf5/hdf5-config.cmake)
@@ -20,11 +21,14 @@ FIND_PATH(HDF5_INCLUDE_DIR
   NO_DEFAULT_PATH
 )
 
-foreach (VARIANT dl m z )
+foreach (VARIANT dl sz z m )
+  set (hdf5_deplibs_${VARIANT} "hdf5_deplibs_${VARIANT}-NOTFOUND" CACHE INTERNAL "HDF5 external library component ${VARIANT}." )
   FIND_LIBRARY(hdf5_deplibs_${VARIANT} ${VARIANT}
-    HINTS ${HDF5_DIR}/lib /lib /lib64 /usr/local/lib /usr/lib /opt/local/lib
+    HINTS ${HDF5_DIR}/lib ${SZIP_DIR}/lib /lib /lib64 /usr/local/lib /usr/lib /opt/local/lib
   )
-  list(APPEND HDF5_DEP_LIBRARIES ${hdf5_deplibs_${VARIANT}})
+  if (NOT ${hdf5_deplibs_${VARIANT}} MATCHES "(.*)NOTFOUND")
+    list(APPEND HDF5_DEP_LIBRARIES ${hdf5_deplibs_${VARIANT}})
+  endif (NOT ${hdf5_deplibs_${VARIANT}} MATCHES "(.*)NOTFOUND")
 endforeach()
 
 FIND_LIBRARY(HDF5_BASE_LIBRARY NAMES libhdf5.a libhdf5d.a hdf5 hdf5d
