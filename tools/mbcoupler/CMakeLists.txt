@@ -25,7 +25,7 @@ add_library( mbcoupler
   ${MBCOUPLER_SRCS}
   ${MBCOUPLER_INCLUDE_SRCS} )
 
-target_link_libraries( mbcoupler MOAB iMesh )
+target_link_libraries( mbcoupler iMesh MOAB )
 if ( MOAB_USE_MPI )
   target_link_libraries( mbcoupler ${MPI_LIBRARIES} )
 endif ( )
@@ -45,12 +45,12 @@ if ( MOAB_USE_MPI )
   add_executable( mbcoupler_test mbcoupler_test.cpp )
   set_source_files_properties( mbcoupler_test.cpp
     COMPILE_FLAGS "${MOAB_DEFINES} -DMESHDIR=${MOAB_SOURCE_DIR}/MeshFiles/unittest" )
-  target_link_libraries( mbcoupler_test mbcoupler MOAB ${MPI_LIBRARIES} )
+  target_link_libraries( mbcoupler_test mbcoupler iMesh MOAB ${MPI_LIBRARIES} )
   add_test( TestMBCoupler ${EXECUTABLE_OUTPUT_PATH}/mbcoupler_test )
 
   add_executable( ssn_test ssn_test.cpp )
   set_source_files_properties( ssn_test.cpp
     COMPILE_FLAGS "${MOAB_DEFINES} -DTEST -DMESHDIR=${MOAB_SOURCE_DIR}/MeshFiles/unittest" )
-  target_link_libraries( ssn_test mbcoupler MOAB ${MPI_LIBRARIES} )
+  target_link_libraries( ssn_test mbcoupler iMesh MOAB ${MPI_LIBRARIES} )
   add_test( TestSSN ${EXECUTABLE_OUTPUT_PATH}/ssn_test )
 endif ( MOAB_USE_MPI )
