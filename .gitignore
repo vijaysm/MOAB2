@@ -1,0 +1,12 @@
+build
+compile
+config.*
+aclocal.m4
+configure
+depcomp
+*.cache
+ltmain.sh
+install-sh
+missing
+*.in
+
