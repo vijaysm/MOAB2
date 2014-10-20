@@ -7,6 +7,7 @@
 class AssocPairSide
 {
 public:
+  virtual ~AssocPairSide();
   virtual iBase_Instance instance() const = 0;
   virtual iRel_IfaceType type() const = 0;
 
@@ -59,5 +60,11 @@ public:
   virtual int get_dims(iBase_EntitySetHandle *sets, int num_sets,
                        int *values) = 0;
 };
+
+inline
+AssocPairSide::~AssocPairSide()
+{
+  // Nothing to do
+}
 
 #endif
