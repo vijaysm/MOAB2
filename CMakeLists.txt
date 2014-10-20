@@ -1,7 +1,4 @@
 cmake_minimum_required( VERSION 2.8.12 )
-cmake_policy( SET CMP0003 NEW )
-cmake_policy(SET CMP0020 NEW)
-cmake_policy(SET CMP0042 NEW)
 if ( MPI_DIR )
   SET(CMAKE_USER_CXX_COMPILER_PATH ${MPI_DIR}/bin ${MPI_DIR})
   SET(CMAKE_GENERATOR_CC mpicc mpixlc_r mpixlc hcc mpxlc_r mpxlc sxmpicc mpifcc mpgcc mpcc cmpicc)
@@ -46,6 +43,12 @@ else ( DEFINED PATCH_VERSION )
     set ( MOAB_VERSION_STRING "${MOAB_VERSION_STRING} (beta)" )
   endif ( MOAB_VERSION_MINOR EQUAL 99 )
 endif ( DEFINED PATCH_VERSION )
+
+IF(CMAKE_VERSION VERSION_EQUAL "3.0.0" OR CMAKE_VERSION VERSION_GREATER "3.0.0")
+  cmake_policy(SET CMP0003 NEW)
+  cmake_policy(SET CMP0020 NEW)
+  cmake_policy(SET CMP0042 OLD)
+ENDIF ()
 
 ################################################################################
 # Install Related Settings
