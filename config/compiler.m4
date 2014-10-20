@@ -184,9 +184,9 @@ FCFLAGS="$USER_FCFLAGS $FATHOM_FC_SPECIAL"
 
   # Check for debug flags
 AC_ARG_ENABLE( debug, AC_HELP_STRING([--enable-debug],[Debug symbols (-g)]),
-               [enable_debug=$enableval], [enable_debug=] )  
+               [enable_debug=$enableval; DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-debug=$enableval"], [enable_debug=] )
 AC_ARG_ENABLE( optimize, AC_HELP_STRING([--enable-optimize],[Compile optimized (-O2)]),
-               [enable_cxx_optimize=$enableval
+               [enable_cxx_optimize=$enableval; DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-optimize=$enableval";
                 enable_cc_optimize=$enableval
 		enable_fc_optimize=$enableval
 		], 

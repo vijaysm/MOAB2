@@ -197,7 +197,7 @@ AC_ARG_ENABLE( [imesh],
 
 case $enableval in
   yes)
-    ENABLE_imesh=yes
+    ENABLE_imesh=yes; DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-imesh";
     ;;
   nofortran|NoFortran|noFORTRAN|NoFORTRAN|Nofortran)
     AC_MSG_ERROR([Depricated value for --enable-imesh: \"$enableval\".  Try \"--disable-fortran\"])
@@ -221,7 +221,7 @@ AC_ARG_ENABLE( [igeom],
 
 case $enableval in
   yes)
-    ENABLE_igeom=yes
+    ENABLE_igeom=yes; DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-igeom";
     ;;
   nofortran|NoFortran|noFORTRAN|NoFORTRAN|Nofortran)
     AC_MSG_ERROR([Depricated value for --enable-igeom: \"$enableval\".  Try \"FC= F77=\"])
@@ -662,7 +662,8 @@ DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-$1=\"${enableval}
 AC_ARG_ENABLE( [tools], [
 AC_HELP_STRING([--enable-tools],[Build all tools by default])
 AC_HELP_STRING([--disable-tools],[Disable all tools by default])],
-                         [ENABLE_TOOLS=$enableval],[ENABLE_TOOLS=] )
+                         [ENABLE_TOOLS=$enableval; DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-tools"],
+                         [ENABLE_TOOLS=] )
   # Individual tools
 MB_OPTIONAL_TOOL([mbconvert],    [yes], [yes])
 MB_OPTIONAL_TOOL([hexmodops],    [yes], [yes])
