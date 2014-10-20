@@ -160,16 +160,16 @@ AC_SUBST([DISTCHECK_CONFIGURE_FLAGS])
 
 AC_ARG_VAR([FC], [FORTRAN compiler command])
 AC_CONFIG_HEADERS(config.h) # Don't want this, just working around autoheader issue
-AC_CONFIG_HEADERS([iBase_FCDefs.h])
+AC_CONFIG_HEADERS([itaps/iBase_FCDefs.h])
 AC_CONFIG_FILES([Makefile 
                  test/Makefile
                  doc/lasso.dox
-                 iRel-Defs.inc
+                 itaps/irel/iRel-Defs.inc
                  ])
 
 # Generate iRel_FCDefs.h from iBase_FCDefs.h
-AC_CONFIG_COMMANDS([iRel_FCDefs.h],
-  [sed -e "s/FC_FUNC/IREL_FC_FUNC/" iBase_FCDefs.h >iRel_FCDefs.h])
+AC_CONFIG_COMMANDS([itaps/irel/iRel_FCDefs.h],
+  [sed -e "s/FC_FUNC/IREL_FC_FUNC/" itaps/iBase_FCDefs.h > itaps/irel/iRel_FCDefs.h])
 # Remove iRel_protos.h if old format
-AC_CONFIG_COMMANDS_POST([grep IREL_FC_FUNC iRel_protos.h >/dev/null 2>&1 || rm -f iRel_protos.h])
+AC_CONFIG_COMMANDS_POST([grep IREL_FC_FUNC itaps/irel/iRel_protos.h >/dev/null 2>&1 || rm -f itaps/irel/iRel_protos.h])
 AC_OUTPUT
