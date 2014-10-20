@@ -39,8 +39,7 @@ libiRel_la_LIBADD =
 lib_LTLIBRARIES = libiRel.la
 
 if ENABLE_IGEOM
-    AM_CPPFLAGS += -DENABLE_IGEOM
-    INCLUDES += -I${IGEOM_DIR}/include
+    AM_CPPFLAGS += -DENABLE_IGEOM -I${IGEOM_DIR}/include
     libiRel_la_SOURCES += \
         src/GeomAssocPairSide.cpp \
         src/lasso/GeomAssocPairSide.hpp
@@ -50,8 +49,7 @@ if ENABLE_IGEOM
 endif
 
 if ENABLE_FBIGEOM
-    AM_CPPFLAGS += -DENABLE_FBIGEOM
-    INCLUDES += -I${FBIGEOM_DIR}/include
+    AM_CPPFLAGS += -DENABLE_FBIGEOM -I${FBIGEOM_DIR}/include
     libiRel_la_SOURCES += \
         src/FBGeomAssocPairSide.cpp \
         src/lasso/FBGeomAssocPairSide.hpp
@@ -61,8 +59,7 @@ if ENABLE_FBIGEOM
 endif
 
 if ENABLE_IMESH
-    AM_CPPFLAGS += -DENABLE_IMESH
-    INCLUDES += -I${IMESH_DIR}/include
+    AM_CPPFLAGS += -DENABLE_IMESH -I${IMESH_DIR}/include
     libiRel_la_SOURCES += \
         src/MeshAssocPairSide.cpp \
         src/lasso/MeshAssocPairSide.hpp

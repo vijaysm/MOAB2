@@ -154,7 +154,6 @@ AM_CONDITIONAL([ENABLE_IMESH], [test x$IMESH_MISSING = xno])
 ################################################################################
 #                           Output Files
 ################################################################################
-AC_SUBST([INCLUDES])
 AC_SUBST([DEFINES])
 AC_SUBST([DISTCHECK_CONFIGURE_FLAGS])
 
