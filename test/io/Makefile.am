@@ -57,8 +57,7 @@ TESTS = readutil_test \
 
 check_PROGRAMS = $(TESTS)
 
-tqdcfr_SOURCES = $(top_srcdir)/src/io/Tqdcfr.cpp
-tqdcfr_CXXFLAGS = -DTEST_TQDCFR $(CXXFLAGS)
+tqdcfr_SOURCES = tqdcfr_test.cpp
 
 #test_rms_SOURCES = test_rms.cpp
 #test_exo_SOURCES = test_exo.cpp
