@@ -19,6 +19,9 @@ program imeshp_test
   ! declarations
   ! imesh is the instance handle
   iMesh_Instance imesh
+  ! second instance, to check loading of mesh saved from first instance
+  iMesh_Instance imesh2
+
   ! NUMV, NUME, NVPERE are the hardwired here; these are for the whole mesh,
   ! local mesh determined later
   integer NUMV, NUME, NVPERE
@@ -27,7 +30,7 @@ program imeshp_test
   parameter (NVPERE = 4) ! # vertices per element
   ! ents, verts will be arrays storing vertex/entity handles
   iBase_EntityHandle, pointer :: ents, verts
-  iBase_EntitySetHandle root_set, new_set
+  iBase_EntitySetHandle root_set, root_set2, new_set
   TYPE(C_PTR) :: vertsPtr, entsPtr
   ! storage for vertex positions, element connectivity indices, global vertex ids
   real*8 coords(0:3*NUMV-1)
@@ -39,12 +42,14 @@ program imeshp_test
   integer lnumv, lvids(0:NUMV-1), gvids(0:NUMV-1)
   integer lvpe, ltp ! lvpe = # vertices per entity, ltp = element type
   integer ic, ie, iv, istart, iend, ierr, indv, lnume, rank, sz
+  integer iv2, ie2 !  after loading
 
-#ifdef USE_MPI
-  ! local variables for parallel runs
-  iMeshP_PartitionHandle imeshp
+  ! local variables for parallel runs; index2 for second imesh instance, used for loading from file
+  iMeshP_PartitionHandle imeshp, imeshp2
+  iMeshP_PartHandle part, part2
+  IBASE_HANDLE_T mpi_comm_c
 !    integer MPI_COMM_WORLD
-#endif
+
 
   ! vertex positions, cube; side 2
   ! (first index varying fastest)
@@ -110,53 +115,61 @@ program imeshp_test
   ! now create the mesh; this also initializes parallel sharing and ghost exchange
   imesh = 0
   imeshp = 0
-  call create_mesh(imesh, imeshp, MPI_COMM_WORLD, lnumv, lnume, gvids, lvpe, ltp, lcoords, lconn, &
+  call create_mesh(imesh, imeshp, part, MPI_COMM_WORLD, lnumv, lnume, gvids, lvpe, ltp, lcoords, lconn, &
        vertsPtr, entsPtr, ierr)
   ERROR(ierr)
   call c_f_pointer(vertsPtr, verts, [lnumv])
   call c_f_pointer(entsPtr, ents, [lnume])
 
-  ! get/report number of vertices, elements
+ ! this will save the mesh in parallel
+  call iMeshP_saveAll(%VAL(imesh), %VAL(imeshp), %VAL(part), "test2.h5m", " moab:PARALLEL=WRITE_PART ", ierr)
+  ERROR(ierr)
   call iMesh_getRootSet(%VAL(imesh), root_set, ierr)
   ERROR(ierr)
-  iv = 0
-  ie = 0
-
   call iMeshP_getNumOfTypeAll(%VAL(imesh), %VAL(imeshp), %VAL(root_set), %VAL(iBase_VERTEX), iv, ierr)
   ERROR(ierr)
   call iMeshP_getNumOfTypeAll(%VAL(imesh), %VAL(imeshp), %VAL(root_set), %VAL(iBase_FACE), ie, ierr)
   ERROR(ierr)
+
   if (rank .eq. 0) then
-     write(0,*) "Number of vertices = ", iv
-     write(0,*) "Number of entities = ", ie
+     write(0,*) " Number of vertices = ", iv
+     write(0,*) " Number of entities = ", ie
   endif
 
-  ! from here, can use verts and ents as (1-based) arrays of entity handles for input to other iMesh functions
-!  use load on a file saved earlier
-!void iMeshP_loadAll( iMesh_Instance instance,
-!                  const iMeshP_PartitionHandle partition,
-!                  const iBase_EntitySetHandle entity_set_handle,
-!                  const char *name,
-!                  const char *options,
-!                  int *err,
-!                  int name_len,
-!                  int options_len )
-
- ! see if load works in a new file set
-  call iMesh_createEntSet(%VAL(imesh), %VAL(0), new_set, ierr)
+  ! load the saved mesh in a new instance, in parallel
+  call iMesh_newMesh("MOAB", imesh2, ierr)
   ERROR(ierr)
-  call iMeshP_loadAll( %VAL(imesh), %VAL(imeshp), %VAL(new_set), "test2.h5m", &
+  call iMesh_getRootSet(%VAL(imesh2), root_set2, ierr)
+  ERROR(ierr)
+  call iMeshP_getCommunicator(%VAL(imesh2), MPI_COMM_WORLD, mpi_comm_c, ierr)
+  ERROR(ierr)
+  call iMeshP_createPartitionAll(%VAL(imesh2), %VAL(mpi_comm_c), imeshp2, ierr)
+  ERROR(ierr)
+  call iMeshP_createPart(%VAL(imesh2), %VAL(imeshp2), part2, ierr)
+  ERROR(ierr)
+  iv2 = 0
+  ie2 = 0
+ ! see if load works in a new file set
+  call iMesh_createEntSet(%VAL(imesh2), %VAL(0), new_set, ierr)
+  ERROR(ierr)
+  call iMeshP_loadAll( %VAL(imesh2), %VAL(imeshp2), %VAL(new_set), "test2.h5m", &
    " moab:PARALLEL=READ_PART moab:PARALLEL_RESOLVE_SHARED_ENTS moab:PARTITION=PARALLEL_PARTITION ", &
    ierr)
   ERROR(ierr)
 
-  call iMeshP_getNumOfTypeAll(%VAL(imesh), %VAL(imeshp), %VAL(root_set), %VAL(iBase_VERTEX), iv, ierr)
+  call iMeshP_getNumOfTypeAll(%VAL(imesh2), %VAL(imeshp2), %VAL(root_set2), %VAL(iBase_VERTEX), iv2, ierr)
   ERROR(ierr)
-  call iMeshP_getNumOfTypeAll(%VAL(imesh), %VAL(imeshp), %VAL(root_set), %VAL(iBase_FACE), ie, ierr)
+  call iMeshP_getNumOfTypeAll(%VAL(imesh2), %VAL(imeshp2), %VAL(root_set2), %VAL(iBase_FACE), ie2, ierr)
   ERROR(ierr)
   if (rank .eq. 0) then
-     write(0,*) "after loading the mesh from file, number of vertices = ", iv
+     write(0,*) "After loading the mesh from file:"
+     write(0,*) " Number of vertices = ", iv
      write(0,*) " Number of entities = ", ie
+  endif
+
+  if ( (iv.ne.iv2 ) .or. (ie.ne.ie2) ) then
+     write(0, *) "inconsistent number of elements and vertices"
+     call exit(1)
   endif
 
   call MPI_FINALIZE(ierr)
@@ -165,7 +178,7 @@ end program imeshp_test
 
 subroutine create_mesh( &
   !     interfaces
-     imesh, imeshp, &
+     imesh, imeshp, part, &
   !     input
      comm, numv, nume, vgids, nvpe, tp, posn, iconn, &
   !     output
@@ -289,10 +302,6 @@ subroutine create_mesh( &
   call iMesh_save(%VAL(imesh), %VAL(root_set),filename, "", ierr, %VAL(10), %VAL(0) )
   ERROR(ierr)
 
-  ! this will save the mesh in parallel
-  call iMeshP_saveAll(%VAL(imesh), %VAL(imeshp), %VAL(part), "test2.h5m", " moab:PARALLEL=WRITE_PART ", ierr)
-  ERROR(ierr)
-
   call iMeshP_getNumOfTypeAll(%VAL(imesh), %VAL(imeshp), %VAL(root_set), %VAL(iBase_VERTEX), iv, ierr)
   ERROR(ierr)
   call iMeshP_getNumOfTypeAll(%VAL(imesh), %VAL(imeshp), %VAL(root_set), %VAL(iBase_FACE), ie, ierr)
@@ -308,23 +317,12 @@ subroutine create_mesh( &
   " moab:PARALLEL=WRITE_PART ", ierr)
   ERROR(ierr)
 
-  if (comm_rank .eq. 0) then
-     write(0,*) "After syncMeshAll:"
-     write(0,*) "   Number of vertices = ", iv
-     write(0,*) "   Number of entities = ", ie
-  endif
-
   call iMeshP_createGhostEntsAll(%VAL(imesh), %VAL(imeshp), %VAL(2), %VAL(1), %VAL(1), %VAL(0), ierr)
   ERROR(ierr)
   call iMeshP_getNumOfTypeAll(%VAL(imesh), %VAL(imeshp), %VAL(root_set), %VAL(iBase_VERTEX), iv, ierr)
   ERROR(ierr)
   call iMeshP_getNumOfTypeAll(%VAL(imesh), %VAL(imeshp), %VAL(root_set), %VAL(iBase_FACE), ie, ierr)
   ERROR(ierr)
-  if (comm_rank .eq. 0) then
-     write(0,*) "After createGhostEntsAll:"
-     write(0,*) "   Number of vertices = ", iv
-     write(0,*) "   Number of entities = ", ie
-  endif
 
   ! write now the root set on each process, each mesh should have the ghost too
   write(filename, "(A5,I1,A4)") "after",comm_rank,".h5m"
