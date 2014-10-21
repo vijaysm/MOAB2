@@ -3,7 +3,7 @@ AM_CPPFLAGS += -DIS_BUILDING_MB\
                -I$(top_srcdir)/src \
                -I$(top_srcdir)/src/parallel \
                -I$(top_builddir)/src \
-	       -I$(srcdir)/.. \
+               -I$(srcdir)/.. \
                $(ZOLTAN_INC_FLAGS)
 
 if HAVE_CGM

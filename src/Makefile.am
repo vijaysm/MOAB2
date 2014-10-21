@@ -216,8 +216,8 @@ nobase_libMOAB_la_include_HEADERS = \
   MBTagConventions.hpp
 
 if ENABLE_mbzoltan
-  libMOAB_la_SOURCES += $(srcdir)/../tools/mbzoltan/MBZoltan.cpp
-  nobase_libMOAB_la_include_HEADERS += $(srcdir)/../tools/mbzoltan/MBZoltan.hpp
+  libMOAB_la_SOURCES += MBZoltan.cpp
+  nobase_libMOAB_la_include_HEADERS += MBZoltan.hpp
   AM_CPPFLAGS += $(ZOLTAN_INC_FLAGS)
   # not sure yet if this is needed; will see when linking io reader (MPAS so far)
   # the tool mbpart needed it, and it just includes MBZoltan.hpp; so it needs ways to find 
