@@ -50,6 +50,11 @@ IF(CMAKE_VERSION VERSION_EQUAL "3.0.0" OR CMAKE_VERSION VERSION_GREATER "3.0.0")
   cmake_policy(SET CMP0042 OLD)
 ENDIF ()
 
+set ( abs_srcdir   ${CMAKE_SOURCE_DIR} )
+set ( abs_builddir ${PROJECT_BINARY_DIR} )
+
+include (config/CheckCompilerFlags.cmake)
+
 ################################################################################
 # Install Related Settings
 ################################################################################
