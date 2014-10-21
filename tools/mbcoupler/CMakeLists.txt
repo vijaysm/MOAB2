@@ -37,7 +37,7 @@ endif()
 install(TARGETS mbcoupler RUNTIME DESTINATION bin
                           LIBRARY DESTINATION lib
                           ARCHIVE DESTINATION lib )
-install(FILES ${MBCOUPLER_INCLUDE_SRCS} DESTINATION includes)
+install(FILES ${MBCOUPLER_INCLUDE_SRCS} DESTINATION include)
 
 
 if ( MOAB_USE_MPI )

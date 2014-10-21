@@ -13,7 +13,6 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/moab_mpi_config.h.in "${CMAKE_CURRENT
 
 set(moab_PARALLEL_INSTALL_HDRS moab/gs.hpp
                                moab_mpi.h
-                               ${CMAKE_CURRENT_BINARY_DIR}/moab_mpi_config.h
                                moab/ParallelComm.hpp
                                moab/ParallelMergeMesh.hpp
                                moab/ProcConfig.hpp
