@@ -9,4 +9,5 @@ ltmain.sh
 install-sh
 missing
 *.in
-
+lt*.m4
+libtool.m4
