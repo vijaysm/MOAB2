@@ -1,3 +1,6 @@
+# Don't require GNU-standard files (Changelog, README, etc.)
+AUTOMAKE_OPTIONS = foreign subdir-objects
+
 # Things to build
 lib_LTLIBRARIES = libMOAB.la 
 

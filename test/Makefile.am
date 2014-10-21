@@ -1,3 +1,6 @@
+# Don't require GNU-standard files (Changelog, README, etc.)
+AUTOMAKE_OPTIONS = foreign subdir-objects
+
 SUBDIRS = . io dual obb perf
 if HDF5_FILE
   SUBDIRS += h5file

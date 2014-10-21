@@ -1,3 +1,6 @@
+# Don't require GNU-standard files (Changelog, README, etc.)
+AUTOMAKE_OPTIONS = foreign subdir-objects
+
 LDADD = $(top_builddir)/src/libMOAB.la
 
 MESHDIR = $(top_srcdir)/MeshFiles/unittest
