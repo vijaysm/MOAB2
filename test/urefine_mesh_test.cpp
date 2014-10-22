@@ -199,7 +199,7 @@ ErrorCode refine_single_entity(Core *mb, EntityType type, int *level_degrees, co
     dim = 2;
   else
     dim = 3;
-  int factor;
+  int factor=1;
 
   //Get the ranges of entities in each level
   for (int l=0; l<num_levels; l++)
@@ -211,6 +211,15 @@ ErrorCode refine_single_entity(Core *mb, EntityType type, int *level_degrees, co
 
       error = mb->get_entities_by_type(set[l], type, ents);
       CHECK_ERR(error);
+
+      if (verts.empty() || ents.empty())
+        std::cout<<"something not right"<<std::endl;
+
+      for (Range::iterator v = verts.begin(); v!= verts.end(); v++)
+        std::cout<<"v["<<(*v-*verts.begin())<<"] = "<<*v<<std::endl;
+
+      for (Range::iterator e = ents.begin(); e!= ents.end(); e++)
+        std::cout<<"ent["<<(*e-*ents.begin())<<"] = "<<*e<<std::endl;
 
       for (int d=0; d<dim; d++)
         factor *= level_degrees[l];

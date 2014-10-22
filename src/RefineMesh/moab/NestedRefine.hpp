@@ -95,6 +95,7 @@ namespace moab
       EntityHandle start_vertex, start_edge, start_face, start_cell;
       std::vector<double *> coordinates;
       EntityHandle *edge_conn, *face_conn, *cell_conn;
+      Range verts, edges, faces, cells;
     };
 
     level_memory level_mesh[MAX_LEVELS];
@@ -106,6 +107,7 @@ namespace moab
     //Estimate and create storage for the levels
     ErrorCode estimate_hm_storage(int *level_degrees, int num_level, int *hmest);
     ErrorCode create_hm_storage_single_level(EntityHandle *set, int cur_level, int *estL);
+    ErrorCode add_entities(EntityHandle *hm_set, int num_level, int *estL);
 
     //Construct the hierarchical mesh: 1D, 2D, 3D
     ErrorCode construct_hm_entities(int cur_level, int deg);
@@ -113,22 +115,23 @@ namespace moab
     ErrorCode construct_hm_2D(int cur_level, int deg);
     ErrorCode construct_hm_3D(int cur_level, int deg);
 
-    ErrorCode subdivide_cells(EntityType type, std::vector<EntityHandle> conn, int cur_level, int deg, std::vector<EntityHandle> vbuffer, int *count_ents);
-    ErrorCode subdivide_tets(std::vector<EntityHandle> conn, int cur_level, int deg, std::vector<EntityHandle> vbuffer, int *count_ents);
+    ErrorCode subdivide_cells(EntityType type, std::vector<EntityHandle> conn, int cur_level, int deg, EntityHandle  *vbuffer, int *count_ents);
+    ErrorCode subdivide_tets(std::vector<EntityHandle> conn, int cur_level, int deg, EntityHandle *vbuffer, int *count_ents);
 
     // Helper functions
     ErrorCode copy_vertices_from_prev_level(int cur_level);
-    ErrorCode update_tracking_verts(EntityHandle cidl, int cur_level, int deg, std::vector<EntityHandle> trackvertsC_edg, std::vector<EntityHandle> trackvertsC_face, std::vector<EntityHandle> vbuffer);
+    ErrorCode update_tracking_verts(EntityHandle cidl, int cur_level, int deg, std::vector<EntityHandle> trackvertsC_edg, std::vector<EntityHandle> trackvertsC_face, EntityHandle *vbuffer);
     ErrorCode match_and_reorder_vertices(EntityType type, int cur_level, int deg, EntityHandle cell, int lfid, EntityHandle sib_cell, int sib_lfid, int *id_sib);
     int find_shortest_diagonal_octahedron( double *coords);
-    int get_local_vid(EntityHandle vid, EntityHandle ent, int cur_level);
+    int get_local_vid(EntityHandle vid, EntityHandle ent, int level);
+    ErrorCode print_tags_1D(int level);
 
     // Coordinates
-    ErrorCode compute_coordinates(int cur_level, int deg, EntityType type, std::vector<EntityHandle> vbuffer, int vtotal, double *corner_coords);
+    ErrorCode compute_coordinates(int cur_level, int deg, EntityType type, EntityHandle *vbuffer, int vtotal, double *corner_coords);
 
     // Update the ahf maps
 
-    ErrorCode update_local_ahf(int deg, EntityType type, std::vector<EntityHandle> vbuffer, int vtotal, std::vector<EntityHandle> ent_buffer, int etotal);
+    ErrorCode update_local_ahf(int deg, EntityType type, EntityHandle *vbuffer, EntityHandle *ent_buffer, int etotal);
 
     ErrorCode update_local_ahf(int cur_level, int deg, std::vector<int> nents_flag, std::vector<int> idx_buffer);
 
@@ -140,13 +143,13 @@ namespace moab
 
     ErrorCode update_global_ahf_3D(int cur_level, int deg);
 
-    ErrorCode get_sibling_tag(EntityType type, EntityHandle *ents, int num_ents, std::vector<EntityHandle> &sib_entids, std::vector<int> &sib_lids);
+    ErrorCode get_sibling_tag(EntityType type, EntityHandle ent, EntityHandle *sib_entids, int *sib_lids);
 
-    ErrorCode set_sibling_tag(EntityType type, EntityHandle *ents, int num_ents, std::vector<EntityHandle> set_entids, std::vector<int> set_lids);
+    ErrorCode set_sibling_tag(EntityType type, EntityHandle ent, EntityHandle *set_entids, int *set_lids);
 
     ErrorCode get_incident_tag(EntityType type, EntityHandle vid, EntityHandle *inci_entid, int *inci_lid);
 
-    ErrorCode set_incident_tag(EntityType type, EntityHandle vid, EntityHandle set_entid, int set_lid);
+    ErrorCode set_incident_tag(EntityType type, EntityHandle vid, EntityHandle *set_entid, int *set_lid);
 
 
   };
