@@ -24,7 +24,7 @@ namespace moab
   {
     
   public:
-    NestedRefine(Core *mesh_in);
+    NestedRefine(Core *impl);
     
     ~NestedRefine() {}
     
@@ -36,17 +36,12 @@ namespace moab
      * However, in practice, maximum of 5 or 6 levels are used.
      */
     ErrorCode generate_mesh_hierarchy(int *level_degrees, int num_level, EntityHandle *hm_set);
-    ErrorCode get_connectivity(EntityHandle ent, int num_corners, int level, std::vector<EntityHandle> conn);
-    ErrorCode get_coordinates(std::vector<EntityHandle> conn, int num_corners, int cur_level, double *coords);
+    ErrorCode get_connectivity(EntityHandle ent, int level, std::vector<EntityHandle> &conn);
+    ErrorCode get_coordinates(std::vector<EntityHandle> verts, int num_verts,  int cur_level, double *coords);
 
     //ErrorCode get_adjacencies(); // Called directly from the AHF class
     //ErrorCode tag_get_data(); // Get meta data for the new levels
     //ErrorCode tag_set_data(); // Set meta data for the new levels
-
-    //2nd class: Interlevel
-    //ErrorCode interpolate_data();
-    //ErrorCode restriction_operator();
-    //ErrorCode prolongation_operator();
 
   protected:
 
@@ -59,18 +54,20 @@ namespace moab
       short int total_new_ents; // Total number of new child entities
 
       int vert_index_bnds[2]; //Lower and upper indices of the new vertices
-      double vert_nat_coord[MAX_VERTS][4]; //Natural coordinates of the new vertices
-      int vert_on_edges[MAX_HF][MAX_VHF]; // Auxiliary field: storing the local ids of vertices on each local edge
-      int vert_on_faces[MAX_HF][MAX_VHF]; // Auxilliary field: storing local ids of verts on each local face, doesnt include those on edges of the face
-
+      double vert_nat_coord[MAX_VERTS][3]; //Natural coordinates of the new vertices
       int ents_conn[MAX_CHILDRENS][MAX_CONN]; //Connectivity of the new entities
-      int ents_opphfs[MAX_CHILDRENS][2*MAX_CONN]; // Opposite half-facet map of the new entities
-      int ents_on_pent[MAX_HF][MAX_CHILDRENS]; //Stores map between half-edges/edges of children to parent edges
 
-      short int num_ents; //AField: Number of child entities. This is required for tet where the template is given using mixed tets and octs.
+      int v2hf[MAX_VERTS][2]; //Vertex to half-facet map of the new vertices
+      int ents_opphfs[MAX_CHILDRENS][2*MAX_CONN]; // Opposite half-facet map of the new entities
+
+      int vert_on_edges[MAX_HF][MAX_VHF]; //Helper: storing the local ids of vertices on each local edge
+      int vert_on_faces[MAX_HF][MAX_VHF]; // Helper: storing local ids of verts on each local face, doesnt include those on edges of the face
+      int ents_on_pent[MAX_HF][MAX_CHILDRENS]; //Helper: stores child half-facets incident on parent half-facet. First column contain the number of such children
     };
 
     static const refPatterns refTemplates[9][MAX_DEGREE];
+
+    int get_index_from_degree(int degree);
 
     // Octahedron Tessellation
     struct tessellate_octahedron{
@@ -108,7 +105,7 @@ namespace moab
 
     //Estimate and create storage for the levels
     ErrorCode estimate_hm_storage(int *level_degrees, int num_level, int *hmest);
-    ErrorCode create_hm_storage_single_level(EntityHandle set, int cur_level, int *estL);
+    ErrorCode create_hm_storage_single_level(EntityHandle *set, int cur_level, int *estL);
 
     //Construct the hierarchical mesh: 1D, 2D, 3D
     ErrorCode construct_hm_entities(int cur_level, int deg);
@@ -116,21 +113,22 @@ namespace moab
     ErrorCode construct_hm_2D(int cur_level, int deg);
     ErrorCode construct_hm_3D(int cur_level, int deg);
 
-    ErrorCode subdivide_cells(EntityHandle cell,  EntityType type, std::vector<EntityHandle> conn, int cur_level, int deg, EntityHandle *vbuffer, int *count);
-    ErrorCode subdivide_tets(std::vector<EntityHandle> conn, int cur_level, int deg, EntityHandle *vbuffer, int *count);
+    ErrorCode subdivide_cells(EntityType type, std::vector<EntityHandle> conn, int cur_level, int deg, std::vector<EntityHandle> vbuffer, int *count_ents);
+    ErrorCode subdivide_tets(std::vector<EntityHandle> conn, int cur_level, int deg, std::vector<EntityHandle> vbuffer, int *count_ents);
 
     // Helper functions
     ErrorCode copy_vertices_from_prev_level(int cur_level);
-    ErrorCode update_tracking_verts(EntityHandle cidl, int cur_level, int deg, std::vector<EntityHandle> trackvertsC_edg, std::vector<EntityHandle> trackvertsC_face, EntityHandle *vbuffer);
+    ErrorCode update_tracking_verts(EntityHandle cidl, int cur_level, int deg, std::vector<EntityHandle> trackvertsC_edg, std::vector<EntityHandle> trackvertsC_face, std::vector<EntityHandle> vbuffer);
     ErrorCode match_and_reorder_vertices(EntityType type, int cur_level, int deg, EntityHandle cell, int lfid, EntityHandle sib_cell, int sib_lfid, int *id_sib);
     int find_shortest_diagonal_octahedron( double *coords);
+    int get_local_vid(EntityHandle vid, EntityHandle ent, int cur_level);
 
     // Coordinates
-    ErrorCode compute_coordinates(int cur_level, int deg, EntityType type, EntityHandle *vbuffer, int vtotal, double *corner_coords);
+    ErrorCode compute_coordinates(int cur_level, int deg, EntityType type, std::vector<EntityHandle> vbuffer, int vtotal, double *corner_coords);
 
     // Update the ahf maps
 
-    ErrorCode update_local_ahf(int deg, EntityType type, EntityHandle *ent_buffer, int etotal);
+    ErrorCode update_local_ahf(int deg, EntityType type, std::vector<EntityHandle> vbuffer, int vtotal, std::vector<EntityHandle> ent_buffer, int etotal);
 
     ErrorCode update_local_ahf(int cur_level, int deg, std::vector<int> nents_flag, std::vector<int> idx_buffer);
 
@@ -142,13 +140,13 @@ namespace moab
 
     ErrorCode update_global_ahf_3D(int cur_level, int deg);
 
-    ErrorCode get_sibling_tag(EntityType type, EntityHandle *ents, int num_ents, std::vector<EntityHandle> sib_entids, std::vector<int> sib_lids);
+    ErrorCode get_sibling_tag(EntityType type, EntityHandle *ents, int num_ents, std::vector<EntityHandle> &sib_entids, std::vector<int> &sib_lids);
 
     ErrorCode set_sibling_tag(EntityType type, EntityHandle *ents, int num_ents, std::vector<EntityHandle> set_entids, std::vector<int> set_lids);
 
-    ErrorCode get_incident_tag(EntityType type, EntityHandle vid, EntityHandle inci_entid, int inci_lid);
+    ErrorCode get_incident_tag(EntityType type, EntityHandle vid, EntityHandle *inci_entid, int *inci_lid);
 
-    ErrorCode set_incident_tag(EntityType type, EntityHandle vid, EntityHandle inci_entid, int inci_lid);
+    ErrorCode set_incident_tag(EntityType type, EntityHandle vid, EntityHandle set_entid, int set_lid);
 
 
   };

@@ -705,6 +705,7 @@ namespace moab {
          error = find_total_edges_faces_3d(cells, nedges, nfaces);
          if (error != MB_SUCCESS) return error;
        }
+     return MB_SUCCESS;
    }
 
   /******************************************************** 
