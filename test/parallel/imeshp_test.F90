@@ -1,33 +1,27 @@
-! PushParMeshIntoMoabF90: push parallel mesh into moab, F90 version
-! 
+!  push parallel mesh into moab, F90 version, test
+!
 ! This program shows how to push a mesh into MOAB in parallel from Fortran90, with sufficient
 ! information to resolve boundary sharing and exchange a layer of ghost information.
-! To successfully link this example, you need to specify FCFLAGS that include:
-!    a) -DUSE_MPI, and
-!    b) flags required to link Fortran90 MPI programs with the C++ compiler; these flags
-!       can often be found on your system by inspecting the output of 'mpif90 -show'
-! For example, using gcc, the link line looks like:
-!   make MOAB_DIR=<moab install dir> FCFLAGS="-DUSE_MPI -I/usr/lib/openmpi/include -pthread -I/usr/lib/openmpi/lib -L/usr/lib/openmpi/lib -lmpi_f90 -lmpi_f77 -lmpi -lopen-rte -lopen-pal -ldl -Wl,--export-dynamic -lnsl -lutil -lm -ldl" PushParMeshIntoMoabF90
 !
-! Usage: PushParMeshIntoMoab
+! After resolving the sharing, mesh is saved to a file, then read back again, in parallel
+!  the mesh is just a set of 6 quads that form a cube; it is distributed to at most 6 processors
+!  by default, this test is run on 2 processors
 #define ERROR(rval) if (0 .ne. rval) call exit(1)
 
-program PushParMeshIntoMoab
+program imeshp_test
 
   use ISO_C_BINDING
   implicit none
 
 #include "mpif.h"
-
-#ifdef USE_MPI
-#  include "iMeshP_f.h"
-#else
-#  include "iMesh_f.h"
-#endif
+#include "iMeshP_f.h"
 
   ! declarations
   ! imesh is the instance handle
   iMesh_Instance imesh
+  ! second instance, to check loading of mesh saved from first instance
+  iMesh_Instance imesh2
+
   ! NUMV, NUME, NVPERE are the hardwired here; these are for the whole mesh,
   ! local mesh determined later
   integer NUMV, NUME, NVPERE
@@ -36,7 +30,7 @@ program PushParMeshIntoMoab
   parameter (NVPERE = 4) ! # vertices per element
   ! ents, verts will be arrays storing vertex/entity handles
   iBase_EntityHandle, pointer :: ents, verts
-  iBase_EntitySetHandle root_set
+  iBase_EntitySetHandle root_set, root_set2, new_set
   TYPE(C_PTR) :: vertsPtr, entsPtr
   ! storage for vertex positions, element connectivity indices, global vertex ids
   real*8 coords(0:3*NUMV-1)
@@ -48,12 +42,14 @@ program PushParMeshIntoMoab
   integer lnumv, lvids(0:NUMV-1), gvids(0:NUMV-1)
   integer lvpe, ltp ! lvpe = # vertices per entity, ltp = element type
   integer ic, ie, iv, istart, iend, ierr, indv, lnume, rank, sz
+  integer iv2, ie2 !  after loading
 
-#ifdef USE_MPI
-  ! local variables for parallel runs
-  iMeshP_PartitionHandle imeshp
+  ! local variables for parallel runs; index2 for second imesh instance, used for loading from file
+  iMeshP_PartitionHandle imeshp, imeshp2
+  iMeshP_PartHandle part, part2
+  IBASE_HANDLE_T mpi_comm_c
 !    integer MPI_COMM_WORLD
-#endif
+
 
   ! vertex positions, cube; side 2
   ! (first index varying fastest)
@@ -62,12 +58,12 @@ program PushParMeshIntoMoab
        -1., -1.,  1,  1., -1.,  1.,  1., 1.,  1.,  -1., 1.,  1. /
 
   ! quad index numbering, each quad ccw, sides then bottom then top
-  data iconn / & 
-       0, 1, 5, 4,  & 
-       1, 2, 6, 5,  & 
-       2, 3, 7, 6,  & 
-       3, 0, 4, 7,  & 
-       0, 3, 2, 1,  & 
+  data iconn / &
+       0, 1, 5, 4,  &
+       1, 2, 6, 5,  &
+       2, 3, 7, 6,  &
+       3, 0, 4, 7,  &
+       0, 3, 2, 1,  &
        4, 5, 6, 7 /
 
   data lvpe /4/ ! quads in this example
@@ -78,7 +74,6 @@ program PushParMeshIntoMoab
      lgids(iv) = iv+1
   end do
 
-#ifdef USE_MPI
   ! init the parallel partition
   call MPI_INIT(ierr)
   call MPI_COMM_SIZE(MPI_COMM_WORLD, sz, ierr)
@@ -92,12 +87,6 @@ program PushParMeshIntoMoab
      iend = NUME-1
      lnume = iend - istart + 1
   endif
-#else
-  ! set the starting/ending element numbers
-  istart = 0
-  iend = NUME-1
-  lnume = NUME
-#endif
 
   ! for my elements, figure out which vertices I use and accumulate local indices and coords
   ! lvids stores the local 0-based index for each vertex; -1 means vertex i isn't used locally
@@ -120,50 +109,67 @@ program PushParMeshIntoMoab
         lconn(lvpe*(ie-istart)+iv) = lvids(indv)
      end do  ! do iv
   end do  ! do ie
-  
+
   lnumv = lnumv + 1
 
   ! now create the mesh; this also initializes parallel sharing and ghost exchange
   imesh = 0
   imeshp = 0
-  call create_mesh(imesh, imeshp, MPI_COMM_WORLD, lnumv, lnume, gvids, lvpe, ltp, lcoords, lconn, &
+  call create_mesh(imesh, imeshp, part, MPI_COMM_WORLD, lnumv, lnume, gvids, lvpe, ltp, lcoords, lconn, &
        vertsPtr, entsPtr, ierr)
   ERROR(ierr)
   call c_f_pointer(vertsPtr, verts, [lnumv])
   call c_f_pointer(entsPtr, ents, [lnume])
 
-  ! get/report number of vertices, elements
+ ! this will save the mesh in parallel
+  call iMeshP_saveAll(%VAL(imesh), %VAL(imeshp), %VAL(part), "test2.h5m", " moab:PARALLEL=WRITE_PART ", ierr)
+  ERROR(ierr)
   call iMesh_getRootSet(%VAL(imesh), root_set, ierr)
   ERROR(ierr)
-  iv = 0
-  ie = 0
-#ifdef USE_MPI
   call iMeshP_getNumOfTypeAll(%VAL(imesh), %VAL(imeshp), %VAL(root_set), %VAL(iBase_VERTEX), iv, ierr)
   ERROR(ierr)
   call iMeshP_getNumOfTypeAll(%VAL(imesh), %VAL(imeshp), %VAL(root_set), %VAL(iBase_FACE), ie, ierr)
   ERROR(ierr)
-  if (rank .eq. 0) then
-     write(0,*) "Number of vertices = ", iv
-     write(0,*) "Number of entities = ", ie
-  endif
-#else
-  call iMesh_getNumOfTypeAll(%VAL(imesh), %VAL(root_set), %VAL(iBase_VERTEX), iv, ierr)
-  ERROR(ierr)
-  call iMesh_getNumOfTypeAll(%VAL(imesh), %VAL(root_set), %VAL(iBase_FACE), ie, ierr)
-  ERROR(ierr)
-  write(0,*) "Number of vertices = ", iv
-  write(0,*) "Number of entities = ", ie
-#endif
 
-  ! from here, can use verts and ents as (1-based) arrays of entity handles for input to other iMesh functions
+  ! load the saved mesh in a new instance, in parallel
+  call iMesh_newMesh("MOAB", imesh2, ierr)
+  ERROR(ierr)
+  call iMesh_getRootSet(%VAL(imesh2), root_set2, ierr)
+  ERROR(ierr)
+  call iMeshP_getCommunicator(%VAL(imesh2), MPI_COMM_WORLD, mpi_comm_c, ierr)
+  ERROR(ierr)
+  call iMeshP_createPartitionAll(%VAL(imesh2), %VAL(mpi_comm_c), imeshp2, ierr)
+  ERROR(ierr)
+  call iMeshP_createPart(%VAL(imesh2), %VAL(imeshp2), part2, ierr)
+  ERROR(ierr)
+  iv2 = 0
+  ie2 = 0
+ ! see if load works in a new file set
+  call iMesh_createEntSet(%VAL(imesh2), %VAL(0), new_set, ierr)
+  ERROR(ierr)
+  call iMeshP_loadAll( %VAL(imesh2), %VAL(imeshp2), %VAL(new_set), "test2.h5m", &
+   " moab:PARALLEL=READ_PART moab:PARALLEL_RESOLVE_SHARED_ENTS moab:PARTITION=PARALLEL_PARTITION ", &
+   ierr)
+  ERROR(ierr)
+
+  call iMeshP_getNumOfTypeAll(%VAL(imesh2), %VAL(imeshp2), %VAL(root_set2), %VAL(iBase_VERTEX), iv2, ierr)
+  ERROR(ierr)
+  call iMeshP_getNumOfTypeAll(%VAL(imesh2), %VAL(imeshp2), %VAL(root_set2), %VAL(iBase_FACE), ie2, ierr)
+  ERROR(ierr)
+
+  if ( (iv.ne.iv2 ) .or. (ie.ne.ie2) ) then
+     write(0, *) "inconsistent number of elements and vertices"
+     write(0, *) " saved: " , iv, ie, " loaded: " , iv2, ie2
+     call exit(1)
+  endif
 
   call MPI_FINALIZE(ierr)
   stop
-end program PushParMeshIntoMoab
+end program imeshp_test
 
 subroutine create_mesh( &
   !     interfaces
-     imesh, imeshp, &
+     imesh, imeshp, part, &
   !     input
      comm, numv, nume, vgids, nvpe, tp, posn, iconn, &
   !     output
@@ -192,10 +198,10 @@ subroutine create_mesh( &
   TYPE(C_PTR) :: vertsPtr, entsPtr
   integer numv, nume, nvpe, vgids(0:*), iconn(0:*), ierr, tp
   real*8 posn(0:*)
-#ifdef USE_MPI
+
   iMeshP_PartitionHandle imeshp
   integer comm
-#endif
+
 
   ! local variables
   integer comm_sz, comm_rank, numa, numo, iv, ie
@@ -207,21 +213,20 @@ subroutine create_mesh( &
   iBase_EntityHandle, allocatable :: conn(:)
   iBase_EntitySetHandle root_set
   iBase_EntitySetHandle file_set
-#ifdef USE_MPI
+
   IBASE_HANDLE_T mpi_comm_c
   TYPE(C_PTR) :: partsPtr
   iMeshP_PartHandle, pointer :: parts(:)
   iMeshP_PartHandle part
   integer partsa, partso
   character (len=10) filename
-#endif
 
   ! create the Mesh instance
   if (imesh .eq. 0) then
      call iMesh_newMesh("MOAB", imesh, ierr)
   end if
 
-#ifdef USE_MPI
+
   if (imeshp .eq. 0) then
      call iMeshP_getCommunicator(%VAL(imesh), MPI_COMM_WORLD, mpi_comm_c, ierr)
      ERROR(ierr)
@@ -229,7 +234,7 @@ subroutine create_mesh( &
      ERROR(ierr)
      call iMeshP_createPart(%VAL(imesh), %VAL(imeshp), part, ierr)
      ERROR(ierr)
-  else 
+  else
      partsa = 0
      call iMeshP_getLocalParts(%VAL(imesh), %VAL(imeshp), partsPtr, partsa, partso, ierr)
      ERROR(ierr)
@@ -240,7 +245,6 @@ subroutine create_mesh( &
   ERROR(ierr)
   call MPI_COMM_SIZE(comm, comm_sz, ierr)
   ERROR(ierr)
-#endif
 
   ! create the vertices, all in one call
   numa = 0
@@ -263,7 +267,6 @@ subroutine create_mesh( &
   deallocate(stats)
   deallocate(conn)
 
-#ifdef USE_MPI
   ! take care of parallel stuff
 
   ! add entities to part, using iMesh
@@ -285,8 +288,6 @@ subroutine create_mesh( &
 
   call iMeshP_createGhostEntsAll(%VAL(imesh), %VAL(imeshp), %VAL(2), %VAL(1), %VAL(1), %VAL(0), ierr)
   ERROR(ierr)
-
-#endif
 
   return
 end subroutine create_mesh
