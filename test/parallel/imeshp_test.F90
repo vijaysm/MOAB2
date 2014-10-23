@@ -29,7 +29,7 @@ program imeshp_test
   parameter (NUME = 6)   ! # elements in whole mesh
   parameter (NVPERE = 4) ! # vertices per element
   ! ents, verts will be arrays storing vertex/entity handles
-  iBase_EntityHandle, pointer :: ents, verts
+  iBase_EntityHandle, pointer :: ents(:), verts(:)
   iBase_EntitySetHandle root_set, root_set2, new_set
   TYPE(C_PTR) :: vertsPtr, entsPtr
   ! storage for vertex positions, element connectivity indices, global vertex ids
