@@ -28,8 +28,7 @@ EXTRA_DIST = README.hexmodops \
              README.mbskin \
              README.mbsurfplot \
              README.mbtagprop \
-             README.spheredecomp \
-             mbzoltan/README
+             README.spheredecomp
 
 
 if ENABLE_mbconvert
