@@ -1,30 +1,37 @@
 cmake_minimum_required( VERSION 2.8.12 )
+
 if ( MPI_DIR )
+  message ("Checking for MPI compilers in ${MPI_DIR}/bin")
   SET(CMAKE_USER_CXX_COMPILER_PATH ${MPI_DIR}/bin ${MPI_DIR})
-  SET(CMAKE_GENERATOR_CC mpicc mpixlc_r mpixlc hcc mpxlc_r mpxlc sxmpicc mpifcc mpgcc mpcc cmpicc)
-  SET(CMAKE_GENERATOR_CXX mpicxx mpic++ mpiCC sxmpic++ hcp mpxlC_r mpxlC mpixlcxx_r mpixlcxx mpg++ mpc++ mpCC cmpic++ mpiFCC)
-  SET(CMAKE_GENERATOR_FC mpif95 mpxlf95_r mpxlf95 ftn mpif90 mpxlf90_r mpxlf90 mpf90 cmpif90c sxmpif90)
-  SET(CMAKE_GENERATOR_F77 mpif77 hf77 mpxlf_r mpxlf mpifrt mpf77 cmpifc mpif95 mpxlf95_r mpxlf95 ftn mpif90 mpxlf90_r mpxlf90 mpf90 cmpif90c sxmpif90)
+  SET(CMAKE_GENERATOR_CC ${CC} mpicc mpixlc_r mpixlc hcc mpxlc_r mpxlc sxmpicc mpifcc mpgcc mpcc cmpicc)
+  SET(CMAKE_GENERATOR_CXX ${CXX} mpicxx mpic++ mpiCC sxmpic++ hcp mpxlC_r mpxlC mpixlcxx_r mpixlcxx mpg++ mpc++ mpCC cmpic++ mpiFCC)
+  SET(CMAKE_GENERATOR_FC ${FC} ${F90} mpif95 mpxlf95_r mpxlf95 ftn mpif90 mpxlf90_r mpxlf90 mpf90 cmpif90c sxmpif90)
 else ( MPI_DIR )
-  SET(CMAKE_GENERATOR_CC gcc icc pgcc cc)
-  SET(CMAKE_GENERATOR_CXX CCicpc pgCC pathCC sxc++ xlC_r xlC bgxlC_r bgxlC openCC sunCC crayCC icpc g++ c++ gpp aCC CC cxx cc++ cl.exe FCC KCC RCC)
-  SET(CMAKE_GENERATOR_FC pathf95 ifort gfortran g95 f95 fort ifc efc openf95 sunf95 crayftn lf95 ftn xlf90 f90 pgf90 pghpf pathf90 epcf90 sxf90 openf90 sunf90)
-  SET(CMAKE_GENERATOR_F77 ifort gfortran xlf f77 frt pgf77 pathf77 g77 cf77 fort77 fl32 af77)
+  message ("Checking for non-MPI native compilers")
+  SET(CMAKE_GENERATOR_CC ${CC} gcc icc pgcc cc)
+  SET(CMAKE_GENERATOR_CXX ${CXX} CCicpc pgCC pathCC sxc++ xlC_r xlC bgxlC_r bgxlC openCC sunCC crayCC icpc g++ c++ gpp aCC CC cxx cc++ cl.exe FCC KCC RCC)
+  SET(CMAKE_GENERATOR_FC ${FC} ${F90} pathf95 ifort gfortran g95 f95 fort ifc efc openf95 sunf95 crayftn lf95 ftn xlf90 f90 pgf90 pghpf pathf90 epcf90 sxf90 openf90 sunf90)
 endif ( MPI_DIR )
-SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g")
-SET(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
-SET(CMAKE_CXX_FLAGS "-fPIC -DPIC")
-SET(CMAKE_C_FLAGS "-fPIC -DPIC")
-SET(CMAKE_C_FLAGS_RELWITHDEBINFO "-O2 -g")
-SET(CMAKE_C_FLAGS_RELEASE "-O2 -DNDEBUG")
-SET(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "")
-SET(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "")
+SET(CMAKE_Fortran_COMPILER_INIT ${CMAKE_GENERATOR_FC})
+SET(CMAKE_CXX_FLAGS_INIT "-fPIC -DPIC")
+SET(CMAKE_CXX_FLAGS_DEBUG_INIT "-O0 -g")
+SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO_INIT "-O2 -g")
+SET(CMAKE_CXX_FLAGS_RELEASE_INIT "-O2 -DNDEBUG")
+SET(CMAKE_C_FLAGS_INIT "-fPIC -DPIC")
+SET(CMAKE_C_FLAGS_DEBUG_INIT "-O0 -g")
+SET(CMAKE_C_FLAGS_RELWITHDEBINFO_INIT "-O2 -g")
+SET(CMAKE_C_FLAGS_RELEASE_INIT "-O2 -DNDEBUG")
+SET(CMAKE_Fortran_FLAGS_INIT "-fPIC")
+SET(CMAKE_Fortran_FLAGS_DEBUG_INIT "-O0 -g")
+SET(CMAKE_Fortran_FLAGS_RELWITHDEBINFO_INIT "-O2 -g")
+SET(CMAKE_Fortran_FLAGS_RELEASE_INIT "-O2")
+SET(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS_INIT "")
+SET(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS_INIT "")
 
 project( MOAB )
 
 #Add our Cmake directory to the module search path
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/config ${CMAKE_MODULE_PATH})
-
 ################################################################################
 # Set up version info
 ################################################################################
@@ -52,8 +59,6 @@ ENDIF ()
 
 set ( abs_srcdir   ${CMAKE_SOURCE_DIR} )
 set ( abs_builddir ${PROJECT_BINARY_DIR} )
-
-include (config/CheckCompilerFlags.cmake)
 
 ################################################################################
 # Install Related Settings
@@ -112,6 +117,11 @@ mark_as_advanced(
     MOAB_FORCE_64_BIT_HANDLES
     MOAB_FORCE_32_BIT_HANDLES
   )
+
+if ( ENABLE_IMESH OR ENABLE_IGEOM )
+  include (${CMAKE_ROOT}/Modules/CMakeDetermineFortranCompiler.cmake)
+endif ()
+include (config/CheckCompilerFlags.cmake)
 
 ################################################################################
 # Check for system include files
@@ -248,13 +258,20 @@ install(EXPORT MOABTargets DESTINATION lib)
 ################################################################################
 set(CXX ${CMAKE_CXX_COMPILER})
 set(CC ${CMAKE_C_COMPILER})
-set(F77 "" )
-set(FC "")
-set(CXXFLAGS ${MOAB_DEFINES})
+set(F77 ${CMAKE_Fortran_COMPILER} )
+set(FC ${CMAKE_Fortran_COMPILER})
+set(CPPFLAGS "${CMAKE_CXX_FLAGS} ${MOAB_DEFINES}")
+IF (CMAKE_BUILD_TYPE MATCHES "Debug")
+  set(CXXFLAGS ${CMAKE_CXX_FLAGS_DEBUG})
+  set(CFLAGS ${CMAKE_C_FLAGS_DEBUG})
+  set(FFLAGS ${CMAKE_Fortran_FLAGS_DEBUG})
+ELSE (CMAKE_BUILD_TYPE MATCHES "Debug")
+  set(CXXFLAGS ${CMAKE_CXX_FLAGS_RELEASE})
+  set(CFLAGS ${CMAKE_C_FLAGS_RELEASE})
+  set(FFLAGS ${CMAKE_Fortran_FLAGS_RELEASE})
+ENDIF (CMAKE_BUILD_TYPE MATCHES "Debug")
 set(AM_CXXFLAGS)
-set(CFLAGS ${MOAB_DEFINES})
 set(AM_CFLAGS)
-set(MOAB_FFLAGS)
 set(AM_FFLAGS)
 
 configure_file(MOABConfig.new.cmake.in "${PROJECT_BINARY_DIR}/MOABConfig.cmake" @ONLY)
