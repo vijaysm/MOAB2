@@ -1279,7 +1279,6 @@ AC_CONFIG_FILES([Makefile
                  tools/refiner/Makefile
                  tools/mbcoupler/Makefile
                  tools/mbcslam/Makefile
-                 tools/mbzoltan/Config.moab
                  tools/mbzoltan/Makefile
                  tools/mcnpmit/Makefile
                  tools/qvdual/Makefile
