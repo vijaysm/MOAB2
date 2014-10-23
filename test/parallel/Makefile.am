@@ -84,6 +84,10 @@ endif
 
 if ENABLE_imesh
    IMESH_TESTS = imeshp_test
+   AM_FCFLAGS += -I$(top_srcdir)/itaps \
+                 -I$(top_srcdir)/itaps/imesh \
+                 -I$(top_builddir)/itaps \
+                 -I$(top_builddir)/itaps/imesh
 else
    IMESH_TESTS = 
 endif
