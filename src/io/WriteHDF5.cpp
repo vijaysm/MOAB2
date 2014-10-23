@@ -30,8 +30,10 @@
 #endif
 
 #include <assert.h>
-#if defined(_MSC_VER) || defined(__MINGW32__)
-#include <sys/time.h>
+#if defined(_MSC_VER)
+  typedef int id_t;
+#elif defined(__MINGW32__)
+  #include <sys/time.h>
 #endif
 #include <time.h>
 #include <stdlib.h>
@@ -1294,7 +1296,9 @@ ErrorCode WriteHDF5::write_set_data( const WriteUtilIface::EntityListType which_
           
         
         if (count + remaining.size() <= buffer_size) {
-          memcpy( buffer + count, &remaining[0], sizeof(id_t)*remaining.size() );
+          if(!remaining.empty()){
+            memcpy( buffer + count, &remaining[0], sizeof(id_t)*remaining.size() );
+          }
           count += remaining.size();
           remaining.clear();
           remaining_offset = 0;
@@ -2385,8 +2389,13 @@ ErrorCode WriteHDF5::write_qa( const std::vector<std::string>& list )
   {
     time_t t = time(NULL);
     tm* lt = localtime( &t );
+#ifdef WIN32
+    strftime( date_str, sizeof(date_str), "%m/%d/%y", lt ); //VS 2008 does not support %D
+    strftime( time_str, sizeof(time_str), "%H:%M:%S", lt ); //VS 2008 does not support %T
+#else
     strftime( date_str, sizeof(date_str), "%D", lt );
     strftime( time_str, sizeof(time_str), "%T", lt );
+#endif
     
     strs[0] = app;
     strs[1] = vers;
@@ -2863,8 +2872,10 @@ ErrorCode WriteHDF5::create_set_meta( long num_sets, long& first_id_out )
 
 WriteHDF5::SpecialSetData* WriteHDF5::find_set_data( EntityHandle h )
 {
+  SpecialSetData tmp;
+  tmp.setHandle = h;
   std::vector<SpecialSetData>::iterator i;
-  i = std::lower_bound( specialSets.begin(), specialSets.end(), h, SpecSetLess() );
+  i = std::lower_bound( specialSets.begin(), specialSets.end(), tmp, SpecSetLess() );
   return (i == specialSets.end() || i->setHandle != h) ? 0 : &*i;
 }
 

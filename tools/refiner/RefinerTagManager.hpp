@@ -35,7 +35,7 @@ class Interface;
   *
   * \date 12 June 2008
   */
-class MB_DLL_EXPORT RefinerTagManager
+class RefinerTagManager
 {
 public:
   RefinerTagManager( Interface* in_mesh, Interface* out_mesh );

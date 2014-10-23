@@ -107,7 +107,7 @@ bool SmoothCurve::position_from_u(double u, double& x, double& y, double& z, dou
 
   // _fractions are increasing, so find the
   double * ptr = std::lower_bound(&_fractions[0],
-      &_fractions[_fractions.size()], u);
+      (&_fractions[0]) + _fractions.size(), u);
   int index = ptr - &_fractions[0];
   double nextFraction = _fractions[index];
   double prevFraction = 0;

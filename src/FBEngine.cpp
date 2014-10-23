@@ -3523,7 +3523,7 @@ ErrorCode  FBEngine::weave_lateral_face_from_edges(EntityHandle bEdge, EntityHan
       else
         weaveDown = false;
     }
-    EntityHandle nTri[3] = { nodes1[indexB], nodes2[indexT+1], nodes2[indexT]};
+    EntityHandle nTri[3] = { nodes1[indexB], 0, nodes2[indexT]};
     if (weaveDown)
     {
       nTri[1] = nodes1[indexB+1];
@@ -3531,7 +3531,10 @@ ErrorCode  FBEngine::weave_lateral_face_from_edges(EntityHandle bEdge, EntityHan
       indexB++;
     }
     else
+    {
+      nTri[1] = nodes2[indexT+1];
       indexT++;
+    }
     EntityHandle triangle;
     rval = _mbImpl->create_element(MBTRI, nTri, 3, triangle);
     MBERRORR(rval, "can't create triangle");

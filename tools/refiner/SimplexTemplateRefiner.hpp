@@ -38,7 +38,7 @@ namespace moab {
 
 class RefinerTagManager;
 
-class MB_DLL_EXPORT SimplexTemplateRefiner : public EntityRefiner
+class SimplexTemplateRefiner : public EntityRefiner
 {
 public:
   SimplexTemplateRefiner();
