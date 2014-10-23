@@ -563,15 +563,9 @@ bool CN::ConnectivityMatch( const unsigned long *conn1_i,
 }
 
 bool CN::ConnectivityMatch( const unsigned long long *conn1_i,
-<<<<<<< HEAD
                             const unsigned long long *conn2_i,
                             const int num_vertices,
                             int &direct, int &offset )
-=======
-                              const unsigned long long *conn2_i,
-                              const int num_vertices,
-                              int &direct, int &offset )
->>>>>>> changes for 64bit handle on 32 bit machine
 {
   return connectivity_match<unsigned long long>(conn1_i, conn2_i, num_vertices, direct, offset );
 }
