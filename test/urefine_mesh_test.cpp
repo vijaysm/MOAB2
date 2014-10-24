@@ -693,11 +693,24 @@ ErrorCode test_mesh(const char* filename)
 
 int main(int argc, char *argv[])
 {
+#ifdef USE_MPI
+    MPI_Init(&argc, &argv);
+
+    int nprocs, rank;
+    MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#endif
+
+
   ErrorCode result;
 
   result = test_entity_types();
   handle_error_code(result, number_tests_failed, number_tests_successful);
   std::cout<<"\n";
+
+#ifdef USE_MPI
+    MPI_Finalize();
+#endif
 
   return number_tests_failed;
 }
