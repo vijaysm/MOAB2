@@ -1,5 +1,5 @@
 # Don't require GNU-standard files (Changelog, README, etc.)
-AUTOMAKE_OPTIONS = foreign subdir-objects
+AUTOMAKE_OPTIONS = foreign no-dependencies
 
 LDADD = $(top_builddir)/src/libMOAB.la
 
