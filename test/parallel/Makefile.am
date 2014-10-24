@@ -82,14 +82,17 @@ else
   MBCSLAM_TESTS = 
 endif
 
+IMESH_TESTS = 
 if ENABLE_imesh
-   IMESH_TESTS = imeshp_test
+if PARALLEL_HDF5
+if ENABLE_FORTRAN
+   IMESH_TESTS += imeshp_test
    AM_FCFLAGS += -I$(top_srcdir)/itaps \
                  -I$(top_srcdir)/itaps/imesh \
                  -I$(top_builddir)/itaps \
                  -I$(top_builddir)/itaps/imesh
-else
-   IMESH_TESTS = 
+endif
+endif 
 endif
 
 check_PROGRAMS = $(TESTS) mbparallelcomm_test partcheck structured3 
@@ -121,8 +124,12 @@ par_spatial_locator_test_SOURCES = par_spatial_locator_test.cpp
 parallel_adj_SOURCES = ../adj_moab_test.cpp
 
 if ENABLE_imesh
+if PARALLEL_HDF5
+if ENABLE_FORTRAN
   imeshp_test_SOURCES = imeshp_test.F90
-  imeshp_test_LDADD = $(LDADD)  $(top_builddir)/itaps/imesh/libiMesh.la -lstdc++
+  imeshp_test_LDADD =   $(top_builddir)/itaps/imesh/libiMesh.la $(LDADD)
+endif
+endif
 endif
 
 
