@@ -15,7 +15,7 @@ using namespace moab;
 #ifdef MESHDIR
 std::string TestDir( STRINGIFY(MESHDIR) );
 #else
-std::string TestDir(".");
+#error MESHDIR needs to be defined for running unit tests
 #endif
 
 double wtime() {

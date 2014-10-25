@@ -9,6 +9,8 @@ using namespace moab;
 
 #ifdef MESHDIR
 static const char default_input_file[] = STRINGIFY(MESHDIR) "/64bricks_512hex.h5m";
+#else 
+#error MESHDIR needs to be defined for running unit tests
 #endif
 
 int main()
