@@ -593,7 +593,6 @@ namespace moab {
    ErrorCode HalfFacetRep::get_up_adjacencies(EntityHandle ent,
                                               int out_dim,
                                               std::vector<EntityHandle> &adjents,
-                                              bool local_id,
                                               std::vector<int> * lids)
    {
     ErrorCode error;
@@ -604,7 +603,7 @@ namespace moab {
       {
         if (out_dim == 1)
         {
-            error = get_up_adjacencies_1d(ent, adjents, local_id, lids);
+            error = get_up_adjacencies_1d(ent, adjents, lids);
             if (MB_SUCCESS != error) return error;
         }
         else if (out_dim == 2)
@@ -621,17 +620,17 @@ namespace moab {
 
     else if ((in_dim == 1) && (out_dim == 2))
       {
-        error = get_up_adjacencies_2d(ent, adjents, local_id, lids);
+        error = get_up_adjacencies_2d(ent, adjents, lids);
         if (MB_SUCCESS != error) return error;
       }
     else if ((in_dim == 1) && (out_dim == 3))
       {
-        error = get_up_adjacencies_edg_3d(ent, adjents, local_id, lids);
+        error = get_up_adjacencies_edg_3d(ent, adjents, lids);
         if (MB_SUCCESS != error) return error;
       }
     else if ((in_dim == 2) && (out_dim ==3))
       {
-        error = get_up_adjacencies_face_3d(ent, adjents, local_id, lids);
+        error = get_up_adjacencies_face_3d(ent, adjents, lids);
         if (MB_SUCCESS != error) return error;
       }
     return MB_SUCCESS;
@@ -865,9 +864,13 @@ namespace moab {
   ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   ErrorCode  HalfFacetRep::get_up_adjacencies_1d( EntityHandle vid,
                                                   std::vector< EntityHandle > &adjents,
-                                                  bool local_id,
                                                   std::vector<int> * lvids){
     ErrorCode error;
+
+    bool local_id = false;
+    if (lvids != NULL)
+      local_id = true;
+
     EntityHandle start_eid, eid, sibeid[2];
     int start_lid, lid, siblid[2];    
    
@@ -1269,7 +1272,6 @@ namespace moab {
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   ErrorCode  HalfFacetRep::get_up_adjacencies_2d( EntityHandle eid,
                                                   std::vector<EntityHandle> &adjents,
-                                                  bool local_id,
                                                   std::vector<int>  * leids)
 {
 
@@ -1283,7 +1285,7 @@ namespace moab {
     // Step 2: If there is a corresponding half-edge, collect all sibling half-edges and store the incident faces.
     if (found)
       { 
-        error = get_up_adjacencies_2d(he_fid, he_lid, true, adjents, local_id, leids);
+        error = get_up_adjacencies_2d(he_fid, he_lid, true, adjents, leids);
         if (MB_SUCCESS != error) return error;
       }
 
@@ -1295,8 +1297,7 @@ namespace moab {
                                                  int leid,
                                                  bool add_inent,
                                                  std::vector<EntityHandle> &fids,
-                                                 bool local_id,
-                                                 std::vector<int> *leids, bool orient, std::vector<int> *adj_orients)
+                                                 std::vector<int> *leids, std::vector<int> *adj_orients)
   {
     // Given an implicit half-edge <fid, leid>, find the incident half-edges.
     ErrorCode error;
@@ -1305,11 +1306,34 @@ namespace moab {
     if (!fid)
       return MB_FAILURE;
 
+    bool local_id =false;
+    bool orient = false;
+    if (leids != NULL)
+        local_id = true;
+    if (adj_orients != NULL)
+      orient = true;
+
     if (add_inent)
       {
         fids.push_back(fid);
         if (local_id)
           leids->push_back(leid);
+      }
+
+    EntityHandle fedge[2];
+    int *next = new int[nepf];
+    int  *prev = new int[nepf];
+    error = local_maps_2d(nepf, next, prev);
+
+    if (orient)
+      {
+        //get connectivity and match their directions
+        std::vector<EntityHandle> fid_conn(nepf);
+        error = mb->get_connectivity(&fid, 1, fid_conn);
+        if (MB_SUCCESS != error) return error;
+
+        fedge[0] = fid_conn[leid];
+        fedge[1] = fid_conn[next[leid]];
       }
 
     std::vector<EntityHandle> sib_fids(nepf);
@@ -1322,10 +1346,24 @@ namespace moab {
     EntityHandle curfid = sib_fids[leid];
     int curlid = sib_lids[leid];
     
-    while ((curfid != fid)&&(curfid != 0)){//Should no go into the loop when no sibling exists
+    while ((curfid != fid)&&(curfid != 0)){//Should not go into the loop when no sibling exists
         fids.push_back(curfid);
+
         if (local_id)
           leids->push_back(curlid);
+
+        if (orient)
+          {
+            //get connectivity and match their directions
+            std::vector<EntityHandle> conn(nepf);
+            error = mb->get_connectivity(&curfid, 1, conn);
+            if (MB_SUCCESS != error) return error;
+
+            if ((fedge[0] == conn[curlid])&&(fedge[1] == conn[next[curlid]]))
+              adj_orients->push_back(1);
+            else if ((fedge[1] == conn[curlid])&&(fedge[0] == conn[next[curlid]]))
+              adj_orients->push_back(0);
+          }
 
       sib_fids.clear();
       sib_lids.clear();
@@ -1337,11 +1375,10 @@ namespace moab {
       curfid = sib_fids[curlid];
       curlid = sib_lids[curlid];
 
-      if (orient)
-        {
-          //get connectivity and match their directions
-        }
     }
+
+    delete [] next;
+    delete [] prev;
 
     return MB_SUCCESS;
   }
@@ -1642,7 +1679,7 @@ namespace moab {
 	int id = nepf*(faces.index(*f))+l;
 	if (!trackF[id])
 	  {
-	    error = get_up_adjacencies_2d(*f,l, false, adj_fids, true, &adj_lids);
+	    error = get_up_adjacencies_2d(*f,l, false, adj_fids, &adj_lids);
 	    if (MB_SUCCESS != error) return error;
 
 	    total_edges -= adj_fids.size();
@@ -2069,7 +2106,6 @@ namespace moab {
  //////////////////////////////////////////////////////////////////////////////////////////////
   ErrorCode HalfFacetRep::get_up_adjacencies_edg_3d( EntityHandle eid,
                                                      std::vector<EntityHandle> &adjents,
-                                                     bool local_id,
                                                      std::vector<int> * leids)
   {
     ErrorCode error; 
@@ -2082,7 +2118,7 @@ namespace moab {
     //Find all incident cells     
     if (found)
       {
-        error =get_up_adjacencies_edg_3d(cid, leid, adjents, local_id, leids);
+        error =get_up_adjacencies_edg_3d(cid, leid, adjents, leids);
         if (MB_SUCCESS != error) return error;
       }
 
@@ -2093,9 +2129,7 @@ namespace moab {
   ErrorCode HalfFacetRep::get_up_adjacencies_edg_3d( EntityHandle cid,
                                                      int leid,
                                                      std::vector<EntityHandle> &adjents,
-                                                     bool local_id,
                                                      std::vector<int> * leids,
-                                                     bool orient,
                                                      std::vector<int> *adj_orients)
   {
     ErrorCode error;
@@ -2103,6 +2137,13 @@ namespace moab {
     int index = get_index_from_type(cid);
     int nvpc = lConnMap3D[index].num_verts_in_cell;
     int nfpc = lConnMap3D[index].num_faces_in_cell;
+
+    bool local_id = false;
+    bool orient = false;
+    if (leids != NULL)
+      local_id = true;
+    if (adj_orients != NULL)
+      orient = true;
 
     adjents.push_back(cid);
     if (local_id)
@@ -2154,15 +2195,15 @@ namespace moab {
 	    {
 	      idx = lConnMap3D[index].hf2v[lfid][j];
 	      if (vert0 == sib_conn[idx])
-              lv0 = idx;
-          if (vert1 == sib_conn[idx])
-              lv1 = idx;
-      }
+		lv0 = idx;
+	      if (vert1 == sib_conn[idx])
+		lv1 = idx;
+	    }
 
-      assert((lv0 >= 0) && (lv1 >= 0));
-      cur_leid = lConnMap3D[index].lookup_leids[lv0][lv1];
+          assert((lv0 >= 0) && (lv1 >= 0));
+          cur_leid = lConnMap3D[index].lookup_leids[lv0][lv1];
 
-      int chk_lfid = lConnMap3D[index].e2hf[cur_leid][0];
+          int chk_lfid = lConnMap3D[index].e2hf[cur_leid][0];
 
 	  if (lfid == chk_lfid)
 	    lface = 1;
@@ -2180,10 +2221,19 @@ namespace moab {
 	      leids->reserve(20+leids->size());
 	  }
 
-	  //insert new incident tetrahedra and local edge ids
+	  //insert new incident cell and local edge ids
 	  adjents.push_back(cur_cell);
+
 	  if (local_id)
 	    leids->push_back(cur_leid);
+
+	  if (orient)
+	    {
+	      if ((vert0 == sib_conn[lv0]) && (vert1 == sib_conn[lv1]))
+		adj_orients->push_back(1);
+	      else if ((vert0 == sib_conn[lv1]) && (vert1 == sib_conn[lv0]))
+		adj_orients->push_back(0);
+	    }
 	}
 
 	//Loop back
@@ -2196,7 +2246,6 @@ namespace moab {
   ////////////////////////////////////////////////////////////////////////////////////////////////////////
   ErrorCode  HalfFacetRep::get_up_adjacencies_face_3d( EntityHandle fid,
                                                        std::vector<EntityHandle> &adjents,
-                                                       bool local_id,
                                                        std::vector<int> * lfids)
   {
     ErrorCode error;
@@ -2206,7 +2255,7 @@ namespace moab {
     bool found = find_matching_halfface(fid, &cid, &lid);
 
     if (found){
-      error = get_up_adjacencies_face_3d(cid, lid, adjents, local_id, lfids);
+      error = get_up_adjacencies_face_3d(cid, lid, adjents,  lfids);
       if (MB_SUCCESS != error) return error;
       }
 
@@ -2216,7 +2265,6 @@ namespace moab {
   ErrorCode HalfFacetRep::get_up_adjacencies_face_3d( EntityHandle cid,
                                                       int lfid,
                                                       std::vector<EntityHandle> &adjents,
-                                                      bool local_id,
                                                       std::vector<int> * lfids)
   {
     ErrorCode error;
@@ -2224,6 +2272,9 @@ namespace moab {
     EntityHandle start_cell = *_cells.begin();
     int index = get_index_from_type(start_cell);
     int nfpc = lConnMap3D[index].num_faces_in_cell;
+    bool local_id = false;
+    if (lfids != NULL)
+      local_id = true;
 
     std::vector<EntityHandle> sibcids(nfpc);
     std::vector<int> siblids(nfpc);
@@ -2607,7 +2658,7 @@ namespace moab {
             int id = nepc*(cells.index(*it))+i;
             if (!trackE[id])
               {
-                error = get_up_adjacencies_edg_3d(*it, i, inc_cids, true, &inc_leids);
+                error = get_up_adjacencies_edg_3d(*it, i, inc_cids, &inc_leids);
                 if (error != MB_SUCCESS) return error;
 
                 total_edges -= inc_cids.size() -1;
@@ -2625,7 +2676,7 @@ namespace moab {
             int id = nfpc*(cells.index(*it))+i;
             if (!trackF[id])
               {
-                error = get_up_adjacencies_face_3d(*it, i, sib_cids, true, &sib_lfids);
+                error = get_up_adjacencies_face_3d(*it, i, sib_cids, &sib_lfids);
                 if (error != MB_SUCCESS) return error;
 
                 total_faces -= sib_cids.size() -1;
@@ -2636,6 +2687,8 @@ namespace moab {
 
     nedges[0] = total_edges;
     nfaces[0] = total_faces;
+
+    return MB_SUCCESS;
 
   }
 
@@ -2656,6 +2709,140 @@ namespace moab {
 
     return found;
   }
+
+
+  ///////////////////////////////////////////////////////////////////////////////////////////
+  ErrorCode HalfFacetRep::get_sibling_tag(EntityType type, EntityHandle ent,  EntityHandle *sib_entids, int *sib_lids)
+  {
+    ErrorCode error;
+
+    if (type == MBEDGE)
+      {
+        error = mb->tag_get_data(sibhvs_eid, &ent, 1, sib_entids);
+        if (MB_SUCCESS != error) return error;
+
+        error = mb->tag_get_data(sibhvs_lvid, &ent, 1, sib_lids);
+        if (MB_SUCCESS != error) return error;
+      }
+    else if (type == MBTRI || type == MBQUAD)
+      {
+        error = mb->tag_get_data(sibhes_fid, &ent, 1, sib_entids);
+        if (MB_SUCCESS != error) return error;
+
+        error = mb->tag_get_data(sibhes_leid, &ent, 1, sib_lids);
+        if (MB_SUCCESS != error) return error;
+      }
+    else
+      {
+        error = mb->tag_get_data(sibhfs_cid, &ent, 1, sib_entids);
+        if (MB_SUCCESS != error) return error;
+
+        error = mb->tag_get_data(sibhfs_lfid, &ent, 1, sib_lids);
+        if (MB_SUCCESS != error) return error;
+      }
+    return MB_SUCCESS;
+  }
+
+  ErrorCode HalfFacetRep::set_sibling_tag(EntityType type, EntityHandle ent, EntityHandle *set_entids, int *set_lids)
+  {
+    ErrorCode error;
+    if (type == MBEDGE)
+      {
+        error = mb->tag_set_data(sibhvs_eid, &ent, 1, set_entids);
+        if (MB_SUCCESS != error) return error;
+
+        error = mb->tag_set_data(sibhvs_lvid, &ent, 1, set_lids);
+        if (MB_SUCCESS != error) return error;
+      }
+    else if (type == MBTRI || type == MBQUAD)
+      {
+        error = mb->tag_set_data(sibhes_fid, &ent, 1, set_entids);
+        if (MB_SUCCESS != error) return error;
+
+        error = mb->tag_set_data(sibhes_leid, &ent, 1, set_lids);
+        if (MB_SUCCESS != error) return error;
+      }
+    else
+      {
+        error = mb->tag_set_data(sibhfs_cid, &ent, 1, set_entids);
+        if (MB_SUCCESS != error) return error;
+
+        error = mb->tag_set_data(sibhfs_lfid, &ent, 1, set_lids);
+        if (MB_SUCCESS != error) return error;
+      }
+    return MB_SUCCESS;
+  }
+
+  ErrorCode HalfFacetRep::get_incident_tag(EntityType type, EntityHandle vid, EntityHandle *inci_entid, int  *inci_lid)
+  {
+    ErrorCode error;
+
+    if (type == MBEDGE)
+      {
+        error = mb->tag_get_data(v2hv_eid, &vid, 1, inci_entid);
+        if (MB_SUCCESS != error) return error;
+
+        error = mb->tag_get_data(v2hv_lvid, &vid, 1, inci_lid);
+        if (MB_SUCCESS != error) return error;
+      }
+    else if (type == MBTRI || type == MBQUAD)
+      {
+        error = mb->tag_get_data(v2he_fid, &vid, 1, inci_entid);
+        if (MB_SUCCESS != error) return error;
+
+        error = mb->tag_get_data(v2he_leid, &vid, 1, inci_lid);
+        if (MB_SUCCESS != error) return error;
+      }
+    else
+      {
+        error = mb->tag_get_data(v2hf_cid, &vid, 1, inci_entid);
+        if (MB_SUCCESS != error) return error;
+
+        error = mb->tag_get_data(v2hf_lfid, &vid, 1, inci_lid);
+        if (MB_SUCCESS != error) return error;
+      }
+    return MB_SUCCESS;
+  }
+
+  ErrorCode HalfFacetRep::set_incident_tag(EntityType type, EntityHandle vid, EntityHandle *set_entid, int *set_lid)
+  {
+    ErrorCode error;
+    if (type == MBEDGE)
+      {
+        error = mb->tag_set_data(v2hv_eid, &vid, 1, set_entid);
+        if (MB_SUCCESS != error) return error;
+
+        error = mb->tag_set_data(v2hv_lvid, &vid, 1, set_lid);
+        if (MB_SUCCESS != error) return error;
+      }
+    else if (type == MBTRI || type == MBQUAD)
+      {
+        error = mb->tag_set_data(v2he_fid, &vid, 1,&set_entid);
+        if (MB_SUCCESS != error) return error;
+
+        error = mb->tag_set_data(v2he_leid, &vid, 1, &set_lid);
+        if (MB_SUCCESS != error) return error;
+      }
+    else
+      {
+        error = mb->tag_set_data(v2hf_cid, &vid, 1,&set_entid);
+        if (MB_SUCCESS != error) return error;
+
+        error = mb->tag_set_data(v2hf_lfid, &vid, 1, &set_lid);
+        if (MB_SUCCESS != error) return error;
+      }
+    return MB_SUCCESS;
+  }
+
+  ErrorCode HalfFacetRep::get_entity_ranges(Range &verts, Range &edges, Range &faces, Range &cells)
+  {
+    verts = _verts;
+    edges = _edges;
+    faces = _faces;
+    cells = _cells;
+    return MB_SUCCESS;
+  }
+
 
 } // namespace moab
 
