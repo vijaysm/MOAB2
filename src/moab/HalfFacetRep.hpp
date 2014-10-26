@@ -59,6 +59,14 @@ enum MESHTYPE{
     VOLUME_MIXED //Volume mesh with embedded curves and surfaces
 };
 
+enum {
+  MAX_VERTICES = 8,
+  MAX_EDGES = 12,
+  MAX_FACES = 6,
+  MAX_VERTS_HF = 4,
+  MAX_INCIDENT_HF = 4
+};
+
 class Core;
 
 class HalfFacetRep{
@@ -110,7 +118,6 @@ public:
     ErrorCode get_up_adjacencies(EntityHandle ent,
                                  int out_dim,
                                  std::vector<EntityHandle> &adjents,
-                                 bool local_id = false,
                                  std::vector<int> * lids = NULL );
 
     //! Get the same-dimensional entities connected with an entity.
@@ -168,7 +175,6 @@ public:
 
     ErrorCode get_up_adjacencies_1d(EntityHandle vid,
                                     std::vector<EntityHandle> &adjents,
-                                    bool local_id = false,
                                     std::vector<int> * lvids = NULL);
 
     //! Given an edge, finds vertex-connected neighbor edges
@@ -226,7 +232,6 @@ public:
 
     ErrorCode get_up_adjacencies_2d(EntityHandle eid,
                                     std::vector<EntityHandle> &adjents,
-                                    bool local_id = false,
                                     std::vector<int> * leids = NULL);
 
     //! Given a half-edge <fid, leid>, finds the faces incident on it.
@@ -244,8 +249,7 @@ public:
                                     int leid,
                                     bool add_inent,
                                     std::vector<EntityHandle> &adjents,
-                                    bool local_id = false,
-                                    std::vector<int>  *leids = NULL, bool orient = false, std::vector<int> *adj_orients = NULL);
+                                    std::vector<int>  *leids = NULL, std::vector<int> *adj_orients = NULL);
 
     //! Given an edge, finds edge-connected neighbor face
     /** Given an face, it gathers all the neighbor faces of each local edge of the face.
@@ -327,7 +331,6 @@ public:
 
     ErrorCode get_up_adjacencies_edg_3d(EntityHandle eid,
                                         std::vector<EntityHandle> &adjents,
-                                        bool local_id = false,
                                         std::vector<int> * leids = NULL);
 
     //! Given a local edge <cid, leid>, finds the cells incident on it.
@@ -342,8 +345,7 @@ public:
 
     ErrorCode get_up_adjacencies_edg_3d(EntityHandle cid,
                                         int leid, std::vector<EntityHandle> &adjents,
-                                        bool local_id = false,
-                                        std::vector<int> * leids = NULL, bool orient = false, std::vector<int> *adj_orients = NULL);
+                                        std::vector<int> * leids = NULL, std::vector<int> *adj_orients = NULL);
 
     //! Given an face, finds the cells incident on it.
     /** Given an face, it first finds a matching half-face in a cell corresponding to face, and then
@@ -357,7 +359,6 @@ public:
 
     ErrorCode get_up_adjacencies_face_3d(EntityHandle fid,
                                          std::vector<EntityHandle> &adjents,
-                                         bool local_id = false,
                                          std::vector<int>  * lfids = NULL);
 
     //! Given a local face <cid, lfid>, finds the cells incident on it.
@@ -373,7 +374,6 @@ public:
     ErrorCode get_up_adjacencies_face_3d(EntityHandle cid,
                                          int lfid,
                                          std::vector<EntityHandle> &adjents,
-                                         bool local_id = false,
                                          std::vector<int> * lfids = NULL);
     
     //! Given a cell, finds face-connected neighbor cells
@@ -410,8 +410,47 @@ public:
      * */
     ErrorCode find_total_edges_faces_3d(Range cells, int *nedges, int *nfaces);
 
-     ErrorCode count_subentities(Range edges, Range faces, Range cells, int *nedges, int *nfaces);
+    ErrorCode count_subentities(Range edges, Range faces, Range cells, int *nedges, int *nfaces);
     
+
+    /**************************
+     *  Interface to AHF tags   *
+     **************************/
+
+    ErrorCode get_sibling_tag(EntityType type, EntityHandle ent, EntityHandle *sib_entids, int *sib_lids);
+
+    ErrorCode set_sibling_tag(EntityType type, EntityHandle ent, EntityHandle *set_entids, int *set_lids);
+
+    ErrorCode get_incident_tag(EntityType type, EntityHandle vid, EntityHandle *inci_entid, int *inci_lid);
+
+    ErrorCode set_incident_tag(EntityType type, EntityHandle vid, EntityHandle *set_entid, int *set_lid);
+
+    // 2D and 3D local maps
+    int local_maps_2d(EntityHandle face);
+    ErrorCode local_maps_2d(int nepf, int *next, int *prev);
+    struct LocalMaps3D{
+      short int num_verts_in_cell; // Number of vertices per cell
+      short int num_edges_in_cell; // Number of edges per cell
+      short int num_faces_in_cell; // Number of faces per cell
+
+      int hf2v_num[MAX_FACES]; //
+      int hf2v[MAX_FACES][MAX_VERTS_HF];
+
+      int v2hf_num[MAX_VERTICES];
+      int v2hf[MAX_VERTICES][MAX_INCIDENT_HF];
+
+      int e2v[MAX_EDGES][2];
+      int e2hf[MAX_EDGES][2];
+      int f2leid[MAX_FACES][MAX_VERTS_HF];
+      int lookup_leids[MAX_VERTICES][MAX_VERTICES];
+    };
+
+    static const LocalMaps3D lConnMap3D[4];
+    MESHTYPE thismeshtype;
+    int get_index_from_type(EntityHandle cid);
+    ErrorCode get_entity_ranges(Range &verts, Range &edges, Range &faces, Range &cells);
+
+
 
   protected:
 
@@ -420,14 +459,6 @@ public:
     HalfFacetRep();
 
     bool mInitAHFmaps;
-
-    enum {
-      MAX_VERTICES = 8,
-      MAX_EDGES = 12,
-      MAX_FACES = 6,
-      MAX_VERTS_HF = 4,
-      MAX_INCIDENT_HF = 4
-    };
 
     Range _verts, _edges, _faces, _cells;
     Tag sibhvs_eid, sibhvs_lvid, v2hv_eid, v2hv_lvid;
@@ -439,7 +470,7 @@ public:
     EntityHandle trackfaces[MAXSIZE], trackcells[MAXSIZE];
     int queue_lid[MAXSIZE];
 
-    MESHTYPE thismeshtype;
+    //MESHTYPE thismeshtype;
     MESHTYPE get_mesh_type(int nverts, int nedges, int nfaces, int ncells);
 
     struct adj_matrix{
@@ -469,7 +500,7 @@ public:
      * \param nepf: Returns the number of vertices/edges for given face type.
     */
 
-    int local_maps_2d(EntityHandle face);
+   // int local_maps_2d(EntityHandle face);
 
     //! Contains the local information for 2D entities
     /** Given number of edges, returns local indices of next and previous local edges.
@@ -488,7 +519,7 @@ public:
     */
 
 
-    ErrorCode local_maps_2d(int nepf, int *next, int *prev);
+   // ErrorCode local_maps_2d(int nepf, int *next, int *prev);
 
     //! Given a half-edge as <he_fid,he_lid> , finds the half-edges incident on it and adds them
     //  to an input queue if it not already added.
@@ -580,7 +611,7 @@ public:
 	lookup_leid: Map between local vertex v0 to local vertex v1 storing the local edge id e = <v0,v1>
     */
 
-
+/*
     struct LocalMaps3D{
       short int num_verts_in_cell; // Number of vertices per cell
       short int num_edges_in_cell; // Number of edges per cell
@@ -596,11 +627,11 @@ public:
       int e2hf[MAX_EDGES][2];
       int f2leid[MAX_FACES][MAX_VERTS_HF];
       int lookup_leids[MAX_VERTICES][MAX_VERTICES];
-    };
+    }; */
 
-    static const LocalMaps3D lConnMap3D[4];
+   // static const LocalMaps3D lConnMap3D[4];
 
-    int get_index_from_type(EntityHandle cid);
+   // int get_index_from_type(EntityHandle cid);
 
     //! Given an edge, finds a matching local edge in an incident cell.
     /** Find a local edge with the same connectivity as the input edge, belonging to an incident cell.
