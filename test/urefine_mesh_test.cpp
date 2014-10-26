@@ -54,18 +54,20 @@ ErrorCode test_adjacencies(Core *mb, NestedRefine *nr, int dim, Range verts, Ran
   MeshTopoUtil mtu(mbImpl);
   ErrorCode error;
 
-  std::vector<EntityHandle> adjents;
-  Range mbents, ahfents;
-
   if (dim == 1)
     {
       //1D Queries //
       //IQ1: For every vertex, obtain incident edges
+    //  std::vector<EntityHandle> adjents;
+  //    Range mbents, ahfents;
+
       for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
-          adjents.clear();
-          error = nr->get_up_adjacencies( *i, 1, adjents);
+          std::vector<EntityHandle> adjents;
+          Range mbents, ahfents;
+         // adjents.clear();
+          error = nr->get_adjacencies( *i, 1, adjents);
           CHECK_ERR(error);
-          mbents.clear();
+         // mbents.clear();
           error = mbImpl->get_adjacencies( &*i, 1, 1, false, mbents );
           CHECK_ERR(error);
 
@@ -79,10 +81,12 @@ ErrorCode test_adjacencies(Core *mb, NestedRefine *nr, int dim, Range verts, Ran
 
       //NQ1:  For every edge, obtain neighbor edges
       for (Range::iterator i = ents.begin(); i != ents.end(); ++i) {
-          adjents.clear();
-          error = nr->get_neighbor_adjacencies( *i, adjents);
+          std::vector<EntityHandle> adjents;
+          Range mbents, ahfents;
+         // adjents.clear();
+          error = nr->get_adjacencies( *i, 1, adjents);
           CHECK_ERR(error);
-          mbents.clear();
+        //  mbents.clear();
           error = mtu.get_bridge_adjacencies( *i, 0, 1, mbents);
           CHECK_ERR(error);
 
@@ -97,10 +101,13 @@ ErrorCode test_adjacencies(Core *mb, NestedRefine *nr, int dim, Range verts, Ran
     }
   else if (dim == 2)
     {
+      std::vector<EntityHandle> adjents;
+      Range mbents, ahfents;
+
       // IQ21: For every vertex, obtain incident faces
       for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
           adjents.clear();
-          error = nr->get_up_adjacencies( *i, 2, adjents);
+          error = nr->get_adjacencies( *i, 2, adjents);
           CHECK_ERR(error);
           mbents.clear();
           error = mbImpl->get_adjacencies( &*i, 1, 2, false, mbents);
@@ -117,7 +124,7 @@ ErrorCode test_adjacencies(Core *mb, NestedRefine *nr, int dim, Range verts, Ran
       //NQ2: For every face, obtain neighbor faces
       for (Range::iterator i = ents.begin(); i != ents.end(); ++i) {
           adjents.clear();
-          error = nr->get_neighbor_adjacencies( *i, adjents);
+          error = nr->get_adjacencies( *i, 2, adjents);
           CHECK_ERR(error);
           mbents.clear();
           error = mtu.get_bridge_adjacencies( *i, 1, 2, mbents);
@@ -134,10 +141,13 @@ ErrorCode test_adjacencies(Core *mb, NestedRefine *nr, int dim, Range verts, Ran
     }
   else
     {
+      std::vector<EntityHandle> adjents;
+      Range mbents, ahfents;
+
       //IQ 31: For every vertex, obtain incident cells
       for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
           adjents.clear();
-          error = nr->get_up_adjacencies( *i, 3, adjents);
+          error = nr->get_adjacencies( *i, 3, adjents);
           CHECK_ERR(error);
           mbents.clear();
           error = mbImpl->get_adjacencies(&*i, 1, 3, false, mbents);
@@ -154,7 +164,7 @@ ErrorCode test_adjacencies(Core *mb, NestedRefine *nr, int dim, Range verts, Ran
       //NQ3: For every cell, obtain neighbor cells
       for (Range::iterator i = ents.begin(); i != ents.end(); ++i) {
           adjents.clear();
-          error = nr->get_neighbor_adjacencies( *i, adjents);
+          error = nr->get_adjacencies( *i, 3, adjents);
           CHECK_ERR(error);
           mbents.clear();
           error = mtu.get_bridge_adjacencies( *i, 2, 3, mbents);
@@ -232,6 +242,8 @@ ErrorCode refine_single_entity(Core *mb, EntityType type, int *level_degrees, co
       error = test_adjacencies(mb, &uref, dim, verts, ents);
       CHECK_ERR(error);
     }
+
+  delete [] set;
   return MB_SUCCESS;
 }
 
@@ -247,8 +259,8 @@ ErrorCode create_single_entity(Core *mb, EntityType type)
   Interface* mbImpl = mb;
   if (type == MBEDGE)
     {
-      const double coords[] = {0,0,0,
-                              1,0,0};
+      const double coords[] = {0.0,0.0,0.0,
+                              1.0,0.0,0.0};
       const size_t num_vtx = sizeof(coords)/sizeof(double)/3;
 
       const int conn[] = {0, 1};
@@ -653,14 +665,18 @@ ErrorCode test_entity_types()
 
   std::cout<<"Testing EDGE"<<std::endl;
   EntityType type = MBEDGE;
-  int degree = 2;
-  error = test_single_entity(type, &degree, 1);
+
+  int degree[2] = {2, 3};
+  error = test_single_entity(type, degree, 2);
   CHECK_ERR(error);
 
+  /*int degree = 2;
+  error = test_single_entity(type, &degree, 1);
+  CHECK_ERR(error);
   degree = 3;
   error = test_single_entity(type, &degree, 1);
   CHECK_ERR(error);
-
+*/
   return MB_SUCCESS;
 }
 

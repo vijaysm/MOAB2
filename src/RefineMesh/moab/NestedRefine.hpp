@@ -17,10 +17,10 @@ namespace moab
 #define MAX_LEVELS 10
 
 
-  //class Core;
-  //class HalfFacetRep;
+  class Core;
+  class HalfFacetRep;
 
-  class NestedRefine: public HalfFacetRep
+  class NestedRefine
   {
     
   public:
@@ -39,11 +39,18 @@ namespace moab
     ErrorCode get_connectivity(EntityHandle ent, int level, std::vector<EntityHandle> &conn);
     ErrorCode get_coordinates(std::vector<EntityHandle> verts, int num_verts,  int cur_level, double *coords);
 
-    //ErrorCode get_adjacencies(); // Called directly from the AHF class
+    ErrorCode get_adjacencies(const EntityHandle source_entity,
+                              const unsigned int target_dimension,
+                              std::vector<EntityHandle> &target_entities); // Called directly from the AHF class
+
     //ErrorCode tag_get_data(); // Get meta data for the new levels
     //ErrorCode tag_set_data(); // Set meta data for the new levels
 
   protected:
+    Core *mb;
+    HalfFacetRep *ahf;
+
+    Range _inverts, _inedges, _infaces, _incells;
 
     // Refinement Patterns
     struct refPatterns{
@@ -107,7 +114,6 @@ namespace moab
     //Estimate and create storage for the levels
     ErrorCode estimate_hm_storage(int *level_degrees, int num_level, int *hmest);
     ErrorCode create_hm_storage_single_level(EntityHandle *set, int cur_level, int *estL);
-    ErrorCode add_entities(EntityHandle *hm_set, int num_level, int *estL);
 
     //Construct the hierarchical mesh: 1D, 2D, 3D
     ErrorCode construct_hm_entities(int cur_level, int deg);
@@ -142,15 +148,6 @@ namespace moab
     ErrorCode update_global_ahf_2D(int cur_level, int deg);
 
     ErrorCode update_global_ahf_3D(int cur_level, int deg);
-
-    ErrorCode get_sibling_tag(EntityType type, EntityHandle ent, EntityHandle *sib_entids, int *sib_lids);
-
-    ErrorCode set_sibling_tag(EntityType type, EntityHandle ent, EntityHandle *set_entids, int *set_lids);
-
-    ErrorCode get_incident_tag(EntityType type, EntityHandle vid, EntityHandle *inci_entid, int *inci_lid);
-
-    ErrorCode set_incident_tag(EntityType type, EntityHandle vid, EntityHandle *set_entid, int *set_lid);
-
 
   };
 } //name space moab
