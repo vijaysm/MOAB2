@@ -30,8 +30,10 @@
 #endif
 
 #include <assert.h>
-#if defined(_MSC_VER) || defined(__MINGW32__)
-#include <sys/time.h>
+#if defined(_MSC_VER)
+  typedef int id_t;
+#elif defined(__MINGW32__)
+  #include <sys/time.h>
 #endif
 #include <time.h>
 #include <stdlib.h>
@@ -83,13 +85,13 @@ struct file { uint32_t magic; hid_t handle; };
 #  include <valgrind/memcheck.h>
 #else
 #  ifndef VALGRIND_CHECK_MEM_IS_DEFINED
-#    define VALGRIND_CHECK_MEM_IS_DEFINED(a, b)
+#    define VALGRIND_CHECK_MEM_IS_DEFINED(a, b) ((void)0)
 #  endif
 #  ifndef VALGRIND_CHECK_MEM_IS_ADDRESSABLE
-#    define VALGRIND_CHECK_MEM_IS_ADDRESSABLE(a, b)
+#    define VALGRIND_CHECK_MEM_IS_ADDRESSABLE(a, b) ((void)0)
 #  endif
 #  ifndef VALGRIND_MAKE_MEM_UNDEFINED
-#    define VALGRIND_MAKE_MEM_UNDEFINED(a, b)
+#    define VALGRIND_MAKE_MEM_UNDEFINED(a, b) ((void)0)
 #  endif
 #endif
 
@@ -97,7 +99,7 @@ namespace moab {
 
 template <typename T> inline 
 void VALGRIND_MAKE_VEC_UNDEFINED( std::vector<T>& v ) {
-    VALGRIND_MAKE_MEM_UNDEFINED( &v[0], v.size() * sizeof(T) );
+    (void)VALGRIND_MAKE_MEM_UNDEFINED( &v[0], v.size() * sizeof(T) );
 }
 
 #define WRITE_HDF5_BUFFER_SIZE (40*1024*1024)
@@ -930,7 +932,7 @@ ErrorCode WriteHDF5::write_nodes( )
   dbgOut.printf(3, "Writing %ld nodes in %ld blocks of %d\n", remaining, (remaining+chunk_size-1)/chunk_size, chunk_size);
   while (remaining)
   {
-    VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
+    (void)VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
     long count = chunk_size < remaining ? chunk_size : remaining;
     remaining -= count;
     Range::const_iterator end = iter;
@@ -1040,7 +1042,7 @@ ErrorCode WriteHDF5::write_elems( ExportSet& elems )
   
   while (remaining)
   {
-    VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
+    (void)VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
     long count = chunk_size < remaining ? chunk_size : remaining;
     remaining -= count;
   
@@ -1294,7 +1296,9 @@ ErrorCode WriteHDF5::write_set_data( const WriteUtilIface::EntityListType which_
           
         
         if (count + remaining.size() <= buffer_size) {
-          memcpy( buffer + count, &remaining[0], sizeof(id_t)*remaining.size() );
+          if(!remaining.empty()){
+            memcpy( buffer + count, &remaining[0], sizeof(id_t)*remaining.size() );
+          }
           count += remaining.size();
           remaining.clear();
           remaining_offset = 0;
@@ -1782,7 +1786,7 @@ ErrorCode WriteHDF5::write_adjacencies( const ExportSet& elements )
   id_t* buffer = (id_t*)dataBuffer;
   long chunk_size = bufferSize / sizeof(id_t); 
   long num_writes = (elements.max_num_adjs + chunk_size - 1)/chunk_size;
-  VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
+  (void)VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
   count = 0;
   for (iter = elements.range.begin(); iter != end; ++iter)
   {
@@ -1799,7 +1803,7 @@ ErrorCode WriteHDF5::write_adjacencies( const ExportSet& elements )
       track.record_io( offset, count );
       mhdf_writeAdjacencyWithOpt( table, offset, count, id_type, buffer, writeProp, &status );
       CHK_MHDF_ERR_1(status, table);
-      VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
+      (void)VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
       
       offset += count;
       count = 0;
@@ -1924,7 +1928,7 @@ ErrorCode WriteHDF5::write_sparse_ids( const TagDesc& tag_data,
   Range::const_iterator iter = range.begin();
   while (remaining)
   {
-    VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
+    (void)VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
 
       // write "chunk_size" blocks of data
     long count = (unsigned long)remaining > chunk_size ? chunk_size : remaining;
@@ -2058,7 +2062,7 @@ ErrorCode WriteHDF5::write_var_len_indices( const TagDesc& tag_data,
   Range::const_iterator iter = range.begin();
   while (remaining)
   {
-    VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
+    (void)VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
 
       // write "chunk_size" blocks of data
     size_t count = remaining > chunk_size ? chunk_size : remaining;
@@ -2322,7 +2326,7 @@ ErrorCode WriteHDF5::write_tag_values( Tag tag_id,
   }
   while (remaining)
   {
-    VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
+    (void)VALGRIND_MAKE_MEM_UNDEFINED( dataBuffer, bufferSize );
  
       // write "chunk_size" blocks of data
     long count = (unsigned long)remaining > chunk_size ? chunk_size : remaining;
@@ -2385,8 +2389,13 @@ ErrorCode WriteHDF5::write_qa( const std::vector<std::string>& list )
   {
     time_t t = time(NULL);
     tm* lt = localtime( &t );
+#ifdef WIN32
+    strftime( date_str, sizeof(date_str), "%m/%d/%y", lt ); //VS 2008 does not support %D
+    strftime( time_str, sizeof(time_str), "%H:%M:%S", lt ); //VS 2008 does not support %T
+#else
     strftime( date_str, sizeof(date_str), "%D", lt );
     strftime( time_str, sizeof(time_str), "%T", lt );
+#endif
     
     strs[0] = app;
     strs[1] = vers;
@@ -2863,8 +2872,10 @@ ErrorCode WriteHDF5::create_set_meta( long num_sets, long& first_id_out )
 
 WriteHDF5::SpecialSetData* WriteHDF5::find_set_data( EntityHandle h )
 {
+  SpecialSetData tmp;
+  tmp.setHandle = h;
   std::vector<SpecialSetData>::iterator i;
-  i = std::lower_bound( specialSets.begin(), specialSets.end(), h, SpecSetLess() );
+  i = std::lower_bound( specialSets.begin(), specialSets.end(), tmp, SpecSetLess() );
   return (i == specialSets.end() || i->setHandle != h) ? 0 : &*i;
 }
 

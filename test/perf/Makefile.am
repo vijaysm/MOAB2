@@ -1,19 +1,22 @@
 SUBDIRS = point_location
+MESHDIR = $(top_srcdir)/MeshFiles/unittest
 
 AM_CPPFLAGS += -I$(top_srcdir)/src \
                -I$(top_srcdir)/src/io/mhdf/include \
                -I$(top_builddir)/src \
+               -DMESHDIR=$(MESHDIR) \
                -DIS_BUILDING_MB
             
 LDADD = $(top_builddir)/src/libMOAB.la
 
-check_PROGRAMS = perf seqperf adj_time perftool
+check_PROGRAMS = perf seqperf adj_time perftool adj_mem_time 
 noinst_PROGRAMS = 
 
 perf_SOURCES = perf.cpp
 seqperf_SOURCES = seqperf.cpp
 adj_time_SOURCES = adj_time.cpp
 perftool_SOURCES = perftool.cpp
+adj_mem_time_SOURCES = adj_mem_time_test.cpp
 
 if ENABLE_imesh
   LDADD += $(top_builddir)/itaps/imesh/libiMesh.la
@@ -22,5 +25,4 @@ if ENABLE_imesh
   tstt_perf_binding_DEPENDENCIES = $(top_builddir)/itaps/imesh/libiMesh.la
   tstt_perf_binding_SOURCES = tstt_perf_binding.cpp
 endif
-
 

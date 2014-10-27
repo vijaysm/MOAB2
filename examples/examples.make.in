@@ -1,9 +1,0 @@
-prefix = @prefix@
-exec_prefix = @exec_prefix@
-libdir = @libdir@
-include $(libdir)/moab.make
-
-CXXFLAGS = -g
-
-default: all
-

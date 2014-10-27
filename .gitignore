@@ -36,8 +36,8 @@ examples/DeformMeshRemap
 examples/DirectAccessNoHoles
 examples/DirectAccessNoHolesF90
 examples/DirectAccessWithHoles
-examples/examples.make
 examples/freem.mod
+examples/GenLargeMesh
 examples/GetEntities
 examples/*.h5m
 examples/HelloMOAB
@@ -51,11 +51,13 @@ examples/LloydRelaxation
 examples/LoadPartial
 examples/point_in_elem_search
 examples/PushParMeshIntoMoabF90
+examples/ReadWriteTest
 examples/ReduceExchangeTags
 examples/SetsNTags
 examples/structuredmesh
 examples/StructuredMeshSimple
 examples/TestExodusII
+examples/VisTags
 history??.jou
 hpctoolkit-*
 *.hpcstruct
@@ -122,6 +124,7 @@ src/parallel/stamp-h4
 src/stamp-h5
 stamp-h1
 test/adaptive_kd_tree_tests
+test/adj_moab_test
 test/bsp_tree_poly_test
 test/bsp_tree_test
 test/CMakeLists.txt
@@ -131,6 +134,7 @@ test/dagmc/dagmc_pointinvol_test
 test/dagmc/dagmc_rayfire_test
 test/dagmc/dagmc_simple_test
 test/dual/dual_test
+test/dual/dual.vtk
 test/elem_eval_test
 test/file_options_test
 test/*.h5m
@@ -195,6 +199,7 @@ test/parallel/mpastrvpart
 test/parallel/*.nc
 test/parallel/par_coupler_test
 test/parallel/par_intx_sph
+test/parallel/parallel_adj
 test/parallel/parallel_hdf5_test
 test/parallel/parallel_unit_tests
 test/parallel/parallel_write_test
@@ -213,6 +218,7 @@ test/parallel/uber_parallel_test
 test/parallel/ucdtrvpart
 test/parallel/*.vtk
 test/parallel/write_nc_par
+test/perf/adj_mem_time
 test/perf/adj_time
 test/perf/perf
 test/perf/perftool
@@ -276,6 +282,7 @@ tools/mbskin
 tools/mbsurfplot
 tools/mbtagprop
 tools/mbzoltan/Config.moab
+tools/refiner/test_mesh_refiner
 tools/spheredecomp
 tools/vtkMOABReader/CMakeLists.txt
 tools/vtkMOABReaderNew/CMakeLists.txt

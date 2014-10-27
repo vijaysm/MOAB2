@@ -34,7 +34,7 @@
 
 namespace moab {
 
-class MB_DLL_EXPORT EdgeSizeSimpleImplicit : public EdgeSizeEvaluator
+class EdgeSizeSimpleImplicit : public EdgeSizeEvaluator
 {
 public:
   /// Construct an evaluator.

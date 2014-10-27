@@ -78,7 +78,7 @@ int main( int argc, char* argv[] )
   if (1 < argc) 
     filename = argv[1];
   else {
-#ifdef SRCDIR
+#ifdef MESHDIR
     filename = STRINGIFY(MESHDIR) "/64bricks_512hex.h5m";
 #else
     filename = "/64bricks_512hex.h5m";

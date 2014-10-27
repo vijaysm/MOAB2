@@ -43,12 +43,13 @@ static const double denomPI = PI * denom;
   
 inline void RNDVEC(CartVect& uvw, double &az) 
 {
-  
-  double theta = denom * az * rand();
-  double phi = denomPI * rand();
-  uvw[0] = cos(theta)*sin(phi);
-  uvw[1] = sin(theta)*sin(phi);
-  uvw[1] = cos(phi);
+  // denom normalizes rand values (see global defines)
+  double theta = az * denom * rand(); // randomly samples from 0 to az. (Default az is 2PI)
+  double u = 2 * denom * rand() - 1; // randomly samples from -1 to 1.
+  uvw[0] = sqrt(1-u*u)*cos(theta);
+  uvw[1] = sqrt(1-u*u)*sin(theta);
+  uvw[2] = u;
+
 }
 
 /* program global data, including settings with their defaults*/
@@ -500,9 +501,9 @@ void write_obbtree_histogram( EntityHandle root, OrientedBoxTreeTool& tree, std:
 
 }
 
-void moab_memory_estimates( Interface* mbi, int& moab_data_bytes, int& moab_alldata_est_bytes ){
+void moab_memory_estimates( Interface* mbi, unsigned long long& moab_data_bytes, unsigned long long& moab_alldata_est_bytes ){
   
-  unsigned long storage, amortized_storage;
+  unsigned long long storage, amortized_storage;
   mbi->estimated_memory_use( NULL, 0, &storage, &amortized_storage );
 
   moab_data_bytes = storage;
@@ -550,7 +551,7 @@ void dump_pyfile( char* filename, double timewith, double timewithout, double tm
     DICT_VAL(timewith-timewithout);
   }
   DICT_VAL(tmem);
-  int moab_data_bytes, moab_alldata_est_bytes;
+  unsigned long long moab_data_bytes, moab_alldata_est_bytes;
   moab_memory_estimates( dagmc.moab_instance(), moab_data_bytes, moab_alldata_est_bytes );
   DICT_VAL( moab_data_bytes );
   DICT_VAL( moab_alldata_est_bytes );

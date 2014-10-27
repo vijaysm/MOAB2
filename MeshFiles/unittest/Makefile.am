@@ -1,7 +1,8 @@
-SUBDIRS = io dagmc iGeom
+SUBDIRS = dagmc h5file io iGeom mbcslam
 
 EXTRA_DIST  = 125hex.g \
               16_unmerged_hex.h5m \
+              merge_with_tag.h5m \
               1hex.g \
               1khex.g \
               1tet.g \
@@ -34,5 +35,7 @@ EXTRA_DIST  = 125hex.g \
               BedCrop2.h5m \
               mpas_p8.h5m \
               Homme_2pt.h5m \
-              surfrandomtris-4part.h5m
+              surfrandomtris-4part.h5m \
+	      hexes_mixed.vtk \
+	      32hex_ef.h5m 
 

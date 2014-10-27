@@ -5,6 +5,7 @@
  */
 
 // copy from case1 test
+#ifdef HAVE_ZOLTAN
 
 #include <iostream>
 #include <sstream>
@@ -27,14 +28,11 @@
 #ifdef MESHDIR
 std::string TestDir( STRINGIFY(MESHDIR) );
 #else
-std::string TestDir(".");
+#error Specify MESHDIR to run unit tests
 #endif
 
 // for M_PI
 #include <math.h>
-
-#define STRINGIFY_(X) #X
-#define STRINGIFY(X) STRINGIFY_(X)
 
 using namespace moab;
 // some input data
@@ -306,4 +304,13 @@ int main(int argc, char **argv)
 
   return 0;
 }
+
+#else
+
+int main(int /*argc*/, char** /*argv*/)
+{
+  return 0;
+}
+
+#endif
 

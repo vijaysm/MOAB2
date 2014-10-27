@@ -14,8 +14,8 @@
 
 using namespace moab;
 
-#ifndef SRCDIR
-#  define SRCDIR .
+#ifndef MESHDIR
+#error Define MESHDIR to compile unit tests
 #endif
 
 const char filename[] = "sets.h5m";
@@ -413,7 +413,7 @@ void regression_mmiller_8_2010()
   const size_t num_hex = 100;
   const size_t num_set = 25;
 
-  mb.load_file( STRINGIFY(SRCDIR) "/rocket_ents_in_assm.h5m" );
+  mb.load_file( STRINGIFY(MESHDIR) "/h5file/rocket_ents_in_assm.h5m" );
 
 /* Dump of set contents from input file:
  1r: 172, 4, 

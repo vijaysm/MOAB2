@@ -19,7 +19,7 @@ void print_file_stats(Interface& moab)
   ErrorCode rval;
   int num_tri;
   Range sets;
-  unsigned long set_mem, set_am, tag_mem, tag_am;
+  unsigned long long set_mem, set_am, tag_mem, tag_am;
 
   rval = moab.get_number_entities_by_type(0, MBTRI, num_tri);
   if (MB_SUCCESS != rval)
@@ -31,8 +31,8 @@ void print_file_stats(Interface& moab)
   moab.estimated_memory_use(sets, 0, 0, &set_mem, &set_am, 0, 0, 0, 0, &tag_mem, &tag_am);
   printf("Triangles:   %d\n", num_tri);
   printf("Sets:        %lu\n", (unsigned long)sets.size());
-  printf("Set storage: %lu (%lu)\n", set_mem, set_am);
-  printf("Tag storage: %lu (%lu)\n", tag_mem, tag_am);
+  printf("Set storage: %llu (%llu)\n", set_mem, set_am);
+  printf("Tag storage: %llu (%llu)\n", tag_mem, tag_am);
 }
 
 int main(int argc, char* argv[])

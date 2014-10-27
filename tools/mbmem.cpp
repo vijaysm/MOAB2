@@ -116,14 +116,14 @@ int main( int argc, char* argv[] )
 
   // struct to store memory stats
 struct MemStats {
-  unsigned long total_storage;
-  unsigned long total_amortized;
-  unsigned long entity_storage;
-  unsigned long entity_amortized;
-  unsigned long adjacency_storage;
-  unsigned long adjacency_amortized;
-  unsigned long tag_storage;
-  unsigned long tag_amortized;
+  unsigned long long total_storage;
+  unsigned long long total_amortized;
+  unsigned long long entity_storage;
+  unsigned long long entity_amortized;
+  unsigned long long adjacency_storage;
+  unsigned long long adjacency_amortized;
+  unsigned long long tag_storage;
+  unsigned long long tag_amortized;
 };
 
  // test if MemStats object indicates no memory
@@ -136,7 +136,7 @@ static void get_mem_stats( moab::Interface& mb,
                            moab::EntityType type = moab::MBMAXTYPE );
 
   // Formatted string representation of memory size value
-static std::string memstr( unsigned long val );
+static std::string memstr( unsigned long long val );
 
   // Get string describing tag data type
 static std::string tag_type_string( moab::Interface& mb, moab::Tag tag );
@@ -244,7 +244,7 @@ void print_memory_stats( moab::Interface& mb,
       if (moab::MB_SUCCESS != rval || name.empty())
         name = ANON_TAG_NAME;
 
-      unsigned long occupied, allocated;
+      unsigned long long occupied, allocated;
       mb.estimated_memory_use( 0, 0, 0, 0, 0, 0, 0, 0, &*ti, 1, &occupied, &allocated );
 
       std::cout << std::left << std::setw(maxlen) << name << ' '
@@ -270,7 +270,7 @@ void print_memory_stats( moab::Interface& mb,
 
   if (sysstats) {
     std::FILE* filp = std::fopen("/proc/self/stat", "r");
-    unsigned long vsize;
+    unsigned long long vsize;
     long rss;
     if (filp && 2 == std::fscanf(filp,
                   "%*d " // pid
@@ -295,15 +295,17 @@ void print_memory_stats( moab::Interface& mb,
                   "%*d " // num_threads
                   "%*d " // itrealvalue
                   "%*u " // starttime
-                  "%lu " // vsize
+                  "%llu " // vsize
                   "%ld", // rss
                   &vsize, &rss )) {
   #ifndef _MSC_VER
-      rss *= getpagesize();
+      long long tmprss = rss * getpagesize();
   #endif
       std::cout << std::endl << "SYSTEM:" 
                 << std::endl << "Virtual memory:    " << memstr(vsize)
-                << std::endl << "Resident set size: " << memstr(rss)
+  #ifndef _MSC_VER
+                << std::endl << "Resident set size: " << memstr(tmprss)
+  #endif
                 << std::endl;
     }
     else {
@@ -313,10 +315,10 @@ void print_memory_stats( moab::Interface& mb,
         std::cerr << "getrusage failed" << std::endl;
       }
       else {
-        long int tmp_rss = sysdata.ru_maxrss;
-        rss *= getpagesize();
+        rss = sysdata.ru_maxrss;
+        long long tmprss = rss * getpagesize();
         std::cerr << std::endl << "SYSTEM:"
-                  << std::endl << "Resident set size: " << memstr(tmp_rss) 
+                  << std::endl << "Resident set size: " << memstr(tmprss) 
                   << std::endl;
       }
   #endif
@@ -360,17 +362,17 @@ void get_mem_stats( moab::Interface& mb,
 }
 
 // rounded division
-static unsigned long rdiv( unsigned long num, unsigned long den )
+static unsigned long long rdiv( unsigned long long num, unsigned long long den )
 {
   return (num + den/2) / den;
 }
 
-std::string memstr( unsigned long val )
+std::string memstr( unsigned long long val )
 {
-  const unsigned long kb = 1024;
-  const unsigned long mb = kb*kb;
-  const unsigned long gb = kb*mb;
-  const unsigned long tb = kb*gb;
+  const unsigned long long kb = 1024;
+  const unsigned long long mb = kb*kb;
+  const unsigned long long gb = kb*mb;
+  const unsigned long long tb = kb*gb;
   
   std::ostringstream s;
   if (UNITS == HUMAN) {
@@ -388,7 +390,7 @@ std::string memstr( unsigned long val )
       s << "0  ";
   }
   else {
-    unsigned long den = 1;
+    unsigned long long den = 1;
     switch (UNITS) {
       case BYTES: den = 1; break;
       case KILOBYTES: den = kb; break;

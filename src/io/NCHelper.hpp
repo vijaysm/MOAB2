@@ -11,6 +11,12 @@
 
 #include "ReadNC.hpp"
 
+#ifdef WIN32
+#ifdef size_t
+#undef size_t
+#endif
+#endif
+
 namespace moab {
 
 //! Helper class to isolate reading of several different nc file formats
@@ -47,9 +53,6 @@ protected:
 
   //! Read set variables (common to scd mesh and ucd mesh)
   ErrorCode read_variables_to_set(std::vector<ReadNC::VarData>& vdatas, std::vector<int>& tstep_nums);
-
-  //! Convert variables in place
-  ErrorCode convert_variable(ReadNC::VarData& var_data, int tstep_num);
 
   ErrorCode read_coordinate(const char* var_name, int lmin, int lmax,
                             std::vector<double>& cvals);
@@ -137,7 +140,7 @@ private:
   //! Create COORDS tag for quads coordinate
   ErrorCode create_quad_coordinate_tag();
 
-  template <typename T> ErrorCode kji_to_jik(size_t ni, size_t nj, size_t nk, void* dest, T* source)
+  template <typename T> void kji_to_jik(size_t ni, size_t nj, size_t nk, void* dest, T* source)
   {
     size_t nik = ni * nk, nij = ni * nj;
     T* tmp_data = reinterpret_cast<T*>(dest);
@@ -145,7 +148,6 @@ private:
       for (std::size_t i = 0; i != ni; i++)
         for (std::size_t k = 0; k != nk; k++)
           tmp_data[j*nik + i*nk + k] = source[k*nij + j*ni + i];
-    return MB_SUCCESS;
   }
 
 protected:
@@ -210,7 +212,7 @@ private:
 protected:
   //! This version takes as input the moab range, from which we actually need just the
   //! size of each sequence, for a proper transpose of the data
-  template <typename T> ErrorCode kji_to_jik_stride(size_t , size_t nj, size_t nk, void* dest, T* source, Range& localGid)
+  template <typename T> void kji_to_jik_stride(size_t , size_t nj, size_t nk, void* dest, T* source, Range& localGid)
   {
     std::size_t idxInSource = 0; // Position of the start of the stride
     // For each subrange, we will transpose a matrix of size
@@ -226,7 +228,6 @@ protected:
             tmp_data[idxInSource + j*nik + i*nk + k] = source[idxInSource + k*nij + j*size_range + i];
       idxInSource += (size_range*nj*nk);
     }
-    return MB_SUCCESS;
   }
 
   //! Dimensions of global grid in file

@@ -16,8 +16,8 @@ if ENABLE_mbcoupler
   AM_CPPFLAGS += -I$(top_srcdir)/tools/mbcoupler \
                  -I$(top_srcdir)/itaps \
                  -I$(top_srcdir)/itaps/imesh \
-                 -I$(top_builddir)/itaps/imesh \
-                 -I$(top_srcdir)/src/moab/point_locater/lotte
+                 -I$(top_builddir)/itaps \
+                 -I$(top_builddir)/itaps/imesh 
 endif
 
 if ENABLE_mbcslam
@@ -31,18 +31,18 @@ if USE_MPIEXEC
 endif
 
 TESTS = pcomm_unit \
-        parallel_unit_tests \
-        uber_parallel_test \
         scdtest \
         pcomm_serial \
 	par_spatial_locator_test \
         $(NETCDF_TESTS) \
         $(HDF5_TESTS) \
         $(COUPLER_TESTS) \
-        $(MBCSLAM_TESTS)
+        $(MBCSLAM_TESTS) $(IMESH_TESTS)
 
 if PARALLEL_HDF5
-  HDF5_TESTS = parallel_hdf5_test mhdf_parallel parallel_write_test
+  HDF5_TESTS = parallel_hdf5_test mhdf_parallel parallel_write_test \
+        parallel_unit_tests \
+        uber_parallel_test parallel_adj
 else
   HDF5_TESTS = 
 endif
@@ -61,19 +61,45 @@ else
 endif
 endif
 
+
 if ENABLE_mbcoupler
+if PARALLEL_HDF5
   COUPLER_TESTS = par_coupler_test
+else
+  COUPLER_TESTS = 
+endif 
 else
   COUPLER_TESTS = 
 endif
 
 if ENABLE_mbcslam
+if PARALLEL_HDF5
   MBCSLAM_TESTS = par_intx_sph 
+else
+  MBCSLAM_TESTS =
+endif
 else
   MBCSLAM_TESTS = 
 endif
 
-check_PROGRAMS = $(TESTS) mbparallelcomm_test partcheck structured3 parmerge
+IMESH_TESTS = 
+if ENABLE_imesh
+if PARALLEL_HDF5
+if ENABLE_FORTRAN
+   IMESH_TESTS += imeshp_test
+   AM_FCFLAGS += -I$(top_srcdir)/itaps \
+                 -I$(top_srcdir)/itaps/imesh \
+                 -I$(top_builddir)/itaps \
+                 -I$(top_builddir)/itaps/imesh
+endif
+endif 
+endif
+
+check_PROGRAMS = $(TESTS) mbparallelcomm_test partcheck structured3 
+if PARALLEL_HDF5
+  check_PROGRAMS += parmerge
+endif
+
 
 pcomm_unit_SOURCES = pcomm_unit.cpp
 parallel_hdf5_test_SOURCES = parallel_hdf5_test.cc
@@ -95,6 +121,17 @@ mpastrvpart_SOURCES = mpastrvpart.cpp
 gcrm_par_SOURCES = gcrm_par.cpp
 write_nc_par_SOURCES = ../io/write_nc.cpp
 par_spatial_locator_test_SOURCES = par_spatial_locator_test.cpp
+parallel_adj_SOURCES = ../adj_moab_test.cpp
+
+if ENABLE_imesh
+if PARALLEL_HDF5
+if ENABLE_FORTRAN
+  imeshp_test_SOURCES = imeshp_test.F90
+  imeshp_test_LDADD =   $(top_builddir)/itaps/imesh/libiMesh.la $(LDADD) ${MOAB_CXX_LINKFLAGS} ${MOAB_CXX_LIBS}
+endif
+endif
+endif
+
 
 if ENABLE_mbcoupler
   par_coupler_test_SOURCES = par_coupler_test.cpp
@@ -132,4 +169,5 @@ MOSTLYCLEANFILES = mhdf_ll.h5m tmp0.h5m tmp1.h5m tmp2.h5m tmp3.h5m \
                    test_par_fv_T.nc \
                    test_par_gcrm_vars.nc \
                    test_par_homme_T.nc \
-                   test_par_mpas_vars.nc
+                   test_par_mpas_vars.nc \
+                   test2.h5m  

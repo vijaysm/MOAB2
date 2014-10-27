@@ -18,19 +18,15 @@
 #include <math.h>
 #include "moab/ProgOptions.hpp"
 #include "MBTagConventions.hpp"
-
+#include "../test/TestUtil.hpp"
 #include "CslamUtils.hpp"
 
 // for M_PI
 #include <math.h>
 
-#define STRINGIFY_(X) #X
-#define STRINGIFY(X) STRINGIFY_(X)
-
 using namespace moab;
 // some input data
 double gtol = 0.0001; // this is for geometry tolerance
-std::string input_mesh_file("eulerHomme.vtk"); // input file, plain vtk, sphere-cube mesh
 double CubeSide = 6.; // the above file starts with cube side 6; radius depends on cube side
 double t = 0.1, delta_t = 0.43; // check the script
 
@@ -118,7 +114,7 @@ int main(int argc, char **argv)
 {
 
 
-  const char *filename_mesh1 = STRINGIFY(SRCDIR) "/eulerHomme.vtk";
+  const char *filename_mesh1 = STRINGIFY(MESHDIR) "/mbcslam/eulerHomme.vtk";
   if (argc > 1)
   {
     int index = 1;

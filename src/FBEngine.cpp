@@ -1979,7 +1979,6 @@ ErrorCode FBEngine::BreakTriangle2(EntityHandle tri, EntityHandle e1, EntityHand
     _newTriangles.insert(newTriangle);
     if (debug_splits)
       print_debug_triangle(newTriangle);
-    return MB_SUCCESS;
   }
   else if (MBVERTEX == et2)
   {
@@ -2004,7 +2003,6 @@ ErrorCode FBEngine::BreakTriangle2(EntityHandle tri, EntityHandle e1, EntityHand
     _newTriangles.insert(newTriangle);
     if (debug_splits)
           print_debug_triangle(newTriangle);
-    return MB_SUCCESS;
   }
   else
   {
@@ -2071,7 +2069,6 @@ ErrorCode FBEngine::BreakTriangle2(EntityHandle tri, EntityHandle e1, EntityHand
     _newTriangles.insert(newTriangle);
     if (debug_splits)
           print_debug_triangle(newTriangle);
-    return MB_SUCCESS;
   }
 
   return MB_SUCCESS;
@@ -2769,8 +2766,7 @@ ErrorCode FBEngine::split_boundary(EntityHandle face, EntityHandle atNode)
         _mbImpl->id_from_handle(atNode) << "\n";
   }
   Range bound_edges;
-  ErrorCode rval = getAdjacentEntities(face, 1, bound_edges);
-  MBERRORR(rval, " can't get boundary edges");
+  ErrorCode rval = getAdjacentEntities(face, 1, bound_edges);MBERRORR(rval, " can't get boundary edges");
   bool brokEdge = _brokenEdges.find(atNode)!=_brokenEdges.end();
 
   for (Range::iterator it =bound_edges.begin(); it!=bound_edges.end(); it++ )
@@ -2779,8 +2775,7 @@ ErrorCode FBEngine::split_boundary(EntityHandle face, EntityHandle atNode)
     // get all edges in range
     Range mesh_edges;
     rval = _mbImpl->get_entities_by_dimension(b_edge, 1,
-        mesh_edges);
-    MBERRORR(rval, " can't get mesh edges");
+        mesh_edges);MBERRORR(rval, " can't get mesh edges");
     if (brokEdge)
     {
       EntityHandle brokenEdge = _brokenEdges[atNode];
@@ -2794,8 +2789,7 @@ ErrorCode FBEngine::split_boundary(EntityHandle face, EntityHandle atNode)
     else
     {
       Range nodes;
-      rval = _mbImpl->get_connectivity(mesh_edges, nodes);
-      MBERRORR(rval, " can't get nodes from mesh edges");
+      rval = _mbImpl->get_connectivity(mesh_edges, nodes);MBERRORR(rval, " can't get nodes from mesh edges");
 
       if (nodes.find(atNode)!=nodes.end())
       {
@@ -2809,7 +2803,6 @@ ErrorCode FBEngine::split_boundary(EntityHandle face, EntityHandle atNode)
   // if the node was not found in any "current" boundary, it broke an existing
   // boundary edge
   MBERRORR(MB_FAILURE, " we did not find an appropriate boundary edge"); ; //
-  return MB_FAILURE; // needed to suppress compile warning
 }
 
 bool FBEngine::find_vertex_set_for_node(EntityHandle iNode, EntityHandle & oVertexSet)
@@ -3530,7 +3523,7 @@ ErrorCode  FBEngine::weave_lateral_face_from_edges(EntityHandle bEdge, EntityHan
       else
         weaveDown = false;
     }
-    EntityHandle nTri[3] = { nodes1[indexB], nodes2[indexT+1], nodes2[indexT]};
+    EntityHandle nTri[3] = { nodes1[indexB], 0, nodes2[indexT]};
     if (weaveDown)
     {
       nTri[1] = nodes1[indexB+1];
@@ -3538,7 +3531,10 @@ ErrorCode  FBEngine::weave_lateral_face_from_edges(EntityHandle bEdge, EntityHan
       indexB++;
     }
     else
+    {
+      nTri[1] = nodes2[indexT+1];
       indexT++;
+    }
     EntityHandle triangle;
     rval = _mbImpl->create_element(MBTRI, nTri, 3, triangle);
     MBERRORR(rval, "can't create triangle");

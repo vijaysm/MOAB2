@@ -71,8 +71,6 @@ void test_read_all()
   ErrorCode rval = mb.load_file(example, 0, opts.c_str());
   CHECK_ERR(rval);
 
-  mb.write_file("gcrm.h5m");
-
   int procs = 1;
 #ifdef USE_MPI
   ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);

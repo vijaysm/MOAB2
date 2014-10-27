@@ -39,7 +39,7 @@ class ParallelComm;
 class RefinerTagManager;
 class MeshOutputFunctor;
 
-class MB_DLL_EXPORT MeshRefiner
+class MeshRefiner
 {
 public:
   MeshRefiner( Interface* imesh, Interface* omesh );

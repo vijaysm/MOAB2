@@ -1,10 +1,5 @@
-EXTRA_DIST = v3_dodec.h5m \
-             rocket_ents_in_assm.h5m \
-             portable_x86_64.h5m \
-	     portable_x86_32.h5m \
-	     portable_power_32.h5m
-
 AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
+               -DMESHDIR=$(top_srcdir)/MeshFiles/unittest \
                -I.. -I$(srcdir)/.. \
                -I$(top_srcdir)/src \
                -I$(top_srcdir)/src/io \

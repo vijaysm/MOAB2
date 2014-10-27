@@ -108,7 +108,6 @@ int main(int argc, char **argv) {
       if (moab::MB_SUCCESS == MBI->get_last_error(message) && !message.empty())
 	std::cerr << "Error message: " << message << std::endl;
       return 1;
-      return 1;
     }
   }
 

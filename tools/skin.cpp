@@ -113,6 +113,13 @@ int main( int argc, char* argv[] )
             matsets.push_back((int)block);
             ++i;
             break;
+          case 's':
+            if (i == argc || 0 >= (neuset_num = strtol(argv[i],&endptr,0)) || *endptr) {
+              std::cerr << "Expected positive integer following '-s' flag" << std::endl;
+              usage(argv[0]);
+            }
+            ++i;
+            break;
           case 'T':
             if (i == argc || argv[i][0] == '-') {
               std::cerr << "Expected tag name following '-T' flag" << std::endl;

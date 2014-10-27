@@ -4,7 +4,11 @@
 #ifdef USE_MPI
 #  include "moab_mpi.h"
 #else
-#  include <sys/resource.h>
+#  if defined(_MSC_VER)
+#    include <time.h>
+#  else
+#    include <sys/resource.h>
+#  endif
 #endif
 
 namespace moab 

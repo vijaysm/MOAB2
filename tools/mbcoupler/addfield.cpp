@@ -35,7 +35,10 @@ void putElementField(Interface *mbi, const char *tagname, double factor){
   Tag fieldTag;
   ErrorCode rval = mbi->tag_get_handle(tagname, 1, MB_TYPE_DOUBLE, fieldTag, MB_TAG_DENSE|MB_TAG_CREAT, &defVal);
   assert(MB_SUCCESS == rval);
- 
+#ifdef NDEBUG
+  if (MB_SUCCESS == rval) {}; // Line to avoid compiler warning about unused variable
+#endif
+
   int numElems = elems.size();
 
   for(int i=0; i<numElems; i++){

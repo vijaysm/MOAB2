@@ -232,7 +232,7 @@ namespace moab
         }
 #ifndef NDEBUG
         for(std::vector<SplitData>::iterator s = splits_begin; 
-            s != splits_end; ++s, ++left_end) {
+            s != splits_end; ++s) {
           BoundBox test_box = s->leftBox;
           test_box.update(s->rightBox);
           if(!data.boundingBox.intersects_box(test_box)) {

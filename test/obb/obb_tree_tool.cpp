@@ -60,17 +60,19 @@ static void usage( bool err = true )
 }
 
 #if defined(_MSC_VER)  || defined(__MINGW32__)
-static void memory_use( unsigned long& vsize, unsigned long& rss )
+static void memory_use( unsigned long long& vsize, unsigned long long& rss )
   { vsize = rss = 0; }
 #else
-static void memory_use( unsigned long& vsize, unsigned long& rss )
+static void memory_use( unsigned long long& vsize, unsigned long long& rss )
 {
   char buffer[512];
+  unsigned long lvsize;
+  long lrss;
   int filp = open( "/proc/self/stat", O_RDONLY );
   ssize_t r = read( filp, buffer, sizeof(buffer)-1 );
   close( filp );
   if (r < 0) r = 0;
-  vsize = rss = 0;
+  lvsize = lrss = 0;
   buffer[r] = '\0';
   sscanf( buffer, "%*d %*s %*c "         // pid command state
                   "%*d %*d "             // ppid pgrp
@@ -80,8 +82,9 @@ static void memory_use( unsigned long& vsize, unsigned long& rss )
                   "%*u %*u %*d %*d " // utime stime cutime cstime
                   "%*d %*d %*d "      // priority nice (unused)
                   "%*d %*u "           // itrealval starttime
-                  "%lu %lu",             &vsize, &rss );
-  rss *= getpagesize();
+                  "%lu %ld",             &lvsize, &lrss );
+  rss = lrss*getpagesize();
+  vsize = lvsize;
 }
 #endif
 
@@ -374,7 +377,7 @@ void print_stats( Interface* interface )
   interface->get_entities_by_type( 0, MBVERTEX, verts );
   triangles.merge( verts );
   tree_sets.insert( root );
-  unsigned long set_used, set_amortized, set_store_used, set_store_amortized,
+  unsigned long long set_used, set_amortized, set_store_used, set_store_amortized,
                 set_tag_used, set_tag_amortized, tri_used, tri_amortized;
   interface->estimated_memory_use( tree_sets, 
                                    &set_used, &set_amortized, 
@@ -388,7 +391,7 @@ void print_stats( Interface* interface )
   
   tool.stats( root, std::cout );
   
-  unsigned long real_rss, real_vsize;
+  unsigned long long real_rss, real_vsize;
   memory_use( real_vsize, real_rss );
   
   printf("------------------------------------------------------------------\n");

@@ -895,8 +895,6 @@ namespace Element {
   // replicate the functionality of hex_findpt
   CartVect SpectralHex::ievaluate(CartVect const & xyz) const
   {
-    CartVect result(0.);
-
     //find nearest point
     real x_star[3];
     xyz.get(x_star);
@@ -913,9 +911,7 @@ namespace Element {
     //c tells us if we landed inside the element or exactly on a face, edge, or node
     // also, dist shows the distance to the computed point.
     //copy parametric coords back
-    result = r;
-
-    return  result;
+    return CartVect(r);
   }
   Matrix3  SpectralHex::jacobian(const CartVect& xi) const
   {
@@ -1186,8 +1182,6 @@ namespace Element {
   // replicate the functionality of hex_findpt
   CartVect SpectralQuad::ievaluate(CartVect const & xyz) const
   {
-    CartVect result(0.);
-
     //find nearest point
     real x_star[3];
     xyz.get(x_star);
@@ -1205,9 +1199,7 @@ namespace Element {
     //c tells us if we landed inside the element or exactly on a face, edge, or node
     // also, dist shows the distance to the computed point.
     //copy parametric coords back
-    result = r;
-
-    return  result;
+    return CartVect(r[0], r[1], 0.);
   }
 
 

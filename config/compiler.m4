@@ -89,6 +89,12 @@ test "xno" = "x$CHECK_FC" || CHECK_FC=yes
 USER_CXXFLAGS="$CXXFLAGS"
 USER_CFLAGS="$CFLAGS"
 
+  # Save these before calling AC_PROG_FC or AC_PROG_F77
+  # because those macros will modify them, and we want
+  # the original user values, not the autoconf defaults.
+USER_FCFLAGS="$FCFLAGS"
+USER_FFLAGS="$FFLAGS"
+
   # Check for Parallel
   # Need to check this early so we can look for the correct compiler
 AC_ARG_WITH( [mpi], AC_HELP_STRING([[--with-mpi@<:@=DIR@:>@]], [Enable parallel support]),
@@ -178,9 +184,9 @@ FCFLAGS="$USER_FCFLAGS $FATHOM_FC_SPECIAL"
 
   # Check for debug flags
 AC_ARG_ENABLE( debug, AC_HELP_STRING([--enable-debug],[Debug symbols (-g)]),
-               [enable_debug=$enableval], [enable_debug=] )  
+               [enable_debug=$enableval; DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-debug=$enableval"], [enable_debug=] )
 AC_ARG_ENABLE( optimize, AC_HELP_STRING([--enable-optimize],[Compile optimized (-O2)]),
-               [enable_cxx_optimize=$enableval
+               [enable_cxx_optimize=$enableval; DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-optimize=$enableval";
                 enable_cc_optimize=$enableval
 		enable_fc_optimize=$enableval
 		], 
@@ -194,24 +200,10 @@ AC_ARG_ENABLE( optimize, AC_HELP_STRING([--enable-optimize],[Compile optimized (
 DEBUG=no
 if test "x$enable_debug" = "x"; then
   if test "x$enable_cxx_optimize" = "x"; then
-    if test "x$USER_CXXFLAGS" = "x"; then
-      enable_cxx_optimize=yes
-    fi
-  fi
-  if test "x$enable_cc_optimize" = "x"; then
-    if test "x$USER_CFLAGS" = "x"; then
-      enable_cc_optimize=yes
-    fi
-  fi
-  if test "x$enable_fc_optimize" = "x"; then
-    if test "x$USER_FCFLAGS" = "x"; then
-      enable_fc_optimize=yes
-    fi
-  fi
-  if test "x$enable_f77_optimize" = "x"; then
-    if test "x$USER_FFLAGS" = "x"; then
-      enable_f77_optimize=yes
-    fi
+    enable_cxx_optimize=yes
+    enable_cc_optimize=yes
+    enable_fc_optimize=yes
+    enable_f77_optimize=yes
   fi
 fi
 

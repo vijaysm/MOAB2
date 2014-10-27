@@ -2423,6 +2423,7 @@ ErrorCode mb_mesh_set_flag_test()
   rval = mb->clear_meshset( &set, 1 );
   CHKERR(rval);
   entities.clear();
+  entities.resize(2);
   entities[0] = verts[1];
   entities[1] = verts[0];
   rval = mb->add_entities( set, &entities[0], 2);
@@ -2913,7 +2914,7 @@ ErrorCode mb_mesh_set_set_add_remove_test()
   size_t len2 = sizeof(list2)/sizeof(list2[0]);
   rval = mb.add_entities( set, list1, len1 );
   CHKERR(rval);
-  rval = check_meshset_internal( mb, set, list1, len2 );
+  rval = check_meshset_internal( mb, set, list1, len1 );
   CHKERR(rval);
   rval = mb.add_entities( set, list2, len2 );
   CHKERR(rval);
@@ -6044,7 +6045,7 @@ ErrorCode mb_poly_adjacency_test2()
 ErrorCode mb_memory_use_test() 
 {
   Core mb;
-  unsigned long init_total, total_with_elem, total_with_tag, total_with_tag_data;
+  unsigned long long init_total, total_with_elem, total_with_tag, total_with_tag_data;
   mb.estimated_memory_use(0,0,0,&init_total);
   
   double coords[12] = { 1, 2, 0, 3, 4, 0, 5, 6, 0, 7, 8, 0 };
@@ -6060,7 +6061,7 @@ ErrorCode mb_memory_use_test()
   if (total_with_elem <= init_total)
     return MB_FAILURE;
   
-  unsigned long min, am;
+  unsigned long long min, am;
   Range r;
   r.insert( elem );
   mb.estimated_memory_use( r, &min, &am );
@@ -6559,7 +6560,7 @@ ErrorCode mb_skin_verts_common( unsigned dim, bool skin_elems )
     std::cout << "Extra/non-returned elements created: " << extra << std::endl;
     return MB_FAILURE;
   }
-    
+
     // check that each skin vertex has the correct number of adjacent quads
   missing.clear(); extra.clear();
   for (Range::iterator i = expected.begin(); i != expected.end(); ++i) {
