@@ -37,6 +37,8 @@ namespace moab{
   {
     ErrorCode error;
     int *hmest = new int[4*num_level];
+    for (int i=0; i<4*num_level; i++)
+      hmest[i] = 0;
     error = estimate_hm_storage(level_degrees, num_level, hmest);
     if (error != MB_SUCCESS) return error;
 
@@ -228,7 +230,7 @@ namespace moab{
 
         level_mesh[cur_level].num_edges = estL[4*cur_level+1];
 
-        EntityHandle *earray = new EntityHandle[4*cur_level+1];
+        EntityHandle *earray = new EntityHandle[estL[4*cur_level+1]];
         for (int i=0; i< estL[4*cur_level+1]; i++)
           earray[i] = level_mesh[cur_level].start_edge + i;
 
@@ -264,7 +266,7 @@ namespace moab{
         if (error != MB_SUCCESS) return error;
         level_mesh[cur_level].num_faces = estL[4*cur_level+2];
 
-        EntityHandle *farray = new EntityHandle[4*cur_level+2];
+        EntityHandle *farray = new EntityHandle[estL[4*cur_level+2]];
         for (int i=0; i< estL[4*cur_level+2]; i++)
           farray[i] = level_mesh[cur_level].start_face + i;
 
@@ -284,7 +286,7 @@ namespace moab{
         if (error != MB_SUCCESS) return error;
         level_mesh[cur_level].num_cells = estL[4*cur_level+3];
 
-        EntityHandle *carray = new EntityHandle[4*cur_level+3];
+        EntityHandle *carray = new EntityHandle[estL[4*cur_level+3]];
         for (int i=0; i< estL[4*cur_level+3]; i++)
           carray[i] = level_mesh[cur_level].start_cell + i;
 
@@ -1036,8 +1038,8 @@ ErrorCode NestedRefine::update_local_ahf(int deg, EntityType type, EntityHandle 
       int lid=0;
 
     //  std::cout<<"vbuffer["<<i+2<<"] = "<<vbuffer[i+nv]<<std::endl;
-
-      error = ahf->get_incident_tag(type, vbuffer[i+nv], &ent, &lid);
+      EntityHandle vid = vbuffer[i+nv];
+      error = ahf->get_incident_tag(type, vid, &ent, &lid);
       if (error != MB_SUCCESS) return error;
 
       if (ent)
@@ -1052,8 +1054,8 @@ ErrorCode NestedRefine::update_local_ahf(int deg, EntityType type, EntityHandle 
       if (error != MB_SUCCESS) return error;
 
       //Check if value set is correct
-      EntityHandle get_ent;
-      int get_lid;
+      EntityHandle get_ent=0;
+      int get_lid=0;
       error = ahf->get_incident_tag(type, vbuffer[i+nv], &get_ent, &get_lid);
       if (error != MB_SUCCESS) return error;
   //    std::cout<<"get_ent = "<<get_ent<<", get_lid = "<<get_lid<<std::endl;
@@ -1065,7 +1067,7 @@ ErrorCode NestedRefine::update_local_ahf(int deg, EntityType type, EntityHandle 
       EntityHandle  *sib_entids = new EntityHandle[nhf];
       int *sib_lids = new int[nhf];
 
-      error = ahf->get_sibling_tag(type, ent_buffer[i], sib_entids, sib_lids);
+      error = ahf->get_sibling_tag(type, ent_buffer[i], &sib_entids[0], &sib_lids[0]);
       if (error != MB_SUCCESS) return error;
 
       for (int l=0; l< nhf; l++)
@@ -1089,7 +1091,7 @@ ErrorCode NestedRefine::update_local_ahf(int deg, EntityType type, EntityHandle 
           //std::cout<<"sib_entids["<<l<<"]= "<<sib_entids[l]<<std::endl;
         }
 
-      error = ahf->set_sibling_tag(type, ent_buffer[i], sib_entids, sib_lids);
+      error = ahf->set_sibling_tag(type, ent_buffer[i], &sib_entids[0], &sib_lids[0]);
       if  (error != MB_SUCCESS) return error;
 
       EntityHandle *set_entids = new EntityHandle[nhf];
@@ -1098,7 +1100,7 @@ ErrorCode NestedRefine::update_local_ahf(int deg, EntityType type, EntityHandle 
       for (int l=0; l< nhf; l++)
         {
           if (sib_entids[l]){
-              error = ahf->get_sibling_tag(type, sib_entids[l], set_entids, set_lids);
+              error = ahf->get_sibling_tag(type, sib_entids[l], &set_entids[0], &set_lids[0]);
               if (error != MB_SUCCESS) return error;
 
               set_entids[sib_lids[l]] = ent_buffer[i];
@@ -1296,8 +1298,8 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
          vid = _inverts[i];
 
        //Get the incident half-vert in the previous mesh
-       EntityHandle inci_ent;
-       int inci_lid;
+       EntityHandle inci_ent=0;
+       int inci_lid=0;
 
        error = ahf->get_incident_tag(MBEDGE, vid, &inci_ent, &inci_lid);
        if (error != MB_SUCCESS) return error;
@@ -1338,7 +1340,7 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
        EntityHandle *sib_entids = new EntityHandle[nhf];
        int *sib_lids = new int[nhf];
 
-       error = ahf->get_sibling_tag(MBEDGE, ent, sib_entids, sib_lids);
+       error = ahf->get_sibling_tag(MBEDGE, ent, &sib_entids[0], &sib_lids[0]);
        if (error != MB_SUCCESS) return error;
 
        int id, idx;
@@ -1358,7 +1360,7 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
            EntityHandle *sib_childs = new EntityHandle[nhf];
            int *sib_chlids = new int[nhf];
 
-           error = ahf->get_sibling_tag(MBEDGE, child_ent, sib_childs, sib_chlids);
+           error = ahf->get_sibling_tag(MBEDGE, child_ent, &sib_childs[0], &sib_chlids[0]);
            if (error != MB_SUCCESS) return error;
 
            //If the sibling already exists, dont do anything
@@ -1384,7 +1386,7 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
            sib_childs[ch_lid] = psib_child;
            sib_chlids[ch_lid] = psib_chlid;
 
-           error = ahf->set_sibling_tag(MBEDGE, child_ent, sib_childs, sib_chlids);
+           error = ahf->set_sibling_tag(MBEDGE, child_ent, &sib_childs[0], &sib_chlids[0]);
            if (error != MB_SUCCESS) return error;
 
            delete [] sib_childs;
@@ -1433,7 +1435,7 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
        EntityHandle *sib_entids = new EntityHandle[nhf];
        int *sib_lids = new int[nhf];
 
-       error = ahf->get_sibling_tag(type, ent, sib_entids, sib_lids);
+       error = ahf->get_sibling_tag(type, ent, &sib_entids[0], &sib_lids[0]);
        if (error != MB_SUCCESS) return error;
 
        int nc, id, idx;
@@ -1458,7 +1460,7 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
                EntityHandle *sib_childs= new EntityHandle[nhf];
                int *sib_chlids = new int[nhf];
 
-               error = ahf->get_sibling_tag(type, child_ent, sib_childs, sib_chlids);
+               error = ahf->get_sibling_tag(type, child_ent, &sib_childs[0], &sib_chlids[0]);
                if (error != MB_SUCCESS) return error;
 
                //If the sibling already exists, dont do anything
@@ -1526,7 +1528,7 @@ ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg)
       EntityHandle *sib_entids = new EntityHandle[nhf];
       int *sib_lids = new int[nhf];
 
-      error = ahf->get_sibling_tag(MBEDGE, ent, sib_entids, sib_lids);
+      error = ahf->get_sibling_tag(MBEDGE, ent, &sib_entids[0], &sib_lids[0]);
       if (error != MB_SUCCESS) return error;
 
       int id, idx;
@@ -1543,7 +1545,7 @@ ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg)
           EntityHandle *sib_childs= new EntityHandle[nhf];
           int *sib_chlids = new int[nhf];
 
-          error = ahf->get_sibling_tag(MBEDGE, child_ent, sib_childs, sib_chlids);
+          error = ahf->get_sibling_tag(MBEDGE, child_ent, &sib_childs[0], &sib_chlids[0]);
           if (error != MB_SUCCESS) return error;
 
           //If the sibling already exists, dont do anything
@@ -1962,13 +1964,11 @@ ErrorCode NestedRefine::print_tags_1D(int level)
     std::cout<<"<V2HV_EID, V2HV_LVID>"<<std::endl;
   for (int i=0; i<nv; i++)
     {
-      EntityHandle eid; int lvid;
+      EntityHandle eid=0;
+      int lvid=0;
       EntityHandle vid = level_mesh[level].start_vertex+i;
       error = ahf->get_incident_tag(MBEDGE, vid, &eid, &lvid);
-      //error = mb->tag_get_data(v2hv_eid, &vid, 1, &eid);
       if (MB_SUCCESS != error) return error;
-    //  error = mb->tag_get_data(v2hv_lvid, &vid, 1, &lvid);
-   //   if (MB_SUCCESS != error) return error;
 
       std::cout<<"For vertex = "<<vid<<"::Incident halfvertex "<<eid<<"  "<<lvid<<std::endl;
     }
@@ -1981,10 +1981,7 @@ ErrorCode NestedRefine::print_tags_1D(int level)
       EntityHandle ent = start_edge+i;
 
       EntityHandle eid[2];  int lvid[2];
-      error = ahf->get_sibling_tag(MBEDGE, ent, eid, lvid);
-    //  error = mb->tag_get_data(sibhvs_eid, &ent, 1, eid);
-    //  if (MB_SUCCESS != error) return error;
-   //   error = mb->tag_get_data(sibhvs_lvid, &ent, 1, lvid);
+      error = ahf->get_sibling_tag(MBEDGE, ent, &eid[0], &lvid[0]);
       if (MB_SUCCESS != error) return error;
 
       std::cout<<"<"<<eid[0]<<","<<lvid[0]<<">"<<"      "<<"<"<<eid[1]<<","<<lvid[1]<<">"<<std::endl;

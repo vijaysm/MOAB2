@@ -2718,26 +2718,26 @@ namespace moab {
 
     if (type == MBEDGE)
       {
-        error = mb->tag_get_data(sibhvs_eid, &ent, 1, sib_entids);
+        error = mb->tag_get_data(sibhvs_eid, &ent, 1, &sib_entids[0]);
         if (MB_SUCCESS != error) return error;
 
-        error = mb->tag_get_data(sibhvs_lvid, &ent, 1, sib_lids);
+        error = mb->tag_get_data(sibhvs_lvid, &ent, 1, &sib_lids[0]);
         if (MB_SUCCESS != error) return error;
       }
     else if (type == MBTRI || type == MBQUAD)
       {
-        error = mb->tag_get_data(sibhes_fid, &ent, 1, sib_entids);
+        error = mb->tag_get_data(sibhes_fid, &ent, 1, &sib_entids[0]);
         if (MB_SUCCESS != error) return error;
 
-        error = mb->tag_get_data(sibhes_leid, &ent, 1, sib_lids);
+        error = mb->tag_get_data(sibhes_leid, &ent, 1, &sib_lids[0]);
         if (MB_SUCCESS != error) return error;
       }
     else
       {
-        error = mb->tag_get_data(sibhfs_cid, &ent, 1, sib_entids);
+        error = mb->tag_get_data(sibhfs_cid, &ent, 1, &sib_entids[0]);
         if (MB_SUCCESS != error) return error;
 
-        error = mb->tag_get_data(sibhfs_lfid, &ent, 1, sib_lids);
+        error = mb->tag_get_data(sibhfs_lfid, &ent, 1, &sib_lids[0]);
         if (MB_SUCCESS != error) return error;
       }
     return MB_SUCCESS;
@@ -2748,26 +2748,26 @@ namespace moab {
     ErrorCode error;
     if (type == MBEDGE)
       {
-        error = mb->tag_set_data(sibhvs_eid, &ent, 1, set_entids);
+        error = mb->tag_set_data(sibhvs_eid, &ent, 1, &set_entids[0]);
         if (MB_SUCCESS != error) return error;
 
-        error = mb->tag_set_data(sibhvs_lvid, &ent, 1, set_lids);
+        error = mb->tag_set_data(sibhvs_lvid, &ent, 1, &set_lids[0]);
         if (MB_SUCCESS != error) return error;
       }
     else if (type == MBTRI || type == MBQUAD)
       {
-        error = mb->tag_set_data(sibhes_fid, &ent, 1, set_entids);
+        error = mb->tag_set_data(sibhes_fid, &ent, 1, &set_entids[0]);
         if (MB_SUCCESS != error) return error;
 
-        error = mb->tag_set_data(sibhes_leid, &ent, 1, set_lids);
+        error = mb->tag_set_data(sibhes_leid, &ent, 1, &set_lids[0]);
         if (MB_SUCCESS != error) return error;
       }
     else
       {
-        error = mb->tag_set_data(sibhfs_cid, &ent, 1, set_entids);
+        error = mb->tag_set_data(sibhfs_cid, &ent, 1, &set_entids[0]);
         if (MB_SUCCESS != error) return error;
 
-        error = mb->tag_set_data(sibhfs_lfid, &ent, 1, set_lids);
+        error = mb->tag_set_data(sibhfs_lfid, &ent, 1, &set_lids[0]);
         if (MB_SUCCESS != error) return error;
       }
     return MB_SUCCESS;
@@ -2784,6 +2784,7 @@ namespace moab {
 
         error = mb->tag_get_data(v2hv_lvid, &vid, 1, inci_lid);
         if (MB_SUCCESS != error) return error;
+
       }
     else if (type == MBTRI || type == MBQUAD)
       {
@@ -2817,18 +2818,18 @@ namespace moab {
       }
     else if (type == MBTRI || type == MBQUAD)
       {
-        error = mb->tag_set_data(v2he_fid, &vid, 1,&set_entid);
+        error = mb->tag_set_data(v2he_fid, &vid, 1, set_entid);
         if (MB_SUCCESS != error) return error;
 
-        error = mb->tag_set_data(v2he_leid, &vid, 1, &set_lid);
+        error = mb->tag_set_data(v2he_leid, &vid, 1, set_lid);
         if (MB_SUCCESS != error) return error;
       }
     else
       {
-        error = mb->tag_set_data(v2hf_cid, &vid, 1,&set_entid);
+        error = mb->tag_set_data(v2hf_cid, &vid, 1, set_entid);
         if (MB_SUCCESS != error) return error;
 
-        error = mb->tag_set_data(v2hf_lfid, &vid, 1, &set_lid);
+        error = mb->tag_set_data(v2hf_lfid, &vid, 1, set_lid);
         if (MB_SUCCESS != error) return error;
       }
     return MB_SUCCESS;
