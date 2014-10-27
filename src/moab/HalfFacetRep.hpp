@@ -450,8 +450,6 @@ public:
     int get_index_from_type(EntityHandle cid);
     ErrorCode get_entity_ranges(Range &verts, Range &edges, Range &faces, Range &cells);
 
-
-
   protected:
 
     Core * mb;
