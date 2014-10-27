@@ -666,8 +666,8 @@ ErrorCode test_entity_types()
   std::cout<<"Testing EDGE"<<std::endl;
   EntityType type = MBEDGE;
 
-  int degree[2] = {2, 3};
-  error = test_single_entity(type, degree, 2);
+  int degree[3] = {2, 3, 2};
+  error = test_single_entity(type, degree, 3);
   CHECK_ERR(error);
 
   /*int degree = 2;
@@ -676,7 +676,12 @@ ErrorCode test_entity_types()
   degree = 3;
   error = test_single_entity(type, &degree, 1);
   CHECK_ERR(error);
+
+  int degree = 5;
+  error = test_single_entity(type, &degree, 1);
+  CHECK_ERR(error);
 */
+
   return MB_SUCCESS;
 }
 
