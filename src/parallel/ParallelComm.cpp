@@ -3835,40 +3835,13 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
       }
     }
   
-    DataType tag_type;
-    result = mbImpl->tag_get_data_type(gid_tag, tag_type);
-    RRA("Failed getting tag data type");
-    int bytes_per_tag;
-    result = mbImpl->tag_get_bytes(gid_tag, bytes_per_tag);
-    RRA("Failed getting number of bytes per tag");
-    // on 64 bits, long and int are different
-    // on 32 bits, they are not; if size of long is 8, it is a 64 bit machine (really?)
-
     // get gids for skin ents in a vector, to pass to gs
-    std::vector<long> lgid_data(skin_ents[0].size());
-    // size is either long or int
-    // on 64 bit is 8 or 4
-    if (sizeof(long) == bytes_per_tag &&  ( (MB_TYPE_HANDLE == tag_type) || (MB_TYPE_OPAQUE==tag_type) ))// it is a special id tag
-    {
-      result = mbImpl->tag_get_data(gid_tag, skin_ents[0], &lgid_data[0]);
-      RRA("Couldn't get gid tag for skin vertices.");
-    }
-    else if (4 == bytes_per_tag) // must be GLOBAL_ID tag or 32 bits ...
-    {
-      std::vector<int> gid_data(lgid_data.size());
-      result = mbImpl->tag_get_data(gid_tag, skin_ents[0], &gid_data[0]);
-      RRA("Couldn't get gid tag for skin vertices.");
-      std::copy(gid_data.begin(), gid_data.end(), lgid_data.begin());
-    }
-    else
-    {
-      // not supported flag
-      result = MB_FAILURE;
-      RRA("unsupported id tag.");
-    }
+    std::vector<int> gid_data(skin_ents[0].size());
+    result = mbImpl->tag_get_data(gid_tag, skin_ents[0], &gid_data[0]);
+    RRA("Couldn't get gid tag for skin vertices.");
 
     // put handles in vector for passing to gs setup
-    std::vector<ulong_> handle_vec; // assumes that we can do conversion from ulong_ to EntityHandle
+    std::vector<EntityHandle> handle_vec;
     std::copy(skin_ents[0].begin(), skin_ents[0].end(), 
               std::back_inserter(handle_vec));
 
@@ -3897,9 +3870,18 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
     */
     // call gather-scatter to get shared ids & procs
     gs_data *gsd = new gs_data();
-   // assert(sizeof(ulong_) == sizeof(EntityHandle));
-    result = gsd->initialize(skin_ents[0].size(), &lgid_data[0],
-                              &handle_vec[0], 2, 1, 1, cd);
+    assert(sizeof(ulong_) == sizeof(EntityHandle));
+    if (sizeof(int) != sizeof(ulong_)) {
+      std::vector<long> lgid_data(gid_data.size());
+      std::copy(gid_data.begin(), gid_data.end(), lgid_data.begin());
+      result = gsd->initialize(skin_ents[0].size(), &lgid_data[0], 
+                               (ulong_*)&handle_vec[0], 2, 1, 1, cd);
+    }
+    else {
+      result = gsd->initialize(skin_ents[0].size(), (long*)&gid_data[0], 
+                               (ulong_*)&handle_vec[0], 2, 1, 1, cd);
+    }
+  
     RRA("Couldn't create gs data.");
 
     // get shared proc tags
@@ -8351,8 +8333,8 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
           bad_ents.insert(localh);
         result = get_pstatus(localh, tmp_pstat);
         if (MB_SUCCESS != result ||
-            (!tmp_pstat&PSTATUS_NOT_OWNED && (unsigned)vit->owner != rank()) ||
-            (tmp_pstat&PSTATUS_NOT_OWNED && (unsigned)vit->owner == rank()))
+            (!tmp_pstat&PSTATUS_NOT_OWNED && vit->owner != rank()) ||
+            (tmp_pstat&PSTATUS_NOT_OWNED && vit->owner == rank()))
           bad_ents.insert(localh);
       }
 

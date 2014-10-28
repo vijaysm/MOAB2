@@ -893,7 +893,7 @@ void test_pack_sets_simple()
   rval = moab.get_entities_by_handle( 0, entities );
   CHECK_ERR(rval);
     // expect 8 elements and 27 vertices
-  CHECK_EQUAL( 35, (int)entities.size() );
+  CHECK_EQUAL( (EntityHandle)35, entities.size() );
   CHECK_EQUAL( 27u, entities.num_of_type( MBVERTEX ) );
   CHECK_EQUAL( 8u, entities.num_of_type( MBHEX ) );
   
@@ -961,9 +961,9 @@ void test_pack_sets_simple()
   rval = moab.get_entities_by_type( 0, MBENTITYSET, sets );
   CHECK_ERR(rval);
   
-  CHECK_EQUAL( 27, (int)verts.size() );
-  CHECK_EQUAL( 8, (int)elems.size() );
-  CHECK_EQUAL( 5, (int)sets.size() );
+  CHECK_EQUAL( (EntityHandle)27, verts.size() );
+  CHECK_EQUAL( (EntityHandle)8, elems.size() );
+  CHECK_EQUAL( (EntityHandle)5, sets.size() );
   
     // guess which is which
   empty_set = all_set = vertex_set = half1_set = half2_set = 0;
@@ -1037,7 +1037,7 @@ void test_pack_set_contents()
   Range vertices;
   rval = moab.get_entities_by_type( 0, MBVERTEX, vertices );
   CHECK_ERR(rval);
-  CHECK_EQUAL( 27, (int)vertices.size() );
+  CHECK_EQUAL( (EntityHandle)27, vertices.size() );
     // create meshset containing vertices
   EntityHandle set;
   rval = moab.create_meshset( MESHSET_SET, set );
@@ -1055,20 +1055,20 @@ void test_pack_set_contents()
   entities.clear();
   rval = moab.get_entities_by_type( 0, MBENTITYSET, entities );
   CHECK_ERR(rval);
-  CHECK_EQUAL( 1, (int)entities.size() );
+  CHECK_EQUAL( (EntityHandle)1, entities.size() );
   set = entities.front();
   
     // expect 27 vertices in mesh
   vertices.clear();
   rval = moab.get_entities_by_type( 0, MBVERTEX, vertices );
   CHECK_ERR(rval);
-  CHECK_EQUAL( 27, (int)vertices.size() );
+  CHECK_EQUAL( (EntityHandle)27, vertices.size() );
   
     // expect set to contain all 27 vertices
   vertices.clear();
   rval = moab.get_entities_by_type( set, MBVERTEX, vertices );
   CHECK_ERR(rval);
-  CHECK_EQUAL( 27, (int)vertices.size() );
+  CHECK_EQUAL( (EntityHandle)27, vertices.size() );
 }
 
 void test_pack_sets_of_sets()
@@ -1110,7 +1110,7 @@ void test_pack_sets_of_sets()
   sets.clear();
   rval = moab.get_entities_by_type( 0, MBENTITYSET, sets );
   CHECK_ERR(rval);
-  CHECK_EQUAL( 3, (int)sets.size() );
+  CHECK_EQUAL( (EntityHandle)3, sets.size() );
   
     // figure out which is which
   set1 = set2 = set3 = 0;
@@ -1138,13 +1138,13 @@ void test_pack_sets_of_sets()
     // check that set2 contains set1
   sets.clear();
   rval = moab.get_entities_by_type( set2, MBENTITYSET, sets );
-  CHECK_EQUAL( 1, (int)sets.size() );
+  CHECK_EQUAL( (EntityHandle)1, sets.size() );
   CHECK_EQUAL( set1, sets.front() );
   
     // check that set3 contains set1 and set2
   sets.clear();
   rval = moab.get_entities_by_type( set3, MBENTITYSET, sets );
-  CHECK_EQUAL( 2, (int)sets.size() );
+  CHECK_EQUAL( (EntityHandle)2, sets.size() );
   if (sets.front() == set1) {
     CHECK_EQUAL( set2, sets.back() );
   }
@@ -1212,7 +1212,7 @@ void test_pack_set_parent_child()
   sets.clear();
   rval = moab.get_entities_by_type( 0, MBENTITYSET, sets );
   CHECK_ERR(rval);
-  CHECK_EQUAL( 3, (int)sets.size() );
+  CHECK_EQUAL( (EntityHandle)3, sets.size() );
   
     // look for a set with two child links (set3)
   set1 = set2 = set3 = 0;

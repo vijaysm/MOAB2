@@ -350,10 +350,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
               != pa_vec.end()) {
             use_id_tag = true;
             if (!file_id_tag) {
-              // this tag is really used for resolving shared entities with crystal router
-              // in the end, this is an identifier that gets converted to long
-              // in hdf5 file reader, we also convert from hdf5 file id type to long
-              tmp_result = mbImpl->tag_get_handle( "", sizeof(long), MB_TYPE_OPAQUE,id_tag, MB_TAG_DENSE|MB_TAG_CREAT );
+              tmp_result = mbImpl->tag_get_handle( "", 1, MB_TYPE_INTEGER,id_tag, MB_TAG_DENSE|MB_TAG_CREAT );
               if (MB_SUCCESS != tmp_result)
                 break;
               file_id_tag = &id_tag;
