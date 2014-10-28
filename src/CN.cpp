@@ -283,6 +283,7 @@ short int CN::SideNumber(const EntityType parent_type, const unsigned long long 
                           const unsigned long long *child_conn, const int child_num_verts,
                           const int child_dim,
                           int &side_no, int &sense, int &offset)
+
 {
   return side_number(parent_conn, parent_type, child_conn, child_num_verts,
                      child_dim, side_no, sense, offset);

@@ -1175,7 +1175,7 @@ void test_read_sets_common( const char* extra_opts )
   Range sets;
   rval = mb.get_entities_by_type_and_tag( 0, MBENTITYSET, &tag, 0, 1, sets );
   CHECK_ERR(rval);
-  CHECK_EQUAL( (EntityHandle)(iv*iv), sets.size() );
+  CHECK_EQUAL( (iv*iv), (int)sets.size() );
   
   for (Range::iterator i = sets.begin(); i != sets.end(); ++i) {
     int ij[2];
@@ -1191,7 +1191,7 @@ void test_read_sets_common( const char* extra_opts )
     rval = mb.get_entities_by_handle( *i, contents );
     CHECK_ERR(rval);
     CHECK(contents.all_of_type(MBVERTEX));
-    CHECK_EQUAL( (EntityHandle)iv, contents.size() );
+    CHECK_EQUAL( iv, (int)contents.size() );
     
     for (Range::iterator v = contents.begin(); v != contents.end(); ++v) {
       double coords[3];
@@ -1240,7 +1240,7 @@ void test_read_bc_sets()
     CHECK_ERR(rval);
     rval = mb.get_entities_by_type_and_tag( 0, MBENTITYSET, &tag, 0, 1, sets );
     CHECK_ERR(rval);
-    CHECK_EQUAL((EntityHandle)1, sets.size());
+    CHECK_EQUAL(1, (int)sets.size());
     rval = mb.get_entities_by_handle(*sets.begin(), contents, true);
     CHECK_ERR(rval);
     num_ents[i] = contents.size();
