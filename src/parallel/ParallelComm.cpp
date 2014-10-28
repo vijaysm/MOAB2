@@ -4395,20 +4395,49 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
     std::vector<long> larray; // allocate sufficient space for longs
     std::vector<unsigned long> handles;
     Range tmp_sets;
+    // the id tag can be size 4 or size 8
+    // based on that, convert to int or to long, similarly to what we do
+    // for resolving shared vertices;
+    // his code must work on 32 bit too, there long is 4 bytes, also
+    // so test first size 4, then we should be fine
+    DataType tag_type;
+    result = mbImpl->tag_get_data_type(idtag, tag_type);
+    RRA("Failed getting tag data type");
+    int bytes_per_tag;
+    result = mbImpl->tag_get_bytes(idtag, bytes_per_tag);
+    RRA("Failed getting number of bytes per tag");
+    // on 64 bits, long and int are different
+    // on 32 bits, they are not; if size of long is 8, it is a 64 bit machine (really?)
+
+
     for (Range::iterator rit = sets.begin(); rit != sets.end(); rit++) {
-      int dum;
-      result = mbImpl->tag_get_data(idtag, &(*rit), 1, &dum);
-      if (MB_SUCCESS == result) {
-        larray.push_back(dum);
-        handles.push_back(*rit);
-        tmp_sets.insert(tmp_sets.end(), *rit);
+      if (sizeof(long) == bytes_per_tag &&  ( (MB_TYPE_HANDLE == tag_type) || (MB_TYPE_OPAQUE==tag_type) ))// it is a special id tag
+      {
+        long dum;
+        result = mbImpl->tag_get_data(idtag, &(*rit), 1, &dum);
+        if (MB_SUCCESS == result) {
+          larray.push_back(dum);
+          handles.push_back(*rit);
+          tmp_sets.insert(tmp_sets.end(), *rit);
+        }
+      }
+      else if (4 == bytes_per_tag) // must be GLOBAL_ID tag or MATERIAL_ID, etc
+      {
+        int dum;
+        result = mbImpl->tag_get_data(idtag, &(*rit), 1, &dum);
+        if (MB_SUCCESS == result) {
+          larray.push_back(dum);
+          handles.push_back(*rit);
+          tmp_sets.insert(tmp_sets.end(), *rit);
+        }
       }
     }
   
     const size_t nsets = handles.size();
     
     // get handle array for sets
-    assert(sizeof(EntityHandle) <= sizeof(unsigned long));
+    // this is not true on windows machine , 64 bits: entity handle is 64 bit, long is 32
+    // assert(sizeof(EntityHandle) <= sizeof(unsigned long));
 
     // do communication of data
     gs_data::crystal_data *cd = procConfig.crystal_router();
