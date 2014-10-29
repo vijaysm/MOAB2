@@ -193,6 +193,7 @@ test/obb_test
 test/oldinc/test_oldinc
 test/parallel/gcrm_par
 test/parallel/*.h5m
+test/parallel/imeshp_test
 test/parallel/mbparallelcomm_test
 test/parallel/mhdf_parallel
 test/parallel/mpastrvpart

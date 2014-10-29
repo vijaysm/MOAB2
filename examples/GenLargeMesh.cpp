@@ -213,7 +213,9 @@ int main(int argc, char **argv)
   int ney = N * B * blockSize; // number of elements in y direction  ....
   // int NZ = ( K * C * blockSize + 1); not used
   int blockSize1 = q*blockSize + 1;// used for vertices
-
+  long num_total_verts = (long) NX * NY * (K * C * blockSize + 1);
+  if (rank == 0)
+    std::cout << " Total number of vertices: " << num_total_verts << "\n";
   //int xstride = 1;
   int ystride = blockSize1;
 
@@ -223,6 +225,11 @@ int main(int argc, char **argv)
   Tag global_id_tag;
   mb->tag_get_handle("GLOBAL_ID", 1, MB_TYPE_INTEGER,
                global_id_tag);
+
+  // set global ids
+  Tag new_id_tag;
+  rval = mb->tag_get_handle("HANDLEID", sizeof(long), MB_TYPE_OPAQUE,
+      new_id_tag, MB_TAG_CREAT|MB_TAG_DENSE);
 
   Tag part_tag;
   int dum_id=-1;
@@ -267,6 +274,7 @@ int main(int argc, char **argv)
         int z = k*C*q*blockSize + c*q*blockSize;
         int ix=0;
         vector<int>  gids(num_nodes);
+        vector<long>  lgids(num_nodes);
         Range verts(startv, startv+num_nodes-1);
         for (int kk=0; kk<blockSize1; kk++)
         {
@@ -278,6 +286,7 @@ int main(int argc, char **argv)
               arrays[1][ix] = (y+jj)*dy;
               arrays[2][ix] = (z+kk)*dz;
               gids[ix] = 1 + (x+ii) + (y+jj) * NX + (z+kk) * (NX*NY) ;
+              lgids[ix] = 1 + (x+ii) + (y+jj) * NX + (long)(z+kk) * (NX*NY) ;
               // set int tags, some nice values?
               EntityHandle v = startv + ix;
               for (size_t i=0; i<intTags.size(); i++)
@@ -289,7 +298,10 @@ int main(int argc, char **argv)
             }
           }
         }
-        mb->tag_set_data(global_id_tag, verts, &gids[0]);
+        rval = mb->tag_set_data(global_id_tag, verts, &gids[0]);
+        CHECKE("Can't set global id tags on vertices.");
+        rval = mb->tag_set_data(new_id_tag, verts, &lgids[0]);
+        CHECKE("Can't set the new handle id tags");
         int num_hexas = (blockSize)*(blockSize)*(blockSize);
         int num_el = num_hexas * factor;
 
@@ -318,6 +330,7 @@ int main(int argc, char **argv)
         int ye = n*B*blockSize + b*blockSize;
         int ze = k*C*blockSize + c*blockSize;
         gids.resize(num_el);
+        lgids.resize(num_el);
         int ie=0; // index now in the elements, for global ids
         for (int kk=0; kk<blockSize; kk++)
         {
@@ -326,8 +339,9 @@ int main(int argc, char **argv)
             for (int ii=0; ii<blockSize; ii++)
             {
               EntityHandle corner=startv + q * ii + q * jj * ystride + q * kk * zstride;
+              // these could overflow for large numbers
               gids[ie] = 1 + ((xe+ii) + (ye+jj) * nex + (ze+kk) * (nex*ney))*factor ; // 6 more for tetra
-
+              lgids[ie] = 1 + ((xe+ii) + (ye+jj) * nex +(long) (ze+kk) * (nex*ney))*factor ; // 6 more for tetra
               EntityHandle eh = starte + ie;
               for (size_t i=0; i<doubleTags.size(); i++)
               {
@@ -490,6 +504,9 @@ int main(int argc, char **argv)
         }
         rval = mb->tag_set_data(global_id_tag, cells, &gids[0]);
         CHECKE("Can't set global ids to elements.");
+        rval = mb->tag_set_data(new_id_tag, cells, &lgids[0]);
+        CHECKE("Can't set new ids to elements.");
+
         int part_num= a +  m*A + (b + n*B)*(M*A) + (c+k*C)*(M*A * N*B);
         rval = mb->tag_set_data(part_tag, &part_set, 1, &part_num);
         CHECKE("Can't set part tag on set");
@@ -542,7 +559,11 @@ int main(int argc, char **argv)
     {
       pcomm = new ParallelComm( mb, MPI_COMM_WORLD );
     }
-    rval = pcomm->resolve_shared_ents( 0, all3dcells, 3, 0 );
+    EntityHandle mesh_set;
+    rval = mb->create_meshset(MESHSET_SET, mesh_set);
+    CHECKE("Can't create new set");
+    mb->add_entities(mesh_set, all3dcells);
+    rval = pcomm->resolve_shared_ents( mesh_set, -1, -1, &new_id_tag );
     CHECKE("Can't resolve shared ents");
 
     if (0==rank)
@@ -573,6 +594,7 @@ int main(int argc, char **argv)
       }
     }
   }
+  
   rval = mb->write_file(outFileName.c_str(), 0, ";;PARALLEL=WRITE_PART");
   CHECKE("Can't write in parallel");
 
@@ -582,6 +604,7 @@ int main(int argc, char **argv)
           << (clock() - tt) / (double) CLOCKS_PER_SEC << " seconds" << std::endl;
     tt = clock();
   }
+
 
   MPI_Finalize();
   return 0;
