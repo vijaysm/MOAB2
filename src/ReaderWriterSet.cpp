@@ -247,10 +247,13 @@ std::string ReaderWriterSet::extension_from_filename(
                                  const std::string& filename )
 {
   std::string::size_type idx = filename.find_last_of( "." );
+  std::string::size_type idirx = filename.find_last_of( "\\/" );
+
   if (idx == std::string::npos)
     return std::string("");
-  else
-    return filename.substr( idx + 1 );
+  if ((idirx != std::string::npos) && (idirx > idx))
+    return std::string("");
+  return filename.substr( idx + 1 );
 }
 
 ReaderWriterSet::Handler::Handler( reader_factory_t read_f,
