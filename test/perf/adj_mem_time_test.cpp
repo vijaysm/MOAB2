@@ -7,18 +7,16 @@
 #include "moab/Range.hpp"
 #include "moab/MeshTopoUtil.hpp"
 #include "moab/HalfFacetRep.hpp"
-#include "../TestUtil.hpp"
+#include "TestUtil.hpp"
 #include <sys/time.h>
 
 using namespace moab;
 
 #ifdef MESHDIR
-std::string TestDir(STRINGIFY(MESHDIR));
+std::string TestDir( STRINGIFY(MESHDIR) );
 #else
 #error MESHDIR needs to be defined for running unit tests
 #endif
-
-std::string filename;
 
 double wtime() {
   double y = -1;
@@ -30,9 +28,8 @@ double wtime() {
 
 int main(int argc, char **argv)
 {
-  // Read the input mesh
-    filename = TestDir + "/hexes_mixed.vtk";
-
+  std::string filename;
+  filename = TestDir + "/hexes_mixed.vtk";
     if (argc==1)
         std::cout<<"Using default input file:"<<filename<<std::endl;
     else if (argc==2)

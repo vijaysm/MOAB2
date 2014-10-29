@@ -1,17 +1,17 @@
 #include "moab/Core.hpp"
 #include "moab/Range.hpp"
-#include "../TestUtil.hpp"
+#include "TestUtil.hpp"
 #include <iostream>
 #include <assert.h>
 #include <time.h>
 
 using namespace moab;
 
-#ifndef MESHDIR
-#error Specify MESHDIR to compile test
+#ifdef MESHDIR
+static const char default_input_file[] = STRINGIFY(MESHDIR) "/64bricks_512hex.h5m";
+#else 
+#error MESHDIR needs to be defined for running unit tests
 #endif
-
-const char* default_input_file = STRINGIFY(MESHDIR) "/mb_big_test.g";
 
 int main()
 {

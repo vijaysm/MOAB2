@@ -3,6 +3,7 @@ MESHDIR = $(top_srcdir)/MeshFiles/unittest
 
 AM_CPPFLAGS += -I$(top_srcdir)/src \
                -I$(top_srcdir)/src/io/mhdf/include \
+               -I$(builddir) -I.. -I$(srcdir)/.. \
                -I$(top_builddir)/src \
                -DMESHDIR=$(MESHDIR) \
                -DIS_BUILDING_MB
