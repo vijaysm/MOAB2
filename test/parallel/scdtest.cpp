@@ -9,7 +9,6 @@
 #include "MBParallelConventions.h"
 #include "MBTagConventions.hpp"
 
-using namespace std;
 using namespace moab;
 
 // Number of cells in each direction:
@@ -48,7 +47,7 @@ int main(int argc, char *argv[])
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   if (size != 4 && size != 2) {
-    cerr << "Run this with 2 or 4 processes\n";
+    std::cerr << "Run this with 2 or 4 processes\n";
     MPI_Finalize();
     exit(1);
   }
@@ -111,7 +110,7 @@ void set_local_domain_bounds()
         break;
 
     default:
-        cerr << "Run this with 4 processes\n";
+        std::cerr << "Run this with 4 processes\n";
         exit(1);
   }
 }
@@ -198,7 +197,7 @@ void resolve_and_exchange()
 void error(ErrorCode err)
 {
   if (err != MB_SUCCESS) {
-    cerr << "Error: MOAB function failed\n";
+    std::cerr << "Error: MOAB function failed\n";
     assert(0);
   }
 }
