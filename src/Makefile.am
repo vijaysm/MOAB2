@@ -215,7 +215,7 @@ nobase_libMOAB_la_include_HEADERS = \
   MBCN_protos.h \
   MBTagConventions.hpp
 
-if ENABLE_mbzoltan
+if ENABLE_mbpart
   libMOAB_la_SOURCES += MBZoltan.cpp
   nobase_libMOAB_la_include_HEADERS += MBZoltan.hpp
   AM_CPPFLAGS += $(ZOLTAN_INC_FLAGS)
