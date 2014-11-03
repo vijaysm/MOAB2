@@ -203,9 +203,9 @@ endif()
 
 if (MOAB_USE_ZOLTAN)
   set( MOAB_LIB_SOURCES ${MOAB_LIB_SOURCES}
-          MBZoltan.cpp )
+          ZoltanPartitioner.cpp )
   set( MOAB_INSTALL_HEADERS ${MOAB_INSTALL_HEADERS}
-          moab/MBZoltan.hpp )
+          moab/ZoltanPartitioner.hpp )
   include_directories( ${Zoltan_INCLUDES} )
   list(APPEND MOAB_DEP_LIBRARIES ${Zoltan_LIBRARIES})
 endif()
