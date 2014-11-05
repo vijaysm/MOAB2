@@ -66,8 +66,8 @@ Bugs, Correspondence, Contributing
 =====================================
 
 MOAB is LGPL code, and we encourage users to submit bug reports (and,
-if desired, fixes) to moab@software.sandia.gov.  Users are encouraged to check
-http://cubit.sandia.gov/moab often for news and updates.
+if desired, fixes) to moab-dev@mcs.anl.gov.  Users are encouraged to check
+http://sigma.mcs.anl.gov/moab-library often for news and updates.
 
 =====================================
 Updates
@@ -81,4 +81,3 @@ Implementation:
 3.00 (9/1/07): Move to Argonne, various assorted changes
 2.00 (11/1/06): LOTS of bug fixes & improvements
 1.00 (2/1/04): Initial release
-
