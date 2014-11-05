@@ -33,3 +33,4 @@ endif()
 
 set(MOAB_INCLUDE_DIRS "@CMAKE_INSTALL_PREFIX@/include")
 set(MOAB_LIBRARIES MOAB)
+

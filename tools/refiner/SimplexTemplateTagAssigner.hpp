@@ -35,7 +35,7 @@ namespace moab {
 class RefinerTagManager;
 class SimplexTemplateRefiner;
 
-class MB_DLL_EXPORT SimplexTemplateTagAssigner
+class SimplexTemplateTagAssigner
 {
 public:
   SimplexTemplateTagAssigner( SimplexTemplateRefiner* );

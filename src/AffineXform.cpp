@@ -20,6 +20,10 @@
  * \date August, 2006
  */
 
+#ifdef _MSC_VER  /* windows */
+#  define _USE_MATH_DEFINES //For M_PI
+#endif
+
 #include "AffineXform.hpp"
 #include "moab/Interface.hpp"
 #include <assert.h>

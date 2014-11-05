@@ -53,6 +53,26 @@ int main(int argc, char **argv) {
     }
     if (moab::MB_SUCCESS!=rval)
       std::cout << " failed to read\n";
+    // if HANDLEID tag present, convert to long, and see what we read from file
+    moab::Tag   handleid_tag;
+    rval = mb->tag_get_handle("HANDLEID", handleid_tag);
+    if (moab::MB_SUCCESS==rval)
+    {
+      // convert a few values for a few vertices
+      moab::Range  verts;
+      rval = mb->get_entities_by_type(0, moab::MBVERTEX, verts);
+      if (moab::MB_SUCCESS!=rval)
+         std::cout << " failed to get vertices.\n";
+      else
+      {
+        std::vector<long> valsTag(verts.size());
+        rval = mb->tag_get_data(handleid_tag, verts, &valsTag[0]);
+        if (moab::MB_SUCCESS==rval)
+        {
+          std::cout << " first 2 long values recovered: " << valsTag[0] << " " << valsTag[1] <<"\n";
+        }
+      }
+    }
     rval = mb->write_file("part.h5m"); 
     if (moab::MB_SUCCESS!=rval)
       std::cout << " failed to write partial file.\n";

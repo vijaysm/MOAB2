@@ -77,19 +77,20 @@ static void print_usage( const char* name, std::ostream& stream )
     << "\ta list of ids.  IDs may be separated with commas.  " << std::endl
     << "\tRanges of IDs may be specified with a '-' between " << std::endl
     << "\ttwo values.  The list may not contain spaces." << std::endl
-    << "\t-v  - volume" << std::endl
-    << "\t-s  - surface" << std::endl
-    << "\t-c  - curve" << std::endl
-    << "\t-V  - vertex" << std::endl
-    << "\t-m  - material set (block)" << std::endl
+    << "\t-v  - Volume" << std::endl
+    << "\t-s  - Surface" << std::endl
+    << "\t-c  - Curve" << std::endl
+    << "\t-V  - Vertex" << std::endl
+    << "\t-m  - Material set (block)" << std::endl
     << "\t-d  - Dirchlet set (nodeset)" << std::endl
     << "\t-n  - Neumann set (sideset)" << std::endl
+    << "\t-D  - Parallel partitioning set (PARALLEL_PARTITION)" << std::endl
     << "\tThe presence of one or more of the following flags limits " << std::endl
     << "\tthe exported mesh to only elements of the corresponding " << std::endl
     << "\tdimension.  Vertices are always exported." << std::endl
-    << "\t-1  - edges " << std::endl
-    << "\t-2  - tri, quad, polygon " << std::endl
-    << "\t-3  - tet, hex, prism, etc. " << std::endl
+    << "\t-1  - Edges " << std::endl
+    << "\t-2  - Tri, Quad, Polygon " << std::endl
+    << "\t-3  - Tet, Hex, Prism, etc. " << std::endl
     ;
 }
 
@@ -155,12 +156,13 @@ int main(int argc, char* argv[])
   std::list< std::string > in; // input file name list
   std::string out;   // output file name
   bool verbose = false;
-  std::set<int> geom[4], mesh[3];       // user-specified IDs 
+  std::set<int> geom[4], mesh[4];       // user-specified IDs
   std::vector<EntityHandle> set_list; // list of user-specified sets to write
   std::vector<std::string> write_opts, read_opts;
   const char* const mesh_tag_names[] = { DIRICHLET_SET_TAG_NAME,
                                          NEUMANN_SET_TAG_NAME,
-                                         MATERIAL_SET_TAG_NAME };
+                                         MATERIAL_SET_TAG_NAME,
+                                         PARALLEL_PARTITION_TAG_NAME };
   const char* const geom_names[] = { "VERTEX",
                                      "CURVE",
                                      "SURFACE",
@@ -232,6 +234,7 @@ int main(int argc, char* argv[])
             case 's': pval = parse_id_list( argv[i], geom[2] ); break;
             case 'c': pval = parse_id_list( argv[i], geom[1] ); break;
             case 'V': pval = parse_id_list( argv[i], geom[0] ); break;
+            case 'D': pval = parse_id_list( argv[i], mesh[3] ); break;
             case 'm': pval = parse_id_list( argv[i], mesh[2] ); break;
             case 'n': pval = parse_id_list( argv[i], mesh[1] ); break;
             case 'd': pval = parse_id_list( argv[i], mesh[0] ); break;
@@ -369,7 +372,7 @@ int main(int argc, char* argv[])
   }
   
     // Get mesh groupings
-  for (i = 0; i < 3; ++i) 
+  for (i = 0; i < 4; ++i)
   {
     if (verbose)
       print_id_list( mesh_tag_names[i], std::cout, mesh[i] );

@@ -3835,13 +3835,40 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
       }
     }
   
+    DataType tag_type;
+    result = mbImpl->tag_get_data_type(gid_tag, tag_type);
+    RRA("Failed getting tag data type");
+    int bytes_per_tag;
+    result = mbImpl->tag_get_bytes(gid_tag, bytes_per_tag);
+    RRA("Failed getting number of bytes per tag");
+    // on 64 bits, long and int are different
+    // on 32 bits, they are not; if size of long is 8, it is a 64 bit machine (really?)
+
     // get gids for skin ents in a vector, to pass to gs
-    std::vector<int> gid_data(skin_ents[0].size());
-    result = mbImpl->tag_get_data(gid_tag, skin_ents[0], &gid_data[0]);
-    RRA("Couldn't get gid tag for skin vertices.");
+    std::vector<long> lgid_data(skin_ents[0].size());
+    // size is either long or int
+    // on 64 bit is 8 or 4
+    if (sizeof(long) == bytes_per_tag &&  ( (MB_TYPE_HANDLE == tag_type) || (MB_TYPE_OPAQUE==tag_type) ))// it is a special id tag
+    {
+      result = mbImpl->tag_get_data(gid_tag, skin_ents[0], &lgid_data[0]);
+      RRA("Couldn't get gid tag for skin vertices.");
+    }
+    else if (4 == bytes_per_tag) // must be GLOBAL_ID tag or 32 bits ...
+    {
+      std::vector<int> gid_data(lgid_data.size());
+      result = mbImpl->tag_get_data(gid_tag, skin_ents[0], &gid_data[0]);
+      RRA("Couldn't get gid tag for skin vertices.");
+      std::copy(gid_data.begin(), gid_data.end(), lgid_data.begin());
+    }
+    else
+    {
+      // not supported flag
+      result = MB_FAILURE;
+      RRA("unsupported id tag.");
+    }
 
     // put handles in vector for passing to gs setup
-    std::vector<EntityHandle> handle_vec;
+    std::vector<ulong_> handle_vec; // assumes that we can do conversion from ulong_ to EntityHandle
     std::copy(skin_ents[0].begin(), skin_ents[0].end(), 
               std::back_inserter(handle_vec));
 
@@ -3870,18 +3897,9 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
     */
     // call gather-scatter to get shared ids & procs
     gs_data *gsd = new gs_data();
-    assert(sizeof(ulong_) == sizeof(EntityHandle));
-    if (sizeof(int) != sizeof(ulong_)) {
-      std::vector<long> lgid_data(gid_data.size());
-      std::copy(gid_data.begin(), gid_data.end(), lgid_data.begin());
-      result = gsd->initialize(skin_ents[0].size(), &lgid_data[0], 
-                               (ulong_*)&handle_vec[0], 2, 1, 1, cd);
-    }
-    else {
-      result = gsd->initialize(skin_ents[0].size(), (long*)&gid_data[0], 
-                               (ulong_*)&handle_vec[0], 2, 1, 1, cd);
-    }
-  
+   // assert(sizeof(ulong_) == sizeof(EntityHandle));
+    result = gsd->initialize(skin_ents[0].size(), &lgid_data[0],
+                              &handle_vec[0], 2, 1, 1, cd);
     RRA("Couldn't create gs data.");
 
     // get shared proc tags
@@ -4377,20 +4395,49 @@ ErrorCode ParallelComm::resolve_shared_ents(EntityHandle this_set,
     std::vector<long> larray; // allocate sufficient space for longs
     std::vector<unsigned long> handles;
     Range tmp_sets;
+    // the id tag can be size 4 or size 8
+    // based on that, convert to int or to long, similarly to what we do
+    // for resolving shared vertices;
+    // his code must work on 32 bit too, there long is 4 bytes, also
+    // so test first size 4, then we should be fine
+    DataType tag_type;
+    result = mbImpl->tag_get_data_type(idtag, tag_type);
+    RRA("Failed getting tag data type");
+    int bytes_per_tag;
+    result = mbImpl->tag_get_bytes(idtag, bytes_per_tag);
+    RRA("Failed getting number of bytes per tag");
+    // on 64 bits, long and int are different
+    // on 32 bits, they are not; if size of long is 8, it is a 64 bit machine (really?)
+
+
     for (Range::iterator rit = sets.begin(); rit != sets.end(); rit++) {
-      int dum;
-      result = mbImpl->tag_get_data(idtag, &(*rit), 1, &dum);
-      if (MB_SUCCESS == result) {
-        larray.push_back(dum);
-        handles.push_back(*rit);
-        tmp_sets.insert(tmp_sets.end(), *rit);
+      if (sizeof(long) == bytes_per_tag &&  ( (MB_TYPE_HANDLE == tag_type) || (MB_TYPE_OPAQUE==tag_type) ))// it is a special id tag
+      {
+        long dum;
+        result = mbImpl->tag_get_data(idtag, &(*rit), 1, &dum);
+        if (MB_SUCCESS == result) {
+          larray.push_back(dum);
+          handles.push_back(*rit);
+          tmp_sets.insert(tmp_sets.end(), *rit);
+        }
+      }
+      else if (4 == bytes_per_tag) // must be GLOBAL_ID tag or MATERIAL_ID, etc
+      {
+        int dum;
+        result = mbImpl->tag_get_data(idtag, &(*rit), 1, &dum);
+        if (MB_SUCCESS == result) {
+          larray.push_back(dum);
+          handles.push_back(*rit);
+          tmp_sets.insert(tmp_sets.end(), *rit);
+        }
       }
     }
   
     const size_t nsets = handles.size();
     
     // get handle array for sets
-    assert(sizeof(EntityHandle) <= sizeof(unsigned long));
+    // this is not true on windows machine , 64 bits: entity handle is 64 bit, long is 32
+    // assert(sizeof(EntityHandle) <= sizeof(unsigned long));
 
     // do communication of data
     gs_data::crystal_data *cd = procConfig.crystal_router();
@@ -7771,8 +7818,7 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
       return rval;
   
     // set tag on set
-    // FIXME: need to assign valid global id
-    int val = 0;
+    int val = proc_config().proc_rank();
     rval = mbImpl->tag_set_data( part_tag(), &set_out, 1, &val );
     if (MB_SUCCESS != rval) {
       mbImpl->delete_entities( &set_out, 1 );
@@ -7785,6 +7831,11 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
         mbImpl->delete_entities( &set_out, 1 );
         return rval;
       }
+    }
+
+    moab::Range& pSets=this->partition_sets();
+    if (pSets.index(set_out) < 0) {
+      pSets.insert(set_out);
     }
   
     return MB_SUCCESS;
@@ -7800,6 +7851,10 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
       rval = mbImpl->remove_entities( get_partitioning(), &part_id, 1 );
       if (MB_SUCCESS != rval)
         return rval;
+    }
+    moab::Range& pSets=this->partition_sets();
+    if (pSets.index(part_id) >= 0) {
+      pSets.erase(part_id);
     }
     return mbImpl->delete_entities( &part_id, 1 );
   }
@@ -8325,8 +8380,8 @@ ErrorCode ParallelComm::post_irecv(std::vector<unsigned int>& shared_procs,
           bad_ents.insert(localh);
         result = get_pstatus(localh, tmp_pstat);
         if (MB_SUCCESS != result ||
-            (!tmp_pstat&PSTATUS_NOT_OWNED && vit->owner != rank()) ||
-            (tmp_pstat&PSTATUS_NOT_OWNED && vit->owner == rank()))
+            (!tmp_pstat&PSTATUS_NOT_OWNED && (unsigned)vit->owner != rank()) ||
+            (tmp_pstat&PSTATUS_NOT_OWNED && (unsigned)vit->owner == rank()))
           bad_ents.insert(localh);
       }
 

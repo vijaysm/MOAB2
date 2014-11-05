@@ -366,6 +366,12 @@ void iMeshP_createPartitionAll( iMesh_Instance instance,
     RETURN(iBase_FAILURE);
   }
 
+  // set the value of pcomm id, to the partitioning tag, although this is not used
+  // we just need the tag to be set
+  int pid = pcomm->get_id();
+  rval = MOABI->tag_set_data(prtn_tag, &handle, 1, &pid);
+  CHKERR(rval,"tag creation failed");
+
   *partition_handle = itaps_cast<iMeshP_PartitionHandle>(handle);
   RETURN (iBase_SUCCESS);
 }
@@ -668,6 +674,7 @@ void iMeshP_createPart( iMesh_Instance instance,
   ErrorCode rval = pcomm->create_part( h );
   CHKERR(rval,"Part creation failed");
   *part_handle = itaps_cast<iMeshP_PartHandle>(h);
+  RETURN (iBase_SUCCESS);
 }
 
 void iMeshP_destroyPart( iMesh_Instance instance,
