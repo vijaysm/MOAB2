@@ -8,9 +8,9 @@ if ENABLE_IMESH
  LDADD += ${IMESH_DIR}/lib/libiMesh.la
 endif
 
-AM_CPPFLAGS = -DSRCDIR=$(srcdir) $(DEFINES)
-
-INCLUDES = -I$(top_srcdir) -I$(top_builddir) -I. -I${IGEOM_DIR}/include -I${IMESH_DIR}/include
+AM_CPPFLAGS = -DSRCDIR=$(srcdir) $(DEFINES) -I$(top_srcdir)/src -I$(top_srcdir)/src/lasso \
+							-I$(top_builddir) -I$(top_srcdir)/itaps/irel -I$(top_builddir)/itaps/irel \
+							-I${IGEOM_DIR}/include -I${IMESH_DIR}/include
 
 TESTS = test_entset test_both test_status 
 if ENABLE_FBIGEOM
@@ -19,7 +19,7 @@ endif
 check_PROGRAMS = ${TESTS}
 
 # stuff for c test programs
-test_entset_SOURCES = test_entset.c
+test_entset_SOURCES = test_entset.cpp
 test_entset_DEPENDENCIES = \
 	$(LDADD)
 test_entset_LDADD = $(LDADD)
@@ -36,7 +36,7 @@ test_status_LDADD = $(LDADD)
 
 if ENABLE_FBIGEOM
 LDADD+=${FBIGEOM_DIR}/lib/libFBiGeomMOAB.la
-test_entsetFB_SOURCES = test_entsetFB.c TestUtil.hpp
+test_entsetFB_SOURCES = test_entsetFB.cpp TestUtil.hpp
 test_entsetFB_DEPENDENCIES = \
         $(LDADD)
 endif
