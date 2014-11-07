@@ -183,5 +183,7 @@ int  borderPointsOfCSinRLL(CartVect * redc, double * red2dc, int nsRed, CartVect
 //  created
 // it will also be used to
 ErrorCode  deep_copy_set(Interface * mb, EntityHandle source, EntityHandle dest);
+// used only by homme
+ErrorCode  deep_copy_set_with_quads(Interface * mb, EntityHandle source_set, EntityHandle dest_set);
 }
 #endif /* CSLAMUTILS_HPP_ */
