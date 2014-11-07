@@ -389,7 +389,7 @@ if test "xno" != "x$HAVE_HDF5"; then
     LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"
     AC_CHECK_LIB( [hdf5], [H5Pset_fapl_mpio], [HAVE_HDF5_PARALLEL=yes],
       [WARN_PARALLEL_HDF5=yes; AC_MSG_WARN("libhdf5 library does not include parallel support.  Parallel HDF5 I/O disabled")],
-      [$HDF5_LIBS]
+      [$HDF5_LIBS $LIBS]
       )
     LDFLAGS="$old_LDFLAGS"
   fi
