@@ -37,7 +37,7 @@ namespace moab
      */
     ErrorCode generate_mesh_hierarchy(int *level_degrees, int num_level, EntityHandle *hm_set);
     ErrorCode get_connectivity(EntityHandle ent, int level, std::vector<EntityHandle> &conn);
-    ErrorCode get_coordinates(std::vector<EntityHandle> verts, int num_verts,  int cur_level, double *coords);
+    ErrorCode get_coordinates(std::vector<EntityHandle> &verts, int num_verts,  int cur_level, double *coords);
 
     ErrorCode get_adjacencies(const EntityHandle source_entity,
                               const unsigned int target_dimension,
@@ -47,7 +47,7 @@ namespace moab
     //ErrorCode tag_set_data(); // Set meta data for the new levels
 
   protected:
-    Core *mb;
+    Core *mbImpl;
     HalfFacetRep *ahf;
 
     Range _inverts, _inedges, _infaces, _incells;
@@ -108,14 +108,13 @@ namespace moab
     level_memory level_mesh[MAX_LEVELS];
 
     //Basic Functions
-    //Generate HM
-    ErrorCode generate_hm(int *level_degrees, int num_level, int *hmest, EntityHandle *hm_set);
 
     //Estimate and create storage for the levels
-    ErrorCode estimate_hm_storage(int *level_degrees, int num_level, int *hmest);
-    ErrorCode create_hm_storage_single_level(EntityHandle *set, int cur_level, int *estL);
+    ErrorCode estimate_hm_storage(EntityHandle set, int level_degree, int cur_level, int hmest[4]);
+    ErrorCode create_hm_storage_single_level(EntityHandle *set, int cur_level, int estL[4]);
 
-    //Construct the hierarchical mesh: 1D, 2D, 3D
+    //Generate HM : Construct the hierarchical mesh: 1D, 2D, 3D
+    ErrorCode generate_hm(int *level_degrees, int num_level, EntityHandle *hm_set);
     ErrorCode construct_hm_entities(int cur_level, int deg);
     ErrorCode construct_hm_1D(int cur_level, int deg);
     ErrorCode construct_hm_2D(int cur_level, int deg);
@@ -128,12 +127,16 @@ namespace moab
     ErrorCode copy_vertices_from_prev_level(int cur_level);
     ErrorCode update_tracking_verts(EntityHandle cidl, int cur_level, int deg, std::vector<EntityHandle> trackvertsC_edg, std::vector<EntityHandle> trackvertsC_face, EntityHandle *vbuffer);
     ErrorCode match_and_reorder_vertices(EntityType type, int cur_level, int deg, EntityHandle cell, int lfid, EntityHandle sib_cell, int sib_lfid, int *id_sib);
+    ErrorCode count_subentities(EntityHandle set, int cur_level, int *nedges, int *nfaces);
     int find_shortest_diagonal_octahedron( double *coords);
     int get_local_vid(EntityHandle vid, EntityHandle ent, int level);
+
     ErrorCode print_tags_1D(int level);
+    ErrorCode print_tags_2D(int level, EntityType type);
+    ErrorCode print_tags_3D(int level, EntityType type);
 
     // Coordinates
-    ErrorCode compute_coordinates(int cur_level, int deg, EntityType type, EntityHandle *vbuffer, int vtotal, double *corner_coords);
+    ErrorCode compute_coordinates(int cur_level, int deg, EntityType type, EntityHandle *vbuffer, int vtotal, double *corner_coords, std::vector<int> vflag, int nverts_prev);
 
     // Update the ahf maps
 
