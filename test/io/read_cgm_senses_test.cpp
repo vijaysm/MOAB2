@@ -136,7 +136,7 @@ for(unsigned int i = 0; i < curves.size() ; i++)
    surfs.clear();
    senses.clear();
    //Get sense info for the current curve
-   gt.get_senses( curves[i], surfs, senses );
+   rval = gt.get_senses( curves[i], surfs, senses );
    CHECK_ERR(rval);
 
    //Clear reference data from previous curve
