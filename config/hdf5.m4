@@ -1,5 +1,5 @@
 AC_DEFUN([FATHOM_HDF5_LIBS_HELPER],[
-if test $HAVE_LIB_HDF5 = no; then
+if (test $HAVE_LIB_HDF5 == no); then
    unset "ac_cv_lib_${HDF5_LIBNAME}_H5Fopen"
    unset "ac_cv_lib_${HDF5_LIBNAME}___H5Fopen"
    AC_CHECK_LIB( [${HDF5_LIBNAME}], [H5Fopen], [HAVE_LIB_HDF5=yes; HDF5_LIBS="$HDF5_LIBS $1"], [], [$1] )
@@ -19,11 +19,9 @@ AC_DEFUN([FATHOM_DETECT_HDF5_LIBS],[
 
  # if we've already done this check, then don't do it again
 if test "xyes" != "x$HAVE_LIB_HDF5"; then
-  
   test "x" != "x$HDF5_LIBNAME" || HDF5_LIBNAME=hdf5
   
   HAVE_LIB_HDF5=no
-  FATHOM_HDF5_LIBS_HELPER
   FATHOM_HDF5_LIBS_HELPER([$LIBS])
   if test $HAVE_SZIP = yes; then
     FATHOM_HDF5_LIBS_HELPER([-lsz $LIBS])
