@@ -171,20 +171,6 @@ AC_CHECK_LIB(z, compress, LIBS="$LIBS -lz")
 AC_CHECK_LIB(dl, dlopen, LIBS="$LIBS -ldl")
 AC_CHECK_LIB(m, pow, LIBS="$LIBS -lm")
 
-# check how to link against C++ runtime for fortran programs especially
-AC_LANG_PUSH([Fortran])
-my_save_cflags="$LDFLAGS"
-LDFLAGS=-cxxlib
-AC_MSG_CHECKING([whether $FC supports -cxxlib])
-AC_LINK_IFELSE([AC_LANG_PROGRAM([])],
-    [AC_MSG_RESULT([yes])]
-    [FFLAGS="$FFLAGS -cxxlib",FCFLAGS="$FCFLAGS -cxxlib"],
-    [AC_MSG_RESULT([no])]
-)
-LDFLAGS="$my_save_cflags"
-AC_LANG_POP([Fortran])
-
-
 ################################################################################
 #                           iMesh Part 1 of 2
 ################################################################################
@@ -521,7 +507,10 @@ ZOLTAN_DIR=
 ZOLTAN_ARCH=
 WITH_PARAMETIS=no
 PARMETIS_DIR=
-
+SCOTCH_DIR=
+PTSCOTCH_DIR=
+SCOTCH_LIBS=
+WITH_SCOTCH=no
 ZOLTAN_LIBS=
 ZOLTAN_LIB_FLAGS=
 ZOLTAN_INC_FLAGS=
@@ -598,6 +587,52 @@ AC_ARG_WITH([parmetis],
                  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-parmetis=\"${withval}\""
 		 ;;
                esac] )
+
+# If user specified with-scotch, then assume they are trying
+# to add an additional library search directory in which to check
+# for the scotch library.
+AC_ARG_WITH([scotch],
+            [AC_HELP_STRING([--with-scotch=DIR],[Directory containing Scotch library for Zoltan])],
+             [case "x$withval" in
+               xyes|xno)
+                 # do nothing
+                 ;;
+               x*)
+                 SCOTCH_DIR="$withval"
+                 test -d "$withval" || AC_MSG_ERROR([Not a directory: with-scotch=$withval])
+                 if test -d "$withval/lib"; then
+                   ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval/lib"
+                 else
+                   ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval"
+                 fi
+                 SCOTCH_LIBS="-lscotch -lscotcherr -lscotcherrexit"
+                 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-scotch=\"${withval}\""
+                 ;;
+               esac] )
+
+# If user specified with-ptscotch, then assume they are trying
+# to add an additional library search directory in which to check
+# for the parallel scotch library.
+AC_ARG_WITH([ptscotch],
+            [AC_HELP_STRING([--with-ptscotch=DIR],[Directory containing PTScotch library for Zoltan])],
+             [case "x$withval" in
+               xyes|xno)
+                 # do nothing
+                 ;;
+               x*)
+                 PTSCOTCH_DIR="$withval"
+                 test -d "$withval" || AC_MSG_ERROR([Not a directory: with-ptscotch=$withval])
+                 if test -d "$withval/lib"; then
+                   ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval/lib"
+                 else
+                   ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval"
+                 fi
+                 SCOTCH_LIBS="-lptscotch -lptscotcherr -lptscotcherrexit $SCOTCH_LIBS"
+                 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-ptscotch=\"${withval}\""
+                 ;;
+               esac] )
+
+
 
 ################################################################################
 #                            Optional Libraries
@@ -768,14 +803,17 @@ if test "xyes" = "x$WITH_ZOLTAN"; then
     fi
   fi
 
-    # Test for Zoltan library, possibly requiring parmetis
+    # Test for Zoltan library, possibly requiring parmetis and scotch
   old_LDFLAGS="$LDFLAGS"
   LDFLAGS="$LDFLAGS $ZOLTAN_LIB_FLAGS"
   AC_CHECK_LIB([zoltan],[Zoltan_LB_Partition],[ZOLTAN_LIBS='-lzoltan'],
     [unset ac_cv_lib_zoltan_Zoltan_LB_Partition
      AC_CHECK_LIB([zoltan],[Zoltan_LB_Partition],
                   [ZOLTAN_LIBS="-lzoltan -lparmetis -lmetis"],
-                  [AC_MSG_ERROR([zoltan library not found or not usable.  Perhaps you need to specify --with-parmetis=@<:@DIR@:>@?])],
+                  [unset ac_cv_lib_zoltan_Zoltan_LB_Partition
+                   AC_CHECK_LIB([zoltan],[Zoltan_LB_Partition],[ZOLTAN_LIBS="-lzoltan $SCOTCH_LIBS -lparmetis -lmetis"],
+                   [AC_MSG_ERROR([zoltan library not found or not usable.  Perhaps you need to specify --with-parmetis=@<:@DIR@:>@ and --with-scotch=@<:@DIR@:>@?])],
+                   [$SCOTCH_LIBS -lparmetis -lmetis])],
                   [-lparmetis -lmetis])])
   LDFLAGS="$old_LDFLAGS"
 
