@@ -483,8 +483,15 @@ case "$cxx_compiler:$host_cpu" in
     FATHOM_CXX_32BIT=-xarch=generic
     FATHOM_CXX_64BIT=-xarch=generic64
     ;;
-  Clang:*)
+  Clang:Darwin)
     FATHOM_CXX_SPECIAL="$EXTRA_GNU_FLAGS -stdlib=libc++"
+    FATHOM_CXX_32BIT=-m32
+    FATHOM_CXX_64BIT=-m64
+    ;;
+  Clang:*)
+    FATHOM_CXX_SPECIAL="$EXTRA_GNU_FLAGS -stdlib=libstdc++"
+    FATHOM_CXX_32BIT=-m32
+    FATHOM_CXX_64BIT=-m64
     ;;
   SunWorkshop:i?86|SunWorkshop:x86_64)
     FATHOM_CXX_32BIT=-m32
@@ -626,7 +633,9 @@ case "$cc_compiler:$host_cpu" in
     FATHOM_CC_SPECIAL=-LANG:std
     ;;
   Clang:*)
-    FATHOM_CC_SPECIAL="$EXTRA_GNU_FLAGS -stdlib=libc++"
+    FATHOM_CC_SPECIAL="$EXTRA_GNU_FLAGS"
+    FATHOM_CC_32BIT=-m32
+    FATHOM_CC_64BIT=-m64
     ;;
   SunWorkshop:sparc*)
     FATHOM_CC_32BIT=-xarch=generic
