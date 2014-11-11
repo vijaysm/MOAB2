@@ -470,13 +470,41 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
   // basically, mb->tag_get_data(corrTag, &(redPoly), 1, &bluePoly);
   // also,  mb->tag_get_data(corrTag, &(bluePoly), 1, &redPoly);
   // we start from rs2 existing, then we have to update something
-  std::vector<double>  currentVals(rs2.size());
-  rval = mb->tag_get_data(tagElem, rs2, &currentVals[0]);
-  ERRORR(rval, "can't get existing tag values");
 
+  // tagElem will have multiple tracers
+  int numTracers = 0;
+  rval = mb->tag_get_length(tagElem, numTracers);
+  ERRORR(rval, "can't get number of tracers in simulation");
+  if (numTracers < 1)
+    ERRORR(MB_FAILURE, "no tracers data");
+  std::vector<double>  currentVals(rs2.size()*numTracers);
+  rval = mb->tag_get_data(tagElem, rs2, &currentVals[0]);
+  ERRORR(rval, "can't get existing tracers values");
+
+  // create new tuple list for tracers to other processors, from remote_cells
+#ifdef USE_MPI
+  int n = remote_cells->get_n();
+  if (n>0) {
+    remote_cells_with_tracers = new TupleList();
+    remote_cells_with_tracers->initialize(2, 0, 1, numTracers, n); // tracers are in these tuples
+    remote_cells_with_tracers->enableWriteAccess();
+    for (int i=0; i<n; i++)
+    {
+      remote_cells_with_tracers->vi_wr[2*i]=remote_cells->vi_wr[2*i];
+      remote_cells_with_tracers->vi_wr[2*i+1]=remote_cells->vi_wr[2*i+1];
+      //    remote_cells->vr_wr[i] = 0.; will have a different tuple for communication
+      remote_cells_with_tracers->vul_wr[i]=   remote_cells->vul_wr[i];// this is the corresponding red cell (arrival)
+      for (int k=0; k<numTracers; k++)
+        remote_cells_with_tracers->vr_wr[numTracers*i+k] = 0; // initialize tracers to be transported
+      remote_cells_with_tracers->inc_n();
+    }
+  }
+  delete remote_cells;
+  remote_cells = NULL;
+#endif
   // for each polygon, we have 2 indices: red and blue parents
   // we need index blue to update index red?
-  std::vector<double> newValues(rs2.size(), 0.);// initialize with 0 all of them
+  std::vector<double> newValues(rs2.size()*numTracers, 0.);// initialize with 0 all of them
   // area of the polygon * conc on red (old) current quantity
   // finaly, divide by the area of the red
   double check_intx_area=0.;
@@ -502,17 +530,19 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
     if (0==redArr || MB_TAG_NOT_FOUND==rval)
     {
 #ifdef USE_MPI
-      if (!remote_cells)
+      if (!remote_cells_with_tracers)
         ERRORR( MB_FAILURE, "no remote cells, failure\n");
       // maybe the element is remote, from another processor
       int global_id_blue;
       rval = mb->tag_get_data(gid, &blue, 1, &global_id_blue);
       ERRORR(rval, "can't get arrival red for corresponding blue gid");
       // find the
-      int index_in_remote = remote_cells->find(1, global_id_blue);
+      int index_in_remote = remote_cells_with_tracers->find(1, global_id_blue);
       if (index_in_remote==-1)
         ERRORR( MB_FAILURE, "can't find the global id element in remote cells\n");
-      remote_cells->vr_wr[index_in_remote] += currentVals[redIndex]*areap;
+      for (int k=0; k<numTracers; k++)
+        remote_cells_with_tracers->vr_wr[index_in_remote*numTracers+k] +=
+            currentVals[numTracers*redIndex+k]*areap;
 #endif
     }
     else if (MB_SUCCESS==rval)
@@ -520,29 +550,31 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
       int arrRedIndex = rs2.index(redArr);
       if (-1 == arrRedIndex)
         ERRORR(MB_FAILURE, "can't find the red arrival index");
-      newValues[arrRedIndex] += currentVals[redIndex]*areap;
+      for (int k=0; k<numTracers; k++)
+        newValues[numTracers*arrRedIndex+k] += currentVals[redIndex*numTracers+k]*areap;
     }
 
     else
       ERRORR(rval, "can't get arrival red for corresponding ");
   }
-  // now, send back the remote_cells to the processors they came from, with the updated values for
+  // now, send back the remote_cells_with_tracers to the processors they came from, with the updated values for
   // the tracer mass in a cell
 #ifdef USE_MPI
-  if (remote_cells)
+  if (remote_cells_with_tracers)
   {
     // so this means that some cells will be sent back with tracer info to the procs they were sent from
-    (parcomm->proc_config().crystal_router())->gs_transfer(1, *remote_cells, 0);
+    (parcomm->proc_config().crystal_router())->gs_transfer(1, *remote_cells_with_tracers, 0);
     // now, look at the global id, find the proper "red" cell with that index and update its mass
     //remote_cells->print("remote cells after routing");
-    int n = remote_cells->get_n();
+    n = remote_cells_with_tracers->get_n();
     for (int j=0; j<n; j++)
     {
-      EntityHandle redCell = remote_cells->vul_rd[j];// entity handle sent back
+      EntityHandle redCell = remote_cells_with_tracers->vul_rd[j];// entity handle sent back
       int arrRedIndex = rs2.index(redCell);
       if (-1 == arrRedIndex)
         ERRORR(MB_FAILURE, "can't find the red arrival index");
-      newValues[arrRedIndex] += remote_cells->vr_rd[j];
+      for (int k=0; k<numTracers; k++)
+        newValues[arrRedIndex*numTracers+k] += remote_cells_with_tracers->vr_rd[j*numTracers+k];
     }
   }
 #endif /* USE_MPI */
@@ -551,7 +583,7 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
   Range::iterator iter = rs2.begin();
   void * data=NULL; //used for stored area
   int count =0;
-  double total_mass_local=0.;
+  std::vector<double> total_mass_local(numTracers, 0.);
   while (iter != rs2.end())
   {
     rval = mb->tag_iterate(tagArea, iter, rs2.end(), count, data);
@@ -559,8 +591,11 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
     double * ptrArea=(double*)data;
     for (int i=0; i<count; i++, iter++, j++, ptrArea++)
     {
-      total_mass_local+=newValues[j];
-      newValues[j]/= (*ptrArea);
+      for (int k=0; k<numTracers; k++)
+      {
+        total_mass_local[k]+=newValues[j*numTracers+k];
+        newValues[j*numTracers+k]/= (*ptrArea);
+      }
     }
   }
   rval = mb->tag_set_data(tagElem, rs2, &newValues[0]);
@@ -568,23 +603,24 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
 
 
 #ifdef USE_MPI
-  double total_mass=0.;
+  std::vector<double> total_mass(numTracers,0.);
   double total_intx_area =0;
-  int mpi_err = MPI_Reduce(&total_mass_local, &total_mass, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  int mpi_err = MPI_Reduce(&total_mass_local[0], &total_mass[0], numTracers, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   if (MPI_SUCCESS != mpi_err) return MB_FAILURE;
   // now reduce total area
   mpi_err = MPI_Reduce(&check_intx_area, &total_intx_area, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   if (MPI_SUCCESS != mpi_err) return MB_FAILURE;
   if (my_rank==0)
   {
-    std::cout <<"total mass now:" << total_mass << "\n";
+    for (int k=0; k<numTracers; k++)
+      std::cout <<"total mass now tracer k=" << k+1<<" "  << total_mass[k] << "\n";
     std::cout <<"check: total intersection area: (4 * M_PI * R^2): " << 4 * M_PI * R*R << " " << total_intx_area << "\n";
   }
 
-  if (remote_cells)
+  if (remote_cells_with_tracers)
   {
-    delete remote_cells;
-    remote_cells=NULL;
+    delete remote_cells_with_tracers;
+    remote_cells_with_tracers=NULL;
   }
 #else
   std::cout <<"total mass now:" << total_mass_local << "\n";

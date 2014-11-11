@@ -159,7 +159,8 @@ protected: // so it can be accessed in derived classes, InPlane and OnSphere
 
 #ifdef USE_MPI
   ParallelComm * parcomm;
-  TupleList * remote_cells;
+  TupleList * remote_cells; // not used anymore for communication, just a container
+  TupleList * remote_cells_with_tracers; // these will be used now to update tracers on remote procs
   std::map<int, EntityHandle> globalID_to_eh;// needed for parallel, mostly
 #endif
   int max_edges; // maximum number of edges in the euler set

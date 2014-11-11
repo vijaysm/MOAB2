@@ -803,7 +803,7 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
   n=TLq.get_n();// number of elements received by this processor
   // form the remote cells, that will be used to send the tracer info back to the originating proc
   remote_cells = new TupleList();
-  remote_cells->initialize(2, 0, 1, 1, n);
+  remote_cells->initialize(2, 0, 1, 0, n); // will not have tracer data anymore
   remote_cells->enableWriteAccess();
   for (int i=0; i<n; i++)
   {
@@ -843,7 +843,7 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
       ERRORR(rval, "can't set corr tag on new el");*/
       remote_cells->vi_wr[2*i]=from_proc;
       remote_cells->vi_wr[2*i+1]=globalIdEl;
-      remote_cells->vr_wr[i] = 0.; // no contribution yet sent back
+ //     remote_cells->vr_wr[i] = 0.; // no contribution yet sent back
       remote_cells->vul_wr[i]= TLq.vul_rd[i];// this is the corresponding red cell (arrival)
       remote_cells->inc_n();
       // set the global id on new elem
@@ -1093,7 +1093,7 @@ ErrorCode Intx2Mesh::create_departure_mesh_3rd_alg(EntityHandle & lagr_set,
   // a vertex can be received from multiple sources, that is fine
 
   remote_cells = new TupleList();
-  remote_cells->initialize(2, 0, 1, 1, n);
+  remote_cells->initialize(2, 0, 1, 0, n); // no tracers anymore in these tuples
   remote_cells->enableWriteAccess();
   for (int i = 0; i < n; i++)
   {
@@ -1133,7 +1133,7 @@ ErrorCode Intx2Mesh::create_departure_mesh_3rd_alg(EntityHandle & lagr_set,
     }
     remote_cells->vi_wr[2*i]=from_proc;
     remote_cells->vi_wr[2*i+1]=globalIdEl;
-    remote_cells->vr_wr[i] = 0.; // no contribution yet sent back
+//    remote_cells->vr_wr[i] = 0.; will have a different tuple for communication
     remote_cells->vul_wr[i]= TLq.vul_rd[i];// this is the corresponding red cell (arrival)
     remote_cells->inc_n();
   }

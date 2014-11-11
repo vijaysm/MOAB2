@@ -78,14 +78,6 @@ void initialize_area_and_tracer(iMesh_Instance instance,
   rval = mb->get_entities_by_type(eul_set, MBQUAD, eulQuads);
   ERRORV(rval, "can't get eulerian quads");
 
-  /*
-   // tagElem is the average computed at each element
-   Tag tagElem = 0;
-   std::string tag_name2("TracerAverage");
-   rval = mb->tag_get_handle(tag_name2.c_str(), 1, MB_TYPE_DOUBLE, tagElem,
-   MB_TAG_DENSE | MB_TAG_CREAT);
-   ERRORV(rval, "can't get tracer tag ");
-   */
 
   // area of the euler element is fixed, store it; it is used to recompute the averages at each
   // time step
@@ -96,18 +88,9 @@ void initialize_area_and_tracer(iMesh_Instance instance,
   ERRORV(rval, "can't get area tag");
 
   std::cout << " num quads = " << eulQuads.size() << "\n";
+  ERRORV(rval, "can't set area for each quad");
 
-  for (std::size_t i = 0; i < eulQuads.size(); i++) {
-
-    moab::EntityHandle elem = eulQuads[i];
-    //   rval = mb->tag_set_data(tagElem, &elem, 1, &tracer_vals[i]);
-    //    std::cout << "tracer values = " << tracer_vals[i];
-    //   ERRORV(rval, "can't set tracer data");
-    rval = mb->tag_set_data(tagArea, &elem, 1, &area_vals[i]);
-    // std::cout << "    area = " << area_vals[i] << "\n";
-    ERRORV(rval, "can't set cell area");
-
-  }
+  rval = mb->tag_set_data(tagArea, eulQuads, &area_vals[0]);
 
   *ierr = 0;
   return;
@@ -115,7 +98,7 @@ void initialize_area_and_tracer(iMesh_Instance instance,
 
 void update_tracer_test(iMesh_Instance instance,
     iBase_EntitySetHandle imesh_euler_set,
-    iBase_EntitySetHandle imesh_output_set, double * tracer_vals, int * ierr) {
+    iBase_EntitySetHandle imesh_output_set, int numTracers, double * tracer_vals, int * ierr) {
 
   EntityHandle eul_set = (EntityHandle) imesh_euler_set;
   EntityHandle output_set = (EntityHandle) imesh_output_set;
@@ -132,7 +115,7 @@ void update_tracer_test(iMesh_Instance instance,
   // tagElem is the average computed at each element, from nodal values
   Tag tagElem = 0;
   std::string tag_name2("TracerAverage");
-  rval = mb->tag_get_handle(tag_name2.c_str(), 1, MB_TYPE_DOUBLE, tagElem,
+  rval = mb->tag_get_handle(tag_name2.c_str(), numTracers, MB_TYPE_DOUBLE, tagElem,
       MB_TAG_DENSE | MB_TAG_CREAT);
   ERRORV(rval, "can't get tracer tag ");
 
@@ -146,30 +129,14 @@ void update_tracer_test(iMesh_Instance instance,
 
   std::cout << " num quads = " << eulQuads.size() << "\n";
 
-  for (std::size_t i = 0; i < eulQuads.size(); i++) {
-
-    moab::EntityHandle elem = eulQuads[i];
-    rval = mb->tag_set_data(tagElem, &elem, 1, &tracer_vals[i]);
-//     std::cout << "tracer values = " << tracer_vals[i];
-    ERRORV(rval, "can't set tracer data");
-
-  }
+  rval = mb->tag_set_data(tagElem, eulQuads, &tracer_vals[0]);
+  ERRORV(rval, "can't set tracer data");
 
   rval = pworker->update_tracer_data(output_set, tagElem, tagArea);
   ERRORV(rval, "can't update tracer ");
 
-  for (std::size_t i = 0; i < eulQuads.size(); i++) {
-
-    moab::EntityHandle elem = eulQuads[i];
-    double vals;
-    rval = mb->tag_get_data(tagElem, &elem, 1, &vals);
-    tracer_vals[i] = vals;
-    //std::cout << "tracer values = " << tracer_vals[i];
-    ERRORV(rval, "can't set tracer data");
-
-  }
-
-  // everything can be deleted now from intx data; polygons, etc.
+  rval = mb->tag_get_data(tagElem, eulQuads, &tracer_vals[0]);
+  ERRORV(rval, "can't get tracer data");
 
   *ierr = 0;
   return;
