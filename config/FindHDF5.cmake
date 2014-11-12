@@ -7,6 +7,7 @@
 
 set( HDF5_DIR "" CACHE PATH "Path to search for HDF5 header and library files" )
 set (HDF5_FOUND NO CACHE INTERNAL "Found HDF5 components successfully." )
+set( SZIP_DIR "" CACHE PATH "Path to search for SZIP header and library files" )
 
 if(EXISTS "${HDF5_DIR}/share/cmake/hdf5/hdf5-config.cmake")
   include(${HDF5_DIR}/share/cmake/hdf5/hdf5-config.cmake)
@@ -14,52 +15,50 @@ else()
 
 FIND_PATH(HDF5_INCLUDE_DIR
   NAMES hdf5.h H5public.h
-  PATHS ${HDF5_DIR}/include
-  /usr/local/include
-  /usr/include
-  /opt/local/include
+  HINTS ${HDF5_DIR}/include
+  HINTS ${HDF5_DIR}
+  ENV CPLUS_INCLUDE_PATH
+  NO_DEFAULT_PATH
 )
 
-foreach (VARIANT dl m z )
+foreach (VARIANT dl sz z m )
+  set (hdf5_deplibs_${VARIANT} "hdf5_deplibs_${VARIANT}-NOTFOUND" CACHE INTERNAL "HDF5 external library component ${VARIANT}." )
   FIND_LIBRARY(hdf5_deplibs_${VARIANT} ${VARIANT}
-    PATHS /lib /usr/local/lib /usr/lib /opt/local/lib
+    HINTS ${HDF5_DIR}/lib ${SZIP_DIR}/lib /lib /lib64 /usr/local/lib /usr/lib /opt/local/lib
   )
-  list(APPEND HDF5_DEP_LIBRARIES ${hdf5_deplibs_${VARIANT}})
+  if (NOT ${hdf5_deplibs_${VARIANT}} MATCHES "(.*)NOTFOUND")
+    list(APPEND HDF5_DEP_LIBRARIES ${hdf5_deplibs_${VARIANT}})
+  endif (NOT ${hdf5_deplibs_${VARIANT}} MATCHES "(.*)NOTFOUND")
 endforeach()
 
-FIND_LIBRARY(HDF5_BASE_LIBRARY hdf5 hdf5d)
-
-FIND_LIBRARY(HDF5_BASE_LIBRARY NAMES hdf5 hdf5d
-  PATHS ${HDF5_DIR}/lib /usr/local/lib /usr/lib /opt/local/lib
+FIND_LIBRARY(HDF5_BASE_LIBRARY NAMES libhdf5.a libhdf5d.a hdf5 hdf5d
+  HINTS ${HDF5_DIR} ${HDF5_DIR}/lib 
 )
-FIND_LIBRARY(HDF5_HLBASE_LIBRARY hdf5_hl hdf5_hld
-  PATHS ${HDF5_DIR}/lib /usr/local/lib /usr/lib /opt/local/lib
+FIND_LIBRARY(HDF5_HLBASE_LIBRARY libhdf5_hl.a libhdf5_hld.a hdf5_hl hdf5_hld
+  HINTS ${HDF5_DIR} ${HDF5_DIR}/lib
 )
 
 IF (NOT HDF5_FOUND)
   IF (HDF5_INCLUDE_DIR AND HDF5_BASE_LIBRARY)
-    FIND_LIBRARY(HDF5_CXX_LIBRARY hdf5_cxx
-      PATHS ${HDF5_DIR}/lib /usr/local/lib /usr/lib /opt/local/lib
+    FIND_LIBRARY(HDF5_CXX_LIBRARY libhdf5_cxx.a hdf5_cxx
+      HINTS ${HDF5_DIR} ${HDF5_DIR}/lib NO_DEFAULT_PATH
     )
-    FIND_LIBRARY(HDF5_HLCXX_LIBRARY hdf5_hl_cxx
-      PATHS ${HDF5_DIR}/lib /usr/local/lib /usr/lib /opt/local/lib
+    FIND_LIBRARY(HDF5_HLCXX_LIBRARY libhdf5_hl_cxx.a hdf5_hl_cxx
+      HINTS ${HDF5_DIR} ${HDF5_DIR}/lib NO_DEFAULT_PATH
     )
-    FIND_LIBRARY(HDF5_FORT_LIBRARY hdf5_fortran
-      PATHS ${HDF5_DIR}/lib /usr/local/lib /usr/lib /opt/local/lib
+    FIND_LIBRARY(HDF5_FORT_LIBRARY libhdf5_fortran.a hdf5_fortran
+      HINTS ${HDF5_DIR} ${HDF5_DIR}/lib NO_DEFAULT_PATH
     )
     FIND_LIBRARY(HDF5_HLFORT_LIBRARY
-      NAMES hdf5hl_fortran hdf5_hl_fortran
-      PATHS ${HDF5_DIR}/lib /usr/local/lib /usr/lib /opt/local/lib
+      NAMES libhdf5hl_fortran.a libhdf5_hl_fortran.a hdf5hl_fortran hdf5_hl_fortran
+      HINTS ${HDF5_DIR} ${HDF5_DIR}/lib NO_DEFAULT_PATH
     )
     SET( HDF5_INCLUDES "${HDF5_INCLUDE_DIR}" )
     if (HDF5_FORT_LIBRARY)
       FIND_PATH(HDF5_FORT_INCLUDE_DIR
         NAMES hdf5.mod
-        PATHS ${HDF5_DIR}/include
+        HINTS ${HDF5_DIR}/include
         ${HDF5_DIR}/include/fortran
-        /usr/local/include
-        /usr/include
-        /opt/local/include
       )
       if (HDF5_FORT_INCLUDE_DIR AND NOT ${HDF5_FORT_INCLUDE_DIR} STREQUAL ${HDF5_INCLUDE_DIR})
         SET( HDF5_INCLUDES "${HDF5_INCLUDES} ${HDF5_FORT_INCLUDE_DIR}" )
@@ -78,10 +77,27 @@ IF (NOT HDF5_FOUND)
       unset(HDF5_${VARIANT}_LIBRARY CACHE)
     endforeach()
     list(APPEND HDF5_LIBRARIES ${HDF5_DEP_LIBRARIES})
+    # If the HDF5 include directory was found, open H5pubconf.h to determine if 
+    # HDF5 was compiled with parallel IO support 
+    set( HDF5_IS_PARALLEL FALSE ) 
+    foreach( _dir IN LISTS HDF5_INCLUDE_DIR ) 
+        if( EXISTS "${_dir}/H5pubconf.h" ) 
+            file( STRINGS "${_dir}/H5pubconf.h" 
+                HDF5_HAVE_PARALLEL_DEFINE 
+                REGEX "HAVE_PARALLEL 1" ) 
+            if( HDF5_HAVE_PARALLEL_DEFINE ) 
+                set( HDF5_IS_PARALLEL TRUE ) 
+            endif() 
+        endif() 
+    endforeach() 
+    set( HDF5_IS_PARALLEL ${HDF5_IS_PARALLEL} CACHE BOOL 
+        "HDF5 library compiled with parallel IO support" ) 
+    mark_as_advanced( HDF5_IS_PARALLEL ) 
     SET( HDF5_FOUND YES )
     message (STATUS "---   HDF5 Configuration ::")
-    message (STATUS "        INCLUDES  : ${HDF5_INCLUDES}")
-    message (STATUS "        LIBRARIES : ${HDF5_LIBRARIES}")
+    message (STATUS "        IS_PARALLEL  : ${HDF5_IS_PARALLEL}")
+    message (STATUS "        INCLUDES     : ${HDF5_INCLUDES}")
+    message (STATUS "        LIBRARIES    : ${HDF5_LIBRARIES}")
   ELSE (HDF5_INCLUDE_DIR AND HDF5_BASE_LIBRARY)
     set( HDF5_FOUND NO )
     message("finding HDF5 failed, please try to set the var HDF5_DIR")

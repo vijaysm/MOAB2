@@ -7,6 +7,8 @@ set( TESTS h5file_test.cpp
            h5partial.cpp
            h5portable.cpp )
 
+set(TEST_COMP_FLAGS "-DMESHDIR=${CMAKE_SOURCE_DIR}/MeshFiles/unittest")
+
 foreach( fname ${TESTS} )
   string( REPLACE ".cpp" "" tmp ${fname} )
   string( REPLACE ".cc" "" base ${tmp} )
