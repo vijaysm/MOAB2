@@ -291,7 +291,7 @@ if (test "x$ENABLE_FORTRAN" != "xno" && test "x$CHECK_FC" != "xno"); then
     AC_MSG_CHECKING([whether $FC supports -cxxlib])
     AC_LINK_IFELSE([AC_LANG_PROGRAM([])],
         [AC_MSG_RESULT([yes])]
-        [fcxxlinkage=yes; FFLAGS="$FFLAGS -cxxlib"; FCFLAGS="$FCFLAGS -cxxlib"; my_save_ldflags="$my_save_ldflags -cxxlib"],
+        [fcxxlinkage=yes; FFLAGS="$FFLAGS -cxxlib"; FCFLAGS="$FCFLAGS -cxxlib"; FLIBS="$FLIBS -cxxlib"; FCLIBS="$FCLIBS -cxxlib"],
         [AC_MSG_RESULT([no])]
     )
     LDFLAGS="$my_save_ldflags"
@@ -303,7 +303,7 @@ if (test "x$ENABLE_FORTRAN" != "xno" && test "x$CHECK_FC" != "xno"); then
       AC_MSG_CHECKING([whether $FC supports -stdlib=libc++])
       AC_LINK_IFELSE([AC_LANG_PROGRAM([])],
           [AC_MSG_RESULT([yes])]
-          [fcxxlinkage=yes; FFLAGS="$FFLAGS -lc++"; FCFLAGS="$FCFLAGS -lc++"; my_save_ldflags="$my_save_ldflags -lc++"],
+          [fcxxlinkage=yes; FFLAGS="$FFLAGS -lc++"; FCFLAGS="$FCFLAGS -lc++"; FLIBS="$FLIBS -lc++"; FCLIBS="$FCLIBS -lc++"],
           [AC_MSG_RESULT([no])]
       )
       LDFLAGS="$my_save_ldflags"
@@ -315,7 +315,7 @@ if (test "x$ENABLE_FORTRAN" != "xno" && test "x$CHECK_FC" != "xno"); then
       AC_MSG_CHECKING([whether $FC supports -stdlib=libstdc++])
       AC_LINK_IFELSE([AC_LANG_PROGRAM([])],
           [AC_MSG_RESULT([yes])]
-          [FFLAGS="$FFLAGS -lstdc++"; FCFLAGS="$FCFLAGS -lstdc++"; my_save_ldflags="$my_save_ldflags -lstdc++"],
+          [FFLAGS="$FFLAGS -lstdc++"; FCFLAGS="$FCFLAGS -lstdc++"; FLIBS="$FLIBS -lstdc++"; FCLIBS="$FCLIBS -lstdc++"],
           [AC_MSG_RESULT([no])]
       )
       LDFLAGS="$my_save_ldflags"
