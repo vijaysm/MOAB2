@@ -186,7 +186,7 @@ FORCE_IMESH=no
 AC_ARG_ENABLE( [imesh],
 [AC_HELP_STRING([--disable-imesh],[Do not build support for iMesh interface.])],
 [FORCE_IMESH=yes],
-[enableval=$ENABLE_FORTRAN] )
+[enableval=yes] )
 
 case $enableval in
   yes)
