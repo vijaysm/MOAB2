@@ -1,5 +1,5 @@
 # Don't require GNU-standard files (Changelog, README, etc.)
-AUTOMAKE_OPTIONS = foreign
+AUTOMAKE_OPTIONS = foreign subdir-objects
 
 # Don't loose the autoconf include path
 ACLOCAL_AMFLAGS = -I config

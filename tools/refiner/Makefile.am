@@ -1,4 +1,4 @@
-MESHDIR = $(top_srcdir)/tools/refiner/
+MESHDIR = $(abs_top_srcdir)/tools/refiner/
 
 AM_CPPFLAGS += -I$(top_srcdir)/src \
                -I$(top_builddir)/src \

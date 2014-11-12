@@ -1,4 +1,5 @@
 
+MESHDIR = $(abs_top_srcdir)/MeshFiles/unittest
 AM_CPPFLAGS += -I$(top_srcdir)/src \
                -I$(top_srcdir)/src/io/mhdf/include \
                -I$(top_builddir)/ \
@@ -6,6 +7,7 @@ AM_CPPFLAGS += -I$(top_srcdir)/src \
                -I$(top_srcdir)/tools/mbcoupler \
                -I$(top_srcdir)/src/moab/point_locator/lotte \
                -I$(top_srcdir)/src/LocalDiscretization/moab/ \
+               -DMESHDIR=$(MESHDIR) \
                -DIS_BUILDING_MB
 
 # might need parallel here because of timer

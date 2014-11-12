@@ -720,7 +720,7 @@ MB_OPTIONAL_TOOL([mbtagprop],    [yes], [yes])
 MB_OPTIONAL_TOOL([mbmem],        [yes], [yes])
 MB_OPTIONAL_TOOL([spheredecomp], [yes], [yes])
 MB_OPTIONAL_TOOL([mbsurfplot],   [yes], [yes])
-MB_OPTIONAL_TOOL([mbzoltan],     [${WITH_ZOLTAN}], [${WITH_ZOLTAN}] )
+MB_OPTIONAL_TOOL([mbpart],     [${WITH_ZOLTAN}], [${WITH_ZOLTAN}] )
 MB_OPTIONAL_TOOL([dagmc],        [no], [yes])
 MB_OPTIONAL_TOOL([gsets],        [yes], [yes])
 MB_OPTIONAL_TOOL([mbdepth],      [yes], [yes])
@@ -767,7 +767,7 @@ fi
 #                           Zoltan - Part 2 of 2
 ################################################################################
 
-if test "xyes" = "x$ENABLE_mbzoltan"; then
+if test "xyes" = "x$ENABLE_mbpart"; then
   WITH_ZOLTAN=yes
 else
   WITH_ZOLTAN=no
@@ -1327,8 +1327,6 @@ AC_CONFIG_FILES([Makefile
                  tools/refiner/Makefile
                  tools/mbcoupler/Makefile
                  tools/mbcslam/Makefile
-                 tools/mbzoltan/Config.moab
-                 tools/mbzoltan/Makefile
                  tools/mcnpmit/Makefile
                  tools/qvdual/Makefile
                  tools/dagmc/Makefile
