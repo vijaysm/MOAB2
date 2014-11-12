@@ -115,7 +115,7 @@ else
   CXX_LIST="$CXX g++ icpc clang++"
   FC_LIST="$FC gfortran ifort g77 f77 nag xlf"
   F77_LIST="$F77 $FC_LIST"
-  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --without-mpi"
+
 fi
 
 COMPILERPATHS=""
