@@ -18,11 +18,11 @@ AC_CHECK_PROG( [SED], [sed], [sed], [true] )
 #                           Compilers
 ################################################################################
 
-ENABLE_FORTRAN=yes
+ENABLE_FORTRAN=no
 AC_ARG_ENABLE([fortran],
               [AS_HELP_STRING([--disable-fortran], [Disable Fortran support and name mangling in ITAPS/MBCN C headers])])
 
-AS_IF([test "x$enable_fortran" != "xyes"], [ENABLE_FORTRAN=no])
+AS_IF([test "x$enable_fortran" != "xno"], [ENABLE_FORTRAN=yes])
 AC_SUBST(ENABLE_FORTRAN)
 EXTRA_GNU_FLAGS='-Wall -pipe -pedantic -Wno-long-long -Wextra -Wcast-align  -Wpointer-arith -Wformat -Wformat-security -Wshadow -Wunused-parameter'
 EXTRA_INTEL_FLAGS='-Wall'
