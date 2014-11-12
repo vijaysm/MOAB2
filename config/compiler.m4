@@ -102,7 +102,7 @@ AC_ARG_WITH( [mpi], AC_HELP_STRING([[--with-mpi@<:@=DIR@:>@]], [Enable parallel 
 if test "xno" != "x$WITH_MPI"; then
 
   CC_LIST="mpixlc mpicc mpcc"
-  CXX_LIST="mpixlcxx mpiCC mpCC mpicxx"
+  CXX_LIST="mpixlcxx mpicxx mpiCC mpCC"
   FC_LIST="mpixlf95 mpixlf90 mpif90"
   F77_LIST="mpixlf77 mpif77"
   DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-mpi=\"${withval}\""
@@ -215,11 +215,11 @@ if test "xyes" = "x$enable_debug"; then
   FCFLAGS="$FCFLAGS -g"
   FFLAGS="$FFLAGS -g"
   # Add -fstack-protector-all option for g++ in debug mode
-  if test "x$cxx_compiler" = "xGNU"; then
+  if test "x$GXX" = "xyes"; then
     CXXFLAGS="$CXXFLAGS -fstack-protector-all"
   fi
   # Add -fstack-protector-all option for gcc in debug mode
-  if test "x$cc_compiler" = "xGNU"; then
+  if test "x$GXX" = "xyes"; then
     CFLAGS="$CFLAGS -fstack-protector-all"
   fi
 fi
@@ -266,6 +266,59 @@ AC_ARG_ENABLE( 64bit, AC_HELP_STRING([--enable-64bit],[Force 64-bit objects]),
   CXXFLAGS="$CXXFLAGS $FATHOM_CXX_64BIT"
   CFLAGS="$CFLAGS $FATHOM_CC_64BIT"
 ])
+
+# Check if we are using new Darwin kernels with Clang -- needs libc++ instead of libstdc++
+if (test "x$ENABLE_FORTRAN" == "xyes"); then
+  AC_F77_WRAPPERS
+  AC_F77_LIBRARY_LDFLAGS
+  AC_FC_WRAPPERS
+  AC_FC_LIBRARY_LDFLAGS
+
+  # check how to link against C++ runtime for fortran programs correctly
+  AC_LANG_PUSH([Fortran])
+
+  fcxxlinkage=no
+  if (test "$cc_compiler" == "Intel"); then
+    my_save_ldflags="$LDFLAGS"
+    LDFLAGS="$LDFLAGS -cxxlib"
+    AC_MSG_CHECKING([whether $FC supports -cxxlib])
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([])],
+        [AC_MSG_RESULT([yes])]
+        [fcxxlinkage=yes; FFLAGS="$FFLAGS -cxxlib"; FCFLAGS="$FCFLAGS -cxxlib"; my_save_ldflags="$my_save_ldflags -cxxlib"],
+        [AC_MSG_RESULT([no])]
+    )
+    LDFLAGS="$my_save_ldflags"
+  else
+
+    if (test "`uname`" == "Darwin" && test "$cc_compiler" == "Clang"); then
+      my_save_ldflags="$LDFLAGS"
+      LDFLAGS="$LDFLAGS -lc++"
+      AC_MSG_CHECKING([whether $FC supports -stdlib=libc++])
+      AC_LINK_IFELSE([AC_LANG_PROGRAM([])],
+          [AC_MSG_RESULT([yes])]
+          [fcxxlinkage=yes; FFLAGS="$FFLAGS -lc++"; FCFLAGS="$FCFLAGS -lc++"; my_save_ldflags="$my_save_ldflags -lc++"],
+          [AC_MSG_RESULT([no])]
+      )
+      LDFLAGS="$my_save_ldflags"
+    fi
+
+    if (test "$fcxxlinkage" != "yes"); then
+      my_save_ldflags="$LDFLAGS"
+      LDFLAGS="$LDFLAGS -lstdc++"
+      AC_MSG_CHECKING([whether $FC supports -stdlib=libstdc++])
+      AC_LINK_IFELSE([AC_LANG_PROGRAM([])],
+          [AC_MSG_RESULT([yes])]
+          [FFLAGS="$FFLAGS -lstdc++"; FCFLAGS="$FCFLAGS -lstdc++"; my_save_ldflags="$my_save_ldflags -lstdc++"],
+          [AC_MSG_RESULT([no])]
+      )
+      LDFLAGS="$my_save_ldflags"
+    fi
+
+  fi
+
+  AC_LANG_POP([Fortran])
+
+fi
 
 ]) # FATHOM_COMPILER_FLAGS
 
@@ -323,8 +376,9 @@ AC_MSG_CHECKING([for known c++ compilers])
 # Autoconf does G++ for us
 if test x$GXX = xyes; then
   cxx_compiler=GNU
-  # Intel claims to be GCC, check for it here
+  # Intel and Clang claims to be GCC, check for it here
   FATHOM_TRY_COMPILER_DEFINE([__INTEL_COMPILER],[cxx_compiler=Intel])
+  FATHOM_TRY_COMPILER_DEFINE([__clang__],[cxx_compiler=Clang])
 # Search for other compiler types
 # For efficiency, limit checks to relevant OSs
 else
@@ -336,6 +390,9 @@ else
       ;;
     solaris*|sunos*)
       FATHOM_TRY_COMPILER_DEFINE([__SUNPRO_CC],[cxx_compiler=SunWorkshop])
+      ;;
+    darwin*)
+      FATHOM_TRY_COMPILER_DEFINE([__clang__],[cxx_compiler=Clang])
       ;;
     irix*)
       FATHOM_TRY_COMPILER_DEFINE([__sgi],[cxx_compiler=MIPSpro])
@@ -426,6 +483,9 @@ case "$cxx_compiler:$host_cpu" in
     FATHOM_CXX_32BIT=-xarch=generic
     FATHOM_CXX_64BIT=-xarch=generic64
     ;;
+  Clang:*)
+    FATHOM_CXX_SPECIAL="$EXTRA_GNU_FLAGS -stdlib=libc++"
+    ;;
   SunWorkshop:i?86|SunWorkshop:x86_64)
     FATHOM_CXX_32BIT=-m32
     FATHOM_CXX_64BIT=-m64
@@ -454,6 +514,7 @@ if test x$GCC = xyes; then
   cc_compiler=GNU
   # Intel claims to be GCC, check for it here
   FATHOM_TRY_COMPILER_DEFINE([__INTEL_COMPILER],[cc_compiler=Intel])
+  FATHOM_TRY_COMPILER_DEFINE([__clang__],[cc_compiler=Clang])
 # Search for other compiler types
 # For efficiency, limit checks to relevant OSs
 else
@@ -464,6 +525,9 @@ else
       ;;
     solaris*|sunos*)
       FATHOM_TRY_COMPILER_DEFINE([__SUNPRO_C],[cc_compiler=SunWorkshop])
+      ;;
+    darwin*)
+      FATHOM_TRY_COMPILER_DEFINE([__clang__],[cc_compiler=Clang])
       ;;
     irix*)
       FATHOM_TRY_COMPILER_DEFINE([__sgi],[cc_compiler=MIPSpro])
@@ -560,6 +624,9 @@ case "$cc_compiler:$host_cpu" in
     ;;
   MIPSpro:*)
     FATHOM_CC_SPECIAL=-LANG:std
+    ;;
+  Clang:*)
+    FATHOM_CC_SPECIAL="$EXTRA_GNU_FLAGS -stdlib=libc++"
     ;;
   SunWorkshop:sparc*)
     FATHOM_CC_32BIT=-xarch=generic
