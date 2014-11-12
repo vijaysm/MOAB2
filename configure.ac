@@ -32,8 +32,6 @@ FATHOM_CHECK_COMPILERS([yes],[yes],[$ENABLE_FORTRAN])
 AM_CONDITIONAL(PARALLEL,[test "x$enablempi" != "xno"])
 AM_CONDITIONAL(ENABLE_FORTRAN,[test "x$ENABLE_FORTRAN" != "xno"])
 
-LT_INIT([dlopen])
-
 # Invoke and find all necessary flags for C, C++, FC
 FATHOM_COMPILER_FLAGS([yes],[yes],[$ENABLE_FORTRAN])
 
@@ -47,7 +45,12 @@ fi
 AC_PROG_LN_S
 AC_PROG_MAKE_SET
 AC_DISABLE_SHARED
-AC_PROG_LIBTOOL
+
+# All language options initialized -- now call
+# libtool initialization
+# AC_PROG_LIBTOOL is deprecated
+LT_INIT([dlopen])
+
 AC_C_BIGENDIAN
 
 # Check if platform is BlueGene
