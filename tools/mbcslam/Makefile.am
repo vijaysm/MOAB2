@@ -70,7 +70,7 @@ if PARALLEL
   intx_mpas_SOURCES = intx_mpas.cpp
 if ENABLE_FORTRAN
   advection_SOURCES = advection.F90
-  advection_LDADD = libmbcslam.la  $(top_builddir)/itaps/imesh/libiMesh.la $(top_builddir)/src/libMOAB.la
+  advection_LDADD = libmbcslam.la  $(top_builddir)/itaps/imesh/libiMesh.la $(top_builddir)/src/libMOAB.la $(FCLIBS)
 endif
 endif 
 
