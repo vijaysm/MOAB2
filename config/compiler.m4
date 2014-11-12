@@ -134,12 +134,12 @@ fi
   AC_PROG_CXXCPP
 
   # Fortran support
-  if (test "x$CHECK_FC" != "xno"); then
+  #if (test "x$CHECK_FC" != "xno"); then
     FATHOM_SET_MPI_COMPILER([FC],  [$FC_LIST],[$COMPILERPATHS])
     FATHOM_SET_MPI_COMPILER([F77],[$F77_LIST],[$COMPILERPATHS])
     AC_PROG_FC
     AC_PROG_F77
-  fi
+  #fi
 
 ]) # FATHOM_CHECK_COMPILERS
 
@@ -276,9 +276,9 @@ AC_ARG_ENABLE( 64bit, AC_HELP_STRING([--enable-64bit],[Force 64-bit objects]),
 
 # Check if we are using new Darwin kernels with Clang -- needs libc++ instead of libstdc++
 if (test "x$ENABLE_FORTRAN" != "xno" && test "x$CHECK_FC" != "xno"); then
-  #AC_F77_WRAPPERS
+  AC_F77_WRAPPERS
   #AC_F77_LIBRARY_LDFLAGS
-  #AC_FC_WRAPPERS
+  AC_FC_WRAPPERS
   #AC_FC_LIBRARY_LDFLAGS
 
   # check how to link against C++ runtime for fortran programs correctly

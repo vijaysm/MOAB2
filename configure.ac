@@ -1366,11 +1366,11 @@ AC_OUTPUT
 
 AC_MSG_RESULT([C:   $CC $CFLAGS $CPPFLAGS])
 AC_MSG_RESULT([C++: $CXX $CXXFLAGS $CPPFLAGS])
-if test "x" != "x$FC"; then
-  AC_MSG_RESULT([Fortran90: $FC $FCFLAGS])
+if (test "xno" != "x$ENABLE_FORTRAN"); then
+  AC_MSG_RESULT([Fortran90: $FC $FCFLAGS $FCPPFLAGS])
 fi
-if test "x" != "x$F77"; then
-  AC_MSG_RESULT([Fortran77: $F77 $FFLAGS])
+if (test "xno" != "x$ENABLE_FORTRAN"); then
+  AC_MSG_RESULT([Fortran77: $F77 $FFLAGS $FCPPFLAGS])
 fi
 
 if test "x$HAVE_HDF5" = "xno"; then
