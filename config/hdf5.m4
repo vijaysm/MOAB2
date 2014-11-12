@@ -20,7 +20,7 @@ AC_DEFUN([FATHOM_DETECT_HDF5_LIBS],[
  # if we've already done this check, then don't do it again
 if test "xyes" != "x$HAVE_LIB_HDF5"; then
     # Check for IBM parallel IO library
-  if test "x$WITH_MPI" != "xno"; then
+  if test "x$enablempi" != "xno"; then
     AC_CHECK_LIB([gpfs],[gpfs_stat],[HDF5_LIBS="-lgpfs $HDF5_LIBS"])
   fi
   

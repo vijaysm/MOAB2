@@ -157,7 +157,7 @@ DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-pnetcdf=\"${withval
 , [PNETCDF_ARG=])
 
   # PNETCDF requires MPI too
-if test "xyes" != "x$WITH_MPI"; then
+if test "xyes" != "x$enablempi"; then
   if test "x" == "x$PNETCDF_ARG"; then
     PNETCDF_ARG=no
   elif test "xno" != "xPNETCDF_ARG"; then

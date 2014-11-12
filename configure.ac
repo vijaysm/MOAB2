@@ -14,26 +14,27 @@ m4_ifdef([AM_SILENT_RULES],
 
 AC_CHECK_PROG( [SED], [sed], [sed], [true] )
 
-
 ################################################################################
 #                           Compilers
 ################################################################################
 
-AC_ARG_ENABLE([fortran],[AC_HELP_STRING([--disable-fortran],
-  [No Fortran name mangling in ITAPS/MBCN C headers])],
-  [ENABLE_FORTRAN=$enableval],[ENABLE_FORTRAN=yes])
+ENABLE_FORTRAN=no
+AC_ARG_ENABLE([fortran],
+              [AS_HELP_STRING([--disable-fortran], [Disable Fortran support and name mangling in ITAPS/MBCN C headers])])
 
+AS_IF([test "x$enable_fortran" != "xno"], [ENABLE_FORTRAN=yes])
+AC_SUBST(ENABLE_FORTRAN)
 EXTRA_GNU_FLAGS='-Wall -pipe -pedantic -Wno-long-long -Wextra -Wcast-align  -Wpointer-arith -Wformat -Wformat-security -Wshadow -Wunused-parameter'
 EXTRA_INTEL_FLAGS='-Wall'
+
+# Find out the appropriate compiler based on user options
 FATHOM_CHECK_COMPILERS([yes],[yes],[$ENABLE_FORTRAN])
-AM_CONDITIONAL(PARALLEL,[test "x$WITH_MPI" != "xno"])
+AM_CONDITIONAL(PARALLEL,[test "x$enablempi" != "xno"])
 AM_CONDITIONAL(ENABLE_FORTRAN,[test "x$ENABLE_FORTRAN" != "xno"])
 
-AC_PROG_LN_S
-AC_PROG_MAKE_SET
-AC_DISABLE_SHARED
-AC_PROG_LIBTOOL
-FATHOM_COMPILER_FLAGS
+# Invoke and find all necessary flags for C, C++, FC
+FATHOM_COMPILER_FLAGS([yes],[yes],[$ENABLE_FORTRAN])
+
 m4_ifdef([AM_SILENT_RULES],[
 if test "x$DEBUG" = "xyes"; then
   AM_SILENT_RULES(yes)
@@ -41,6 +42,15 @@ else
   AM_SILENT_RULES(no)
 fi
 ])
+AC_PROG_LN_S
+AC_PROG_MAKE_SET
+AC_DISABLE_SHARED
+
+# All language options initialized -- now call
+# libtool initialization
+# AC_PROG_LIBTOOL is deprecated
+LT_INIT([dlopen])
+
 AC_C_BIGENDIAN
 
 # Check if platform is BlueGene
@@ -64,9 +74,9 @@ FATHOM_TEMPLATE_FUNC_SPECIALIZATION
 AM_CPPFLAGS="$AM_CPPFLAGS $TEMPLATE_SPECIALIZATION $TEMPLATE_FUNC_SPECIALIZATION"
 
 FATHOM_CHECK_CXX_WORKS([], [AC_MSG_ERROR([Cannot build without C++ compiler])])
-if test "xyes" = "x$ENABLE_FORTRAN" && test "x" != "x$FC"; then
-  AC_FC_WRAPPERS
-fi
+#if test "xyes" = "x$ENABLE_FORTRAN" && test "x" != "x$FC"; then
+#  AC_FC_WRAPPERS
+#fi
 
 ################################################################################
 #            Check for need for extra flags to support cray pointers
@@ -186,7 +196,7 @@ case $enableval in
     ENABLE_imesh=yes; DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-imesh";
     ;;
   nofortran|NoFortran|noFORTRAN|NoFORTRAN|Nofortran)
-    AC_MSG_ERROR([Depricated value for --enable-imesh: \"$enableval\".  Try \"--disable-fortran\"])
+    AC_MSG_ERROR([Deprecated value for --enable-imesh: \"$enableval\".  Try \"--disable-fortran\"])
     ;;
   no)
     ENABLE_imesh=no
@@ -337,8 +347,8 @@ MK_CHECK_UNORDERED_MAP([CPPFLAGS="$CPPFLAGS -DUNORDERED_MAP_NS=$result -DHAVE_UN
 
 FATHOM_CHECK_MPI
 FATHOM_CONFIG_MPI_EXEC
-test "xyes" != "x$WITH_MPI" || AM_CPPFLAGS="$AM_CPPFLAGS -DUSE_MPI"
-AM_CONDITIONAL(USE_MPI, [test "xno" != "x$WITH_MPI"])
+test "xyes" != "x$enablempi" || AM_CPPFLAGS="$AM_CPPFLAGS -DUSE_MPI"
+AM_CONDITIONAL(USE_MPI, [test "xno" != "x$enablempi"])
 # Used to generate moab_mpi.h
 if test "xyes" = "x$MPI_CXX_HELP_NEEDED"; then
   AC_DEFINE( [MB_MPI_CXX_CONFLICT], [1], 
@@ -348,7 +358,7 @@ if test "xyes" = "x$MPI_CXX_HELP_NEEDED"; then
   AC_DEFINE_UNQUOTED([MB_SEEK_END],[$SEEK_END],["Value of C SEEK_END"])
 fi
 
-if test "xyes" = "x$WITH_MPI"; then
+if test "xyes" = "x$enablempi"; then
   FATHOM_CHECK_MPE
   AC_SUBST([WITH_MPE])
   AC_SUBST([MPE_LIBS])
@@ -374,7 +384,7 @@ WARN_PARALLEL_HDF5=no
 WARN_PARALLEL_HDF5_NO_COMPLEX=no
 HAVE_HDF5_PARALLEL=no
 if test "xno" != "x$HAVE_HDF5"; then
-  if test "xno" != "x$WITH_MPI"; then
+  if test "xno" != "x$enablempi"; then
     old_LDFLAGS="$LDFLAGS"
     LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"
     AC_CHECK_LIB( [hdf5], [H5Pset_fapl_mpio], [HAVE_HDF5_PARALLEL=yes],
@@ -714,7 +724,7 @@ MB_OPTIONAL_TOOL([mbzoltan],     [${WITH_ZOLTAN}], [${WITH_ZOLTAN}] )
 MB_OPTIONAL_TOOL([dagmc],        [no], [yes])
 MB_OPTIONAL_TOOL([gsets],        [yes], [yes])
 MB_OPTIONAL_TOOL([mbdepth],      [yes], [yes])
-if test "x$WITH_MPI" != "xno"; then
+if test "x$enablempi" != "xno"; then
   MB_OPTIONAL_TOOL([mbcoupler],    [no], [yes] )
   MB_OPTIONAL_TOOL([mcnpmit],      [no], [yes])
   MB_OPTIONAL_TOOL([refiner],      [no], [yes])
@@ -768,7 +778,7 @@ fi
 # build variables.
 if test "xyes" = "x$WITH_ZOLTAN"; then
 
-  if test "xyes" != "x$WITH_MPI"; then
+  if test "xyes" != "x$enablempi"; then
     AC_MSG_ERROR([Cannot include Zoltan support without MPI.  See --with-mpi])
   fi
 
@@ -1356,11 +1366,11 @@ AC_OUTPUT
 
 AC_MSG_RESULT([C:   $CC $CFLAGS $CPPFLAGS])
 AC_MSG_RESULT([C++: $CXX $CXXFLAGS $CPPFLAGS])
-if test "x" != "x$FC"; then
-  AC_MSG_RESULT([Fortran90: $FC $FCFLAGS])
+if (test "xno" != "x$ENABLE_FORTRAN"); then
+  AC_MSG_RESULT([Fortran90: $FC $FCFLAGS $FCPPFLAGS])
 fi
-if test "x" != "x$F77"; then
-  AC_MSG_RESULT([Fortran77: $F77 $FFLAGS])
+if (test "xno" != "x$ENABLE_FORTRAN"); then
+  AC_MSG_RESULT([Fortran77: $F77 $FFLAGS $FCPPFLAGS])
 fi
 
 if test "x$HAVE_HDF5" = "xno"; then
