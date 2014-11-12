@@ -107,7 +107,7 @@ if test "xno" != "x$enablempi"; then
   CXX_LIST="mpixlcxx mpicxx mpiCC mpCC"
   FC_LIST="mpixlf95 mpixlf90 mpif90"
   F77_LIST="mpixlf77 mpif77"
-  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-mpi=\"${withval}\""
+  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-mpi=\"${WITH_MPI}\""
 
 else
   
@@ -115,7 +115,7 @@ else
   CXX_LIST="$CXX g++ icpc clang++"
   FC_LIST="$FC gfortran ifort g77 f77 nag xlf"
   F77_LIST="$F77 $FC_LIST"
-  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-mpi=\"${withval}\""
+  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --without-mpi"
 fi
 
 COMPILERPATHS=""
