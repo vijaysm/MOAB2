@@ -9,7 +9,7 @@ if(MOAB_BUILD_IMESH)
   set(LIBS ${LIBS} iMesh)
 endif()
 
-set(TEST_COMP_FLAGS "-DMESHDIR=${CMAKE_SOURCE_DIR}/MeshFiles/unittest")
+set(TEST_COMP_FLAGS "-DMESHDIR=${MOAB_ABSSRC_DIR}/MeshFiles/unittest")
 
 foreach( fname ${TESTS} )
   string( REPLACE ".cpp" "" tmp ${fname} )

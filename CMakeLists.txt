@@ -64,6 +64,13 @@ set ( abs_builddir ${PROJECT_BINARY_DIR} )
 # Install Related Settings
 ################################################################################
 
+execute_process( COMMAND readlink -f moab.make.in
+                 COMMAND xargs dirname
+  WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+  OUTPUT_VARIABLE MOAB_ABSSRC_DIR
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+
 ## Set the directory where the binaries will be stored
 set( EXECUTABLE_OUTPUT_PATH
   ${PROJECT_BINARY_DIR}/bin
@@ -78,6 +85,7 @@ set( LIBRARY_OUTPUT_PATH
   "Directory where all the libraries will be stored"
 )
 mark_as_advanced(
+  MOAB_ABSSRC_DIR
   EXECUTABLE_OUTPUT_PATH
   LIBRARY_OUTPUT_PATH)
 
