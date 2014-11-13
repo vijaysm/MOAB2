@@ -188,14 +188,14 @@ int main( int argc, char* argv[] )
 #ifdef MESHDIR
     filename = STRINGIFY(MESHDIR) "/64bricks_512hex.h5m";
 #else
-    filename = "64bricks_512hex.h5m";
+#error Specify MESHDIR during compilation
 #endif
   }
 
 #ifdef MESHDIR
   const char* filename2 = STRINGIFY(MESHDIR) "/64bricks_1khex.h5m";
 #else
-  const char * filename2 = "64bricks_1khex.h5m";
+#error Specify MESHDIR during compilation
 #endif
 
   if (pause_proc != -1) {

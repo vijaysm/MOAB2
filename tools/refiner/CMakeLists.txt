@@ -30,7 +30,7 @@ add_library( MOABrefiner
   )
 target_link_libraries( MOABrefiner MOAB )
 if ( MOAB_USE_MPI )
-  target_link_libraries( MOABrefiner MOABpar )
+  target_link_libraries( MOABrefiner ${MPI_LIBRARIES} )
 endif ( MOAB_USE_MPI )
 
 enable_testing()
