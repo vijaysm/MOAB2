@@ -47,6 +47,27 @@ int main(int argc, char* argv[])
     MPI_Finalize();
     return 1;
   }
+  // check number of shared entities
+  Range shared_ents;
+    // Get entities shared with all other processors
+  rval = pc->get_shared_entities(-1, shared_ents);
+  if (rval != MB_SUCCESS) {
+    MPI_Finalize();
+    return 1;
+  }
+  // there should be exactly 9 vertices, 12 edges, 4 faces
+  unsigned numV = shared_ents.num_of_dimension(0);
+  unsigned numE = shared_ents.num_of_dimension(1);
+  unsigned numF = shared_ents.num_of_dimension(2);
+
+  if (numV!=9 || numE!=12 || numF!=4)
+  {
+    std::cout << " wrong number of shared entities on proc "<< rank << " v:" << numV << " e:" << numE
+        << " f:" << numF << "\n";
+    MPI_Finalize();
+    return 1;
+  }
+
   rval = mb->write_file("testpm.h5m", 0, "PARALLEL=WRITE_PART");
   if (rval!=MB_SUCCESS)
   {
