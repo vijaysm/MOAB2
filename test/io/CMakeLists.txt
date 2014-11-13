@@ -6,7 +6,7 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/src/parallel
 )
   
-set(TEST_COMP_FLAGS "-DMESHDIR=${CMAKE_SOURCE_DIR}/MeshFiles/unittest")
+set(TEST_COMP_FLAGS "-DMESHDIR=${MOAB_ABSSRC_DIR}/MeshFiles/unittest")
 
 set( TESTS readutil_test.cpp VtkTest.cpp cub_file_test.cc gmsh_test.cc nastran_test.cc ideas_test.cc stl_test.cc smf_test.cc)
 if( MOAB_USE_NETCDF )
@@ -34,8 +34,8 @@ foreach( fname ${TESTS} )
 endforeach()
 
 
-add_executable( tqdcfr ${CMAKE_SOURCE_DIR}/src/io/Tqdcfr.cpp )
-set_source_files_properties( ${CMAKE_SOURCE_DIR}/src/io/Tqdcfr.cpp
-    COMPILE_FLAGS "-DTEST_TQDCFR ${MOAB_DEFINES}" )
+add_executable( tqdcfr tqdcfr_test.cpp )
+set_source_files_properties( tqdcfr_test.cpp
+    COMPILE_FLAGS "${MOAB_DEFINES}" )
 target_link_libraries( tqdcfr MOAB )
 add_test( TestTQDCFR ${EXECUTABLE_OUTPUT_PATH}/tqdcfr )
