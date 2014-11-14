@@ -66,8 +66,8 @@ set ( abs_builddir ${PROJECT_BINARY_DIR} )
 # Install Related Settings
 ################################################################################
 
-execute_process( COMMAND readlink -f moab.make.in
-                 COMMAND xargs dirname
+get_filename_component( MOAB_ABSSRC_DIR2 moab.make.in REALPATH )
+execute_process( COMMAND dirname ${MOAB_ABSSRC_DIR2}
   WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
   OUTPUT_VARIABLE MOAB_ABSSRC_DIR
   OUTPUT_STRIP_TRAILING_WHITESPACE
