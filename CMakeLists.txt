@@ -1,4 +1,6 @@
 cmake_minimum_required( VERSION 2.8.12 )
+SET(PACKAGE_NAME "MOAB")
+SET(PACKAGE_VERSION "4.7.1-pre")
 
 if ( MPI_DIR )
   message ("Checking for MPI compilers in ${MPI_DIR}/bin")
@@ -261,6 +263,15 @@ export(TARGETS ${MOAB_INSTALL_TARGETS}
               FILE "${PROJECT_BINARY_DIR}/MOABTargets.cmake")
 install(EXPORT MOABTargets DESTINATION lib)
 
+# Create some custom command
+
+# For consistency with autoconf, create a "make check" equivalent to "ctest"
+ADD_CUSTOM_TARGET( check COMMAND ctest )
+
+# For consistency with autoconf, create "make dist" and "make distcheck" targets
+INCLUDE( CMakeDistCheck )
+DISTCHECK_SETUP()
+
 ################################################################################
 # Generate the MOABConfig.cmake file
 ################################################################################
@@ -282,17 +293,26 @@ set(AM_CXXFLAGS)
 set(AM_CFLAGS)
 set(AM_FFLAGS)
 
-configure_file(MOABConfig.new.cmake.in "${PROJECT_BINARY_DIR}/MOABConfig.cmake" @ONLY)
-configure_file(moab.make.in "${PROJECT_BINARY_DIR}/lib/moab.make" @ONLY)
+# CMake does not define uninstall target. Look at install manifest and remove
+# all the files recursively.
+CONFIGURE_FILE(
+    "${CMAKE_CURRENT_SOURCE_DIR}/config/cmake_uninstall.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
+    IMMEDIATE @ONLY)
+CONFIGURE_FILE(MOABConfig.new.cmake.in "${PROJECT_BINARY_DIR}/MOABConfig.cmake" @ONLY)
+CONFIGURE_FILE(moab.make.in "${PROJECT_BINARY_DIR}/lib/moab.make" @ONLY)
 if ( ENABLE_IGEOM )
-  configure_file(itaps/igeom/iGeom-Defs.inc.in "${PROJECT_BINARY_DIR}/lib/iGeom-Defs.inc" @ONLY)
+  CONFIGURE_FILE(itaps/igeom/iGeom-Defs.inc.in "${PROJECT_BINARY_DIR}/lib/iGeom-Defs.inc" @ONLY)
   install( FILES "${PROJECT_BINARY_DIR}/lib/iGeom-Defs.inc" DESTINATION lib )
 endif ( ENABLE_IGEOM )
 
 if ( ENABLE_IMESH )
-  configure_file(itaps/imesh/iMesh-Defs.inc.in "${PROJECT_BINARY_DIR}/lib/iMesh-Defs.inc" @ONLY)
-  install( FILES "${PROJECT_BINARY_DIR}/lib/iMesh-Defs.inc" DESTINATION lib )
+  CONFIGURE_FILE(itaps/imesh/iMesh-Defs.inc.in "${PROJECT_BINARY_DIR}/lib/iMesh-Defs.inc" @ONLY)
+  INSTALL( FILES "${PROJECT_BINARY_DIR}/lib/iMesh-Defs.inc" DESTINATION lib )
 endif ( ENABLE_IMESH )
-install( FILES "${PROJECT_BINARY_DIR}/MOABConfig.cmake" "${PROJECT_BINARY_DIR}/lib/moab.make" DESTINATION lib )
+INSTALL( FILES "${PROJECT_BINARY_DIR}/MOABConfig.cmake" "${PROJECT_BINARY_DIR}/lib/moab.make" DESTINATION lib )
+
+ADD_CUSTOM_TARGET(uninstall
+    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
 
 # All done.
