@@ -67,43 +67,43 @@ MACRO(DISTCHECK_SETUP)
     && cd ${PACKAGE_NAME}-${PACKAGE_VERSION}/
     && chmod u+w . && mkdir -p _build && mkdir -p _inst
     && chmod u+rwx _build _inst && chmod a-w .
-    && cp ${CMAKE_BINARY_DIR}/CMakeCache.txt _build/
-    && ${SED} -i  -e "'s|CMAKE_CACHEFILE_DIR:INTERNAL=.\\+||g'"
-                  -e "'s|CMAKE_HOME_DIRECTORY:INTERNAL=.\\+||g'"
-                  -e "'s|CMAKE_CXX_COMPILER:FILEPATH=.\\+||g'"
-                  -e "'s|CMAKE_CXX_FLAGS:STRING=.\\+||g'"
-                  -e "'s|CMAKE_CXX_FLAGS_DEBUG:STRING=.\\+||g'"
-                  -e "'s|CMAKE_CXX_FLAGS_MINSIZEREL:STRING=.\\+||g'"
-                  -e "'s|CMAKE_CXX_FLAGS_RELEASE:STRING=.\\+||g'"
-                  -e "'s|CMAKE_CXX_FLAGS_RELWITHDEBINFO:STRING=.\\+||g'"
-                  -e "'s|CMAKE_CXX_COMPILER-ADVANCED:INTERNAL=.\\+||g'"
-                  -e "'s|CMAKE_CXX_COMPILER_WORKS:INTERNAL=.\\+||g'"
-                  -e "'s|CMAKE_CXX_FLAGS-ADVANCED:INTERNAL=.\\+||g'"
-                  -e "'s|CMAKE_CXX_FLAGS_DEBUG-ADVANCED:INTERNAL=.\\+||g'"
-                  -e "'s|CMAKE_CXX_FLAGS_MINSIZEREL-ADVANCED:INTERNAL=.\\+||g'"
-                  -e "'s|CMAKE_CXX_FLAGS_RELEASE-ADVANCED:INTERNAL=.\\+||g'"
-                  -e "'s|CMAKE_CXX_FLAGS_RELWITHDEBINFO-ADVANCED:INTERNAL=.\\+||g'"
-                  -e "'s|CMAKE_DETERMINE_CXX_ABI_COMPILED:INTERNAL=.\\+||g'"
-                  -e "'s|CMAKE_C_COMPILER:FILEPATH=.\\+||g'"
-                  -e "'s|CMAKE_C_FLAGS:STRING=.\\+||g'"
-                  -e "'s|CMAKE_C_FLAGS_DEBUG:STRING=.\\+||g'"
-                  -e "'s|CMAKE_C_FLAGS_MINSIZEREL:STRING=.\\+||g'"
-                  -e "'s|CMAKE_C_FLAGS_RELEASE:STRING=.\\+||g'"
-                  -e "'s|CMAKE_C_FLAGS_RELWITHDEBINFO:STRING=.\\+||g'"
-                  -e "'s|CMAKE_C_COMPILER-ADVANCED:INTERNAL=.\\+||g'"
-                  -e "'s|CMAKE_C_FLAGS-ADVANCED:INTERNAL=.\\+||g'"
-                  -e "'s|CMAKE_C_FLAGS_DEBUG-ADVANCED:INTERNAL=.\\+||g'"
-                  -e "'s|CMAKE_C_FLAGS_MINSIZEREL-ADVANCED:INTERNAL=.\\+||g'"
-                  -e "'s|CMAKE_C_FLAGS_RELEASE-ADVANCED:INTERNAL=.\\+||g'"
-                  -e "'s|CMAKE_C_FLAGS_RELWITHDEBINFO-ADVANCED:INTERNAL=.\\+||g'"
-                  -e "'s|CMAKE_DETERMINE_C_ABI_COMPILED:INTERNAL=.\\+||g'"
-                  -e "'s|EXECUTABLE_OUTPUT_PATH=.\\+||g'"
-                  -e "'s|LIBRARY_OUTPUT_PATH=.\\+||g'"
-                  _build/CMakeCache.txt
+    && cat ${CMAKE_BINARY_DIR}/CMakeCache.txt | ${SED} -n '/CMAKE_CACHEFILE_DIR:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
+       || ${SED} -n '/CMAKE_HOME_DIRECTORY:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
+       || ${SED} -n '/CMAKE_CXX_COMPILER:FILEPATH./{n\;x\;d\;}\;x\;1d\;\$G\;p'
+       || ${SED} -n '/CMAKE_CXX_FLAGS:STRING./{n\;x\;d\;}\;x\;1d\;\$G\;p'
+       || ${SED} -n '/CMAKE_CXX_FLAGS_DEBUG:STRING./{n\;x\;d\;}\;x\;1d\;\$G\;p'
+       || ${SED} -n '/CMAKE_CXX_FLAGS_MINSIZEREL:STRING./{n\;x\;d\;}\;x\;1d\;\$G\;p'
+       || ${SED} -n '/CMAKE_CXX_FLAGS_RELEASE:STRING./{n\;x\;d\;}\;x\;1d\;\$G\;p'
+       || ${SED} -n '/CMAKE_CXX_FLAGS_RELWITHDEBINFO:STRING./{n\;x\;d\;}\;x\;1d\;\$G\;p'
+       || ${SED} -n '/CMAKE_CXX_COMPILER-ADVANCED:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
+       || ${SED} -n '/CMAKE_CXX_COMPILER_WORKS:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
+       || ${SED} -n '/CMAKE_CXX_FLAGS-ADVANCED:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
+       || ${SED} -n '/CMAKE_CXX_FLAGS_DEBUG-ADVANCED:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
+       || ${SED} -n '/CMAKE_CXX_FLAGS_MINSIZEREL-ADVANCED:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
+       || ${SED} -n '/CMAKE_CXX_FLAGS_RELEASE-ADVANCED:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
+       || ${SED} -n '/CMAKE_CXX_FLAGS_RELWITHDEBINFO-ADVANCED:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
+       || ${SED} -n '/CMAKE_DETERMINE_CXX_ABI_COMPILED:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
+       || ${SED} -n '/CMAKE_C_COMPILER:FILEPATH./{n\;x\;d\;}\;x\;1d\;\$G\;p'
+       || ${SED} -n '/CMAKE_C_FLAGS:STRING./{n\;x\;d\;}\;x\;1d\;\$G\;p'
+       || ${SED} -n '/CMAKE_C_FLAGS_DEBUG:STRING./{n\;x\;d\;}\;x\;1d\;\$G\;p'
+       || ${SED} -n '/CMAKE_C_FLAGS_MINSIZEREL:STRING./{n\;x\;d\;}\;x\;1d\;\$G\;p'
+       || ${SED} -n '/CMAKE_C_FLAGS_RELEASE:STRING./{n\;x\;d\;}\;x\;1d\;\$G\;p'
+       || ${SED} -n '/CMAKE_C_FLAGS_RELWITHDEBINFO:STRING./{n\;x\;d\;}\;x\;1d\;\$G\;p'
+       || ${SED} -n '/CMAKE_C_COMPILER-ADVANCED:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
+       || ${SED} -n '/CMAKE_C_FLAGS-ADVANCED:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
+       || ${SED} -n '/CMAKE_C_FLAGS_DEBUG-ADVANCED:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
+       || ${SED} -n '/CMAKE_C_FLAGS_MINSIZEREL-ADVANCED:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
+       || ${SED} -n '/CMAKE_C_FLAGS_RELEASE-ADVANCED:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
+       || ${SED} -n '/CMAKE_C_FLAGS_RELWITHDEBINFO-ADVANCED:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
+       || ${SED} -n '/CMAKE_DETERMINE_C_ABI_COMPILED:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
+       || ${SED} -n '/EXECUTABLE_OUTPUT_PATH:PATH./{n\;x\;d\;}\;x\;1d\;\$G\;p'
+       || ${SED} -n '/LIBRARY_OUTPUT_PATH:PATH./{n\;x\;d\;}\;x\;1d\;\$G\;p'
+       || ${SED} -n '/produce slightly less optimized./{n\;x\;d\;}\;x\;1d\;\$G\;p'
+       || cat -s > _build/CMakeCache.txt
     && cd _build
     && cmake -DCMAKE_INSTALL_PREFIX=${INSTDIR} .. || cmake ..
         || (echo "ERROR: the cmake configuration failed." && false)
-    && make
+    && make -j4
         || (echo "ERROR: the compilation failed." && false)
     && make test
         || (echo "ERROR: the test suite failed." && false)
