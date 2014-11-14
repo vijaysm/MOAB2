@@ -67,7 +67,7 @@ MACRO(DISTCHECK_SETUP)
     && cd ${PACKAGE_NAME}-${PACKAGE_VERSION}/
     && chmod u+w . && mkdir -p _build && mkdir -p _inst
     && chmod u+rwx _build _inst && chmod a-w .
-    && cat ${CMAKE_BINARY_DIR}/CMakeCache.txt | ${SED} -n '/CMAKE_CACHEFILE_DIR:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
+    && echo "\$(cat ${CMAKE_BINARY_DIR}/CMakeCache.txt)" | ${SED} -n '/CMAKE_CACHEFILE_DIR:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
        || ${SED} -n '/CMAKE_HOME_DIRECTORY:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
        || ${SED} -n '/CMAKE_CXX_COMPILER:FILEPATH./{n\;x\;d\;}\;x\;1d\;\$G\;p'
        || ${SED} -n '/CMAKE_CXX_FLAGS:STRING./{n\;x\;d\;}\;x\;1d\;\$G\;p'
@@ -118,6 +118,9 @@ MACRO(DISTCHECK_SETUP)
     && cd ${CMAKE_BINARY_DIR}/${PACKAGE_NAME}-${PACKAGE_VERSION}
     && chmod u+w . _build _inst && rm -rf _build _inst
     && find . -type d -print0 | xargs -0 chmod u+w
+    && cd ${CMAKE_BINARY_DIR}
+    && rm -rf ${CMAKE_BINARY_DIR}/${PACKAGE_NAME}-${PACKAGE_VERSION}
+    && ${GZIP} ${PACKAGE_NAME}-${PACKAGE_VERSION}.tar
     && echo "=============================================================="
     && echo "${PACKAGE_NAME}-${PACKAGE_VERSION}"
             "is ready for distribution."
@@ -127,4 +130,3 @@ MACRO(DISTCHECK_SETUP)
     )
   ADD_DEPENDENCIES(distcheck dist)
 ENDMACRO()
-
