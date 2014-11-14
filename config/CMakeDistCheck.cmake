@@ -34,19 +34,6 @@ MACRO(DEFINE_DISTCHECK)
     ${GZIP} > ${CMAKE_BINARY_DIR}/${PACKAGE_NAME}-${PACKAGE_VERSION}.tar.gz
   )
 
-#add_custom_target(distcheck cd ${CMAKE_BINARY_DIR} &&
-#                        rm -rf ${PACKAGE_NAME}-${PACKAGE_VERSION} &&
-#                        gzip -d ${PACKAGE_NAME}-${PACKAGE_VERSION}.tar.gz &&
-#                        tar -xf ${PACKAGE_NAME}-${PACKAGE_VERSION}.tar &&
-#                        cd ${PACKAGE_NAME}-${PACKAGE_VERSION}/ &&
-#                        mkdir _build && cd _build &&
-#                        cmake .. && make && make test &&
-#                        cd ${CMAKE_BINARY_DIR} &&
-#                        tar -rf ${PACKAGE_NAME}-${PACKAGE_VERSION}.tar ${PACKAGE_NAME}-${PACKAGE_VERSION}/doc/ &&
-#                        gzip ${CMAKE_BINARY_DIR}/${PACKAGE_NAME}-${PACKAGE_VERSION}.tar)
-#add_dependency(distcheck dist)
-
-#    cd ${CMAKE_BINARY_DIR}
   ADD_CUSTOM_TARGET(distcheck
     COMMAND
     rm -rf ${PACKAGE_NAME}-${PACKAGE_VERSION}
