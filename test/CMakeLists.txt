@@ -175,6 +175,13 @@ if ( MOAB_USE_MPI AND MPI_FOUND )
     add_executable( mhdf_parallel parallel/mhdf_parallel.c )
     target_link_libraries( mhdf_parallel MOAB ${HDF5_LIBRARIES} )
     add_test( TestMHDFParallel ${EXECUTABLE_OUTPUT_PATH}/mhdf_parallel )
+    
+    set_source_files_properties( parallel/parmerge_test.cpp
+      COMPILE_FLAGS "-DTEST ${MOAB_DEFINES} ${TEST_COMP_FLAGS}" )
+    add_executable( parmerge_test parallel/parmerge_test.cpp )
+    target_link_libraries( parmerge_test MOAB ${HDF5_LIBRARIES} )
+    add_test( Testparmerge_test ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 2 ${MPIEXEC_PREFLAGS} ${EXECUTABLE_OUTPUT_PATH}/parmerge_test ${MPIEXEC_POSTFLAGS}  )
+    
   endif ( MOAB_USE_HDF )
 
   set_source_files_properties( parallel/parallel_unit_tests.cpp

@@ -45,7 +45,7 @@ TESTS = pcomm_unit \
 if PARALLEL_HDF5
   HDF5_TESTS = parallel_hdf5_test mhdf_parallel parallel_write_test \
         parallel_unit_tests \
-        uber_parallel_test parallel_adj
+        uber_parallel_test parallel_adj parmerge_test
 else
   HDF5_TESTS = 
 endif
@@ -125,6 +125,7 @@ gcrm_par_SOURCES = gcrm_par.cpp
 write_nc_par_SOURCES = ../io/write_nc.cpp
 par_spatial_locator_test_SOURCES = par_spatial_locator_test.cpp
 parallel_adj_SOURCES = ../adj_moab_test.cpp
+parmerge_test_SOURCES = parmerge_test.cpp
 
 if ENABLE_imesh
 if PARALLEL_HDF5
@@ -173,4 +174,5 @@ MOSTLYCLEANFILES = mhdf_ll.h5m tmp0.h5m tmp1.h5m tmp2.h5m tmp3.h5m \
                    test_par_gcrm_vars.nc \
                    test_par_homme_T.nc \
                    test_par_mpas_vars.nc \
-                   test2.h5m  
+                   test2.h5m  \
+                   testpm.h5m

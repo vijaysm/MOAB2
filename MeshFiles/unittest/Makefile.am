@@ -37,5 +37,6 @@ EXTRA_DIST  = 125hex.g \
               Homme_2pt.h5m \
               surfrandomtris-4part.h5m \
 	      hexes_mixed.vtk \
-	      32hex_ef.h5m 
+	      32hex_ef.h5m \
+              brick1.vtk brick2.vtk
 
