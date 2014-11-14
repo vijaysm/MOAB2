@@ -1,39 +1,27 @@
-# Copyright (C) 2008-2014 LAAS-CNRS, JRL AIST-CNRS.
+# Inspired by CMake Distcheck for LAAS-CNRS
 #
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-# DISTCHECK_SETUP
+# DEFINE_DISTCHECK
 # ---------------
 #
 # Add a distcheck target to check the generated tarball.
 #
-# This step calls `make distdir' to generate a copy of the project without
-# the git history and with the `.version' file (as it will be when an user
-# will retrieve a stable version).
+# This step calls `make dist' to generate a copy of the MOAB sources as it 
+# stands in the current git HEAD i.e., unversioned files are skipped.
+#
 # Then:
 # - create _build and _inst to respectively create a build and an installation
 #   directory.
-# - copy the CMakeCache.txt file.
+# - copy the CMakeCache.txt file and apply several transformations.
 # - run cmake with _inst as the installation prefix
 # - run make, make check, make install and make uninstall
 # - remove _build and _inst.
+# - remove dist directory and confirm success.
 #
 # During the compilation phase, all files in the source tree are modified
 # to *not* be writeable to detect bad compilation steps which tries to modify
 # the source tree. Permissions are reverted at the end of the check.
 #
-MACRO(DISTCHECK_SETUP)
+MACRO(DEFINE_DISTCHECK)
   FIND_PROGRAM(SED sed)
   FIND_PROGRAM(TAR tar)
   FIND_PROGRAM(GZIP gzip)
@@ -129,4 +117,5 @@ MACRO(DISTCHECK_SETUP)
     COMMENT "Checking generated tarball..."
     )
   ADD_DEPENDENCIES(distcheck dist)
-ENDMACRO()
+ENDMACRO(DEFINE_DISTCHECK)
+

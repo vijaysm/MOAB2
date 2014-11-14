@@ -270,7 +270,7 @@ ADD_CUSTOM_TARGET( check COMMAND ctest )
 
 # For consistency with autoconf, create "make dist" and "make distcheck" targets
 INCLUDE( CMakeDistCheck )
-DISTCHECK_SETUP()
+DEFINE_DISTCHECK ( )
 
 ################################################################################
 # Generate the MOABConfig.cmake file
