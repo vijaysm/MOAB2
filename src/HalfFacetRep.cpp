@@ -2155,6 +2155,8 @@ namespace moab {
     adjents.push_back(cid);
     if (local_id)
       leids->push_back(leid);
+    if (orient)
+      adj_orients->push_back(1);
 
     std::vector<EntityHandle> conn(nvpc);
     error =mb->get_connectivity(&cid, 1, conn);
