@@ -24,9 +24,10 @@ namespace moab
   {
     
   public:
+
     NestedRefine(Core *impl);
     
-    ~NestedRefine() {}
+    ~NestedRefine();
     
     //User interface functions
     //1st class: Basic functionalities
@@ -88,14 +89,6 @@ namespace moab
 
     static const tessellate_octahedron oct_tessellation[3];
 
-    //Permutation matrix
-    struct pmat{
-      short int num_comb;
-      int mat[MAX_HF][MAX_HF];
-    };
-
-    static const pmat permute_matrix[2];
-
     // HM Storage Helper
     struct level_memory{
       int num_verts, num_edges, num_faces, num_cells;
@@ -120,17 +113,30 @@ namespace moab
     ErrorCode construct_hm_2D(int cur_level, int deg);
     ErrorCode construct_hm_3D(int cur_level, int deg);
 
-    ErrorCode subdivide_cells(EntityType type, std::vector<EntityHandle> conn, int cur_level, int deg, EntityHandle  *vbuffer, int *count_ents);
-    ErrorCode subdivide_tets(std::vector<EntityHandle> conn, int cur_level, int deg, EntityHandle *vbuffer, int *count_ents);
+    ErrorCode subdivide_cells(EntityType type, std::vector<EntityHandle> &conn, int cur_level, int deg, EntityHandle  *vbuffer, int vtotal, int *count_ents, std::vector<int> &flag_verts, int nverts_prev);
 
-    // Helper functions
+    // General helper functions
     ErrorCode copy_vertices_from_prev_level(int cur_level);
-    ErrorCode update_tracking_verts(EntityHandle cidl, int cur_level, int deg, std::vector<EntityHandle> trackvertsC_edg, std::vector<EntityHandle> trackvertsC_face, EntityHandle *vbuffer);
-    ErrorCode match_and_reorder_vertices(EntityType type, int cur_level, int deg, EntityHandle cell, int lfid, EntityHandle sib_cell, int sib_lfid, int *id_sib);
     ErrorCode count_subentities(EntityHandle set, int cur_level, int *nedges, int *nfaces);
-    int find_shortest_diagonal_octahedron( double *coords);
+    ErrorCode get_octahedron_corner_coords(int cur_level, int deg, EntityHandle *vbuffer, double * ocoords);
+    int find_shortest_diagonal_octahedron(int cur_level, int deg, EntityHandle *vbuffer);
     int get_local_vid(EntityHandle vid, EntityHandle ent, int level);
 
+    // Book-keeping functions
+    ErrorCode update_tracking_verts(EntityHandle cid, int cur_level, int deg, std::vector<EntityHandle> &trackvertsC_edg, std::vector<EntityHandle> &trackvertsC_face, EntityHandle *vbuffer);
+    ErrorCode reorder_indices(int cur_level, int deg, EntityHandle cell, int lfid, EntityHandle sib_cell, int sib_lfid, int index, int *id_sib);
+
+    //Permutation matrices
+    struct pmat{
+      short int num_comb; // Number of combinations
+      int comb[MAX_HF][MAX_HF]; //Combinations
+      int porder2[MAX_HF][MAX_HF]; // Permuted order degree 2
+      int porder3[MAX_HF][MAX_HF]; // Permuted order degree 3
+    };
+
+    static const pmat permutation[2];
+
+    // Print functions
     ErrorCode print_tags_1D(int level);
     ErrorCode print_tags_2D(int level, EntityType type);
     ErrorCode print_tags_3D(int level, EntityType type);
