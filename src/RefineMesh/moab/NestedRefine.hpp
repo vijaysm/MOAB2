@@ -142,7 +142,7 @@ namespace moab
     ErrorCode print_tags_3D(int level, EntityType type);
 
     // Coordinates
-    ErrorCode compute_coordinates(int cur_level, int deg, EntityType type, EntityHandle *vbuffer, int vtotal, double *corner_coords, std::vector<int> vflag, int nverts_prev);
+    ErrorCode compute_coordinates(int cur_level, int deg, EntityType type, EntityHandle *vbuffer, int vtotal, double *corner_coords, std::vector<int> &vflag, int nverts_prev);
 
     // Update the ahf maps
 

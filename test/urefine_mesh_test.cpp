@@ -141,23 +141,23 @@ ErrorCode test_adjacencies(Core *mb, NestedRefine *nr, int dim, Range verts, Ran
       for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
           adjents.clear();
 
-          std::cout<<std::endl;
-          std::cout<<"vertex = "<<*i<<std::endl;
+      //    std::cout<<std::endl;
+      //    std::cout<<"vertex = "<<*i<<std::endl;
 
           error = nr->get_adjacencies( *i, 3, adjents);
           CHECK_ERR(error);
 
-          for (int j=0; j<(int)adjents.size(); j++)
+   /*       for (int j=0; j<(int)adjents.size(); j++)
             std::cout<<"ahf_ngb["<<j<<"] = "<<adjents[j]<<", ";
-          std::cout<<std::endl;
+          std::cout<<std::endl;*/
 
           mbents.clear();
           error = mbImpl->get_adjacencies(&*i, 1, 3, false, mbents);
           CHECK_ERR(error);
 
-          for (int j=0; j<(int)mbents.size(); j++)
+         /* for (int j=0; j<(int)mbents.size(); j++)
             std::cout<<"mb_ngb["<<j<<"] = "<<mbents[j]<<", ";
-          std::cout<<std::endl;
+          std::cout<<std::endl;*/
 
           CHECK_EQUAL(adjents.size(), mbents.size());
 
@@ -226,7 +226,7 @@ ErrorCode refine_entities(Core *mb, int *level_degrees, const int num_levels, bo
       int inents = init_ents.size();
       EntityType type = mb->type_from_handle(*init_ents.begin());
       std::stringstream file;
-      file <<  "INIT_"<<type<<"_"<<inents<<"_d_"<<dim<<"_ML_" <<0<<".vtk";
+      file <<  "INIT_"<<type<<"_"<<inents<<"_dim_"<<dim<<"_ML_" <<0<<".vtk";
 
       std::string str = file.str();
       const char* output_file = str.c_str();
@@ -664,17 +664,30 @@ ErrorCode create_mesh(Core *mb, EntityType type)
     }
   else if (type == MBHEX)
   {
-    const double coords[] = {0,0,0,
-                            1,0,0,
-                            1,1,0,
-                            0,1,0,
-                            0,0,1,
-                            1,0,1,
-                            1,1,1,
-                            0,1,1};
+    const double coords[] = {0,-1,0,
+                            1,-1,0,
+                            1, 1, 0,
+                            0, 1, 0,
+                           -1, 1, 0,
+                            -1,-1,0,
+                             0,-1,1,
+                             1,-1,1,
+                             1,1,1,
+                             0,1,1,
+                             -1,1,1,
+                             -1,-1,1,
+                             0,-1,-1,
+                             1,-1,-1,
+                             1,1,-1,
+                             0,1,-1,
+                             -1,1,-1,
+                             -1,-1,-1};
     const size_t num_vtx = sizeof(coords)/sizeof(double)/3;
 
-    const int conn[] = {0, 1, 2, 3, 4, 5, 6, 7};
+    const int conn[] = {0, 1, 2, 3, 6, 7, 8, 9,
+                       5,0,3,4,11,6,9,10,
+                       12,13,14,15,0,1,2,3,
+                       17,12,15,16,5,0,3,4};
     const size_t num_elems = sizeof(conn)/sizeof(int)/8;
 
     EntityHandle verts[num_vtx], cells[num_elems];
@@ -688,7 +701,7 @@ ErrorCode create_mesh(Core *mb, EntityType type)
       {
         EntityHandle c[8];
         for (int j=0; j<8; j++)
-          c[j] = verts[conn[j]];
+          c[j] = verts[conn[8*i+j]];
 
         error = mbImpl->create_element(MBHEX, c, 8, cells[i]);
         if (error != MB_SUCCESS) return error;
@@ -781,23 +794,33 @@ ErrorCode test_3D()
 {
   ErrorCode error;
 
-  std::cout<<"Testing HEX"<<std::endl;
+ /* std::cout<<"Testing HEX"<<std::endl;
   EntityType type = MBHEX;
 
   std::cout<<"Testing single entity"<<std::endl;
-  int deg = 2;
+  int deg[3] = {2,3,3};
   int len = sizeof(deg) / sizeof(int);
-  error = test_entities(1, type, &deg, len, true);
+  error = test_entities(1, type, deg, len, true);
   CHECK_ERR(error);
 
- /* std::cout<<"Testing TET"<<std::endl;
+  std::cout<<std::endl;
+  std::cout<<"Testing a small mesh"<<std::endl;
+  error = test_entities(2, type, deg, len, true);
+  CHECK_ERR(error);*/
+
+  std::cout<<"Testing TET"<<std::endl;
   EntityType type = MBTET;
 
   std::cout<<"Testing single entity"<<std::endl;
-  int deg = 2;
+  int deg[2] = {2,2};
   int len = sizeof(deg) / sizeof(int);
-  error = test_entities(1, type, &deg, len, true);
-  CHECK_ERR(error); */
+  error = test_entities(1, type, deg, len, true);
+  CHECK_ERR(error);
+
+  /*std::cout<<std::endl;
+  std::cout<<"Testing a small mesh"<<std::endl;
+  error = test_entities(2, type, deg, len, true);
+  CHECK_ERR(error);*/
 
   return MB_SUCCESS;
 }
@@ -851,11 +874,11 @@ int main(int argc, char *argv[])
     if (argc ==1){
       /*  result = test_1D();
         handle_error_code(result, number_tests_failed, number_tests_successful);
-        std::cout<<"\n";
+        std::cout<<"\n";*/
 
-        result = test_2D();
+     /*   result = test_2D();
         handle_error_code(result, number_tests_failed, number_tests_successful);
-        std::cout<<"\n"; */
+        std::cout<<"\n";*/
 
         result = test_3D();
         handle_error_code(result, number_tests_failed, number_tests_successful);
