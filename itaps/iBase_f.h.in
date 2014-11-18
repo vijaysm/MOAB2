@@ -15,7 +15,7 @@
 !    NOTE: not integer*4 (see meaning of _LP64 in GNU docs)
 #    define IBASE_HANDLE_T integer
 #  endif
-#elif defined(__INTEL_COMPILER)
+#elif defined(__INTEL_COMPILER) || defined(__PGI)
 #  ifdef __x86_64
 #    define IBASE_HANDLE_T integer*8
 #  else
