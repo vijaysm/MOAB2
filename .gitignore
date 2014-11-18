@@ -27,6 +27,7 @@ configure
 *.cub
 cubit??.jou
 .deps
+.dirstamp
 doc/config.tex
 doc/dev.dox
 doc/user/*
@@ -208,6 +209,7 @@ test/parallel/par_coupler_test
 test/parallel/par_intx_sph
 test/parallel/par_spatial_locator_test
 test/parallel/parmerge
+test/parallel/parmerge_test
 test/parallel/partcheck
 test/parallel/pcomm_serial
 test/parallel/pcomm_unit
@@ -278,6 +280,7 @@ tools/mbcslam/proj1
 tools/mbdepth
 tools/mbgsets
 tools/mbmem
+tools/mbpart
 tools/mbsize
 tools/mbskin
 tools/mbsurfplot
