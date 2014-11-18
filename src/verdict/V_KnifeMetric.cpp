@@ -25,7 +25,7 @@
 #define VERDICT_EXPORTS
 
 #include "moab/verdict.h"
-#include "moab/VerdictVector.hpp"
+#include "VerdictVector.hpp"
 #include <memory.h> 
 
 

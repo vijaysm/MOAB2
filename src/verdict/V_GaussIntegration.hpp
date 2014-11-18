@@ -26,7 +26,7 @@
 #define GAUSS_INTEGRATION_HPP
 
 
-#include "verdict.h"
+#include "moab/verdict.h"
 
 
 #define maxTotalNumberGaussPoints 27

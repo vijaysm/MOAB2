@@ -32,6 +32,7 @@ int main( int argc, char* argv[] )
 
   double t_volume = 0, h_volume = 0;
   double edge_ratio_max=0.;
+  double edge_ratio_max_tet = 0;
   for (Range::const_iterator ei = elems.begin(); ei != elems.end(); ++ei)
     {
       std::vector<EntityHandle> connect;
@@ -57,7 +58,12 @@ int main( int argc, char* argv[] )
             }
         }
       if( connect.size() == 4)
+      {
         t_volume+=v_tet_volume(4, t_verdict_coords);
+        double edge_ratio = v_tet_edge_ratio( 8, t_verdict_coords );
+        if (edge_ratio>edge_ratio_max_tet)
+          edge_ratio_max_tet = edge_ratio;
+      }
       if( connect.size() == 8)
       {
         h_volume+=v_hex_volume (8, h_verdict_coords);
@@ -71,7 +77,8 @@ int main( int argc, char* argv[] )
     std::cerr << "Test failed, volume of tet or hex elements not equal to 1" << std::endl;
     return 1;
   }
-  std::cout << " edge_ratio_max: " << edge_ratio_max << "\n";
+  std::cout << " edge_ratio_max hex: " << edge_ratio_max << "\n";
+  std::cout << " edge_ratio_max tet: " << edge_ratio_max_tet << "\n";
 
   return 0;
 }

@@ -26,7 +26,7 @@
 #ifndef VERDICTVECTOR_HPP
 #define VERDICTVECTOR_HPP
 
-#include "verdict.h"
+#include "moab/verdict.h"
 #include <assert.h>
 #include <math.h>
 

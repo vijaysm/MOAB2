@@ -26,7 +26,7 @@
 
 #include "moab/verdict.h"
 #include <math.h>
-#include "moab/VerdictVector.hpp"
+#include "VerdictVector.hpp"
 #include <float.h>
 
 #if defined(__BORLANDC__)

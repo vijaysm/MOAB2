@@ -27,7 +27,7 @@
 #define VERDICT_VECTOR
 
 
-#include "verdict.h"
+#include "moab/verdict.h"
 #include <math.h>
 #include <assert.h>
 

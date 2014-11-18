@@ -25,9 +25,9 @@
 #define VERDICT_EXPORTS
 
 #include "moab/verdict.h"
-#include "moab/verdict_defines.hpp"
-#include "moab/V_GaussIntegration.hpp"
-#include "moab/VerdictVector.hpp"
+#include "verdict_defines.hpp"
+#include "V_GaussIntegration.hpp"
+#include "VerdictVector.hpp"
 #include <memory.h>
 #include <stddef.h>
 

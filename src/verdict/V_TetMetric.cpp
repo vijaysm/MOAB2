@@ -25,9 +25,9 @@
 #define VERDICT_EXPORTS
 
 #include "moab/verdict.h"
-#include "moab/verdict_defines.hpp"
-#include "moab/VerdictVector.hpp"
-#include "moab/V_GaussIntegration.hpp"
+#include "verdict_defines.hpp"
+#include "VerdictVector.hpp"
+#include "V_GaussIntegration.hpp"
 #include <memory.h>
 
 //! the average volume of a tet

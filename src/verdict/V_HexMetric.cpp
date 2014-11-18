@@ -23,9 +23,9 @@
 #define VERDICT_EXPORTS
 
 #include "moab/verdict.h"
-#include "moab/VerdictVector.hpp"
-#include "moab/V_GaussIntegration.hpp"
-#include "moab/verdict_defines.hpp"
+#include "VerdictVector.hpp"
+#include "V_GaussIntegration.hpp"
+#include "verdict_defines.hpp"
 #include <memory.h>
 
 #if defined(__BORLANDC__)
