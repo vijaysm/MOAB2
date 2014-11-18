@@ -521,7 +521,7 @@ struct TriMetricVals
     \li Triangle
     \li Edge 
 
-  Verdict calculates individual or multiple metrics on a single elment.  
+  Verdict calculates individual or multiple metrics on a single element.
   The v_*_quality(...) functions allow for efficient calculations of 
   multiple metrics on a single element.  Individual metrics may be 
   calculated on a single element as well. 
