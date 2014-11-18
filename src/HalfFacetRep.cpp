@@ -2238,9 +2238,11 @@ namespace moab {
 
 	  if (orient)
 	    {
-	      if ((vert0 == sib_conn[lv0]) && (vert1 == sib_conn[lv1]))
+	      int id1 =  lConnMap3D[index].e2v[cur_leid][0];
+	      int id2 =  lConnMap3D[index].e2v[cur_leid][1];
+	      if ((vert0 == sib_conn[id1]) && (vert1 == sib_conn[id2]))
 		adj_orients->push_back(1);
-	      else if ((vert0 == sib_conn[lv1]) && (vert1 == sib_conn[lv0]))
+	      else if ((vert0 == sib_conn[id2]) && (vert1 == sib_conn[id1]))
 		adj_orients->push_back(0);
 	    }
 	}
@@ -2688,8 +2690,11 @@ namespace moab {
                 error = get_up_adjacencies_face_3d(*it, i, sib_cids, &sib_lfids);
                 if (error != MB_SUCCESS) return error;
 
+                if (sib_cids.size() ==1)
+                  continue;
+
                 total_faces -= sib_cids.size() -1;
-                trackF[nfpc*(cells.index(sib_cids[0]))+sib_lfids[0]] = 1;
+                trackF[nfpc*(cells.index(sib_cids[1]))+sib_lfids[1]] = 1;
               }
           }
       }
