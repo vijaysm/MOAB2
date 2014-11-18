@@ -1,4 +1,4 @@
-#include "MBZoltan.hpp"
+#include "moab/ZoltanPartitioner.hpp"
 #include "moab/Core.hpp"
 #include "moab/ProgOptions.hpp"
 #include "moab/ReorderTool.hpp"
@@ -37,7 +37,7 @@ int main(int argc, char* argv[])
   Interface& mb = moab;
   std::vector<int> set_l;
 
-  LONG_DESC << "This utility invokes the MBZoltan component of MOAB/CGM"
+  LONG_DESC << "This utility invokes the ZoltanPartitioner component of MOAB/CGM"
       "to partition a mesh/geometry." << std::endl
       << "If no partitioning method is specified, the default is "
           "the Zoltan \"" << DEFAULT_ZOLTAN_METHOD << "\" method" << std::endl;
@@ -118,7 +118,7 @@ int main(int argc, char* argv[])
 
   opts.parseCommandLine(argc, argv);
 
-  MBZoltan *tool = NULL;
+  ZoltanPartitioner *tool = NULL;
 
   // check if partition geometry, if it is, should get mesh size for the geometry
   if (part_geom_mesh_size != -1.0 && part_geom_mesh_size <= 0.0)
@@ -130,7 +130,7 @@ int main(int argc, char* argv[])
 
   if (part_geom_mesh_size < 0.)
   { // partition mesh
-    tool = new MBZoltan(&mb, false, argc, argv);
+    tool = new ZoltanPartitioner(&mb, false, argc, argv);
   }
   else
   { // partition geometry
@@ -142,7 +142,7 @@ int main(int argc, char* argv[])
     return 1;
   }
   GeometryQueryTool *gti = GeometryQueryTool::instance();
-  tool = new MBZoltan (&mb, false, argc, argv, gti);
+  tool = new ZoltanPartitioner (&mb, false, argc, argv, gti);
 #else
     std::cerr << "CGM should be configured to partition geometry." << std::endl;
     return 1;

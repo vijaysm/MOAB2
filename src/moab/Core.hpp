@@ -63,13 +63,13 @@ public:
   friend class SetIterator;
 
   //!constructor
-  MB_DLL_EXPORT Core();
+  Core();
 
   //! depricated constructor -- values are ignored
-  MB_DLL_EXPORT Core( int rank, int num_cpu );
+  Core( int rank, int num_cpu );
 
   //!destructor
-  MB_DLL_EXPORT ~Core();
+  ~Core();
   
     //! Get a pointer to an internal MOAB interface
     //!\return NULL if not found, iterface pointer otherwise

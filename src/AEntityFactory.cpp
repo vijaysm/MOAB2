@@ -539,7 +539,7 @@ ErrorCode AEntityFactory::get_adjacencies(EntityHandle entity,
   }
   
   num_entities = vec_ptr->size();
-  adjacent_entities = &((*vec_ptr)[0]);
+  adjacent_entities = (vec_ptr->empty())?NULL:&((*vec_ptr)[0]);
   return MB_SUCCESS;
 }
 

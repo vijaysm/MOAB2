@@ -1,5 +1,5 @@
 # Don't require GNU-standard files (Changelog, README, etc.)
-AUTOMAKE_OPTIONS = foreign
+AUTOMAKE_OPTIONS = foreign subdir-objects
 
 # Don't loose the autoconf include path
 ACLOCAL_AMFLAGS = -I config
@@ -72,6 +72,13 @@ install-data-hook:
 # and trailing spaces, then terminate with close-quote and close-paren
 	echo -n "@EXPORT_LDFLAGS@ -L$(libdir) -lMOAB @LIBS@ @PNETCDF_LIBS@ @NETCDF_LIBS@ @CGNS_LIBS@ @HDF5_LIBS@ @CCMIO_LIBS@ @CGM_LIBS@" | \
 	   sed -e 's/^ *//;s/ *$$/\")\n/' >> $(DESTDIR)$(cfgdir)/MOABConfig.cmake
+
+	echo -n "SET(DAGMC_LIBRARIES \"" >> $(DESTDIR)$(cfgdir)/MOABConfig.cmake
+# next line: get the post-substitution set of link commands, then filter out leading
+# and trailing spaces, then terminate with close-quote and close-paren
+	echo -n "@EXPORT_LDFLAGS@ -L$(libdir) @DAGMC_LIBS@ -lMOAB @LIBS@ @PNETCDF_LIBS@ @NETCDF_LIBS@ @CGNS_LIBS@ @HDF5_LIBS@ @CCMIO_LIBS@ @CGM_LIBS@" | \
+	   sed -e 's/^ *//;s/ *$$/\")\n/' >> $(DESTDIR)$(cfgdir)/MOABConfig.cmake
+
 
 # Generate a file to be installed in $libdir containing the configuration
 # options used for this MOAB build.

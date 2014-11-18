@@ -25,8 +25,6 @@
 #include "moab_mpi.h"
 #endif
 
-#ifndef TEST_TQDCFR
-
 #include "moab/ReadUtilIface.hpp"
 #include "SequenceManager.hpp"
 #include "moab/GeomTopoTool.hpp"
@@ -637,7 +635,7 @@ ErrorCode Tqdcfr::read_nodeset(const unsigned int nsindex,
   result = mdbImpl->tag_get_handle(tag_name.c_str(),def_bc_data_len,MB_TYPE_OPAQUE,
     nbc_data,MB_TAG_CREAT|MB_TAG_SPARSE|MB_TAG_BYTES|MB_TAG_VARLEN,NULL); 
   if (MB_SUCCESS != result) return result;
-  void const* tag_data[] = { &(bc_data[0]) };
+  void const* tag_data[] = { (bc_data.empty())?NULL:&(bc_data[0]) };
   int tag_size = bc_data.size();
   result = mdbImpl->tag_set_by_ptr(nbc_data,&nodeseth->setHandle,1,tag_data,&tag_size);
   if (MB_SUCCESS != result) return result;
@@ -785,7 +783,7 @@ ErrorCode Tqdcfr::read_sideset(const unsigned int ssindex,
   result = mdbImpl->tag_get_handle(tag_name.c_str(),def_bc_data_len,MB_TYPE_OPAQUE,
     nbc_data,MB_TAG_CREAT|MB_TAG_SPARSE|MB_TAG_BYTES|MB_TAG_VARLEN,NULL); 
   if (MB_SUCCESS != result) return result;
-  void const* tag_data[] = { &(bc_data[0]) };
+  void const* tag_data[] = { (bc_data.empty())?NULL:&(bc_data[0]) };
   int tag_size = bc_data.size();
   result = mdbImpl->tag_set_by_ptr(nbc_data,&sideseth->setHandle,1,tag_data,&tag_size);
   if (MB_SUCCESS != result) return result;
@@ -2310,7 +2308,8 @@ ErrorCode Tqdcfr::read_acis_records( const char* sat_filename )
     if (NULL != acisDumpFile)
       fwrite(&char_buf[0], sizeof(char), next_buf, acisDumpFile);
     
-      // put null at end of string to stop searches 
+      // put null at end of string to stop searches
+    char_buf.resize(next_buf+1);
     char_buf[next_buf] = '\0';
     unsigned int buf_pos = 0;
 
@@ -2910,99 +2909,5 @@ ErrorCode Tqdcfr::create_set( EntityHandle& h, unsigned int flags )
   return mdbImpl->create_meshset( flags, h );
 }
 
-
 } // namespace moab
 
-
-// #ifdef TEST_TQDCFR
-#else
-#include "moab/Core.hpp"
-#define STRINGIFY_(A) #A
-#define STRINGIFY(A) STRINGIFY_(A)
-
-using namespace moab;
-
-int main(int argc, char* argv[])
-{
-#ifdef USE_MPI
-  MPI_Init(&argc, &argv);
-#endif
-    // Check command line arg
-  const char* file = STRINGIFY(MESHDIR) "/io/brick_cubit10.2.cub";
-  if (argc < 2)
-  {
-    std::cout << "Usage: tqdcfr <cub_file_name>" << std::endl;
-      //exit(1);
-  }
-  else
-    file = argv[1];
-
-  Core *my_impl = new Core();
-  Tqdcfr *my_tqd = new Tqdcfr(my_impl);
-  FileOptions opts(NULL);
-  
-  ErrorCode result = my_tqd->load_file(file, 0, opts, 0, 0);
-
-  if (MB_SUCCESS == result)
-    std::cout << "Success." << std::endl;
-  else {
-    std::cout << "load_file returned error:" << std::endl;
-    std::string errs;
-    result = my_impl->get_last_error(errs);
-    if (MB_SUCCESS == result) std::cout << errs << std::endl;
-    else std::cout << "(no message)" << std::endl;
-  }
-
-  delete my_tqd;
-  delete my_impl;
-  
-    // now check for multiple procs
-  my_impl = new Core;
-  my_tqd = new Tqdcfr(my_impl);
-  
-  result = my_tqd->load_file(file, 0, opts, 0, 0);
-
-  if (MB_SUCCESS == result)
-    std::cout << "Success." << std::endl;
-  else {
-    std::cout << "load_file returned error:" << std::endl;
-    std::string errstr;
-    result = my_impl->get_last_error(errstr);
-    if (MB_SUCCESS == result) std::cout << errstr << std::endl;
-    else std::cout << "(no message)" << std::endl;
-  }
-
-  delete my_tqd;
-  delete my_impl;
-
-#ifdef USE_MPI
-  int nprocs, rank;
-  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
-    // create MOAB instance based on that
-  my_impl = new Core ;//(rank, nprocs);
-  if (NULL == my_impl) return 1;
-  
-  std::string options = "PARALLEL=READ_DELETE;PARTITION=MATERIAL_SET;PARTITION_DISTRIBUTE";
-  std::cout << "Testing parallel..." << std::endl;
-  
-  result = my_impl->load_file(file, 0, 
-                              options.c_str());
-
-  if (MB_SUCCESS == result)
-    std::cout << "Success." << std::endl;
-  else {
-    std::cout << "load_file returned error:" << std::endl;
-    std::string errstr;
-    result = my_impl->get_last_error(errstr);
-    if (MB_SUCCESS == result) std::cout << errstr << std::endl;
-    else std::cout << "(no message)" << std::endl;
-  }
-
-#endif
-
-  return result;
-}
-
-#endif

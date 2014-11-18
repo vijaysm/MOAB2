@@ -394,7 +394,8 @@ ErrorCode NCHelperHOMME::create_mesh(Range& faces)
                                               (create_gathers ? num_coarse_quads + num_quads : num_coarse_quads));
     ERRORR(rval, "Failed to create local quads.");
     tmp_range.insert(start_quad, start_quad + num_coarse_quads - 1);
-    std::copy(&tmp_conn[start_idx], &tmp_conn[start_idx + 4 * num_fine_quads], conn_arr);
+    int* tmp_conn_end = (&tmp_conn[start_idx + 4 * num_fine_quads-1])+1;
+    std::copy(&tmp_conn[start_idx], tmp_conn_end, conn_arr);
     std::copy(conn_arr, conn_arr + 4 * num_fine_quads, range_inserter(localGidVerts));
   }
   else {
@@ -456,8 +457,19 @@ ErrorCode NCHelperHOMME::create_mesh(Range& faces)
     rval = mbImpl->tag_iterate(*mpFileIdTag, vert_range.begin(), vert_range.end(), count, data);
     ERRORR(rval, "Failed to iterate file id tag on local vertices.");
     assert(count == nLocalVertices);
-    gid_data = (int*) data;
-    std::copy(localGidVerts.begin(), localGidVerts.end(), gid_data);
+    int bytes_per_tag=4;
+    rval = mbImpl->tag_get_bytes(*mpFileIdTag, bytes_per_tag);
+    ERRORR(rval, "can't get number of bytes for file id tag");
+    if (4==bytes_per_tag)
+    {
+      gid_data = (int*) data;
+      std::copy(localGidVerts.begin(), localGidVerts.end(), gid_data);
+    }
+    else if (8==bytes_per_tag) // should be a handle tag on 64 bit machine?
+    {
+      long * handle_tag_data = (long *)data;
+      std::copy(localGidVerts.begin(), localGidVerts.end(), handle_tag_data);
+    }
   }
 
   // Create map from file ids to vertex handles, used later to set connectivity
@@ -528,9 +540,22 @@ ErrorCode NCHelperHOMME::create_mesh(Range& faces)
       rval = mbImpl->tag_iterate(*mpFileIdTag, gather_set_verts_range.begin(), gather_set_verts_range.end(), count, data);
       ERRORR(rval, "Failed to iterate file id tag on gather set vertices.");
       assert(count == nVertices);
-      gid_data = (int*) data;
-      for (int j = 1; j <= nVertices; j++)
-        gid_data[j - 1] = nVertices + j; // bigger than global id tag
+      int bytes_per_tag=4;
+      rval = mbImpl->tag_get_bytes(*mpFileIdTag, bytes_per_tag);
+      ERRORR(rval, "can't get number of bytes for file id tag");
+      if (4==bytes_per_tag)
+      {
+        gid_data = (int*) data;
+        for (int j = 1; j <= nVertices; j++)
+          gid_data[j - 1] = nVertices + j; // bigger than global id tag
+      }
+      else if (8==bytes_per_tag) // should be a handle tag on 64 bit machine?
+      {
+        long * handle_tag_data = (long *)data;
+        for (int j = 1; j <= nVertices; j++)
+          handle_tag_data[j - 1] = nVertices + j; // bigger than global id tag
+      }
+
     }
 
     rval = mbImpl->add_entities(gather_set, gather_set_verts_range);
@@ -543,7 +568,8 @@ ErrorCode NCHelperHOMME::create_mesh(Range& faces)
                                               MBQUAD, 0, start_quad, conn_arr);
     ERRORR(rval, "Failed to create gather set quads.");
     gather_set_quads_range.insert(start_quad, start_quad + num_quads - 1);
-    std::copy(&tmp_conn[0], &tmp_conn[4 * num_quads], conn_arr);
+    int* tmp_conn_end = (&tmp_conn[4 * num_quads-1]) + 1;
+    std::copy(&tmp_conn[0], tmp_conn_end, conn_arr);
     for (i = 0; i != 4 * num_quads; i++)
       conn_arr[i] += start_vertex - 1; // Connectivity array is shifted by where the gather verts start
     rval = mbImpl->add_entities(gather_set, gather_set_quads_range);

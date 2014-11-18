@@ -43,12 +43,13 @@ static const double denomPI = PI * denom;
   
 inline void RNDVEC(CartVect& uvw, double &az) 
 {
-  
-  double theta = denom * az * rand();
-  double phi = denomPI * rand();
-  uvw[0] = cos(theta)*sin(phi);
-  uvw[1] = sin(theta)*sin(phi);
-  uvw[1] = cos(phi);
+  // denom normalizes rand values (see global defines)
+  double theta = az * denom * rand(); // randomly samples from 0 to az. (Default az is 2PI)
+  double u = 2 * denom * rand() - 1; // randomly samples from -1 to 1.
+  uvw[0] = sqrt(1-u*u)*cos(theta);
+  uvw[1] = sqrt(1-u*u)*sin(theta);
+  uvw[2] = u;
+
 }
 
 /* program global data, including settings with their defaults*/

@@ -1,4 +1,41 @@
-Version 4.7pre:
+Version 4.7.1pre:
+
+Version 4.7.0:
+* Implemented the Array-based Half Facet data structures in MOAB to improve adjacency querying and efficient traversals between related entities (use --enable-ahf during configure)
+* Co-developed (MOAB and PETSc) to introduce a new native MOAB-mesh based Discretization Manager (DM) implementation in PETSc that supports parallel solution to PDE problems on unstructured grids.
+* Remove memory leak for point-to-point communication (issue #7) caused due to reuse of MPIRequest structures
+* Reading sets in parallel (ticket 273)
+* Parallel mbconvert bug (ticket 274, material sets compromised before writing)
+* Fix memory leak for tracked sets (ticket 285)
+* Fix issue #8 for merging higher dimensional entities
+* Fix edge adjacency and skinner to operate on Polygon and Polyhedra
+* Eliminated miscellaneous compiler warnings (tested on GCC-4.6.3, clang-3.0, Intel-13.1, PGI-13.6)
+* New reader/writer formats (CGNS, MPAS, GCRM); Improve support for several existing formats (Climate-NC, HOMME, CAM-Euler, CAM-FV)
+* Introduce padded polygons option for lower memory fragmentation in MPAS and GCRM climate readers
+* Add climate data NC writer, in serial and parallel, for all data formats supported by the NC reader with options to append, read time-series with concatenation
+* Add Zoltan repartitioning for MPAS reader
+* Improvements in CUBIT reader for boundary conditions data, support CUBIT 14.0 format changes, endianness for BG/Q, variable length tags for saving block attributes and headers
+* Add TET4 as supported element in Exodus reader
+* Enhanced Doxygen-based documentation support for API, user guide, developer guide and examples.
+* Added several new examples to demonstrate the usage of the API for different applications; More to be added here.
+* Added robust CMake build support for MOAB; Preliminary fixes for Windows systems.
+* Enhancements and refactoring to support reading the CGM geometry models for DagMC
+* Parallelization of the MOAB based conservative intersection (CSLAM) algorithm for advection/transport applications
+* Refactoring of MBCoupler and refactoring to support dynamic usage of new search tree algorithms (Kd, BVH)
+* Update VTKReader Paraview plugin for MOAB; Removed the old vtkMOABReader and replaced it with vtkMOABReaderNew.
+* Added meshset argument for methods in ParallelComm and Skinner
+* New options for NC reader
+    - rename PARTITION_METHOD=TRIVIAL_PARTITION to PARTITION_METHOD=TRIVIAL
+    - add NO_MIXED_ELEMENTS option fo reading polygon data (it means padded)
+    - add NO_EDGES option for MPAS reader
+    - RENAME option for renaming a variable at writing an nc file
+    - TIMESTEP option for reading nc files
+* Changes in Core::list_entities to print dense tag information
+* Changes in memory evaluators, move from type long to type long long
+* Changes to ScdInterface, mostly to support new partitioning method (sqijk) but also to allow for periodic meshes in all 3 directions
+* Install TupleList for serial builds also
+* New method in MergeMesh that allows stitching a mesh based on an integer tag defined on vertices (GLOBAL_ID)
+* Introduced interface to delete entities in ParallelComm
 
 Version 4.6:
 * Removed deprecated functions from the Interface: (some overloaded variants of) query_interface, release_interface, 

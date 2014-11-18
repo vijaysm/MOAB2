@@ -1,3 +1,6 @@
+# Don't require GNU-standard files (Changelog, README, etc.)
+AUTOMAKE_OPTIONS = foreign subdir-objects
+
 # Things to build
 lib_LTLIBRARIES = libMOAB.la 
 
@@ -212,13 +215,13 @@ nobase_libMOAB_la_include_HEADERS = \
   MBCN_protos.h \
   MBTagConventions.hpp
 
-if ENABLE_mbzoltan
-  libMOAB_la_SOURCES += $(srcdir)/../tools/mbzoltan/MBZoltan.cpp
-  nobase_libMOAB_la_include_HEADERS += $(srcdir)/../tools/mbzoltan/MBZoltan.hpp
+if ENABLE_mbpart
+  libMOAB_la_SOURCES += ZoltanPartitioner.cpp
+  nobase_libMOAB_la_include_HEADERS += moab/ZoltanPartitioner.hpp
   AM_CPPFLAGS += $(ZOLTAN_INC_FLAGS)
   # not sure yet if this is needed; will see when linking io reader (MPAS so far)
-  # the tool mbpart needed it, and it just includes MBZoltan.hpp; so it needs ways to find 
-  # the libraries zoltan depends on
+  # the tool mbpart needed it, and it just includes ZoltanPartitioner.hpp; 
+  # so it needs ways to find the libraries zoltan depends on
   libMOAB_la_LIBADD += $(ZOLTAN_LIBS) $(ZOLTAN_LIB_FLAGS)
 endif
 

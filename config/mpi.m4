@@ -2,7 +2,7 @@
 
 # NOTE: The macro to enable/disable MPI support entirely is 
 #       in compilers.m4, as it also affects the choice of compiler.
-#       That code is expected to have set WITH_MPI to either 'yes',
+#       That code is expected to have set $enablempi to either 'yes',
 #       'no' or the directory where MPI is installed BEFORE these 
 #       macros are called.
 
@@ -16,9 +16,9 @@ AC_DEFUN([FATHOM_CONFIG_MPI_EXEC],[
   AC_ARG_VAR(MPIEXEC,[Program to use to run parallel tests (default: mpiexec or mpirun)])
   AC_ARG_VAR(MPIEXEC_NP,[Command line flag to specify number of processors to use (default: -np)])
   AC_ARG_VAR(NP,[Number of processors to on which to run parallel tests (default: 2)])
-  if test "x$WITH_MPI" != "xno"; then
+  if test "x$enablempi" != "xno"; then
     if test "x$MPIEXEC" = "x"; then
-      if test "x$WITH_MPI" != "xyes"; then
+      if test "x$enablempi" != "xyes"; then
         AC_CHECK_PROGS([MPIEXEC],[mpiexec mpirun],[true],[${WITH_MPI}:${WITH_MPI}/bin])
       else
         AC_CHECK_PROGS([MPIEXEC],[mpiexec mpirun],[true])
@@ -41,7 +41,7 @@ AC_DEFUN([FATHOM_CONFIG_MPI_EXEC],[
 # etc. and defining MPICH_IGNORE_CXX_SEEK is not sufficient to work around
 # the problem.
 AC_DEFUN([FATHOM_CHECK_MPI], [
-  if test "x$WITH_MPI" != "xno"; then
+  if test "x$enablempi" != "xno"; then
     AC_LANG_PUSH([C])
     AC_CHECK_HEADER([mpi.h],[],[AC_MSG_ERROR([mpi.h not found or not working])])
     AC_LANG_POP([C])

@@ -21,7 +21,7 @@ add_subdirectory(obb)
 add_subdirectory(oldinc)
 add_subdirectory(perf)
 
-set(TEST_COMP_FLAGS "-DMESHDIR=${CMAKE_SOURCE_DIR}/MeshFiles/unittest")
+set(TEST_COMP_FLAGS "-DMESHDIR=${MOAB_ABSSRC_DIR}/MeshFiles/unittest")
 
 set( TESTS range_test.cpp
            scdseq_test.cpp
@@ -117,15 +117,15 @@ target_link_libraries( file_options_test MOAB )
 add_test( file_options_test ${EXECUTABLE_OUTPUT_PATH}/file_options_test )
 
 
-add_executable( homxform_test ${CMAKE_SOURCE_DIR}/src/HomXform.cpp )
-set_source_files_properties( ${CMAKE_SOURCE_DIR}/src/HomXform.cpp
-                             COMPILE_FLAGS "-DTEST ${MOAB_DEFINES} ${TEST_COMP_FLAGS}" )
+add_executable( homxform_test homxform_test.cpp )
+set_source_files_properties( homxform_test.cpp
+                             COMPILE_FLAGS "${MOAB_DEFINES} ${TEST_COMP_FLAGS}" )
 target_link_libraries( homxform_test MOAB )
 add_test( TestHomXform ${EXECUTABLE_OUTPUT_PATH}/homxform_test )
 
-add_executable( xform_test ${CMAKE_SOURCE_DIR}/src/AffineXform.cpp )
-set_source_files_properties( ${CMAKE_SOURCE_DIR}/src/AffineXform.cpp
-                             COMPILE_FLAGS "-DTEST ${MOAB_DEFINES}" )
+add_executable( xform_test affinexform_test.cpp )
+set_source_files_properties( affinexform_test.cpp
+                             COMPILE_FLAGS "${MOAB_DEFINES} ${TEST_COMP_FLAGS}" )
 target_link_libraries( xform_test MOAB )
 add_test( xform_test ${EXECUTABLE_OUTPUT_PATH}/xform_test )
 
@@ -140,7 +140,7 @@ if(ENABLE_IMESH)
     string( REPLACE ".cpp" "" tmp ${fname} )
     string( REPLACE ".cc" "" base ${tmp} )
     add_executable( ${base} ${CMAKE_SOURCE_DIR}/test/TestUtil.hpp ${CMAKE_SOURCE_DIR}/itaps/imesh/${fname})
-    set_target_properties( ${base} PROPERTIES COMPILE_FLAGS "-DSRCDIR=${CMAKE_SOURCE_DIR}/itaps/imesh/ -DMESHDIR=${CMAKE_SOURCE_DIR}/MeshFiles/unittest ${MOAB_DEFINES} -DTEST" )
+    set_target_properties( ${base} PROPERTIES COMPILE_FLAGS "-DSRCDIR=${CMAKE_SOURCE_DIR}/itaps/imesh/ ${TEST_COMP_FLAGS} ${MOAB_DEFINES} -DTEST" )
     target_link_libraries( ${base} MOAB iMesh)
     add_test( ${base} ${EXECUTABLE_OUTPUT_PATH}/${base} )
   endforeach()
@@ -151,7 +151,7 @@ if ( MOAB_USE_MPI AND MPI_FOUND )
   add_executable ( mbparallelcomm_test parallel/mbparallelcomm_test.cpp )
   target_link_libraries( mbparallelcomm_test MOAB )
   set_source_files_properties( parallel/mbparallelcomm_test.cpp
-    COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES} -DMESHDIR=${MOAB_SOURCE_DIR}/MeshFiles/unittest" )
+    COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES} ${TEST_COMP_FLAGS}" )
   add_test( TestParallelComm-BcastDelete
     ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 2 ${MPIEXEC_PREFLAGS}
     ${EXECUTABLE_OUTPUT_PATH}/mbparallelcomm_test ${MPIEXEC_POSTFLAGS} 0 ${CMAKE_SOURCE_DIR}/parallel/ptest.cub )
@@ -171,21 +171,28 @@ if ( MOAB_USE_MPI AND MPI_FOUND )
       ${CMAKE_SOURCE_DIR}/src/io/mhdf/include
     )
     set_source_files_properties( parallel/mhdf_parallel.c
-      COMPILE_FLAGS "-DTEST ${MOAB_DEFINES} -DMESHDIR=${MOAB_SOURCE_DIR}/MeshFiles/unittest" )
+      COMPILE_FLAGS "-DTEST ${MOAB_DEFINES} ${TEST_COMP_FLAGS}" )
     add_executable( mhdf_parallel parallel/mhdf_parallel.c )
-    target_link_libraries( mhdf_parallel MOAB MOABpar )
+    target_link_libraries( mhdf_parallel MOAB ${HDF5_LIBRARIES} )
     add_test( TestMHDFParallel ${EXECUTABLE_OUTPUT_PATH}/mhdf_parallel )
+    
+    set_source_files_properties( parallel/parmerge_test.cpp
+      COMPILE_FLAGS "-DTEST ${MOAB_DEFINES} ${TEST_COMP_FLAGS}" )
+    add_executable( parmerge_test parallel/parmerge_test.cpp )
+    target_link_libraries( parmerge_test MOAB ${HDF5_LIBRARIES} )
+    add_test( Testparmerge_test ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 2 ${MPIEXEC_PREFLAGS} ${EXECUTABLE_OUTPUT_PATH}/parmerge_test ${MPIEXEC_POSTFLAGS}  )
+    
   endif ( MOAB_USE_HDF )
 
   set_source_files_properties( parallel/parallel_unit_tests.cpp
-    COMPILE_FLAGS "-DTEST ${MOAB_DEFINES} -DMESHDIR=${MOAB_SOURCE_DIR}/MeshFiles/unittest" )
+    COMPILE_FLAGS "-DTEST ${MOAB_DEFINES} ${TEST_COMP_FLAGS}" )
   add_executable ( parallel_unit_tests parallel/parallel_unit_tests.cpp )
-  target_link_libraries( parallel_unit_tests MOAB )
+  target_link_libraries( parallel_unit_tests MOAB ${MPI_LIBRARIES} )
   add_test( TestParallel
-    ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 2 ${MPIEXEC_PREFLAGS})
+    ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 2 ${MPIEXEC_PREFLAGS} ${EXECUTABLE_OUTPUT_PATH}/parallel_unit_tests ${MPIEXEC_POSTFLAGS} )
 
   set_source_files_properties( parallel/pcomm_serial.cpp
-    COMPILE_FLAGS "-DTEST ${MOAB_DEFINES} -DMESHDIR=${MOAB_SOURCE_DIR}/MeshFiles/unittest" )
+    COMPILE_FLAGS "-DTEST ${MOAB_DEFINES} ${TEST_COMP_FLAGS}" )
   add_executable ( pcomm_serial parallel/pcomm_serial.cpp )
   target_link_libraries( pcomm_serial MOAB )
   add_test( TestPCommSerial

@@ -27,6 +27,7 @@ configure
 *.cub
 cubit??.jou
 .deps
+.dirstamp
 doc/config.tex
 doc/dev.dox
 doc/user/*
@@ -134,6 +135,7 @@ test/dagmc/dagmc_pointinvol_test
 test/dagmc/dagmc_rayfire_test
 test/dagmc/dagmc_simple_test
 test/dual/dual_test
+test/dual/dual.vtk
 test/elem_eval_test
 test/file_options_test
 test/*.h5m
@@ -192,6 +194,7 @@ test/obb_test
 test/oldinc/test_oldinc
 test/parallel/gcrm_par
 test/parallel/*.h5m
+test/parallel/imeshp_test
 test/parallel/mbparallelcomm_test
 test/parallel/mhdf_parallel
 test/parallel/mpastrvpart
@@ -206,6 +209,7 @@ test/parallel/par_coupler_test
 test/parallel/par_intx_sph
 test/parallel/par_spatial_locator_test
 test/parallel/parmerge
+test/parallel/parmerge_test
 test/parallel/partcheck
 test/parallel/pcomm_serial
 test/parallel/pcomm_unit
@@ -276,6 +280,7 @@ tools/mbcslam/proj1
 tools/mbdepth
 tools/mbgsets
 tools/mbmem
+tools/mbpart
 tools/mbsize
 tools/mbskin
 tools/mbsurfplot

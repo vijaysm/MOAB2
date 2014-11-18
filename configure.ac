@@ -14,26 +14,27 @@ m4_ifdef([AM_SILENT_RULES],
 
 AC_CHECK_PROG( [SED], [sed], [sed], [true] )
 
-
 ################################################################################
 #                           Compilers
 ################################################################################
 
-AC_ARG_ENABLE([fortran],[AC_HELP_STRING([--disable-fortran],
-  [No Fortran name mangling in ITAPS/MBCN C headers])],
-  [ENABLE_FORTRAN=$enableval],[ENABLE_FORTRAN=yes])
+ENABLE_FORTRAN=no
+AC_ARG_ENABLE([fortran],
+              [AS_HELP_STRING([--disable-fortran], [Disable Fortran support and name mangling in ITAPS/MBCN C headers])])
 
+AS_IF([test "x$enable_fortran" != "xno"], [ENABLE_FORTRAN=yes])
+AC_SUBST(ENABLE_FORTRAN)
 EXTRA_GNU_FLAGS='-Wall -pipe -pedantic -Wno-long-long -Wextra -Wcast-align  -Wpointer-arith -Wformat -Wformat-security -Wshadow -Wunused-parameter'
 EXTRA_INTEL_FLAGS='-Wall'
+
+# Find out the appropriate compiler based on user options
 FATHOM_CHECK_COMPILERS([yes],[yes],[$ENABLE_FORTRAN])
-AM_CONDITIONAL(PARALLEL,[test "x$WITH_MPI" != "xno"])
+AM_CONDITIONAL(PARALLEL,[test "x$enablempi" != "xno"])
 AM_CONDITIONAL(ENABLE_FORTRAN,[test "x$ENABLE_FORTRAN" != "xno"])
 
-AC_PROG_LN_S
-AC_PROG_MAKE_SET
-AC_DISABLE_SHARED
-AC_PROG_LIBTOOL
-FATHOM_COMPILER_FLAGS
+# Invoke and find all necessary flags for C, C++, FC
+FATHOM_COMPILER_FLAGS([yes],[yes],[$ENABLE_FORTRAN])
+
 m4_ifdef([AM_SILENT_RULES],[
 if test "x$DEBUG" = "xyes"; then
   AM_SILENT_RULES(yes)
@@ -41,6 +42,15 @@ else
   AM_SILENT_RULES(no)
 fi
 ])
+AC_PROG_LN_S
+AC_PROG_MAKE_SET
+AC_DISABLE_SHARED
+
+# All language options initialized -- now call
+# libtool initialization
+# AC_PROG_LIBTOOL is deprecated
+LT_INIT([dlopen])
+
 AC_C_BIGENDIAN
 
 # Check if platform is BlueGene
@@ -64,9 +74,9 @@ FATHOM_TEMPLATE_FUNC_SPECIALIZATION
 AM_CPPFLAGS="$AM_CPPFLAGS $TEMPLATE_SPECIALIZATION $TEMPLATE_FUNC_SPECIALIZATION"
 
 FATHOM_CHECK_CXX_WORKS([], [AC_MSG_ERROR([Cannot build without C++ compiler])])
-if test "xyes" = "x$ENABLE_FORTRAN" && test "x" != "x$FC"; then
-  AC_FC_WRAPPERS
-fi
+#if test "xyes" = "x$ENABLE_FORTRAN" && test "x" != "x$FC"; then
+#  AC_FC_WRAPPERS
+#fi
 
 ################################################################################
 #            Check for need for extra flags to support cray pointers
@@ -171,20 +181,6 @@ AC_CHECK_LIB(z, compress, LIBS="$LIBS -lz")
 AC_CHECK_LIB(dl, dlopen, LIBS="$LIBS -ldl")
 AC_CHECK_LIB(m, pow, LIBS="$LIBS -lm")
 
-# check how to link against C++ runtime for fortran programs especially
-AC_LANG_PUSH([Fortran])
-my_save_cflags="$LDFLAGS"
-LDFLAGS=-cxxlib
-AC_MSG_CHECKING([whether $FC supports -cxxlib])
-AC_LINK_IFELSE([AC_LANG_PROGRAM([])],
-    [AC_MSG_RESULT([yes])]
-    [FFLAGS="$FFLAGS -cxxlib",FCFLAGS="$FCFLAGS -cxxlib"],
-    [AC_MSG_RESULT([no])]
-)
-LDFLAGS="$my_save_cflags"
-AC_LANG_POP([Fortran])
-
-
 ################################################################################
 #                           iMesh Part 1 of 2
 ################################################################################
@@ -197,10 +193,10 @@ AC_ARG_ENABLE( [imesh],
 
 case $enableval in
   yes)
-    ENABLE_imesh=yes
+    ENABLE_imesh=yes; DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-imesh";
     ;;
   nofortran|NoFortran|noFORTRAN|NoFORTRAN|Nofortran)
-    AC_MSG_ERROR([Depricated value for --enable-imesh: \"$enableval\".  Try \"--disable-fortran\"])
+    AC_MSG_ERROR([Deprecated value for --enable-imesh: \"$enableval\".  Try \"--disable-fortran\"])
     ;;
   no)
     ENABLE_imesh=no
@@ -221,7 +217,7 @@ AC_ARG_ENABLE( [igeom],
 
 case $enableval in
   yes)
-    ENABLE_igeom=yes
+    ENABLE_igeom=yes; DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-igeom";
     ;;
   nofortran|NoFortran|noFORTRAN|NoFORTRAN|Nofortran)
     AC_MSG_ERROR([Depricated value for --enable-igeom: \"$enableval\".  Try \"FC= F77=\"])
@@ -351,8 +347,8 @@ MK_CHECK_UNORDERED_MAP([CPPFLAGS="$CPPFLAGS -DUNORDERED_MAP_NS=$result -DHAVE_UN
 
 FATHOM_CHECK_MPI
 FATHOM_CONFIG_MPI_EXEC
-test "xyes" != "x$WITH_MPI" || AM_CPPFLAGS="$AM_CPPFLAGS -DUSE_MPI"
-AM_CONDITIONAL(USE_MPI, [test "xno" != "x$WITH_MPI"])
+test "xyes" != "x$enablempi" || AM_CPPFLAGS="$AM_CPPFLAGS -DUSE_MPI"
+AM_CONDITIONAL(USE_MPI, [test "xno" != "x$enablempi"])
 # Used to generate moab_mpi.h
 if test "xyes" = "x$MPI_CXX_HELP_NEEDED"; then
   AC_DEFINE( [MB_MPI_CXX_CONFLICT], [1], 
@@ -362,7 +358,7 @@ if test "xyes" = "x$MPI_CXX_HELP_NEEDED"; then
   AC_DEFINE_UNQUOTED([MB_SEEK_END],[$SEEK_END],["Value of C SEEK_END"])
 fi
 
-if test "xyes" = "x$WITH_MPI"; then
+if test "xyes" = "x$enablempi"; then
   FATHOM_CHECK_MPE
   AC_SUBST([WITH_MPE])
   AC_SUBST([MPE_LIBS])
@@ -388,7 +384,7 @@ WARN_PARALLEL_HDF5=no
 WARN_PARALLEL_HDF5_NO_COMPLEX=no
 HAVE_HDF5_PARALLEL=no
 if test "xno" != "x$HAVE_HDF5"; then
-  if test "xno" != "x$WITH_MPI"; then
+  if test "xno" != "x$enablempi"; then
     old_LDFLAGS="$LDFLAGS"
     LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"
     AC_CHECK_LIB( [hdf5], [H5Pset_fapl_mpio], [HAVE_HDF5_PARALLEL=yes],
@@ -521,7 +517,10 @@ ZOLTAN_DIR=
 ZOLTAN_ARCH=
 WITH_PARAMETIS=no
 PARMETIS_DIR=
-
+SCOTCH_DIR=
+PTSCOTCH_DIR=
+SCOTCH_LIBS=
+WITH_SCOTCH=no
 ZOLTAN_LIBS=
 ZOLTAN_LIB_FLAGS=
 ZOLTAN_INC_FLAGS=
@@ -599,6 +598,52 @@ AC_ARG_WITH([parmetis],
 		 ;;
                esac] )
 
+# If user specified with-scotch, then assume they are trying
+# to add an additional library search directory in which to check
+# for the scotch library.
+AC_ARG_WITH([scotch],
+            [AC_HELP_STRING([--with-scotch=DIR],[Directory containing Scotch library for Zoltan])],
+             [case "x$withval" in
+               xyes|xno)
+                 # do nothing
+                 ;;
+               x*)
+                 SCOTCH_DIR="$withval"
+                 test -d "$withval" || AC_MSG_ERROR([Not a directory: with-scotch=$withval])
+                 if test -d "$withval/lib"; then
+                   ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval/lib"
+                 else
+                   ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval"
+                 fi
+                 SCOTCH_LIBS="-lscotch -lscotcherr -lscotcherrexit"
+                 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-scotch=\"${withval}\""
+                 ;;
+               esac] )
+
+# If user specified with-ptscotch, then assume they are trying
+# to add an additional library search directory in which to check
+# for the parallel scotch library.
+AC_ARG_WITH([ptscotch],
+            [AC_HELP_STRING([--with-ptscotch=DIR],[Directory containing PTScotch library for Zoltan])],
+             [case "x$withval" in
+               xyes|xno)
+                 # do nothing
+                 ;;
+               x*)
+                 PTSCOTCH_DIR="$withval"
+                 test -d "$withval" || AC_MSG_ERROR([Not a directory: with-ptscotch=$withval])
+                 if test -d "$withval/lib"; then
+                   ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval/lib"
+                 else
+                   ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval"
+                 fi
+                 SCOTCH_LIBS="-lptscotch -lptscotcherr -lptscotcherrexit $SCOTCH_LIBS"
+                 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-ptscotch=\"${withval}\""
+                 ;;
+               esac] )
+
+
+
 ################################################################################
 #                            Optional Libraries
 ################################################################################
@@ -662,7 +707,8 @@ DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-$1=\"${enableval}
 AC_ARG_ENABLE( [tools], [
 AC_HELP_STRING([--enable-tools],[Build all tools by default])
 AC_HELP_STRING([--disable-tools],[Disable all tools by default])],
-                         [ENABLE_TOOLS=$enableval],[ENABLE_TOOLS=] )
+                         [ENABLE_TOOLS=$enableval; DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-tools"],
+                         [ENABLE_TOOLS=] )
   # Individual tools
 MB_OPTIONAL_TOOL([mbconvert],    [yes], [yes])
 MB_OPTIONAL_TOOL([hexmodops],    [yes], [yes])
@@ -674,11 +720,11 @@ MB_OPTIONAL_TOOL([mbtagprop],    [yes], [yes])
 MB_OPTIONAL_TOOL([mbmem],        [yes], [yes])
 MB_OPTIONAL_TOOL([spheredecomp], [yes], [yes])
 MB_OPTIONAL_TOOL([mbsurfplot],   [yes], [yes])
-MB_OPTIONAL_TOOL([mbzoltan],     [${WITH_ZOLTAN}], [${WITH_ZOLTAN}] )
+MB_OPTIONAL_TOOL([mbpart],     [${WITH_ZOLTAN}], [${WITH_ZOLTAN}] )
 MB_OPTIONAL_TOOL([dagmc],        [no], [yes])
 MB_OPTIONAL_TOOL([gsets],        [yes], [yes])
 MB_OPTIONAL_TOOL([mbdepth],      [yes], [yes])
-if test "x$WITH_MPI" != "xno"; then
+if test "x$enablempi" != "xno"; then
   MB_OPTIONAL_TOOL([mbcoupler],    [no], [yes] )
   MB_OPTIONAL_TOOL([mcnpmit],      [no], [yes])
   MB_OPTIONAL_TOOL([refiner],      [no], [yes])
@@ -691,6 +737,11 @@ fi
 MB_OPTIONAL_TOOL([h5mtools],     [${HAVE_HDF5}], [${HAVE_HDF5}])
 MB_OPTIONAL_TOOL([mbcslam],      [no], [yes])
 MB_OPTIONAL_TOOL([ahf],          [no], [no])
+
+if test "xyes" = "x$ENABLE_dagmc"; then
+   DAGMC_LIBS="-ldagmc"
+   AC_SUBST(DAGMC_LIBS)
+fi
 
 if test "xyes" = "x$ENABLE_ahf"; then
   AM_CPPFLAGS="$AM_CPPFLAGS -DUSE_AHF"
@@ -716,7 +767,7 @@ fi
 #                           Zoltan - Part 2 of 2
 ################################################################################
 
-if test "xyes" = "x$ENABLE_mbzoltan"; then
+if test "xyes" = "x$ENABLE_mbpart"; then
   WITH_ZOLTAN=yes
 else
   WITH_ZOLTAN=no
@@ -727,7 +778,7 @@ fi
 # build variables.
 if test "xyes" = "x$WITH_ZOLTAN"; then
 
-  if test "xyes" != "x$WITH_MPI"; then
+  if test "xyes" != "x$enablempi"; then
     AC_MSG_ERROR([Cannot include Zoltan support without MPI.  See --with-mpi])
   fi
 
@@ -762,14 +813,17 @@ if test "xyes" = "x$WITH_ZOLTAN"; then
     fi
   fi
 
-    # Test for Zoltan library, possibly requiring parmetis
+    # Test for Zoltan library, possibly requiring parmetis and scotch
   old_LDFLAGS="$LDFLAGS"
   LDFLAGS="$LDFLAGS $ZOLTAN_LIB_FLAGS"
   AC_CHECK_LIB([zoltan],[Zoltan_LB_Partition],[ZOLTAN_LIBS='-lzoltan'],
     [unset ac_cv_lib_zoltan_Zoltan_LB_Partition
      AC_CHECK_LIB([zoltan],[Zoltan_LB_Partition],
                   [ZOLTAN_LIBS="-lzoltan -lparmetis -lmetis"],
-                  [AC_MSG_ERROR([zoltan library not found or not usable.  Perhaps you need to specify --with-parmetis=@<:@DIR@:>@?])],
+                  [unset ac_cv_lib_zoltan_Zoltan_LB_Partition
+                   AC_CHECK_LIB([zoltan],[Zoltan_LB_Partition],[ZOLTAN_LIBS="-lzoltan $SCOTCH_LIBS -lparmetis -lmetis"],
+                   [AC_MSG_ERROR([zoltan library not found or not usable.  Perhaps you need to specify --with-parmetis=@<:@DIR@:>@ and --with-scotch=@<:@DIR@:>@?])],
+                   [$SCOTCH_LIBS -lparmetis -lmetis])],
                   [-lparmetis -lmetis])])
   LDFLAGS="$old_LDFLAGS"
 
@@ -1273,8 +1327,6 @@ AC_CONFIG_FILES([Makefile
                  tools/refiner/Makefile
                  tools/mbcoupler/Makefile
                  tools/mbcslam/Makefile
-                 tools/mbzoltan/Config.moab
-                 tools/mbzoltan/Makefile
                  tools/mcnpmit/Makefile
                  tools/qvdual/Makefile
                  tools/dagmc/Makefile
@@ -1312,11 +1364,11 @@ AC_OUTPUT
 
 AC_MSG_RESULT([C:   $CC $CFLAGS $CPPFLAGS])
 AC_MSG_RESULT([C++: $CXX $CXXFLAGS $CPPFLAGS])
-if test "x" != "x$FC"; then
-  AC_MSG_RESULT([Fortran90: $FC $FCFLAGS])
+if (test "xno" != "x$ENABLE_FORTRAN"); then
+  AC_MSG_RESULT([Fortran90: $FC $FCFLAGS $FCPPFLAGS])
 fi
-if test "x" != "x$F77"; then
-  AC_MSG_RESULT([Fortran77: $F77 $FFLAGS])
+if (test "xno" != "x$ENABLE_FORTRAN"); then
+  AC_MSG_RESULT([Fortran77: $F77 $FFLAGS $FCPPFLAGS])
 fi
 
 if test "x$HAVE_HDF5" = "xno"; then

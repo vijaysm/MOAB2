@@ -2423,6 +2423,7 @@ ErrorCode mb_mesh_set_flag_test()
   rval = mb->clear_meshset( &set, 1 );
   CHKERR(rval);
   entities.clear();
+  entities.resize(2);
   entities[0] = verts[1];
   entities[1] = verts[0];
   rval = mb->add_entities( set, &entities[0], 2);
@@ -2913,7 +2914,7 @@ ErrorCode mb_mesh_set_set_add_remove_test()
   size_t len2 = sizeof(list2)/sizeof(list2[0]);
   rval = mb.add_entities( set, list1, len1 );
   CHKERR(rval);
-  rval = check_meshset_internal( mb, set, list1, len2 );
+  rval = check_meshset_internal( mb, set, list1, len1 );
   CHKERR(rval);
   rval = mb.add_entities( set, list2, len2 );
   CHKERR(rval);

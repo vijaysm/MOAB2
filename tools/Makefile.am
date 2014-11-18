@@ -12,7 +12,8 @@ if ENABLE_imesh
 endif
 
 if HAVE_CGM
- LDADD+=  ${CGM_DIR}/lib/libcgm.la
+  AM_CPPFLAGS += $(CGM_CPPFLAGS)
+  LDADD+=  ${CGM_DIR}/lib/libcgm.la
 endif 
 
 # For old (pre 1.10.x) versions of Automake
@@ -28,8 +29,7 @@ EXTRA_DIST = README.hexmodops \
              README.mbskin \
              README.mbsurfplot \
              README.mbtagprop \
-             README.spheredecomp \
-             mbzoltan/README
+             README.spheredecomp
 
 
 if ENABLE_mbconvert
@@ -92,10 +92,12 @@ else
   mbcoupler_DIR=
 endif
 
-if ENABLE_mbzoltan
-  mbzoltan_DIR = mbzoltan
-else
-  mbzoltan_DIR=
+if ENABLE_mbpart
+  bin_PROGRAMS += mbpart
+  AM_CPPFLAGS += $(ZOLTAN_INC_FLAGS)
+  AM_LDFLAGS += $(ZOLTAN_LIB_FLAGS)
+  mbpart_SOURCES = mbpart.cpp
+  mbpart_LDADD = $(top_builddir)/src/libMOAB.la $(ZOLTAN_LIBS)
 endif
 
 if ENABLE_qvdual

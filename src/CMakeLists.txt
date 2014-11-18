@@ -7,7 +7,9 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}
 
 if(MOAB_USE_MPI AND MPI_FOUND)
   add_subdirectory(parallel)
-  set( MOAB_MPI MOABpar )
+  set( MOAB_MPI moabpar )
+  set( MPI_LIBRARIES ${MPI_LIBRARY} ${MPI_EXTRA_LIBRARY} )
+  include_directories(${MPI_CXX_INCLUDE_PATH})
 endif()
 
 #create the FCDefs.h and src/MOAB_FCDefs.h files
@@ -203,17 +205,19 @@ endif()
 
 if (MOAB_USE_ZOLTAN)
   set( MOAB_LIB_SOURCES ${MOAB_LIB_SOURCES}
-          ${CMAKE_SOURCE_DIR}/tools/mbzoltan/MBZoltan.cpp )
+          ZoltanPartitioner.cpp )
   set( MOAB_INSTALL_HEADERS ${MOAB_INSTALL_HEADERS}
-          ${CMAKE_SOURCE_DIR}/tools/mbzoltan/MBZoltan.hpp )
+          moab/ZoltanPartitioner.hpp )
   include_directories( ${Zoltan_INCLUDES} )
   list(APPEND MOAB_DEP_LIBRARIES ${Zoltan_LIBRARIES})
 endif()
 add_library( MOAB ${MOAB_LIB_SOURCES} ${MOAB_INSTALL_HEADERS} ${MOAB_GENERATED_INSTALL_HEADERS}
                   $<TARGET_OBJECTS:moabio> 
-                  $<TARGET_OBJECTS:moab_loc_discr> 
+                  $<TARGET_OBJECTS:moab_loc_discr>
+                  $<TARGET_OBJECTS:moabpar>
                   ${MDHF_OBJ} )
-target_link_libraries( MOAB ${MOAB_MPI} ${MOAB_DEP_LIBRARIES} ${MOAB_LIBS} ${MOAB_CGM_LIBS} )
+
+target_link_libraries( MOAB ${MOAB_DEP_LIBRARIES} ${MOAB_LIBS} ${MOAB_CGM_LIBS} ${MPI_LIBRARIES} )
 set_target_properties( MOAB PROPERTIES COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}")
 
 install(TARGETS MOAB EXPORT MOABTargets

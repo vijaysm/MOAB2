@@ -565,7 +565,7 @@ ErrorCode Core::serial_load_file( const char* file_name,
     return MB_FILE_DOES_NOT_EXIST;
   }
 #if defined(WIN32) || defined(WIN64) || defined(MSC_VER)
-  else if (_S_IFDIR(stat_data.st_mode)) {
+  else if (stat_data.st_mode & _S_IFDIR) {
 #else
   else if (S_ISDIR(stat_data.st_mode)) {
 #endif

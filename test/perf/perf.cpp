@@ -19,6 +19,8 @@
 // Different platforms follow different conventions for usage
 #if !defined(_MSC_VER) && !defined(__MINGW32__)
 #include <sys/resource.h>
+#else
+#include <time.h>
 #endif
 #ifdef SOLARIS
 extern "C" int getrusage(int, struct rusage *);
