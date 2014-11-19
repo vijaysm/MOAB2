@@ -297,18 +297,6 @@ if (test "x$ENABLE_FORTRAN" != "xno" && test "x$CHECK_FC" != "xno"); then
     LDFLAGS="$my_save_ldflags"
   else
 
-    if (test "`uname -s`" == "Darwin" && test "$cc_compiler" == "Clang"); then
-      my_save_ldflags="$LDFLAGS"
-      LDFLAGS="$LDFLAGS -lc++"
-      AC_MSG_CHECKING([whether $FC supports -stdlib=libc++])
-      AC_LINK_IFELSE([AC_LANG_PROGRAM([])],
-          [AC_MSG_RESULT([yes])]
-          [fcxxlinkage=yes; FFLAGS="$FFLAGS -lc++"; FCFLAGS="$FCFLAGS -lc++"; FLIBS="$FLIBS -lc++"; FCLIBS="$FCLIBS -lc++"],
-          [AC_MSG_RESULT([no])]
-      )
-      LDFLAGS="$my_save_ldflags"
-    fi
-
     if (test "$fcxxlinkage" != "yes"); then
       my_save_ldflags="$LDFLAGS"
       LDFLAGS="$LDFLAGS -lstdc++"
@@ -505,9 +493,13 @@ esac
 AC_MSG_RESULT([$cxx_compiler:$host_os:$host_cpu])
 
 # Check for specific overrides
+CXX_LDFLAGS=""
 if (test "$cxx_compiler:${host_os:0:6}" == "Clang:darwin"); then
+  CXX_LDFLAGS="$CXX_LDFLAGS -stdlib=libstdc++"
   LIBS="$LIBS -lc++"
 fi
+AC_SUBST(CXX_LDFLAGS)
+
 ]) # end FATHOM_CXX_FLAGS
 
 #######################################################################################
