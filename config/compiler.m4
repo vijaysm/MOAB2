@@ -436,7 +436,7 @@ if test "x$cxx_compiler" = "xunknown"; then
 fi
 
 # Now decide special compiler flags using compiler/cpu combination
-AC_MSG_CHECKING([for known compiler/OS combinations])
+AC_MSG_CHECKING([for known compiler/CPU/OS combinations])
 case "$cxx_compiler:$host_cpu" in
   GNU:sparc*)
     FATHOM_CXX_32BIT=-m32
@@ -502,12 +502,11 @@ case "$cxx_compiler:$host_cpu" in
   *)
     ;;
 esac
-AC_MSG_RESULT([$cxx_compiler:$host_cpu])
+AC_MSG_RESULT([$cxx_compiler:$host_os:$host_cpu])
 
 # Check for specific overrides
-if (test "$cxx_compiler:$host_os" == "Clang:Darwin"); then
+if (test "$cxx_compiler:${host_os:0:6}" == "Clang:darwin"); then
   LIBS="$LIBS -lc++"
-  FATHOM_CXX_SPECIAL="$EXTRA_GNU_FLAGS -stdlib=libc++"
 fi
 ]) # end FATHOM_CXX_FLAGS
 
