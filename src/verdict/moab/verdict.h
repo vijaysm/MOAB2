@@ -621,7 +621,7 @@ struct TriMetricVals
     C_FUNC_DEF void v_knife_quality( int num_nodes, double coordinates[][3], 
         unsigned int metrics_request_flag, struct KnifeMetricVals *metric_vals ); 
 
-    //! Calculates quality metrics for quadralateral elements.
+    //! Calculates quality metrics for quadrilateral elements.
     C_FUNC_DEF void v_quad_quality( int num_nodes, double coordinates[][3], 
         unsigned int metrics_request_flag, struct QuadMetricVals *metric_vals ); 
 

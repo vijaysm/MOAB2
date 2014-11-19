@@ -24,11 +24,13 @@ libmoabverdict_la_SOURCES = \
         verdict_defines.hpp \
         VerdictVector.hpp \
         v_vector.h \
-        V_GaussIntegration.hpp
+        V_GaussIntegration.hpp \
+        VerdictWrapper.cpp 
 
 # The list of header files which are to be installed
 nobase_libmoabverdict_la_include_HEADERS = \
-        moab/verdict.h 
+        moab/verdict.h \
+        moab/VerdictWrapper.hpp
 # Boilerplate stuff that doesn't depend on what the targets are
 AM_CPPFLAGS += -DIS_BUILDING_MB -DSRCDIR=$(srcdir) \
                -I$(srcdir)/.. -I.. -I$(srcdir)/../io \
