@@ -362,6 +362,11 @@ if test "xyes" = "x$MPI_CXX_HELP_NEEDED"; then
   AC_DEFINE_UNQUOTED([MB_SEEK_CUR],[$SEEK_CUR],["Value of C SEEK_CUR"])
   AC_DEFINE_UNQUOTED([MB_SEEK_END],[$SEEK_END],["Value of C SEEK_END"])
 fi
+FATHOM_CHECK_MPITYPE
+
+if (test "$MPIFAMILY" == "OPENMPI" && test "x$ENABLE_FORTRAN" != "xno"); then
+  FCLIBS="$FCLIBS -lmpi_cxx"
+fi
 
 if test "xyes" = "x$enablempi"; then
   FATHOM_CHECK_MPE
@@ -513,7 +518,6 @@ if test "x$ENABLE_DOCS" = "xyes"; then
 fi
 AC_SUBST([DOXYGEN])
 AM_CONDITIONAL([ENABLE_DOCS],[test "x$ENABLE_DOCS" != "xno"])
-
 
 ################################################################################
 #                           Zoltan - Part 1 of 2
@@ -1426,7 +1430,7 @@ AC_CONFIG_FILES([Makefile
 AC_CONFIG_COMMANDS([src/MOAB_FCDefs.h],
   [sed -e "s/FC_FUNC/MOAB_FC_FUNC/" src/FCDefs.h >src/MOAB_FCDefs.h])
 
-DISTCHECK_CONFIGURE_FLAGS="$USER_CONFIGURE_CMD"
+# DISTCHECK_CONFIGURE_FLAGS="$USER_CONFIGURE_CMD"
 # make distcheck will use this DISTCHECK_CONFIGURE_FLAGS 
 # variable to be passed to configure line
 # some people include a lot of env vars here
