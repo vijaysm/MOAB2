@@ -494,6 +494,7 @@ case "$cxx_compiler:$host_cpu" in
     FATHOM_CXX_SPECIAL="$EXTRA_GNU_FLAGS -stdlib=libc++"
     FATHOM_CXX_32BIT=-m32
     FATHOM_CXX_64BIT=-m64
+    LIBS="$LIBS -lc++"
     ;;
   Clang:*)
     FATHOM_CXX_SPECIAL="$EXTRA_GNU_FLAGS -stdlib=libstdc++"
