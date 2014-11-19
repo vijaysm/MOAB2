@@ -642,55 +642,81 @@ AC_ARG_WITH([metis],
 # for the scotch library.
 AC_ARG_WITH([scotch],
             [AC_HELP_STRING([--with-scotch=DIR],[Directory containing Scotch library for Zoltan])],
-             [case "x$withval" in
-               xyes|xno)
-                 # do nothing
-                 ;;
-               x*)
-                 SCOTCH_DIR="$withval"
-                 test -d "$withval" || AC_MSG_ERROR([Not a directory: with-scotch=$withval])
-                 if test -d "$withval/lib"; then
-                   ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval/lib"
-                 else
-                   ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval"
-                 fi
-                 if test -d "$withval/include"; then
-                   ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$withval/include"
-                 else
-                   ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$withval"
-                 fi
-                 SCOTCH_LIBS="-lscotch -lscotcherr -lscotcherrexit"
-                 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-scotch=\"${withval}\""
-                 ;;
-               esac] )
+             [SCOTCH_DIR="$withval"; enablescotch=yes],[SCOTCH_DIR=""; enablescotch=no] )
+
+if (test "$enablescotch" != "no"); then
+  case "x$SCOTCH_DIR" in
+     xyes|xno)
+       # error out -- expecting directory path
+       AC_MSG_ERROR([Please specify the Scotch installation directory])
+       ;;
+     x*)
+       test -d "$SCOTCH_DIR" || AC_MSG_ERROR([Not a directory: with-scotch=$SCOTCH_DIR])
+       if test -d "$SCOTCH_DIR/lib"; then
+         ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$SCOTCH_DIR/lib"
+         if (test -f "$SCOTCH_DIR/lib/libscotch.a" || test -f "$SCOTCH_DIR/lib/libscotch.so" || test -f "$SCOTCH_DIR/lib/libscotch.dylib"); then
+           SCOTCH_LIBS="-lscotch -lscotcherr -lscotcherrexit"
+         else
+           AC_MSG_ERROR([Scotch libraries not found at $SCOTCH_DIR/lib])
+         fi
+       else
+         ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$SCOTCH_DIR"
+         if (test -f "$SCOTCH_DIR/libscotch.a" || test -f "$SCOTCH_DIR/libscotch.so" || test -f "$SCOTCH_DIR/libscotch.dylib"); then
+           SCOTCH_LIBS="-lscotch -lscotcherr -lscotcherrexit"
+         else
+           AC_MSG_ERROR([Scotch libraries not found at $SCOTCH_DIR])
+         fi
+       fi
+       if test -d "$SCOTCH_DIR/include"; then
+         ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$SCOTCH_DIR/include"
+       else
+         ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$SCOTCH_DIR"
+       fi
+       DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-scotch=\"${SCOTCH_DIR}\""
+       ;;
+   esac
+fi
 
 # If user specified with-ptscotch, then assume they are trying
 # to add an additional library search directory in which to check
 # for the parallel scotch library.
 AC_ARG_WITH([ptscotch],
             [AC_HELP_STRING([--with-ptscotch=DIR],[Directory containing PTScotch library for Zoltan])],
-             [case "x$withval" in
-               xyes|xno)
-                 # do nothing
-                 ;;
-               x*)
-                 PTSCOTCH_DIR="$withval"
-                 test -d "$withval" || AC_MSG_ERROR([Not a directory: with-ptscotch=$withval])
-                 if test -d "$withval/lib"; then
-                   ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval/lib"
-                 else
-                   ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval"
-                 fi
-                 if test -d "$withval/include"; then
-                   ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$withval/include"
-                 else
-                   ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$withval"
-                 fi
-                 SCOTCH_LIBS="-lptscotch -lptscotcherr -lptscotcherrexit $SCOTCH_LIBS"
-                 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-ptscotch=\"${withval}\""
-                 ;;
-               esac] )
+             [PTSCOTCH_DIR="$withval"; enableptscotch=yes],[PTSCOTCH_DIR="$SCOTCH_DIR"; enableptscotch=$enablescotch] )
 
+if (test "$enableptscotch" != "no"); then
+  case "x$PTSCOTCH_DIR" in
+     xyes|xno)
+       # error out -- expecting directory path
+       AC_MSG_ERROR([Please specify the parallel Scotch installation directory])
+       ;;
+     x*)
+       PTSCOTCH_DIR="$PTSCOTCH_DIR"
+       test -d "$PTSCOTCH_DIR" || AC_MSG_ERROR([Not a directory: with-ptscotch=$PTSCOTCH_DIR])
+       if test -d "$PTSCOTCH_DIR/lib"; then
+         ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$PTSCOTCH_DIR/lib"
+         if (test -f "$SCOTCH_DIR/lib/libptscotch.a" || test -f "$SCOTCH_DIR/lib/libptscotch.so" || test -f "$SCOTCH_DIR/lib/libptscotch.dylib"); then
+           SCOTCH_LIBS="-lptscotch -lptscotcherr -lptscotcherrexit $SCOTCH_LIBS"
+         else
+           AC_MSG_ERROR([Scotch libraries not found at $SCOTCH_DIR/lib])
+         fi
+       else
+         ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$PTSCOTCH_DIR"
+         if (test -f "$SCOTCH_DIR/libptscotch.a" || test -f "$SCOTCH_DIR/libptscotch.so" || test -f "$SCOTCH_DIR/libptscotch.dylib"); then
+           SCOTCH_LIBS="-lptscotch -lptscotcherr -lptscotcherrexit $SCOTCH_LIBS"
+         else
+           AC_MSG_ERROR([Scotch libraries not found at $SCOTCH_DIR])
+         fi
+       fi
+       if test -d "$PTSCOTCH_DIR/include"; then
+         ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$PTSCOTCH_DIR/include"
+       else
+         ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$PTSCOTCH_DIR"
+       fi
+       DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-ptscotch=\"${PTSCOTCH_DIR}\""
+       ;;
+  esac
+fi
 
 
 ################################################################################
@@ -1400,7 +1426,7 @@ AC_CONFIG_FILES([Makefile
 AC_CONFIG_COMMANDS([src/MOAB_FCDefs.h],
   [sed -e "s/FC_FUNC/MOAB_FC_FUNC/" src/FCDefs.h >src/MOAB_FCDefs.h])
 
-DISTCHECK_CONFIGURE_FLAGS = "$USER_CONFIGURE_CMD"
+DISTCHECK_CONFIGURE_FLAGS="$USER_CONFIGURE_CMD"
 # make distcheck will use this DISTCHECK_CONFIGURE_FLAGS 
 # variable to be passed to configure line
 # some people include a lot of env vars here
