@@ -50,22 +50,26 @@ static int possibleQuality[MBMAXTYPE][MB_QUALITY_COUNT] = {
       |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  MB_ASPECT_GAMMA // 24 tet
       |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  MB_MINIMUM_ANGLE // 25 tet
       |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  MB_COLLAPSE_RATIO // 26 tet
-      |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
-      |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+      |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  MB_WARPAGE     // 27 quad
+      |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  MB_AREA     // 28 quad
+      |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  MB_MAXIMUM_ANGLE // 29 quad
+      |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+      |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
     */
-    /*0  1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26*/
-     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},           //  MBVERTEX
-     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0},           //  MBEDGE
-     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},           //  MBTRI
-     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},           //  MBQUAD
-     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},           //  MBPOLYGON
-     {1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1},           //  MBTET
-     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},           //  MBPYRAMID
-     {0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},           //  MBPRISM
-     {0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},           //  MBKNIFE
-     {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0},           // MBHEX
-     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},           //  MBPOLYHEDRON
-     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}            //  MBENTITYSET
+    /*0  1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29*/
+     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},           //  MBVERTEX
+     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0},           //  MBEDGE
+     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},           //  MBTRI
+     {1, 1, 1, 1, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 1},           //  MBQUAD
+
+     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},           //  MBPOLYGON
+     {1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0},           //  MBTET
+     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},           //  MBPYRAMID
+     {0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},           //  MBPRISM
+     {0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},           //  MBKNIFE
+     {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},           // MBHEX
+     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},           //  MBPOLYHEDRON
+     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}            //  MBENTITYSET
 };
 
 char const * nameQuality [MB_QUALITY_COUNT]
@@ -97,8 +101,11 @@ char const * nameQuality [MB_QUALITY_COUNT]
    " aspect beta ",          // MB_ASPECT_BETA              // 22 tet
    " aspect ratio ",         // MB_ASPECT_RATIO,            // 23 MBTET
    " aspect gamma ",         // MB_ASPECT_GAMMA             // 24 tet
-   " minimum angle ",        //  MB_MINIMUM_ANGLE,         // 25        MBTET
-   " collapse ratio "        // MB_COLLAPSE_RATIO,        // 26        MBTET
+   " minimum angle ",        //  MB_MINIMUM_ANGLE,         // 25  MBTET
+   " collapse ratio ",        // MB_COLLAPSE_RATIO,        // 26  MBTET
+   " warpage ",               // MB_WARPAGE                // 27  MBQUAD
+   " area "                   // MB_AREA                   // 28  MBQAD
+   " maximum angle "          // MB_MAXIMUM_ANGLE          // 29  MBQUAD
 };
 
 ErrorCode VerdictWrapper::quality_measure(EntityHandle eh, QualityType q, double & quality)
@@ -179,13 +186,46 @@ ErrorCode VerdictWrapper::quality_measure(EntityHandle eh, QualityType q, double
   }
   if (MBPRISM == etype)
   {
+    switch (q) {
     case MB_VOLUME:               func = v_wedge_volume;    break;          // 4
     default : return MB_FAILURE;
+    }
   }
   if (MBKNIFE == etype)
   {
+    switch (q) {
     case MB_VOLUME:               func = v_knife_volume;    break;          // 4
     default : return MB_FAILURE;
+    }
+  }
+  if (MBQUAD == etype)
+  {
+    switch (q) {
+    case MB_EDGE_RATIO:           func = v_quad_edge_ratio; break;          // 0
+    case MB_MAX_EDGE_RATIO:       func = v_quad_max_edge_ratio; break;      // 1
+    case MB_ASPECT_RATIO:         func = v_quad_aspect_ratio; break;        // 23
+    case MB_RADIUS_RATIO:         func = v_quad_radius_ratio; break;        // 21
+    case MB_MED_ASPECT_FROBENIUS: func = v_quad_med_aspect_frobenius; break;// 9
+    case MB_MAX_ASPECT_FROBENIUS: func = v_quad_max_aspect_frobenius; break;//10
+    case MB_SKEW:                 func = v_quad_skew; break;                // 2
+    case MB_TAPER:                func = v_quad_taper; break;               // 3
+    case MB_WARPAGE:              func = v_quad_warpage; break;             // 27
+    case MB_AREA:                 func = v_quad_area; break;                // 28
+    case MB_STRETCH:              func = v_quad_stretch; break;             // 5
+    case MB_MINIMUM_ANGLE:        func = v_quad_minimum_angle; break;       // 25
+    case MB_MAXIMUM_ANGLE:        func = v_quad_maximum_angle; break;       // 29
+    case MB_ODDY:                 func = v_quad_oddy; break;                // 8
+    case MB_CONDITION:            func = v_quad_condition; break;           // 11
+    case MB_JACOBIAN:             func = v_quad_jacobian; break;            // 12
+    case MB_SCALED_JACOBIAN:      func = v_quad_scaled_jacobian; break;     // 13
+    case MB_SHEAR:                func = v_quad_shear; break;               // 14
+    case MB_SHAPE:                func = v_quad_shape; break;               // 15
+    case MB_RELATIVE_SIZE_SQUARED:func = v_quad_relative_size_squared; break; // 16
+    case MB_SHAPE_AND_SIZE:       func = v_quad_shape_and_size; break  ;      // 17
+    case MB_SHEAR_AND_SIZE:       func = v_quad_shear_and_size; break;        // 18
+    case MB_DISTORTION:           func = v_quad_distortion; break;            // 19
+    default :  return MB_FAILURE;
+    }
   }
 
   /*if (MBTRI==etype)
