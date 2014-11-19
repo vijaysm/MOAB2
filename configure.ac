@@ -14,6 +14,11 @@ m4_ifdef([AM_SILENT_RULES],
 
 AC_CHECK_PROG( [SED], [sed], [sed], [true] )
 
+# Infer the source directory as the path to the ./configure script
+#srcdir=`dirname $0`
+#top_srcdir=`dirname $0`
+USER_CONFIGURE_CMD="$0 $*"
+
 ################################################################################
 #                           Compilers
 ################################################################################
@@ -446,8 +451,18 @@ AC_SUBST(DAMSEL_LIBS)
 #                             NetCDF OPTIONS
 ################################################################################
 
+  # now pnetcdf
+FATHOM_CHECK_PNETCDF([65536],[524288])
+if test "xyes" = "x$HAVE_PNETCDF"; then
+  AM_CPPFLAGS="$AM_CPPFLAGS -DPNETCDF_FILE"
+fi
+AM_CONDITIONAL(PNETCDF_FILE, [test "xyes" = "x$HAVE_PNETCDF"])
+AM_CPPFLAGS="$PNETCDF_CPPFLAGS $AM_CPPFLAGS"
+EXPORT_LDFLAGS="$PNETCDF_LDFLAGS $EXPORT_LDFLAGS"
+AC_SUBST(PNETCDF_LIBS)
+
 old_LDFLAGS="$LDFLAGS"
-LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"
+LDFLAGS="$LDFLAGS $PNETCDF_LDFLAGS $HDF5_LDFLAGS"
 FATHOM_CHECK_NETCDF([65536],[524288])
 LDFLAGS="$old_LDFLAGS"
 if test "xyes" = "x$HAVE_NETCDF"; then
@@ -458,15 +473,6 @@ AM_CPPFLAGS="$NETCDF_CPPFLAGS $AM_CPPFLAGS"
 EXPORT_LDFLAGS="$NETCDF_LDFLAGS $EXPORT_LDFLAGS"
 AC_SUBST(NETCDF_LIBS)
 
-  # now pnetcdf
-FATHOM_CHECK_PNETCDF([65536],[524288])
-if test "xyes" = "x$HAVE_PNETCDF"; then
-  AM_CPPFLAGS="$AM_CPPFLAGS -DPNETCDF_FILE"
-fi
-AM_CONDITIONAL(PNETCDF_FILE, [test "xyes" = "x$HAVE_PNETCDF"])
-AM_CPPFLAGS="$PNETCDF_CPPFLAGS $AM_CPPFLAGS"
-EXPORT_LDFLAGS="$PNETCDF_LDFLAGS $EXPORT_LDFLAGS"
-AC_SUBST(PNETCDF_LIBS)
 
 ################################################################################
 #                             CGNS OPTIONS
@@ -590,12 +596,45 @@ AC_ARG_WITH([parmetis],
                  PARMETIS_DIR="$withval"
                  test -d "$withval" || AC_MSG_ERROR([Not a directory: with-parmetis=$withval])
                  if test -d "$withval/lib"; then
-                   ZOLTAN_LIB_FLAGS="-L$withval/lib"
+                   ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval/lib"
                  else
-                   ZOLTAN_LIB_FLAGS="-L$withval"
+                   ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval"
+                 fi
+                 if test -d "$withval/include"; then
+                   ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$withval/include"
+                 else
+                   ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$withval"
                  fi
                  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-parmetis=\"${withval}\""
 		 ;;
+               esac] )
+
+# If user specified with-metis, then assume they are trying
+# to add an additional library search directory in which to check
+# for the metis library.  We always check if zoltan requires
+# metis, so the only thing the user would really need to tell
+# us is if we need to look in some special place for it. 
+AC_ARG_WITH([metis], 
+            [AC_HELP_STRING([--with-metis=DIR],[Directory containing Parmetis library for Zoltan])],
+             [case "x$withval" in
+               xyes|xno)
+                 # do nothing
+                 ;;
+               x*)
+                 METIS_DIR="$withval"
+                 test -d "$withval" || AC_MSG_ERROR([Not a directory: with-metis=$withval])
+                 if test -d "$withval/lib"; then
+                   ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval/lib"
+                 else
+                   ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval"
+                 fi
+                 if test -d "$withval/include"; then
+                   ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$withval/include"
+                 else
+                   ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$withval"
+                 fi
+                 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-metis=\"${withval}\""
+     ;;
                esac] )
 
 # If user specified with-scotch, then assume they are trying
@@ -614,6 +653,11 @@ AC_ARG_WITH([scotch],
                    ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval/lib"
                  else
                    ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval"
+                 fi
+                 if test -d "$withval/include"; then
+                   ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$withval/include"
+                 else
+                   ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$withval"
                  fi
                  SCOTCH_LIBS="-lscotch -lscotcherr -lscotcherrexit"
                  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-scotch=\"${withval}\""
@@ -636,6 +680,11 @@ AC_ARG_WITH([ptscotch],
                    ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval/lib"
                  else
                    ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval"
+                 fi
+                 if test -d "$withval/include"; then
+                   ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$withval/include"
+                 else
+                   ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$withval"
                  fi
                  SCOTCH_LIBS="-lptscotch -lptscotcherr -lptscotcherrexit $SCOTCH_LIBS"
                  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-ptscotch=\"${withval}\""
@@ -1266,6 +1315,13 @@ AM_CONDITIONAL( HAVE_CGM, [test "x$CGM_MISSING" = "xno"] )
 #                           Output Files
 ################################################################################
 
+# --------------------------------------------------------------
+# Print configuration info to the header file
+# --------------------------------------------------------------
+AC_DEFINE_UNQUOTED(CONFIGURE_INFO, ["$0 run on `date`"], [Configuration information.])
+AC_DEFINE_UNQUOTED(CONFIGURE_COMMAND, ["$USER_CONFIGURE_CMD"], [Configuration command along with user-specified options.])
+AC_SUBST(USER_CONFIGURE_CMD)
+
 # Some old versions of autoconf don't define docdir.  
 # Define it if autoconf did not.
 if test "x" = "x$docdir"; then
@@ -1344,6 +1400,7 @@ AC_CONFIG_FILES([Makefile
 AC_CONFIG_COMMANDS([src/MOAB_FCDefs.h],
   [sed -e "s/FC_FUNC/MOAB_FC_FUNC/" src/FCDefs.h >src/MOAB_FCDefs.h])
 
+DISTCHECK_CONFIGURE_FLAGS = "$USER_CONFIGURE_CMD"
 # make distcheck will use this DISTCHECK_CONFIGURE_FLAGS 
 # variable to be passed to configure line
 # some people include a lot of env vars here
