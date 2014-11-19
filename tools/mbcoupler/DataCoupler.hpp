@@ -33,17 +33,16 @@ namespace moab {
 
 class ParallelComm;
 class SpatialLocator;
-class Error;
 
 class DataCoupler
 {
 public:
 
-  enum Method {CONSTANT, LINEAR_FE, QUADRATIC_FE, SPECTRAL} ;
+  enum Method {CONSTANT, LINEAR_FE, QUADRATIC_FE, SPECTRAL};
 
   enum IntegType {VOLUME};
 
-    /* constructor
+    /* Constructor
      * Constructor, which also optionally initializes the coupler
      * \param source_ents Elements in the source mesh
      * \param coupler_id Id of this coupler, should be the same over all procs
@@ -59,10 +58,10 @@ public:
               bool init_locator = true,
               int dim = -1);
 
-    /* destructor
+    /* Destructor
      */
   virtual ~DataCoupler();
-  
+
     /* \brief Locate points on the source mesh
      * This is a pass-through function to SpatialLocator::locate_points
      * \param xyz Point locations (interleaved) being located
@@ -81,7 +80,7 @@ public:
   ErrorCode locate_points(double *xyz, int num_points,
                           const double rel_iter_tol = 1.0e-10, const double abs_iter_tol = 1.0e-10,
                           const double inside_tol = 1.0e-6);
-  
+
     /* \brief Locate points on the source mesh
      * This is a pass-through function to SpatialLocator::locate_points
      * \param ents Target entities being located
@@ -99,7 +98,7 @@ public:
   ErrorCode locate_points(Range &ents,
                           const double rel_iter_tol = 1.0e-10, const double abs_iter_tol = 1.0e-10,
                           const double inside_tol = 1.0e-6);
-  
+
     /* \brief Interpolate data from the source mesh onto points
      * All entities/points or, if tuple_list is input, only those points
      * are interpolated from the source mesh.  Application should
@@ -174,7 +173,6 @@ public:
                         std::vector<int> *point_indices = NULL,
                         bool normalize = true);
 
-
     /* \brief Interpolate data from multiple tags
      * All entities/points or, if tuple_list is input, only those points
      * are interpolated from the source mesh.  Application should
@@ -206,50 +204,45 @@ public:
                         bool normalize = true);
 
     /* Get functions */
-  inline SpatialLocator *spatial_locator() {return myLocator;}
-  inline int my_id() const {return myId;}
-  inline const Range &target_ents() const {return targetEnts;}
-  inline Range &target_ents() {return targetEnts;}
-  inline int get_dim() const {return myDim;}
-        
+  inline SpatialLocator *spatial_locator() { return myLocator; }
+  inline int my_id() const { return myId; }
+  inline const Range &target_ents() const { return targetEnts; }
+  inline Range &target_ents() { return targetEnts; }
+  inline int get_dim() const { return myDim; }
+
 private:
 
     /* \brief MOAB instance
      */
   Interface *mbImpl;
-  
+
     /* \brief ParallelComm object for this coupler
      */
   ParallelComm *myPcomm;
-  
+
     /* \brief SpatialLocator for local mesh
      */
   SpatialLocator *myLocator;
-  
-    /* \brief error object used to set last error on interface
-     */
-  Error *mError;
 
     /* \brief Id of this coupler
      */
   int myId;
-  
+
     /* \brief Range of target entities
      */
   Range targetEnts;
 
-  // entity dimension
+  // Entity dimension
   int myDim;
-
 };
 
-    inline ErrorCode DataCoupler::interpolate(/*DataCoupler::Method*/ int method,
+inline ErrorCode DataCoupler::interpolate(/*DataCoupler::Method*/ int method,
                                           Tag tag,
                                           double *interp_vals,
                                           std::vector<int> *point_indices,
                                           bool normalize)
 {
-    // no point indices input, 
+  // No point indices input,
   int num_pts = (point_indices ? point_indices->size() : targetEnts.size());
   return interpolate(&method, &tag, &num_pts, 1,
                      interp_vals, point_indices, normalize);

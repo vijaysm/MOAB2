@@ -37,20 +37,18 @@ namespace moab {
 class ParallelComm;
 
 class AdaptiveKDTree;
-  
-class TupleList;
 
-class Error;
+class TupleList;
 
 class Coupler
 {
 public:
 
-  enum Method {CONSTANT, LINEAR_FE, QUADRATIC_FE, SPECTRAL} ;
+  enum Method {CONSTANT, LINEAR_FE, QUADRATIC_FE, SPECTRAL};
 
   enum IntegType {VOLUME};
 
-    /* constructor
+    /* Constructor
      * Constructor, which also optionally initializes the coupler
      * \param pc ParallelComm object to be used with this coupler, representing the union
      *    of processors containing source and target meshes
@@ -63,12 +61,12 @@ public:
             Range &local_elems,
             int coupler_id,
             bool init_tree = true,
-            int max_ent_dim=3);
+            int max_ent_dim = 3);
 
-    /* destructor
+    /* Destructor
      */
   virtual ~Coupler();
-  
+
     /* \brief Locate points on the source mesh
      * This function finds the element/processor/natural coordinates for the
      * source mesh element containing each point, optionally storing the results 
@@ -88,7 +86,7 @@ public:
                           double abs_eps = 0.0,
                           TupleList *tl = NULL,
                           bool store_local = true);
-  
+
     /* \brief Locate entities on the source mesh
      * This function finds the element/processor/natural coordinates for the
      * source mesh element containing each entity, optionally storing the results 
@@ -106,11 +104,11 @@ public:
      *
      */
   ErrorCode locate_points(Range &ents,
-                          double rel_eps = 0.0, 
+                          double rel_eps = 0.0,
                           double abs_eps = 0.0,
                           TupleList *tl = NULL,
                           bool store_local = true);
-  
+
     /* \brief Interpolate data from the source mesh onto points
      * All entities/points or, if tuple_list is input, only those points
      * are interpolated from the source mesh.  Application should
@@ -184,7 +182,6 @@ public:
                         TupleList *tl = NULL,
                         bool normalize = true);
 
-
     /* \brief Interpolate data from multiple tags
      * All entities/points or, if tuple_list is input, only those points
      * are interpolated from the source mesh.  Application should
@@ -213,7 +210,6 @@ public:
                         double *interp_vals,
                         TupleList *tl = NULL,
                         bool normalize = true);
-
 
     /* \brief Normalize a field over an entire mesh
      * A field existing on the vertices of elements of a mesh is integrated
@@ -342,9 +338,9 @@ public:
      * \param num_tags Number of tag names
      * \param tuples The returned tuple_list structure
      */
-  int create_tuples(iBase_EntitySetHandle *ent_sets, 
-                    int                   num_sets, 
-                    const char            **tag_names, 
+  int create_tuples(iBase_EntitySetHandle *ent_sets,
+                    int                   num_sets,
+                    const char            **tag_names,
                     int                   num_tags,
                     TupleList            **tuples);
 
@@ -359,8 +355,8 @@ public:
      * \param num_tags Number of tag handles
      * \param tuples The returned tuple_list structure
      */
-  int create_tuples(iBase_EntitySetHandle *ent_sets, 
-                    int                   num_sets, 
+  int create_tuples(iBase_EntitySetHandle *ent_sets,
+                    int                   num_sets,
                     iBase_TagHandle       *tag_handles,
                     int                   num_tags,
                     TupleList            **tuples);
@@ -374,7 +370,7 @@ public:
      * \param num_tuples Number of tuple_lists
      * \param unique_tuples The consolidated tuple_list with no duplicates
      */
-  int consolidate_tuples(TupleList **all_tuples, 
+  int consolidate_tuples(TupleList **all_tuples,
                          int        num_tuples,
                          TupleList **unique_tuples);
 
@@ -413,56 +409,56 @@ public:
    * if it exists, it will trigger a spectral element caching, with the order specified
    */
   ErrorCode initialize_spectral_elements(EntityHandle rootSource, EntityHandle rootTarget,
-      bool & specSou, bool & specTar);
+                                         bool &specSou, bool &specTar);
 
   /*
    * this method will put in an array, interleaved, the points of interest for coupling
    * with a target mesh (so where do we need to compute the field of interest)
    */
-  ErrorCode get_gl_points_on_elements(Range & targ_elems, std::vector<double> & vpos, int & numPointsOfInterest);
+  ErrorCode get_gl_points_on_elements(Range &targ_elems, std::vector<double> &vpos, int &numPointsOfInterest);
 
     /* Get functions */
 
-  inline Interface *mb_impl() const {return mbImpl;}
-  inline AdaptiveKDTree *my_tree() const {return myTree;};
-  inline EntityHandle local_root() const {return localRoot;}
-  inline const std::vector<double> &all_boxes() const {return allBoxes;}
-  inline ParallelComm *my_pc() const {return myPc;}
-  inline const Range &target_ents() const {return targetEnts;}
-  inline int my_id() const {return myId;}
-  inline const Range &my_range() const {return myRange;}
-  inline TupleList *mapped_pts() const {return mappedPts;}
-  inline int num_its() const {return numIts;}
-        
+  inline Interface *mb_impl() const { return mbImpl; }
+  inline AdaptiveKDTree *my_tree() const { return myTree; }
+  inline EntityHandle local_root() const { return localRoot; }
+  inline const std::vector<double> &all_boxes() const { return allBoxes; }
+  inline ParallelComm *my_pc() const { return myPc; }
+  inline const Range &target_ents() const { return targetEnts; }
+  inline int my_id() const { return myId; }
+  inline const Range &my_range() const { return myRange; }
+  inline TupleList *mapped_pts() const { return mappedPts; }
+  inline int num_its() const { return numIts; }
+
 private:
 
-    // given a coordinate position, find all entities containing
+    // Given a coordinate position, find all entities containing
     // the point and the natural coords in those ents
-  ErrorCode nat_param(double xyz[3], 
-                        std::vector<EntityHandle> &entities, 
+  ErrorCode nat_param(double xyz[3],
+                      std::vector<EntityHandle> &entities,
                       std::vector<CartVect> &nat_coords,
                       double epsilon = 0.0);
   
   ErrorCode interp_field(EntityHandle elem,
-                         CartVect nat_coord, 
+                         CartVect nat_coord,
                          Tag tag,
                          double &field);
 
   ErrorCode constant_interp(EntityHandle elem,
                             Tag tag,
                             double &field);
-  
-  ErrorCode test_local_box(double *xyz, 
-                           int from_proc, int remote_index, int index, 
+
+  ErrorCode test_local_box(double *xyz,
+                           int from_proc, int remote_index, int index,
                            bool &point_located,
                            double rel_eps = 0.0,
                            double abs_eps = 0.0,
                            TupleList *tl = NULL);
-  
+
     /* \brief MOAB instance
      */
   Interface *mbImpl;
-  
+
     /* \brief Initialize the kdtree, locally and across communicator
      */
   ErrorCode initialize_tree();
@@ -470,7 +466,7 @@ private:
     /* \brief Kdtree for local mesh
      */
   AdaptiveKDTree *myTree;
-  
+
     /* \brief Local root of the kdtree
      */
   EntityHandle localRoot;
@@ -478,15 +474,15 @@ private:
     /* \brief Min/max bounding boxes for all proc tree roots
      */
   std::vector<double> allBoxes;
-  
+
     /* \brief ParallelComm object for this coupler
      */
   ParallelComm *myPc;
-  
+
     /* \brief Id of this coupler
      */
   int myId;
-  
+
     /* \brief Range of source elements 
      */
   Range myRange;
@@ -502,7 +498,7 @@ private:
      * vr[3*i..3*i+2] = natural coordinates in mapped entity
      */
   TupleList *mappedPts;
-  
+
     /* \brief Tuple list of target points and interpolated data
      * Tuples contain the following:
      * n = # target points
@@ -517,21 +513,18 @@ private:
      */
   int numIts;
 
-  // entity dimension
+  // Entity dimension
   int max_dim;
 
-  // a cached spectral element for source and target , separate
-  // assume that their numberof GL points (order+1) does not change
-  // if it does change, we need to reinitialize it
+  // A cached spectral element for source and target, separate
+  // Assume that their number of GL points (order + 1) does not change
+  // If it does change, we need to reinitialize it
   void * _spectralSource;
   void * _spectralTarget;
   moab::Tag _xm1Tag, _ym1Tag, _zm1Tag;
   int _ntot;
-
-    // error object used to set last error on interface
-  Error *mError;
 };
-  
+
 inline ErrorCode Coupler::interpolate(Coupler::Method method,
                                       Tag tag,
                                       double *interp_vals,
