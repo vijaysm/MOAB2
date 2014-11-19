@@ -21,7 +21,7 @@ enum QualityType {
   MB_MAX_EDGE_RATIO ,       // 1  MBHEX,
   MB_SKEW,                  // 2  MBHEX,
   MB_TAPER,                 // 3  MBHEX,
-  MB_VOLUME,                // 4  MBHEX, MBTET
+  MB_VOLUME,                // 4  MBHEX, MBTET, MBPRISM, MBKNIFE
   MB_STRETCH,               // 5  MBHEX,
   MB_DIAGONAL,              // 6  MBHEX,
   MB_DIMENSION,             // 7  MBHEX,
