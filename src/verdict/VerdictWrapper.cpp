@@ -59,9 +59,8 @@ static int possibleQuality[MBMAXTYPE][MB_QUALITY_COUNT] = {
     /*0  1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29*/
      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},           //  MBVERTEX
      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0},           //  MBEDGE
-     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},           //  MBTRI
+     {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 1},           //  MBTRI
      {1, 1, 1, 1, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 1},           //  MBQUAD
-
      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},           //  MBPOLYGON
      {1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0},           //  MBTET
      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},           //  MBPYRAMID
@@ -228,12 +227,27 @@ ErrorCode VerdictWrapper::quality_measure(EntityHandle eh, QualityType q, double
     }
   }
 
-  /*if (MBTRI==etype)
+  if (MBTRI==etype)
   {
     switch(q) {
-    case
+    case MB_EDGE_RATIO:           func = v_tri_edge_ratio; break;             // 0
+    case MB_ASPECT_RATIO:         func = v_tri_aspect_ratio; break;           // 23
+    case MB_RADIUS_RATIO:         func = v_tri_radius_ratio; break;           // 21
+    case MB_MAX_ASPECT_FROBENIUS: func = v_tri_aspect_frobenius; break;       // 10
+    case MB_AREA:                 func = v_tri_area; break;                   // 28
+    case MB_MINIMUM_ANGLE:        func = v_tri_minimum_angle; break;          // 25
+    case MB_MAXIMUM_ANGLE:        func = v_tri_maximum_angle; break;          // 29
+    case MB_CONDITION:            func = v_tri_condition; break;              // 11
+    case MB_SCALED_JACOBIAN:      func = v_tri_scaled_jacobian; break;        // 13
+    // does not exist, even though it was defined in verdict.h; remove it from there too
+    // case MB_SHEAR:                func = v_tri_shear; break;                  // 14
+    case MB_RELATIVE_SIZE_SQUARED:func = v_tri_relative_size_squared; break;  // 16
+    case MB_SHAPE:                func = v_tri_shape; break;                  // 15
+    case MB_SHAPE_AND_SIZE:       func = v_tri_shape_and_size; break  ;       // 17
+    case MB_DISTORTION:           func = v_tri_distortion; break;             // 19
+    default :  return MB_FAILURE;
     }
-  }*/
+  }
 
   if (!func)
     return MB_FAILURE;

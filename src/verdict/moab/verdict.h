@@ -1068,10 +1068,6 @@ struct TriMetricVals
        Optimization of the Jacobian Matrix Norm and Associated Quantities,
        Intl. J. Numer. Meth. Engng. 2000, 48:1165-1185. */ 
     C_FUNC_DEF double v_tri_scaled_jacobian( int num_nodes, double coordinates[][3] );
-
-    //! Calculates tri metric.
-    /**  */
-    C_FUNC_DEF double v_tri_shear( int num_nodes, double coordinates[][3] ); 
     
     //! Calculates tri metric.
     /** Min( J, 1/J ), where J is determinant of weighted Jacobian matrix. 
