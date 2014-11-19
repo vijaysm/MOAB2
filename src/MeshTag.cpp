@@ -62,7 +62,7 @@ ErrorCode MeshTag::release_all_data(SequenceManager*, Error*, bool)
 }
 
 ErrorCode MeshTag::get_data(const SequenceManager*,
-                            Error* error,
+                            Error* /* error */,
                             const EntityHandle* entities,
                             size_t num_entities,
                             void* data) const
@@ -90,7 +90,7 @@ ErrorCode MeshTag::get_data(const SequenceManager*,
 }
 
 ErrorCode MeshTag::get_data(const SequenceManager*,
-                            Error* error,
+                            Error* /* error */,
                             const Range& r,
                             void*) const
 {
@@ -170,7 +170,7 @@ ErrorCode MeshTag::set_data(SequenceManager*,
 }
  
 ErrorCode MeshTag::set_data(SequenceManager*,
-                            Error* error,
+                            Error* /* error */,
                             const Range& range,
                             const void*)
 {
