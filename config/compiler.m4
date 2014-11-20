@@ -187,16 +187,11 @@ FCFLAGS="$USER_FCFLAGS $FATHOM_FC_SPECIAL"
 
   # Check for debug flags
 AC_ARG_ENABLE( debug, AC_HELP_STRING([--enable-debug],[Debug symbols (-g)]),
-               [enable_debug=$enableval; DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-debug=$enableval"], [enable_debug=] )
+               [enable_debug=$enableval], [enable_debug=] )
 AC_ARG_ENABLE( optimize, AC_HELP_STRING([--enable-optimize],[Compile optimized (-O2)]),
-               [enable_cxx_optimize=$enableval; DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-optimize=$enableval";
-                enable_cc_optimize=$enableval
-		enable_fc_optimize=$enableval
-		], 
-               [enable_cxx_optimize=
-                enable_cc_optimize=
-		enable_fc_optimize=
-		] )
+               [enable_cxx_optimize=$enableval; enable_cc_optimize=$enableval; enable_fc_optimize=$enableval;],
+               [enable_cxx_optimize=""; enable_cc_optimize=""; enable_fc_optimize="";	]
+             )
 
 # Do enable_optimize by default, unless user has specified
 # custom CXXFLAGS or CFLAGS
@@ -227,9 +222,15 @@ if test "xyes" = "x$enable_debug"; then
   if test "x$GXX" = "xyes"; then
     CFLAGS="$CFLAGS -fstack-protector-all"
   fi
+  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-debug=yes"
+else
+  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-debug=no"
 fi
 if test "xyes" = "x$enable_cxx_optimize"; then
   CXXFLAGS="$CXXFLAGS -O2 -DNDEBUG"
+  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-optimize=yes"
+else
+  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-optimize=no"
 fi
 if test "xyes" = "x$enable_cc_optimize"; then
   CFLAGS="$CFLAGS -O2 -DNDEBUG"
@@ -257,7 +258,8 @@ AC_ARG_ENABLE( 32bit, AC_HELP_STRING([--enable-32bit],[Force 32-bit objects]),
   CXXFLAGS="$CXXFLAGS $FATHOM_CXX_32BIT"
   CFLAGS="$CFLAGS $FATHOM_CC_32BIT"
   enable_32bit=yes
-])
+], [enable_32bit=no])
+
 # This requires FATHOM_CXX_FLAGS and FATHOM_CC_FLAGS to have been called first
 AC_ARG_ENABLE( 64bit, AC_HELP_STRING([--enable-64bit],[Force 64-bit objects]),
 [
@@ -272,7 +274,11 @@ AC_ARG_ENABLE( 64bit, AC_HELP_STRING([--enable-64bit],[Force 64-bit objects]),
   fi
   CXXFLAGS="$CXXFLAGS $FATHOM_CXX_64BIT"
   CFLAGS="$CFLAGS $FATHOM_CC_64BIT"
-])
+  enable_64bit=yes
+], [enable_64bit=yes])
+
+# Distcheck flags for 32-bit and 64-bit builds
+DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-32bit=$enable_32bit --enable-64bit=$enable_64bit"
 
 # Check if we are using new Darwin kernels with Clang -- needs libc++ instead of libstdc++
 if (test "x$ENABLE_FORTRAN" != "xno" && test "x$CHECK_FC" != "xno"); then
