@@ -211,7 +211,7 @@ fi
 FORCE_IGEOM=no
 AC_ARG_ENABLE( [igeom],
 [AC_HELP_STRING([--enable-igeom],[Build mesh-based iGeom implementation])],
-[FORCE_IGEOM=yes; enable_igeom=$enableval],[enableigeom=no] )
+[FORCE_IGEOM=yes; enable_igeom=$enableval],[enable_igeom=no] )
 
 if (test "xyes" != "x$enable_igeom" && test "xno" != "x$enable_igeom"); then
   AC_MSG_ERROR([Unknown argument --enable-igeom=$enableval])
@@ -760,12 +760,11 @@ AC_DEFUN([MB_OPTIONAL_TOOL],[
   AC_ARG_ENABLE( [$1],
 [AC_HELP_STRING([--enable-$1],[Build tool: $1])
 AC_HELP_STRING([--disable-$1],[Don't build $1])],
-                 [ENABLE_$1=$enableval
-DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-$1=\"${enableval}\""
-],[ENABLE_$1=${mb_default_$1}] )
+                 [ENABLE_$1=$enableval],[ENABLE_$1=${mb_default_$1}] )
   AM_CONDITIONAL([ENABLE_$1],[test "x${ENABLE_$1}" != "xno"])
   AC_MSG_CHECKING([if $1 is to be built])
   AC_MSG_RESULT([${ENABLE_$1}])
+  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-$1=\"${ENABLE_$1}\""
 ])
   # The default for all tools
 AC_ARG_ENABLE( [tools], [
