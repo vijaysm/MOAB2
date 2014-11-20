@@ -29,6 +29,7 @@ AC_ARG_ENABLE([fortran],
 
 AS_IF([test "x$enable_fortran" != "xno"], [ENABLE_FORTRAN=yes])
 AC_SUBST(ENABLE_FORTRAN)
+DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-fortran=$ENABLE_FORTRAN"
 EXTRA_GNU_FLAGS='-Wall -pipe -pedantic -Wno-long-long -Wextra -Wcast-align  -Wpointer-arith -Wformat -Wformat-security -Wshadow -Wunused-parameter'
 EXTRA_INTEL_FLAGS='-Wall'
 
