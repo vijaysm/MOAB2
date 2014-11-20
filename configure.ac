@@ -190,11 +190,9 @@ AC_CHECK_LIB(m, pow, LIBS="$LIBS -lm")
 ################################################################################
 #                           iMesh Part 1 of 2
 ################################################################################
-
-FORCE_IMESH=no
 AC_ARG_ENABLE( [imesh],
 [AC_HELP_STRING([--disable-imesh],[Do not build support for iMesh interface.])],
-[FORCE_IMESH=yes; enable_imesh=$enableval],
+[enable_imesh=$enableval],
 [enable_imesh=yes] )
 
 if (test "xyes" != "x$enable_imesh" && test "xno" != "x$enable_imesh"); then
@@ -207,11 +205,9 @@ fi
 ################################################################################
 #                           iGeom Part 1 of 2
 ################################################################################
-
-FORCE_IGEOM=no
 AC_ARG_ENABLE( [igeom],
 [AC_HELP_STRING([--enable-igeom],[Build mesh-based iGeom implementation])],
-[FORCE_IGEOM=yes; enable_igeom=$enableval],[enable_igeom=no] )
+[enable_igeom=$enableval],[enable_igeom=no] )
 
 if (test "xyes" != "x$enable_igeom" && test "xno" != "x$enable_igeom"); then
   AC_MSG_ERROR([Unknown argument --enable-igeom=$enableval])
@@ -235,12 +231,8 @@ ITAPS_VALID_HANDLE_SIZE=yes
 if test $SIZEOF_VOID_P -ne $SIZEOF_MBENTITYHANDLE; then
   ITAPS_VALID_HANDLE_SIZE=no
   AC_MSG_WARN([Cannot build iMesh or iGeom API because sizeof(EntityHandle) != sizeof(void*)])
-  if test "x$FORCE_IMESH" = "xno"; then
-    ENABLE_imesh=no
-  fi
-  if test "x$FORCE_IGEOM" = "xno"; then
-    ENABLE_igeom=no
-  fi
+  ENABLE_imesh=no
+  ENABLE_igeom=no
 fi
 
 AC_MSG_CHECKING([if iMesh support is to be built])
