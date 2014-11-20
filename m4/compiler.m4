@@ -296,6 +296,7 @@ if test x$GXX = xyes; then
   cxx_compiler=GNU
   # Intel claims to be GCC, check for it here
   FATHOM_TRY_COMPILER_DEFINE([__INTEL_COMPILER],[cxx_compiler=Intel])
+  FATHOM_TRY_COMPILER_DEFINE([__clang__],[cxx_compiler=Clang])
 # Search for other compiler types
 # For efficiency, limit checks to relevant OSs
 else
@@ -316,6 +317,9 @@ else
       FATHOM_TRY_COMPILER_DEFINE([__DECCXX_VER],[cxx_compiler=Compaq])
       FATHOM_TRY_COMPILER_DEFINE([__SUNPRO_CC],[cxx_compiler=SunWorkshop])
       FATHOM_TRY_COMPILER_DEFINE([__PGI],[cxx_compiler=PortlandGroup])
+      ;;
+    darwin*)
+      FATHOM_TRY_COMPILER_DEFINE([__clang__],[cxx_compiler=Clang])
       ;;
     hpux*)
       FATHOM_TRY_COMPILER_DEFINE([__HP_aCC],[cxx_compiler=HP])
@@ -370,6 +374,11 @@ case "$cxx_compiler:$host_cpu" in
     FATHOM_CXX_32BIT=-m32
     FATHOM_CXX_64BIT=-m64
     FATHOM_CXX_SPECIAL="$EXTRA_INTEL_FLAGS -wd981 -wd383"
+    ;;
+  Clang:*)
+    FATHOM_CXX_SPECIAL="$EXTRA_GNU_FLAGS -stdlib=libstdc++"
+    FATHOM_CXX_32BIT=-m32
+    FATHOM_CXX_64BIT=-m64
     ;;
   VisualAge:*)
     FATHOM_CXX_32BIT=-q32
