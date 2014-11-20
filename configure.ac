@@ -190,51 +190,35 @@ AC_CHECK_LIB(m, pow, LIBS="$LIBS -lm")
 ################################################################################
 #                           iMesh Part 1 of 2
 ################################################################################
-
-FORCE_IMESH=no
 AC_ARG_ENABLE( [imesh],
 [AC_HELP_STRING([--disable-imesh],[Do not build support for iMesh interface.])],
-[FORCE_IMESH=yes],
-[enableval=yes] )
+[disable_imesh=$enableval],
+[disable_imesh=yes] )
 
-case $enableval in
-  yes)
-    ENABLE_imesh=yes; DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-imesh";
-    ;;
-  nofortran|NoFortran|noFORTRAN|NoFORTRAN|Nofortran)
-    AC_MSG_ERROR([Deprecated value for --enable-imesh: \"$enableval\".  Try \"--disable-fortran\"])
-    ;;
-  no)
+if (test "xyes" != "x$disable_imesh" && test "xno" != "x$disable_imesh"); then
+  AC_MSG_ERROR([Unknown argument --enable-imesh=$enableval])
+else
+  if (test "$disable_imesh" != "no"); then
+    ENABLE_imesh=yes
+  else
     ENABLE_imesh=no
-    ;;
-  *)
-    AC_MSG_ERROR([Invalid argument to --enable-imesh : $enableval])
-    ;;
-esac
+  fi
+  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --disable-imesh=$disable_imesh"
+fi
 
 ################################################################################
 #                           iGeom Part 1 of 2
 ################################################################################
-
-FORCE_IGEOM=no
 AC_ARG_ENABLE( [igeom],
 [AC_HELP_STRING([--enable-igeom],[Build mesh-based iGeom implementation])],
-[FORCE_IGEOM=yes],[enableval=no] )
+[enable_igeom=$enableval],[enable_igeom=no] )
 
-case $enableval in
-  yes)
-    ENABLE_igeom=yes; DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-igeom";
-    ;;
-  nofortran|NoFortran|noFORTRAN|NoFORTRAN|Nofortran)
-    AC_MSG_ERROR([Depricated value for --enable-igeom: \"$enableval\".  Try \"FC= F77=\"])
-    ;;
-  no)
-    ENABLE_igeom=no
-    ;;
-  *)
-    AC_MSG_ERROR([Invalid argument to --enable-igeom : $enableval])
-    ;;
-esac
+if (test "xyes" != "x$enable_igeom" && test "xno" != "x$enable_igeom"); then
+  AC_MSG_ERROR([Unknown argument --enable-igeom=$enableval])
+else
+  ENABLE_igeom=$enable_igeom
+  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-igeom=$enable_igeom"
+fi
 
 ################################################################################
 #                           iMesh/iGeom Part 2 of 2
@@ -251,12 +235,8 @@ ITAPS_VALID_HANDLE_SIZE=yes
 if test $SIZEOF_VOID_P -ne $SIZEOF_MBENTITYHANDLE; then
   ITAPS_VALID_HANDLE_SIZE=no
   AC_MSG_WARN([Cannot build iMesh or iGeom API because sizeof(EntityHandle) != sizeof(void*)])
-  if test "x$FORCE_IMESH" = "xno"; then
-    ENABLE_imesh=no
-  fi
-  if test "x$FORCE_IGEOM" = "xno"; then
-    ENABLE_igeom=no
-  fi
+  ENABLE_imesh=no
+  ENABLE_igeom=no
 fi
 
 AC_MSG_CHECKING([if iMesh support is to be built])
@@ -776,12 +756,11 @@ AC_DEFUN([MB_OPTIONAL_TOOL],[
   AC_ARG_ENABLE( [$1],
 [AC_HELP_STRING([--enable-$1],[Build tool: $1])
 AC_HELP_STRING([--disable-$1],[Don't build $1])],
-                 [ENABLE_$1=$enableval
-DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-$1=\"${enableval}\""
-],[ENABLE_$1=${mb_default_$1}] )
+                 [ENABLE_$1=$enableval],[ENABLE_$1=${mb_default_$1}] )
   AM_CONDITIONAL([ENABLE_$1],[test "x${ENABLE_$1}" != "xno"])
   AC_MSG_CHECKING([if $1 is to be built])
   AC_MSG_RESULT([${ENABLE_$1}])
+  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-$1=\"${ENABLE_$1}\""
 ])
   # The default for all tools
 AC_ARG_ENABLE( [tools], [
