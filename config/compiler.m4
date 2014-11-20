@@ -203,7 +203,7 @@ if test "x$enable_debug" = "x"; then
     enable_fc_optimize=yes
   fi
 fi
-enable_fc_optimize=$enable_fc_optimize
+enable_f77_optimize=$enable_fc_optimize
 
 # Choose compiler flags from CLI args
 if test "xyes" = "x$enable_debug"; then
