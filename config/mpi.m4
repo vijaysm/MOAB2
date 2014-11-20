@@ -34,6 +34,35 @@ AC_DEFUN([FATHOM_CONFIG_MPI_EXEC],[
   AM_CONDITIONAL(USE_MPIEXEC, [test "xtrue" != "x$MPIEXEC"])
 ])
 
+# Check for OpenMPI: #ifdef OPEN_MPI
+# Check for MPICH:   #ifdef MPICH
+# Check for MPI library type (MPICH, OpenMPI)
+AC_DEFUN([FATHOM_CHECK_MPITYPE], [
+  if test "x$enablempi" != "xno"; then
+    AC_MSG_CHECKING([for known MPI family and version])
+    MPIFAMILY="GENERIC"
+    mpifile="$WITH_MPI/include/mpi.h"
+    if (test -f $mpifile); then
+      ismpich="`grep MPICH $mpifile`"
+      if (test "x$ismpich" != "x"); then
+        MPIFAMILY="MPICH"
+      else
+        isopenmpi="`grep OPEN_MPI $mpifile`"
+        if (test "x$isopenmpi" != "x"); then
+          MPIFAMILY="OPENMPI"
+        fi # openmpi
+      fi # mpich
+    fi # mpifile
+    if (test "$MPIFAMILY" != "GENERIC"); then
+      MPI_VER=`grep "MPI_VERSION" $mpifile | sed -e "s/#define MPI_VERSION //g" | tr ' ' '\0'`
+      MPITYPE="$MPIFAMILY-$MPI_VER"
+    fi
+    AC_MSG_RESULT([$MPITYPE])
+    AC_SUBST(MPITYPE)
+  fi #enablempi
+])
+
+
 # Check for MPI library and MPI.h
 # Error if not found.
 # Defines MPI_CXX_HELP_NEEDED to yes if, when parsed with a c++ compiler,
