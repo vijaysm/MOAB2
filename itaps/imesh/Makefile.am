@@ -104,4 +104,4 @@ iMeshP_protos.h: iMeshP.h ../mkprotos.sh
 iMeshP_extensions_protos.h: iMeshP_extensions.h ../mkprotos.sh
 	$(AM_V_GEN)$(srcdir)/../mkprotos.sh iMeshP MOAB $< $@ MOAB_FCDefs.h
 
-include $(abs_top_srcdir)/itaps/imesh/iMesh-Defs.inc
+include $(abs_top_builddir)/itaps/imesh/iMesh-Defs.inc
