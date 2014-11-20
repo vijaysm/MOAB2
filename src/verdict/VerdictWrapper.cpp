@@ -71,7 +71,7 @@ static int possibleQuality[MBMAXTYPE][MB_QUALITY_COUNT] = {
      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}            //  MBENTITYSET
 };
 
-char const * nameQuality [MB_QUALITY_COUNT]
+static char const * nameQuality [MB_QUALITY_COUNT] =
 {
    " edge ratio ",          //  MB_EDGE_RATIO = 0,  // 0
    " maximum edge ratio ",  //  MB_MAX_EDGE_RATIO , // 1
@@ -103,7 +103,7 @@ char const * nameQuality [MB_QUALITY_COUNT]
    " minimum angle ",        //  MB_MINIMUM_ANGLE,         // 25  MBTET
    " collapse ratio ",        // MB_COLLAPSE_RATIO,        // 26  MBTET
    " warpage ",               // MB_WARPAGE                // 27  MBQUAD
-   " area "                   // MB_AREA                   // 28  MBQAD
+   " area ",                   // MB_AREA                   // 28  MBQAD
    " maximum angle "          // MB_MAXIMUM_ANGLE          // 29  MBQUAD
 };
 
@@ -254,6 +254,20 @@ ErrorCode VerdictWrapper::quality_measure(EntityHandle eh, QualityType q, double
   // actual computation happens here
   quality = (*func)(num_nodes, coordinates);
 
+  return MB_SUCCESS;
+}
+const char * VerdictWrapper::quality_name (QualityType q)
+{
+  return nameQuality[q];
+}
+  // relative size needs a base size, that is set at global level, one for each major type (hex, tet, quad, tri)
+ErrorCode VerdictWrapper::set_size(double size)
+{
+  // set the sizes for all of them; maybe we can set by type, this should be enough for simplicity
+  v_set_hex_size (size);
+  v_set_tet_size (size);
+  v_set_quad_size( size );
+  v_set_tri_size( size );
   return MB_SUCCESS;
 }
 } // end namespace

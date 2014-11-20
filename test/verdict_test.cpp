@@ -33,24 +33,27 @@ int main( int argc, char* argv[] )
     return 1;
   }
   VerdictWrapper vw(mb);
+  // for size methods/quality, we need a size, to compute relative sizes and stuff
+  rval = vw.set_size(1.0);
   for (Range::iterator eit=entities.begin(); eit!=entities.end(); eit++)
   {
     EntityHandle eh=*eit;
     for (int quality=0; quality<MB_QUALITY_COUNT; quality++)
     {
+      QualityType q = (QualityType)quality;
       double qm;
-      rval = vw.quality_measure(eh, (QualityType)quality, qm);
+      rval = vw.quality_measure(eh, q, qm);
       if (MB_NOT_IMPLEMENTED == rval)
         continue;
       if (MB_FAILURE == rval)
       {
-        std::cerr << " failure for entity " << mb->list_entity(eh) << " quality " << nameQuality[quality] << "\n";
+        std::cerr << " failure for entity " << mb->list_entity(eh) << " quality " << vw.quality_name(q) << "\n";
         return 1;
       }
       if (MB_SUCCESS == rval)
       {
         std::cout << "Entity type " << (EntityType)mb->type_from_handle(eh) << " id:" << mb->id_from_handle(eh) << " quality:" <<
-            nameQuality[quality] << " : " << qm << "\n";
+            vw.quality_name(q) << " : " << qm << "\n";
       }
     }
   }

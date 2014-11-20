@@ -54,13 +54,14 @@ enum QualityType {
 
 };
 
-extern char const * nameQuality [MB_QUALITY_COUNT];
-
 class VerdictWrapper {
 public:
   VerdictWrapper(Interface * mb);
   virtual ~VerdictWrapper();
   ErrorCode quality_measure(EntityHandle eh, QualityType q, double & quality);
+  const char * quality_name (QualityType q);
+  // relative size needs a base size, that is set at global level, one for each major type (hex, tet, quad, tri)
+  ErrorCode set_size(double size);
 private:
   Interface * mbImpl;
 
