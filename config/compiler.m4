@@ -246,24 +246,23 @@ fi
 
   # Check for 32/64 bit.
   # This requires FATHOM_CXX_FLAGS and FATHOM_CC_FLAGS to have been called first
-AC_ARG_ENABLE( 32bit, AC_HELP_STRING([--enable-32bit],[Force 32-bit objects]),
+AC_ARG_ENABLE(32bit, AC_HELP_STRING([--enable-32bit],[Force 32-bit objects]),
 [
-  if test "xyes" != "x$enableval"; then
+  if (test "xyes" != "x$enableval" && test "xno" != "x$enableval"); then
     AC_MSG_ERROR([Unknown argument --enable-32bit=$enableval])
   elif test "x" = "x$FATHOM_CXX_32BIT"; then
     AC_MSG_ERROR([Don't know how to force 32-bit C++ on this platform.  Try setting CXXFLAGS manually])
   elif test "x" = "x$FATHOM_CC_32BIT"; then
     AC_MSG_ERROR([Don't know how to force 32-bit C on this platform.  Try setting CFLAGS manually])
+  else
+    enable_32bit=$enableval
   fi
-  CXXFLAGS="$CXXFLAGS $FATHOM_CXX_32BIT"
-  CFLAGS="$CFLAGS $FATHOM_CC_32BIT"
-  enable_32bit=yes
 ], [enable_32bit=no])
 
 # This requires FATHOM_CXX_FLAGS and FATHOM_CC_FLAGS to have been called first
-AC_ARG_ENABLE( 64bit, AC_HELP_STRING([--enable-64bit],[Force 64-bit objects]),
+AC_ARG_ENABLE(64bit, AC_HELP_STRING([--enable-64bit],[Force 64-bit objects]),
 [
-  if test "xyes" != "x$enableval"; then
+  if (test "xyes" != "x$enableval" && test "xno" != "x$enableval"); then
     AC_MSG_ERROR([Unknown argument --enable-64bit=$enableval])
   elif test "x" = "x$FATHOM_CXX_64BIT"; then
     AC_MSG_ERROR([Don't know how to force 64-bit C++ on this platform.  Try setting CXXFLAGS manually])
@@ -271,12 +270,19 @@ AC_ARG_ENABLE( 64bit, AC_HELP_STRING([--enable-64bit],[Force 64-bit objects]),
     AC_MSG_ERROR([Don't know how to force 64-bit C on this platform.  Try setting CFLAGS manually])
   elif test "xyes" = "x$enable_32bit"; then
     AC_MSG_ERROR([Cannot do both --enable-32bit and --enable-64bit])
+  else
+    enable_64bit=$enableval
   fi
+], [enable_64bit=no])
+
+if (test "xyes" != "x$enable_32bit"); then
+  CXXFLAGS="$CXXFLAGS $FATHOM_CXX_32BIT"
+  CFLAGS="$CFLAGS $FATHOM_CC_32BIT"
+fi
+if (test "xyes" != "x$enable_64bit"); then
   CXXFLAGS="$CXXFLAGS $FATHOM_CXX_64BIT"
   CFLAGS="$CFLAGS $FATHOM_CC_64BIT"
-  enable_64bit=yes
-], [enable_64bit=yes])
-
+fi
 # Distcheck flags for 32-bit and 64-bit builds
 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-32bit=$enable_32bit --enable-64bit=$enable_64bit"
 
