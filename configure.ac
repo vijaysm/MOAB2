@@ -192,14 +192,18 @@ AC_CHECK_LIB(m, pow, LIBS="$LIBS -lm")
 ################################################################################
 AC_ARG_ENABLE( [imesh],
 [AC_HELP_STRING([--disable-imesh],[Do not build support for iMesh interface.])],
-[enable_imesh=$enableval],
-[enable_imesh=yes] )
+[disable_imesh=$enableval],
+[disable_imesh=yes] )
 
-if (test "xyes" != "x$enable_imesh" && test "xno" != "x$enable_imesh"); then
+if (test "xyes" != "x$disable_imesh" && test "xno" != "x$disable_imesh"); then
   AC_MSG_ERROR([Unknown argument --enable-imesh=$enableval])
 else
-  ENABLE_imesh=$enable_imesh
-  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-imesh=$enable_imesh"
+  if (test "$disable_imesh" != "no"); then
+    ENABLE_imesh=yes
+  else
+    ENABLE_imesh=no
+  fi
+  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --disable-imesh=$disable_imesh"
 fi
 
 ################################################################################
