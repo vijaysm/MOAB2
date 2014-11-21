@@ -389,7 +389,6 @@ namespace moab{
     int vtotal = 2+ refTemplates[0][d].total_new_verts;
     EntityHandle *vbuffer = new EntityHandle[vtotal];
 
-    //std::vector<EntityHandle> conn(2);
      std::vector<EntityHandle> conn;
     int count_nents = 0;
     int count_verts = nverts_prev;
@@ -398,7 +397,6 @@ namespace moab{
     for (int eid = 0; eid < nents_prev; eid++)
       {
         conn.clear();
-        //vbuffer.clear();
 
         // EntityHandle of the working edge
         EntityHandle edge;
@@ -543,8 +541,6 @@ namespace moab{
         else
           face = *_infaces.begin() + fid;
 
-  //      std::cout<<"Working face = "<<face<<std::endl;
-
         error = get_connectivity(face, cur_level-1, conn);
         if (error != MB_SUCCESS) return error;
 
@@ -591,10 +587,6 @@ namespace moab{
             ent_buffer[i] = level_mesh[cur_level].start_face+count_nents;
             count_nents += 1;
           }
-
-    //    for (int i=0; i<etotal; i++)
-    //      std::cout<<"ent_buffer["<<i<<"] = "<<ent_buffer[i]<<std::endl;
-
 
         // Step 3: Update the local AHF maps
         error = update_local_ahf(deg, type, vbuffer, ent_buffer, etotal);
@@ -650,9 +642,6 @@ namespace moab{
               }
           }
 
-   //     for (int i=0; i< nents_prev*nepf*nve; i++)
-   //       std::cout<<"trackF["<<i<<"] = "<<trackvertsF[i]<<std::endl;
-
         //Step 5: Compute the coordinates of the new vertices, avoids computing more than once via the flag_verts array.
         double *corner_coords = new double[nepf*3];
         error = get_coordinates(cur_conn, nepf, cur_level, corner_coords);
@@ -663,8 +652,6 @@ namespace moab{
 
         delete [] corner_coords;
 
-     //   error = print_tags_2D(cur_level, type);
-    //    if (error != MB_SUCCESS) return error;
       }
 
     // Step 6: Update the global maps
@@ -683,6 +670,24 @@ namespace moab{
   ErrorCode NestedRefine::construct_hm_3D(int cur_level, int deg)
   {
     ErrorCode error;
+    EntityType type = mbImpl->type_from_handle(*(_incells.begin()));
+    if (type == MBTET)
+      {
+        error = subdivide_tets(cur_level, deg);
+        if (error != MB_SUCCESS) return error;
+      }
+    else
+      {
+        error = subdivide_cells(type, cur_level, deg);
+        if (error != MB_SUCCESS) return error;
+      }
+
+    return MB_SUCCESS;
+  }
+
+  ErrorCode NestedRefine::subdivide_cells(EntityType type, int cur_level, int deg)
+  {
+    ErrorCode error;
     int nverts_prev, nents_prev;
     if (cur_level)
       {
@@ -696,7 +701,6 @@ namespace moab{
       }
 
     //Create some book-keeping arrays over the parent mesh to avoid introducing duplicate vertices
-    EntityType type = mbImpl->type_from_handle(*(_incells.begin()));
     int cindex = type -1;
     int d = get_index_from_degree(deg);
     int ne = refTemplates[cindex][d].nv_edge;
@@ -774,21 +778,43 @@ namespace moab{
               }
           }
 
-        std::cout<<"vbuffer = [";
-        for (int i=0; i<vtotal; i++)
-          std::cout<<" "<<vbuffer[i]<<", ";
-        std::cout<<" ] "<<std::endl;
-
         //Step 2: Use the template to obtain the subentities. The coordinates and local ahf maps are also constructed.
-        error = subdivide_cells(type, conn, cur_level, deg, vbuffer, vtotal, &count_ents, flag_verts, nverts_prev);
+        //Connectivity of the children
+        int etotal = refTemplates[type-1][d].total_new_ents;
+        EntityHandle  *ent_buffer = new EntityHandle[etotal];
+
+        for (int i = 0; i < etotal; i++)
+          {
+            for (int k = 0; k < nvpc; k++)
+              {
+                int idx = refTemplates[type-1][d].ents_conn[i][k];
+                level_mesh[cur_level].cell_conn[nvpc*count_ents+k] = vbuffer[idx];
+              }
+            ent_buffer[i] =  level_mesh[cur_level].start_cell + count_ents;
+            count_ents += 1;
+          }
+
+        //Step 3: Update local ahf maps
+        error = update_local_ahf(deg, type, vbuffer, ent_buffer, etotal);
         if (error != MB_SUCCESS) return error;
 
-        //Step 3: Update tracking information
+        //Step 4: Update tracking information
         error = update_tracking_verts(cell, cur_level, deg, trackvertsC_edg, trackvertsC_face, vbuffer);
         if (error != MB_SUCCESS) return error;
+
+        //Step 5: Coordinates of the new vertices
+        double *corner_coords = new double[nvpc*3];
+        error = get_coordinates(conn, nvpc, cur_level, corner_coords);
+        if (error != MB_SUCCESS) return error;
+
+        error = compute_coordinates(cur_level, deg, type, vbuffer, vtotal, corner_coords, flag_verts, nverts_prev);
+        if (error != MB_SUCCESS) return error;
+
+        delete [] ent_buffer;
+        delete [] corner_coords;
       }
 
-    //Step 4: Update the global maps
+    //Step 6: Update the global maps
     error = update_global_ahf(type, cur_level, deg);
     if (error != MB_SUCCESS) return error;
 
@@ -800,138 +826,165 @@ namespace moab{
     return MB_SUCCESS;
   }
 
-  ErrorCode NestedRefine::subdivide_cells(EntityType type, std::vector<EntityHandle> &conn, int cur_level, int deg, EntityHandle *vbuffer, int vtotal,  int *count_ents, std::vector<int> &flag_verts, int nverts_prev)
+  ErrorCode NestedRefine::subdivide_tets(int cur_level, int deg)
   {
-    //Subdivide the cell into children cells. Also update the sibling half-facet maps for the new cells.
-    //Obtain incident edges/faces on this cell
     ErrorCode error;
-    int index = ahf->get_index_from_type(*_incells.begin());
-    int nvpc = ahf->lConnMap3D[index].num_verts_in_cell;
-    int d = get_index_from_degree(deg);
-
-    //Coordinates of the new vertices
-    double *corner_coords = new double[nvpc*3];
-    error = get_coordinates(conn, nvpc, cur_level, corner_coords);
-    if (error != MB_SUCCESS) return error;
-
-    error = compute_coordinates(cur_level, deg, type, vbuffer, vtotal, corner_coords, flag_verts, nverts_prev);
-    if (error != MB_SUCCESS) return error;
-
-    //Choose pattern. Special treatment is required for tetrahedral.
-    int pat_id;
-    if (type==MBTET)
+    int nverts_prev, nents_prev;
+    if (cur_level)
       {
-        int diag = find_shortest_diagonal_octahedron(cur_level, deg, vbuffer);
-        pat_id = diag + 2;
+        nverts_prev = level_mesh[cur_level-1].num_verts;
+        nents_prev = level_mesh[cur_level-1].num_cells;
       }
     else
-      pat_id = type-1;
-
-    //Connectivity of the children
-    int etotal = refTemplates[pat_id][d].total_new_ents;
-    EntityHandle  *ent_buffer = new EntityHandle[etotal];
-
-    for (int i = 0; i < etotal; i++)
       {
-        for (int k = 0; k < nvpc; k++)
-          {
-            int idx = refTemplates[type-1][d].ents_conn[i][k];
-            level_mesh[cur_level].cell_conn[nvpc*count_ents[0]+k] = vbuffer[idx];
-          }
-        ent_buffer[i] =  level_mesh[cur_level].start_cell + count_ents[0];
-        count_ents[0] += 1;
+        nverts_prev = _inverts.size();
+        nents_prev = _incells.size();
       }
 
-    //Update local ahf maps
-    error = update_local_ahf(deg, type, vbuffer, ent_buffer, etotal);
+    EntityType type = MBTET;
+    int cindex = type -1;
+    int d = get_index_from_degree(deg);
+    int ne = refTemplates[cindex][d].nv_edge;
+    int nvf = refTemplates[cindex][d].nv_face;
+    int nvtotal = refTemplates[cindex][d].total_new_verts;
+
+    int index = ahf->get_index_from_type(*(_incells.begin()));
+    int nvpc = ahf->lConnMap3D[index].num_verts_in_cell;
+    int nepc = ahf->lConnMap3D[index].num_edges_in_cell;
+    int nfpc = ahf->lConnMap3D[index].num_faces_in_cell;
+
+    // Create vertex buffer
+    int vtotal = nvpc + nvtotal;
+    EntityHandle *vbuffer = new EntityHandle[vtotal];
+
+    //Create book-keeping arrays over the parent mesh to avoid introducing duplicate vertices
+    std::vector<EntityHandle> trackvertsC_edg(nepc*ne*nents_prev, 0);
+    std::vector<EntityHandle> trackvertsC_face(nfpc*nvf*nents_prev, 0);
+
+    int cur_nverts = level_mesh[cur_level].num_verts;
+    std::vector<int> flag_verts(cur_nverts-nverts_prev, 0);
+    std::vector<int> cell_patterns(nents_prev,0);
+
+    int count_nverts = nverts_prev;
+    int count_ents = 0;
+    std::vector<EntityHandle> conn;
+
+    //Step 1: Create the subentities via refinement of the previous mesh
+    for (int cid = 0; cid < nents_prev; cid++)
+      {
+        conn.clear();
+        for (int i=0; i<vtotal; i++)
+          vbuffer[i] = 0;
+
+        //EntityHandle of the working cell
+        EntityHandle cell;
+        if (cur_level)
+          cell = level_mesh[cur_level-1].start_cell + cid;
+        else
+          cell = *_incells.begin() + cid;
+
+        error = get_connectivity(cell, cur_level-1, conn);
+        if (error != MB_SUCCESS) return error;
+
+        //Step 1: Add vertices from the current level for the working face that will be used for subdivision.
+        // Add the corners to vbuffer
+        for (int i=0; i<(int)conn.size(); i++)
+          {
+            if (cur_level)
+              vbuffer[i] =  level_mesh[cur_level].start_vertex + (conn[i]-level_mesh[cur_level-1].start_vertex);
+            else
+              vbuffer[i] = level_mesh[cur_level].start_vertex +  (conn[i]-*_inverts.begin()) ;
+          }
+
+        //Gather vertices already added to tracking array due to refinement of the sibling cells
+        for (int i=0; i<nepc; i++){
+            for (int j=0; j<ne; j++)
+              {
+                int idx = refTemplates[cindex][d].vert_on_edges[i][j];
+                vbuffer[idx] = trackvertsC_edg[cid*nepc*ne+ne*i+j];
+              }
+        }
+
+        //Add remaining new vertex handles
+        for (int i=0; i<nfpc; i++){
+            for (int j=0; j<nvf; j++)
+              {
+                int idx = refTemplates[cindex][d].vert_on_faces[i][j];
+                vbuffer[idx] = trackvertsC_face[cid*nfpc*nvf+nvf*i+j];
+              }
+          }
+
+        //Add the remaining vertex handles to vbuffer for the current level for the working cell
+        for (int i=0; i<nvtotal; i++){
+            if (!vbuffer[i+nvpc]){
+                vbuffer[i+nvpc] = level_mesh[cur_level].start_vertex+count_nverts;
+                count_nverts += 1;
+              }
+          }
+
+        std::cout<<"vbuffer = [";
+        for (int i=0; i<vtotal; i++)
+          std::cout<<" "<<vbuffer[i]<<", ";
+        std::cout<<" ] "<<std::endl;
+
+        //Step 2: Coordinates of the new vertices
+        double *corner_coords = new double[nvpc*3];
+        error = get_coordinates(conn, nvpc, cur_level, corner_coords);
+        if (error != MB_SUCCESS) return error;
+
+        error = compute_coordinates(cur_level, deg, type, vbuffer, vtotal, corner_coords, flag_verts, nverts_prev);
+        if (error != MB_SUCCESS) return error;
+
+        //Step 3: Choose the tet refine pattern to be used for this tet
+        int diag = find_shortest_diagonal_octahedron(cur_level, deg, vbuffer);
+        int pat_id = diag + 2;
+        cell_patterns[cid] = pat_id;
+
+        //Step 4: Use the template to obtain the subentities. The coordinates and local ahf maps are also constructed.
+        //Connectivity of the children
+        int etotal = refTemplates[pat_id][d].total_new_ents;
+        EntityHandle  *ent_buffer = new EntityHandle[etotal];
+
+        for (int i = 0; i < etotal; i++)
+          {
+            for (int k = 0; k < nvpc; k++)
+              {
+                int idx = refTemplates[pat_id][d].ents_conn[i][k];
+                level_mesh[cur_level].cell_conn[nvpc*count_ents+k] = vbuffer[idx];
+              }
+            ent_buffer[i] =  level_mesh[cur_level].start_cell + count_ents;
+            count_ents += 1;
+          }
+
+        std::cout<<"ent_buffer = [";
+        for (int i=0; i<etotal; i++)
+          std::cout<<" "<<ent_buffer[i]<<", ";
+        std::cout<<" ] "<<std::endl;
+
+        //Step 5: Update local ahf maps
+        error = update_local_ahf(deg, MBTET, pat_id, vbuffer, ent_buffer, etotal);
+        if (error != MB_SUCCESS) return error;
+
+        //Step 6: Update tracking information
+        error = update_tracking_verts(cell, cur_level, deg, trackvertsC_edg, trackvertsC_face, vbuffer);
+        if (error != MB_SUCCESS) return error;
+
+        delete [] ent_buffer;
+        delete [] corner_coords;
+      }
+
+    //Step 7: Update the global maps
+    error = update_global_ahf(cur_level, deg, cell_patterns);
     if (error != MB_SUCCESS) return error;
 
-    delete [] ent_buffer;
-    delete [] corner_coords;
+    error = print_tags_3D(cur_level, type);
+    if (error != MB_SUCCESS) return error;
+
+    delete [] vbuffer;
 
     return MB_SUCCESS;
   }
 
-/*
-  ErrorCode NestedRefine::subdivide_tets(std::vector<EntityHandle> conn, int cur_level, int deg, std::vector<EntityHandle> vbuffer, int *count_ents)
-  {
-    ErrorCode error;
-    int index = get_index_from_type(*(_cells.begin()));
-    int nvpc = lConnMap3D[index].num_verts_in_cell;
-
-    double *corner_coords;
-    error = get_coordinates(conn, nvpc, cur_level, corner_coords);
-    if (error != MB_SUCCESS) return error;
-
-    //Find or get the coordinates of the vertices in vbuffer
-    int d = get_index_from_degree(deg);
-    int vtotal = refTemplates[4][d].total_new_verts;
-
-    error = compute_coordinates(cur_level, deg, MBTET, vbuffer, vtotal, corner_coords);
-    if (error != MB_SUCCESS) return error;
-
-    //Subdivide the tet into mixed entities = tets+octs
-    int nents = refTemplates[4][d].num_ents;
-    EntityHandle mixed_rep[nents][8];
-    std::vector<int> nents_flag(nents, 0);
-    std::vector<int> idx_buffer(nents,0);
-
-    for (int i=0; i<nents; i++)
-      {
-        for (int j=0; j<8; j++)
-          {
-            mixed_rep[i][j] = vbuffer[refTemplates[4][d].ents_conn[i][j]];
-            if ((j=4) && mixed_rep[i][j])
-              nents_flag[i] = 1; //This is an oct
-          };
-      };
-
-//    int count=0;
-    //Add tets and tessellate octs based on shortest diagonal.
-    for (int i=0; i<nents; i++)
-      {
-        idx_buffer[i] = count_ents[0];
-
-        if (!nents_flag[i])//This is a tet
-          {
-            level_mesh[cur_level].cell_conn[4*count_ents[0]] = mixed_rep[i][0];
-            level_mesh[cur_level].cell_conn[4*count_ents[0]+1] = mixed_rep[i][1];
-            level_mesh[cur_level].cell_conn[4*count_ents[0]+2] = mixed_rep[i][2];
-            level_mesh[cur_level].cell_conn[4*count_ents[0]+3] = mixed_rep[i][3];
-            count_ents[0] += 1;
-          }
-        else
-          {
-            double ocoords[18];
-            for (int j=0; j<6; j++)
-              {
-                int id = mixed_rep[i][j] -level_mesh[cur_level].start_vertex;
-                ocoords[3*i] =  level_mesh[cur_level].coordinates[0][id] ;
-                ocoords[3*i+1] =  level_mesh[cur_level].coordinates[1][id] ;
-                ocoords[3*i+2] =  level_mesh[cur_level].coordinates[2][id] ;
-              }
-
-            int diag = find_shortest_diagonal_octahedron(ocoords);
-            nents_flag[i] = diag;
-            for (int j=0; j<4; j++)
-              {
-               for (int k=0; k<4; k++)
-                 {
-                   int id = oct_tessellation[diag].tet_conn[j][k];
-                   level_mesh[cur_level].cell_conn[4*count_ents[0+k]] = mixed_rep[i][id];
-                   count_ents[0] += 1;
-                 }
-              }
-          }
-      }
-
-
-    //Construct the local ahf maps
-    error = update_local_ahf(cur_level, deg, nents_flag, idx_buffer);
-    if (error != MB_SUCCESS) return error;
-
-    return MB_SUCCESS;
-  } */
 
   ErrorCode NestedRefine::compute_coordinates(int cur_level, int deg, EntityType type, EntityHandle *vbuffer, int vtotal, double *corner_coords, std::vector<int> &vflag, int nverts_prev)
   {
@@ -1103,7 +1156,7 @@ namespace moab{
    *          Update AHF maps           *
    * ********************************/
 
-ErrorCode NestedRefine::update_local_ahf(int deg, EntityType type, EntityHandle *vbuffer, EntityHandle *ent_buffer, int etotal)
+ErrorCode NestedRefine::update_local_ahf(int deg, EntityType type, int pat_id, EntityHandle *vbuffer, EntityHandle *ent_buffer, int etotal)
 {
   ErrorCode error;
   int nhf, nv, total_new_verts;
@@ -1120,14 +1173,14 @@ ErrorCode NestedRefine::update_local_ahf(int deg, EntityType type, EntityHandle 
     {
       nhf = ahf->local_maps_2d(*_infaces.begin());
       nv = nhf;
-      total_new_verts = refTemplates[type-1][d].total_new_verts;
+      total_new_verts = refTemplates[pat_id][d].total_new_verts;
     }
   else if (type == MBTET || type == MBHEX)
     {
       int index = ahf->get_index_from_type(*_incells.begin());
       nhf = ahf->lConnMap3D[index].num_faces_in_cell;
       nv =  ahf->lConnMap3D[index].num_verts_in_cell;
-      total_new_verts = refTemplates[type-1][d].total_new_verts;
+      total_new_verts = refTemplates[pat_id][d].total_new_verts;
     }
 
   //Update the vertex to half-facet map
@@ -1143,9 +1196,9 @@ ErrorCode NestedRefine::update_local_ahf(int deg, EntityType type, EntityHandle 
       if (ent)
         continue;
 
-      int id = refTemplates[type-1][d].v2hf[i+nv][0]-1;
+      int id = refTemplates[pat_id][d].v2hf[i+nv][0]-1;
       ent = ent_buffer[id];
-      lid = refTemplates[type-1][d].v2hf[i+nv][1];
+      lid = refTemplates[pat_id][d].v2hf[i+nv][1];
 
       error = ahf->set_incident_tag(type, vid, &ent, &lid);
       if (error != MB_SUCCESS) return error;
@@ -1166,11 +1219,11 @@ ErrorCode NestedRefine::update_local_ahf(int deg, EntityType type, EntityHandle 
             continue;
 
           // Fill out the sibling values
-          int id = refTemplates[type-1][d].ents_opphfs[i][2*l];
+          int id = refTemplates[pat_id][d].ents_opphfs[i][2*l];
           if (id)
             {
               sib_entids[l] = ent_buffer[id-1];
-              sib_lids[l] = refTemplates[type-1][d].ents_opphfs[i][2*l+1];
+              sib_lids[l] = refTemplates[pat_id][d].ents_opphfs[i][2*l+1];
             }
           else
             {
@@ -1207,6 +1260,16 @@ ErrorCode NestedRefine::update_local_ahf(int deg, EntityType type, EntityHandle 
       delete [] sib_lids;
 
     }
+  return MB_SUCCESS;
+}
+
+ErrorCode NestedRefine::update_local_ahf(int deg, EntityType type, EntityHandle *vbuffer, EntityHandle *ent_buffer, int etotal)
+{
+  ErrorCode error;
+  assert(type != MBTET);
+  error = update_local_ahf(deg, type, type-1, vbuffer, ent_buffer, etotal);
+  if (error != MB_SUCCESS) return error;
+
   return MB_SUCCESS;
 }
 
@@ -1351,11 +1414,20 @@ ErrorCode NestedRefine::update_global_ahf(EntityType type, int cur_level, int de
       error = update_global_ahf_2D(cur_level, deg);
       if (error != MB_SUCCESS) return error;
     }
-  else
+  else if (type == MBHEX)
     {
       error = update_global_ahf_3D(cur_level, deg);
       if (error != MB_SUCCESS) return error;
     }
+
+  return MB_SUCCESS;
+}
+
+ErrorCode NestedRefine::update_global_ahf(int cur_level, int deg, std::vector<int> &pattern_ids)
+{
+  ErrorCode error;
+  error = update_global_ahf_3D(cur_level, deg, pattern_ids);
+  if (error != MB_SUCCESS) return error;
 
   return MB_SUCCESS;
 }
@@ -1827,6 +1899,189 @@ ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg)
   return MB_SUCCESS;
 }
 
+ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg, std::vector<int> &pattern_ids)
+{
+  ErrorCode error;
+  int nhf, nchilds, nverts_prev, nents_prev;
+
+  EntityType type = MBTET;
+  int index = ahf->get_index_from_type(*_incells.begin());
+  int d = get_index_from_degree(deg);
+
+  nhf = ahf->lConnMap3D[index].num_faces_in_cell;
+  nchilds = refTemplates[type-1][d].total_new_ents;
+
+  if (cur_level)
+    {
+      nverts_prev = level_mesh[cur_level-1].num_verts;
+      nents_prev = level_mesh[cur_level-1].num_cells;
+    }
+  else
+    {
+      nverts_prev = _inverts.size();
+      nents_prev = _incells.size();
+    }
+
+  //Step 1: Update the V2HF maps for old/duplicate vertices
+  for (int i=0; i<nverts_prev; i++)
+    {
+      //Vertex id in the previous mesh
+      EntityHandle vid;
+      if (cur_level)
+        vid = level_mesh[cur_level-1].start_vertex + i;
+      else
+        vid = _inverts[i];
+
+      //Get the incident half-vert in the previous mesh
+      EntityHandle inci_ent=0;
+      int inci_lid=0;
+
+      error = ahf->get_incident_tag(type, vid, &inci_ent, &inci_lid);
+      if (error != MB_SUCCESS) return error;
+
+      // Obtain the corresponding incident child in the current mesh
+      int lvid = get_local_vid(vid, inci_ent, cur_level-1);
+      int chid = refTemplates[type-1][d].v2hf[lvid][0]-1;
+
+      int pid;
+      if (cur_level)
+        pid = inci_ent - level_mesh[cur_level-1].start_cell;
+      else
+        pid = inci_ent - *_incells.begin();
+
+      int ind = nchilds*pid;
+
+      EntityHandle child_ent = level_mesh[cur_level].start_cell + ind+chid ;
+      int child_lid = refTemplates[type-1][d].v2hf[lvid][1];
+
+      EntityHandle cur_vid = level_mesh[cur_level].start_vertex + i;
+
+      error = ahf->set_incident_tag(type, cur_vid, &child_ent, &child_lid);
+      if (error != MB_SUCCESS) return error;
+    }
+
+  std::cout<<"start_cell = "<<level_mesh[cur_level].start_cell<<std::endl;
+
+  //Step 2: Update SIBHFS maps
+  for (int i=0; i< nents_prev; i++)
+    {
+      EntityHandle ent;
+      if (cur_level)
+        ent = level_mesh[cur_level-1].start_cell + i;
+      else
+        ent = _incells[i];
+
+      EntityHandle *sib_entids = new EntityHandle[nhf];
+      int *sib_lids = new int[nhf];
+
+      error = ahf->get_sibling_tag(type, ent, &sib_entids[0], &sib_lids[0]);
+      if (error != MB_SUCCESS) return error;
+
+      int id, idx;
+
+      for (int l=0; l < nhf; l++)
+        {
+          if (!sib_entids[l])
+            continue;
+
+          std::cout<<"Half Face = <"<<ent<<", "<<l<<" >"<<std::endl;
+
+          //Get the number of children incident on this half-face
+          int pat_id = pattern_ids[i];
+          int nch = refTemplates[pat_id][d].ents_on_pent[l][0];
+
+          //Get the order of children indices incident on this half-face
+          int *id_sib = new int[nch];
+          error = reorder_indices(cur_level, deg, ent, l, sib_entids[l], sib_lids[l], 1, id_sib);
+          if (error != MB_SUCCESS) return error;
+
+          std::cout<<"id_sib = [ ";
+          for (int k=0; k<nch; k++)
+            std::cout<<id_sib[k]<<" ";
+          std::cout<<" ] "<<std::endl;
+
+          //Get the parent index of the sibling cell
+          int psib;
+          if (cur_level)
+            psib = sib_entids[l] - level_mesh[cur_level-1].start_cell;
+          else
+            psib = sib_entids[l] - *_incells.begin();
+
+          int plid = sib_lids[l];
+          int  sidx = nchilds*psib;
+          int sibpat_id = pattern_ids[psib];
+
+          std::cout<<"parent_pat_id = "<<pat_id<<", sib_pat_id = "<<sibpat_id<<std::endl;
+
+          //Loop over all the childs incident on the working half-face
+          idx = nchilds*i;
+
+          for (int k=0; k<nch; k++)
+            {
+              id = refTemplates[pat_id][d].ents_on_pent[l][k+1]-1;
+              EntityHandle child_ent = level_mesh[cur_level].start_cell + idx + id ;
+              int child_lid = l;
+
+             std::cout<<" Incident child["<<k<<"] : "<<"ent = "<<child_ent<<", lid = "<<child_lid<<", id = "<<id+1<<std::endl;
+
+              //Find the sibling of the working child
+              EntityHandle *child_sibents= new EntityHandle[nhf];
+              int *child_siblids = new int[nhf];
+
+              error = ahf->get_sibling_tag(type, child_ent, &child_sibents[0], &child_siblids[0]);
+              if (error != MB_SUCCESS) return error;
+
+              //If the sibling already exists, dont do anything
+              if (child_sibents[child_lid])
+                continue;
+
+              //Get the correponding child of the sibling of the current parent
+              // We have already computed the order the children on incident corresponding to the working half-face
+              id = refTemplates[sibpat_id][d].ents_on_pent[plid][id_sib[k]]-1;
+
+              EntityHandle psib_child = level_mesh[cur_level].start_cell + sidx+id ;
+              int psib_chlid = plid;
+
+              std::cout<<" Matched sib child["<<k<<"] : "<<"ent = "<<psib_child<<", lid = "<<psib_chlid<<", id = "<<id+1<<std::endl;
+
+              //Set the siblings of children incident on current half-face
+              child_sibents[child_lid] = psib_child;
+              child_siblids[child_lid] = psib_chlid;
+
+              error = ahf->set_sibling_tag(type, child_ent, child_sibents, child_siblids);
+              if (error != MB_SUCCESS) return error;
+
+              //Set the sibling of the sibling of the children to the children
+              EntityHandle *sibch_ents= new EntityHandle[nhf];
+              int *sibch_lids = new int[nhf];
+
+              error = ahf->get_sibling_tag(type, psib_child, &sibch_ents[0], &sibch_lids[0]);
+              if (error != MB_SUCCESS) return error;
+
+              sibch_ents[psib_chlid] = child_ent;
+              sibch_lids[psib_chlid]  = child_lid;
+
+              error = ahf->set_sibling_tag(type, psib_child, sibch_ents, sibch_lids);
+              if (error != MB_SUCCESS) return error;
+
+              delete [] child_sibents;
+              delete [] child_siblids;
+              delete [] sibch_ents;
+              delete [] sibch_lids;
+            }
+
+          delete [] id_sib;
+        }
+
+      delete [] sib_entids;
+      delete [] sib_lids;
+
+    }
+
+  return MB_SUCCESS;
+}
+
+
 /* **********************************
  *          Helper Functions              *
 ************************************/
@@ -2013,7 +2268,7 @@ ErrorCode NestedRefine::reorder_indices(int cur_level, int deg, EntityHandle cel
   int nvF = ahf->lConnMap3D[idx].hf2v_num[lfid];
   int nco = permutation[nvF-3].num_comb;
 
-  if (!index && nvF==4 && deg==2)
+  if (!index && ((nvF==3 && deg==3)||(nvF==4 && deg==2)))
     {
       id_sib[0] = 1;
     }
@@ -2039,7 +2294,7 @@ ErrorCode NestedRefine::reorder_indices(int cur_level, int deg, EntityHandle cel
           lface_sib[i] = sib_conn[id];
         }
 
-   /*   std::cout<<"lface = [ ";
+  /*   std::cout<<"lface = [ ";
       for (int i=0; i<nvF; i++)
         std::cout<<lface[i]<<" ";
       std::cout<<" ] "<<std::endl;
@@ -2122,6 +2377,11 @@ ErrorCode NestedRefine::get_octahedron_corner_coords(int cur_level, int deg, Ent
     {
       lid[0] = 5; lid[1] = 8; lid[2] = 9;
       lid[3] = 6; lid[4] = 4; lid[5] = 7;
+    }
+  else if (deg ==3)
+    {
+      lid[0] = 19; lid[1] = 16; lid[2] = 18;
+      lid[3] = 9; lid[4] = 4; lid[5] = 10;
     }
 
   EntityHandle vstart = level_mesh[cur_level].start_vertex;
