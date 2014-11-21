@@ -118,8 +118,8 @@ ErrorCode test_adjacencies(Core *mb, NestedRefine *nr, int dim, Range verts, Ran
           std::vector<EntityHandle> adjents;
           Range mbents, ahfents;
           error = nr->get_adjacencies( *i, 2, adjents);
-
           CHECK_ERR(error);
+
           error = mtu.get_bridge_adjacencies( *i, 1, 2, mbents);
           CHECK_ERR(error);
 
@@ -138,43 +138,44 @@ ErrorCode test_adjacencies(Core *mb, NestedRefine *nr, int dim, Range verts, Ran
       Range mbents, ahfents;
 
       //IQ 31: For every vertex, obtain incident cells
-      for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
+   /*   for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
           adjents.clear();
-
-      //    std::cout<<std::endl;
-      //    std::cout<<"vertex = "<<*i<<std::endl;
-
           error = nr->get_adjacencies( *i, 3, adjents);
           CHECK_ERR(error);
-
-   /*       for (int j=0; j<(int)adjents.size(); j++)
-            std::cout<<"ahf_ngb["<<j<<"] = "<<adjents[j]<<", ";
-          std::cout<<std::endl;*/
 
           mbents.clear();
           error = mbImpl->get_adjacencies(&*i, 1, 3, false, mbents);
           CHECK_ERR(error);
-
-         /* for (int j=0; j<(int)mbents.size(); j++)
-            std::cout<<"mb_ngb["<<j<<"] = "<<mbents[j]<<", ";
-          std::cout<<std::endl;*/
-
           CHECK_EQUAL(adjents.size(), mbents.size());
 
           std::sort(adjents.begin(), adjents.end());
           std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
           mbents = subtract(mbents, ahfents);
           CHECK(!mbents.size());
-      }
+      }*/
 
       //NQ3: For every cell, obtain neighbor cells
       for (Range::iterator i = ents.begin(); i != ents.end(); ++i) {
           adjents.clear();
           error = nr->get_adjacencies( *i, 3, adjents);
           CHECK_ERR(error);
+
+          std::cout<<"Working ent = "<<*i<<std::endl;
+
+          std::cout<<"adjents = ";
+          for (int j=0; j< (int)adjents.size(); j++)
+            std::cout<<adjents[j]<<" ";
+          std::cout<<std::endl;
+
+
           mbents.clear();
           error = mtu.get_bridge_adjacencies( *i, 2, 3, mbents);
           CHECK_ERR(error);
+
+          std::cout<<"mbents = ";
+          for (int j=0; j< (int)mbents.size(); j++)
+            std::cout<<mbents[j]<<" ";
+          std::cout<<std::endl;
 
           CHECK_EQUAL(adjents.size(), mbents.size());
 
@@ -398,6 +399,7 @@ ErrorCode create_single_entity(Core *mb, EntityType type)
                               1,0,0,
                               0,1,0,
                               0,0,1};
+
       const size_t num_vtx = sizeof(coords)/sizeof(double)/3;
 
       const int conn[] = {0, 1, 2, 3};
@@ -606,13 +608,25 @@ ErrorCode create_mesh(Core *mb, EntityType type)
     }
   else if (type == MBTET)
     {
+      /*const double coords[] = {0,-1,0,
+                               0,2,0,
+                               1,0,0,
+                               -0.5,0,0,
+                               0,0,1,
+                               0,0,-2};*/
       const double coords[] = {0,0,0,
                               1,0,0,
                               0,1,0,
-                              0,0,1};
+                              -1,0,0,
+                               0,0,1};
       const size_t num_vtx = sizeof(coords)/sizeof(double)/3;
 
-      const int conn[] = {0, 1, 2, 3};
+     /* const int conn[] = {0,2,1,4,
+                         3,0,1,4,
+                         5,2,1,0,
+                         5,0,1,3};*/
+      const int conn[] = {0,1,2,4,
+                               3,0,2,4};
       const size_t num_elems = sizeof(conn)/sizeof(int)/4;
 
       EntityHandle verts[num_vtx], cells[num_elems];
@@ -626,7 +640,7 @@ ErrorCode create_mesh(Core *mb, EntityType type)
         {
           EntityHandle c[4];
           for (int j=0; j<4; j++)
-            c[j] = verts[conn[j]];
+            c[j] = verts[conn[4*i+j]];
 
           error = mbImpl->create_element(MBTET, c, 4, cells[i]);
           if (error != MB_SUCCESS) return error;
@@ -794,7 +808,7 @@ ErrorCode test_3D()
 {
   ErrorCode error;
 
- /* std::cout<<"Testing HEX"<<std::endl;
+/*  std::cout<<"Testing HEX"<<std::endl;
   EntityType type = MBHEX;
 
   std::cout<<"Testing single entity"<<std::endl;
@@ -812,14 +826,15 @@ ErrorCode test_3D()
   EntityType type = MBTET;
 
   std::cout<<"Testing single entity"<<std::endl;
-  int deg[2] = {2,2};
+  int deg[2] = {2,3};
   int len = sizeof(deg) / sizeof(int);
   error = test_entities(1, type, deg, len, true);
   CHECK_ERR(error);
 
   /*std::cout<<std::endl;
   std::cout<<"Testing a small mesh"<<std::endl;
-  error = test_entities(2, type, deg, len, true);
+  int len = sizeof(deg) / sizeof(int);
+  error = test_entities(2, type, &deg, len, true);
   CHECK_ERR(error);*/
 
   return MB_SUCCESS;
