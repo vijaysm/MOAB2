@@ -107,24 +107,39 @@ static char const * nameQuality [MB_QUALITY_COUNT] =
    " maximum angle "          // MB_MAXIMUM_ANGLE          // 29  MBQUAD
 };
 
-ErrorCode VerdictWrapper::quality_measure(EntityHandle eh, QualityType q, double & quality)
+ErrorCode VerdictWrapper::quality_measure(EntityHandle eh, QualityType q, double & quality,
+    int num_nodes, double * coords)
 {
   EntityType etype= TYPE_FROM_HANDLE(eh);
   if (possibleQuality[etype][q]==0)
     return MB_NOT_IMPLEMENTED;
 
-  // get coordinates of points
-  const EntityHandle * conn = NULL;
-  int num_nodes;
-  ErrorCode rval = mbImpl->get_connectivity(eh, conn, num_nodes);
-  if (rval!=MB_SUCCESS)
-    return rval;
-  double coordinates[27][3]; // at most 27 nodes per element?
-  if (etype!=MBPOLYHEDRON)
+  double coordinates[27][3]; // at most 27 nodes per element
+
+  if (0==num_nodes && NULL==coords)
   {
-    rval = mbImpl->get_coords(conn, num_nodes, &(coordinates[0][0]));
+    // get coordinates of points, if not passed already
+    const EntityHandle * conn = NULL;
+    //int num_nodes;
+    ErrorCode rval = mbImpl->get_connectivity(eh, conn, num_nodes);
     if (rval!=MB_SUCCESS)
       return rval;
+    if (etype!=MBPOLYHEDRON)
+    {
+      rval = mbImpl->get_coords(conn, num_nodes, &(coordinates[0][0]));
+      if (rval!=MB_SUCCESS)
+        return rval;
+    }
+  }
+  else
+  {
+    if (num_nodes > 27)
+      return MB_FAILURE;
+    for (int i=0; i<num_nodes; i++)
+    {
+      for (int j=0; j<3; j++)
+        coordinates[i][j]=coords[3*i+j];
+    }
   }
   VerdictFunction func=0;
 

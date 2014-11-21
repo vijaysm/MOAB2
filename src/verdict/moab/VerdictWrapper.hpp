@@ -58,7 +58,8 @@ class VerdictWrapper {
 public:
   VerdictWrapper(Interface * mb);
   virtual ~VerdictWrapper();
-  ErrorCode quality_measure(EntityHandle eh, QualityType q, double & quality);
+  ErrorCode quality_measure(EntityHandle eh, QualityType q, double & quality,
+      int num_nodes=0, double *coords=NULL);
   const char * quality_name (QualityType q);
   // relative size needs a base size, that is set at global level, one for each major type (hex, tet, quad, tri)
   ErrorCode set_size(double size);
