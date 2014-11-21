@@ -113,7 +113,8 @@ namespace moab
     ErrorCode construct_hm_2D(int cur_level, int deg);
     ErrorCode construct_hm_3D(int cur_level, int deg);
 
-    ErrorCode subdivide_cells(EntityType type, std::vector<EntityHandle> &conn, int cur_level, int deg, EntityHandle  *vbuffer, int vtotal, int *count_ents, std::vector<int> &flag_verts, int nverts_prev);
+    ErrorCode subdivide_cells(EntityType type,int cur_level, int deg);
+    ErrorCode subdivide_tets(int cur_level, int deg);
 
     // General helper functions
     ErrorCode copy_vertices_from_prev_level(int cur_level);
@@ -148,15 +149,19 @@ namespace moab
 
     ErrorCode update_local_ahf(int deg, EntityType type, EntityHandle *vbuffer, EntityHandle *ent_buffer, int etotal);
 
-    ErrorCode update_local_ahf(int cur_level, int deg, std::vector<int> nents_flag, std::vector<int> idx_buffer);
+    ErrorCode update_local_ahf(int deg, EntityType type, int pat_id, EntityHandle *vbuffer, EntityHandle *ent_buffer, int etotal);
 
     ErrorCode update_global_ahf(EntityType type, int cur_level, int deg);
+
+    ErrorCode update_global_ahf(int cur_level, int deg, std::vector<int> &pattern_ids);
 
     ErrorCode update_global_ahf_1D(int cur_level, int deg);
 
     ErrorCode update_global_ahf_2D(int cur_level, int deg);
 
     ErrorCode update_global_ahf_3D(int cur_level, int deg);
+
+    ErrorCode update_global_ahf_3D(int cur_level, int deg, std::vector<int> &pattern_ids);
 
   };
 } //name space moab
