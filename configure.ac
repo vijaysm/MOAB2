@@ -203,7 +203,7 @@ else
   else
     ENABLE_imesh=no
   fi
-  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --disable-imesh=$disable_imesh"
+  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-imesh=$ENABLE_imesh"
 fi
 
 ################################################################################

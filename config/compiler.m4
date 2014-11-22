@@ -248,7 +248,6 @@ fi
   # This requires FATHOM_CXX_FLAGS and FATHOM_CC_FLAGS to have been called first
 AC_ARG_ENABLE(32bit, AC_HELP_STRING([--enable-32bit],[Force 32-bit objects]),
 [
-  echo "Enable 32bit val = $enableval"
   if (test "xyes" != "x$enableval" && test "xno" != "x$enableval"); then
     AC_MSG_ERROR([Unknown argument --enable-32bit=$enableval])
   fi
@@ -265,7 +264,6 @@ AC_ARG_ENABLE(32bit, AC_HELP_STRING([--enable-32bit],[Force 32-bit objects]),
 # This requires FATHOM_CXX_FLAGS and FATHOM_CC_FLAGS to have been called first
 AC_ARG_ENABLE(64bit, AC_HELP_STRING([--enable-64bit],[Force 64-bit objects]),
 [
-  echo "Enable 64bit val = $enableval"
   if (test "xyes" != "x$enableval" && test "xno" != "x$enableval"); then
     AC_MSG_ERROR([Unknown argument --enable-64bit=$enableval])
   fi
