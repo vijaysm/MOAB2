@@ -14,6 +14,11 @@ m4_ifdef([AM_SILENT_RULES],
 
 AC_CHECK_PROG( [SED], [sed], [sed], [true] )
 
+# Infer the source directory as the path to the ./configure script
+#srcdir=`dirname $0`
+#top_srcdir=`dirname $0`
+USER_CONFIGURE_CMD="$0 $*"
+
 ################################################################################
 #                           Compilers
 ################################################################################
@@ -24,6 +29,7 @@ AC_ARG_ENABLE([fortran],
 
 AS_IF([test "x$enable_fortran" != "xno"], [ENABLE_FORTRAN=yes])
 AC_SUBST(ENABLE_FORTRAN)
+DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-fortran=$ENABLE_FORTRAN"
 EXTRA_GNU_FLAGS='-Wall -pipe -pedantic -Wno-long-long -Wextra -Wcast-align  -Wpointer-arith -Wformat -Wformat-security -Wshadow -Wunused-parameter'
 EXTRA_INTEL_FLAGS='-Wall'
 
@@ -184,51 +190,35 @@ AC_CHECK_LIB(m, pow, LIBS="$LIBS -lm")
 ################################################################################
 #                           iMesh Part 1 of 2
 ################################################################################
-
-FORCE_IMESH=no
 AC_ARG_ENABLE( [imesh],
 [AC_HELP_STRING([--disable-imesh],[Do not build support for iMesh interface.])],
-[FORCE_IMESH=yes],
-[enableval=yes] )
+[disable_imesh=$enableval],
+[disable_imesh=yes] )
 
-case $enableval in
-  yes)
-    ENABLE_imesh=yes; DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-imesh";
-    ;;
-  nofortran|NoFortran|noFORTRAN|NoFORTRAN|Nofortran)
-    AC_MSG_ERROR([Deprecated value for --enable-imesh: \"$enableval\".  Try \"--disable-fortran\"])
-    ;;
-  no)
+if (test "xyes" != "x$disable_imesh" && test "xno" != "x$disable_imesh"); then
+  AC_MSG_ERROR([Unknown argument --enable-imesh=$enableval])
+else
+  if (test "$disable_imesh" != "no"); then
+    ENABLE_imesh=yes
+  else
     ENABLE_imesh=no
-    ;;
-  *)
-    AC_MSG_ERROR([Invalid argument to --enable-imesh : $enableval])
-    ;;
-esac
+  fi
+  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --disable-imesh=$disable_imesh"
+fi
 
 ################################################################################
 #                           iGeom Part 1 of 2
 ################################################################################
-
-FORCE_IGEOM=no
 AC_ARG_ENABLE( [igeom],
 [AC_HELP_STRING([--enable-igeom],[Build mesh-based iGeom implementation])],
-[FORCE_IGEOM=yes],[enableval=no] )
+[enable_igeom=$enableval],[enable_igeom=no] )
 
-case $enableval in
-  yes)
-    ENABLE_igeom=yes; DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-igeom";
-    ;;
-  nofortran|NoFortran|noFORTRAN|NoFORTRAN|Nofortran)
-    AC_MSG_ERROR([Depricated value for --enable-igeom: \"$enableval\".  Try \"FC= F77=\"])
-    ;;
-  no)
-    ENABLE_igeom=no
-    ;;
-  *)
-    AC_MSG_ERROR([Invalid argument to --enable-igeom : $enableval])
-    ;;
-esac
+if (test "xyes" != "x$enable_igeom" && test "xno" != "x$enable_igeom"); then
+  AC_MSG_ERROR([Unknown argument --enable-igeom=$enableval])
+else
+  ENABLE_igeom=$enable_igeom
+  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-igeom=$enable_igeom"
+fi
 
 ################################################################################
 #                           iMesh/iGeom Part 2 of 2
@@ -245,12 +235,8 @@ ITAPS_VALID_HANDLE_SIZE=yes
 if test $SIZEOF_VOID_P -ne $SIZEOF_MBENTITYHANDLE; then
   ITAPS_VALID_HANDLE_SIZE=no
   AC_MSG_WARN([Cannot build iMesh or iGeom API because sizeof(EntityHandle) != sizeof(void*)])
-  if test "x$FORCE_IMESH" = "xno"; then
-    ENABLE_imesh=no
-  fi
-  if test "x$FORCE_IGEOM" = "xno"; then
-    ENABLE_igeom=no
-  fi
+  ENABLE_imesh=no
+  ENABLE_igeom=no
 fi
 
 AC_MSG_CHECKING([if iMesh support is to be built])
@@ -357,6 +343,11 @@ if test "xyes" = "x$MPI_CXX_HELP_NEEDED"; then
   AC_DEFINE_UNQUOTED([MB_SEEK_CUR],[$SEEK_CUR],["Value of C SEEK_CUR"])
   AC_DEFINE_UNQUOTED([MB_SEEK_END],[$SEEK_END],["Value of C SEEK_END"])
 fi
+FATHOM_CHECK_MPITYPE
+
+if (test "$MPIFAMILY" == "OPENMPI" && test "x$ENABLE_FORTRAN" != "xno"); then
+  FCLIBS="$FCLIBS -lmpi_cxx"
+fi
 
 if test "xyes" = "x$enablempi"; then
   FATHOM_CHECK_MPE
@@ -446,8 +437,18 @@ AC_SUBST(DAMSEL_LIBS)
 #                             NetCDF OPTIONS
 ################################################################################
 
+  # now pnetcdf
+FATHOM_CHECK_PNETCDF([65536],[524288])
+if test "xyes" = "x$HAVE_PNETCDF"; then
+  AM_CPPFLAGS="$AM_CPPFLAGS -DPNETCDF_FILE"
+fi
+AM_CONDITIONAL(PNETCDF_FILE, [test "xyes" = "x$HAVE_PNETCDF"])
+AM_CPPFLAGS="$PNETCDF_CPPFLAGS $AM_CPPFLAGS"
+EXPORT_LDFLAGS="$PNETCDF_LDFLAGS $EXPORT_LDFLAGS"
+AC_SUBST(PNETCDF_LIBS)
+
 old_LDFLAGS="$LDFLAGS"
-LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"
+LDFLAGS="$LDFLAGS $PNETCDF_LDFLAGS $HDF5_LDFLAGS"
 FATHOM_CHECK_NETCDF([65536],[524288])
 LDFLAGS="$old_LDFLAGS"
 if test "xyes" = "x$HAVE_NETCDF"; then
@@ -458,15 +459,6 @@ AM_CPPFLAGS="$NETCDF_CPPFLAGS $AM_CPPFLAGS"
 EXPORT_LDFLAGS="$NETCDF_LDFLAGS $EXPORT_LDFLAGS"
 AC_SUBST(NETCDF_LIBS)
 
-  # now pnetcdf
-FATHOM_CHECK_PNETCDF([65536],[524288])
-if test "xyes" = "x$HAVE_PNETCDF"; then
-  AM_CPPFLAGS="$AM_CPPFLAGS -DPNETCDF_FILE"
-fi
-AM_CONDITIONAL(PNETCDF_FILE, [test "xyes" = "x$HAVE_PNETCDF"])
-AM_CPPFLAGS="$PNETCDF_CPPFLAGS $AM_CPPFLAGS"
-EXPORT_LDFLAGS="$PNETCDF_LDFLAGS $EXPORT_LDFLAGS"
-AC_SUBST(PNETCDF_LIBS)
 
 ################################################################################
 #                             CGNS OPTIONS
@@ -507,7 +499,6 @@ if test "x$ENABLE_DOCS" = "xyes"; then
 fi
 AC_SUBST([DOXYGEN])
 AM_CONDITIONAL([ENABLE_DOCS],[test "x$ENABLE_DOCS" != "xno"])
-
 
 ################################################################################
 #                           Zoltan - Part 1 of 2
@@ -590,12 +581,45 @@ AC_ARG_WITH([parmetis],
                  PARMETIS_DIR="$withval"
                  test -d "$withval" || AC_MSG_ERROR([Not a directory: with-parmetis=$withval])
                  if test -d "$withval/lib"; then
-                   ZOLTAN_LIB_FLAGS="-L$withval/lib"
+                   ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval/lib"
                  else
-                   ZOLTAN_LIB_FLAGS="-L$withval"
+                   ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval"
+                 fi
+                 if test -d "$withval/include"; then
+                   ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$withval/include"
+                 else
+                   ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$withval"
                  fi
                  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-parmetis=\"${withval}\""
 		 ;;
+               esac] )
+
+# If user specified with-metis, then assume they are trying
+# to add an additional library search directory in which to check
+# for the metis library.  We always check if zoltan requires
+# metis, so the only thing the user would really need to tell
+# us is if we need to look in some special place for it. 
+AC_ARG_WITH([metis], 
+            [AC_HELP_STRING([--with-metis=DIR],[Directory containing Parmetis library for Zoltan])],
+             [case "x$withval" in
+               xyes|xno)
+                 # do nothing
+                 ;;
+               x*)
+                 METIS_DIR="$withval"
+                 test -d "$withval" || AC_MSG_ERROR([Not a directory: with-metis=$withval])
+                 if test -d "$withval/lib"; then
+                   ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval/lib"
+                 else
+                   ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval"
+                 fi
+                 if test -d "$withval/include"; then
+                   ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$withval/include"
+                 else
+                   ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$withval"
+                 fi
+                 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-metis=\"${withval}\""
+     ;;
                esac] )
 
 # If user specified with-scotch, then assume they are trying
@@ -603,45 +627,81 @@ AC_ARG_WITH([parmetis],
 # for the scotch library.
 AC_ARG_WITH([scotch],
             [AC_HELP_STRING([--with-scotch=DIR],[Directory containing Scotch library for Zoltan])],
-             [case "x$withval" in
-               xyes|xno)
-                 # do nothing
-                 ;;
-               x*)
-                 SCOTCH_DIR="$withval"
-                 test -d "$withval" || AC_MSG_ERROR([Not a directory: with-scotch=$withval])
-                 if test -d "$withval/lib"; then
-                   ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval/lib"
-                 else
-                   ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval"
-                 fi
-                 SCOTCH_LIBS="-lscotch -lscotcherr -lscotcherrexit"
-                 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-scotch=\"${withval}\""
-                 ;;
-               esac] )
+             [SCOTCH_DIR="$withval"; enablescotch=yes],[SCOTCH_DIR=""; enablescotch=no] )
+
+if (test "$enablescotch" != "no"); then
+  case "x$SCOTCH_DIR" in
+     xyes|xno)
+       # error out -- expecting directory path
+       AC_MSG_ERROR([Please specify the Scotch installation directory])
+       ;;
+     x*)
+       test -d "$SCOTCH_DIR" || AC_MSG_ERROR([Not a directory: with-scotch=$SCOTCH_DIR])
+       if test -d "$SCOTCH_DIR/lib"; then
+         ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$SCOTCH_DIR/lib"
+         if (test -f "$SCOTCH_DIR/lib/libscotch.a" || test -f "$SCOTCH_DIR/lib/libscotch.so" || test -f "$SCOTCH_DIR/lib/libscotch.dylib"); then
+           SCOTCH_LIBS="-lscotch -lscotcherr -lscotcherrexit"
+         else
+           AC_MSG_ERROR([Scotch libraries not found at $SCOTCH_DIR/lib])
+         fi
+       else
+         ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$SCOTCH_DIR"
+         if (test -f "$SCOTCH_DIR/libscotch.a" || test -f "$SCOTCH_DIR/libscotch.so" || test -f "$SCOTCH_DIR/libscotch.dylib"); then
+           SCOTCH_LIBS="-lscotch -lscotcherr -lscotcherrexit"
+         else
+           AC_MSG_ERROR([Scotch libraries not found at $SCOTCH_DIR])
+         fi
+       fi
+       if test -d "$SCOTCH_DIR/include"; then
+         ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$SCOTCH_DIR/include"
+       else
+         ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$SCOTCH_DIR"
+       fi
+       DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-scotch=\"${SCOTCH_DIR}\""
+       ;;
+   esac
+fi
 
 # If user specified with-ptscotch, then assume they are trying
 # to add an additional library search directory in which to check
 # for the parallel scotch library.
 AC_ARG_WITH([ptscotch],
             [AC_HELP_STRING([--with-ptscotch=DIR],[Directory containing PTScotch library for Zoltan])],
-             [case "x$withval" in
-               xyes|xno)
-                 # do nothing
-                 ;;
-               x*)
-                 PTSCOTCH_DIR="$withval"
-                 test -d "$withval" || AC_MSG_ERROR([Not a directory: with-ptscotch=$withval])
-                 if test -d "$withval/lib"; then
-                   ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval/lib"
-                 else
-                   ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval"
-                 fi
-                 SCOTCH_LIBS="-lptscotch -lptscotcherr -lptscotcherrexit $SCOTCH_LIBS"
-                 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-ptscotch=\"${withval}\""
-                 ;;
-               esac] )
+             [PTSCOTCH_DIR="$withval"; enableptscotch=yes],[PTSCOTCH_DIR="$SCOTCH_DIR"; enableptscotch=$enablescotch] )
 
+if (test "$enableptscotch" != "no"); then
+  case "x$PTSCOTCH_DIR" in
+     xyes|xno)
+       # error out -- expecting directory path
+       AC_MSG_ERROR([Please specify the parallel Scotch installation directory])
+       ;;
+     x*)
+       PTSCOTCH_DIR="$PTSCOTCH_DIR"
+       test -d "$PTSCOTCH_DIR" || AC_MSG_ERROR([Not a directory: with-ptscotch=$PTSCOTCH_DIR])
+       if test -d "$PTSCOTCH_DIR/lib"; then
+         ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$PTSCOTCH_DIR/lib"
+         if (test -f "$SCOTCH_DIR/lib/libptscotch.a" || test -f "$SCOTCH_DIR/lib/libptscotch.so" || test -f "$SCOTCH_DIR/lib/libptscotch.dylib"); then
+           SCOTCH_LIBS="-lptscotch -lptscotcherr -lptscotcherrexit $SCOTCH_LIBS"
+         else
+           AC_MSG_ERROR([Scotch libraries not found at $SCOTCH_DIR/lib])
+         fi
+       else
+         ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$PTSCOTCH_DIR"
+         if (test -f "$SCOTCH_DIR/libptscotch.a" || test -f "$SCOTCH_DIR/libptscotch.so" || test -f "$SCOTCH_DIR/libptscotch.dylib"); then
+           SCOTCH_LIBS="-lptscotch -lptscotcherr -lptscotcherrexit $SCOTCH_LIBS"
+         else
+           AC_MSG_ERROR([Scotch libraries not found at $SCOTCH_DIR])
+         fi
+       fi
+       if test -d "$PTSCOTCH_DIR/include"; then
+         ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$PTSCOTCH_DIR/include"
+       else
+         ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$PTSCOTCH_DIR"
+       fi
+       DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-ptscotch=\"${PTSCOTCH_DIR}\""
+       ;;
+  esac
+fi
 
 
 ################################################################################
@@ -696,12 +756,11 @@ AC_DEFUN([MB_OPTIONAL_TOOL],[
   AC_ARG_ENABLE( [$1],
 [AC_HELP_STRING([--enable-$1],[Build tool: $1])
 AC_HELP_STRING([--disable-$1],[Don't build $1])],
-                 [ENABLE_$1=$enableval
-DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-$1=\"${enableval}\""
-],[ENABLE_$1=${mb_default_$1}] )
+                 [ENABLE_$1=$enableval],[ENABLE_$1=${mb_default_$1}] )
   AM_CONDITIONAL([ENABLE_$1],[test "x${ENABLE_$1}" != "xno"])
   AC_MSG_CHECKING([if $1 is to be built])
   AC_MSG_RESULT([${ENABLE_$1}])
+  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-$1=\"${ENABLE_$1}\""
 ])
   # The default for all tools
 AC_ARG_ENABLE( [tools], [
@@ -1265,6 +1324,14 @@ AM_CONDITIONAL( HAVE_CGM, [test "x$CGM_MISSING" = "xno"] )
 ################################################################################
 #                           Output Files
 ################################################################################
+rm -r -f a.out
+
+# --------------------------------------------------------------
+# Print configuration info to the header file
+# --------------------------------------------------------------
+AC_DEFINE_UNQUOTED(CONFIGURE_INFO, ["$0 run on `date`"], [Configuration information.])
+AC_DEFINE_UNQUOTED(CONFIGURE_COMMAND, ["$USER_CONFIGURE_CMD"], [Configuration command along with user-specified options.])
+AC_SUBST(USER_CONFIGURE_CMD)
 
 # Some old versions of autoconf don't define docdir.  
 # Define it if autoconf did not.
@@ -1344,6 +1411,7 @@ AC_CONFIG_FILES([Makefile
 AC_CONFIG_COMMANDS([src/MOAB_FCDefs.h],
   [sed -e "s/FC_FUNC/MOAB_FC_FUNC/" src/FCDefs.h >src/MOAB_FCDefs.h])
 
+# DISTCHECK_CONFIGURE_FLAGS="$USER_CONFIGURE_CMD"
 # make distcheck will use this DISTCHECK_CONFIGURE_FLAGS 
 # variable to be passed to configure line
 # some people include a lot of env vars here
