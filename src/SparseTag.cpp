@@ -471,7 +471,11 @@ ErrorCode SparseTag::num_tagged_entities( const SequenceManager*,
 }
 
 ErrorCode SparseTag::find_entities_with_value( 
+#ifdef HAVE_UNORDERED_MAP
                               const SequenceManager* seqman,
+#else
+                              const SequenceManager* /* seqman */,
+#endif
                               Error* error,
                               Range& output_entities,
                               const void* value,
