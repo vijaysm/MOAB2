@@ -39,10 +39,10 @@ set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/config ${CMAKE_MODULE_PATH})
 ################################################################################
 include (config/GetAcInitVersion.cmake)
 get_ac_init_version()
-set ( MOAB_VERSION_MAJOR  "${MAJOR_VERSION}"  )
-set ( MOAB_VERSION_MINOR  "${MINOR_VERSION}"  )
+set ( MOAB_VERSION_STRING "${PACKAGE_NAME} ${VERSION_STRING}" )
 set ( MOAB_VERSION        "${VERSION_STRING}" )
-set ( MOAB_VERSION_STRING "${VERSION_STRING}" )
+set ( MOAB_VERSION_MAJOR  ${MAJOR_VERSION}  )
+set ( MOAB_VERSION_MINOR  ${MINOR_VERSION}  )
 if ( DEFINED PATCH_VERSION )
   set ( MOAB_VERSION_PATCH "${PATCH_VERSION}" )
 else ( DEFINED PATCH_VERSION )
@@ -66,8 +66,8 @@ set ( abs_builddir ${PROJECT_BINARY_DIR} )
 # Install Related Settings
 ################################################################################
 
-execute_process( COMMAND readlink -f moab.make.in
-                 COMMAND xargs dirname
+get_filename_component( MOAB_ABSSRC_DIR2 moab.make.in REALPATH )
+execute_process( COMMAND dirname ${MOAB_ABSSRC_DIR2}
   WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
   OUTPUT_VARIABLE MOAB_ABSSRC_DIR
   OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -270,7 +270,7 @@ ADD_CUSTOM_TARGET( check COMMAND ctest )
 
 # For consistency with autoconf, create "make dist" and "make distcheck" targets
 INCLUDE( CMakeDistCheck )
-DISTCHECK_SETUP()
+DEFINE_DISTCHECK ( )
 
 ################################################################################
 # Generate the MOABConfig.cmake file

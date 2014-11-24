@@ -1,39 +1,27 @@
-# Copyright (C) 2008-2014 LAAS-CNRS, JRL AIST-CNRS.
+# Inspired by CMake Distcheck for LAAS-CNRS
 #
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-# DISTCHECK_SETUP
+# DEFINE_DISTCHECK
 # ---------------
 #
 # Add a distcheck target to check the generated tarball.
 #
-# This step calls `make distdir' to generate a copy of the project without
-# the git history and with the `.version' file (as it will be when an user
-# will retrieve a stable version).
+# This step calls `make dist' to generate a copy of the MOAB sources as it 
+# stands in the current git HEAD i.e., unversioned files are skipped.
+#
 # Then:
 # - create _build and _inst to respectively create a build and an installation
 #   directory.
-# - copy the CMakeCache.txt file.
+# - copy the CMakeCache.txt file and apply several transformations.
 # - run cmake with _inst as the installation prefix
 # - run make, make check, make install and make uninstall
 # - remove _build and _inst.
+# - remove dist directory and confirm success.
 #
 # During the compilation phase, all files in the source tree are modified
 # to *not* be writeable to detect bad compilation steps which tries to modify
 # the source tree. Permissions are reverted at the end of the check.
 #
-MACRO(DISTCHECK_SETUP)
+MACRO(DEFINE_DISTCHECK)
   FIND_PROGRAM(SED sed)
   FIND_PROGRAM(TAR tar)
   FIND_PROGRAM(GZIP gzip)
@@ -46,19 +34,6 @@ MACRO(DISTCHECK_SETUP)
     ${GZIP} > ${CMAKE_BINARY_DIR}/${PACKAGE_NAME}-${PACKAGE_VERSION}.tar.gz
   )
 
-#add_custom_target(distcheck cd ${CMAKE_BINARY_DIR} &&
-#                        rm -rf ${PACKAGE_NAME}-${PACKAGE_VERSION} &&
-#                        gzip -d ${PACKAGE_NAME}-${PACKAGE_VERSION}.tar.gz &&
-#                        tar -xf ${PACKAGE_NAME}-${PACKAGE_VERSION}.tar &&
-#                        cd ${PACKAGE_NAME}-${PACKAGE_VERSION}/ &&
-#                        mkdir _build && cd _build &&
-#                        cmake .. && make && make test &&
-#                        cd ${CMAKE_BINARY_DIR} &&
-#                        tar -rf ${PACKAGE_NAME}-${PACKAGE_VERSION}.tar ${PACKAGE_NAME}-${PACKAGE_VERSION}/doc/ &&
-#                        gzip ${CMAKE_BINARY_DIR}/${PACKAGE_NAME}-${PACKAGE_VERSION}.tar)
-#add_dependency(distcheck dist)
-
-#    cd ${CMAKE_BINARY_DIR}
   ADD_CUSTOM_TARGET(distcheck
     COMMAND
     rm -rf ${PACKAGE_NAME}-${PACKAGE_VERSION}
@@ -66,42 +41,10 @@ MACRO(DISTCHECK_SETUP)
     && ${TAR} -xf ${PACKAGE_NAME}-${PACKAGE_VERSION}.tar
     && cd ${PACKAGE_NAME}-${PACKAGE_VERSION}/
     && chmod u+w . && mkdir -p _build && mkdir -p _inst
+    && ${CMAKE_SOURCE_DIR}/config/CMakeReplicateConfig.sh "${CMAKE_BINARY_DIR}/CMakeCache.txt" _build/CMakeCache.txt
     && chmod u+rwx _build _inst && chmod a-w .
-    && echo "\$(cat ${CMAKE_BINARY_DIR}/CMakeCache.txt)" | ${SED} -n '/CMAKE_CACHEFILE_DIR:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
-       || ${SED} -n '/CMAKE_HOME_DIRECTORY:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
-       || ${SED} -n '/CMAKE_CXX_COMPILER:FILEPATH./{n\;x\;d\;}\;x\;1d\;\$G\;p'
-       || ${SED} -n '/CMAKE_CXX_FLAGS:STRING./{n\;x\;d\;}\;x\;1d\;\$G\;p'
-       || ${SED} -n '/CMAKE_CXX_FLAGS_DEBUG:STRING./{n\;x\;d\;}\;x\;1d\;\$G\;p'
-       || ${SED} -n '/CMAKE_CXX_FLAGS_MINSIZEREL:STRING./{n\;x\;d\;}\;x\;1d\;\$G\;p'
-       || ${SED} -n '/CMAKE_CXX_FLAGS_RELEASE:STRING./{n\;x\;d\;}\;x\;1d\;\$G\;p'
-       || ${SED} -n '/CMAKE_CXX_FLAGS_RELWITHDEBINFO:STRING./{n\;x\;d\;}\;x\;1d\;\$G\;p'
-       || ${SED} -n '/CMAKE_CXX_COMPILER-ADVANCED:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
-       || ${SED} -n '/CMAKE_CXX_COMPILER_WORKS:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
-       || ${SED} -n '/CMAKE_CXX_FLAGS-ADVANCED:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
-       || ${SED} -n '/CMAKE_CXX_FLAGS_DEBUG-ADVANCED:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
-       || ${SED} -n '/CMAKE_CXX_FLAGS_MINSIZEREL-ADVANCED:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
-       || ${SED} -n '/CMAKE_CXX_FLAGS_RELEASE-ADVANCED:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
-       || ${SED} -n '/CMAKE_CXX_FLAGS_RELWITHDEBINFO-ADVANCED:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
-       || ${SED} -n '/CMAKE_DETERMINE_CXX_ABI_COMPILED:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
-       || ${SED} -n '/CMAKE_C_COMPILER:FILEPATH./{n\;x\;d\;}\;x\;1d\;\$G\;p'
-       || ${SED} -n '/CMAKE_C_FLAGS:STRING./{n\;x\;d\;}\;x\;1d\;\$G\;p'
-       || ${SED} -n '/CMAKE_C_FLAGS_DEBUG:STRING./{n\;x\;d\;}\;x\;1d\;\$G\;p'
-       || ${SED} -n '/CMAKE_C_FLAGS_MINSIZEREL:STRING./{n\;x\;d\;}\;x\;1d\;\$G\;p'
-       || ${SED} -n '/CMAKE_C_FLAGS_RELEASE:STRING./{n\;x\;d\;}\;x\;1d\;\$G\;p'
-       || ${SED} -n '/CMAKE_C_FLAGS_RELWITHDEBINFO:STRING./{n\;x\;d\;}\;x\;1d\;\$G\;p'
-       || ${SED} -n '/CMAKE_C_COMPILER-ADVANCED:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
-       || ${SED} -n '/CMAKE_C_FLAGS-ADVANCED:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
-       || ${SED} -n '/CMAKE_C_FLAGS_DEBUG-ADVANCED:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
-       || ${SED} -n '/CMAKE_C_FLAGS_MINSIZEREL-ADVANCED:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
-       || ${SED} -n '/CMAKE_C_FLAGS_RELEASE-ADVANCED:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
-       || ${SED} -n '/CMAKE_C_FLAGS_RELWITHDEBINFO-ADVANCED:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
-       || ${SED} -n '/CMAKE_DETERMINE_C_ABI_COMPILED:INTERNAL./{n\;x\;d\;}\;x\;1d\;\$G\;p'
-       || ${SED} -n '/EXECUTABLE_OUTPUT_PATH:PATH./{n\;x\;d\;}\;x\;1d\;\$G\;p'
-       || ${SED} -n '/LIBRARY_OUTPUT_PATH:PATH./{n\;x\;d\;}\;x\;1d\;\$G\;p'
-       || ${SED} -n '/produce slightly less optimized./{n\;x\;d\;}\;x\;1d\;\$G\;p'
-       || cat -s > _build/CMakeCache.txt
     && cd _build
-    && cmake -DCMAKE_INSTALL_PREFIX=${INSTDIR} .. || cmake ..
+    && cmake -DCMAKE_INSTALL_PREFIX=${INSTDIR} ..
         || (echo "ERROR: the cmake configuration failed." && false)
     && make -j4
         || (echo "ERROR: the compilation failed." && false)
@@ -129,4 +72,5 @@ MACRO(DISTCHECK_SETUP)
     COMMENT "Checking generated tarball..."
     )
   ADD_DEPENDENCIES(distcheck dist)
-ENDMACRO()
+ENDMACRO(DEFINE_DISTCHECK)
+
