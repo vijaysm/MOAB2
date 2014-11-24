@@ -1,12 +1,12 @@
+// MOAB includes
 #include "moab/ParallelComm.hpp"
 #include "MBParallelConventions.h"
 #include "moab/Core.hpp"
 #include "Coupler.hpp"
-#include "iMesh_extensions.h"
 #include "moab_mpi.h"
 #include "ElemUtil.hpp"
-#include "MBiMesh.hpp"
 
+// C++ includes
 #include <iostream>
 #include <iomanip>
 #include <sstream>
@@ -32,15 +32,6 @@ std::string TestDir(".");
     return result; \
   }
 
-#define PRINT_LAST_ERR \
-  if (iBase_SUCCESS != err) { \
-    std::string tmp_str; \
-    std::cout << "Failure; message:" << std::endl; \
-    mbImpl->get_last_error(tmp_str); \
-    std::cout << tmp_str << std::endl; \
-    MPI_Abort(MPI_COMM_WORLD, result); \
-    return result; \
-  }
 
 // Print usage
 void print_usage()
@@ -105,7 +96,7 @@ ErrorCode test_interpolation(Interface *mbImpl,
                              std::string &ssNormTag,
                              std::vector<const char*> &ssTagNames,
                              std::vector<const char*> &ssTagValues,
-                             iBase_EntitySetHandle *roots,
+                             EntityHandle *roots,
                              std::vector<ParallelComm*> &pcs,
                              double &instant_time,
                              double &pointloc_time,
@@ -127,14 +118,14 @@ void reduceMax(double &v)
 int main(int argc, char **argv)
 {
   // Need to init MPI first, to tell how many procs and rank
-  int err = MPI_Init(&argc, &argv);
+  int ierr = MPI_Init(&argc, &argv);
 
   std::vector<const char*> ssTagNames, ssTagValues;
   std::vector<std::string> meshFiles;
   std::string interpTag, gNormTag, ssNormTag, readOpts, outFile, writeOpts, dbgFile;
   Coupler::Method method = Coupler::CONSTANT;
 
-  ErrorCode result = MB_SUCCESS;
+  ErrorCode result;
   bool help = false;
   double toler = 5.e-10;
   result = get_file_options(argc, argv, meshFiles, method, interpTag,
@@ -143,13 +134,13 @@ int main(int argc, char **argv)
 
   if (result != MB_SUCCESS || help) {
     print_usage();
-    err = MPI_Finalize();
-    return 1;
+    ierr = MPI_Finalize();
+    return ierr;
   }
 
   int nprocs, rank;
-  err = MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
-  err = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  ierr = MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  ierr = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
   // Redirect stdout and stderr if dbgFile is not null
   if (!dbgFile.empty()) {
@@ -166,14 +157,12 @@ int main(int argc, char **argv)
   if (NULL == mbImpl)
     return 1;
 
-  iMesh_Instance iMeshInst = reinterpret_cast<iMesh_Instance>(new MBiMesh(mbImpl));
-
   // Read in mesh(es)
   std::vector<ParallelComm*> pcs(meshFiles.size());
 
   // Create root sets for each mesh using the iMesh API. Then pass these
   // to the load_file functions to be populated.
-  iBase_EntitySetHandle *roots = (iBase_EntitySetHandle*)malloc(sizeof(iBase_EntitySetHandle) * meshFiles.size());
+  EntityHandle *roots = (EntityHandle *)malloc(sizeof(EntityHandle) * meshFiles.size());
 
   for (unsigned int i = 0; i < meshFiles.size(); i++) {
     pcs[i] = new ParallelComm(mbImpl, MPI_COMM_WORLD);
@@ -183,9 +172,10 @@ int main(int argc, char **argv)
     extraOpt << ";PARALLEL_COMM=" << index;
     newReadopts = readOpts+extraOpt.str();
 
-    iMesh_createEntSet(iMeshInst, 0, &(roots[i]), &err);
-    result = mbImpl->load_file(meshFiles[i].c_str(), (EntityHandle*)&roots[i], newReadopts.c_str());
-    //result = rps[i]->load_file(meshFiles[i].c_str(), (EntityHandle*)&roots[i], FileOptions(readOpts.c_str()));
+    result = mbImpl->create_meshset(MESHSET_SET, roots[i]);PRINT_LAST_ERROR;
+
+    result = mbImpl->load_file( meshFiles[i].c_str(), &roots[i], newReadopts.c_str() );
+    //result = rps[i]->load_file(meshFiles[i].c_str(), &roots[i], FileOptions(readOpts.c_str()));
     PRINT_LAST_ERROR;
   }
 
@@ -228,10 +218,8 @@ int main(int argc, char **argv)
     delete pcs[i];
 
   delete mbImpl;
-  // May be leaking iMeshInst, don't care since it's end of program. Remove above deletes?
-
-  err = MPI_Finalize();
-
+  
+  ierr = MPI_Finalize();
   return 0;
 }
 
@@ -575,7 +563,7 @@ ErrorCode test_interpolation(Interface *mbImpl,
                              std::string &ssNormTag,
                              std::vector<const char*> &ssTagNames,
                              std::vector<const char*> &ssTagValues,
-                             iBase_EntitySetHandle *roots,
+                             EntityHandle *roots,
                              std::vector<ParallelComm*> &pcs,
                              double &instant_time,
                              double &pointloc_time,
@@ -598,7 +586,7 @@ ErrorCode test_interpolation(Interface *mbImpl,
 
   // Initialize spectral elements, if they exist
   bool specSou=false, specTar = false;
-  //result = mbc.initialize_spectral_elements((EntityHandle)roots[0], (EntityHandle)roots[1], specSou, specTar);
+  //result =  mbc.initialize_spectral_elements(roots[0], roots[1], specSou, specTar);
 
   instant_time = MPI_Wtime();
 
@@ -656,15 +644,13 @@ ErrorCode test_interpolation(Interface *mbImpl,
 
   // Do global normalization if specified
   if (!gNormTag.empty()) {
-    int err;
-
     // Normalize the source mesh
-    err = mbc.normalize_mesh(roots[0], gNormTag.c_str(), Coupler::VOLUME, 4);
-    PRINT_LAST_ERR;
+    result = mbc.normalize_mesh(roots[0], gNormTag.c_str(), Coupler::VOLUME, 4);
+    PRINT_LAST_ERROR;
 
     // Normalize the target mesh
-    err = mbc.normalize_mesh(roots[1], gNormTag.c_str(), Coupler::VOLUME, 4);
-    PRINT_LAST_ERR;
+    result = mbc.normalize_mesh(roots[1], gNormTag.c_str(), Coupler::VOLUME, 4);
+    PRINT_LAST_ERROR;
   }
 
   gnorm_time = MPI_Wtime();
@@ -672,25 +658,24 @@ ErrorCode test_interpolation(Interface *mbImpl,
   // Do subset normalization if specified
 
   if (!ssNormTag.empty()) {
-    int err;
 
-    err = mbc.normalize_subset(roots[0],
-                               ssNormTag.c_str(),
-                               &ssTagNames[0],
-                               ssTagNames.size(),
-                               &ssTagValues[0],
-                               Coupler::VOLUME,
+    result = mbc.normalize_subset(roots[0],
+                               ssNormTag.c_str(), 
+                               &ssTagNames[0], 
+                               ssTagNames.size(), 
+                               &ssTagValues[0], 
+                               Coupler::VOLUME, 
                                4);
-    PRINT_LAST_ERR;
+    PRINT_LAST_ERROR;
 
-    err = mbc.normalize_subset(roots[1],
-                               ssNormTag.c_str(),
-                               &ssTagNames[0],
-                               ssTagNames.size(),
-                               &ssTagValues[0],
-                               Coupler::VOLUME,
+    result = mbc.normalize_subset(roots[1],
+                               ssNormTag.c_str(), 
+                               &ssTagNames[0], 
+                               ssTagNames.size(), 
+                               &ssTagValues[0], 
+                               Coupler::VOLUME, 
                                4);
-    PRINT_LAST_ERR;
+    PRINT_LAST_ERROR;
   }
 
   ssnorm_time = MPI_Wtime();
