@@ -21,6 +21,9 @@ void MBErrorHandler_Finalize();
 //! Indicates whether MBErrorHandler_Init has been called
 bool MBErrorHandler_Initialized();
 
+//! Get information about the last error
+void MBErrorHandler_GetLastError(std::string& error);
+
 //! Routine that is called when an error has been detected
 ErrorCode MBError(int line, const char* func, const char* file, const char* dir,
                   ErrorCode err_code, const char* err_msg, ErrorType err_type);

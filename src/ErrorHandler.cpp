@@ -12,6 +12,7 @@ namespace moab {
 
 static ErrorOutput* errorOutput = NULL;
 static bool hasError = false;
+static std::string lastError = "No error";
 
 void MBErrorHandler_Init()
 {
@@ -37,6 +38,11 @@ bool MBErrorHandler_Initialized()
   return (NULL != errorOutput);
 }
 
+void MBErrorHandler_GetLastError(std::string& error)
+{
+  error = lastError;
+}
+
 void MBTraceBackErrorHandler(int line, const char* func, const char* file, const char* dir, const char* err_msg, ErrorType err_type)
 {
   if (NULL == errorOutput)
@@ -54,6 +60,7 @@ void MBTraceBackErrorHandler(int line, const char* func, const char* file, const
       errorOutput->print("--------------------- Error Message ------------------------------------\n");
       errorOutput->printf("%s!\n", err_msg);
       hasError = true;
+      lastError = err_msg;
     }
 
     // Print a line of stack trace for a new error or an existing one

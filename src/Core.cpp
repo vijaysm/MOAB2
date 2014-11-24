@@ -3648,7 +3648,8 @@ ErrorCode Core::remove_child_meshset(EntityHandle meshset,
 
 ErrorCode Core::get_last_error(std::string& info) const
 {
-  return mError->get_last_error(info);
+  MBErrorHandler_GetLastError(info);
+  return MB_SUCCESS;
 }
 
 std::string Core::get_error_string(const ErrorCode code) const
