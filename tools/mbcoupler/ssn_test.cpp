@@ -58,7 +58,7 @@ void print_tuples(TupleList *tlp);
 
 int print_vertex_fields(Interface* mbi,
                         iMesh_Instance iMeshInst,
-                        std::vector< std::vector<iBase_EntityHandle> > &groups,
+                        std::vector< std::vector<EntityHandle> > &groups,
                         iBase_TagHandle                                &norm_hdl,
                         Coupler::IntegType                             integ_type);
 
@@ -220,77 +220,86 @@ int main(int argc, char **argv) {
   // ******************************
   std::cout << "********** Test create_tuples **********" << std::endl;
   // First get some EntitySets for Mesh 1 and Mesh 2
-  iBase_EntitySetHandle *m1EntSets = NULL;
-  iBase_EntitySetHandle *m2EntSets = NULL;
-  int m1EntSetsSize=0;
-  int m2EntSetsSize=0;
-  int m1EntSetsAlloc=0;
-  int m2EntSetsAlloc=0;
+  {
+    iBase_EntitySetHandle *m1EntSets = NULL;
+    iBase_EntitySetHandle *m2EntSets = NULL;
+    int m1EntSetsSize=0;
+    int m2EntSetsSize=0;
+    int m1EntSetsAlloc=0;
+    int m2EntSetsAlloc=0;
+    Range entsets1, entsets2;
+    iMesh_getEntSetsByTagsRec(iMeshInst, roots[0], &tagHandles[0], 
+                              &tagValues[0], tagHandles.size(), 0,
+                              &m1EntSets, &m1EntSetsAlloc, &m1EntSetsSize, &err);
+    CHKERR(err, "iMesh_getEntSetsByTagsRec failed on Mesh 1.");
 
-  iMesh_getEntSetsByTagsRec(iMeshInst, roots[0], &tagHandles[0], 
-                            &tagValues[0], tagHandles.size(), 0,
-                            &m1EntSets, &m1EntSetsAlloc, &m1EntSetsSize, &err);
-  CHKERR(err, "iMesh_getEntSetsByTagsRec failed on Mesh 1.");
+    for (int ix=0; ix<m1EntSetsSize; ix++)
+      entsets1.insert((EntityHandle)m1EntSets[ix]);
 
-  iMesh_getEntSetsByTagsRec(iMeshInst, roots[1], &tagHandles[0], 
-                            &tagValues[0], tagHandles.size(), 0,
-                            &m2EntSets, &m2EntSetsAlloc, &m2EntSetsSize, &err);
-  CHKERR(err, "iMesh_getEntSetsByTagsRec failed on Mesh 2.");
+    // Create tuple_list for each mesh's
+    std::cout << "Creating tuples for mesh 1..." << std::endl;
+    TupleList *m1TagTuples = NULL;
+    err = mbc.create_tuples(entsets1, m1EntSetsSize, 
+                            (Tag*)(&tagHandles[0]), tagHandles.size(), &m1TagTuples);
+    CHKERR(err, "create_tuples failed");
 
-  // Create tuple_list for each mesh's
-  std::cout << "Creating tuples for mesh 1..." << std::endl;
-  TupleList *m1TagTuples = NULL;
-  err = mbc.create_tuples(m1EntSets, m1EntSetsSize, 
-                          &tagHandles[0], tagHandles.size(), &m1TagTuples);
-  CHKERR(err, "create_tuples failed");
+    std::cout << "   create_tuples returned" << std::endl;
+    print_tuples(m1TagTuples);
 
-  std::cout << "   create_tuples returned" << std::endl;
-  print_tuples(m1TagTuples);
+    iMesh_getEntSetsByTagsRec(iMeshInst, roots[1], &tagHandles[0], 
+                              &tagValues[0], tagHandles.size(), 0,
+                              &m2EntSets, &m2EntSetsAlloc, &m2EntSetsSize, &err);
+    CHKERR(err, "iMesh_getEntSetsByTagsRec failed on Mesh 2.");
 
-  std::cout << "Creating tuples for mesh 2..." << std::endl;
-  TupleList *m2TagTuples = NULL;
-  err = mbc.create_tuples(m2EntSets, m2EntSetsSize, 
-                          &tagHandles[0], tagHandles.size(), &m2TagTuples);
-  CHKERR(err, "create_tuples failed");
+    for (int ix=0; ix<m2EntSetsSize; ix++)
+      entsets2.insert((EntityHandle)m2EntSets[ix]);
 
-  std::cout << "   create_tuples returned" << std::endl;
-  print_tuples(m2TagTuples);
+    std::cout << "Creating tuples for mesh 2..." << std::endl;
+    TupleList *m2TagTuples = NULL;
+    err = mbc.create_tuples(entsets2, m2EntSetsSize, 
+                            (Tag*)(&tagHandles[0]), tagHandles.size(), &m2TagTuples);
+    CHKERR(err, "create_tuples failed");
 
-  // ******************************
-  std::cout << "********** Test consolidate_tuples **********" << std::endl;
-  // In this serial version we only have the tuples from Mesh 1 and Mesh 2.
-  // Just consolidate those for the test.
-  std::cout << "Consolidating tuple_lists for Mesh 1 and Mesh 2..." << std::endl;
-  TupleList **tplp_arr = (TupleList**) malloc(2*sizeof(TupleList*));
-  TupleList *unique_tpl = NULL;
-  tplp_arr[0] = m1TagTuples;
-  tplp_arr[1] = m2TagTuples;
+    std::cout << "   create_tuples returned" << std::endl;
+    print_tuples(m2TagTuples);
 
-  err = mbc.consolidate_tuples(tplp_arr, 2, &unique_tpl);
-  CHKERR(err, "consolidate_tuples failed");
-  std::cout << "    consolidate_tuples returned" << std::endl;
-  print_tuples(unique_tpl);
+    // ******************************
+    std::cout << "********** Test consolidate_tuples **********" << std::endl;
+    // In this serial version we only have the tuples from Mesh 1 and Mesh 2.
+    // Just consolidate those for the test.
+    std::cout << "Consolidating tuple_lists for Mesh 1 and Mesh 2..." << std::endl;
+    TupleList **tplp_arr = (TupleList**) malloc(2*sizeof(TupleList*));
+    TupleList *unique_tpl = NULL;
+    tplp_arr[0] = m1TagTuples;
+    tplp_arr[1] = m2TagTuples;
+
+    err = mbc.consolidate_tuples(tplp_arr, 2, &unique_tpl);
+    CHKERR(err, "consolidate_tuples failed");
+    std::cout << "    consolidate_tuples returned" << std::endl;
+    print_tuples(unique_tpl);
+
+  }
 
   // ******************************
   std::cout << "********** Test get_matching_entities **********" << std::endl;
-  std::vector< std::vector<iBase_EntitySetHandle> > m1EntitySets;
-  std::vector< std::vector<iBase_EntityHandle> > m1EntityGroups;
-  std::vector< std::vector<iBase_EntitySetHandle> > m2EntitySets;
-  std::vector< std::vector<iBase_EntityHandle> > m2EntityGroups;
+  std::vector< std::vector<EntityHandle> > m1EntitySets;
+  std::vector< std::vector<EntityHandle> > m1EntityGroups;
+  std::vector< std::vector<EntityHandle> > m2EntitySets;
+  std::vector< std::vector<EntityHandle> > m2EntityGroups;
 
   // Get matching entities for Mesh 1
   std::cout << "Get matching entities for mesh 1..." << std::endl;
-  err = mbc.get_matching_entities(roots[0], &tagHandles[0], &tagValues[0], tagHandles.size(),
-                                  &m1EntitySets, &m1EntityGroups);
+  err = mbc.get_matching_entities((EntityHandle)roots[0], (Tag*)&tagHandles[0], &tagValues[0], tagHandles.size(), 
+                                    &m1EntitySets, &m1EntityGroups);
   CHKERR(err, "get_matching_entities failed");
 
   std::cout << "    get_matching_entities returned " << m1EntityGroups.size() << " entity groups" << std::endl;
   
   // Print out the data in the vector of vectors
-  std::vector< std::vector<iBase_EntitySetHandle> >::iterator iter_esi;
-  std::vector< std::vector<iBase_EntityHandle> >::iterator iter_egi;
-  std::vector<iBase_EntitySetHandle>::iterator iter_esj;
-  std::vector<iBase_EntityHandle>::iterator iter_egj;
+  std::vector< std::vector<EntityHandle> >::iterator iter_esi;
+  std::vector< std::vector<EntityHandle> >::iterator iter_egi;
+  std::vector<EntityHandle>::iterator iter_esj;
+  std::vector<EntityHandle>::iterator iter_egj;
   Range entSetRg;
   int icnt;
   for (iter_egi = m1EntityGroups.begin(), iter_esi = m1EntitySets.begin(), icnt = 1; 
@@ -315,7 +324,7 @@ int main(int argc, char **argv) {
 
   // Get matching entities for Mesh 2
   std::cout << "Get matching entities for mesh 2..." << std::endl;
-  err = mbc.get_matching_entities(roots[1], &tagHandles[0], &tagValues[0], tagHandles.size(),
+  err = mbc.get_matching_entities((EntityHandle)roots[1], (Tag*)&tagHandles[0], &tagValues[0], tagHandles.size(),
                                   &m2EntitySets, &m2EntityGroups);
   CHKERR(err, "get_matching_entities failed");
 
@@ -616,7 +625,7 @@ int main(int argc, char **argv) {
   std::cout << "********** Test normalize_subset **********" << std::endl;
   // Now call the Coupler::normalize_subset routine and see if we get an error.
   std::cout << "Running Coupler::normalize_subset() on mesh 1" << std::endl;
-  err = mbc.normalize_subset(roots[0], 
+  err = mbc.normalize_subset((EntityHandle)roots[0], 
                              normTag.c_str(), 
                              &tagNames[0], 
                              numTagNames, 
@@ -639,7 +648,7 @@ int main(int argc, char **argv) {
   std::cout << std::endl;
 
   std::cout << "Running Coupler::normalize_subset() on mesh 2" << std::endl;
-  err = mbc.normalize_subset(roots[1], 
+  err = mbc.normalize_subset((EntityHandle)roots[1], 
                              normTag.c_str(), 
                              &tagNames[0], 
                              numTagNames, 
@@ -815,20 +824,21 @@ void print_tuples(TupleList *tlp)
 // Function to print vertex field values
 int print_vertex_fields(Interface* /*mbi*/,
                         iMesh_Instance iMeshInst,
-                        std::vector< std::vector<iBase_EntityHandle> > &groups,
+                        std::vector< std::vector<EntityHandle> > &groups,
                         iBase_TagHandle                                &norm_hdl,
                         Coupler::IntegType                             integ_type)
 {
   int err = iBase_SUCCESS;
-  std::vector<iBase_EntityHandle>::iterator iter_j;
+  std::vector<EntityHandle>::iterator iter_j;
 
   for (unsigned int i = 0; i < groups.size(); i++) {
     std::cout << "    Group - " << std::endl << "        ";
     for (iter_j = groups[i].begin(); iter_j != groups[i].end(); iter_j++) {
+      iBase_EntityHandle ehandle = (iBase_EntityHandle)(*iter_j);
       // Check that the entity in iter_j is of the same dimension as the 
       // integ_type we are performing
       int j_type;
-      iMesh_getEntType(iMeshInst, (*iter_j), &j_type, &err);
+      iMesh_getEntType(iMeshInst, ehandle, &j_type, &err);
       CHKERR(err, "Failed to get entity type.");
       if ((integ_type == Coupler::VOLUME) && (j_type != iBase_REGION))
         continue;
@@ -838,7 +848,7 @@ int print_vertex_fields(Interface* /*mbi*/,
       int vertsAlloc = 0;
       int vertsSize = 0;
 
-      iMesh_getEntAdj(iMeshInst, (*iter_j), iBase_VERTEX, &verts, &vertsAlloc, &vertsSize, &err);
+      iMesh_getEntAdj(iMeshInst, ehandle, iBase_VERTEX, &verts, &vertsAlloc, &vertsSize, &err);
       CHKERR(err, "Failed to get vertices from entity.");
       std::cout << std::fixed;
       for (int iv = 0; iv < vertsSize; iv++) {
