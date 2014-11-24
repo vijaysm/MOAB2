@@ -39,7 +39,7 @@ libmbcslam_la_includedir = $(includedir)
 cfgdir = $(libdir)
 
 TESTS = intx_on_sphere_test  intx_in_plane_test spherical_area_test \
-         case1_test  arc_intx_tests  IntxRllCssphere_test
+         case1_test  arc_intx_tests  IntxRllCssphere_test diffusion
 if PARALLEL
      TESTS += intx_mpas
 endif

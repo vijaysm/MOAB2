@@ -49,8 +49,8 @@ double gtol = 1.e-9; // this is for geometry tolerance
 
 double radius = 1.;// in m:  6371220.
 
-int numSteps = 50; // number of times with velocity displayed at points
-double T = 5;
+int numSteps = 3; // number of times with velocity displayed at points
+double T = 1;
 
 int case_number = 1; // 1, 2 (non-divergent) 3 divergent
 
@@ -423,7 +423,7 @@ int main(int argc, char **argv)
   ProgOptions opts(LONG_DESC.str(), BRIEF_DESC);
 
   // read a homme file, partitioned in 16 so far
-  std::string fileN= TestDir + "/HN16.h5m";
+  std::string fileN= TestDir + "/mbcslam/fine4.h5m";
   const char *filename_mesh1 = fileN.c_str();
 
   opts.addOpt<double>("gtolerance,g",

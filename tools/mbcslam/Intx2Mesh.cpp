@@ -21,7 +21,7 @@ namespace moab {
 
 Intx2Mesh::Intx2Mesh(Interface * mbimpl): mb(mbimpl)
 #ifdef USE_MPI
-   , parcomm(NULL), remote_cells(NULL)
+   , parcomm(NULL), remote_cells(NULL), remote_cells_with_tracers(NULL)
 #endif
 {
   dbg_1=0;

@@ -483,24 +483,27 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
 
   // create new tuple list for tracers to other processors, from remote_cells
 #ifdef USE_MPI
-  int n = remote_cells->get_n();
-  if (n>0) {
-    remote_cells_with_tracers = new TupleList();
-    remote_cells_with_tracers->initialize(2, 0, 1, numTracers, n); // tracers are in these tuples
-    remote_cells_with_tracers->enableWriteAccess();
-    for (int i=0; i<n; i++)
-    {
-      remote_cells_with_tracers->vi_wr[2*i]=remote_cells->vi_wr[2*i];
-      remote_cells_with_tracers->vi_wr[2*i+1]=remote_cells->vi_wr[2*i+1];
-      //    remote_cells->vr_wr[i] = 0.; will have a different tuple for communication
-      remote_cells_with_tracers->vul_wr[i]=   remote_cells->vul_wr[i];// this is the corresponding red cell (arrival)
-      for (int k=0; k<numTracers; k++)
-        remote_cells_with_tracers->vr_wr[numTracers*i+k] = 0; // initialize tracers to be transported
-      remote_cells_with_tracers->inc_n();
+  if (remote_cells)
+  {
+    int n = remote_cells->get_n();
+    if (n>0) {
+      remote_cells_with_tracers = new TupleList();
+      remote_cells_with_tracers->initialize(2, 0, 1, numTracers, n); // tracers are in these tuples
+      remote_cells_with_tracers->enableWriteAccess();
+      for (int i=0; i<n; i++)
+      {
+        remote_cells_with_tracers->vi_wr[2*i]=remote_cells->vi_wr[2*i];
+        remote_cells_with_tracers->vi_wr[2*i+1]=remote_cells->vi_wr[2*i+1];
+        //    remote_cells->vr_wr[i] = 0.; will have a different tuple for communication
+        remote_cells_with_tracers->vul_wr[i]=   remote_cells->vul_wr[i];// this is the corresponding red cell (arrival)
+        for (int k=0; k<numTracers; k++)
+          remote_cells_with_tracers->vr_wr[numTracers*i+k] = 0; // initialize tracers to be transported
+        remote_cells_with_tracers->inc_n();
+      }
     }
+    delete remote_cells;
+    remote_cells = NULL;
   }
-  delete remote_cells;
-  remote_cells = NULL;
 #endif
   // for each polygon, we have 2 indices: red and blue parents
   // we need index blue to update index red?
@@ -566,7 +569,7 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
     (parcomm->proc_config().crystal_router())->gs_transfer(1, *remote_cells_with_tracers, 0);
     // now, look at the global id, find the proper "red" cell with that index and update its mass
     //remote_cells->print("remote cells after routing");
-    n = remote_cells_with_tracers->get_n();
+    int n = remote_cells_with_tracers->get_n();
     for (int j=0; j<n; j++)
     {
       EntityHandle redCell = remote_cells_with_tracers->vul_rd[j];// entity handle sent back
