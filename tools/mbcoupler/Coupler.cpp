@@ -3,20 +3,22 @@
 #include "moab/AdaptiveKDTree.hpp"
 #include "ElemUtil.hpp"
 #include "moab/CN.hpp"
-#include "iMesh_extensions.h"
+//#include "iMesh_extensions.h"
 #include "moab/gs.hpp"
 #include "moab/TupleList.hpp"
 #include "moab/Error.hpp"
-#include "iostream"
-#include <stdio.h>
+
+/* C++ includes */
+#include <iostream>
+#include <cstdio>
 #include <algorithm>
 #include <sstream>
 
 #include "assert.h"
 
-#define ERROR(a) { if (iBase_SUCCESS != err) std::cerr << a << std::endl; }
-#define ERRORR(a, b) { if (iBase_SUCCESS != err) { std::cerr << a << std::endl; return b; } }
-#define ERRORMPI(a, b) { if (MPI_SUCCESS != err) { std::cerr << a << std::endl; return b; } }
+#define ERROR(a) {if (MB_SUCCESS != err) std::cerr << a << std::endl;}
+#define ERRORR(a,b) {if (MB_SUCCESS != b) {std::cerr << a << std::endl; return b;}}
+#define ERRORMPI(a,b) {if (MPI_SUCCESS != b) {std::cerr << a << std::endl; return MB_FAILURE;}}
 
 #define MASTER_PROC 0
 
@@ -102,6 +104,7 @@ ErrorCode Coupler::initialize_tree()
     allBoxes.resize(6*myPc->proc_config().proc_size());
   else
     allBoxes.resize(6);
+
   unsigned int my_rank = (myPc ? myPc->proc_config().proc_rank() : 0);
   BoundBox box;
   result = myTree->get_bounding_box(box, &localRoot);
@@ -270,8 +273,8 @@ ErrorCode Coupler::locate_points(Range &targ_ents,
   return locate_points(&locs[0], targ_ents.size(), rel_eps, abs_eps, tl, store_local);
 }
 
-ErrorCode Coupler::locate_points(double *xyz, int num_points,
-                                 double rel_eps,
+ErrorCode Coupler::locate_points(double *xyz, unsigned int num_points,
+                                 double rel_eps, 
                                  double abs_eps,
                                  TupleList *tl,
                                  bool store_local)
@@ -289,23 +292,22 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
   mappedPts = new TupleList(0, 0, 1, 3, target_pts.get_max());
   mappedPts->enableWriteAccess();
 
-  source_pts.initialize(3, 0, 0, 0, target_pts.get_max()); 
+  source_pts.initialize(3, 0, 0, 0, target_pts.get_max());
   source_pts.enableWriteAccess();
 
   mappedPts->set_n(0);
   source_pts.set_n(0);
   ErrorCode result;
 
+  unsigned int my_rank = (myPc ? myPc->proc_config().proc_rank() : 0);
+  bool point_located;
+
   // For each point, find box(es) containing the point,
   // appending results to tuple_list;
   // keep local points separately, in local_pts, which has pairs
   // of <local_index, mapped_index>, where mapped_index is the index
   // into the mappedPts tuple list
-
-  unsigned int my_rank = (myPc ? myPc->proc_config().proc_rank() : 0);
-  bool point_located;
-
-  for (int i = 0; i < 3*num_points; i += 3) {
+  for (unsigned int i = 0; i < 3*num_points; i += 3) {
     for (unsigned int j = 0; j < (myPc ? myPc->proc_config().proc_size() : 0); j++) {
       // Test if point is in proc's box
       if ((allBoxes[6*j] <= xyz[i] + abs_eps) && (xyz[i] <= allBoxes[6*j + 3] + abs_eps) &&
@@ -431,7 +433,7 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
 
   // Count missing points
   unsigned int missing_pts = 0;
-  for (int i = 0; i < num_points; i++) {
+  for (unsigned int i = 0; i < num_points; i++) {
     if (tl_tmp->vi_rd[3*i + 1] == -1) {
       missing_pts++;
 #ifndef NDEBUG
@@ -465,8 +467,8 @@ ErrorCode Coupler::locate_points(double *xyz, int num_points,
   return MB_SUCCESS;
 }
 
-ErrorCode Coupler::test_local_box(double *xyz,
-                                  int from_proc, int remote_index, int /* index */,
+ErrorCode Coupler::test_local_box(double *xyz, 
+                                  int from_proc, int remote_index, int /*index*/,
                                   bool &point_located,
                                   double rel_eps, double abs_eps,
                                   TupleList *tl)
@@ -542,11 +544,11 @@ ErrorCode Coupler::test_local_box(double *xyz,
   return MB_SUCCESS;
 }
 
-ErrorCode Coupler::interpolate(Coupler::Method method,
-                               const std::string &interp_tag,
-                               double *interp_vals,
-                               TupleList *tl,
-                               bool normalize)
+ErrorCode Coupler::interpolate( Coupler::Method method,
+                                const std::string &interp_tag,
+                                double *interp_vals,
+                                TupleList *tl,
+                                bool normalize)
 {
   Tag tag;
   ErrorCode result ;
@@ -571,8 +573,8 @@ ErrorCode Coupler::interpolate(Coupler::Method *methods,
   //if (!((LINEAR_FE == method) || (CONSTANT == method)))
   // return MB_FAILURE;
 
+  // remote pts first
   TupleList *tl_tmp = (tl ? tl : targetPts);
-  // Remote pts first
 
   ErrorCode result = MB_SUCCESS;
 
@@ -804,8 +806,36 @@ ErrorCode Coupler::nat_param(double xyz[3],
         if (!quadmap.inside_nat_space(tmp_nat_coords, epsilon))
           continue;
       }
+      /*
+      else if (etype == MBTRI){
+        Element::LinearTri trimap(coords_vert);
+        if (!trimap.inside_box( pos, epsilon))
+          continue;
+        try {
+          tmp_nat_coords = trimap.ievaluate(pos, epsilon);
+          bool inside = trimap.inside_nat_space(tmp_nat_coords, epsilon);
+          if (!inside) continue;
+        }
+        catch (Element::Map::EvaluationError) {
+          continue;
+        }
+        if (!trimap.inside_nat_space(tmp_nat_coords, epsilon))
+          continue;
+      }
+      */
+      else if (etype == MBEDGE){
+        Element::LinearEdge edgemap(coords_vert);
+        try {
+          tmp_nat_coords = edgemap.ievaluate(CartVect(xyz), epsilon);
+        }
+        catch (Element::Map::EvaluationError) {
+          continue;
+        }
+        if (!edgemap.inside_nat_space(tmp_nat_coords, epsilon))
+          continue;
+      }
       else {
-        std::cout << "Entity not Hex or Tet or Quad" << std::endl;
+        std::cout << "Entity not Hex/Tet/Quad/Tri/Edge. Please verify." << std::endl;
         continue;
       }
     }
@@ -915,41 +945,27 @@ ErrorCode Coupler::constant_interp(EntityHandle elem,
 }
 
 // Normalize a field over the entire mesh represented by the root_set.
-int Coupler::normalize_mesh(iBase_EntitySetHandle &root_set,
-                            const char            *norm_tag,
-                            Coupler::IntegType    integ_type,
-                            int                   num_integ_pts)
+ErrorCode Coupler::normalize_mesh(EntityHandle          root_set,
+                                  const char            *norm_tag,
+                                  Coupler::IntegType    integ_type,
+                                  int                   num_integ_pts)
 {
-  int err = iBase_SUCCESS;
-
-  // Get an iMesh_Instance from MBCoupler::mbImpl.
-  iMesh_Instance iMeshInst = reinterpret_cast<iMesh_Instance>(mbImpl);
+  ErrorCode err;
 
   // SLAVE START ****************************************************************
   // Search for entities based on tag_handles and tag_values
+  std::vector< std::vector<EntityHandle> > entity_sets;
+  std::vector< std::vector<EntityHandle> > entity_groups;
 
-  std::vector< std::vector<iBase_EntitySetHandle> > entity_sets;
-  std::vector< std::vector<iBase_EntityHandle> >    entity_groups;
-
-  // Put the root_set into entity_sets
-  std::vector<iBase_EntitySetHandle> ent_set;
+  // put the root_set into entity_sets
+  std::vector<EntityHandle> ent_set;
   ent_set.push_back(root_set);
   entity_sets.push_back(ent_set);
 
-  // Get all entities from root_set and put into entity_groups
-  std::vector<iBase_EntityHandle> entities;
-  iBase_EntityHandle *ents = NULL;
-  int ents_alloc = 0;
-  int ents_size = 0;
-
-  iMesh_getEntities(iMeshInst, root_set, iBase_ALL_TYPES, iMesh_ALL_TOPOLOGIES,
-                    &ents, &ents_alloc, &ents_size, &err);
-  ERRORR("iMesh_getEntities failed on root_set.", err);
-
-  // Put all of the entities from the entity set into ent_set and free the memory for ents.
-  for (int k = 0; k < ents_size; k++)
-    entities.push_back(ents[k]);
-  free(ents);
+  // get all entities from root_set and put into entity_groups
+  std::vector<EntityHandle> entities;
+  err = mbImpl->get_entities_by_handle(root_set, entities, true);
+  ERRORR("Failed to get entities in root_set.", err);
 
   entity_groups.push_back(entities);
 
@@ -962,23 +978,22 @@ int Coupler::normalize_mesh(iBase_EntitySetHandle &root_set,
 }
 
 // Normalize a field over the subset of entities identified by the tags and values passed
-int Coupler::normalize_subset(iBase_EntitySetHandle &root_set,
-                              const char            *norm_tag,
-                              const char            **tag_names,
-                              int                   num_tags,
-                              const char            **tag_values,
-                              Coupler::IntegType    integ_type,
-                              int                   num_integ_pts)
+ErrorCode Coupler::normalize_subset(EntityHandle        root_set,
+                                    const char          *norm_tag,
+                                    const char          **tag_names,
+                                    int                 num_tags,
+                                    const char          **tag_values,
+                                    Coupler::IntegType  integ_type,
+                                    int                 num_integ_pts)
 {
-  iMesh_Instance iMeshInst = reinterpret_cast<iMesh_Instance>(mbImpl);
-  int err;
-  std::vector<iBase_TagHandle> tag_handles;
-
+  moab::ErrorCode err;
+  std::vector<Tag> tag_handles;
+  
   // Lookup tag handles from tag names
   for (int t = 0; t < num_tags; t++) {
-    // Get tag handle & size
-    iBase_TagHandle th;
-    iMesh_getTagHandle(iMeshInst, tag_names[t], &th, &err, strlen(tag_names[t]));
+    // get tag handle & size
+    Tag th;
+    err = mbImpl->tag_get_handle(tag_names[t], 1, moab::MB_TYPE_DOUBLE, th, moab::MB_TAG_ANY);
     ERRORR("Failed to get tag handle.", err);
     tag_handles.push_back(th);
   }
@@ -992,21 +1007,21 @@ int Coupler::normalize_subset(iBase_EntitySetHandle &root_set,
                           num_integ_pts);
 }
 
-int Coupler::normalize_subset(iBase_EntitySetHandle &root_set,
-                              const char            *norm_tag,
-                              iBase_TagHandle       *tag_handles,
-                              int                   num_tags,
-                              const char            **tag_values,
-                              Coupler::IntegType    integ_type,
-                              int                   num_integ_pts)
+ErrorCode Coupler::normalize_subset(EntityHandle       root_set,
+                                    const char         *norm_tag,
+                                    Tag                *tag_handles,
+                                    int                num_tags,
+                                    const char         **tag_values,
+                                    Coupler::IntegType integ_type,
+                                    int                num_integ_pts)
 {
-  int err = iBase_SUCCESS;
+  ErrorCode err;
 
   // SLAVE START ****************************************************************
   // Search for entities based on tag_handles and tag_values
+  std::vector< std::vector<EntityHandle> > entity_sets;
+  std::vector< std::vector<EntityHandle> > entity_groups;
 
-  std::vector< std::vector<iBase_EntitySetHandle> > entity_sets;
-  std::vector< std::vector<iBase_EntityHandle> >    entity_groups;
   err = get_matching_entities(root_set, tag_handles, tag_values, num_tags,
                               &entity_sets, &entity_groups);
   ERRORR("Failed to get matching entities.", err);
@@ -1019,21 +1034,22 @@ int Coupler::normalize_subset(iBase_EntitySetHandle &root_set,
   return err;
 }
 
-int Coupler::do_normalization(const char                                        *norm_tag,
-                              std::vector< std::vector<iBase_EntitySetHandle> > &entity_sets,
-                              std::vector< std::vector<iBase_EntityHandle> >    &entity_groups,
-                              Coupler::IntegType                                integ_type,
-                              int                                               num_integ_pts)
+ErrorCode Coupler::do_normalization(const char                               *norm_tag,
+                                    std::vector<std::vector<EntityHandle> >  &entity_sets,
+                                    std::vector<std::vector<EntityHandle> >  &entity_groups,
+                                    Coupler::IntegType                       integ_type,
+                                    int                                      num_integ_pts)
 {
   // SLAVE START ****************************************************************
-  int err = iBase_SUCCESS;
+  ErrorCode err;
+  int ierr = 0;
 
   // Setup data for parallel computing
   int nprocs, rank;
-  err = MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
-  ERRORMPI("Getting number of procs failed.", err);
-  err = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  ERRORMPI("Getting rank failed.", err);
+  ierr = MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  ERRORMPI("Getting number of procs failed.", ierr);
+  ierr = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  ERRORMPI("Getting rank failed.", ierr);
 
   // Get the integrated field value for each group(vector) of entities.
   // If no entities are in a group then a zero will be put in the list
@@ -1054,9 +1070,9 @@ int Coupler::do_normalization(const char                                        
 
   if (nprocs > 1) {
     // If parallel then send the values back to the master.
-    err = MPI_Reduce(&integ_vals[0], &sum_integ_vals[0], num_ent_grps, MPI_DOUBLE, 
+    ierr = MPI_Reduce(&integ_vals[0], &sum_integ_vals[0], num_ent_grps, MPI_DOUBLE,
                      MPI_SUM, MASTER_PROC, myPc->proc_config().proc_comm());
-    ERRORMPI("Transfer and reduction of integrated values failed.", err);
+    ERRORMPI("Transfer and reduction of integrated values failed.", ierr);
   }
   else {
     // Otherwise just copy the vector
@@ -1068,19 +1084,24 @@ int Coupler::do_normalization(const char                                        
   // Calculate the normalization factor for each group by taking the
   // inverse of each integrated field value. Put the normalization factor
   // for each group back into the list in the same order.
-
   for (unsigned int i = 0; i < num_ent_grps; i++) {
     double val = sum_integ_vals[i];
-    if (val != 0) sum_integ_vals[i] = 1.0/val;
+    if (fabs(val) > 1e-8) sum_integ_vals[i] = 1.0/val;
+    else {
+      sum_integ_vals[i] = 0.0; /* VSM: not sure what we should do here ? */
+      /* commenting out error below since if integral(value)=0.0, then normalization
+         is probably unnecessary to start with ? */
+      /* ERRORR("Integrating an invalid field -- integral("<<norm_tag<<") = "<<val<<".", err); */
+    }
   }
   // MASTER END   ***************************************************************
 
   // MASTER/SLAVE START #########################################################
   if (nprocs > 1) {
     // If parallel then broadcast the normalization factors to the procs.
-    err = MPI_Bcast(&sum_integ_vals[0], num_ent_grps, MPI_DOUBLE, MASTER_PROC, 
+    ierr = MPI_Bcast(&sum_integ_vals[0], num_ent_grps, MPI_DOUBLE, MASTER_PROC,
                     myPc->proc_config().proc_comm());
-    ERRORMPI("Broadcast of normalization factors failed.", err);
+    ERRORMPI("Broadcast of normalization factors failed.", ierr);
   }
   // MASTER/SLAVE END   #########################################################
 
@@ -1099,21 +1120,20 @@ int Coupler::do_normalization(const char                                        
 // Functions supporting the subset normalization function
 
 // Retrieve groups of entities matching tags and values if present
-int Coupler::get_matching_entities(iBase_EntitySetHandle                             root_set,
-                                   const char                                        **tag_names,
-                                   const char                                        **tag_values,
-                                   int                                               num_tags,
-                                   std::vector< std::vector<iBase_EntitySetHandle> > *entity_sets,
-                                   std::vector< std::vector<iBase_EntityHandle> >    *entity_groups)
+ErrorCode Coupler::get_matching_entities(EntityHandle                            root_set,
+                                         const char                              **tag_names,
+                                         const char                              **tag_values,
+                                         int                                     num_tags,
+                                         std::vector<std::vector<EntityHandle> > *entity_sets,
+                                         std::vector<std::vector<EntityHandle> > *entity_groups)
 {
-  iMesh_Instance iMeshInst = reinterpret_cast<iMesh_Instance>(mbImpl);
-  int err;
-  std::vector<iBase_TagHandle> tag_handles;
+  ErrorCode err;
+  std::vector<Tag> tag_handles;
   
   for (int t = 0; t < num_tags; t++) {
     // Get tag handle & size
-    iBase_TagHandle th;
-    iMesh_getTagHandle(iMeshInst, tag_names[t], &th, &err, strlen(tag_names[t]));
+    Tag th;
+    err = mbImpl->tag_get_handle(tag_names[t], 1, moab::MB_TYPE_DOUBLE, th, moab::MB_TAG_ANY);
     ERRORR("Failed to get tag handle.", err);
     tag_handles.push_back(th);
   }
@@ -1123,47 +1143,39 @@ int Coupler::get_matching_entities(iBase_EntitySetHandle                        
 }
 
 // Retrieve groups of entities matching tags and values if present
-int Coupler::get_matching_entities(iBase_EntitySetHandle                             root_set,
-                                   iBase_TagHandle                                   *tag_handles,
-                                   const char                                        **tag_values,
-                                   int                                               num_tags,
-                                   std::vector< std::vector<iBase_EntitySetHandle> > *entity_sets,
-                                   std::vector< std::vector<iBase_EntityHandle> >    *entity_groups)
-{
+ErrorCode Coupler::get_matching_entities(EntityHandle                            root_set,
+                                         Tag                                     *tag_handles,
+                                         const char                              **tag_values,
+                                         int                                     num_tags,
+                                         std::vector<std::vector<EntityHandle> > *entity_sets,
+                                         std::vector<std::vector<EntityHandle> > *entity_groups)
+{                                        
   // SLAVE START ****************************************************************
-  // Get an iMesh_Instance from MBCoupler::mbImpl.
-  iMesh_Instance iMeshInst = reinterpret_cast<iMesh_Instance>(mbImpl);
 
   // Setup data for parallel computing
-  int err = iBase_SUCCESS;
+  ErrorCode err;
+  int ierr = 0;
   int nprocs, rank;
-  err = MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
-  ERRORMPI("Getting number of procs failed.", err);
-  err = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  ERRORMPI("Getting rank failed.", err);
+  ierr = MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  ERRORMPI("Getting number of procs failed.", ierr);
+  ierr = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  ERRORMPI("Getting rank failed.", ierr);
 
-  int ent_sets_size;
-  int ent_sets_alloc = 0;
-  iBase_EntitySetHandle *ent_sets = NULL; // Free at end
-
-  // Get Entity Sets that match the tags and values.
-  iMesh_getEntSetsByTagsRec(iMeshInst, root_set, tag_handles,
-                            tag_values, num_tags, 0,
-                            &ent_sets, &ent_sets_alloc, &ent_sets_size, &err);
-  ERRORR("iMesh_getEntSetsByTagsRec failed.", err);
+  Range ent_sets;
+  err = mbImpl->get_entities_by_type_and_tag(root_set, moab::MBENTITYSET, tag_handles,
+                                             (const void* const *)tag_values,
+                                             num_tags, ent_sets, Interface::INTERSECT, 0);
+  ERRORR("Core::get_entities_by_type_and_tag failed.", err);
 
   TupleList *tag_list = NULL;
-  err = create_tuples(ent_sets, ent_sets_size, tag_handles, num_tags, &tag_list);
+  err = create_tuples(ent_sets, ent_sets.size(), tag_handles, num_tags, &tag_list);
   ERRORR("Failed to create tuples from entity sets.", err);
 
-  // Free up array memory from iMesh call
-  free(ent_sets);
-  ent_sets = NULL;
-  ent_sets_alloc = 0;
-  ent_sets_size = 0;
+  // Free up range
+  ent_sets.clear();
   // SLAVE END   ****************************************************************
 
-  // If we are running in a mult-proc session then send tuple list back to master 
+  // If we are running in a multi-proc session then send tuple list back to master 
   // proc for consolidation. Otherwise just copy the pointer to the tuple_list.
   TupleList *cons_tuples;
   if (nprocs > 1) {
@@ -1238,15 +1250,15 @@ int Coupler::get_matching_entities(iBase_EntitySetHandle                        
       ctl_buf_sz = pack_tuples(cons_tuples, (void**)&ctl_buf);
 
     // Send buffer size
-    err = MPI_Bcast(&ctl_buf_sz, 1, MPI_INT, MASTER_PROC, myPc->proc_config().proc_comm());
-    ERRORMPI("Broadcasting tuple_list size failed.", err);
+    ierr = MPI_Bcast(&ctl_buf_sz, 1, MPI_INT, MASTER_PROC, myPc->proc_config().proc_comm());
+    ERRORMPI("Broadcasting tuple_list size failed.", ierr);
 
     // Allocate a buffer in the other procs
     if (rank != MASTER_PROC)
       ctl_buf = (uint*)malloc(ctl_buf_sz * sizeof(uint));
 
-    err = MPI_Bcast(ctl_buf, ctl_buf_sz, MPI_INT, MASTER_PROC, myPc->proc_config().proc_comm());
-    ERRORMPI("Broadcasting tuple_list failed.", err);
+    ierr = MPI_Bcast(ctl_buf, ctl_buf_sz, MPI_INT, MASTER_PROC, myPc->proc_config().proc_comm());
+    ERRORMPI("Broadcasting tuple_list failed.", ierr);
 
     if (rank != MASTER_PROC)
       unpack_tuples(ctl_buf, &cons_tuples);
@@ -1270,49 +1282,41 @@ int Coupler::get_matching_entities(iBase_EntitySetHandle                        
     for (unsigned int j = 0; j < mi; j++)
       vals[j] = (int *)&(cons_tuples->vi_rd[(i*mi) + j]);
 
-    iMesh_getEntSetsByTagsRec(iMeshInst, root_set, tag_handles, 
-                              (const char * const *) vals,
-                              mi, 0,
-                              &ent_sets, &ent_sets_alloc, &ent_sets_size, &err);
-
-    ERRORR("iMesh_getEntSetsByTagsRec failed.", err);
-    if (debug)
-      std::cout << "ent_sets_size=" << ent_sets_size << std::endl;
+    // Get entities recursively based on type and tag data
+    err = mbImpl->get_entities_by_type_and_tag(root_set, moab::MBENTITYSET, tag_handles,
+                                               (const void* const *)vals,
+                                               mi, ent_sets, Interface::INTERSECT, 0);
+    ERRORR("Core::get_entities_by_type_and_tag failed.", err);
+    if (debug) std::cout << "ent_sets_size=" << ent_sets.size() << std::endl;
 
     // Free up the array of pointers
     free(vals);
 
     // Loop over the entity sets and then free the memory for ent_sets.
-    std::vector<iBase_EntitySetHandle> ent_set_hdls;
-    std::vector<iBase_EntityHandle> ent_hdls;
-    for (int j = 0; j < ent_sets_size; j++) {
+    std::vector<EntityHandle> ent_set_hdls;
+    std::vector<EntityHandle> ent_hdls;
+    for (unsigned int j = 0; j < ent_sets.size(); j++) {
       // Save the entity set
       ent_set_hdls.push_back(ent_sets[j]);
 
       // Get all entities for the entity set
-      iBase_EntityHandle *ents = NULL;
-      int ents_alloc = 0;
-      int ents_size = 0;
+      Range ents;
 
-      iMesh_getEntities(iMeshInst, ent_sets[j], iBase_ALL_TYPES, iMesh_ALL_TOPOLOGIES,
-                        &ents, &ents_alloc, &ents_size, &err);
-      ERRORR("iMesh_getEntities failed.", err);
-      if (debug)
-        std::cout << "ents_size=" << ents_size << std::endl;
+      /* VSM: do we need to filter out entity sets ? */
+      err = mbImpl->get_entities_by_handle(ent_sets[j], ents, false);
+      ERRORR("Core::get_entities_by_handle failed.", err);
+      if (debug) std::cout << "ents_size=" << ents.size() << std::endl;
 
       // Save all of the entities from the entity set and free the memory for ents.
-      for (int k = 0; k < ents_size; k++) {
+      for (unsigned int k = 0; k < ents.size(); k++) {
         ent_hdls.push_back(ents[k]);
       }
-      free(ents);
+      ents.clear();
       if (debug) std::cout << "ent_hdls.size=" << ent_hdls.size() << std::endl;
     }
 
     // Free the entity set list for next tuple iteration.
-    free(ent_sets);
-    ent_sets = NULL;
-    ent_sets_alloc = 0;
-    ent_sets_size = 0;
+    ent_sets.clear();
 
     // Push ent_set_hdls onto entity_sets, ent_hdls onto entity_groups
     // and clear both ent_set_hdls and ent_hdls.
@@ -1333,20 +1337,19 @@ int Coupler::get_matching_entities(iBase_EntitySetHandle                        
 // Return a tuple_list containing  tag values for each Entity Set
 // The tuple_list will have a column for each tag and a row for each
 // Entity Set. It is assumed all of the tags are integer tags.
-int Coupler::create_tuples(iBase_EntitySetHandle *ent_sets,
-                           int                   num_sets,
-                           const char            **tag_names,
-                           int                   num_tags,
-                           TupleList             **tuple_list)
+ErrorCode Coupler::create_tuples(Range        &ent_sets,
+                                 unsigned int num_sets, 
+                                 const char   **tag_names,
+                                 unsigned int num_tags,
+                                 TupleList    **tuple_list)
 {
-  iMesh_Instance iMeshInst = reinterpret_cast<iMesh_Instance>(mbImpl);
-  int err;
-  std::vector<iBase_TagHandle> tag_handles;
+  ErrorCode err;
+  std::vector<Tag> tag_handles;
 
-  for (int t = 0; t < num_tags; t++) {
+  for (unsigned int t = 0; t < num_tags; t++) {
     // Get tag handle & size
-    iBase_TagHandle th;
-    iMesh_getTagHandle(iMeshInst, tag_names[t], &th, &err, strlen(tag_names[t]));
+    Tag th;
+    err = mbImpl->tag_get_handle(tag_names[t], 1, moab::MB_TYPE_DOUBLE, th, moab::MB_TAG_ANY);
     ERRORR("Failed to get tag handle.", err);
     tag_handles.push_back(th);
   }
@@ -1357,18 +1360,14 @@ int Coupler::create_tuples(iBase_EntitySetHandle *ent_sets,
 // Return a tuple_list containing  tag values for each Entity Set
 // The tuple_list will have a column for each tag and a row for each
 // Entity Set.  It is assumed all of the tags are integer tags.
-int Coupler::create_tuples(iBase_EntitySetHandle *ent_sets, 
-                           int                   num_sets, 
-                           iBase_TagHandle       *tag_handles,
-                           int                   num_tags,
-                           TupleList             **tuples)
+ErrorCode Coupler::create_tuples(Range        &ent_sets,
+                                 unsigned int num_sets, 
+                                 Tag          *tag_handles,
+                                 unsigned int num_tags,
+                                 TupleList    **tuples)
 {
-  // Get an iMesh_Instance from MBCoupler::mbImpl.
-  iMesh_Instance iMeshInst = reinterpret_cast<iMesh_Instance>(mbImpl);
-
-  int err = iBase_SUCCESS;
-
   // ASSUMPTION: All tags are of type integer.  This may need to be expanded in future.
+  ErrorCode err;
 
   // Allocate a tuple_list for the number of entity sets passed in
   TupleList *tag_tuples = new TupleList(num_tags, 0, 0, 0, num_sets);
@@ -1377,14 +1376,15 @@ int Coupler::create_tuples(iBase_EntitySetHandle *ent_sets,
   tag_tuples->getTupleSize(mi, ml, mul, mr);
   tag_tuples->enableWriteAccess();
 
-  if (0 == mi)
-    ERRORR("Failed to initialize tuple_list.", iBase_FAILURE);
+  if (mi == 0)
+    ERRORR("Failed to initialize tuple_list.", MB_FAILURE);
 
   // Loop over the filtered entity sets retrieving each matching tag value one by one.
   int val;
-  for (int i = 0; i < num_sets; i++) {
-    for (int j = 0; j < num_tags; j++) {
-      iMesh_getEntSetIntData(iMeshInst, ent_sets[i], tag_handles[j], &val, &err);
+  for (unsigned int i = 0; i < num_sets; i++) {
+    for (unsigned int j = 0; j < num_tags; j++) {
+      EntityHandle set_handle = ent_sets[i];
+      err = mbImpl->tag_get_data(tag_handles[j], &set_handle, 1, &val);
       ERRORR("Failed to get integer tag data.", err);
       tag_tuples->vi_wr[i*mi + j] = val;
     }
@@ -1395,16 +1395,14 @@ int Coupler::create_tuples(iBase_EntitySetHandle *ent_sets,
   tag_tuples->disableWriteAccess();
   *tuples = tag_tuples;
 
-  return err;
+  return MB_SUCCESS;
 }
 
 // Consolidate tuple_lists into one list with no duplicates
-int Coupler::consolidate_tuples(TupleList **all_tuples,
-                                int       num_tuples,
-                                TupleList **unique_tuples)
+ErrorCode Coupler::consolidate_tuples(TupleList     **all_tuples, 
+                                      unsigned int  num_tuples,
+                                      TupleList     **unique_tuples)
 {
-  int err = iBase_SUCCESS;
-
   int total_rcv_tuples = 0;
   int offset = 0, copysz = 0;
   unsigned num_tags = 0;
@@ -1412,10 +1410,10 @@ int Coupler::consolidate_tuples(TupleList **all_tuples,
   uint ml, mul, mr;
   uint *mi = (uint *)malloc(sizeof(uint) * num_tuples);
 
-  for (int i = 0; i < num_tuples; i++)
+  for(unsigned int i = 0; i < num_tuples; i++){
     all_tuples[i]->getTupleSize(mi[i], ml, mul, mr);
 
-  for (int i = 0; i < num_tuples; i++) {
+  for (unsigned int i = 0; i < num_tuples; i++) {
     if (all_tuples[i] != NULL) {
       total_rcv_tuples += all_tuples[i]->get_n();
       num_tags = mi[i];
@@ -1425,7 +1423,7 @@ int Coupler::consolidate_tuples(TupleList **all_tuples,
   const unsigned int_width = num_tags * int_size;
 
   // Get the total size of all of the tuple_lists in all_tuples.
-  for (int i = 0; i < num_tuples; i++) {
+  for (unsigned int i = 0; i < num_tuples; i++) {
     if (all_tuples[i] != NULL)
       total_rcv_tuples += all_tuples[i]->get_n();
   }
@@ -1434,7 +1432,7 @@ int Coupler::consolidate_tuples(TupleList **all_tuples,
   TupleList *all_tuples_list = new TupleList(num_tags, 0, 0, 0, total_rcv_tuples);
   all_tuples_list->enableWriteAccess();
   //all_tuples_list->initialize(num_tags, 0, 0, 0, total_rcv_tuples);
-  for (int i = 0; i < num_tuples; i++) {
+  for (unsigned int i = 0; i < num_tuples; i++) {
     if (all_tuples[i] != NULL) {
       copysz = all_tuples[i]->get_n() * int_width;
       memcpy(all_tuples_list->vi_wr+offset, all_tuples[i]->vi_rd, copysz);
@@ -1476,28 +1474,25 @@ int Coupler::consolidate_tuples(TupleList **all_tuples,
   // Set the output parameter
   *unique_tuples = all_tuples_list;
 
-  return err;
+  return MB_SUCCESS;
 }
 
 // Calculate integrated field values for groups of entities
-int Coupler::get_group_integ_vals(std::vector< std::vector<iBase_EntityHandle> > &groups,
-                                  std::vector<double> &integ_vals,
-                                  const char *norm_tag,
-                                  int /*num_integ_vals*/,
-                                  Coupler::IntegType integ_type)
+ErrorCode Coupler::get_group_integ_vals(std::vector<std::vector<EntityHandle> > &groups,
+                                        std::vector<double> &integ_vals,
+                                        const char *norm_tag,
+                                        int /*num_integ_vals*/,
+                                        Coupler::IntegType integ_type)
 {
-  // Get an iMesh_Instance from MBCoupler::mbImpl.
-  iMesh_Instance iMeshInst = reinterpret_cast<iMesh_Instance>(mbImpl);
+  ErrorCode err;
 
-  int err = iBase_SUCCESS;
-
-  std::vector< std::vector<iBase_EntityHandle> >::iterator iter_i;
-  std::vector<iBase_EntityHandle>::iterator iter_j;
+  std::vector<std::vector<EntityHandle> >::iterator iter_i;
+  std::vector<EntityHandle>::iterator iter_j;
   double grp_intrgr_val, intgr_val;
 
   // Get the tag handle for norm_tag
-  iBase_TagHandle norm_hdl;
-  iMesh_getTagHandle(iMeshInst, norm_tag, &norm_hdl, &err, strlen(norm_tag));
+  Tag norm_hdl;
+  err = mbImpl->tag_get_handle(norm_tag, 1, moab::MB_TYPE_DOUBLE, norm_hdl, moab::MB_TAG_SPARSE|moab::MB_TAG_CREAT);
   ERRORR("Failed to get norm_tag handle.", err);
 
   // Check size of integ_vals vector
@@ -1509,97 +1504,85 @@ int Coupler::get_group_integ_vals(std::vector< std::vector<iBase_EntityHandle> >
   for (i = 0, iter_i = groups.begin(); iter_i != groups.end(); i++, ++iter_i) {
     grp_intrgr_val = 0;
 
-    // Loop over the all the entities in the group, integrating 
+    // Loop over the all the entities in the group, integrating
     // the field_fn over the entity in iter_j
     for (iter_j = (*iter_i).begin(); iter_j != (*iter_i).end(); ++iter_j) {
+      EntityHandle ehandle = (*iter_j);
+
       // Check that the entity in iter_j is of the same dimension as the 
       // integ_type we are performing
-      int j_type;
-      iMesh_getEntType(iMeshInst, (*iter_j), &j_type, &err);
+      EntityType j_type;
+      j_type = mbImpl->type_from_handle(ehandle);
       ERRORR("Failed to get entity type.", err);
       // Skip any entities in the group that are not of the type being considered
-      if ((integ_type == VOLUME) && (j_type != iBase_REGION))
+      if ((integ_type == VOLUME) && (j_type < MBTET || j_type >= MBENTITYSET))
         continue;
 
       intgr_val = 0;
 
-      // Check to see if this is a HEXAHEDRON or a TETRAHEDRON
-      // and setup parameters accordingly.
-      int topo_type;
-      iMesh_getEntTopo(iMeshInst, (*iter_j), &topo_type, &err);
-      ERRORR("Failed to get topology for entity.", err);
+      // Retrieve the vertices from the element
+      const EntityHandle* verts = NULL;
+      int connectivity_size = 0;
 
-      moab::Element::Map *elemMap = NULL;
-      int num_verts = 0;
-      if (topo_type == iMesh_HEXAHEDRON) {
-        elemMap = new moab::Element::LinearHex();
-        num_verts = 8;
+      err = mbImpl->get_connectivity(ehandle, verts, connectivity_size, false);
+      ERRORR("Failed to get vertices from entity.", err);
+
+      // Get the vertex coordinates and the field values at the vertices.
+      double *coords = (double*) malloc(sizeof(double) * (3*connectivity_size));
+      /* TODO: VSM: check if this works for lower dimensions also without problems */
+      /* if (3 == geom_dim) */
+      err = mbImpl->get_coords(verts, connectivity_size, coords);
+      ERRORR("Failed to get vertex coordinates.", err);
+
+      /* allocate the field data array */
+      double *vfield = (double*) malloc(sizeof(double) * (connectivity_size));
+      err = mbImpl->tag_get_data(norm_hdl, verts, connectivity_size, vfield);
+      if (MB_SUCCESS != err) {
+        free(coords);
       }
-      else if (topo_type == iMesh_TETRAHEDRON) {
-        elemMap = new moab::Element::LinearTet();
-        num_verts = 4;
-      }
-      else
-        ERRORR("Unknown topology type.", iBase_NOT_SUPPORTED);
+      ERRORR("Failed to get vertex coordinates.", err);
 
       // Get coordinates of all corner vertices (in normal order) and
       // put in array of CartVec.
-      std::vector<CartVect> vertices(num_verts);
-
-      // Retrieve the vertices from the element
-      iBase_EntityHandle *verts = NULL;
-      int verts_alloc = 0;
-      int verts_size = 0;
-
-      iMesh_getEntAdj(iMeshInst, (*iter_j), iBase_VERTEX, &verts, &verts_alloc, &verts_size, &err);
-      if (iBase_SUCCESS != err) {
-        std::cerr << "Failed to get vertices from entity." << std::endl;
-        delete(elemMap);
-        return err;
-      }
-
-      if (verts_size != num_verts) {
-        std::cerr << "Failed to get correct number of vertices." << std::endl;
-        delete(elemMap);
-        free(verts);
-        return iBase_FAILURE;
-      }
-
-      // Get the vertex coordinates and the field values at the vertices.
-      double *coords = NULL;
-      int coords_alloc = 0;
-      int coords_size = 0;
-      iMesh_getVtxArrCoords(iMeshInst, verts, verts_size, iBase_INTERLEAVED, &coords, &coords_alloc, &coords_size, &err);
-      if (iBase_SUCCESS != err) {
-        std::cerr << "Failed to get vertex coordinates." << std::endl;
-        delete(elemMap);
-        free(verts);
-        return err;
-      }
-
-      double *vfield = NULL;
-      int vfield_alloc = 0;
-      int vfield_size = 0;
-      iMesh_getDblArrData(iMeshInst, verts, verts_size, norm_hdl, &vfield, &vfield_alloc, &vfield_size, &err);
-      if (iBase_SUCCESS != err) {
-        std::cerr << "Failed to get vertex double data for norm_tag." << std::endl;
-        delete(elemMap);
-        free(verts);
-        free(coords);
-        return err;
-      }
+      std::vector<CartVect> vertices(connectivity_size);
 
       // Put the vertices into a CartVect vector
       double *x = coords;
-      for (int j = 0; j < verts_size; j++, x += 3) {
-        vertices[i] = CartVect(x);
+      for (int j = 0; j < connectivity_size; j++, x += 3) {
+        vertices[j] = CartVect(x);
       }
-      free(verts);
       free(coords);
+
+      moab::Element::Map *elemMap;
+      if (j_type == MBHEX) {
+        if (connectivity_size == 8)
+          elemMap = new moab::Element::LinearHex(vertices);
+        else
+          elemMap = new moab::Element::QuadraticHex(vertices);
+      }
+      else if (j_type == MBTET) {
+        elemMap = new moab::Element::LinearTet(vertices);
+      }
+      else if (j_type == MBQUAD) {
+        elemMap = new moab::Element::LinearQuad(vertices);
+      }
+      /*
+      else if (j_type == MBTRI) {
+        elemMap = new moab::Element::LinearTri(vertices);
+      }
+      */
+      else if (j_type == MBEDGE) {
+        elemMap = new moab::Element::LinearEdge(vertices);
+      }
+      else
+        ERRORR("Unknown topology type.", MB_UNSUPPORTED_OPERATION);
 
       // Set the vertices in the Map and perform the integration
       try {
-        elemMap->set_vertices(vertices);
+        /* VSM: Do we need this call ?? */
+        // elemMap->set_vertices(vertices);
+
+        // Perform the actual integration over the element
         intgr_val = elemMap->integrate_scalar_field(vfield);
 
         // Combine the result with those of the group
@@ -1607,13 +1590,9 @@ int Coupler::get_group_integ_vals(std::vector< std::vector<iBase_EntityHandle> >
       }
       catch (moab::Element::Map::ArgError&) {
         std::cerr << "Failed to set vertices on Element::Map." << std::endl;
-        delete(elemMap);
-        free(vfield);
       }
       catch (moab::Element::Map::EvaluationError&) {
         std::cerr << "Failed to get inverse evaluation of coordinate on Element::Map." << std::endl;
-        delete(elemMap);
-        free(vfield);
       }
 
       delete(elemMap);
@@ -1628,15 +1607,12 @@ int Coupler::get_group_integ_vals(std::vector< std::vector<iBase_EntityHandle> >
 }
 
 // Apply a normalization factor to group of entities
-int Coupler::apply_group_norm_factor(std::vector< std::vector<iBase_EntitySetHandle> > &entity_sets,
-                                     std::vector<double> &norm_factors,
-                                     const char *norm_tag,
-                                     Coupler::IntegType /* integ_type */)
+ErrorCode Coupler::apply_group_norm_factor(std::vector<std::vector<EntityHandle> > &entity_sets,
+                                           std::vector<double>                     &norm_factors, 
+                                           const char                              *norm_tag,
+                                           Coupler::IntegType                      /*integ_type*/)
 {
-  // Get an iMesh_Instance from MBCoupler::mbImpl.
-  iMesh_Instance iMeshInst = reinterpret_cast<iMesh_Instance>(mbImpl);
-
-  int err = iBase_SUCCESS;
+  ErrorCode err;
 
   // Construct the new tag for the normalization factor from the norm_tag name
   // and "_normf".
@@ -1653,17 +1629,19 @@ int Coupler::apply_group_norm_factor(std::vector< std::vector<iBase_EntitySetHan
   tmp_ptr += normf_appd_len;
   *tmp_ptr = '\0';
 
-  iBase_TagHandle normf_hdl = NULL;
-  // Check to see if the tag exists. If not then create it.
-  iMesh_getTagHandle(iMeshInst, normf_tag, &normf_hdl, &err, strlen(normf_tag));
+  Tag normf_hdl;
+  // Check to see if the tag exists.  If not then create it and get the handle.
+  err = mbImpl->tag_get_handle(normf_tag, 1, moab::MB_TYPE_DOUBLE, normf_hdl, moab::MB_TAG_SPARSE|moab::MB_TAG_CREAT);
+  ERRORR("Failed to create normalization factor tag.", err);
   if (normf_hdl == NULL) {
-    iMesh_createTag(iMeshInst, normf_tag, 1, iBase_DOUBLE, &normf_hdl, &err, strlen(normf_tag));
-    ERRORR("Failed to create normalization factor tag.", err);
+    std::string msg("Failed to create normalization factor tag named '");
+    msg += std::string(normf_tag) + std::string("'");
+    ERRORR(msg.c_str(), MB_FAILURE);
   }
   free(normf_tag);
 
-  std::vector< std::vector<iBase_EntitySetHandle> >::iterator iter_i;
-  std::vector<iBase_EntitySetHandle>::iterator iter_j;
+  std::vector< std::vector<EntityHandle> >::iterator iter_i;
+  std::vector<EntityHandle>::iterator iter_j;
   std::vector<double>::iterator iter_f;
   double grp_norm_factor = 0.0;
 
@@ -1673,15 +1651,20 @@ int Coupler::apply_group_norm_factor(std::vector< std::vector<iBase_EntitySetHan
        ++iter_i, ++iter_f) {
     grp_norm_factor = *iter_f;
 
-    // Loop over the all the entity sets in iter_i and set the 
+    // Loop over the all the entity sets in iter_i and set the
     // new normf_tag with the norm factor value on each
     for (iter_j = (*iter_i).begin(); iter_j != (*iter_i).end(); ++iter_j) {
-      iMesh_setEntSetDblData(iMeshInst, (*iter_j), normf_hdl, grp_norm_factor, &err);
+      EntityHandle entset = *iter_j;
+
+      std::cout << "Coupler: applying normalization for entity set="
+                << entset << ",  normalization_factor=" << grp_norm_factor << std::endl;
+
+      err = mbImpl->tag_set_data(normf_hdl, &entset, 1, &grp_norm_factor);
       ERRORR("Failed to set normalization factor on entity set.", err);
     }
   }
 
-  return err;
+  return MB_SUCCESS;
 }
 
 #define UINT_PER_X(X) ((sizeof(X) + sizeof(uint) - 1) / sizeof(uint))
@@ -1698,13 +1681,13 @@ int pack_tuples(TupleList* tl, void** ptr)
   uint n = tl->get_n();
 
   int sz_buf = 1 + 4*UINT_PER_UNSIGNED +
-               tl->get_n() * (mi +
-               ml*UINT_PER_LONG +
-               mul*UINT_PER_LONG +
-               mr*UINT_PER_REAL);
+               tl->get_n() * (mi + 
+                              ml*UINT_PER_LONG + 
+                              mul*UINT_PER_LONG + 
+                              mr*UINT_PER_REAL);
 
-  uint *buf = (uint*)malloc(sz_buf * sizeof(uint));
-  *ptr = (void*)buf;
+  uint *buf = (uint*) malloc(sz_buf*sizeof(uint));
+  *ptr = (void*) buf;
 
   // Copy n
   memcpy(buf, &n,   sizeof(uint)),     buf += 1;
@@ -1807,3 +1790,4 @@ ErrorCode Coupler::get_gl_points_on_elements(Range &targ_elems, std::vector<doub
 }
 
 } // namespace_moab
+
