@@ -24,7 +24,6 @@
 #ifndef COUPLER_HPP
 #define COUPLER_HPP
 
-#include "iBase.h"
 #include "moab/Range.hpp"
 #include "moab/Interface.hpp"
 #include "moab/CartVect.hpp"
@@ -83,7 +82,7 @@ public:
      *           consisting of (p, i), p = proc, i = index on that proc
      * \param store_local If true, stores the tuple list in targetPts
      */
-  ErrorCode locate_points(double *xyz, int num_points,
+  ErrorCode locate_points(double *xyz, unsigned int num_points,
                           double rel_eps = 0.0, 
                           double abs_eps = 0.0,
                           TupleList *tl = NULL,
@@ -226,10 +225,10 @@ public:
      * \param integ_type Type of integration to perform
      * \param num_integ_pts The number of Gaussian integration points to use in each dimension
      */
-  int normalize_mesh(iBase_EntitySetHandle &root_set,
-                     const char            *norm_tag,
-                     Coupler::IntegType    integ_type,
-                     int                   num_integ_pts);
+  ErrorCode normalize_mesh( EntityHandle        root_set,
+                            const char          *norm_tag,
+                            Coupler::IntegType  integ_type,
+                            int                 num_integ_pts);
 
     /* \brief Normalize a field over subsets of entities
      * A field existing on the vertices of elements of a mesh is integrated
@@ -247,13 +246,13 @@ public:
      * \param integ_type Type of integration to perform
      * \param num_integ_pts The number of Gaussian integration points to use in each dimension
      */
-  int normalize_subset(iBase_EntitySetHandle &root_set,
-                       const char            *norm_tag,
-                       const char            **tag_names,
-                       int                   num_tags,
-                       const char            **tag_values,
-                       Coupler::IntegType    integ_type,
-                       int                   num_integ_pts);
+  ErrorCode normalize_subset( EntityHandle          root_set,
+                              const char            *norm_tag,
+                              const char            **tag_names,
+                              int                   num_tags,
+                              const char            **tag_values,
+                              Coupler::IntegType    integ_type,
+                              int                   num_integ_pts);
 
     /* \brief Normalize a field over subsets of entities
      * A field existing on the vertices of elements of a mesh is integrated
@@ -271,13 +270,13 @@ public:
      * \param integ_type Type of integration to perform
      * \param num_integ_pts The number of Gaussian integration points to use in each dimension
      */
-  int normalize_subset(iBase_EntitySetHandle &root_set,
-                       const char            *norm_tag,
-                       iBase_TagHandle       *tag_handles,
-                       int                   num_tags,
-                       const char            **tag_values,
-                       Coupler::IntegType    integ_type,
-                       int                   num_integ_pts);
+  ErrorCode normalize_subset( EntityHandle          root_set,
+                              const char            *norm_tag,
+                              Tag                   *tag_handles,
+                              int                   num_tags,
+                              const char            **tag_values,
+                              Coupler::IntegType    integ_type,
+                              int                   num_integ_pts);
 
     /* \brief Retrieve groups of entities matching tags and values(if present)
      * Retrieve a vector of vectors of entity handles matching the 
@@ -289,11 +288,11 @@ public:
      * \param integ_type Type of integration to perform
      * \param num_integ_pts The number of Gaussian integration points to use in each dimension
      */
-  int do_normalization(const char                                        *norm_tag,
-                       std::vector< std::vector<iBase_EntitySetHandle> > &entity_sets,
-                       std::vector< std::vector<iBase_EntityHandle> >    &entity_groups,
-                       Coupler::IntegType                                integ_type,
-                       int                                               num_integ_pts);
+  ErrorCode do_normalization( const char                                 *norm_tag,
+                              std::vector< std::vector<EntityHandle> >   &entity_sets,
+                              std::vector< std::vector<EntityHandle> >   &entity_groups,
+                              Coupler::IntegType                         integ_type,
+                              int                                        num_integ_pts);
 
     /* \brief Retrieve groups of entities matching tags and values(if present)
      * Retrieve a vector of vectors of entity handles matching the 
@@ -306,12 +305,12 @@ public:
      * \param entity_sets Pointer to vector of vectors of entity set handles found in the search
      * \param entity_groups Pointer to vector of vectors of entity handles from each entity set
      */
-  int get_matching_entities(iBase_EntitySetHandle                             root_set,
-                            const char                                        **tag_names,
-                            const char                                        **tag_values,
-                            int                                               num_tags,
-                            std::vector< std::vector<iBase_EntitySetHandle> > *entity_sets,
-                            std::vector< std::vector<iBase_EntityHandle> >    *entity_groups);
+  ErrorCode get_matching_entities( EntityHandle                             root_set,
+                                   const char                               **tag_names,
+                                   const char                               **tag_values,
+                                   int                                      num_tags,
+                                   std::vector< std::vector<EntityHandle> > *entity_sets,
+                                   std::vector< std::vector<EntityHandle> > *entity_groups);
 
     /* \brief Retrieve groups of entities matching tags and values(if present)
      * Retrieve a vector of vectors of entity handles matching the 
@@ -324,12 +323,12 @@ public:
      * \param entity_sets Pointer to vector of vectors of entity set handles found in the search
      * \param entity_groups Pointer to vector of vectors of entity handles from each entity set
      */
-  int get_matching_entities(iBase_EntitySetHandle                             root_set,
-                            iBase_TagHandle                                   *tag_handles,
-                            const char                                        **tag_values,
-                            int                                               num_tags,
-                            std::vector< std::vector<iBase_EntitySetHandle> > *entity_sets,
-                            std::vector< std::vector<iBase_EntityHandle> >    *entity_groups);
+  ErrorCode get_matching_entities( EntityHandle                             root_set,
+                                   Tag                                      *tag_handles,
+                                   const char                               **tag_values,
+                                   int                                      num_tags,
+                                   std::vector< std::vector<EntityHandle> > *entity_sets,
+                                   std::vector< std::vector<EntityHandle> > *entity_groups);
 
     /* \brief Return an array of tuples of tag values for each Entity Set
      * A list of n-tuples will be constructed with 1 n-tuple for each Entity Set.
@@ -342,11 +341,11 @@ public:
      * \param num_tags Number of tag names
      * \param tuples The returned tuple_list structure
      */
-  int create_tuples(iBase_EntitySetHandle *ent_sets, 
-                    int                   num_sets, 
-                    const char            **tag_names, 
-                    int                   num_tags,
-                    TupleList            **tuples);
+  ErrorCode create_tuples( Range         &ent_sets,
+                           unsigned int  num_sets, 
+                           const char    **tag_names, 
+                           unsigned int  num_tags,
+                           TupleList     **tuples);
 
     /* \brief Return an array of tuples of tag values for each Entity Set
      * A list of n-tuples will be constructed with 1 n-tuple for each Entity Set.
@@ -359,11 +358,11 @@ public:
      * \param num_tags Number of tag handles
      * \param tuples The returned tuple_list structure
      */
-  int create_tuples(iBase_EntitySetHandle *ent_sets, 
-                    int                   num_sets, 
-                    iBase_TagHandle       *tag_handles,
-                    int                   num_tags,
-                    TupleList            **tuples);
+  ErrorCode create_tuples( Range         &ent_sets,
+                           unsigned int  num_sets, 
+                           Tag           *tag_handles,
+                           unsigned int  num_tags,
+                           TupleList     **tuples);
 
     /* \brief Consolidate an array of n-tuples lists into one n-tuple list with no duplicates
      * An array of list of n-tuples are consolidated into a single list of n-tuples
@@ -374,9 +373,9 @@ public:
      * \param num_tuples Number of tuple_lists
      * \param unique_tuples The consolidated tuple_list with no duplicates
      */
-  int consolidate_tuples(TupleList **all_tuples, 
-                         int        num_tuples,
-                         TupleList **unique_tuples);
+  ErrorCode consolidate_tuples( TupleList     **all_tuples,
+                                unsigned int  num_tuples,
+                                TupleList     **unique_tuples);
 
     /* \brief Calculate integrated field values for groups of entities
      * An integrated field value, as defined by the field function, 
@@ -388,11 +387,11 @@ public:
      * \param num_integ_pts The number of Gaussian integration points to use in each dimension
      * \param integ_type Type of integration to perform
      */
-  int get_group_integ_vals(std::vector< std::vector<iBase_EntityHandle> > &groups,
-                           std::vector<double> &integ_vals, 
-                           const char *norm_tag,
-                           int num_integ_pts,
-                           Coupler::IntegType integ_type);
+  ErrorCode get_group_integ_vals( std::vector<std::vector<EntityHandle> > &groups,
+                                  std::vector<double> &integ_vals, 
+                                  const char *norm_tag,
+                                  int num_integ_pts,
+                                  Coupler::IntegType integ_type);
 
     /* \brief Apply a normalization factor to group of entities
      * Multiply a normalization factor with the value of norm_tag for each vertex
@@ -403,10 +402,10 @@ public:
      * \param norm_tag The tag to be normalized on each group
      * \param integ_type Type of integration to perform
      */
-  int apply_group_norm_factor(std::vector< std::vector<iBase_EntitySetHandle> > &entity_sets,
-                              std::vector<double> &norm_factors, 
-                              const char *norm_tag,
-                              Coupler::IntegType integ_type);
+  ErrorCode apply_group_norm_factor( std::vector<std::vector<EntityHandle> > &entity_sets,
+                                     std::vector<double> &norm_factors, 
+                                     const char *norm_tag,
+                                     Coupler::IntegType integ_type);
 
   /*
    * this method will look at source (and target sets?) sets, and look for the SEM_DIMS tag
