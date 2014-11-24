@@ -1,6 +1,6 @@
 cmake_minimum_required( VERSION 2.8.12 )
 SET(PACKAGE_NAME "MOAB")
-SET(PACKAGE_VERSION "4.7.1-pre")
+SET(PACKAGE_VERSION "4.7.1pre")
 
 if ( MPI_DIR )
   message ("Checking for MPI compilers in ${MPI_DIR}/bin")

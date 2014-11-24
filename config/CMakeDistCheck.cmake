@@ -25,21 +25,22 @@ MACRO(DEFINE_DISTCHECK)
   FIND_PROGRAM(SED sed)
   FIND_PROGRAM(TAR tar)
   FIND_PROGRAM(GZIP gzip)
-  SET(INSTDIR ${CMAKE_BINARY_DIR}/${PACKAGE_NAME}-${PACKAGE_VERSION}/_inst)
+  STRING(TOLOWER "${PACKAGE_NAME}-${PACKAGE_VERSION}" DISTBASENAME)
+  SET(INSTDIR ${CMAKE_BINARY_DIR}/${DISTBASENAME}/_inst)
 
   ADD_CUSTOM_TARGET(dist 
     COMMAND
     cd ${CMAKE_SOURCE_DIR}
-    && git archive --format=tar --prefix=${PACKAGE_NAME}-${PACKAGE_VERSION}/ HEAD | 
-    ${GZIP} > ${CMAKE_BINARY_DIR}/${PACKAGE_NAME}-${PACKAGE_VERSION}.tar.gz
+    && git archive --format=tar --prefix=${DISTBASENAME}/ HEAD | 
+    ${GZIP} > ${CMAKE_BINARY_DIR}/${DISTBASENAME}.tar.gz
   )
 
   ADD_CUSTOM_TARGET(distcheck
     COMMAND
-    rm -rf ${PACKAGE_NAME}-${PACKAGE_VERSION}
-    && ${GZIP} -d ${PACKAGE_NAME}-${PACKAGE_VERSION}.tar.gz
-    && ${TAR} -xf ${PACKAGE_NAME}-${PACKAGE_VERSION}.tar
-    && cd ${PACKAGE_NAME}-${PACKAGE_VERSION}/
+    rm -rf ${DISTBASENAME}
+    && ${GZIP} -d ${DISTBASENAME}.tar.gz
+    && ${TAR} -xf ${DISTBASENAME}.tar
+    && cd ${DISTBASENAME}/
     && chmod u+w . && mkdir -p _build && mkdir -p _inst
     && ${CMAKE_SOURCE_DIR}/config/CMakeReplicateConfig.sh "${CMAKE_BINARY_DIR}/CMakeCache.txt" _build/CMakeCache.txt
     && chmod u+rwx _build _inst && chmod a-w .
@@ -58,14 +59,14 @@ MACRO(DEFINE_DISTCHECK)
         || (echo "ERROR: the uninstall target does not work." && false)
     && make clean
         || (echo "ERROR: the clean target failed." && false)
-    && cd ${CMAKE_BINARY_DIR}/${PACKAGE_NAME}-${PACKAGE_VERSION}
+    && cd ${CMAKE_BINARY_DIR}/${DISTBASENAME}
     && chmod u+w . _build _inst && rm -rf _build _inst
     && find . -type d -print0 | xargs -0 chmod u+w
     && cd ${CMAKE_BINARY_DIR}
-    && rm -rf ${CMAKE_BINARY_DIR}/${PACKAGE_NAME}-${PACKAGE_VERSION}
-    && ${GZIP} ${PACKAGE_NAME}-${PACKAGE_VERSION}.tar
+    && rm -rf ${CMAKE_BINARY_DIR}/${DISTBASENAME}
+    && ${GZIP} ${DISTBASENAME}.tar
     && echo "=============================================================="
-    && echo "${PACKAGE_NAME}-${PACKAGE_VERSION}"
+    && echo "${DISTBASENAME}"
             "is ready for distribution."
     && echo "=============================================================="
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
