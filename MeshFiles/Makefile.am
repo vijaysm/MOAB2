@@ -1,2 +1,2 @@
-SUBDIRS = unittest
+SUBDIRS = unittest examples
 EXTRA_DIST = README
