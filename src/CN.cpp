@@ -18,6 +18,7 @@
 #include "MBCN.h"
 #include <assert.h>
 #include <string.h>
+#include <iterator>
 
 namespace moab {
 

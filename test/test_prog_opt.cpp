@@ -3,6 +3,7 @@
 #include "moab/ProgOptions.hpp"
 #include <limits>
 #include <stdlib.h>
+#include <iterator>
 #ifdef USE_MPI
 # include "moab_mpi.h"
 #endif
