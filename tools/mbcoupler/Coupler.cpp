@@ -3,18 +3,16 @@
 #include "moab/AdaptiveKDTree.hpp"
 #include "ElemUtil.hpp"
 #include "moab/CN.hpp"
-//#include "iMesh_extensions.h"
 #include "moab/gs.hpp"
 #include "moab/TupleList.hpp"
 #include "moab/Error.hpp"
 
 /* C++ includes */
-#include <iostream>
 #include <cstdio>
+#include <cassert>
+#include <iostream>
 #include <algorithm>
 #include <sstream>
-
-#include "assert.h"
 
 #define ERROR(a) {if (MB_SUCCESS != err) std::cerr << a << std::endl;}
 #define ERRORR(a,b) {if (MB_SUCCESS != b) {std::cerr << a << std::endl; return b;}}
@@ -1410,8 +1408,9 @@ ErrorCode Coupler::consolidate_tuples(TupleList     **all_tuples,
   uint ml, mul, mr;
   uint *mi = (uint *)malloc(sizeof(uint) * num_tuples);
 
-  for(unsigned int i = 0; i < num_tuples; i++){
+  for(unsigned int i = 0; i < num_tuples; i++) {
     all_tuples[i]->getTupleSize(mi[i], ml, mul, mr);
+  }
 
   for (unsigned int i = 0; i < num_tuples; i++) {
     if (all_tuples[i] != NULL) {

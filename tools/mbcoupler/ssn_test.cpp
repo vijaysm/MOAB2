@@ -68,6 +68,7 @@ double field_2(double x, double y, double z);
 double field_3(double x, double y, double z);
 double physField(double x, double y, double z);
 
+ErrorCode integrate_scalar_field_test();
 int pack_tuples(TupleList *tl, void **ptr);
 void unpack_tuples(void *ptr, TupleList** tlp);
 
@@ -89,6 +90,9 @@ int main(int argc, char **argv) {
     std::cerr << "norm_tag        : name of tag to normalize across meshes" << std::endl;
     std::cerr << "tag_select_opts : quoted string of tags and values for subset selection, e.g. \"TAG1=VAL1;TAG2=VAL2;TAG3;TAG4\"" << std::endl;
     std::cerr << "file_opts       : quoted string of parallel file read options, e.g. \"OPTION1=VALUE1;OPTION2;OPTION3=VALUE3\"" << std::endl;
+
+    err = integrate_scalar_field_test();
+    CHKERR(err, "Integrate scalar field test failed");
 
     err = MPI_Finalize();
     
@@ -429,91 +433,8 @@ int main(int argc, char **argv) {
     print_tuples(rcv_tuples);
   }
 
-  // ******************************
-  std::cout << "********** Test moab::Element::Map::integrate_scalar_field **********" << std::endl;
-  // Create a simple hex centered at 0,0,0 with sides of length 2.
-  std::vector<CartVect> biunit_cube(8);
-  biunit_cube[0] = CartVect( -1, -1, -1 );
-  biunit_cube[1] = CartVect(  1, -1, -1 );
-  biunit_cube[2] = CartVect(  1,  1, -1 );
-  biunit_cube[3] = CartVect( -1,  1, -1 );
-  biunit_cube[4] = CartVect( -1, -1,  1 );
-  biunit_cube[5] = CartVect(  1, -1,  1 );
-  biunit_cube[6] = CartVect(  1,  1,  1 );
-  biunit_cube[7] = CartVect( -1,  1,  1 );
-
-  std::vector<CartVect> zerobase_cube(8);
-  zerobase_cube[0] = CartVect( 0, 0, 0 );
-  zerobase_cube[1] = CartVect( 2, 0, 0 );
-  zerobase_cube[2] = CartVect( 2, 2, 0 );
-  zerobase_cube[3] = CartVect( 0, 2, 0 );
-  zerobase_cube[4] = CartVect( 0, 0, 2 );
-  zerobase_cube[5] = CartVect( 2, 0, 2 );
-  zerobase_cube[6] = CartVect( 2, 2, 2 );
-  zerobase_cube[7] = CartVect( 0, 2, 2 );
-
-  double field_val = 0.0;
-  // Calculate field values at the corners of both cubes
-  double bcf[8], bf1[8], bf2[8], bf3[8], zcf[8], zf1[8], zf2[8], zf3[8];
-  for (int i = 0; i < 8; i++) {
-    bcf[i] = const_field(biunit_cube[i][0], biunit_cube[i][1], biunit_cube[i][2]);
-    bf1[i] = field_1(biunit_cube[i][0], biunit_cube[i][1], biunit_cube[i][2]);
-    bf2[i] = field_2(biunit_cube[i][0], biunit_cube[i][1], biunit_cube[i][2]);
-    bf3[i] = field_3(biunit_cube[i][0], biunit_cube[i][1], biunit_cube[i][2]);
-
-    zcf[i] = const_field(zerobase_cube[i][0], zerobase_cube[i][1], zerobase_cube[i][2]);
-    zf1[i] = field_1(zerobase_cube[i][0], zerobase_cube[i][1], zerobase_cube[i][2]);
-    zf2[i] = field_2(zerobase_cube[i][0], zerobase_cube[i][1], zerobase_cube[i][2]);
-    zf3[i] = field_3(zerobase_cube[i][0], zerobase_cube[i][1], zerobase_cube[i][2]);
-  }
-
-  std::cout << "Integrated values:" << std::endl;
-
-  Element::LinearHex hexMap;
-  try {
-    for (int i = 1; i <=5; i++) {
-      hexMap.set_vertices(biunit_cube);
-      field_val = hexMap.integrate_scalar_field(bcf);
-      std::cout << "    binunit_cube, const_field(num_pts=" << i << "): field_val=" << field_val << std::endl;
-      field_val = 0.0;
-
-      field_val = hexMap.integrate_scalar_field(bf1);
-      std::cout << "    binunit_cube, field_1(num_pts=" << i << "): field_val=" << field_val << std::endl;
-      field_val = 0.0;
-
-      field_val = hexMap.integrate_scalar_field(bf2);
-      std::cout << "    binunit_cube, field_2(num_pts=" << i << "): field_val=" << field_val << std::endl;
-      field_val = 0.0;
-
-      field_val = hexMap.integrate_scalar_field(bf3);
-      std::cout << "    binunit_cube, field_3(num_pts=" << i << "): field_val=" << field_val << std::endl;
-      field_val = 0.0;
-
-
-      hexMap.set_vertices(zerobase_cube);
-      field_val = hexMap.integrate_scalar_field(zcf);
-      std::cout << "    zerobase_cube, const_field(num_pts=" << i << "): field_val=" << field_val << std::endl;
-      field_val = 0.0;
-
-      field_val = hexMap.integrate_scalar_field(zf1);
-      std::cout << "    zerobase_cube, field_1(num_pts=" << i << "): field_val=" << field_val << std::endl;
-      field_val = 0.0;
-
-      field_val = hexMap.integrate_scalar_field(zf2);
-      std::cout << "    zerobase_cube, field_2(num_pts=" << i << "): field_val=" << field_val << std::endl;
-      field_val = 0.0;
-
-      field_val = hexMap.integrate_scalar_field(zf3);
-      std::cout << "    zerobase_cube, field_3(num_pts=" << i << "): field_val=" << field_val << std::endl;
-      field_val = 0.0;
-    }
-  }
-  catch (moab::Element::Map::ArgError) {
-    CHKERR(iBase_FAILURE, "Failed to set vertices on Element::Map.");
-  }
-  catch (moab::Element::Map::EvaluationError) {
-    CHKERR(iBase_FAILURE, "Failed to get inverse evaluation of coordinate on Element::Map.");
-  }
+  err = integrate_scalar_field_test();
+  CHKERR(err, "Failure in integrating a scalar_field");
 
   // ******************************
   std::cout << "********** Test get_group_integ_vals **********" << std::endl;
@@ -673,6 +594,86 @@ int main(int argc, char **argv) {
   std::cout << "********** ssn_test DONE! **********" << std::endl;
   MPI_Finalize();
   return 0;
+}
+
+ErrorCode integrate_scalar_field_test()
+{
+  // ******************************
+  std::cout << "********** Test moab::Element::Map::integrate_scalar_field **********" << std::endl;
+  // Create a simple hex centered at 0,0,0 with sides of length 2.
+  std::vector<CartVect> biunit_cube(8);
+  biunit_cube[0] = CartVect( -1, -1, -1 );
+  biunit_cube[1] = CartVect(  1, -1, -1 );
+  biunit_cube[2] = CartVect(  1,  1, -1 );
+  biunit_cube[3] = CartVect( -1,  1, -1 );
+  biunit_cube[4] = CartVect( -1, -1,  1 );
+  biunit_cube[5] = CartVect(  1, -1,  1 );
+  biunit_cube[6] = CartVect(  1,  1,  1 );
+  biunit_cube[7] = CartVect( -1,  1,  1 );
+
+  std::vector<CartVect> zerobase_cube(8);
+  zerobase_cube[0] = CartVect( 0, 0, 0 );
+  zerobase_cube[1] = CartVect( 2, 0, 0 );
+  zerobase_cube[2] = CartVect( 2, 2, 0 );
+  zerobase_cube[3] = CartVect( 0, 2, 0 );
+  zerobase_cube[4] = CartVect( 0, 0, 2 );
+  zerobase_cube[5] = CartVect( 2, 0, 2 );
+  zerobase_cube[6] = CartVect( 2, 2, 2 );
+  zerobase_cube[7] = CartVect( 0, 2, 2 );
+
+  // Calculate field values at the corners of both cubes
+  double bcf[8], bf1[8], bf2[8], bf3[8], zcf[8], zf1[8], zf2[8], zf3[8];
+  for (int i = 0; i < 8; i++) {
+    bcf[i] = const_field(biunit_cube[i][0], biunit_cube[i][1], biunit_cube[i][2]);
+    bf1[i] = field_1(biunit_cube[i][0], biunit_cube[i][1], biunit_cube[i][2]);
+    bf2[i] = field_2(biunit_cube[i][0], biunit_cube[i][1], biunit_cube[i][2]);
+    bf3[i] = field_3(biunit_cube[i][0], biunit_cube[i][1], biunit_cube[i][2]);
+
+    zcf[i] = const_field(zerobase_cube[i][0], zerobase_cube[i][1], zerobase_cube[i][2]);
+    zf1[i] = field_1(zerobase_cube[i][0], zerobase_cube[i][1], zerobase_cube[i][2]);
+    zf2[i] = field_2(zerobase_cube[i][0], zerobase_cube[i][1], zerobase_cube[i][2]);
+    zf3[i] = field_3(zerobase_cube[i][0], zerobase_cube[i][1], zerobase_cube[i][2]);
+  }
+
+  std::cout << "Integrated values:" << std::endl;
+
+  try {
+    double field_const1, field_const2;
+    double field_linear1, field_linear2;
+    double field_quad1, field_quad2;
+    double field_cubic1, field_cubic2;
+
+    int ipoints=0;
+    Element::LinearHex biunit_hexMap(biunit_cube);
+    Element::LinearHex zerobase_hexMap(zerobase_cube);
+
+    field_const1 = biunit_hexMap.integrate_scalar_field(bcf);
+    field_const2 = zerobase_hexMap.integrate_scalar_field(zcf);
+    std::cout << "    binunit_cube, const_field(num_pts=" << ipoints << "): field_val=" << field_const1 << std::endl;
+    std::cout << "    zerobase_cube, const_field(num_pts=" << ipoints << "): field_val=" << field_const2 << std::endl;
+
+    field_linear1 = biunit_hexMap.integrate_scalar_field(bf1);
+    field_linear2 = zerobase_hexMap.integrate_scalar_field(zf1);
+    std::cout << "    binunit_cube, field_1(num_pts=" << ipoints << "): field_val=" << field_linear1 << std::endl;
+    std::cout << "    zerobase_cube, field_1(num_pts=" << ipoints << "): field_val=" << field_linear2 << std::endl;
+
+    field_quad1 = biunit_hexMap.integrate_scalar_field(bf2);
+    field_quad2 = zerobase_hexMap.integrate_scalar_field(zf2);
+    std::cout << "    binunit_cube, field_2(num_pts=" << ipoints << "): field_val=" << field_quad1 << std::endl;
+    std::cout << "    zerobase_cube, field_2(num_pts=" << ipoints << "): field_val=" << field_quad2 << std::endl;
+
+    field_cubic1 = biunit_hexMap.integrate_scalar_field(bf3);
+    field_cubic2 = zerobase_hexMap.integrate_scalar_field(zf3);
+    std::cout << "    binunit_cube, field_3(num_pts=" << ipoints << "): field_val=" << field_cubic1 << std::endl;
+    std::cout << "    zerobase_cube, field_3(num_pts=" << ipoints << "): field_val=" << field_cubic2 << std::endl;
+  }
+  catch (moab::Element::Map::ArgError) {
+    CHKERR(MB_FAILURE, "Failed to set vertices on Element::Map.");
+  }
+  catch (moab::Element::Map::EvaluationError) {
+    CHKERR(MB_FAILURE, "Failed to get inverse evaluation of coordinate on Element::Map.");
+  }
+  return MB_SUCCESS;
 }
 
 // Function to parse input parameters
