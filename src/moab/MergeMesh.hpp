@@ -1,6 +1,8 @@
 #ifndef MERGEMESH_HPP
 #define MERGEMESH_HPP
 
+#include "moab_export.h"
+
 #include "moab/Interface.hpp"
 #include "moab/Range.hpp"
 
@@ -8,7 +10,7 @@ namespace moab {
 
 class AdaptiveKDTree;
 
-class MergeMesh
+class MOAB_EXPORT MergeMesh
 {
 public:
   /* \brief Constructor

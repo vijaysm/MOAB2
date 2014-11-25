@@ -34,6 +34,8 @@
 //#error "ReadNCDF.hpp isn't supposed to be included into an application"
 #endif
 
+#include "moab_export.h"
+
 #include <vector>
 #include <string>
 
@@ -57,7 +59,7 @@ struct ReadBlockData
 };
 
 //! Output Exodus File for VERDE
-class ReadNCDF : public ReaderIface
+class MOAB_EXPORT ReadNCDF : public ReaderIface
 {
    
 public:

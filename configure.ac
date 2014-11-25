@@ -1493,7 +1493,8 @@ AC_ARG_VAR([FC], [FORTRAN compiler command])
 
 AC_OUTPUT_COMMANDS( [if test -f src/moab_export.h; then true; else echo "#define MOAB_EXPORT" > src/moab_export.h; fi] )
 AC_OUTPUT_COMMANDS( [if test -f itaps/imesh/imesh_export.h; then true; else echo "#define IMESH_EXPORT" > itaps/imesh/imesh_export.h; fi] )
-AC_OUTPUT_COMMANDS( [if test -f tools/refiner/refiner_export.h then true; else echo "#define REFINER_EXPORT" > tools/refiner/refiner_export.h fi] )
+AC_OUTPUT_COMMANDS( [if test -f tools/refiner/refiner_export.h; then true; else echo "#define REFINER_EXPORT" > tools/refiner/refiner_export.h; fi] )
+AC_OUTPUT_COMMANDS( [if test -f tools/dagmc/dagmc_export.h; then true; else echo "#define DAGMC_EXPORT" > tools/dagmc/dagmc_export.h; fi] )
 AC_CONFIG_HEADERS([src/moab/Version.h
                    src/moab/EntityHandle.hpp
                    src/parallel/moab_mpi_config.h
