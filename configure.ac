@@ -1,13 +1,13 @@
 ################################################################################
 #                           Standard Stuff
 ################################################################################
-AC_INIT(MOAB, 4.7.1pre)
+AC_INIT([MOAB],[4.7.1pre])
 AC_CONFIG_SRCDIR([moab.make.in])
 AC_CONFIG_SRCDIR([MOABConfig.cmake.in])
 AC_CONFIG_SRCDIR([examples/makefile.in])
 AC_CONFIG_MACRO_DIR([config])
 AC_CONFIG_AUX_DIR([config])
-AC_CANONICAL_SYSTEM
+AC_CANONICAL_TARGET
 m4_ifdef([AM_SILENT_RULES],
  [AM_INIT_AUTOMAKE([color-tests parallel-tests])],
  [AM_INIT_AUTOMAKE])
@@ -17,7 +17,7 @@ AC_CHECK_PROG( [SED], [sed], [sed], [true] )
 # Infer the source directory as the path to the ./configure script
 #srcdir=`dirname $0`
 #top_srcdir=`dirname $0`
-USER_CONFIGURE_CMD="$0 $*"
+USER_CONFIGURE_CMD="$0 $@"
 
 ################################################################################
 #                           Compilers
@@ -118,8 +118,7 @@ AM_CPPFLAGS="$AM_CPPFLAGS $NO_VECTOR_TEMPLATE_INSERT $OLD_STD_COUNT"
 #                           No-Namepsace (3.0) Headers
 ################################################################################
 AC_ARG_ENABLE([old-headers],
- [AC_HELP_STRING([--disable-old-headers],
-     [Do not install no-namespace headers for compatability with MOAB 3.0 API])],
+ [AS_HELP_STRING([--disable-old-headers],[Do not install no-namespace headers for compatability with MOAB 3.0 API])],
  [OLD_HEADERS=$enableval],[OLD_HEADERS=yes])
 AM_CONDITIONAL([OLD_HEADERS],[test "xyes" = "x$OLD_HEADERS"])
 
@@ -136,7 +135,7 @@ AC_CHECK_SIZEOF([void *])
 SIZEOF_VOID_P=$ac_cv_sizeof_void_p
 AC_SUBST(SIZEOF_VOID_P)
 AC_ARG_ENABLE([64bit-handles],
-  [AC_HELP_STRING([--enable-64bit-handles],[Force EntityHandle to be 64 bits])],
+  [AS_HELP_STRING([--enable-64bit-handles],[Force EntityHandle to be 64 bits])],
   [AC_CHECK_TYPE([uint64_t],
     [AC_DEFINE(MOAB_FORCE_64_BIT_HANDLES,[],[Use int64_t for handles])
      SIZEOF_MBENTITYHANDLE=8
@@ -144,7 +143,7 @@ AC_ARG_ENABLE([64bit-handles],
     [AC_MSG_ERROR([Platform does not have uint64_t. Cannot force 64-bit handles])])
 ])
 AC_ARG_ENABLE([32bit-handles],
-  [AC_HELP_STRING([--enable-32bit-handles],[Force EntityHandle to be 32 bits])],
+  [AS_HELP_STRING([--enable-32bit-handles],[Force EntityHandle to be 32 bits])],
   [AC_CHECK_TYPE([uint32_t],
     [AC_DEFINE(MOAB_FORCE_32_BIT_HANDLES,[],[Use int32_t for handles])
      SIZEOF_MBENTITYHANDLE=4
@@ -191,7 +190,7 @@ AC_CHECK_LIB(m, pow, LIBS="$LIBS -lm")
 #                           iMesh Part 1 of 2
 ################################################################################
 AC_ARG_ENABLE( [imesh],
-[AC_HELP_STRING([--disable-imesh],[Do not build support for iMesh interface.])],
+[AS_HELP_STRING([--disable-imesh],[Do not build support for iMesh interface.])],
 [disable_imesh=$enableval],
 [disable_imesh=yes] )
 
@@ -210,7 +209,7 @@ fi
 #                           iGeom Part 1 of 2
 ################################################################################
 AC_ARG_ENABLE( [igeom],
-[AC_HELP_STRING([--enable-igeom],[Build mesh-based iGeom implementation])],
+[AS_HELP_STRING([--enable-igeom],[Build mesh-based iGeom implementation])],
 [enable_igeom=$enableval],[enable_igeom=no] )
 
 if (test "xyes" != "x$enable_igeom" && test "xno" != "x$enable_igeom"); then
@@ -481,10 +480,10 @@ AC_SUBST(CGNS_LIBS)
 #                             Documentation
 #################################################################################
 AC_ARG_ENABLE([docs],
-[AC_HELP_STRING([--enable-docs],[indicate to check for doxygen installation])],
+[AS_HELP_STRING([--enable-docs],[indicate to check for doxygen installation])],
                         [ENABLE_DOCS=yes],[ENABLE_DOCS=no] )
 AC_ARG_WITH([doxygen],
-[AC_HELP_STRING([--with-doxygen=DIR], [Specify directory where Doxygen program is installed. By default, it is /usr/bin])],
+[AS_HELP_STRING([--with-doxygen=DIR],[Specify directory where Doxygen program is installed. By default, it is /usr/bin])],
 [WITH_DOXYGEN="$withval"], [WITH_DOXYGEN=no])
 
 if test "x$WITH_DOXYGEN" != "xno"; then
@@ -529,7 +528,7 @@ ZOLTAN_DEFAULT=no
 # to the search path, with the assumption that the linker will ignore libraries
 # for other architectures.
 AC_ARG_WITH( [zoltan-arch],
-             [AC_HELP_STRING([--with-zoltan-arch=OS],[Specify zoltan architecture])],
+             [AS_HELP_STRING([--with-zoltan-arch=OS],[Specify zoltan architecture])],
              [case "x$withval" in
                xyes|xno)
                  AC_MSG_ERROR([Expeted value for --with-zoltan-arch])
@@ -545,7 +544,7 @@ AC_ARG_WITH( [zoltan-arch],
 # to search for Zoltan libs and headers.  Specifying this also enables
 # mbzoltan unless it is explicitly disabled.
 AC_ARG_WITH( [zoltan], 
-             [AC_HELP_STRING([--with-zoltan=DIR],[Enable Zoltan support, and optionally specify Zoltan location])],
+             [AS_HELP_STRING([--with-zoltan=DIR],[Enable Zoltan support, and optionally specify Zoltan location])],
              [case "x$withval" in
                xyes)
                  WITH_ZOLTAN=yes
@@ -572,7 +571,7 @@ AC_ARG_WITH( [zoltan],
 # parmetis, so the only thing the user would really need to tell
 # us is if we need to look in some special place for it. 
 AC_ARG_WITH([parmetis], 
-            [AC_HELP_STRING([--with-parmetis=DIR],[Directory containing Parmetis library for Zoltan])],
+            [AS_HELP_STRING([--with-parmetis=DIR],[Directory containing ParMetis library for Zoltan])],
              [case "x$withval" in
                xyes|xno)
                  # do nothing
@@ -600,7 +599,7 @@ AC_ARG_WITH([parmetis],
 # metis, so the only thing the user would really need to tell
 # us is if we need to look in some special place for it. 
 AC_ARG_WITH([metis], 
-            [AC_HELP_STRING([--with-metis=DIR],[Directory containing Parmetis library for Zoltan])],
+            [AS_HELP_STRING([--with-metis=DIR],[Directory containing Metis library for ParMetis/Zoltan])],
              [case "x$withval" in
                xyes|xno)
                  # do nothing
@@ -626,7 +625,7 @@ AC_ARG_WITH([metis],
 # to add an additional library search directory in which to check
 # for the scotch library.
 AC_ARG_WITH([scotch],
-            [AC_HELP_STRING([--with-scotch=DIR],[Directory containing Scotch library for Zoltan])],
+            [AS_HELP_STRING([--with-scotch=DIR],[Directory containing Scotch library for Zoltan])],
              [SCOTCH_DIR="$withval"; enablescotch=yes],[SCOTCH_DIR=""; enablescotch=no] )
 
 if (test "$enablescotch" != "no"); then
@@ -666,7 +665,7 @@ fi
 # to add an additional library search directory in which to check
 # for the parallel scotch library.
 AC_ARG_WITH([ptscotch],
-            [AC_HELP_STRING([--with-ptscotch=DIR],[Directory containing PTScotch library for Zoltan])],
+            [AS_HELP_STRING([--with-ptscotch=DIR],[Directory containing PTScotch library for Zoltan])],
              [PTSCOTCH_DIR="$withval"; enableptscotch=yes],[PTSCOTCH_DIR="$SCOTCH_DIR"; enableptscotch=$enablescotch] )
 
 if (test "$enableptscotch" != "no"); then
@@ -703,13 +702,12 @@ if (test "$enableptscotch" != "no"); then
   esac
 fi
 
-
 ################################################################################
 #                            Optional Libraries
 ################################################################################
 
 AC_ARG_WITH([vtk],
-  [AC_HELP_STRING([--with-vtk@<:@=DIR@:>@], [Enable VTK support, and specify VTK location])],
+  [AS_HELP_STRING([--with-vtk@<:@=DIR@:>@],[Enable VTK support, and specify VTK location])],
   [WITH_VTK=$withval
    DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-vtk=\"${withval}\""
   ],[WITH_VTK=])
@@ -720,7 +718,7 @@ if (test "x$WITH_VTK" != "xno" && test "x$WITH_VTK" != "x"); then
 fi
   
 AC_ARG_WITH( [vtk-lib-suffix], 
-             [AC_HELP_STRING([--with-vtk-lib-suffix=SUFFIX],[Specify optional suffix to VTK library names, e.g. -pv3.98])],
+             [AS_HELP_STRING([--with-vtk-lib-suffix=SUFFIX],[Specify optional suffix to VTK library names, e.g. -pv3.98])],
              [case "x$withval" in
                xyes)
                  AC_MSG_ERROR([Must specify a non-empty suffix!])
@@ -754,8 +752,8 @@ AC_DEFUN([MB_OPTIONAL_TOOL],[
     mb_default_$1=$3
   fi
   AC_ARG_ENABLE( [$1],
-[AC_HELP_STRING([--enable-$1],[Build tool: $1])
-AC_HELP_STRING([--disable-$1],[Don't build $1])],
+[AS_HELP_STRING([--enable-$1],[Build tool: $1])
+AS_HELP_STRING([--disable-$1],[Don't build $1])],
                  [ENABLE_$1=$enableval],[ENABLE_$1=${mb_default_$1}] )
   AM_CONDITIONAL([ENABLE_$1],[test "x${ENABLE_$1}" != "xno"])
   AC_MSG_CHECKING([if $1 is to be built])
@@ -764,8 +762,8 @@ AC_HELP_STRING([--disable-$1],[Don't build $1])],
 ])
   # The default for all tools
 AC_ARG_ENABLE( [tools], [
-AC_HELP_STRING([--enable-tools],[Build all tools by default])
-AC_HELP_STRING([--disable-tools],[Disable all tools by default])],
+AS_HELP_STRING([--enable-tools],[Build all tools by default])
+AS_HELP_STRING([--disable-tools],[Disable all tools by default])],
                          [ENABLE_TOOLS=$enableval; DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-tools"],
                          [ENABLE_TOOLS=] )
   # Individual tools
@@ -908,7 +906,9 @@ dnl  - Optional library path linker argument (e.g. -L/opt/foo)
   AC_DEFUN([FATHOM_CHECK_LIB_LIST],[
     old_LIBS="$LIBS"
     LIBS="$5 ${$3} $old_LIBS"
-    AC_HAVE_LIBRARY([$1],[$3="-l$1 ${$3}"],[],[$4])
+    AC_CHECK_LIB([$1],[main],[$3="-l$1 ${$3}"],[],[$4])
+    ac_cv_lib_{$1}=ac_cv_lib_{$1}_main
+
     LIBS="$old_LIBS"
   ])
   
@@ -953,8 +953,7 @@ if  (test "x$WITH_VTK" != "xno" && test "x$WITH_VTK" != "x"); then
     AC_MSG_ERROR([X11 not found])
   fi
 
-  AC_LANG_SAVE
-  AC_LANG_CPLUSPLUS
+  AC_LANG_PUSH([C++])
 
   VTK_INCLUDES=  
   case "x$WITH_VTK" in
@@ -1064,7 +1063,7 @@ if  (test "x$WITH_VTK" != "xno" && test "x$WITH_VTK" != "x"); then
     AC_MSG_ERROR("VTK library 'vtkCommonCore' not found.")
   fi
   
-  AC_LANG_RESTORE
+  AC_LANG_POP([C++])
 
   FATHOM_MERGE_LISTS([XLIBS_tmp],[$X_EXTRA_LIBS -lX11 $X_PRE_LIBS],[$vtk_x_libs])
   FATHOM_MERGE_LISTS([XLIBS],[$vtk_sys_libs],[$XLIBS_tmp])
@@ -1087,7 +1086,7 @@ if test $ENABLE_qvdual = yes; then
 #                               GraphViz
 ################################################################################
   AC_ARG_WITH([graphviz],
-  [AC_HELP_STRING([--with-graphviz=DIR], [Specify directory containing GraphViz])],
+  [AS_HELP_STRING([--with-graphviz=DIR],[Specify directory containing GraphViz])],
   [GRAPH_DIR=$withval
    DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-graphviz=\"${withval}\""
   ],[GRAPH_DIR=])
@@ -1169,8 +1168,7 @@ if test $ENABLE_qvdual = yes; then
 ################################################################################
 #                                   QT
 ################################################################################
-  AC_LANG_SAVE
-  AC_LANG_CPLUSPLUS
+  AC_LANG_PUSH([C++])
   AC_ARG_VAR([QTDIR],[QT installation directory])
   if test x"$QTDIR" = x; then
     search_path="$PATH"
@@ -1216,22 +1214,21 @@ if test $ENABLE_qvdual = yes; then
   
   old_LIBS="$LIBS"
   LIBS="$LIBS $qlibdir"
-  # Cannot use AC_HAVE_LIBRARY for qt-mt because of
+  # Cannot use CHECK-LIB here to loop over qt-mt because of
   # autoconf bug with libraries that have a '-' in their name.
-  #AC_HAVE_LIBRARY([qt-mt],[QT_LIBS="$qlibdir -lqt-mt"],[
   AC_MSG_CHECKING([for main in -lqt-mt])
   QT_LIBS="$qlibdir -lqt-mt"
   AC_TRY_LINK_FUNC(main,[AC_MSG_RESULT([yes])],[
     AC_MSG_RESULT([no])
     LIBS="$old_LIBS $qlibdir"
-    AC_HAVE_LIBRARY([qt],[QT_LIBS="$qlibdir -lqt"],[
-      QT_MISSING=yes
-    ])
+    AC_CHECK_LIB([qt],[main],[QT_LIBS="$qlibdir -lqt"],[QT_MISSING=yes],[])ac_cv_lib_qt=ac_cv_lib_qt_main
+
   ])
   LIBS="$VTK_LIBS $QT_LIBS"
-  AC_HAVE_LIBRARY([QVTK],[QT_LIBS="-lQVTL $QT_LIBS"],
-                  [AC_MSG_ERROR([QVTK library for qvdual not found])])
+  AC_CHECK_LIB([QVTK],[main],[QT_LIBS="-lQVTL $QT_LIBS"],[AC_MSG_ERROR([QVTK library for qvdual not found])],[])ac_cv_lib_QVTK=ac_cv_lib_QVTK_main
+
   LIBS="$old_LIBS"
+  AC_LANG_POP([C++])
   
 ################################################################################
 #                                 X/VTK/QT
@@ -1247,7 +1244,7 @@ fi
 #                           CGM
 ################################################################################
 AC_ARG_WITH(cgm, 
-[AC_HELP_STRING([--with-cgm=DIR], [Specify directory containing CGM])],
+[AS_HELP_STRING([--with-cgm=DIR],[Specify directory containing CGM])],
 [CGM_DIR=$withval
  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-cgm=\"${withval}\""
  ], [CGM_DIR=])
@@ -1355,8 +1352,8 @@ AC_SUBST([EXPORT_LTFLAGS])
 AC_SUBST([EXPORT_LDFLAGS])
 AC_SUBST([AM_CXXFLAGS])
 AC_SUBST([AM_CFLAGS])
-  AC_SUBST([AM_FCFLAGS])
-  AC_SUBST([AM_FFLAGS])
+AC_SUBST([AM_FCFLAGS])
+AC_SUBST([AM_FFLAGS])
 
 AC_ARG_VAR([FC], [FORTRAN compiler command])
 AC_CONFIG_HEADERS([config.h])
@@ -1484,28 +1481,5 @@ if test "x$WARN_PARALLEL_HDF5_NO_COMPLEX" = "xyes"; then
 *     significant impact on IO performance.
 *************************************************************************])
 fi
-
-################################################################################
-#                             AHF OPTIONS
-################################################################################
-#AC_ARG_ENABLE([ahf],
-#[AC_HELP_STRING([--enable-ahf],[use the half facet representation])],
-#[ case "${enableval}" in 
-#	yes) ahf1=true ;;
-#        no) ahf1=false ;;
-#	*) AC_MSG_ERROR([bad value]) ;; 
-#esac],[ahf1=false])	
- #ENABLE_AHF=$enableval],[ENABLE_AHF=no] )
-
-#if test "x$ENABLE_AHF" = "xyes"; then
-#   AM_CPPFLAGS="$AM_CPPFLAGS -DUSE_AHF"
-#fi
-#AM_CONDITIONAL([ENABLE_AHF],[test x$ahf1 = xtrue])
-#AC_SUBST(ENABLE_AHF)
-
-
-#test "xyes" != "x$WITH_AHF" || AM_CPPFLAGS="$AM_CPPFLAGS -DUSE_AHF"
-#AM_CONDITIONAL(USE_AHF, [test "xno" != "x$WITH_AHF"])
-
 
 

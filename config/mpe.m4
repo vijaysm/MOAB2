@@ -6,7 +6,7 @@
 #######################################################################################
 AC_DEFUN([FATHOM_CHECK_MPE], [
   AC_ARG_ENABLE([mpe],
-                [AC_HELP_STRING([--enable-mpe],
+                [AS_HELP_STRING([--enable-mpe],
                                 [Enable use of MPE library for tracing/logging MPI communication])],
                 [WITH_MPE=$enableval],[WITH_MPE=no])
   AC_LANG_PUSH([C])

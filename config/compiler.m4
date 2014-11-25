@@ -98,7 +98,7 @@ USER_FFLAGS="$FFLAGS"
 
 # Check for Parallel
 # Need to check this early so we can look for the correct compiler
-AC_ARG_WITH( [mpi], AC_HELP_STRING([[--with-mpi@<:@=DIR@:>@]], [Enable parallel support]),
+AC_ARG_WITH( [mpi], AS_HELP_STRING([[--with-mpi@<:@=DIR@:>@]], [Enable parallel support]),
              [WITH_MPI=$withval; enablempi=yes],[enablempi=no;WITH_MPI=$MPI_DIR] )
 
 if test "xno" != "x$enablempi"; then
@@ -186,9 +186,9 @@ FCFLAGS="$USER_FCFLAGS $FATHOM_FC_SPECIAL"
 #fi
 
   # Check for debug flags
-AC_ARG_ENABLE( debug, AC_HELP_STRING([--enable-debug],[Debug symbols (-g)]),
+AC_ARG_ENABLE( debug, AS_HELP_STRING([--enable-debug],[Debug symbols (-g)]),
                [enable_debug=$enableval], [enable_debug=] )
-AC_ARG_ENABLE( optimize, AC_HELP_STRING([--enable-optimize],[Compile optimized (-O2)]),
+AC_ARG_ENABLE( optimize, AS_HELP_STRING([--enable-optimize],[Compile optimized (-O2)]),
                [enable_cxx_optimize=$enableval; enable_cc_optimize=$enableval; enable_fc_optimize=$enableval;],
                [enable_cxx_optimize=""; enable_cc_optimize=""; enable_fc_optimize="";	]
              )
@@ -246,7 +246,7 @@ fi
 
   # Check for 32/64 bit.
   # This requires FATHOM_CXX_FLAGS and FATHOM_CC_FLAGS to have been called first
-AC_ARG_ENABLE(32bit, AC_HELP_STRING([--enable-32bit],[Force 32-bit objects]),
+AC_ARG_ENABLE(32bit, AS_HELP_STRING([--enable-32bit],[Force 32-bit objects]),
 [
   if (test "xyes" != "x$enableval" && test "xno" != "x$enableval"); then
     AC_MSG_ERROR([Unknown argument --enable-32bit=$enableval])
@@ -262,7 +262,7 @@ AC_ARG_ENABLE(32bit, AC_HELP_STRING([--enable-32bit],[Force 32-bit objects]),
 ], [enable_32bit=no])
 
 # This requires FATHOM_CXX_FLAGS and FATHOM_CC_FLAGS to have been called first
-AC_ARG_ENABLE(64bit, AC_HELP_STRING([--enable-64bit],[Force 64-bit objects]),
+AC_ARG_ENABLE(64bit, AS_HELP_STRING([--enable-64bit],[Force 64-bit objects]),
 [
   if (test "xyes" != "x$enableval" && test "xno" != "x$enableval"); then
     AC_MSG_ERROR([Unknown argument --enable-64bit=$enableval])
