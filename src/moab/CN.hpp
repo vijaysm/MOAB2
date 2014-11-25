@@ -32,6 +32,8 @@
 #ifndef MOAB_CN_HPP
 #define MOAB_CN_HPP
 
+#include "moab_export.h"
+
 #include <vector>
 #include <algorithm>
 #include <cassert>
@@ -49,7 +51,7 @@ enum {
 
 typedef std::pair<EntityType, EntityType> DimensionPair;
 
-class CN
+class MOAB_EXPORT CN
 {
 private:
 

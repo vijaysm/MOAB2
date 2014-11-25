@@ -29,6 +29,8 @@
 #ifndef MB_SIMPLEX_TEMPLATE_REFINER_HPP
 #define MB_SIMPLEX_TEMPLATE_REFINER_HPP
 
+#include "refiner_export.h"
+
 #include "EntityRefiner.hpp"
 #include "SimplexTemplateTagAssigner.hpp"
 
@@ -38,7 +40,7 @@ namespace moab {
 
 class RefinerTagManager;
 
-class SimplexTemplateRefiner : public EntityRefiner
+class REFINER_EXPORT SimplexTemplateRefiner : public EntityRefiner
 {
 public:
   SimplexTemplateRefiner();

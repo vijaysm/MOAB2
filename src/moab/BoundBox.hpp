@@ -1,6 +1,8 @@
 #ifndef BOUND_BOX_HPP
 #define BOUND_BOX_HPP
 
+#include "moab_export.h"
+
 #include "moab/Interface.hpp"
 #include "moab/CartVect.hpp"
 
@@ -8,7 +10,7 @@
 
 namespace moab {
 
-    class BoundBox {
+    class MOAB_EXPORT BoundBox {
   public:
       BoundBox() : bMin(DBL_MAX), bMax(-DBL_MAX) {}
       BoundBox(const CartVect &min, const CartVect &max) : 

@@ -1,6 +1,8 @@
 #ifndef SEQUENCE_MANAGER_HPP
 #define SEQUENCE_MANAGER_HPP
 
+#include "moab_export.h"
+
 #include "TypeSequenceManager.hpp"
 #include "TagInfo.hpp"
 #include <vector>
@@ -10,7 +12,7 @@ namespace moab {
 class HomCoord;
 class Error;
 
-class SequenceManager 
+class MOAB_EXPORT SequenceManager 
 {
   public:
     

@@ -20,6 +20,8 @@
 #error "AEntityFactory.hpp isn't supposed to be included into an application"
 #endif
 
+#include "moab_export.h"
+
 #include "moab/Forward.hpp"
 #include <vector>
 
@@ -29,7 +31,7 @@ typedef std::vector<EntityHandle> AdjacencyVector;
 class Core;
 
 //! class AEntityFactory
-class AEntityFactory 
+class MOAB_EXPORT AEntityFactory 
 {
 public:
 

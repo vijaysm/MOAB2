@@ -15,6 +15,8 @@
 #ifndef TUPLE_LIST_HPP
 #define TUPLE_LIST_HPP
 
+#include "moab_export.h"
+
 #include <limits.h>
 #include <stdlib.h>
 
@@ -100,7 +102,7 @@ namespace moab
 {
   void fail(const char *fmt, ...);
 
-  class TupleList
+  class MOAB_EXPORT TupleList
   {
   public:
     /*---------------------------------------------------------------------------

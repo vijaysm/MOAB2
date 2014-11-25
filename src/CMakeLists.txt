@@ -243,6 +243,10 @@ target_link_libraries(
   MOAB
   ${MOAB_DEP_LIBRARIES} ${MOAB_LIBS} ${MOAB_CGM_LIBS} ${MPI_LIBRARIES}
   )
+include(GenerateExportHeader)
+generate_export_header(MOAB)
+list(APPEND MOAB_GENERATED_INSTALL_HEADERS
+  ${CMAKE_CURRENT_BINARY_DIR}/moab_export.h)
 set_target_properties(
   MOAB
   PROPERTIES

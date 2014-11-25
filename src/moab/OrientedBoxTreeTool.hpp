@@ -21,6 +21,8 @@
 #ifndef MOAB_ORIENTED_BOX_TREE_TOOL_HPP
 #define MOAB_ORIENTED_BOX_TREE_TOOL_HPP
 
+#include "moab_export.h"
+
 #include "moab/Forward.hpp"
 
 #include <iosfwd>
@@ -37,7 +39,7 @@ class CartVect;
 /** \class OrientedBoxTreeTool
  * \brief Class for constructing and querying Hierarchical Oriented Bounding Box trees
  */
-class OrientedBoxTreeTool
+class MOAB_EXPORT OrientedBoxTreeTool
 {
   public:
   

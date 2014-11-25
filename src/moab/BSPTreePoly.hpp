@@ -1,6 +1,8 @@
 #ifndef MOAB_BSP_TREE_POLY_HPP
 #define MOAB_BSP_TREE_POLY_HPP
 
+#include "moab_export.h"
+
 #include "moab/Types.hpp"
 #include <vector>
 
@@ -13,7 +15,7 @@ class CartVect;
  * This class is used to represent the convex polyhedron that bounds
  * a node in a general plane-based BSP-tree.
  */
-class BSPTreePoly 
+class MOAB_EXPORT BSPTreePoly 
 {
   public:
     struct Vertex;
