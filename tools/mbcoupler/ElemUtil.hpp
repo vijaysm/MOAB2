@@ -148,9 +148,9 @@ namespace ElemUtil {
     protected:
       /* Preimages of the vertices -- "canonical vertices" -- are known as "corners". */
       static const double corner[8][3];
-      static const double gauss[1][2];
+      static const double gauss[2][2];
       static const unsigned int corner_count = 8;
-      static const unsigned int gauss_count  = 1;
+      static const unsigned int gauss_count  = 2;
 
     };// class LinearHex
 
@@ -174,7 +174,7 @@ namespace ElemUtil {
       static const int corner[27][3];
       static const double gauss[8][2];// TODO fix me
       static const unsigned int corner_count = 27;
-      static const unsigned int gauss_count  = 8; // TODO fix me
+      static const unsigned int gauss_count  = 2; // TODO fix me
 
     };// class QuadraticHex
     /**\brief Shape function space for a linear tetrahedron, obtained by a pushforward of the canonical affine shape functions. */

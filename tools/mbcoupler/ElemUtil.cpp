@@ -555,7 +555,14 @@ namespace Element {
      Hence, the inner dimension is 2, the outer dimension is gauss_count.
      We use a one-point Gaussian quadrature, since it integrates linear functions exactly.
   */
-  const double LinearHex::gauss[1][2] = { {  2.0,           0.0          } };
+  //const double LinearHex::gauss[1][2] = { {  2.0,           0.0          } };
+  const double LinearHex::gauss[2][2] = { {  1.0,          -0.5773502691 },
+                                          {  1.0         ,  0.5773502691 } };
+  //const double LinearHex::gauss[4][2] = { {  0.3478548451, -0.8611363116 },
+  //                             {  0.6521451549, -0.3399810436 },
+  //                             {  0.6521451549,  0.3399810436 },
+  //                             {  0.3478548451,  0.8611363116 } };
+
 
   CartVect LinearHex::evaluate( const CartVect& xi ) const {
     CartVect x(0.0);
