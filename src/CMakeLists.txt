@@ -221,6 +221,7 @@ add_library( MOAB ${MOAB_LIB_SOURCES} ${MOAB_INSTALL_HEADERS} ${MOAB_GENERATED_I
                   $<TARGET_OBJECTS:moab_loc_discr>
                   ${MOABPAR_OBJECTS}
                   ${MDHF_OBJ} )
+set_target_properties( MOAB PROPERTIES DEFINE_SYMBOL "IS_BUILDING_MB_SHARED")
 include(GenerateExportHeader)
 generate_export_header(MOAB)
 list(APPEND MOAB_GENERATED_INSTALL_HEADERS
