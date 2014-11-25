@@ -24,13 +24,15 @@
 #error "ExoIIUtil.hpp isn't supposed to be included into an application"
 #endif
 
+#include "moab_export.h"
+
 #include "moab/Forward.hpp"
 #include "moab/ExoIIInterface.hpp"
 
 
 namespace moab {
 
-class ExoIIUtil : public ExoIIInterface
+class MOAB_EXPORT ExoIIUtil : public ExoIIInterface
 {
 
   Interface* mMB;

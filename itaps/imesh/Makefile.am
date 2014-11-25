@@ -109,3 +109,5 @@ iMeshP_extensions_protos.h: iMeshP_extensions.h ../mkprotos.sh
 	$(AM_V_GEN)$(srcdir)/../mkprotos.sh iMeshP MOAB $< $@ MOAB_FCDefs.h
 
 include $(abs_top_builddir)/itaps/imesh/iMesh-Defs.inc
+
+DISTCLEANFILES = imesh_export.h

@@ -32,7 +32,8 @@ libMOABrefiner_la_SOURCES = \
   SplitVertices.hpp \
   SplitVertices.cpp
 
-libMOABrefiner_la_include_HEADERS =
+libMOABrefiner_la_include_HEADERS = \
+  refiner_export.h
 
 libMOABrefiner_la_includedir = $(includedir)
 
@@ -49,3 +50,5 @@ check_PROGRAMS = $(TESTS)
 test_mesh_refiner_SOURCES = test_mesh_refiner.cpp
 test_mesh_refiner_LDADD = libMOABrefiner.la $(top_builddir)/src/libMOAB.la
 test_mesh_refiner_CPPFLAGS = $(AM_CPPFLAGS)
+
+DISTCLEANFILES = refiner_export.h

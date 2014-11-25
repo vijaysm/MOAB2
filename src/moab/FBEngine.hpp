@@ -1,5 +1,8 @@
 #ifndef FBENGINE_HPP_
 #define FBENGINE_HPP_
+
+#include "moab_export.h"
+
 #include <stdlib.h>
 
 #include <vector>
@@ -20,7 +23,7 @@ class SmoothCurve;
 /*
  *  Facet Based engine class for mesh-based geometry
  */
-class FBEngine {
+class MOAB_EXPORT FBEngine {
 public:
   FBEngine(Interface *impl, GeomTopoTool* geomTopoTool = NULL,
       const bool smooth = false);
