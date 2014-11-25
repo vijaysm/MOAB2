@@ -9,7 +9,9 @@
 
 macro ( get_ac_init_version )
 
-file( READ "configure.ac" configure_IN )
+#file( READ "configure.ac" configure_IN )
+#grep AC_INIT configure.ac | sed "s/\(AC_INIT(MOAB,\|)\)//g" | tr ' ' '\0'
+set(configure_IN "${PACKAGE_VERSION}")
 string( REGEX REPLACE "^.*AC_INIT *\\([^,]+, *([^, )]+).*$" "\\1" VERSION_STRING "${configure_IN}" )
 string( REGEX REPLACE "^([0-9]+)(\\..*)?$" "\\1" MAJOR_VERSION "${VERSION_STRING}" )
 string( REGEX REPLACE "^[0-9]+\\.([0-9]+)(\\..*)?$" "\\1" MINOR_VERSION "${VERSION_STRING}" )
