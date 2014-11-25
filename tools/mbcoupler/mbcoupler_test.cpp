@@ -64,7 +64,7 @@ void print_usage()
 
 #ifdef HDF5_FILE
 
-ErrorCode get_file_options(int argc, char **argv,
+ErrorCode get_file_options(int argc, char **argv, int rank,
                            std::vector<std::string> &meshFiles,
                            Coupler::Method &method,
                            std::string &interpTag,
@@ -128,7 +128,11 @@ int main(int argc, char **argv)
   ErrorCode result;
   bool help = false;
   double toler = 5.e-10;
-  result = get_file_options(argc, argv, meshFiles, method, interpTag,
+  int nprocs, rank;
+  ierr = MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  ierr = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+  result = get_file_options(argc, argv, rank, meshFiles, method, interpTag,
                             gNormTag, ssNormTag, ssTagNames, ssTagValues,
                             readOpts, outFile, writeOpts, dbgFile, help, toler);
 
@@ -137,10 +141,6 @@ int main(int argc, char **argv)
     ierr = MPI_Finalize();
     return ierr;
   }
-
-  int nprocs, rank;
-  ierr = MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
-  ierr = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
   // Redirect stdout and stderr if dbgFile is not null
   if (!dbgFile.empty()) {
@@ -210,8 +210,11 @@ int main(int argc, char **argv)
     newwriteOpts = writeOpts + extraOpt.str();
     result = mbImpl->write_file(outFile.c_str(), NULL, newwriteOpts.c_str(), partSets);
     PRINT_LAST_ERROR;
-    std::cout << "Wrote " << outFile << std::endl;
-    std::cout << "mbcoupler_test complete." << std::endl;
+    if(0==rank)
+    {
+      std::cout << "Wrote " << outFile << std::endl;
+      std::cout << "mbcoupler_test complete." << std::endl;
+    }
   }
 
   for (unsigned int i = 0; i < meshFiles.size(); i++)
@@ -280,7 +283,7 @@ bool check_for_flag(const char *str) {
 }
 
 // New get_file_options() function with added possibilities for mbcoupler_test.
-ErrorCode get_file_options(int argc, char **argv,
+ErrorCode get_file_options(int argc, char **argv, int rank,
                            std::vector<std::string> &meshFiles,
                            Coupler::Method &method,
                            std::string &interpTag,
@@ -484,7 +487,8 @@ ErrorCode get_file_options(int argc, char **argv,
     meshFiles.resize(2);
     meshFiles[0] = std::string(TestDir + "/64bricks_1khex.h5m");
     meshFiles[1] = std::string(TestDir + "/64bricks_12ktet.h5m");
-    std::cout << "Mesh files not entered; using default files "
+    if (0==rank)
+      std::cout << "Mesh files not entered; using default files "
               << meshFiles[0] << " and " << meshFiles[1] << std::endl;
   }
 
@@ -495,7 +499,7 @@ ErrorCode get_file_options(int argc, char **argv,
 
 #ifdef HDF5_FILE
   if (1 == argc) {
-    std::cout << "No arguments given; using output file dum.h5m." << std::endl;
+    if (0==rank) std::cout << "No arguments given; using output file dum.h5m." << std::endl;
     outFile = "dum.h5m";
   }
 #endif

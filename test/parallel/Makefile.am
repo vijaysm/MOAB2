@@ -138,9 +138,11 @@ endif
 
 
 if ENABLE_mbcoupler
-  par_coupler_test_SOURCES = par_coupler_test.cpp
+if PARALLEL_HDF5
+  par_coupler_test_SOURCES = ../../tools/mbcoupler/mbcoupler_test.cpp
   par_coupler_test_LDADD = $(LDADD) $(top_builddir)/tools/mbcoupler/libmbcoupler.la \
           $(top_builddir)/itaps/imesh/libiMesh.la
+endif
 endif
 
 if ENABLE_mbcslam
