@@ -16,6 +16,8 @@
 #ifndef READ_HDF5_HPP
 #define READ_HDF5_HPP
 
+#include "moab_export.h"
+
 #include <stdlib.h>
 #include <list>
 #include "mhdf.h"
@@ -41,7 +43,7 @@ class ReadHDF5Dataset;
  * \author Jason Kraftcheck
  * \date   18 April 2004
  */
-class ReadHDF5 : public ReaderIface
+class MOAB_EXPORT ReadHDF5 : public ReaderIface
 {
 public:
 

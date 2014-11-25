@@ -74,7 +74,7 @@ public:
    * If plane is defined as Ax+By+Cz+D=0, then
    * norm={A,B,C} and coeff=-D.
    */
-  struct Plane {
+  struct MOAB_EXPORT Plane {
     Plane() {}
     Plane( const double n[3], double d ) : coeff(d)
       { norm[0] = n[0]; norm[1] = n[1]; norm[2] = n[2]; }

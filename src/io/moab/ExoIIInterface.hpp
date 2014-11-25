@@ -17,6 +17,8 @@
 #ifndef MOAB_EXOII_INTERFACE_HPP
 #define MOAB_EXOII_INTERFACE_HPP
 
+#include "moab_export.h"
+
 #include "moab/Types.hpp"
 #include "moab/Compiler.hpp"
 
@@ -42,7 +44,7 @@ enum ExoIIElementType
 };
 
 
-class ExoIIInterface
+class MOAB_EXPORT ExoIIInterface
 {
 public:
   enum {

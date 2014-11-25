@@ -74,7 +74,7 @@ class MOAB_EXPORT OrientedBoxTreeTool
      * a non-zero value gives preference to a split orthogonal to larger
      * box dimensions.
      */
-    struct Settings {
+    struct MOAB_EXPORT Settings {
       public:
         Settings();              //!< set defaults
         int max_leaf_entities;   //!< Average number of entities per leaf
@@ -143,7 +143,7 @@ class MOAB_EXPORT OrientedBoxTreeTool
      * which calculates static information about a tree.  These statistics relate
      * to a tree's dynamic behavior on particular operations.
      */
-    class TrvStats{ 
+    class MOAB_EXPORT TrvStats{ 
       public:
 
         //! return counts of nodes visited, indexed by tree depth.  
@@ -402,7 +402,7 @@ class MOAB_EXPORT OrientedBoxTreeTool
      * preorder_traverse to define some operation to do when traversing
      * the tree.
      */
-    class Op {
+    class MOAB_EXPORT Op {
       public:
 
         /**\brief Visit a node in the tree during a traversal.

@@ -16,6 +16,8 @@
 #ifndef MHDF_H
 #define MHDF_H
 
+#include "moab_export.h"
+
 #include <H5Ipublic.h>
 
 #ifdef __cplusplus
@@ -322,10 +324,12 @@ extern "C" {
 typedef struct struct_mhdf_Status { char message[MHDF_MESSAGE_BUFFER_LEN]; } mhdf_Status;
 
 /** \brief Return 1 if passed status object indicates an error.  Zero otherwise. */
+MOAB_EXPORT
 int 
 mhdf_isError( mhdf_Status const* );
 
 /** \brief Get the error message given a status object.  */
+MOAB_EXPORT
 const char*
 mhdf_message( mhdf_Status const* );
 
@@ -402,6 +406,7 @@ mhdf_node_type_handle(void);
  *  \return A special element group handle used to specify the set group
  *  for reading/writing tag data on sets.
  */
+MOAB_EXPORT
 const char*
 mhdf_set_type_handle(void);
 
@@ -445,6 +450,7 @@ typedef void* mhdf_FileHandle;
  * \param status     Passed back status of API call.
  * \return An opaque handle to the file.
  */
+MOAB_EXPORT
 mhdf_FileHandle
 mhdf_createFile( const char* filename,
                  int overwrite,
@@ -468,6 +474,7 @@ mhdf_createFile( const char* filename,
  * \param id_type    Type to use when creating datasets containing file IDs
  * \return An opaque handle to the file.
  */
+MOAB_EXPORT
 mhdf_FileHandle
 mhdf_openFile( const char* filename,
                int writable,
@@ -497,6 +504,7 @@ mhdf_openFile( const char* filename,
  * \param id_type    Type to use when creating datasets containing file IDs
  * \return An opaque handle to the file.
  */
+MOAB_EXPORT
 mhdf_FileHandle
 mhdf_openFileWithOpt( const char* filename,
                       int writable,
@@ -506,6 +514,7 @@ mhdf_openFileWithOpt( const char* filename,
                       mhdf_Status* status );
 
 /**\brief Get number of open HDF5 objects from file */
+MOAB_EXPORT
 int
 mhdf_countOpenHandles( mhdf_FileHandle h );
 
@@ -563,6 +572,7 @@ struct mhdf_FileDesc {
  * assuming all nested pointers in the copy are updated to the correct
  * relative offset from the beginning of the struct.
  */
+MOAB_EXPORT
 struct mhdf_FileDesc*
 mhdf_getFileSummary( mhdf_FileHandle file_handle, 
                      hid_t file_id_type,
@@ -580,6 +590,7 @@ mhdf_getFileSummary( mhdf_FileHandle file_handle,
  * original instance.)  Given a pointer to the copied struct and the address
  * of the original struct, this function will updated all contained pointers.
  */
+MOAB_EXPORT
 void
 mhdf_fixFileDesc( struct mhdf_FileDesc* copy_ptr, const struct mhdf_FileDesc* orig_addr );
 
@@ -592,6 +603,7 @@ mhdf_fixFileDesc( struct mhdf_FileDesc* copy_ptr, const struct mhdf_FileDesc* or
  * \param buffer_size The length of <code>buffer</code>.
  * \param status     Passed back status of API call.
  */
+MOAB_EXPORT
 void
 mhdf_getElemName( mhdf_FileHandle file_handle,
                   unsigned int type_index,
@@ -602,12 +614,14 @@ mhdf_getElemName( mhdf_FileHandle file_handle,
  * \param handle     The file to close.
  * \param status     Passed back status of API call.
  */
+MOAB_EXPORT
 void
 mhdf_closeFile( mhdf_FileHandle handle,
                 mhdf_Status* status );
 
 /**\brief Check for open handles in file
  **/
+MOAB_EXPORT
 int
 mhdf_checkOpenHandles( mhdf_FileHandle handle, mhdf_Status* status );
 
@@ -622,6 +636,7 @@ mhdf_checkOpenHandles( mhdf_FileHandle handle, mhdf_Status* status );
  * \param handle The data object to close.
  * \param status     Passed back status of API call.
  */
+MOAB_EXPORT
 void
 mhdf_closeData( mhdf_FileHandle file,
                 hid_t handle,
@@ -633,6 +648,7 @@ mhdf_closeData( mhdf_FileHandle file,
  * call to any of mhdf_createNodeCoords, mhdf_createConnectivity, 
  * mhdf_createPolyConnectivity, or mhdf_createSetMeta
  */
+MOAB_EXPORT
 void
 mhdf_getNextStartId( mhdf_FileHandle file,
                      mhdf_index_t* start_id_out,
@@ -648,6 +664,7 @@ mhdf_getNextStartId( mhdf_FileHandle file,
  * \param num_strings The length of <code>strings</code>
  * \param status     Passed back status of API call.
  */
+MOAB_EXPORT
 void
 mhdf_writeHistory( mhdf_FileHandle file, 
                    const char** strings, 
@@ -667,6 +684,7 @@ mhdf_writeHistory( mhdf_FileHandle file,
  * \param status     Passed back status of API call.
  * \return An array of null-terminates strings.
  */
+MOAB_EXPORT
 char**
 mhdf_readHistory( mhdf_FileHandle file,
                   int* num_records_out, 
@@ -679,6 +697,7 @@ mhdf_readHistory( mhdf_FileHandle file,
 
 /* Node Coordinates */
 
+MOAB_EXPORT
 int
 mhdf_haveNodes( mhdf_FileHandle file_handle, mhdf_Status* status );
                 
@@ -694,6 +713,7 @@ mhdf_haveNodes( mhdf_FileHandle file_handle, mhdf_Status* status );
  * \param status     Passed back status of API call.
  * \return An HDF5 handle to the coordinate table.
  */
+MOAB_EXPORT
 hid_t
 mhdf_createNodeCoords( mhdf_FileHandle file_handle,
                        int dimension,
@@ -712,6 +732,7 @@ mhdf_createNodeCoords( mhdf_FileHandle file_handle,
  * \param status     Passed back status of API call.
  * \return An HDF5 handle to the coordinate table.
  */
+MOAB_EXPORT
 hid_t
 mhdf_openNodeCoords( mhdf_FileHandle file_handle,
                      long* num_nodes_out,
@@ -719,6 +740,7 @@ mhdf_openNodeCoords( mhdf_FileHandle file_handle,
                      long* first_node_id_out,
                      mhdf_Status* status );
 
+MOAB_EXPORT
 hid_t
 mhdf_openNodeCoordsSimple( mhdf_FileHandle file_handle, mhdf_Status* status );
 
@@ -733,12 +755,14 @@ mhdf_openNodeCoordsSimple( mhdf_FileHandle file_handle, mhdf_Status* status );
  * \param coords       Interleaved node coordinate data.
  * \param status     Passed back status of API call.
  */
+MOAB_EXPORT
 void
 mhdf_writeNodeCoords( hid_t data_handle,
                       long offset,
                       long count,
                       const double* coords,
                       mhdf_Status* status );
+MOAB_EXPORT
 void
 mhdf_writeNodeCoordsWithOpt( hid_t data_handle,
                       long offset,
@@ -760,6 +784,7 @@ mhdf_writeNodeCoordsWithOpt( hid_t data_handle,
  * \param coords       Coordinate list.
  * \param status     Passed back status of API call.
  */
+MOAB_EXPORT
 void
 mhdf_writeNodeCoord( hid_t data_handle,
                      long offset,
@@ -767,6 +792,7 @@ mhdf_writeNodeCoord( hid_t data_handle,
                      int dimension,
                      const double* coords,
                      mhdf_Status* status );
+MOAB_EXPORT
 void
 mhdf_writeNodeCoordWithOpt( hid_t data_handle,
                      long offset,
@@ -787,12 +813,14 @@ mhdf_writeNodeCoordWithOpt( hid_t data_handle,
  * \param coordinates  Buffer in which to write node coordinate data.
  * \param status       Passed back status of API call.
  */
+MOAB_EXPORT
 void
 mhdf_readNodeCoords( hid_t data_handle,
                      long offset,
                      long count,
                      double* coordinates,
                      mhdf_Status* status );
+MOAB_EXPORT
 void
 mhdf_readNodeCoordsWithOpt( hid_t data_handle,
                      long offset,
@@ -815,6 +843,7 @@ mhdf_readNodeCoordsWithOpt( hid_t data_handle,
  * \param coords       Buffer in which to write node coordinate data.
  * \param status     Passed back status of API call.
  */
+MOAB_EXPORT
 void
 mhdf_readNodeCoord( hid_t data_handle,
                     long offset,
@@ -822,6 +851,7 @@ mhdf_readNodeCoord( hid_t data_handle,
                     int dimension,
                     double* coords,
                     mhdf_Status* status );
+MOAB_EXPORT
 void
 mhdf_readNodeCoordWithOpt( hid_t data_handle,
                     long offset,
@@ -862,6 +892,7 @@ mhdf_readNodeCoordWithOpt( hid_t data_handle,
  *                     passed to \ref mhdf_createFile .
  * \param status     Passed back status of API call.
  */
+MOAB_EXPORT
 void
 mhdf_addElement( mhdf_FileHandle file_handle,
                  const char* elem_handle,
@@ -888,6 +919,7 @@ mhdf_addElement( mhdf_FileHandle file_handle,
  *                       single memory block and should be freed
  *                       with <em>one</em> call to free().
  */
+MOAB_EXPORT
 char**
 mhdf_getElemHandles( mhdf_FileHandle file_handle,
                      unsigned int* count_out,
@@ -905,6 +937,7 @@ mhdf_getElemHandles( mhdf_FileHandle file_handle,
  * \param buf_len     The length of <code>buffer</code>.
  * \param status      Passed back status of API call.
  */
+MOAB_EXPORT
 void
 mhdf_getElemTypeName( mhdf_FileHandle file_handle,
                       const char* elem_handle,
@@ -922,6 +955,7 @@ mhdf_getElemTypeName( mhdf_FileHandle file_handle,
  * \return Zero if normal fixed-connectivity element data.  Non-zero if
  *         poly(gon/hedron) general-connectivity data.
  */
+MOAB_EXPORT
 int
 mhdf_isPolyElement( mhdf_FileHandle file_handle,
                     const char* elem_handle,
@@ -949,6 +983,7 @@ mhdf_isPolyElement( mhdf_FileHandle file_handle,
  * \param status      Passed back status of API call.
  * \return The HDF5 handle to the connectivity data.
  */
+MOAB_EXPORT
 hid_t 
 mhdf_createConnectivity( mhdf_FileHandle file_handle,
                          const char* elem_handle,
@@ -983,6 +1018,7 @@ mhdf_createConnectivity( mhdf_FileHandle file_handle,
  * \param status      Passed back status of API call.
  * \return The HDF5 handle to the connectivity data.
  */
+MOAB_EXPORT
 hid_t
 mhdf_openConnectivity( mhdf_FileHandle file_handle,
                        const char* elem_handle,
@@ -991,6 +1027,7 @@ mhdf_openConnectivity( mhdf_FileHandle file_handle,
                        long* first_elem_id_out,
                        mhdf_Status* status );
 
+MOAB_EXPORT
 hid_t
 mhdf_openConnectivitySimple( mhdf_FileHandle file_handle, 
                              const char* elem_handle,
@@ -1013,6 +1050,7 @@ mhdf_openConnectivitySimple( mhdf_FileHandle file_handle,
  * \param node_id_list Interleaved connectivity data specified as global node IDs.
  * \param status       Passed back status of API call.
  */
+MOAB_EXPORT
 void
 mhdf_writeConnectivity( hid_t data_handle,
                         long offset,
@@ -1020,6 +1058,7 @@ mhdf_writeConnectivity( hid_t data_handle,
                         hid_t hdf_integer_type,
                         const void* node_id_list,
                         mhdf_Status* status );
+MOAB_EXPORT
 void
 mhdf_writeConnectivityWithOpt( hid_t data_handle,
                         long offset,
@@ -1046,6 +1085,7 @@ mhdf_writeConnectivityWithOpt( hid_t data_handle,
  *                     connectivity data specified as global node IDs.
  * \param status       Passed back status of API call.
  */
+MOAB_EXPORT
 void 
 mhdf_readConnectivity( hid_t data_handle,
                        long offset,
@@ -1053,6 +1093,7 @@ mhdf_readConnectivity( hid_t data_handle,
                        hid_t hdf_integer_type,
                        void* node_id_list,
                        mhdf_Status* status );
+MOAB_EXPORT
 void 
 mhdf_readConnectivityWithOpt( hid_t data_handle,
                        long offset,
@@ -1096,6 +1137,7 @@ mhdf_readConnectivityWithOpt( hid_t data_handle,
  *                     connectivity list, respectively.
  * \param status       Passed back status of API call.
  */
+MOAB_EXPORT
 void
 mhdf_createPolyConnectivity( mhdf_FileHandle file_handle,
                              const char* elem_handle,
@@ -1136,6 +1178,7 @@ mhdf_createPolyConnectivity( mhdf_FileHandle file_handle,
  *                     connectivity list, respectively.
  * \param status       Passed back status of API call.
  */
+MOAB_EXPORT
 void
 mhdf_openPolyConnectivity( mhdf_FileHandle file_handle,
                            const char* elem_handle,
@@ -1172,6 +1215,7 @@ mhdf_openPolyConnectivity( mhdf_FileHandle file_handle,
  * \param index_list   The index list for the polys.
  * \param status       Passed back status of API call.
  */
+MOAB_EXPORT
 void
 mhdf_writePolyConnIndices( hid_t poly_handle,
                            long offset,
@@ -1179,6 +1223,7 @@ mhdf_writePolyConnIndices( hid_t poly_handle,
                            hid_t hdf_integer_type,
                            const void* index_list,
                            mhdf_Status* status );
+MOAB_EXPORT
 void
 mhdf_writePolyConnIndicesWithOpt( hid_t poly_handle,
                            long offset,
@@ -1216,6 +1261,7 @@ mhdf_writePolyConnIndicesWithOpt( hid_t poly_handle,
  *                     of the polys.
  * \param status       Passed back status of API call.
  */
+MOAB_EXPORT
 void
 mhdf_writePolyConnIDs( hid_t poly_handle,
                        long offset,
@@ -1223,6 +1269,7 @@ mhdf_writePolyConnIDs( hid_t poly_handle,
                        hid_t hdf_integer_type,
                        const void* id_list,
                        mhdf_Status* status );
+MOAB_EXPORT
 void
 mhdf_writePolyConnIDsWithOpt( hid_t poly_handle,
                        long offset,
@@ -1257,6 +1304,7 @@ mhdf_writePolyConnIDsWithOpt( hid_t poly_handle,
  * \param index_list   The memory location at which to write the indices.
  * \param status       Passed back status of API call.
  */
+MOAB_EXPORT
 void 
 mhdf_readPolyConnIndices( hid_t poly_handle,
                           long offset,
@@ -1264,6 +1312,7 @@ mhdf_readPolyConnIndices( hid_t poly_handle,
                           hid_t hdf_integer_type,
                           void* index_list,
                           mhdf_Status* status );
+MOAB_EXPORT
 void 
 mhdf_readPolyConnIndicesWithOpt( hid_t poly_handle,
                           long offset,
@@ -1298,6 +1347,7 @@ mhdf_readPolyConnIndicesWithOpt( hid_t poly_handle,
  * \param id_list      The memory location at which to write the connectivity data.
  * \param status       Passed back status of API call.
  */
+MOAB_EXPORT
 void 
 mhdf_readPolyConnIDs( hid_t poly_handle,
                       long offset,
@@ -1305,6 +1355,7 @@ mhdf_readPolyConnIDs( hid_t poly_handle,
                       hid_t hdf_integer_type,
                       void* id_list,
                       mhdf_Status* status );
+MOAB_EXPORT
 void 
 mhdf_readPolyConnIDsWithOpt( hid_t poly_handle,
                       long offset,
@@ -1346,6 +1397,7 @@ mhdf_readPolyConnIDsWithOpt( hid_t poly_handle,
  * \param status       Passed back status of API call.
  * \return The HDF5 handle to the connectivity data.
  */
+MOAB_EXPORT
 hid_t
 mhdf_createAdjacency( mhdf_FileHandle file_handle,
                       const char* elem_handle,
@@ -1359,6 +1411,7 @@ mhdf_createAdjacency( mhdf_FileHandle file_handle,
  * \param elem_handle  A handle to an element group.  
  * \param status       Passed back status of API call.
  */
+MOAB_EXPORT
 int
 mhdf_haveAdjacency( mhdf_FileHandle file,
                     const char* elem_handle,
@@ -1384,6 +1437,7 @@ mhdf_haveAdjacency( mhdf_FileHandle file,
  * \param status       Passed back status of API call.
  * \return The HDF5 handle to the connectivity data.
  */
+MOAB_EXPORT
 hid_t
 mhdf_openAdjacency( mhdf_FileHandle file_handle,
                     const char* elem_handle,
@@ -1414,6 +1468,7 @@ mhdf_openAdjacency( mhdf_FileHandle file_handle,
  * \param adj_list_data Adjacency data to write.
  * \param status       Passed back status of API call.
  */
+MOAB_EXPORT
 void
 mhdf_writeAdjacency( hid_t data_handle,
                      long offset,
@@ -1421,6 +1476,7 @@ mhdf_writeAdjacency( hid_t data_handle,
                      hid_t hdf_integer_type,
                      const void* adj_list_data,
                      mhdf_Status* status );
+MOAB_EXPORT
 void
 mhdf_writeAdjacencyWithOpt( hid_t data_handle,
                      long offset,
@@ -1454,6 +1510,7 @@ mhdf_writeAdjacencyWithOpt( hid_t data_handle,
  * \param adj_list_data_out Pointer to memory at which to write adjacency data.
  * \param status       Passed back status of API call.
  */
+MOAB_EXPORT
 void
 mhdf_readAdjacency( hid_t data_handle,
                     long offset,
@@ -1461,6 +1518,7 @@ mhdf_readAdjacency( hid_t data_handle,
                     hid_t hdf_integer_type,
                     void* adj_list_data_out,
                     mhdf_Status* status );
+MOAB_EXPORT
 void
 mhdf_readAdjacencyWithOpt( hid_t data_handle,
                     long offset,
@@ -1560,6 +1618,7 @@ mhdf_readAdjacencyWithOpt( hid_t data_handle,
  * \param status       Passed back status of API call.
  *\return The handle to the set meta-data table.  
  */
+MOAB_EXPORT
 hid_t
 mhdf_createSetMeta( mhdf_FileHandle file_handle,
                     long num_sets,
@@ -1578,6 +1637,7 @@ mhdf_createSetMeta( mhdf_FileHandle file_handle,
  * \param status       Passed back status of API call.
  *\return Zero if the file does not contain any sets, one if it does.
  */
+MOAB_EXPORT
 int
 mhdf_haveSets( mhdf_FileHandle file,
                int* have_set_data_out,
@@ -1598,12 +1658,14 @@ mhdf_haveSets( mhdf_FileHandle file,
  * \param status       Passed back status of API call.
  *\return The handle to the set meta-data table.  
  */
+MOAB_EXPORT
 hid_t
 mhdf_openSetMeta( mhdf_FileHandle file_handle,
                   long* num_sets_out,
                   long* first_set_id_out,
                   mhdf_Status* status );
 
+MOAB_EXPORT
 hid_t
 mhdf_openSetMetaSimple( mhdf_FileHandle file_handle, mhdf_Status* status );
 
@@ -1623,6 +1685,7 @@ mhdf_openSetMetaSimple( mhdf_FileHandle file_handle, mhdf_Status* status );
  * \param status       Passed back status of API call.
  *\param set_desc_data The memory location at which to write the data.
  */
+MOAB_EXPORT
 void
 mhdf_readSetMeta( hid_t data_handle,
                   long offset,
@@ -1630,6 +1693,7 @@ mhdf_readSetMeta( hid_t data_handle,
                   hid_t hdf_integer_type,
                   void* set_desc_data,  
                   mhdf_Status* status );
+MOAB_EXPORT
 void
 mhdf_readSetMetaWithOpt( hid_t data_handle,
                   long offset,
@@ -1650,6 +1714,7 @@ mhdf_readSetMetaWithOpt( hid_t data_handle,
  *\param set_flag_data Array of integers.
  *\param status      Location at which to store status of API call.
  */
+MOAB_EXPORT
 void
 mhdf_readSetFlags( hid_t data_handle,
                    long offset,
@@ -1657,6 +1722,7 @@ mhdf_readSetFlags( hid_t data_handle,
                    hid_t hdf_integer_type,
                    void* set_flag_data,
                    mhdf_Status* status );
+MOAB_EXPORT
 void
 mhdf_readSetFlagsWithOpt( hid_t data_handle,
                    long offset,
@@ -1682,6 +1748,7 @@ mhdf_readSetFlagsWithOpt( hid_t data_handle,
  *\param end_indices_out Array of indices.
  *\param status      Location at which to store status of API call.
  */
+MOAB_EXPORT
 void
 mhdf_readSetContentEndIndices( hid_t data_handle,
                                long offset,
@@ -1689,6 +1756,7 @@ mhdf_readSetContentEndIndices( hid_t data_handle,
                                hid_t hdf_integer_type,
                                void* end_indices_out,
                                mhdf_Status* status );
+MOAB_EXPORT
 void
 mhdf_readSetContentEndIndicesWithOpt( hid_t data_handle,
                                long offset,
@@ -1713,6 +1781,7 @@ mhdf_readSetContentEndIndicesWithOpt( hid_t data_handle,
  *\param end_indices_out Array of indices.
  *\param status      Location at which to store status of API call.
  */
+MOAB_EXPORT
 void
 mhdf_readSetChildEndIndices( hid_t data_handle,
                              long offset,
@@ -1720,6 +1789,7 @@ mhdf_readSetChildEndIndices( hid_t data_handle,
                              hid_t hdf_integer_type,
                              void* end_indices_out,
                              mhdf_Status* status );
+MOAB_EXPORT
 void
 mhdf_readSetChildEndIndicesWithOpt( hid_t data_handle,
                              long offset,
@@ -1744,6 +1814,7 @@ mhdf_readSetChildEndIndicesWithOpt( hid_t data_handle,
  *\param end_indices_out Array of indices.
  *\param status      Location at which to store status of API call.
  */
+MOAB_EXPORT
 void
 mhdf_readSetParentEndIndices( hid_t data_handle,
                               long offset,
@@ -1751,6 +1822,7 @@ mhdf_readSetParentEndIndices( hid_t data_handle,
                               hid_t hdf_integer_type,
                               void* end_indices_out,
                               mhdf_Status* status );
+MOAB_EXPORT
 void
 mhdf_readSetParentEndIndicesWithOpt( hid_t data_handle,
                               long offset,
@@ -1777,6 +1849,7 @@ mhdf_readSetParentEndIndicesWithOpt( hid_t data_handle,
  *\param set_desc_data The data to write.
  * \param status       Passed back status of API call.
  */
+MOAB_EXPORT
 void
 mhdf_writeSetMeta( hid_t data_handle,
                    long offset,
@@ -1784,6 +1857,7 @@ mhdf_writeSetMeta( hid_t data_handle,
                    hid_t hdf_integer_type,
                    const void* set_desc_data,  
                    mhdf_Status* status );
+MOAB_EXPORT
 void
 mhdf_writeSetMetaWithOpt( hid_t data_handle,
                    long offset,
@@ -1808,6 +1882,7 @@ mhdf_writeSetMetaWithOpt( hid_t data_handle,
  *\param status      Passed back status of API call.
  *\return A handle to the table.
  */
+MOAB_EXPORT
 hid_t
 mhdf_createSetData( mhdf_FileHandle file_handle,
                     long data_list_size,
@@ -1827,6 +1902,7 @@ mhdf_createSetData( mhdf_FileHandle file_handle,
  *\param status             Passed back status of API call.
  *\return                   A handle to the table.
  */
+MOAB_EXPORT
 hid_t
 mhdf_openSetData( mhdf_FileHandle file_handle,
                   long* data_list_size_out,
@@ -1852,6 +1928,7 @@ mhdf_openSetData( mhdf_FileHandle file_handle,
  *\param set_data    The data to write.
  *\param status      Passed back status of API call.
  */
+MOAB_EXPORT
 void
 mhdf_writeSetData( hid_t set_handle,
                    long offset,
@@ -1859,6 +1936,7 @@ mhdf_writeSetData( hid_t set_handle,
                    hid_t hdf_integer_type,
                    const void* set_data,
                    mhdf_Status* status );
+MOAB_EXPORT
 void
 mhdf_writeSetDataWithOpt( hid_t set_handle,
                    long offset,
@@ -1888,6 +1966,7 @@ mhdf_writeSetDataWithOpt( hid_t set_handle,
  *\param set_data    A pointer to memory at which to store the read data.
  *\param status      Passed back status of API call.
  */
+MOAB_EXPORT
 void
 mhdf_readSetData( hid_t set_handle,
                   long offset,
@@ -1895,6 +1974,7 @@ mhdf_readSetData( hid_t set_handle,
                   hid_t hdf_integer_type,
                   void* set_data,
                   mhdf_Status* status );
+MOAB_EXPORT
 void
 mhdf_readSetDataWithOpt( hid_t set_handle,
                   long offset,
@@ -1918,6 +1998,7 @@ mhdf_readSetDataWithOpt( hid_t set_handle,
  *\param status           Passed back status of API call.
  *\return A handle to the data object in the file.
  */
+MOAB_EXPORT
 hid_t
 mhdf_createSetChildren( mhdf_FileHandle file_handle,
                         long child_list_size,
@@ -1935,6 +2016,7 @@ mhdf_createSetChildren( mhdf_FileHandle file_handle,
  *\param status           Passed back status of API call.
  *\return A handle to the data object in the file.
  */
+MOAB_EXPORT
 hid_t
 mhdf_openSetChildren( mhdf_FileHandle file_handle,
                       long* child_list_size,
@@ -1954,6 +2036,7 @@ mhdf_openSetChildren( mhdf_FileHandle file_handle,
  *\param status            Passed back status of API call.
  *\return A handle to the data object in the file.
  */
+MOAB_EXPORT
 hid_t
 mhdf_createSetParents( mhdf_FileHandle file_handle,
                        long parent_list_size,
@@ -1971,6 +2054,7 @@ mhdf_createSetParents( mhdf_FileHandle file_handle,
  *\param status            Passed back status of API call.
  *\return A handle to the data object in the file.
  */
+MOAB_EXPORT
 hid_t
 mhdf_openSetParents( mhdf_FileHandle file_handle,
                      long* parent_list_size,
@@ -1993,6 +2077,7 @@ mhdf_openSetParents( mhdf_FileHandle file_handle,
  *\param id_list     The data to write.
  *\param status      Passed back status of API call.
  */
+MOAB_EXPORT
 void
 mhdf_writeSetParentsChildren( hid_t data_handle,
                               long offset,
@@ -2000,6 +2085,7 @@ mhdf_writeSetParentsChildren( hid_t data_handle,
                               hid_t hdf_integer_type,
                               const void* id_list,
                               mhdf_Status* status );
+MOAB_EXPORT
 void
 mhdf_writeSetParentsChildrenWithOpt( hid_t data_handle,
                               long offset,
@@ -2026,6 +2112,7 @@ mhdf_writeSetParentsChildrenWithOpt( hid_t data_handle,
  *\param id_list     Pointer to memory in which to the read data.
  *\param status      Passed back status of API call.
  */
+MOAB_EXPORT
 void
 mhdf_readSetParentsChildren( hid_t data_handle,
                              long offset,
@@ -2033,6 +2120,7 @@ mhdf_readSetParentsChildren( hid_t data_handle,
                              hid_t hdf_integer_type,
                              void* id_list,
                              mhdf_Status* status );
+MOAB_EXPORT
 void
 mhdf_readSetParentsChildrenWithOpt( hid_t data_handle,
                              long offset,
@@ -2100,6 +2188,7 @@ mhdf_readSetParentsChildrenWithOpt( hid_t data_handle,
  *\param status       Passed back status of API call.
  *\return             The converted type.
  */
+MOAB_EXPORT
 hid_t
 mhdf_getNativeType( hid_t input_type,
                     int size,
@@ -2132,6 +2221,7 @@ mhdf_getNativeType( hid_t input_type,
  *                      used to specify the input data type for mhdf_ENTITY_ID
  *                      tags.  
  */
+MOAB_EXPORT
 void
 mhdf_createTag( mhdf_FileHandle file_handle,
                 const char* tag_name,
@@ -2145,6 +2235,7 @@ mhdf_createTag( mhdf_FileHandle file_handle,
                 mhdf_Status* status );
 
 /**\brief Get handle to HDF5 type object for tag data */
+MOAB_EXPORT
 hid_t
 mhdf_getTagDataType( mhdf_FileHandle file_handle, 
                      const char* tag_name, 
@@ -2176,6 +2267,7 @@ mhdf_getTagDataType( mhdf_FileHandle file_handle,
  *                      used to specify the input data type for mhdf_ENTITY_ID
  *                      tags.  
  */
+MOAB_EXPORT
 void
 mhdf_createVarLenTag( mhdf_FileHandle file_handle,
                       const char* tag_name,
@@ -2196,6 +2288,7 @@ mhdf_createVarLenTag( mhdf_FileHandle file_handle,
  *\param status        Passed back status of API call.
  *\return The number of tags.
  */
+MOAB_EXPORT
 int
 mhdf_getNumberTags( mhdf_FileHandle file_handle,
                     mhdf_Status* status );
@@ -2210,6 +2303,7 @@ mhdf_getNumberTags( mhdf_FileHandle file_handle,
  *        The caller should release this memory by calling 
  *        <code>free</code> for each string and the array.
  */                 
+MOAB_EXPORT
 char**
 mhdf_getTagNames( mhdf_FileHandle file_handle,
                   int* num_names_out,
@@ -2234,6 +2328,7 @@ mhdf_getTagNames( mhdf_FileHandle file_handle,
  *\param have_global_out  Non-zero if the file contains a global/mesh value for the tag.
  *\param have_sparse_out  Non-zero if the file contains a sparse data table for this tag.
  */
+MOAB_EXPORT
 void
 mhdf_getTagInfo( mhdf_FileHandle file_handle,
                  const char* tag_name,
@@ -2260,6 +2355,7 @@ mhdf_getTagInfo( mhdf_FileHandle file_handle,
  *                        at which to write that value.
  *\param status           Passed back status of API call.
  */
+MOAB_EXPORT
 void
 mhdf_getTagValues( mhdf_FileHandle file_handle,
                    const char* tag_name,
@@ -2281,6 +2377,7 @@ mhdf_getTagValues( mhdf_FileHandle file_handle,
  *\param status       Passed back status of API call.
  *\return Non-zero if file contains specified data.  Zero otherwise.
  */
+MOAB_EXPORT
 int
 mhdf_haveDenseTag( mhdf_FileHandle file_handle,
                    const char* tag_name,
@@ -2301,6 +2398,7 @@ mhdf_haveDenseTag( mhdf_FileHandle file_handle,
  *\param status       Passed back status of API call.
  *\return             Handle to data object in file.
  */
+MOAB_EXPORT
 hid_t
 mhdf_createDenseTagData( mhdf_FileHandle file_handle,
                          const char* tag_name,
@@ -2320,6 +2418,7 @@ mhdf_createDenseTagData( mhdf_FileHandle file_handle,
  *\param status         Passed back status of API call.
  *\return               Handle to data object in file.
  */
+MOAB_EXPORT
 hid_t
 mhdf_openDenseTagData( mhdf_FileHandle file_handle,
                        const char* tag_name,
@@ -2342,6 +2441,7 @@ mhdf_openDenseTagData( mhdf_FileHandle file_handle,
  *                      is the list of corresponding tag values.  
  *\param status         Passed back status of API call.
  */
+MOAB_EXPORT
 void
 mhdf_createSparseTagData( mhdf_FileHandle file_handle,
                           const char* tag_name,
@@ -2368,6 +2468,7 @@ mhdf_createSparseTagData( mhdf_FileHandle file_handle,
  *                      is the handle to the index table.
  *\param status         Passed back status of API call.
  */
+MOAB_EXPORT
 void
 mhdf_createVarLenTagData( mhdf_FileHandle file_handle,
                           const char* tag_name,
@@ -2400,6 +2501,7 @@ mhdf_createVarLenTagData( mhdf_FileHandle file_handle,
  *                      value is not set.
  *\param status         Passed back status of API call.
  */
+MOAB_EXPORT
 void
 mhdf_openSparseTagData( mhdf_FileHandle file_handle,
                         const char* tag_name,
@@ -2422,6 +2524,7 @@ mhdf_openSparseTagData( mhdf_FileHandle file_handle,
  *\param id_list     The list of global IDs to write.
  *\param status      Passed back status of API call.
  */
+MOAB_EXPORT
 void
 mhdf_writeSparseTagEntities( hid_t id_handle,
                              long offset,
@@ -2429,6 +2532,7 @@ mhdf_writeSparseTagEntities( hid_t id_handle,
                              hid_t hdf_integer_type,
                              const void* id_list,
                              mhdf_Status* status );
+MOAB_EXPORT
 void
 mhdf_writeSparseTagEntitiesWithOpt( hid_t id_handle,
                              long offset,
@@ -2456,6 +2560,7 @@ mhdf_writeSparseTagEntitiesWithOpt( hid_t id_handle,
  *\param tag_data      The list of tag values to write.
  *\param status        Passed back status of API call.
  */
+MOAB_EXPORT
 void
 mhdf_writeTagValues( hid_t value_handle,
                      long offset,
@@ -2463,6 +2568,7 @@ mhdf_writeTagValues( hid_t value_handle,
                      hid_t hdf_tag_data_type,
                      const void* tag_data,
                      mhdf_Status* status );
+MOAB_EXPORT
 void
 mhdf_writeTagValuesWithOpt( hid_t value_handle,
                      long offset,
@@ -2486,6 +2592,7 @@ mhdf_writeTagValuesWithOpt( hid_t value_handle,
  *\param end_indices  The values to store in the table.
  *\param status       Output: API result.
  */
+MOAB_EXPORT
 void 
 mhdf_writeSparseTagIndices( hid_t tag_handle,
                             long offset,
@@ -2493,6 +2600,7 @@ mhdf_writeSparseTagIndices( hid_t tag_handle,
                             hid_t hdf_integer_type,
                             const void* end_indices,
                             mhdf_Status* status );
+MOAB_EXPORT
 void 
 mhdf_writeSparseTagIndicesWithOpt( hid_t tag_handle,
                             long offset,
@@ -2516,6 +2624,7 @@ mhdf_writeSparseTagIndicesWithOpt( hid_t tag_handle,
  *\param id_list     The memory location at which to store the global IDs.
  *\param status      Passed back status of API call.
  */
+MOAB_EXPORT
 void
 mhdf_readSparseTagEntities( hid_t id_handle,
                             long offset,
@@ -2523,6 +2632,7 @@ mhdf_readSparseTagEntities( hid_t id_handle,
                             hid_t hdf_integer_type,
                             void* id_list,
                             mhdf_Status* status );
+MOAB_EXPORT
 void
 mhdf_readSparseTagEntitiesWithOpt( hid_t id_handle,
                             long offset,
@@ -2548,6 +2658,7 @@ mhdf_readSparseTagEntitiesWithOpt( hid_t id_handle,
  *\param memory     Memory location at which to store tag values.
  *\param status     Passed back status of API call.
  */
+MOAB_EXPORT
 void
 mhdf_readTagValues( hid_t value_handle,
                     long offset,
@@ -2555,6 +2666,7 @@ mhdf_readTagValues( hid_t value_handle,
                     hid_t hdf_type,
                     void* memory,
                     mhdf_Status* status );
+MOAB_EXPORT
 void
 mhdf_readTagValuesWithOpt( hid_t value_handle,
                     long offset,
@@ -2579,6 +2691,7 @@ mhdf_readTagValuesWithOpt( hid_t value_handle,
  *\param end_indices  Memory in which to store the data read from the table.
  *\param status       Output: API result.
  */
+MOAB_EXPORT
 void 
 mhdf_readSparseTagIndices( hid_t tag_handle,
                            long offset,
@@ -2586,6 +2699,7 @@ mhdf_readSparseTagIndices( hid_t tag_handle,
                            hid_t hdf_integer_type,
                            void* end_indices,
                            mhdf_Status* status );
+MOAB_EXPORT
 void 
 mhdf_readSparseTagIndicesWithOpt( hid_t tag_handle,
                            long offset,
