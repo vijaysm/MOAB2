@@ -13,13 +13,15 @@ if ( CGM_FOUND )
 endif( )
 
 add_library( dagmc DagMC.hpp DagMC.cpp )
+include(GenerateExportHeader)
+generate_export_header(dagmc)
 target_link_libraries( dagmc  MOAB)
 install(TARGETS dagmc EXPORT MOABTargets
                       RUNTIME DESTINATION bin
                       LIBRARY DESTINATION lib
                       ARCHIVE DESTINATION lib )
 set( MOAB_INSTALL_TARGETS ${MOAB_INSTALL_TARGETS} dagmc)
-install( FILES DagMC.hpp DESTINATION include )
+install( FILES DagMC.hpp ${CMAKE_CURRENT_BINARY_DIR}/dagmc_export.h DESTINATION include )
 
 
 

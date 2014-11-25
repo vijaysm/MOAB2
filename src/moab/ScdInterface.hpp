@@ -3,6 +3,8 @@
 #ifndef SCD_INTERFACE
 #define SCD_INTERFACE
 
+#include "moab_export.h"
+
 #include "moab/Interface.hpp"
 #include "moab/HomXform.hpp"
 
@@ -101,7 +103,7 @@ class ParallelComm;
 */
 
       //! struct for keeping parallel data in one place
-class ScdParData {
+class MOAB_EXPORT ScdParData {
 public:
   ScdParData() : partMethod(NOPART), pComm(NULL) {
     gDims[0] = gDims[1] = gDims[2] = gDims[3] = gDims[4] = gDims[5] = 0;
@@ -133,7 +135,7 @@ public:
   ParallelComm *pComm;
 };
   
-class ScdInterface 
+class MOAB_EXPORT ScdInterface 
 {
 public:
   friend class ScdBox;
@@ -410,7 +412,7 @@ private:
   
 };
 
-class ScdBox 
+class MOAB_EXPORT ScdBox 
 {
   friend class ScdInterface;
   

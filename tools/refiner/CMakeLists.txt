@@ -18,6 +18,7 @@ include_directories(
     ${MOAB_SOURCE_DIR}/src
     ${MOAB_SOURCE_DIR}/src/parallel
     ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 set_source_files_properties(
@@ -29,6 +30,8 @@ add_library( MOABrefiner
   ${MOAB_REFINER_SRCS}
   )
 target_link_libraries( MOABrefiner MOAB )
+include(GenerateExportHeader)
+generate_export_header(MOABrefiner)
 if ( MOAB_HAVE_MPI )
   target_link_libraries( MOABrefiner ${MPI_LIBRARIES} )
 endif ( MOAB_HAVE_MPI )

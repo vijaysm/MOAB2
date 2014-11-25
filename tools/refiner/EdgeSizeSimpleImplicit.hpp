@@ -30,11 +30,13 @@
 #ifndef MOAB_EDGE_SIZE_SIMPLE_IMPLICIT_HPP
 #define MOAB_EDGE_SIZE_SIMPLE_IMPLICIT_HPP
 
+#include "moabrefiner_export.h"
+
 #include "EdgeSizeEvaluator.hpp"
 
 namespace moab {
 
-class EdgeSizeSimpleImplicit : public EdgeSizeEvaluator
+class MOABREFINER_EXPORT EdgeSizeSimpleImplicit : public EdgeSizeEvaluator
 {
 public:
   /// Construct an evaluator.

@@ -1,6 +1,8 @@
 #ifndef MOAB_PROGRAM_OPTIONS_H
 #define MOAB_PROGRAM_OPTIONS_H
 
+#include "moab_export.h"
+
 #include <vector>
 #include <map>
 #include <string>
@@ -37,7 +39,7 @@ class ProgOpt;
  * 
  * See the file dagmc_preproc.cpp in the dagmc directory for a real-world example.
  */
-class ProgOptions{
+class MOAB_EXPORT ProgOptions{
 
 public:
 

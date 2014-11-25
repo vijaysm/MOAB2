@@ -1,6 +1,8 @@
 #ifndef READ_PARALLEL_HPP
 #define READ_PARALLEL_HPP
 
+#include "moab_export.h"
+
 #include "moab/Forward.hpp"
 #include "moab/ReaderIface.hpp"
 #include "DebugOutput.hpp"
@@ -13,7 +15,7 @@ class ReadUtilIface;
 class ParallelComm;
 class Error;
 
-class ReadParallel
+class MOAB_EXPORT ReadParallel
 {
    
 public:

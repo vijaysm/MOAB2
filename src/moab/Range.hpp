@@ -164,6 +164,8 @@
 #ifndef MOAB_RANGE_HPP
 #define MOAB_RANGE_HPP
 
+#include "moab_export.h"
+
 #include <iterator>
 #include <iosfwd>
 #include <algorithm>
@@ -184,7 +186,7 @@ struct range_base_iter
 
 
 //! the class Range
-class Range
+class MOAB_EXPORT Range
 {
 public:
 
@@ -701,9 +703,11 @@ public:
 
  
     //! intersect two ranges, placing the results in the return range
+MOAB_EXPORT
 Range intersect( const Range&, const Range& );
 
     //! subtract range2 from this, placing the results in the return range
+MOAB_EXPORT
 Range subtract( const Range& from, const Range& );
 
     //! unite two ranges, placing the results in the return range
@@ -829,6 +833,7 @@ inline const EntityHandle& Range::back() const
 inline std::ostream& operator<<( std::ostream& s, const Range& r )
   { r.print(s); return s; }
   
+MOAB_EXPORT
 bool operator==( const Range& r1, const Range& r2 );
 inline bool operator!=( const Range& r1, const Range& r2 )
   { return !(r1 == r2); }

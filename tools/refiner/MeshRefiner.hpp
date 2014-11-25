@@ -26,7 +26,8 @@
 #ifndef MOAB_MESH_REFINER_HPP
 #define MOAB_MESH_REFINER_HPP
 
-#include "moab/MOABConfig.h"
+#include "moabrefiner_export.h"
+
 #include "moab/Compiler.hpp" // for MB_DLL_EXPORT
 #include "moab/Range.hpp"
 
@@ -40,7 +41,7 @@ class ParallelComm;
 class RefinerTagManager;
 class MeshOutputFunctor;
 
-class MeshRefiner
+class MOABREFINER_EXPORT MeshRefiner
 {
 public:
   MeshRefiner( Interface* imesh, Interface* omesh );

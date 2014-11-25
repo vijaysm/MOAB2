@@ -5,6 +5,8 @@
 #error "MB_MeshSet.hpp isn't supposed to be included into an application"
 #endif
 
+#include "moab_export.h"
+
 #include "moab/Interface.hpp"
 #include "Internals.hpp"
 #include "moab/Range.hpp"
@@ -22,7 +24,7 @@ class AEntityFactory;
 /** \brief Class to implement entity set functionality 
   * \author Jason Kraftcheck <kraftche@cae.wisc.edu>
   */
-class MeshSet
+class MOAB_EXPORT MeshSet
 {
 public:
 

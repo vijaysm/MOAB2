@@ -221,6 +221,10 @@ add_library( MOAB ${MOAB_LIB_SOURCES} ${MOAB_INSTALL_HEADERS} ${MOAB_GENERATED_I
                   $<TARGET_OBJECTS:moab_loc_discr>
                   ${MOABPAR_OBJECTS}
                   ${MDHF_OBJ} )
+include(GenerateExportHeader)
+generate_export_header(MOAB)
+list(APPEND MOAB_GENERATED_INSTALL_HEADERS
+  ${CMAKE_CURRENT_BINARY_DIR}/moab_export.h)
 
 target_link_libraries( MOAB ${MOAB_DEP_LIBRARIES} ${MOAB_LIBS} ${MOAB_CGM_LIBS} ${MPI_LIBRARIES} )
 set_target_properties( MOAB PROPERTIES COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}")

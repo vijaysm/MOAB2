@@ -6,6 +6,8 @@
 #ifndef MOAB_TREE_HPP
 #define MOAB_TREE_HPP
 
+#include "moab_export.h"
+
 #include "moab/Interface.hpp"
 #include "moab/BoundBox.hpp"
 #include "moab/CartVect.hpp"
@@ -23,7 +25,7 @@ namespace moab {
     class Range;
     class ElemEvaluator;
 
-    class Tree
+    class MOAB_EXPORT Tree
     {
   public:
         /** \brief Constructor (bare)

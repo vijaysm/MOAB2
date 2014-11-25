@@ -17,6 +17,8 @@
 #ifndef MOAB_PARALLEL_COMM_HPP
 #define MOAB_PARALLEL_COMM_HPP
 
+#include "moab_export.h"
+
 #include "moab/Forward.hpp"
 #include "moab/Interface.hpp"
 #include "moab/Range.hpp"
@@ -50,7 +52,7 @@ namespace moab {
    *  This class implements methods to communicate mesh between processors
    *
    */
-  class ParallelComm 
+  class MOAB_EXPORT ParallelComm 
   {
   public:
 
