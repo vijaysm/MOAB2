@@ -18,6 +18,8 @@
 #ifndef MOAB_GEOM_TOPO_TOOL_HPP
 #define MOAB_GEOM_TOPO_TOOL_HPP
 
+#include "moab_export.h"
+
 #include "moab/Forward.hpp"
 #include "moab/Range.hpp"
 #include "moab/OrientedBoxTreeTool.hpp"
@@ -31,7 +33,7 @@ namespace moab {
  * Tool for interpreting geometric topology sets in MOAB database; see MOAB metadata_info
  * document for information on how geometric topology sets are read and represented.
  */
-class GeomTopoTool
+class MOAB_EXPORT GeomTopoTool
 {
 public:
   GeomTopoTool(Interface *impl, bool find_geoments = false, EntityHandle modelRootSet = 0);

@@ -18,6 +18,8 @@
 #ifndef MOAB_SKINNER_HPP
 #define MOAB_SKINNER_HPP
 
+#include "moab_export.h"
+
 #include "moab/Forward.hpp"
 #include "moab/Range.hpp"
 #include <vector>
@@ -34,7 +36,7 @@ class ScdBox;
  * the skin, e.g. using geometric topology sets, vertex-entity adjacencies, or directly from
  * (n-1)-dimensional entities.
  */
-class Skinner 
+class MOAB_EXPORT Skinner 
 {
 
   enum direction{FORWARD=1, REVERSE=-1};

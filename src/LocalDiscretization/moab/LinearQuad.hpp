@@ -2,13 +2,15 @@
 #define LINEAR_QUAD_HPP
   /**\brief Shape function space for trilinear quadahedron, obtained by a pushforward of the canonical linear (affine) functions. */
 
+#include "moab_export.h"
+
 #include "moab/ElemEvaluator.hpp"
 #include "moab/CN.hpp"
 
 namespace moab 
 {
     
-class LinearQuad 
+class MOAB_EXPORT LinearQuad 
 {
 public:
     /** \brief Forward-evaluation of field at parametric coordinates */

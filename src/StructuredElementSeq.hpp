@@ -27,12 +27,14 @@
 // information about the vertex handles of vertices in the element.  Vertex and element
 // handles associated with the element are each contiguous.
 
+#include "moab_export.h"
+
 #include "ElementSequence.hpp"
 #include "ScdElementData.hpp"
 
 namespace moab {
 
-class StructuredElementSeq : public ElementSequence
+class MOAB_EXPORT StructuredElementSeq : public ElementSequence
 {
 public:
 

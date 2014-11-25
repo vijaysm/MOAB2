@@ -21,6 +21,8 @@
 #ifndef TQDCFR
 #define TQDCFR
 
+#include "moab_export.h"
+
 #include "moab/Forward.hpp"
 #include "moab/ReaderIface.hpp"
 #include "MBTagConventions.hpp"
@@ -42,7 +44,7 @@ class NodesetHeader;
 class SidesetHeader;
 
 
-class Tqdcfr : public ReaderIface
+class MOAB_EXPORT Tqdcfr : public ReaderIface
 {
 public:  
 

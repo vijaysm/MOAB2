@@ -30,6 +30,8 @@
 #ifndef MOAB_SPATIALLOCATOR_HPP
 #define MOAB_SPATIALLOCATOR_HPP
 
+#include "moab_export.h"
+
 #include "moab/Types.hpp"
 #include "moab/Tree.hpp"
 #include "moab/Range.hpp"
@@ -49,7 +51,7 @@ namespace moab {
     class ElemEvaluator;
     class ParallelComm;
 
-    class SpatialLocator
+    class MOAB_EXPORT SpatialLocator
     {
   public:
         /* constructor */

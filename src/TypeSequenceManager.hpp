@@ -1,6 +1,8 @@
 #ifndef TYPE_SEQUENCE_MANAGER_HPP
 #define TYPE_SEQUENCE_MANAGER_HPP
 
+#include "moab_export.h"
+
 #include "EntitySequence.hpp"
 #include "moab/Range.hpp"
 
@@ -18,7 +20,7 @@ class Error;
  * organization, owership, and querying of EntitySequences for a specific
  * EntityType.
  */
-class TypeSequenceManager
+class MOAB_EXPORT TypeSequenceManager
 {
 public:
   /**\brief Comparision function used in std::set

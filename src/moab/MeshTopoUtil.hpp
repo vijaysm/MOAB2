@@ -17,6 +17,8 @@
 #ifndef MOAB_MESH_TOPO_UTIL_HPP
 #define MOAB_MESH_TOPO_UTIL_HPP
 
+#include "moab_export.h"
+
 #include "moab/Forward.hpp"
 
 namespace moab {
@@ -27,7 +29,7 @@ namespace moab {
  *  \brief   MeshTopoUtil contains general mesh utility functions 
  *          
  */ 
-class MeshTopoUtil
+class MOAB_EXPORT MeshTopoUtil
 {
 public:
   MeshTopoUtil(Interface *impl) : mbImpl(impl) {}

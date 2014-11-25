@@ -6,6 +6,8 @@
 #ifndef BVH_TREE_HPP
 #define BVH_TREE_HPP
 
+#include "moab_export.h"
+
 #include "moab/Interface.hpp"
 #include "moab/CartVect.hpp"
 #include "moab/BoundBox.hpp"
@@ -24,7 +26,7 @@ namespace moab {
 
     class ElemEvaluator;
     
-    class BVHTree : public Tree {
+    class MOAB_EXPORT BVHTree : public Tree {
   public:
       BVHTree(Interface *impl);
 

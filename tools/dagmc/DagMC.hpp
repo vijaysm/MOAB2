@@ -1,6 +1,8 @@
 #ifndef MOABMC_HPP
 #define MOABMC_HPP
 
+#include "dagmc_export.h"
+
 #include "moab/Interface.hpp"
 #include "MBTagConventions.hpp"
 
@@ -52,7 +54,7 @@ class CartVect;
  *   2) DAG->setup_indices();
  */
 
-class DagMC
+class DAGMC_EXPORT DagMC
 {
 public:
   static DagMC *instance(Interface *mb_impl = NULL);
