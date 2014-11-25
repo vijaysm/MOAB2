@@ -44,12 +44,19 @@ if ( MOAB_HAVE_HDF5 )
 endif ( MOAB_HAVE_HDF5 )
 
 set_source_files_properties( ${moab_PARALLEL_SRCS}
-  COMPILE_FLAGS "-DIS_BUILDING_MB -DSRCDIR=\"${MOAB_SOURCE_DIR}\" ${MOAB_DEFINES}"
+  COMPILE_FLAGS "-DSRCDIR=\"${MOAB_SOURCE_DIR}\""
 )
 
 add_library(
   moabpar
-  OBJECT ${moab_PARALLEL_INSTALL_HDRS} ${MOAB_GENERATED_INSTALL_PHEADERS} ${moab_PARALLEL_SRCS}
+  OBJECT ${moab_PARALLEL_INSTALL_HDRS} ${MOAB_GENERATED_INSTALL_PHEADERS} ${moab_PARALLEL_SRCS})
+if (BUILD_SHARED_LIBS)
+  set(shared_define "-DIS_BUILDING_MB_SHARED")
+endif ()
+set_target_properties(
+  moabpar
+  PROPERTIES
+  COMPILE_FLAGS "${shared_define} -DIS_BUILDING_MB ${MOAB_DEFINES}"
   )
 
 include(AutoconfHeader)
