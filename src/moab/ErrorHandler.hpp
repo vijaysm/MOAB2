@@ -8,8 +8,8 @@
 
 namespace moab {
 
-//! ErrorType - passed to the error handling routines indicating if this is a new error (globally fatal
-//! or per-processor relevant) or an existing one
+//! ErrorType - passed to the error handling routines indicating whether this is a new error (globally
+//! fatal or per-processor relevant) to be created, or an existing one to be handled
 enum ErrorType {MB_ERROR_TYPE_NEW_GLOBAL = 0, MB_ERROR_TYPE_NEW_LOCAL = 1, MB_ERROR_TYPE_EXISTING = 2};
 
 //! Initialize MOAB error handler (e.g. create a utility object for printing error output)
@@ -24,7 +24,7 @@ bool MBErrorHandler_Initialized();
 //! Get information about the last error
 void MBErrorHandler_GetLastError(std::string& error);
 
-//! Routine that is called when an error has been detected
+//! Routine that is called to create a new error or handle an existing one
 ErrorCode MBError(int line, const char* func, const char* file, const char* dir,
                   ErrorCode err_code, const char* err_msg, ErrorType err_type);
 

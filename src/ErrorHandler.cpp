@@ -11,7 +11,6 @@
 namespace moab {
 
 static ErrorOutput* errorOutput = NULL;
-static bool hasError = false;
 static std::string lastError = "No error";
 
 void MBErrorHandler_Init()
@@ -20,7 +19,6 @@ void MBErrorHandler_Init()
     errorOutput = new (std::nothrow) ErrorOutput(stderr);
     assert(NULL != errorOutput);
     errorOutput->use_world_rank();
-    hasError = false;
   }
 }
 
@@ -29,7 +27,6 @@ void MBErrorHandler_Finalize()
   if (NULL != errorOutput) {
     delete errorOutput;
     errorOutput = NULL;
-    hasError = false;
   }
 }
 
@@ -55,20 +52,18 @@ void MBTraceBackErrorHandler(int line, const char* func, const char* file, const
     rank = errorOutput->get_rank();
 
   if (0 == rank) {
-    // Print the error messages if it is a new error
+    // Print the error message for a new error
     if (MB_ERROR_TYPE_EXISTING != err_type && NULL != err_msg) {
       errorOutput->print("--------------------- Error Message ------------------------------------\n");
       errorOutput->printf("%s!\n", err_msg);
-      hasError = true;
       lastError = err_msg;
     }
 
-    // Print a line of stack trace for a new error or an existing one
-    if (hasError)
-      errorOutput->printf("%s() line %d in %s%s\n", func, line, dir, file);
+    // Print a line of stack trace for a new error, or an existing one
+    errorOutput->printf("%s() line %d in %s%s\n", func, line, dir, file);
   }
   else {
-    // Do not print the error messages, since processor 0 will print them
+    // Do not print the error message or stack trace, since processor 0 will print them
     // Sleep 10 seconds before aborting so it will not accidently kill process 0
     sleep(10);
     abort();
@@ -77,6 +72,12 @@ void MBTraceBackErrorHandler(int line, const char* func, const char* file, const
 
 ErrorCode MBError(int line, const char* func, const char* file, const char* dir, ErrorCode err_code, const char* err_msg, ErrorType err_type)
 {
+  // When this routine is called to handle an existing error (instead of creating a new one),
+  // we need to check if the returned non-success result from a function might be a non-error
+  // condition. If no last error message was ever set, just return the given error code.
+  if (MB_ERROR_TYPE_EXISTING == err_type && "No error" == lastError)
+    return err_code;
+
   MBTraceBackErrorHandler(line, func, file, dir, err_msg, err_type);
 
 #ifdef USE_MPI
