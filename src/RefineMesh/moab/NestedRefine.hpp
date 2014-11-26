@@ -14,7 +14,7 @@ namespace moab
 #define MAX_HF 12
 #define MAX_CONN 8
 #define MAX_VHF 20
-#define MAX_LEVELS 10
+#define MAX_LEVELS 20
 
 
   class Core;
@@ -33,19 +33,55 @@ namespace moab
     //1st class: Basic functionalities
 
     /* Generate a hierarchy of meshes from the input mesh.
-     * level is a sequence of degrees used for each level in the hierarchy. There is no upper bound on the number of levels.
+     * level is a sequence of degrees used for each level in the hierarchy. The upper bound on the number of levels is set to 20.
      * However, in practice, maximum of 5 or 6 levels are used.
      */
+
+    //! Generate a mesh hierarchy.
+    /** Given a mesh in memory, generate a sequence of meshes via uniform refinement of the entire mesh.
+       *  it performs a set intersection to gather all the edges of the given face.
+       *
+       * \param level_degrees Integer array storing the degrees used in each level.
+       * \param num_level The total number of levels in the hierarchy.
+       * \param hm_set EntityHandle array that returns the handles of the sets created for each mesh level.
+      */
+
     ErrorCode generate_mesh_hierarchy(int *level_degrees, int num_level, EntityHandle *hm_set);
+
+    //! Given an entity and its level, return its connectivity.
+    /** Given an entity at a certain level, it finds the connectivity via direct access to a stored internal pointer to the memory to connectivity sequence for the given level.
+       * \param ent EntityHandle of the entity
+       * \param level Integer level of the entity for which connectivity is requested
+       * \param conn std::vector returning the connectivity of the entity
+      */
+
     ErrorCode get_connectivity(EntityHandle ent, int level, std::vector<EntityHandle> &conn);
-    ErrorCode get_coordinates(std::vector<EntityHandle> &verts, int num_verts,  int cur_level, double *coords);
+
+    //! Given a vector of vertices and their level, return its coordinates.
+    /** Given a vector of vertices at a certain level, it finds the coordinates via direct access to a stored internal pointer to the memory to coordinate sequence for the given level.
+       * \param verts std::vector of the entity handles of the vertices
+       * \param num_verts The number of vertices
+       * \param level Integer level of the entity for which connectivity is requested
+       * \param coords double pointer returning the coordinates of the vertices
+      */
+
+    ErrorCode get_coordinates(EntityHandle *verts, int num_verts,  int level, double *coords);
+
+    //! Get the adjacencies associated with an entity.
+    /** Given an entity of dimension <em>d</em>, gather all the adjacent <em>D</em> dimensional entities where <em>D >, = , < d </em>.
+       *
+       * \param source_entity EntityHandle to which adjacent entities have to be found.
+       * \param target_dimension Int Dimension of the desired adjacent entities.
+       * \param target_entities Vector in which the adjacent EntityHandle are returned.
+       */
 
     ErrorCode get_adjacencies(const EntityHandle source_entity,
                               const unsigned int target_dimension,
-                              std::vector<EntityHandle> &target_entities); // Called directly from the AHF class
+                              std::vector<EntityHandle> &target_entities);
 
-    //ErrorCode tag_get_data(); // Get meta data for the new levels
-    //ErrorCode tag_set_data(); // Set meta data for the new levels
+    ErrorCode child_to_parent(EntityHandle child, int child_level, int parent_level, int *level_degrees, EntityHandle *parent);
+    ErrorCode parent_to_child(EntityHandle parent, int parent_level, int child_level,  int *level_degrees, std::vector<EntityHandle> &children);
+  //  ErrorCode vertex_to_entities(EntityHandle vertex, int level, EntityHandle *parent, double *nat_coords);
 
   protected:
     Core *mbImpl;
