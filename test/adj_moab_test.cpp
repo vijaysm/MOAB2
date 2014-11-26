@@ -11,7 +11,6 @@
 #ifdef USE_MPI
 #include "moab/ParallelComm.hpp"
 #include "MBParallelConventions.h"
-#include "ReadParallel.hpp"
 #include "moab/FileOptions.hpp"
 #include "MBTagConventions.hpp"
 #include "moab_mpi.h"

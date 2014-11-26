@@ -1733,6 +1733,9 @@ ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg)
 
           //Get the order of children indices incident on this half-face
           int *id_sib = new int[nch];
+          for (int k=0; k<nch; k++)
+            id_sib[k] = 0;
+
           error = reorder_indices(cur_level, deg, ent, l, sib_entids[l], sib_lids[l], 1, id_sib);
           if (error != MB_SUCCESS) return error;
 
@@ -2215,8 +2218,11 @@ ErrorCode NestedRefine::reorder_indices(int cur_level, int deg, EntityHandle cel
             }
         }
 
+      if (c>nco)
+        std::cout<<"what happened ?"<<std::endl;
+
       //Get the ordered indices
-      if (((!index)&&(nvF==4)&&(deg==3))||(deg==2))
+      if (((!index)&&(nvF==4)&&(deg==3)) || (deg==2))
         {
           for (int i=0; i<4; i++)
             id_sib[i] = permutation[nvF-3].porder2[c][i];

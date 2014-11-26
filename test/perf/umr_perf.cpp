@@ -14,7 +14,6 @@
 #ifdef USE_MPI
 #include "moab/ParallelComm.hpp"
 #include "MBParallelConventions.h"
-#include "ReadParallel.hpp"
 #include "moab/FileOptions.hpp"
 #include "MBTagConventions.hpp"
 #include "moab_mpi.h"
@@ -298,15 +297,15 @@ int main(int argc, char *argv[])
     const char* filename = 0;
 #ifdef MESHDIR
  #ifdef HDF5_FILE
-    filename = STRINGIFY(MESHDIR) "/hex_2048.h5m";
+    filename = STRINGIFY(MESHDIR) "/quad_1000.h5m";
  #else
-    filename = STRINGIFY(MESHDIR) "/hex_2048.vtk";
+    filename = STRINGIFY(MESHDIR) "/quad_1000.vtk";
  #endif
 #else
  #ifdef HDF5_FILE
-    filename = "hex_2048.h5m";
+    filename = "quad_1000.h5m";
  #else
-    filename = "hex_2048.vtk";
+    filename = "quad_1000.vtk";
  #endif
 #endif
 
