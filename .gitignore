@@ -1,3 +1,5 @@
+config/ar-lib
+*.trs
 *~
 *.a
 aclocal.m4
