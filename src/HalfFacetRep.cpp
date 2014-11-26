@@ -2158,7 +2158,7 @@ namespace moab {
     if (orient)
       adj_orients->push_back(1);
 
-    std::vector<EntityHandle> conn(nvpc);
+    std::vector<EntityHandle> conn;
     error =mb->get_connectivity(&cid, 1, conn);
     if (MB_SUCCESS != error) return error;
 
@@ -2193,7 +2193,7 @@ namespace moab {
 	  if ((cur_cell == cid) || ( cur_cell==0))
 	    break;
 	  
-	  std::vector<EntityHandle> sib_conn(nvpc);
+	  std::vector<EntityHandle> sib_conn;
 	  error =mb->get_connectivity(&cur_cell, 1, sib_conn);
 	  if (MB_SUCCESS != error) return error;
 
@@ -2323,7 +2323,7 @@ namespace moab {
     ErrorCode error;
 
     // Find the edge vertices
-    std::vector<EntityHandle> econn(2);
+    std::vector<EntityHandle> econn;
     error = mb->get_connectivity(&eid, 1, econn);
     if (MB_SUCCESS != error) return error;
 
@@ -2355,7 +2355,7 @@ namespace moab {
         EntityHandle cell_id = cellq[num_qvals];
         num_qvals += 1;
 
-        std::vector<EntityHandle> conn(nvpc);
+        std::vector<EntityHandle> conn;
         error =mb->get_connectivity(&cell_id, 1, conn);
         if (MB_SUCCESS != error) return error;
 
@@ -2420,7 +2420,7 @@ namespace moab {
     int nfpc = lConnMap3D[index].num_faces_in_cell;
     int nvF = local_maps_2d(fid);
 
-    std::vector<EntityHandle> fid_verts(nvF);
+    std::vector<EntityHandle> fid_verts;
     error = mb->get_connectivity(&fid, 1, fid_verts);
     if (MB_SUCCESS != error) return error;
 
@@ -2553,7 +2553,7 @@ namespace moab {
       int nvpc = lConnMap3D[index].num_verts_in_cell;
       int nepc = lConnMap3D[index].num_edges_in_cell;
 
-      std::vector<EntityHandle> conn(nvpc);
+      std::vector<EntityHandle> conn;
       error = mb->get_connectivity(&cid, 1, conn);
       if (error != MB_SUCCESS) return error;
 
