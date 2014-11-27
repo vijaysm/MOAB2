@@ -197,6 +197,25 @@ namespace moab{
  /* ErrorCode NestedRefine::vertex_to_entity(EntityHandle vertex, int level, EntityHandle *parent, double *nat_coords)
   {
 
+   TO BE IMPLEMENTED: This is a special functionality, that allows interlevel queries for vertices. Given the entity handle
+   of a vertex and its level, returning only its parent in previous level is not sufficient for MG operator creation. We also need
+   to provide some more info such as its location wrt to the parent which allows deriving the weights for this point in the
+   coarse level. This location could be the natural coordinates wrt to the parent as in the current api.
+
+   In the current algorithm, we do have some local information for each vertex wrt to its parent, but it is never stored.
+   There can be two ways to get the location information.
+
+   1. Create an extra map: Store the interlevel vertex to parent into a map say vertex-to-parent-entity (v2pe) internally and use it
+   along with the refinement template to return the natural coordinates in this api.
+
+   2. Compute: First, we get the parent , given the entityhandle of the vertex and its level. Then, we solve a small set of equations
+   to get its natural coordinates wrt to the parent.
+
+   In the first case, We could add a boolean flag to the top function "generate_mesh_hierarchy" which when true should store
+   interlevel vertex info.
+
+   If the flag is false, this api could return a value using the second method.
+
   }*/
 
 
@@ -278,7 +297,7 @@ namespace moab{
     if (error != MB_SUCCESS) return error;
     level_mesh[cur_level].num_verts = estL[0];
 
-    EntityHandle *varray = new EntityHandle[estL[0]];
+     EntityHandle *varray = new EntityHandle[estL[0]];
     for (int i=0; i< estL[0]; i++)
       varray[i] = level_mesh[cur_level].start_vertex + i;
 
@@ -1725,6 +1744,7 @@ ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg)
 
       for (int l=0; l < nhf; l++)
         {
+
           if (!sib_entids[l])
             continue;
 
@@ -2181,10 +2201,10 @@ ErrorCode NestedRefine::reorder_indices(int cur_level, int deg, EntityHandle cel
     {
       //Get connectivity of the cell and its sibling cell
       std::vector<EntityHandle> conn, sib_conn;
-      error = get_connectivity(cell, cur_level, conn);
+      error = get_connectivity(cell, cur_level-1, conn);
       if (error != MB_SUCCESS) return error;
 
-      error = get_connectivity(sib_cell, cur_level, sib_conn);
+      error = get_connectivity(sib_cell, cur_level-1, sib_conn);
       if (error != MB_SUCCESS) return error;
 
       //Get the connectivity of the local face in the cell and its sibling

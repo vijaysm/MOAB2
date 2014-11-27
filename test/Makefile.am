@@ -57,10 +57,9 @@ TESTS = range_test \
 	elem_eval_test \
 	spatial_locator_test \
 	test_boundbox \
-        adj_moab_test \ 
-        uref_mesh_test \
-        verdict_test
-
+	adj_moab_test \
+	uref_mesh_test \
+	verdict_test
 
 if HDF5_FILE
   TESTS += mbfacet_test \
