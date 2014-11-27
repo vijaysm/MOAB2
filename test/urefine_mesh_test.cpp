@@ -980,7 +980,7 @@ ErrorCode test_2D()
 
   std::cout<<std::endl;
   std::cout<<"Testing a small simple mesh"<<std::endl;
-  error = test_entities(3, type, degree, length, true);
+  error = test_entities(3, type, degree, length, false);
   CHECK_ERR(error);
 
   return MB_SUCCESS;
@@ -1092,9 +1092,9 @@ int main(int argc, char *argv[])
     else if (argc == 2)
       {
         const char* filename = argv[1];
-        int deg = 2;
+        int deg[3] = {2,2,2};
         int len = sizeof(deg) / sizeof(int);
-        result = test_mesh(filename, &deg, len);
+        result = test_mesh(filename, deg, len);
         handle_error_code(result, number_tests_failed, number_tests_successful);
 
         std::cout<<"\n";
