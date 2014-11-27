@@ -57,7 +57,7 @@ TESTS = range_test \
 	spatial_locator_test \
 	test_boundbox \
 	adj_moab_test \
-	uref_mesh_test
+	uref_mesh_test 
 
 
 if HDF5_FILE

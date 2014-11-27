@@ -2142,7 +2142,6 @@ namespace moab {
     ErrorCode error;
 
     int index = get_index_from_type(cid);
-    int nvpc = lConnMap3D[index].num_verts_in_cell;
     int nfpc = lConnMap3D[index].num_faces_in_cell;
 
     bool local_id = false;
