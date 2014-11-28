@@ -1016,7 +1016,7 @@ ErrorCode test_3D()
   type = MBHEX;
 
  std::cout<<"Testing single entity"<<std::endl;
-  error = test_entities(1, type, deg, len, true);
+  error = test_entities(1, type, deg, len, false);
   CHECK_ERR(error);
 
   std::cout<<std::endl;
@@ -1026,7 +1026,7 @@ ErrorCode test_3D()
 
   std::cout<<std::endl;
   std::cout<<"Testing a small simple mesh"<<std::endl;
-  error = test_entities(3, type, degree, length, true);
+  error = test_entities(3, type, degree, length, false);
   CHECK_ERR(error);
 
   return MB_SUCCESS;
