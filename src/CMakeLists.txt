@@ -9,7 +9,7 @@ if(MOAB_USE_MPI AND MPI_FOUND)
   add_subdirectory(parallel)
   set( MOAB_MPI moabpar )
   set( MPI_LIBRARIES ${MPI_LIBRARY} ${MPI_EXTRA_LIBRARY} )
-  include_directories(${MPI_CXX_INCLUDE_PATH})
+  include_directories(${MPI_INCLUDE_PATH})
 endif()
 
 #create the FCDefs.h and src/MOAB_FCDefs.h files
