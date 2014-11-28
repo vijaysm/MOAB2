@@ -40,7 +40,7 @@ EXTRA_DIST  = 125hex.g \
 	      hexes_mixed.vtk \
 	      32hex_ef.h5m \
               brick1.vtk \
-	      brick2.vtk
+	      brick2.vtk \
 	      hex_2048.h5m \
 	      hex_2048.vtk \
 	      quad_1000.h5m \
