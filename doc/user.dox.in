@@ -309,6 +309,7 @@ INPUT                  = @top_srcdir@/src @top_srcdir@/src/moab \
                          @top_srcdir@/doc/DG \
                          @top_srcdir@/doc/MetaData \
                          @top_srcdir@/src/parallel/moab  \
+                         @top_srcdir@/src/verdict/moab  \
                          @top_srcdir@/src/MBTagConventions.hpp \
                          @top_srcdir@/src/MBCN.h \
                          @top_srcdir@/src/MBEntityType.h \

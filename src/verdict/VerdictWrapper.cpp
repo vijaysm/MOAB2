@@ -143,8 +143,10 @@ ErrorCode VerdictWrapper::quality_measure(EntityHandle eh, QualityType q, double
   }
   VerdictFunction func=0;
 
-  if (MBHEX==etype)
+  switch(etype){
+  case MBHEX:
   {
+    num_nodes = 8;
     switch(q) {
     case MB_EDGE_RATIO:           func = v_hex_edge_ratio; break;          // 0
     case MB_MAX_EDGE_RATIO:       func = v_hex_max_edge_ratio; break;      // 1
@@ -168,16 +170,20 @@ ErrorCode VerdictWrapper::quality_measure(EntityHandle eh, QualityType q, double
     case MB_DISTORTION:           func = v_hex_distortion; break;            // 19
     default :  return MB_FAILURE;
     }
+    break;
   }
-  if (MBEDGE==etype)
+  case MBEDGE:
   {
+    num_nodes = 2;
     switch (q) {
     case MB_LENGTH: func = v_edge_length; break;                             // 20
     default : return MB_FAILURE;
     }
+    break;
   }
-  if (MBTET == etype)
+  case MBTET:
   {
+    num_nodes = 4;
     switch (q) {
     case MB_EDGE_RATIO:           func = v_tet_edge_ratio; break;           // 0 //! Calculates tet edge ratio metric.
     case MB_RADIUS_RATIO:         func = v_tet_radius_ratio; break;         // 21
@@ -197,23 +203,29 @@ ErrorCode VerdictWrapper::quality_measure(EntityHandle eh, QualityType q, double
     case MB_DISTORTION:           func = v_tet_distortion; break;           // 19
     default : return MB_FAILURE;
     }
+    break;
   }
-  if (MBPRISM == etype)
+  case MBPRISM:
   {
+    num_nodes = 6;
     switch (q) {
     case MB_VOLUME:               func = v_wedge_volume;    break;          // 4
     default : return MB_FAILURE;
     }
+    break;
   }
-  if (MBKNIFE == etype)
+  case MBKNIFE:
   {
+    num_nodes = 7;
     switch (q) {
     case MB_VOLUME:               func = v_knife_volume;    break;          // 4
     default : return MB_FAILURE;
     }
+    break;
   }
-  if (MBQUAD == etype)
+  case MBQUAD:
   {
+    num_nodes = 4;
     switch (q) {
     case MB_EDGE_RATIO:           func = v_quad_edge_ratio; break;          // 0
     case MB_MAX_EDGE_RATIO:       func = v_quad_max_edge_ratio; break;      // 1
@@ -240,10 +252,12 @@ ErrorCode VerdictWrapper::quality_measure(EntityHandle eh, QualityType q, double
     case MB_DISTORTION:           func = v_quad_distortion; break;            // 19
     default :  return MB_FAILURE;
     }
+    break;
   }
 
-  if (MBTRI==etype)
+  case MBTRI:
   {
+    num_nodes = 3;
     switch(q) {
     case MB_EDGE_RATIO:           func = v_tri_edge_ratio; break;             // 0
     case MB_ASPECT_RATIO:         func = v_tri_aspect_ratio; break;           // 23
@@ -262,10 +276,13 @@ ErrorCode VerdictWrapper::quality_measure(EntityHandle eh, QualityType q, double
     case MB_DISTORTION:           func = v_tri_distortion; break;             // 19
     default :  return MB_FAILURE;
     }
+    break;
+  }
+  default : break; // some have no measures
   }
 
   if (!func)
-    return MB_FAILURE;
+    return MB_NOT_IMPLEMENTED;
   // actual computation happens here
   quality = (*func)(num_nodes, coordinates);
 
@@ -285,4 +302,152 @@ ErrorCode VerdictWrapper::set_size(double size)
   v_set_tri_size( size );
   return MB_SUCCESS;
 }
+
+ErrorCode VerdictWrapper::all_quality_measures(EntityHandle eh, std::vector<QualityType> & qs, std::vector<double> & qualities)
+{
+  EntityType etype= TYPE_FROM_HANDLE(eh);
+  if (etype==MBPOLYHEDRON || etype==MBVERTEX || etype == MBENTITYSET)
+    return MB_SUCCESS; // no quality for polyhedron or vertex or set
+
+  double coordinates[27][3]; // at most 27 nodes per element
+    // get coordinates of points, if not passed already
+  const EntityHandle * conn = NULL;
+  int num_nodes;
+  ErrorCode rval = mbImpl->get_connectivity(eh, conn, num_nodes);
+  if (rval!=MB_SUCCESS)
+    return rval;
+  rval = mbImpl->get_coords(conn, num_nodes, &(coordinates[0][0]));
+  if (rval!=MB_SUCCESS)
+    return rval;
+
+  switch (etype) {
+  case  MBEDGE:
+  {
+    double leng = v_edge_length(2, coordinates);
+    qs.push_back(MB_LENGTH); qualities.push_back(leng);
+    break;
+  }
+  case MBHEX:
+  {
+    num_nodes = 8;
+    HexMetricVals hexMetric;
+    v_hex_quality( num_nodes,  coordinates, V_HEX_ALL,  &hexMetric );
+    qs.push_back(MB_EDGE_RATIO);     qualities.push_back(hexMetric.edge_ratio );
+    qs.push_back(MB_MAX_EDGE_RATIO); qualities.push_back(hexMetric.max_edge_ratio);
+    qs.push_back(MB_SKEW);           qualities.push_back(hexMetric.skew);
+    qs.push_back(MB_TAPER);          qualities.push_back(hexMetric.taper);
+    qs.push_back(MB_VOLUME);         qualities.push_back(hexMetric.volume);
+    qs.push_back(MB_STRETCH);        qualities.push_back(hexMetric.stretch);
+    qs.push_back(MB_DIAGONAL);       qualities.push_back(hexMetric.diagonal);
+    qs.push_back(MB_DIMENSION);      qualities.push_back(hexMetric.dimension);
+    qs.push_back(MB_ODDY);           qualities.push_back(hexMetric.oddy);
+    qs.push_back(MB_MED_ASPECT_FROBENIUS); qualities.push_back(hexMetric.med_aspect_frobenius);
+    // MB_CONDITION is the same as MB_MAX_ASPECT_FROBENIUS
+    qs.push_back(MB_CONDITION);      qualities.push_back(hexMetric.condition);
+    qs.push_back(MB_JACOBIAN);       qualities.push_back(hexMetric.jacobian);
+    qs.push_back(MB_SCALED_JACOBIAN); qualities.push_back(hexMetric.scaled_jacobian);
+    qs.push_back(MB_SHEAR);          qualities.push_back(hexMetric.shear);
+    qs.push_back(MB_SHAPE);          qualities.push_back(hexMetric.shape);
+    qs.push_back(MB_RELATIVE_SIZE_SQUARED); qualities.push_back(hexMetric.relative_size_squared);
+    qs.push_back(MB_SHAPE_AND_SIZE); qualities.push_back(hexMetric.shape_and_size);
+    qs.push_back(MB_SHEAR_AND_SIZE); qualities.push_back(hexMetric.shear_and_size);
+    qs.push_back(MB_DISTORTION);     qualities.push_back(hexMetric.distortion);
+    break;
+  }
+
+  case MBTET:
+  {
+    num_nodes = 4;
+    TetMetricVals tetMetrics;
+    v_tet_quality( num_nodes,  coordinates, V_TET_ALL,  &tetMetrics );
+    qs.push_back(MB_EDGE_RATIO);     qualities.push_back(tetMetrics.edge_ratio);
+    qs.push_back(MB_RADIUS_RATIO);     qualities.push_back(tetMetrics.radius_ratio);
+    qs.push_back(MB_ASPECT_BETA);     qualities.push_back(tetMetrics.aspect_beta);
+    qs.push_back(MB_ASPECT_RATIO);     qualities.push_back(tetMetrics.aspect_ratio);
+    qs.push_back(MB_ASPECT_GAMMA);     qualities.push_back(tetMetrics.aspect_gamma);
+    qs.push_back(MB_MAX_ASPECT_FROBENIUS);     qualities.push_back(tetMetrics.aspect_frobenius);
+    qs.push_back(MB_MINIMUM_ANGLE);     qualities.push_back(tetMetrics.minimum_angle);
+    qs.push_back(MB_COLLAPSE_RATIO);     qualities.push_back(tetMetrics.collapse_ratio);
+    qs.push_back(MB_VOLUME);     qualities.push_back(tetMetrics.volume);
+    qs.push_back(MB_CONDITION);     qualities.push_back(tetMetrics.condition);
+    qs.push_back(MB_JACOBIAN);     qualities.push_back(tetMetrics.jacobian);
+    qs.push_back(MB_SCALED_JACOBIAN);     qualities.push_back(tetMetrics.scaled_jacobian);
+    qs.push_back(MB_SHAPE);     qualities.push_back(tetMetrics.shape);
+    qs.push_back(MB_RELATIVE_SIZE_SQUARED);     qualities.push_back(tetMetrics.relative_size_squared);
+    qs.push_back(MB_SHAPE_AND_SIZE);     qualities.push_back(tetMetrics.shape_and_size);
+    qs.push_back(MB_DISTORTION);     qualities.push_back(tetMetrics.distortion);
+    break;
+  }
+  case MBPRISM:
+  {
+    num_nodes = 6;
+    double volu = v_wedge_volume(num_nodes, coordinates);
+    qs.push_back(MB_VOLUME); qualities.push_back(volu);
+    break;
+  }
+  case MBKNIFE:
+  {
+    num_nodes = 7;
+    double volu = v_knife_volume(num_nodes, coordinates);
+    qs.push_back(MB_VOLUME); qualities.push_back(volu);
+    break;
+  }
+  case MBQUAD:
+  {
+    num_nodes = 4;
+    QuadMetricVals quadMetrics;
+    v_quad_quality( num_nodes,  coordinates, V_QUAD_ALL,  &quadMetrics );
+    qs.push_back(MB_EDGE_RATIO); qualities.push_back(quadMetrics.edge_ratio);
+    qs.push_back(MB_MAX_EDGE_RATIO); qualities.push_back(quadMetrics.max_edge_ratio);
+    qs.push_back(MB_ASPECT_RATIO); qualities.push_back(quadMetrics.aspect_ratio);   // 23
+    qs.push_back(MB_RADIUS_RATIO); qualities.push_back(quadMetrics.radius_ratio);     // 21
+    qs.push_back(MB_MED_ASPECT_FROBENIUS); qualities.push_back(quadMetrics.med_aspect_frobenius); // 9
+    qs.push_back(MB_MAX_ASPECT_FROBENIUS); qualities.push_back(quadMetrics.max_aspect_frobenius); //10
+    qs.push_back(MB_SKEW); qualities.push_back(quadMetrics.skew);     // 2
+    qs.push_back(MB_TAPER); qualities.push_back(quadMetrics.taper);               // 3
+    qs.push_back(MB_WARPAGE); qualities.push_back(quadMetrics.warpage);          // 27
+    qs.push_back(MB_AREA); qualities.push_back(quadMetrics.area);           // 28
+    qs.push_back(MB_STRETCH); qualities.push_back(quadMetrics.stretch);       // 5
+    qs.push_back(MB_MINIMUM_ANGLE); qualities.push_back(quadMetrics.minimum_angle);   // 25
+    qs.push_back(MB_MAXIMUM_ANGLE); qualities.push_back(quadMetrics.maximum_angle); // 29
+    qs.push_back(MB_ODDY); qualities.push_back(quadMetrics.oddy);          // 8
+    qs.push_back(MB_CONDITION); qualities.push_back(quadMetrics.condition);          // 11
+    qs.push_back(MB_JACOBIAN); qualities.push_back(quadMetrics.jacobian);        // 12
+    qs.push_back(MB_SCALED_JACOBIAN); qualities.push_back(quadMetrics.scaled_jacobian);    // 13
+    qs.push_back(MB_SHEAR); qualities.push_back(quadMetrics.shear);     // 14
+    qs.push_back(MB_SHAPE); qualities.push_back(quadMetrics.shape);         // 15
+    qs.push_back(MB_RELATIVE_SIZE_SQUARED); qualities.push_back(quadMetrics.relative_size_squared); // 16
+    qs.push_back(MB_SHAPE_AND_SIZE); qualities.push_back(quadMetrics.shape_and_size);      // 17
+    qs.push_back(MB_SHEAR_AND_SIZE); qualities.push_back(quadMetrics.shear_and_size);    // 18
+    qs.push_back(MB_DISTORTION); qualities.push_back(quadMetrics.distortion);      // 19
+    break;
+  }
+
+  case MBTRI:
+  {
+    num_nodes = 3;
+    TriMetricVals triMetrics;
+    v_tri_quality( num_nodes,  coordinates, V_TRI_ALL,  &triMetrics );
+    qs.push_back(MB_EDGE_RATIO); qualities.push_back(triMetrics.edge_ratio);        // 0
+    qs.push_back(MB_ASPECT_RATIO); qualities.push_back(triMetrics.aspect_ratio);         // 23
+    qs.push_back(MB_RADIUS_RATIO); qualities.push_back(triMetrics.radius_ratio);       // 21
+    qs.push_back(MB_MAX_ASPECT_FROBENIUS); qualities.push_back(triMetrics.aspect_frobenius);    // 10
+    qs.push_back(MB_AREA); qualities.push_back(triMetrics.area);             // 28
+    qs.push_back(MB_MINIMUM_ANGLE); qualities.push_back(triMetrics.minimum_angle);       // 25
+    qs.push_back(MB_MAXIMUM_ANGLE); qualities.push_back(triMetrics.maximum_angle);    // 29
+    qs.push_back(MB_CONDITION); qualities.push_back(triMetrics.condition);     // 11
+    qs.push_back(MB_SCALED_JACOBIAN); qualities.push_back(triMetrics.scaled_jacobian);    // 13
+    // does not exist, even though it was defined in verdict.h; remove it from there too
+    // case MB_SHEAR:                func = v_tri_shear; break;                  // 14
+    qs.push_back(MB_RELATIVE_SIZE_SQUARED); qualities.push_back(triMetrics.relative_size_squared);  // 16
+    qs.push_back(MB_SHAPE); qualities.push_back(triMetrics.shape);           // 15
+    qs.push_back(MB_SHAPE_AND_SIZE); qualities.push_back(triMetrics.shape_and_size);     // 17
+    qs.push_back(MB_DISTORTION); qualities.push_back(triMetrics.distortion);          // 19
+    break;
+  }
+  default : return MB_NOT_IMPLEMENTED;
+  }
+  return MB_SUCCESS;
+}
+
 } // end namespace

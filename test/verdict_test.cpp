@@ -56,6 +56,20 @@ int main( int argc, char* argv[] )
             vw.quality_name(q) << " : " << qm << "\n";
       }
     }
+    // now compute all qualities for each entity handle
+    std::vector<QualityType> qtypes;
+    std::vector<double> qualities;
+
+    rval = vw.all_quality_measures(eh, qtypes, qualities);
+    if (MB_SUCCESS == rval)
+    {
+      mb->list_entity(eh);
+      for (size_t i=0; i<qtypes.size(); i++)
+      {
+        std::cout << "   " << vw.quality_name(qtypes[i]) << " " << qualities[i] << " \n";
+      }
+    }
+
   }
 
   return 0;

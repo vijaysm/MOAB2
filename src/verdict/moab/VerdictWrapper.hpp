@@ -58,11 +58,46 @@ class VerdictWrapper {
 public:
   VerdictWrapper(Interface * mb);
   virtual ~VerdictWrapper();
+  //! return a quality for an entity
+  /** compute the quality for an element; the coordinates and number of nodes can be passed
+   * if available
+  \param  eh element entity handle.
+  \param q quality requested
+  \param quality output
+  \param num_nodes optional, number of vertices
+  \param coords options, interleaved coordinates
+  return MB_SUCCESS
+  Example: \code
+  EntityHandle hex;
+  double jac;
+  rval = quality_measure(hex, MB_JACOBIAN, jac); \endcode
+  */
   ErrorCode quality_measure(EntityHandle eh, QualityType q, double & quality,
       int num_nodes=0, double *coords=NULL);
+  //! return a quality name
+    /** return quality name (convert an enum QualityType to a string)
+    \param  q quality type
+    return string
+    Example: \code
+
+    cont char * name = quality_name(MB_JACOBIAN); \endcode
+    */
   const char * quality_name (QualityType q);
   // relative size needs a base size, that is set at global level, one for each major type (hex, tet, quad, tri)
   ErrorCode set_size(double size);
+  //! return all qualities for an element
+  /** compute all qualities for an element
+    \param  eh element entity handle.
+    \param qs list of QualityType
+    \param qualities list of qualities
+    return MB_SUCCESS
+    Example: \code
+    EntityHandle hex;
+    std::vector<QualityType> qs;
+    std::vector<double> qualities;
+    all_quality_measures(hex, qs, qualities); \endcode
+    */
+  ErrorCode all_quality_measures(EntityHandle eh, std::vector<QualityType> & qs, std::vector<double> & qualities);
 private:
   Interface * mbImpl;
 
