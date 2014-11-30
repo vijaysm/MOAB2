@@ -1,3 +1,5 @@
+config/ar-lib
+*.trs
 *~
 *.a
 aclocal.m4
@@ -14,6 +16,7 @@ config/install-sh
 config/libtool.m4
 config.log
 config.lt
+config/compile
 config/ltmain.sh
 config/lt~obsolete.m4
 config/ltoptions.m4
@@ -37,6 +40,7 @@ examples/DeformMeshRemap
 examples/DirectAccessNoHoles
 examples/DirectAccessNoHolesF90
 examples/DirectAccessWithHoles
+examples/ErrorHandlingSimulation
 examples/freem.mod
 examples/GenLargeMesh
 examples/GetEntities
@@ -57,6 +61,8 @@ examples/ReduceExchangeTags
 examples/SetsNTags
 examples/structuredmesh
 examples/StructuredMeshSimple
+examples/TestErrorHandling
+examples/TestErrorHandlingPar
 examples/TestExodusII
 examples/VisTags
 history??.jou
