@@ -75,6 +75,8 @@ set(MOAB_LIB_SOURCES
         DualTool.cpp
         ElementSequence.hpp
         EntitySequence.hpp  EntitySequence.cpp
+        ErrorHandler.cpp
+        ErrorOutput.hpp  ErrorOutput.cpp
         Factory.cpp
         FBEngine.cpp
         FileOptions.cpp
@@ -151,6 +153,7 @@ set( MOAB_INSTALL_HEADERS
         moab/HigherOrderFactory.hpp
         moab/HomXform.hpp
         moab/EntityType.hpp
+        moab/ErrorHandler.hpp
         moab/FBEngine.hpp
         moab/FileOptions.hpp
         moab/FindPtFuncs.h
