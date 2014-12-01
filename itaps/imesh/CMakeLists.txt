@@ -81,6 +81,10 @@ add_library(
   ${MOAB_IMESH_SRCS}
   ${MOAB_IMESH_LIB_INCLUDES}
   )
+include(GenerateExportHeader)
+generate_export_header(iMesh)
+list(APPEND MOAB_IMESH_LIB_INCLUDES
+  ${CMAKE_CURRENT_BINARY_DIR}/imesh_export.h)
 
 target_link_libraries( iMesh MOAB )
 
