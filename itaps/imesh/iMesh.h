@@ -1,6 +1,8 @@
 #ifndef _ITAPS_iMesh
 #define _ITAPS_iMesh
 
+#include "imesh_export.h"
+
 #include "iBase.h"
 #include "iMesh_protos.h"
 
@@ -114,6 +116,7 @@ enum iMesh_EntityTopology {
  * \ingroup ErrorHandling
  * \brief  Get the error type returned from the last iMesh function
  ******************************************************************************/
+IMESH_EXPORT
 void iMesh_getErrorType(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -127,6 +130,7 @@ void iMesh_getErrorType(
  * \ingroup ErrorHandling
  * \brief Get a description of the error returned from the last iMesh function
  ******************************************************************************/
+IMESH_EXPORT
 void iMesh_getDescription(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -144,6 +148,7 @@ void iMesh_getDescription(
  *
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_newMesh(
     const char* options, 
         /**< [in] Pointer to implementation-specific options string
@@ -163,6 +168,7 @@ void iMesh_newMesh(
  *
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_dtor(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -178,6 +184,7 @@ void iMesh_dtor(
  * is added to that set; specify root set if that is not desired.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_load(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -206,6 +213,7 @@ void iMesh_load(
  * mesh contained in that set.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_save(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -234,6 +242,7 @@ void iMesh_save(
  * this instance can be accessed from this set.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getRootSet(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -249,6 +258,7 @@ void iMesh_getRootSet(
  *
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getGeometricDimension(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -268,6 +278,7 @@ void iMesh_getGeometricDimension(
  * no vertex entities.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_setGeometricDimension(
      iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -285,6 +296,7 @@ void iMesh_setGeometricDimension(
  * returned is a member of the iBase_StorageOrder enumeration.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getDfltStorage(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -321,6 +333,7 @@ void iMesh_getDfltStorage(
  * dimension.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getAdjTable (
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -353,6 +366,7 @@ void iMesh_getAdjTable (
  * values that would be obtained in a succeeding call to iMesh_getAdjTable.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_setAdjTable (
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -376,6 +390,7 @@ void iMesh_setAdjTable (
  * total number of entities (excluding entity sets) is returned.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getNumOfType(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -400,6 +415,7 @@ void iMesh_getNumOfType(
  * total number of entities (excluding entity sets) is returned.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getNumOfTopo(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -436,6 +452,7 @@ void iMesh_getNumOfTopo(
  * return argument indicates if handles have been invalidated.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_optimize(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -460,6 +477,7 @@ void iMesh_optimize(
  * enumeration, respectively.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getEntities(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -487,6 +505,7 @@ void iMesh_getEntities(
  * in the storage order indicated by the storage_order argument.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getVtxArrCoords(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -523,6 +542,7 @@ void iMesh_getVtxArrCoords(
  * iMesh_EntityTopology enumerations, respectively.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_initEntArrIter(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -556,6 +576,7 @@ void iMesh_initEntArrIter(
  * will be returned with a non-zero value.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getNextEntArrIter(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -582,6 +603,7 @@ void iMesh_getNextEntArrIter(
  *
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_resetEntArrIter(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -597,6 +619,7 @@ void iMesh_resetEntArrIter(
  *
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_endEntArrIter(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -614,6 +637,7 @@ void iMesh_endEntArrIter(
  * returned are values in the iMesh_EntityTopology enumeration.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getEntArrTopo(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -640,6 +664,7 @@ void iMesh_getEntArrTopo(
  * returned are values in the iBase_EntityType enumeration.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getEntArrType(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -677,6 +702,7 @@ void iMesh_getEntArrType(
  *         matches the entity type(s) in entity_handles.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getEntArrAdj(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -729,6 +755,7 @@ void iMesh_getEntArrAdj(
  *    entity_handles_size + 1. 
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getEntArr2ndAdj(
      iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -784,6 +811,7 @@ void iMesh_getEntArr2ndAdj(
  *         not consistent.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getAdjEntIndices(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -875,6 +903,7 @@ void iMesh_getAdjEntIndices(
  * specification to support it.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_createEntSet(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -893,6 +922,7 @@ void iMesh_createEntSet(
  *
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_destroyEntSet(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -910,6 +940,7 @@ void iMesh_destroyEntSet(
  * unordered (*is_list=0)
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_isList(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -928,6 +959,7 @@ void iMesh_isList(
  * Get the number of entity sets contained in a set or interface.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getNumEntSets(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -949,6 +981,7 @@ void iMesh_getNumEntSets(
  * Get the entity sets contained in a set or interface.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getEntSets(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -973,6 +1006,7 @@ void iMesh_getEntSets(
  *
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_addEntToSet(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -990,6 +1024,7 @@ void iMesh_addEntToSet(
  *
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_rmvEntFromSet(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1007,6 +1042,7 @@ void iMesh_rmvEntFromSet(
  *
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_addEntArrToSet(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1026,6 +1062,7 @@ void iMesh_addEntArrToSet(
  *
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_rmvEntArrFromSet(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1046,6 +1083,7 @@ void iMesh_rmvEntArrFromSet(
  * Add an entity set to a set (\ref cycles)
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_addEntSet(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1064,6 +1102,7 @@ void iMesh_addEntSet(
  * Remove an entity set from a set
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_rmvEntSet(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1083,6 +1122,7 @@ void iMesh_rmvEntSet(
  * contained (*is_contained=0) in another set
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_isEntContained(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1102,6 +1142,7 @@ void iMesh_isEntContained(
  *
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_isEntArrContained(
      iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1130,6 +1171,7 @@ void iMesh_isEntArrContained(
  * (*is_contained=0) in another set
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_isEntSetContained(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1151,6 +1193,7 @@ void iMesh_isEntSetContained(
  * and child point to parent. (\ref cycles)
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_addPrntChld(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1169,6 +1212,7 @@ void iMesh_addPrntChld(
  * Remove parent/child links between two sets.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_rmvPrntChld(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1188,6 +1232,7 @@ void iMesh_rmvPrntChld(
  * by parent/child links
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_isChildOf(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1208,6 +1253,7 @@ void iMesh_isChildOf(
  * Get the number of child sets linked from a specified set.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getNumChld(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1229,6 +1275,7 @@ void iMesh_getNumChld(
  * Get the number of parent sets linked from a specified set.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getNumPrnt(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1250,6 +1297,7 @@ void iMesh_getNumPrnt(
  * Get the child sets linked from a specified set.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getChldn(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1275,6 +1323,7 @@ void iMesh_getChldn(
  * Get the parent sets linked from a specified set.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getPrnts(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1302,6 +1351,7 @@ void iMesh_getPrnts(
  * indicates order of x, y, and z coordinates in coordinate array.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_setVtxArrCoords(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1327,6 +1377,7 @@ void iMesh_setVtxArrCoords(
  * storage_order must be either iBase_INTERLEAVED or iBase_BLOCKED.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_createVtxArr(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1360,6 +1411,7 @@ void iMesh_createVtxArr(
  * iBase_CreationStatus enumeration.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_createEntArr(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1395,6 +1447,7 @@ void iMesh_createEntArr(
  * Delete specified entities
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_deleteEntArr(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1415,6 +1468,7 @@ void iMesh_deleteEntArr(
  * value in iBase_TagType enumeration.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_createTag(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1442,6 +1496,7 @@ void iMesh_createTag(
  * otherwise tag is not deleted.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_destroyTag(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1461,6 +1516,7 @@ void iMesh_destroyTag(
  * Get the name for a given tag handle
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getTagName(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1482,6 +1538,7 @@ void iMesh_getTagName(
  * Get size of a tag in units of numbers of tag data type
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getTagSizeValues(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1500,6 +1557,7 @@ void iMesh_getTagSizeValues(
  * Get size of a tag in units of bytes
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getTagSizeBytes(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1518,6 +1576,7 @@ void iMesh_getTagSizeBytes(
  * Get a the handle of an existing tag with the specified name
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getTagHandle(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1539,6 +1598,7 @@ void iMesh_getTagHandle(
  * the iBase_TagType enumeration.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getTagType(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1562,6 +1622,7 @@ void iMesh_getTagType(
  * always in terms of bytes.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_setEntSetData(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1584,6 +1645,7 @@ void iMesh_setEntSetData(
  * Set a tag value of integer type on an entity set.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_setEntSetIntData(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1604,6 +1666,7 @@ void iMesh_setEntSetIntData(
  * Set a tag value of double type on an entity set.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_setEntSetDblData(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1624,6 +1687,7 @@ void iMesh_setEntSetDblData(
  * Set a tag value of entity handle type on an entity set.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_setEntSetEHData(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1645,6 +1709,7 @@ void iMesh_setEntSetEHData(
  * Set a tag value of entity set handle type on an entity set.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_setEntSetESHData(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1671,6 +1736,7 @@ void iMesh_setEntSetESHData(
  * of bytes.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getEntSetData(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1696,6 +1762,7 @@ void iMesh_getEntSetData(
  * Get the value of a tag of integer type on an entity set.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getEntSetIntData(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1716,6 +1783,7 @@ void iMesh_getEntSetIntData(
  * Get the value of a tag of double type on an entity set.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getEntSetDblData(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1736,6 +1804,7 @@ void iMesh_getEntSetDblData(
  * Get the value of a tag of entity handle type on an entity set.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getEntSetEHData(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1757,6 +1826,7 @@ void iMesh_getEntSetEHData(
  * Get the value of a tag of entity set handle type on an entity set.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getEntSetESHData(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1777,6 +1847,7 @@ void iMesh_getEntSetESHData(
  * Get all the tags associated with a specified entity set
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getAllEntSetTags(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1800,6 +1871,7 @@ void iMesh_getAllEntSetTags(
  * Remove a tag value from an entity set
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_rmvEntSetTag(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1818,6 +1890,7 @@ void iMesh_rmvEntSetTag(
  * Set coordinates for a vertex.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_setVtxCoord(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1840,6 +1913,7 @@ void iMesh_setVtxCoord(
  * Create a new vertex at specified coordinates.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_createVtx(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1865,6 +1939,7 @@ void iMesh_createVtx(
  * iBase_CreationStatus enumeration.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_createEnt(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1891,6 +1966,7 @@ void iMesh_createEnt(
  * Delete specified entity
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_deleteEnt(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1913,6 +1989,7 @@ void iMesh_deleteEnt(
  * bytes.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getArrData(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1941,6 +2018,7 @@ void iMesh_getArrData(
  * Get tag values of integer type for an array of entities.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getIntArrData(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1969,6 +2047,7 @@ void iMesh_getIntArrData(
  * Get tag values of double type for an array of entities.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getDblArrData(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -1997,6 +2076,7 @@ void iMesh_getDblArrData(
  * Get tag values of entity handle type for an array of entities.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getEHArrData(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -2026,6 +2106,7 @@ void iMesh_getEHArrData(
  * Get tag values of entity set handle type for an array of entities.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getESHArrData(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -2060,6 +2141,7 @@ void iMesh_getESHArrData(
  * bytes.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_setArrData(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -2086,6 +2168,7 @@ void iMesh_setArrData(
  * Set tag values of integer type on an array of entities.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_setIntArrData(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -2112,6 +2195,7 @@ void iMesh_setIntArrData(
  * Set tag values of double type on an array of entities.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_setDblArrData(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -2138,6 +2222,7 @@ void iMesh_setDblArrData(
  * Set tag values of entity handle type on an array of entities.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_setEHArrData(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -2165,6 +2250,7 @@ void iMesh_setEHArrData(
  * Set tag values of entity set handle type on an array of entities.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_setESHArrData(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -2191,6 +2277,7 @@ void iMesh_setESHArrData(
  * Remove a tag value from an array of entities
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_rmvArrTag(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -2217,6 +2304,7 @@ void iMesh_rmvArrTag(
  * bytes.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getData(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -2242,6 +2330,7 @@ void iMesh_getData(
  * Get the value of a tag of integer type on an entity.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getIntData(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -2262,6 +2351,7 @@ void iMesh_getIntData(
  * Get the value of a tag of double type on an entity.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getDblData(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -2282,6 +2372,7 @@ void iMesh_getDblData(
  * Get the value of a tag of entity handle type on an entity.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getEHData(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -2303,6 +2394,7 @@ void iMesh_getEHData(
  * Get the value of a tag of entity set handle type on an entity.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getESHData(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -2329,6 +2421,7 @@ void iMesh_getESHData(
  * of bytes.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_setData(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -2351,6 +2444,7 @@ void iMesh_setData(
  * Set a tag value of integer type on an entity.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_setIntData(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -2371,6 +2465,7 @@ void iMesh_setIntData(
  * Set a tag value of double type on an entity.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_setDblData(
     iMesh_Instance instance,
         /**< [in] iMesh instance handle */
@@ -2391,6 +2486,7 @@ void iMesh_setDblData(
  * Set a tag value of entity handle type on an entity.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_setEHData(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -2411,6 +2507,7 @@ void iMesh_setEHData(
  * Set a tag value of entity set handle type on an entity.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_setESHData(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -2431,6 +2528,7 @@ void iMesh_setESHData(
  * Get all the tags associated with a specified entity handle
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getAllTags(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -2454,6 +2552,7 @@ void iMesh_getAllTags(
  * Remove a tag value from an entity
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_rmvTag(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -2481,6 +2580,7 @@ void iMesh_rmvTag(
  * combination of entity_type and entity_topology that are not consistent.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_initEntIter(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -2511,6 +2611,7 @@ void iMesh_initEntIter(
  * value.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getNextEntIter(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -2534,6 +2635,7 @@ void iMesh_getNextEntIter(
  * Reset the iterator
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_resetEntIter(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -2550,6 +2652,7 @@ void iMesh_resetEntIter(
  * Destroy the specified iterator
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_endEntIter(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -2567,6 +2670,7 @@ void iMesh_endEntIter(
  * returned is a value in the iMesh_EntityTopology enumeration.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getEntTopo(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -2586,6 +2690,7 @@ void iMesh_getEntTopo(
  * in the iBase_EntityType enumeration.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getEntType(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -2604,6 +2709,7 @@ void iMesh_getEntType(
  * Get coordinates of specified vertex.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getVtxCoord(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -2633,6 +2739,7 @@ void iMesh_getVtxCoord(
  *         matches the entity type in entity_handle.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getEntAdj(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -2668,6 +2775,7 @@ void iMesh_getEntAdj(
  *    original entity to the returned data than to find and remove it.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getEnt2ndAdj(
      iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -2694,6 +2802,7 @@ void iMesh_getEnt2ndAdj(
  * Subtract contents of one entity set from another
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_subtract(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -2714,6 +2823,7 @@ void iMesh_subtract(
  * Intersect contents of one entity set with another
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_intersect(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -2733,6 +2843,7 @@ void iMesh_intersect(
  *
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_unite(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */

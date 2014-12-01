@@ -1,6 +1,8 @@
 #ifndef IMESH_MOAB_HPP
 #define IMESH_MOAB_HPP
 
+#include "imesh_export.h"
+
 #include "iMesh.h"
 #include "MBiMesh.hpp"
 #include "moab/Forward.hpp"
@@ -109,7 +111,7 @@ static inline bool iMesh_isError(ErrorCode code)
 
 
 // Implement RAII pattern for allocated arrays
-class iMeshArrayManager
+class IMESH_EXPORT iMeshArrayManager
 {
   void** arrayPtr;
 
