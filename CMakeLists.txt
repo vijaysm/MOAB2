@@ -190,6 +190,7 @@ endif ( BUILD_SHARED_LIBS EQUAL OFF )
 find_package( verdict REQUIRED )
 
 # check for MPI package
+set(MOAB_HAS_MPI FALSE)
 if ( MOAB_USE_MPI )
   find_package( MPI REQUIRED )
   # CMake FindMPI script is sorely lacking:
@@ -202,6 +203,7 @@ if ( MOAB_USE_MPI )
     set(CMAKE_CXX_COMPILE_FLAGS ${CMAKE_CXX_COMPILE_FLAGS} ${MPI_COMPILE_FLAGS})
     set(CMAKE_CXX_LINK_FLAGS ${CMAKE_CXX_LINK_FLAGS} ${MPI_LINK_FLAGS})
     include_directories(MPI_INCLUDE_PATH)
+    set( MOAB_HAS_MPI TRUE )
   endif ( MPI_FOUND )
 endif ( MOAB_USE_MPI )
 
