@@ -585,6 +585,8 @@ public:
 
   virtual ErrorCode list_entity(const EntityHandle entity) const;
 
+  typedef unsigned long long type_memstorage;
+
       //! function object for recieving events from MB of higher order nodes
       //! added to entities
     class HONodeAddedRemoved
