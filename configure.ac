@@ -907,7 +907,7 @@ dnl  - Optional library path linker argument (e.g. -L/opt/foo)
     old_LIBS="$LIBS"
     LIBS="$5 ${$3} $old_LIBS"
     AC_CHECK_LIB([$1],[main],[$3="-l$1 ${$3}"],[],[$4])
-    ac_cv_lib_{$1}=ac_cv_lib_{$1}_main
+    ac_cv_lib_$1=ac_cv_lib_$1_main
 
     LIBS="$old_LIBS"
   ])
