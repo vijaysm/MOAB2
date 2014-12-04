@@ -63,10 +63,9 @@ ErrorCode test_adjacencies(Core *mb, NestedRefine *nr, int dim, Range verts, Ran
       for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
           std::vector<EntityHandle> adjents;
           Range mbents, ahfents;
-          error = nr->get_adjacencies( *i, 1, adjents);
-          CHECK_ERR(error);
-          error = mbImpl->get_adjacencies( &*i, 1, 1, false, mbents );
-          CHECK_ERR(error);
+
+          error = nr->get_adjacencies( *i, 1, adjents);  CHECK_ERR(error);
+          error = mbImpl->get_adjacencies( &*i, 1, 1, false, mbents ); CHECK_ERR(error);
           CHECK_EQUAL(adjents.size(),mbents.size());
           std::sort(adjents.begin(), adjents.end());
           std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
@@ -78,13 +77,10 @@ ErrorCode test_adjacencies(Core *mb, NestedRefine *nr, int dim, Range verts, Ran
       for (Range::iterator i = ents.begin(); i != ents.end(); ++i) {
           std::vector<EntityHandle> adjents;
           Range mbents, ahfents;
-          error = nr->get_adjacencies( *i, 1, adjents);
-          CHECK_ERR(error);
-          error = mtu.get_bridge_adjacencies( *i, 0, 1, mbents);
-          CHECK_ERR(error);
 
+          error = nr->get_adjacencies( *i, 1, adjents); CHECK_ERR(error);
+          error = mtu.get_bridge_adjacencies( *i, 0, 1, mbents); CHECK_ERR(error);
           CHECK_EQUAL(adjents.size(), mbents.size());
-
           std::sort(adjents.begin(), adjents.end());
           std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
           mbents = subtract(mbents, ahfents);
@@ -94,19 +90,14 @@ ErrorCode test_adjacencies(Core *mb, NestedRefine *nr, int dim, Range verts, Ran
     }
   else if (dim == 2)
     {
-
       // IQ21: For every vertex, obtain incident faces
       for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
           std::vector<EntityHandle> adjents;
-          error = nr->get_adjacencies( *i, 2, adjents);
-          CHECK_ERR(error);
-
           Range mbents, ahfents;
-          error = mbImpl->get_adjacencies( &*i, 1, 2, false, mbents);
-          CHECK_ERR(error);
 
+          error = nr->get_adjacencies( *i, 2, adjents); CHECK_ERR(error);
+          error = mbImpl->get_adjacencies( &*i, 1, 2, false, mbents); CHECK_ERR(error);
           CHECK_EQUAL(adjents.size(), mbents.size());
-
           std::sort(adjents.begin(), adjents.end());
           std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
           mbents = subtract(mbents, ahfents);
@@ -117,14 +108,10 @@ ErrorCode test_adjacencies(Core *mb, NestedRefine *nr, int dim, Range verts, Ran
       for (Range::iterator i = ents.begin(); i != ents.end(); ++i) {
           std::vector<EntityHandle> adjents;
           Range mbents, ahfents;
-          error = nr->get_adjacencies( *i, 2, adjents);
-          CHECK_ERR(error);
 
-          error = mtu.get_bridge_adjacencies( *i, 1, 2, mbents);
-          CHECK_ERR(error);
-
+          error = nr->get_adjacencies( *i, 2, adjents); CHECK_ERR(error);
+          error = mtu.get_bridge_adjacencies( *i, 1, 2, mbents); CHECK_ERR(error);
           CHECK_EQUAL(adjents.size(), mbents.size());
-
           std::sort(adjents.begin(), adjents.end());
           std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
           mbents = subtract(mbents, ahfents);
@@ -134,20 +121,15 @@ ErrorCode test_adjacencies(Core *mb, NestedRefine *nr, int dim, Range verts, Ran
     }
   else
     {
-      std::vector<EntityHandle> adjents;
-      Range mbents, ahfents;
 
       //IQ 31: For every vertex, obtain incident cells
       for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
-          adjents.clear();
-          error = nr->get_adjacencies( *i, 3, adjents);
-          CHECK_ERR(error);
+          std::vector<EntityHandle> adjents;
+          Range mbents, ahfents;
 
-          mbents.clear();
-          error = mbImpl->get_adjacencies(&*i, 1, 3, false, mbents);
-          CHECK_ERR(error);
+          error = nr->get_adjacencies( *i, 3, adjents); CHECK_ERR(error);
+          error = mbImpl->get_adjacencies(&*i, 1, 3, false, mbents); CHECK_ERR(error);
           CHECK_EQUAL(adjents.size(), mbents.size());
-
           std::sort(adjents.begin(), adjents.end());
           std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
           mbents = subtract(mbents, ahfents);
@@ -156,16 +138,12 @@ ErrorCode test_adjacencies(Core *mb, NestedRefine *nr, int dim, Range verts, Ran
 
       //NQ3: For every cell, obtain neighbor cells
       for (Range::iterator i = ents.begin(); i != ents.end(); ++i) {
-          adjents.clear();
-          error = nr->get_adjacencies( *i, 3, adjents);
-          CHECK_ERR(error);
+          std::vector<EntityHandle> adjents;
+          Range mbents, ahfents;
 
-          mbents.clear();
-          error = mtu.get_bridge_adjacencies( *i, 2, 3, mbents);
-          CHECK_ERR(error);
-
+          error = nr->get_adjacencies( *i, 3, adjents); CHECK_ERR(error);
+          error = mtu.get_bridge_adjacencies( *i, 2, 3, mbents); CHECK_ERR(error);
           CHECK_EQUAL(adjents.size(), mbents.size());
-
           std::sort(adjents.begin(), adjents.end());
           std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
           mbents = subtract(mbents, ahfents);
@@ -183,30 +161,34 @@ ErrorCode refine_entities(Core *mb, int *level_degrees, const int num_levels, bo
 
   //Get the range of entities in the initial mesh
   Range edges, faces, cells;
-  error = mb->get_entities_by_dimension(0, 1, edges);
-  CHECK_ERR(error);
-  error = mb->get_entities_by_dimension(0, 2, faces);
-  CHECK_ERR(error);
-  error = mb->get_entities_by_dimension(0, 3, cells);
-  CHECK_ERR(error);
+  error = mb->get_entities_by_dimension(0, 1, edges); CHECK_ERR(error);
+  error = mb->get_entities_by_dimension(0, 2, faces); CHECK_ERR(error);
+  error = mb->get_entities_by_dimension(0, 3, cells);  CHECK_ERR(error);
 
   Range init_ents;
   int dim;
-  if (edges.size())
+
+
+  if (!edges.empty() && faces.empty() && cells.empty())
     {
       dim = 1;
       init_ents = edges;
     }
-  else if (faces.size())
+  else if (!faces.empty() && edges.empty() && cells.empty())
     {
       dim = 2;
       init_ents = faces;
     }
-  else if (cells.size())
+  else if (!cells.empty() && edges.empty() && faces.empty())
     {
       dim = 3;
       init_ents = cells;
     }
+//  else
+ //   {
+ //     std::cout<<"The input is a mixed mesh: Currently Not Supported"<<std::endl;
+ //     return MB_FAILURE;
+//    }
 
 
   if (output)
@@ -214,13 +196,10 @@ ErrorCode refine_entities(Core *mb, int *level_degrees, const int num_levels, bo
       int inents = init_ents.size();
       EntityType type = mb->type_from_handle(*init_ents.begin());
       std::stringstream file;
- //     file <<  "INIT_"<<type<<"_"<<inents<<"_dim_"<<dim<<"_d_"<<0<<"_ML_" <<1<<".vtk";
       file <<  "INIT_"<<type<<"_"<<inents<<"_dim_"<<dim<<"_ML_" <<1<<".vtk";
-    //  file <<  "INIT_"<<type<<"_"<<inents<<"_dim_"<<dim<<"_ML_" <<1<<".h5m";
       std::string str = file.str();
       const char* output_file = str.c_str();
-      error = mb->write_file(output_file);
-      CHECK_ERR(error);
+      error = mb->write_file(output_file); CHECK_ERR(error);
     }
 
   //Create an hm object and generate the hierarchy
@@ -229,8 +208,8 @@ ErrorCode refine_entities(Core *mb, int *level_degrees, const int num_levels, bo
   EntityHandle *set = new EntityHandle[num_levels];
 
   std::cout<<"Starting hierarchy generation"<<std::endl;
-  error = uref.generate_mesh_hierarchy(level_degrees, num_levels, set);
-  CHECK_ERR(error);
+  error = uref.generate_mesh_hierarchy(level_degrees, num_levels, set); CHECK_ERR(error);
+  std::cout<<"Finished hierarchy generation"<<std::endl;
 
   int factor=1;
 
@@ -238,10 +217,8 @@ ErrorCode refine_entities(Core *mb, int *level_degrees, const int num_levels, bo
   for (int l=0; l<num_levels; l++)
     {
       Range verts, ents;
-      error = mb->get_entities_by_type(set[l], MBVERTEX, verts);
-      CHECK_ERR(error);
-      error = mb->get_entities_by_dimension(set[l], dim, ents);
-      CHECK_ERR(error);
+      error = mb->get_entities_by_type(set[l], MBVERTEX, verts); CHECK_ERR(error);
+      error = mb->get_entities_by_dimension(set[l], dim, ents); CHECK_ERR(error);
 
       if (verts.empty() || ents.empty())
         std::cout<<"Something is not right"<<std::endl;
@@ -257,34 +234,18 @@ ErrorCode refine_entities(Core *mb, int *level_degrees, const int num_levels, bo
       assert(expected_nents == (int)ents.size());
 
       //Check adjacencies
-      error = test_adjacencies(mb, &uref, dim, verts, ents);
-      CHECK_ERR(error);
+      error = test_adjacencies(mb, &uref, dim, verts, ents); CHECK_ERR(error);
 
       if (output)
         {
           int inents = init_ents.size();
           EntityType type = mb->type_from_handle(*init_ents.begin());
           std::stringstream file;
-          //file <<  "INIT_"<<type<<"_"<<inents<<"_dim_"<<dim<<"_d_"<<level_degrees[l]<<"_ML_" <<l+2<<".vtk";
           file <<  "INIT_"<<type<<"_"<<inents<<"_dim_"<<dim<<"_ML_" <<l+2<<".vtk";
-         //  file <<  "INIT_"<<type<<"_"<<inents<<"_dim_"<<dim<<"_ML_" <<l+2<<".h5m";
-
           std::string str = file.str();
           const char* output_file = str.c_str();
           char * write_opts = NULL;
-          error = mb->write_file(output_file, 0, write_opts, &set[l], 1);
-          CHECK_ERR(error);
-
-        /*  if (l==num_levels-1)
-            {
-              std::stringstream hfile;
-              hfile <<(EntityType)type<<"_"<<ents.size()<<".h5m";
-              std::string hstr = hfile.str();
-              const char* ofile = hstr.c_str();
-              char * wopts = NULL;
-              error = mb->write_file(ofile, 0, wopts, &set[l], 1);
-              CHECK_ERR(error);
-            }*/
+          error = mb->write_file(output_file, 0, write_opts, &set[l], 1); CHECK_ERR(error);
         }
     }
 
@@ -310,8 +271,7 @@ ErrorCode create_single_entity(Core *mb, EntityType type)
       EntityHandle verts[num_vtx], edges[num_elems];
       for (size_t i=0; i< num_vtx; ++i)
         {
-          error = mbImpl->create_vertex(coords+3*i, verts[i]);
-          if (error != MB_SUCCESS) return error;
+          error = mbImpl->create_vertex(coords+3*i, verts[i]); CHECK_ERR(error);
         }
 
       std::cout<<"Created vertices"<<std::endl;
@@ -321,8 +281,7 @@ ErrorCode create_single_entity(Core *mb, EntityType type)
           EntityHandle c[2];
           c[0] = verts[conn[0]]; c[1] = verts[conn[1]];
 
-          error = mbImpl->create_element(MBEDGE, c, 2, edges[i]);
-          if (error != MB_SUCCESS) return error;
+          error = mbImpl->create_element(MBEDGE, c, 2, edges[i]); CHECK_ERR(error);
         }
 
       std::cout<<"Created ents"<<std::endl;
@@ -351,8 +310,7 @@ ErrorCode create_single_entity(Core *mb, EntityType type)
           for (int j=0; j<3; j++)
             c[j] = verts[conn[3*i+j]];
 
-          error = mbImpl->create_element(MBTRI, c, 3, faces[i]);
-          if (error != MB_SUCCESS) return error;
+          error = mbImpl->create_element(MBTRI, c, 3, faces[i]); CHECK_ERR(error);
         }
     }
   else if (type == MBQUAD)
@@ -369,8 +327,7 @@ ErrorCode create_single_entity(Core *mb, EntityType type)
           EntityHandle verts[num_vtx], faces[num_elems];
           for (size_t i=0; i< num_vtx; ++i)
             {
-              error = mbImpl->create_vertex(coords+3*i, verts[i]);
-              if (error != MB_SUCCESS) return error;
+              error = mbImpl->create_vertex(coords+3*i, verts[i]); CHECK_ERR(error);
             }
 
           for (size_t i=0; i< num_elems; ++i)
@@ -379,8 +336,7 @@ ErrorCode create_single_entity(Core *mb, EntityType type)
               for (int j=0; j<4; j++)
                 c[j] = verts[conn[j]];
 
-              error = mbImpl->create_element(MBQUAD, c, 4, faces[i]);
-              if (error != MB_SUCCESS) return error;
+              error = mbImpl->create_element(MBQUAD, c, 4, faces[i]); CHECK_ERR(error);
 
             }
     }
@@ -399,8 +355,7 @@ ErrorCode create_single_entity(Core *mb, EntityType type)
       EntityHandle verts[num_vtx], cells[num_elems];
       for (size_t i=0; i< num_vtx; ++i)
         {
-          error = mbImpl->create_vertex(coords+3*i, verts[i]);
-          if (error != MB_SUCCESS) return error;
+          error = mbImpl->create_vertex(coords+3*i, verts[i]); CHECK_ERR(error);
         }
 
       for (size_t i=0; i< num_elems; ++i)
@@ -409,8 +364,7 @@ ErrorCode create_single_entity(Core *mb, EntityType type)
           for (int j=0; j<4; j++)
             c[j] = verts[conn[j]];
 
-          error = mbImpl->create_element(MBTET, c, 4, cells[i]);
-          if (error != MB_SUCCESS) return error;
+          error = mbImpl->create_element(MBTET, c, 4, cells[i]); CHECK_ERR(error);
         }
     }
   else if (type == MBHEX)
@@ -431,8 +385,7 @@ ErrorCode create_single_entity(Core *mb, EntityType type)
     EntityHandle verts[num_vtx], cells[num_elems];
     for (size_t i=0; i< num_vtx; ++i)
       {
-        error = mbImpl->create_vertex(coords+3*i, verts[i]);
-        if (error != MB_SUCCESS) return error;
+        error = mbImpl->create_vertex(coords+3*i, verts[i]); CHECK_ERR(error);
       }
 
     for (size_t i=0; i< num_elems; ++i)
@@ -441,8 +394,7 @@ ErrorCode create_single_entity(Core *mb, EntityType type)
         for (int j=0; j<8; j++)
           c[j] = verts[conn[j]];
 
-        error = mbImpl->create_element(MBHEX, c, 8, cells[i]);
-        if (error != MB_SUCCESS) return error;
+        error = mbImpl->create_element(MBHEX, c, 8, cells[i]); CHECK_ERR(error);
       }
     }
   return MB_SUCCESS;
@@ -470,8 +422,7 @@ ErrorCode create_mesh(Core *mb, EntityType type)
       EntityHandle verts[num_vtx], edges[num_elems];
       for (size_t i=0; i< num_vtx; ++i)
         {
-          error = mbImpl->create_vertex(coords+3*i, verts[i]);
-          if (error != MB_SUCCESS) return error;
+          error = mbImpl->create_vertex(coords+3*i, verts[i]); CHECK_ERR(error);
         }
 
       for (size_t i=0; i< num_elems; ++i)
@@ -479,8 +430,7 @@ ErrorCode create_mesh(Core *mb, EntityType type)
           EntityHandle c[2];
           c[0] = verts[conn[2*i]]; c[1] = verts[conn[2*i+1]];
 
-          error = mbImpl->create_element(MBEDGE, c, 2, edges[i]);
-          if (error != MB_SUCCESS) return error;
+          error = mbImpl->create_element(MBEDGE, c, 2, edges[i]); CHECK_ERR(error);
         }
 
     }
@@ -509,8 +459,7 @@ ErrorCode create_mesh(Core *mb, EntityType type)
       EntityHandle verts[num_vtx], faces[num_elems];
       for (size_t i=0; i< num_vtx; ++i)
         {
-          error = mbImpl->create_vertex(coords+3*i, verts[i]);
-          if (error != MB_SUCCESS) return error;
+          error = mbImpl->create_vertex(coords+3*i, verts[i]); CHECK_ERR(error);
         }
 
       for (size_t i=0; i< num_elems; ++i)
@@ -519,8 +468,7 @@ ErrorCode create_mesh(Core *mb, EntityType type)
           for (int j=0; j<3; j++)
             c[j] = verts[conn[3*i+j]];
 
-          error = mbImpl->create_element(MBTRI, c, 3, faces[i]);
-          if (error != MB_SUCCESS) return error;
+          error = mbImpl->create_element(MBTRI, c, 3, faces[i]); CHECK_ERR(error);
         }
     }
   else if (type == MBQUAD)
@@ -552,8 +500,7 @@ ErrorCode create_mesh(Core *mb, EntityType type)
           EntityHandle verts[num_vtx], faces[num_elems];
           for (size_t i=0; i< num_vtx; ++i)
             {
-              error = mbImpl->create_vertex(coords+3*i, verts[i]);
-              if (error != MB_SUCCESS) return error;
+              error = mbImpl->create_vertex(coords+3*i, verts[i]); CHECK_ERR(error);
             }
 
           for (size_t i=0; i< num_elems; ++i)
@@ -562,8 +509,7 @@ ErrorCode create_mesh(Core *mb, EntityType type)
               for (int j=0; j<4; j++)
                 c[j] = verts[conn[4*i+j]];
 
-              error = mbImpl->create_element(MBQUAD, c, 4, faces[i]);
-              if (error != MB_SUCCESS) return error;
+              error = mbImpl->create_element(MBQUAD, c, 4, faces[i]); CHECK_ERR(error);
 
             }
     }
@@ -588,8 +534,7 @@ ErrorCode create_mesh(Core *mb, EntityType type)
       EntityHandle verts[num_vtx], cells[num_elems];
       for (size_t i=0; i< num_vtx; ++i)
         {
-          error = mbImpl->create_vertex(coords+3*i, verts[i]);
-          if (error != MB_SUCCESS) return error;
+          error = mbImpl->create_vertex(coords+3*i, verts[i]); CHECK_ERR(error);
         }
 
       for (size_t i=0; i< num_elems; ++i)
@@ -598,8 +543,7 @@ ErrorCode create_mesh(Core *mb, EntityType type)
           for (int j=0; j<4; j++)
             c[j] = verts[conn[4*i+j]];
 
-          error = mbImpl->create_element(MBTET, c, 4, cells[i]);
-          if (error != MB_SUCCESS) return error;
+          error = mbImpl->create_element(MBTET, c, 4, cells[i]); CHECK_ERR(error);
         }
     }
   else if (type == MBHEX)
@@ -633,8 +577,7 @@ ErrorCode create_mesh(Core *mb, EntityType type)
     EntityHandle verts[num_vtx], cells[num_elems];
     for (size_t i=0; i< num_vtx; ++i)
       {
-        error = mbImpl->create_vertex(coords+3*i, verts[i]);
-        if (error != MB_SUCCESS) return error;
+        error = mbImpl->create_vertex(coords+3*i, verts[i]); CHECK_ERR(error);
       }
 
     for (size_t i=0; i< num_elems; ++i)
@@ -643,8 +586,7 @@ ErrorCode create_mesh(Core *mb, EntityType type)
         for (int j=0; j<8; j++)
           c[j] = verts[conn[8*i+j]];
 
-        error = mbImpl->create_element(MBHEX, c, 8, cells[i]);
-        if (error != MB_SUCCESS) return error;
+        error = mbImpl->create_element(MBHEX, c, 8, cells[i]); CHECK_ERR(error);
       }
     }
   return MB_SUCCESS;
@@ -683,8 +625,7 @@ ErrorCode create_simple_mesh(Core *mb, EntityType type)
       EntityHandle verts[num_vtx], edges[num_elems];
       for (size_t i=0; i< num_vtx; ++i)
         {
-          error = mbImpl->create_vertex(coords+3*i, verts[i]);
-          if (error != MB_SUCCESS) return error;
+          error = mbImpl->create_vertex(coords+3*i, verts[i]); CHECK_ERR(error);
         }
 
       for (size_t i=0; i< num_elems; ++i)
@@ -692,8 +633,7 @@ ErrorCode create_simple_mesh(Core *mb, EntityType type)
           EntityHandle c[2];
           c[0] = verts[conn[2*i]]; c[1] = verts[conn[2*i+1]];
 
-          error = mbImpl->create_element(MBEDGE, c, 2, edges[i]);
-          if (error != MB_SUCCESS) return error;
+          error = mbImpl->create_element(MBEDGE, c, 2, edges[i]); CHECK_ERR(error);
         }
 
     }
@@ -729,8 +669,7 @@ ErrorCode create_simple_mesh(Core *mb, EntityType type)
       EntityHandle verts[num_vtx], faces[num_elems];
       for (size_t i=0; i< num_vtx; ++i)
         {
-          error = mbImpl->create_vertex(coords+3*i, verts[i]);
-          if (error != MB_SUCCESS) return error;
+          error = mbImpl->create_vertex(coords+3*i, verts[i]); CHECK_ERR(error);
         }
 
       for (size_t i=0; i< num_elems; ++i)
@@ -739,8 +678,7 @@ ErrorCode create_simple_mesh(Core *mb, EntityType type)
           for (int j=0; j<3; j++)
             c[j] = verts[conn[3*i+j]];
 
-          error = mbImpl->create_element(MBTRI, c, 3, faces[i]);
-          if (error != MB_SUCCESS) return error;
+          error = mbImpl->create_element(MBTRI, c, 3, faces[i]); CHECK_ERR(error);
         }
     }
   else if (type == MBQUAD)
@@ -782,8 +720,7 @@ ErrorCode create_simple_mesh(Core *mb, EntityType type)
           EntityHandle verts[num_vtx], faces[num_elems];
           for (size_t i=0; i< num_vtx; ++i)
             {
-              error = mbImpl->create_vertex(coords+3*i, verts[i]);
-              if (error != MB_SUCCESS) return error;
+              error = mbImpl->create_vertex(coords+3*i, verts[i]); CHECK_ERR(error);
             }
 
           for (size_t i=0; i< num_elems; ++i)
@@ -792,8 +729,7 @@ ErrorCode create_simple_mesh(Core *mb, EntityType type)
               for (int j=0; j<4; j++)
                 c[j] = verts[conn[4*i+j]];
 
-              error = mbImpl->create_element(MBQUAD, c, 4, faces[i]);
-              if (error != MB_SUCCESS) return error;
+              error = mbImpl->create_element(MBQUAD, c, 4, faces[i]); CHECK_ERR(error);
 
             }
     }
@@ -818,8 +754,7 @@ ErrorCode create_simple_mesh(Core *mb, EntityType type)
       EntityHandle verts[num_vtx], cells[num_elems];
       for (size_t i=0; i< num_vtx; ++i)
         {
-          error = mbImpl->create_vertex(coords+3*i, verts[i]);
-          if (error != MB_SUCCESS) return error;
+          error = mbImpl->create_vertex(coords+3*i, verts[i]); CHECK_ERR(error);
         }
 
       for (size_t i=0; i< num_elems; ++i)
@@ -828,8 +763,7 @@ ErrorCode create_simple_mesh(Core *mb, EntityType type)
           for (int j=0; j<4; j++)
             c[j] = verts[conn[4*i+j]];
 
-          error = mbImpl->create_element(MBTET, c, 4, cells[i]);
-          if (error != MB_SUCCESS) return error;
+          error = mbImpl->create_element(MBTET, c, 4, cells[i]); CHECK_ERR(error);
         }
     }
   else if (type == MBHEX)
@@ -863,8 +797,7 @@ ErrorCode create_simple_mesh(Core *mb, EntityType type)
     EntityHandle verts[num_vtx], cells[num_elems];
     for (size_t i=0; i< num_vtx; ++i)
       {
-        error = mbImpl->create_vertex(coords+3*i, verts[i]);
-        if (error != MB_SUCCESS) return error;
+        error = mbImpl->create_vertex(coords+3*i, verts[i]); CHECK_ERR(error);
       }
 
     for (size_t i=0; i< num_elems; ++i)
@@ -873,8 +806,7 @@ ErrorCode create_simple_mesh(Core *mb, EntityType type)
         for (int j=0; j<8; j++)
           c[j] = verts[conn[8*i+j]];
 
-        error = mbImpl->create_element(MBHEX, c, 8, cells[i]);
-        if (error != MB_SUCCESS) return error;
+        error = mbImpl->create_element(MBHEX, c, 8, cells[i]); CHECK_ERR(error);
       }
     }
   return MB_SUCCESS;
@@ -922,20 +854,17 @@ ErrorCode test_1D()
   std::cout<<"Testing single entity"<<std::endl;
   int deg[3] = {2,3,5};
   int len = sizeof(deg) / sizeof(int);
-  error = test_entities(1, type, deg, len, false);
-  CHECK_ERR(error);
+  error = test_entities(1, type, deg, len, false); CHECK_ERR(error);
 
   std::cout<<std::endl;
   std::cout<<"Testing a small mesh"<<std::endl;
-  error = test_entities(2, type, deg, len, false);
-  CHECK_ERR(error);
+  error = test_entities(2, type, deg, len, false); CHECK_ERR(error);
 
   std::cout<<std::endl;
   std::cout<<"Testing a small simple mesh"<<std::endl;
   int degree[4] = {5,5,2,2};
   len = sizeof(degree) / sizeof(int);
-  error = test_entities(3, type, degree, len, false);
-  CHECK_ERR(error);
+  error = test_entities(3, type, degree, len, false); CHECK_ERR(error);
 
   return MB_SUCCESS;
 }
@@ -950,38 +879,32 @@ ErrorCode test_2D()
   std::cout<<"Testing single entity"<<std::endl;
   int deg[3] = {2,3,5};
   int len = sizeof(deg) / sizeof(int);
-  error = test_entities(1, type, deg, len, false);
-  CHECK_ERR(error);
+  error = test_entities(1, type, deg, len, false); CHECK_ERR(error);
 
   std::cout<<std::endl;
   std::cout<<"Testing a small mesh"<<std::endl;
-  error = test_entities(2, type, deg, len, false);
-  CHECK_ERR(error);
+  error = test_entities(2, type, deg, len, false); CHECK_ERR(error);
 
   std::cout<<std::endl;
   std::cout<<"Testing a small simple mesh"<<std::endl;
   int degree[2] = {5,2};
   int length = sizeof(degree) / sizeof(int);
-  error = test_entities(3, type, degree, length, false);
-  CHECK_ERR(error);
+  error = test_entities(3, type, degree, length, false); CHECK_ERR(error);
 
   std::cout<<std::endl;
   std::cout<<"Testing QUAD"<<std::endl;
   type = MBQUAD;
 
   std::cout<<"Testing single entity"<<std::endl;
-  error = test_entities(1, type, deg, len, false);
-  CHECK_ERR(error);
+  error = test_entities(1, type, deg, len, false); CHECK_ERR(error);
 
   std::cout<<std::endl;
   std::cout<<"Testing a small mesh"<<std::endl;
-  error = test_entities(2, type, deg, len, false);
-  CHECK_ERR(error);
+  error = test_entities(2, type, deg, len, false); CHECK_ERR(error);
 
   std::cout<<std::endl;
   std::cout<<"Testing a small simple mesh"<<std::endl;
-  error = test_entities(3, type, degree, length, false);
-  CHECK_ERR(error);
+  error = test_entities(3, type, degree, length, false); CHECK_ERR(error);
 
   return MB_SUCCESS;
 }
@@ -996,38 +919,32 @@ ErrorCode test_3D()
   int len = sizeof(deg) / sizeof(int);
 
   std::cout<<"Testing single entity"<<std::endl;
-  error = test_entities(1, type, deg, len, false);
-  CHECK_ERR(error);
+  error = test_entities(1, type, deg, len, false); CHECK_ERR(error);
 
   std::cout<<std::endl;
   std::cout<<"Testing a small mesh"<<std::endl;
-  error = test_entities(2, type, deg, len, false);
-  CHECK_ERR(error);
+  error = test_entities(2, type, deg, len, false); CHECK_ERR(error);
 
   std::cout<<std::endl;
   std::cout<<"Testing a small simple mesh"<<std::endl;
   int degree[4] = {2,2,2,2};
   int length = sizeof(degree) / sizeof(int);
-  error = test_entities(3, type, degree, length, false);
-  CHECK_ERR(error);
+  error = test_entities(3, type, degree, length, false); CHECK_ERR(error);
 
   std::cout<<std::endl;
   std::cout<<"Testing HEX"<<std::endl;
   type = MBHEX;
 
  std::cout<<"Testing single entity"<<std::endl;
-  error = test_entities(1, type, deg, len, false);
-  CHECK_ERR(error);
+  error = test_entities(1, type, deg, len, false); CHECK_ERR(error);
 
   std::cout<<std::endl;
   std::cout<<"Testing a small mesh"<<std::endl;
-  error = test_entities(2, type, deg, len, false);
-  CHECK_ERR(error);
+  error = test_entities(2, type, deg, len, false); CHECK_ERR(error);
 
   std::cout<<std::endl;
   std::cout<<"Testing a small simple mesh"<<std::endl;
-  error = test_entities(3, type, degree, length, false);
-  CHECK_ERR(error);
+  error = test_entities(3, type, degree, length, false); CHECK_ERR(error);
 
   return MB_SUCCESS;
 }
@@ -1045,22 +962,17 @@ ErrorCode test_mesh(const char* filename, int *level_degrees, int num_levels)
     if (procs > 1){
     read_options = "PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;";
 
-    error = mbImpl->load_file(filename, 0, read_options.c_str());
-    CHECK_ERR(error);
+    error = mbImpl->load_file(filename, 0, read_options.c_str()); CHECK_ERR(error);
     }
     else if (procs == 1) {
 #endif
-    error = mbImpl->load_file(filename);
-    CHECK_ERR(error);
+    error = mbImpl->load_file(filename);  CHECK_ERR(error);
 #ifdef USE_MPI
     }
 #endif
 
     //Generate hierarchy
-//    int deg[3] = {2,2,2};
-//    int len = sizeof(deg) / sizeof(int);
-    error = refine_entities(&moab, level_degrees, num_levels, false);
-    if (error != MB_SUCCESS) return error;
+    error = refine_entities(&moab, level_degrees, num_levels, false);  CHECK_ERR(error);
 
     return MB_SUCCESS;
 }
@@ -1092,12 +1004,21 @@ int main(int argc, char *argv[])
     else if (argc == 2)
       {
         const char* filename = argv[1];
-        int deg[3] = {2,2,2};
+        int deg[2] = {2,2};
         int len = sizeof(deg) / sizeof(int);
         result = test_mesh(filename, deg, len);
         handle_error_code(result, number_tests_failed, number_tests_successful);
-
         std::cout<<"\n";
+
+        deg[0] = 3; deg[1] = 3;
+        result = test_mesh(filename, deg, len);
+        handle_error_code(result, number_tests_failed, number_tests_successful);
+        std::cout<<"\n";
+
+    /*    deg = 5;
+        result = test_mesh(filename, &deg, len);
+        handle_error_code(result, number_tests_failed, number_tests_successful);
+        std::cout<<"\n";*/
       }
 
 #ifdef USE_MPI

@@ -3,15 +3,15 @@
 
 #include "moab/Range.hpp"
 #include "moab/HalfFacetRep.hpp"
-//#include "Templates.hpp"
 
 namespace moab
 {
   
 #define MAX_DEGREE 3
-#define MAX_VERTS 100
-#define MAX_CHILDRENS 100
-#define MAX_HF 12
+#define MAX_VERTS 64
+#define MAX_CHILDRENS 27
+#define MAX_HE 12
+#define MAX_HF 6
 #define MAX_CONN 8
 #define MAX_VHF 20
 #define MAX_LEVELS 20
@@ -29,6 +29,7 @@ namespace moab
     
     ~NestedRefine();
     
+    ErrorCode initialize();
     //User interface functions
     //1st class: Basic functionalities
 
@@ -79,8 +80,8 @@ namespace moab
                               const unsigned int target_dimension,
                               std::vector<EntityHandle> &target_entities);
 
-    ErrorCode child_to_parent(EntityHandle child, int child_level, int parent_level, int *level_degrees, EntityHandle *parent);
-    ErrorCode parent_to_child(EntityHandle parent, int parent_level, int child_level,  int *level_degrees, std::vector<EntityHandle> &children);
+    ErrorCode child_to_parent(EntityHandle child, int child_level, int parent_level, EntityHandle *parent);
+    ErrorCode parent_to_child(EntityHandle parent, int parent_level, int child_level,  std::vector<EntityHandle> &children);
   //  ErrorCode vertex_to_entities(EntityHandle vertex, int level, EntityHandle *parent, double *nat_coords);
 
   protected:
@@ -88,6 +89,9 @@ namespace moab
     HalfFacetRep *ahf;
 
     Range _inverts, _inedges, _infaces, _incells;
+    int meshdim;
+    int level_dsequence[MAX_LEVELS];
+    std::map<int,int> deg_index;
 
     // Refinement Patterns
     struct refPatterns{
@@ -104,7 +108,7 @@ namespace moab
       int v2hf[MAX_VERTS][2]; //Vertex to half-facet map of the new vertices
       int ents_opphfs[MAX_CHILDRENS][2*MAX_CONN]; // Opposite half-facet map of the new entities
 
-      int vert_on_edges[MAX_HF][MAX_VHF]; //Helper: storing the local ids of vertices on each local edge
+      int vert_on_edges[MAX_HE][MAX_VHF]; //Helper: storing the local ids of vertices on each local edge
       int vert_on_faces[MAX_HF][MAX_VHF]; // Helper: storing local ids of verts on each local face, doesnt include those on edges of the face
       int ents_on_pent[MAX_HF][MAX_CHILDRENS]; //Helper: stores child half-facets incident on parent half-facet. First column contain the number of such children
     };
@@ -112,18 +116,6 @@ namespace moab
     static const refPatterns refTemplates[9][MAX_DEGREE];
 
     int get_index_from_degree(int degree);
-
-    // Octahedron Tessellation
-    struct tessellate_octahedron{
-      int combination;
-      int diag_conn[2]; //Connectivity of the diagonal
-      int tet_conn[4][4]; //Connectivity of the tets
-      int tet_opphfs[4][8]; //Opposite half-face map between the children tets
-      int olfid_to_tlfid[8][2]; // Map each local face of the parent octahedron to the corresponding local face of the incident child tet
-      int tlfid_to_olfid[4][4]; // Map each local face of each child tet to the corresponding local face of the oct
-    };
-
-    static const tessellate_octahedron oct_tessellation[3];
 
     // HM Storage Helper
     struct level_memory{
@@ -166,9 +158,9 @@ namespace moab
     //Permutation matrices
     struct pmat{
       short int num_comb; // Number of combinations
-      int comb[MAX_HF][MAX_HF]; //Combinations
-      int porder2[MAX_HF][MAX_HF]; // Permuted order degree 2
-      int porder3[MAX_HF][MAX_HF]; // Permuted order degree 3
+      int comb[MAX_HE][MAX_HE]; //Combinations
+      int porder2[MAX_HE][MAX_HE]; // Permuted order degree 2
+      int porder3[MAX_HE][MAX_HE]; // Permuted order degree 3
     };
 
     static const pmat permutation[2];
