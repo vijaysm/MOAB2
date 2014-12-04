@@ -359,15 +359,15 @@ void get_linear_reconstruction(moab::Interface * mb, moab::EntityHandle set,
 
       // compute normal equations matrix
       double N11 = dx[1] * dx[1] + dx[2] * dx[2] + dx[3] * dx[3]
-          + dx[4] * dx[4];
+          + dx[0] * dx[0];
       double N22 = dy[1] * dy[1] + dy[2] * dy[2] + dy[3] * dy[3]
-          + dy[4] * dy[4];
+          + dy[0] * dy[0];
       double N12 = dx[1] * dy[1] + dx[2] * dy[2] + dx[3] * dy[3]
-          + dx[4] * dy[4];
+          + dx[0] * dy[0];
 
       // rhs
-      double Rx = dx[1] * dr[1] + dx[2] * dr[2] + dx[3] * dr[3] + dx[4] * dr[4];
-      double Ry = dy[1] * dr[1] + dy[2] * dr[2] + dy[3] * dr[3] + dy[4] * dr[4];
+      double Rx = dx[1] * dr[1] + dx[2] * dr[2] + dx[3] * dr[3] + dx[0] * dr[0];
+      double Ry = dy[1] * dr[1] + dy[2] * dr[2] + dy[3] * dr[3] + dy[0] * dr[0];
 
       // determinant
       double Det = N11 * N22 - N12 * N12;
