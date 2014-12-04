@@ -21,7 +21,7 @@ namespace moab{
     error = initialize();
     if (error != MB_SUCCESS)
     {
-      printf("Error initializing NestedRefine\n");
+      std::cout<<"Error initializing NestedRefine\n"<<std::endl;
       exit(1);
     }
   }
@@ -154,6 +154,11 @@ namespace moab{
             for (int i=0; i<num_corners; i++)
               conn.push_back(level_mesh[level].cell_conn[num_corners*(ent-start_ent)+i]);
           }
+        else
+          {
+            std::cout<<"Requesting connectivity for an unsupported entity type"<<std::endl;
+            return MB_FAILURE;
+          }
       }
       else
       {
@@ -275,29 +280,44 @@ namespace moab{
 
   }
 
- /* ErrorCode NestedRefine::vertex_to_entity(EntityHandle vertex, int level, std::vector<EntityHandle> &parents)
+  ErrorCode NestedRefine::vertex_to_entities(EntityHandle vertex, int level, std::vector<EntityHandle> &incident_entities)
   {
+    ErrorCode error;
 
-   TO BE IMPLEMENTED: This is a special functionality, that allows interlevel queries for vertices. Given the entity handle
-   of a vertex and its level, returning only its parent in previous level is not sufficient for MG operator creation. We also need
-   to provide some more info such as its location wrt to the parent which allows deriving the weights for this point in the
-   coarse level. This location could be the natural coordinates wrt to the parent as in the current api.
+    //Step 1: Get the incident entities at the current level
+    std::vector<EntityHandle> inents;
+    if (meshdim == 1)
+      {
+        error = ahf->get_up_adjacencies_1d(vertex, inents);
+        if (error != MB_SUCCESS) return error;
+      }
+    else if (meshdim == 2)
+      {
+        error = ahf->get_up_adjacencies_vert_2d(vertex, inents);
+        if (error != MB_SUCCESS) return error;
+      }
+    else if (meshdim == 3)
+      {
+        error = ahf->get_up_adjacencies_vert_3d(vertex, inents);
+        if (error != MB_SUCCESS) return error;
+      }
 
-   In the current algorithm, we do have some local information for each vertex wrt to its parent, but it is never stored.
-   There can be two ways to get the location information.
+    //Step 2: Loop over all the incident entities at the current level and gather their parents
+    for (int i=0; i< (int)inents.size(); i++ )
+      {
+        EntityHandle ent = inents[i];
+        EntityHandle parent;
+        error = child_to_parent(ent, level, level-1, &parent);
+        if (error != MB_SUCCESS) return error;
+        incident_entities.push_back(parent);
+      }
 
-   1. Create an extra map: Store the interlevel vertex to parent into a map say vertex-to-parent-entity (v2pe) internally and use it
-   along with the refinement template to return the natural coordinates in this api.
+    //Step 3: Sort and remove duplicates
+    std::sort(incident_entities.begin(), incident_entities.end());
+    incident_entities.erase(std::unique(incident_entities.begin(), incident_entities.end()), incident_entities.end());
 
-   2. Compute: First, we get the parent , given the entityhandle of the vertex and its level. Then, we solve a small set of equations
-   to get its natural coordinates wrt to the parent.
-
-   In the first case, We could add a boolean flag to the top function "generate_mesh_hierarchy" which when true should store
-   interlevel vertex info.
-
-   If the flag is false, this api could return a value using the second method.
-
-  }*/
+    return MB_SUCCESS;
+  }
 
 
 
