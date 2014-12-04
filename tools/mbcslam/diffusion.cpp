@@ -67,9 +67,6 @@ std::string TestDir(".");
 // for M_PI
 #include <math.h>
 
-#define STRINGIFY_(X) #X
-#define STRINGIFY(X) STRINGIFY_(X)
-
 using namespace moab;
 ErrorCode add_field_value(Interface * mb, EntityHandle euler_set, int rank, Tag & tagTracer, Tag & tagElem, Tag & tagArea)
 {
