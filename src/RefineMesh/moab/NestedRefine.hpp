@@ -31,16 +31,23 @@ namespace moab
     
     ErrorCode initialize();
     //User interface functions
-    //1st class: Basic functionalities
+    // Basic functionalities
 
     /* Generate a hierarchy of meshes from the input mesh.
-     * level is a sequence of degrees used for each level in the hierarchy. The upper bound on the number of levels is set to 20.
-     * However, in practice, maximum of 5 or 6 levels are used.
+     * level is a sequence of degrees used for each level in the hierarchy. The internal upper bound on the number of levels is set to 20.
      */
 
     //! Generate a mesh hierarchy.
-    /** Given a mesh in memory, generate a sequence of meshes via uniform refinement of the entire mesh.
-       *  it performs a set intersection to gather all the edges of the given face.
+    /** Given a mesh, generate a sequence of meshes via uniform refinement. The inputs are: a) an array(level_degrees) storing the degrees which will be
+       *  used to refine the previous level mesh to generate a new level and b) the total number of levels(should be same length as that of the
+       *  array in a). Each mesh level in the hierarchy are stored in different meshsets whose handles are returned after the hierarchy generation.
+       *  These handles can be used to work with a specific mesh level.
+       *
+       *  CURRENT SUPPORT:
+       *      Dimension          Degree of refinement     Number of new entities(from 1 parent entity)
+       *      1D(edges)              2, 3, 5                                2, 3, 5
+       *      2D(tri,quad)           2, 3, 5                                4, 9, 25
+       *      3D(tet, hex)           2, 3                                    8, 27
        *
        * \param level_degrees Integer array storing the degrees used in each level.
        * \param num_level The total number of levels in the hierarchy.
@@ -80,9 +87,38 @@ namespace moab
                               const unsigned int target_dimension,
                               std::vector<EntityHandle> &target_entities);
 
+
+    //Interlevel parent-child or vice-versa queries
+    /** Given an entity from a certain level, it returns a pointer to its parent at the requested parent level.
+      *  NOTE: This query does not support vertices.
+      *
+      * \param child EntityHandle of the entity whose parent is requested
+      * \param child_level Mesh level where the child exists
+      * \param parent_level Mesh level from which parent is requested
+      * \param parent Pointer to the parent in the requested parent_level
+    */
+
     ErrorCode child_to_parent(EntityHandle child, int child_level, int parent_level, EntityHandle *parent);
+
+    /** Given an entity from a certain level, it returns a std::vector of all its children from the requested child level.
+      *  NOTE: This query does not support vertices.
+      *
+      * \param parent EntityHandle of the entity whose children in subsequent level is requested
+      * \param parent_level Mesh level where the parent exists
+      * \param child_level Mesh level from which its children are requested
+      * \param children Vector containing all childrens from the requested child_level
+    */
+
     ErrorCode parent_to_child(EntityHandle parent, int parent_level, int child_level,  std::vector<EntityHandle> &children);
-  //  ErrorCode vertex_to_entities(EntityHandle vertex, int level, EntityHandle *parent, double *nat_coords);
+
+    /** Given a vertex from a certain level, it returns a std::vector of all entities from the previous level that contains it.
+      *
+      * \param vertex EntityHandle of the vertex
+      * \param level Mesh level of the vertex
+      * \param incident_entities Vector containing entities from the previous level incident on the vertex
+    */
+
+    ErrorCode vertex_to_entities(EntityHandle vertex, int level, std::vector<EntityHandle> &incident_entities);
 
   protected:
     Core *mbImpl;
