@@ -98,7 +98,7 @@ USER_FFLAGS="$FFLAGS"
 
 # Check for Parallel
 # Need to check this early so we can look for the correct compiler
-AC_ARG_WITH( [mpi], AC_HELP_STRING([[--with-mpi@<:@=DIR@:>@]], [Enable parallel support]),
+AC_ARG_WITH( [mpi], AS_HELP_STRING([[--with-mpi@<:@=DIR@:>@]], [Enable parallel support]),
              [WITH_MPI=$withval; enablempi=yes],[enablempi=no;WITH_MPI=$MPI_DIR] )
 
 if test "xno" != "x$enablempi"; then
@@ -186,17 +186,12 @@ FCFLAGS="$USER_FCFLAGS $FATHOM_FC_SPECIAL"
 #fi
 
   # Check for debug flags
-AC_ARG_ENABLE( debug, AC_HELP_STRING([--enable-debug],[Debug symbols (-g)]),
-               [enable_debug=$enableval; DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-debug=$enableval"], [enable_debug=] )
-AC_ARG_ENABLE( optimize, AC_HELP_STRING([--enable-optimize],[Compile optimized (-O2)]),
-               [enable_cxx_optimize=$enableval; DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-optimize=$enableval";
-                enable_cc_optimize=$enableval
-		enable_fc_optimize=$enableval
-		], 
-               [enable_cxx_optimize=
-                enable_cc_optimize=
-		enable_fc_optimize=
-		] )
+AC_ARG_ENABLE( debug, AS_HELP_STRING([--enable-debug],[Debug symbols (-g)]),
+               [enable_debug=$enableval], [enable_debug=] )
+AC_ARG_ENABLE( optimize, AS_HELP_STRING([--enable-optimize],[Compile optimized (-O2)]),
+               [enable_cxx_optimize=$enableval; enable_cc_optimize=$enableval; enable_fc_optimize=$enableval;],
+               [enable_cxx_optimize=""; enable_cc_optimize=""; enable_fc_optimize="";	]
+             )
 
 # Do enable_optimize by default, unless user has specified
 # custom CXXFLAGS or CFLAGS
@@ -206,9 +201,9 @@ if test "x$enable_debug" = "x"; then
     enable_cxx_optimize=yes
     enable_cc_optimize=yes
     enable_fc_optimize=yes
-    enable_f77_optimize=yes
   fi
 fi
+enable_f77_optimize=$enable_fc_optimize
 
 # Choose compiler flags from CLI args
 if test "xyes" = "x$enable_debug"; then
@@ -227,9 +222,15 @@ if test "xyes" = "x$enable_debug"; then
   if test "x$GXX" = "xyes"; then
     CFLAGS="$CFLAGS -fstack-protector-all"
   fi
+  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-debug=yes"
+else
+  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-debug=no"
 fi
 if test "xyes" = "x$enable_cxx_optimize"; then
   CXXFLAGS="$CXXFLAGS -O2 -DNDEBUG"
+  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-optimize=yes"
+else
+  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-optimize=no"
 fi
 if test "xyes" = "x$enable_cc_optimize"; then
   CFLAGS="$CFLAGS -O2 -DNDEBUG"
@@ -245,34 +246,49 @@ fi
 
   # Check for 32/64 bit.
   # This requires FATHOM_CXX_FLAGS and FATHOM_CC_FLAGS to have been called first
-AC_ARG_ENABLE( 32bit, AC_HELP_STRING([--enable-32bit],[Force 32-bit objects]),
+AC_ARG_ENABLE(32bit, AS_HELP_STRING([--enable-32bit],[Force 32-bit objects]),
 [
-  if test "xyes" != "x$enableval"; then
+  if (test "xyes" != "x$enableval" && test "xno" != "x$enableval"); then
     AC_MSG_ERROR([Unknown argument --enable-32bit=$enableval])
-  elif test "x" = "x$FATHOM_CXX_32BIT"; then
-    AC_MSG_ERROR([Don't know how to force 32-bit C++ on this platform.  Try setting CXXFLAGS manually])
-  elif test "x" = "x$FATHOM_CC_32BIT"; then
-    AC_MSG_ERROR([Don't know how to force 32-bit C on this platform.  Try setting CFLAGS manually])
   fi
+  if (test "xno" != "x$enableval"); then
+    if test "x" = "x$FATHOM_CXX_32BIT"; then
+      AC_MSG_ERROR([Don't know how to force 32-bit C++ on this platform.  Try setting CXXFLAGS manually])
+    elif test "x" = "x$FATHOM_CC_32BIT"; then
+      AC_MSG_ERROR([Don't know how to force 32-bit C on this platform.  Try setting CFLAGS manually])
+    fi
+  fi
+  enable_32bit=$enableval
+], [enable_32bit=no])
+
+# This requires FATHOM_CXX_FLAGS and FATHOM_CC_FLAGS to have been called first
+AC_ARG_ENABLE(64bit, AS_HELP_STRING([--enable-64bit],[Force 64-bit objects]),
+[
+  if (test "xyes" != "x$enableval" && test "xno" != "x$enableval"); then
+    AC_MSG_ERROR([Unknown argument --enable-64bit=$enableval])
+  fi
+  if (test "xno" != "x$enableval"); then
+    if test "x" = "x$FATHOM_CXX_64BIT"; then
+      AC_MSG_ERROR([Don't know how to force 64-bit C++ on this platform.  Try setting CXXFLAGS manually])
+    elif test "x" = "x$FATHOM_CC_64BIT"; then
+      AC_MSG_ERROR([Don't know how to force 64-bit C on this platform.  Try setting CFLAGS manually])
+    elif test "xyes" = "x$enable_32bit"; then
+      AC_MSG_ERROR([Cannot do both --enable-32bit and --enable-64bit])
+    fi
+  fi
+  enable_64bit=$enableval
+], [enable_64bit=no])
+
+if (test "xno" != "x$enable_32bit"); then
   CXXFLAGS="$CXXFLAGS $FATHOM_CXX_32BIT"
   CFLAGS="$CFLAGS $FATHOM_CC_32BIT"
-  enable_32bit=yes
-])
-# This requires FATHOM_CXX_FLAGS and FATHOM_CC_FLAGS to have been called first
-AC_ARG_ENABLE( 64bit, AC_HELP_STRING([--enable-64bit],[Force 64-bit objects]),
-[
-  if test "xyes" != "x$enableval"; then
-    AC_MSG_ERROR([Unknown argument --enable-64bit=$enableval])
-  elif test "x" = "x$FATHOM_CXX_64BIT"; then
-    AC_MSG_ERROR([Don't know how to force 64-bit C++ on this platform.  Try setting CXXFLAGS manually])
-  elif test "x" = "x$FATHOM_CC_64BIT"; then
-    AC_MSG_ERROR([Don't know how to force 64-bit C on this platform.  Try setting CFLAGS manually])
-  elif test "xyes" = "x$enable_32bit"; then
-    AC_MSG_ERROR([Cannot do both --enable-32bit and --enable-64bit])
-  fi
+fi
+if (test "xno" != "x$enable_64bit"); then
   CXXFLAGS="$CXXFLAGS $FATHOM_CXX_64BIT"
   CFLAGS="$CFLAGS $FATHOM_CC_64BIT"
-])
+fi
+# Distcheck flags for 32-bit and 64-bit builds
+DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-32bit=$enable_32bit --enable-64bit=$enable_64bit"
 
 # Check if we are using new Darwin kernels with Clang -- needs libc++ instead of libstdc++
 if (test "x$ENABLE_FORTRAN" != "xno" && test "x$CHECK_FC" != "xno"); then
@@ -296,18 +312,6 @@ if (test "x$ENABLE_FORTRAN" != "xno" && test "x$CHECK_FC" != "xno"); then
     )
     LDFLAGS="$my_save_ldflags"
   else
-
-    if (test "`uname`" == "Darwin" && test "$cc_compiler" == "Clang"); then
-      my_save_ldflags="$LDFLAGS"
-      LDFLAGS="$LDFLAGS -lc++"
-      AC_MSG_CHECKING([whether $FC supports -stdlib=libc++])
-      AC_LINK_IFELSE([AC_LANG_PROGRAM([])],
-          [AC_MSG_RESULT([yes])]
-          [fcxxlinkage=yes; FFLAGS="$FFLAGS -lc++"; FCFLAGS="$FCFLAGS -lc++"; FLIBS="$FLIBS -lc++"; FCLIBS="$FCLIBS -lc++"],
-          [AC_MSG_RESULT([no])]
-      )
-      LDFLAGS="$my_save_ldflags"
-    fi
 
     if (test "$fcxxlinkage" != "yes"); then
       my_save_ldflags="$LDFLAGS"
@@ -436,7 +440,7 @@ if test "x$cxx_compiler" = "xunknown"; then
 fi
 
 # Now decide special compiler flags using compiler/cpu combination
-AC_MSG_CHECKING([for known compiler/OS combinations])
+AC_MSG_CHECKING([for known compiler/CPU/OS combinations])
 case "$cxx_compiler:$host_cpu" in
   GNU:sparc*)
     FATHOM_CXX_32BIT=-m32
@@ -490,11 +494,6 @@ case "$cxx_compiler:$host_cpu" in
     FATHOM_CXX_32BIT=-xarch=generic
     FATHOM_CXX_64BIT=-xarch=generic64
     ;;
-  Clang:Darwin)
-    FATHOM_CXX_SPECIAL="$EXTRA_GNU_FLAGS -stdlib=libc++"
-    FATHOM_CXX_32BIT=-m32
-    FATHOM_CXX_64BIT=-m64
-    ;;
   Clang:*)
     FATHOM_CXX_SPECIAL="$EXTRA_GNU_FLAGS -stdlib=libstdc++"
     FATHOM_CXX_32BIT=-m32
@@ -507,7 +506,16 @@ case "$cxx_compiler:$host_cpu" in
   *)
     ;;
 esac
-AC_MSG_RESULT([$cxx_compiler:$host_cpu])
+AC_MSG_RESULT([$cxx_compiler:$host_os:$host_cpu])
+
+# Check for specific overrides
+CXX_LDFLAGS=""
+if (test "$cxx_compiler:${host_os:0:6}" == "Clang:darwin"); then
+  CXX_LDFLAGS="$CXX_LDFLAGS -stdlib=libstdc++"
+  LIBS="$LIBS -lc++"
+fi
+AC_SUBST(CXX_LDFLAGS)
+
 ]) # end FATHOM_CXX_FLAGS
 
 #######################################################################################

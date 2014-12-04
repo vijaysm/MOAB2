@@ -47,7 +47,7 @@ AC_DEFUN([FATHOM_CHECK_HDF5],[
 
   # CLI option for linking zlib
 AC_ARG_WITH(zlib,
-  [AC_HELP_STRING([--with-zlib=DIR],[HDF5 requires zlib, and zlib can be found at...])],
+  [AS_HELP_STRING([--with-zlib=DIR],[HDF5 requires zlib, and zlib can be found at...])],
   [WITH_ZLIB=$withval
   DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-zlib=\"${withval}\""
   ],[WITH_ZLIB=])
@@ -72,7 +72,7 @@ fi
 
   # CLI option for linking szip
 AC_ARG_WITH(szip,
-  [AC_HELP_STRING([--with-szip=DIR],[HDF5 requires szip, and szip an be found at...])],
+  [AS_HELP_STRING([--with-szip=DIR],[HDF5 requires szip, and szip an be found at...])],
   [WITH_SZIP=$withval
   DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-szip=\"${withval}\""
   ],[WITH_SZIP=])
@@ -96,7 +96,7 @@ if test "x$WITH_SZIP" != "xno"; then
 fi
 
   # CLI option for extra HDF5 link flags
-AC_ARG_WITH([hdf5-ldflags],[AC_HELP_STRING([--with-hdf5-ldflags=...],
+AC_ARG_WITH([hdf5-ldflags],[AS_HELP_STRING([--with-hdf5-ldflags=...],
  [Extra LDFLAGS required for HDF5 library (e.g. parallel IO lib)])],
  [HDF5_LDFLAGS_WITHVAL="$withval"; 
  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-hdf5-ldflags=\"${withval}\""
@@ -117,8 +117,8 @@ esac
   # CLI option for HDF5
 AC_MSG_CHECKING([if HDF5 support is enabled])
 AC_ARG_WITH(hdf5, 
-[AC_HELP_STRING([--with-hdf5@<:@=DIR@:>@], [Specify HDF5 library to use for native file format])
-AC_HELP_STRING([--without-hdf5], [Disable support for native HDF5 file format])],
+[AS_HELP_STRING([--with-hdf5@<:@=DIR@:>@], [Specify HDF5 library to use for native file format])
+AS_HELP_STRING([--without-hdf5], [Disable support for native HDF5 file format])],
 [HDF5_ARG=$withval
  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-hdf5=\"${withval}\""
 ], [HDF5_ARG=])

@@ -8,8 +8,9 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}
 if(MOAB_USE_MPI AND MPI_FOUND)
   add_subdirectory(parallel)
   set( MOAB_MPI moabpar )
+  set( MOABPAR_OBJECTS $<TARGET_OBJECTS:moabpar> )
   set( MPI_LIBRARIES ${MPI_LIBRARY} ${MPI_EXTRA_LIBRARY} )
-  include_directories(${MPI_CXX_INCLUDE_PATH})
+  include_directories(${MPI_INCLUDE_PATH})
 endif()
 
 #create the FCDefs.h and src/MOAB_FCDefs.h files
@@ -212,9 +213,9 @@ if (MOAB_USE_ZOLTAN)
   list(APPEND MOAB_DEP_LIBRARIES ${Zoltan_LIBRARIES})
 endif()
 add_library( MOAB ${MOAB_LIB_SOURCES} ${MOAB_INSTALL_HEADERS} ${MOAB_GENERATED_INSTALL_HEADERS}
-                  $<TARGET_OBJECTS:moabio> 
+                  $<TARGET_OBJECTS:moabio>
                   $<TARGET_OBJECTS:moab_loc_discr>
-                  $<TARGET_OBJECTS:moabpar>
+                  ${MOABPAR_OBJECTS}
                   ${MDHF_OBJ} )
 
 target_link_libraries( MOAB ${MOAB_DEP_LIBRARIES} ${MOAB_LIBS} ${MOAB_CGM_LIBS} ${MPI_LIBRARIES} )

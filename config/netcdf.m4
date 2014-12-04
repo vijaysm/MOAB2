@@ -51,8 +51,8 @@ AC_DEFUN([FATHOM_CHECK_NETCDF],[
 
 AC_MSG_CHECKING([if NetCDF support is enabled])
 AC_ARG_WITH(netcdf, 
-[AC_HELP_STRING([--with-netcdf@<:@=DIR@:>@], [Specify NetCDF library to use for ExodusII file format])
-AC_HELP_STRING([--without-netcdf], [Disable support for ExodusII file format])],
+[AS_HELP_STRING([--with-netcdf@<:@=DIR@:>@], [Specify NetCDF library to use for ExodusII file format])
+AS_HELP_STRING([--without-netcdf], [Disable support for ExodusII file format])],
 [NETCDF_ARG=$withval
 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-netcdf=\"${withval}\""
 ]
@@ -102,7 +102,7 @@ if test "xno" != "x$NETCDF_ARG"; then
   old_CPPFLAGS="$CPPFLAGS"
   CPPFLAGS="$NETCDF_CPPFLAGS $CPPFLAGS"
   old_LDFLAGS="$LDFLAGS"
-  LDFLAGS="$NETCDF_LDFLAGS $LDFLAGS"
+  LDFLAGS="$NETCDF_LDFLAGS $PNETCDF_LDFLAGS $LDFLAGS"
   
    # Check for C library
   AC_LANG_PUSH([C])
@@ -112,7 +112,7 @@ if test "xno" != "x$NETCDF_ARG"; then
 
       # Check if netcdf is usable by itself
   # AC_CHECK_LIB( [netcdf], [nc_create], [NETCDF_LIBS="-lnetcdf"], [NETCDF_LIBS=${NETCDF_LDFLAGS}] )
-  AC_CHECK_LIB( [netcdf], [nc_create], [NETCDF_LIBS="-lnetcdf"], [
+  AC_CHECK_LIB( [netcdf], [nc_create], [NETCDF_LIBS="-lnetcdf $PNETCDF_LIBS"], [
      # Check if netcdf is usable with HDF5
     unset ac_cv_lib_netcdf
     unset ac_cv_lib_netcdf_nc_create
@@ -120,13 +120,13 @@ if test "xno" != "x$NETCDF_ARG"; then
     # they're in the NetCDF lib directory.
     FATHOM_DETECT_HDF5_LIBS
     LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"
-    AC_CHECK_LIB( [netcdf], [nc_create], [NETCDF_LIBS="-lnetcdf -lhdf5_hl $HDF5_LIBS"], [
+    AC_CHECK_LIB( [netcdf], [nc_create], [NETCDF_LIBS="-lnetcdf $PNETCDF_LIBS -lhdf5_hl $HDF5_LIBS"], [
       # Try one more time with HDF5 and libcurl
       unset ac_cv_lib_netcdf
       unset ac_cv_lib_netcdf_nc_create
-      AC_CHECK_LIB( [netcdf], [nc_create], [NETCDF_LIBS="-lnetcdf -lhdf5_hl -lcurl "],
-        [HAVE_NETCDF=no], [-lhdf5_hl $HDF5_LIBS -lcurl ] )],
-      [-lhdf5_hl $HDF5_LIBS] )],
+      AC_CHECK_LIB( [netcdf], [nc_create], [NETCDF_LIBS="-lnetcdf $PNETCDF_LIBS -lhdf5_hl $HDF5_LIBS -lcurl "],
+        [HAVE_NETCDF=no], [$PNETCDF_LIBS -lhdf5_hl $HDF5_LIBS -lcurl ] )],
+      [$PNETCDF_LIBS -lhdf5_hl $HDF5_LIBS] )],
     )
   
   CPPFLAGS="$old_CPPFLAGS"
@@ -149,8 +149,8 @@ fi
 AC_DEFUN([FATHOM_CHECK_PNETCDF],[
 
 AC_ARG_WITH(pnetcdf, 
-[AC_HELP_STRING([--with-pnetcdf@<:@=DIR@:>@], [Specify Pnetcdf library to use])
-AC_HELP_STRING([--without-pnetcdf], [Disable support for Pnetcdf-based file formats])],
+[AS_HELP_STRING([--with-pnetcdf@<:@=DIR@:>@], [Specify Pnetcdf library to use])
+AS_HELP_STRING([--without-pnetcdf], [Disable support for Pnetcdf-based file formats])],
 [PNETCDF_ARG=$withval
 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-pnetcdf=\"${withval}\""
 ]

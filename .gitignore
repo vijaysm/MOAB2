@@ -1,3 +1,5 @@
+config/ar-lib
+*.trs
 *~
 *.a
 aclocal.m4
@@ -14,6 +16,7 @@ config/install-sh
 config/libtool.m4
 config.log
 config.lt
+config/compile
 config/ltmain.sh
 config/lt~obsolete.m4
 config/ltoptions.m4
