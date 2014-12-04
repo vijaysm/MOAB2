@@ -8,6 +8,7 @@
 #ifndef SRC_VERDICT_MOAB_VERDICTWRAPPER_HPP_
 #define SRC_VERDICT_MOAB_VERDICTWRAPPER_HPP_
 
+#include <map>
 
 namespace moab
 {
@@ -97,7 +98,7 @@ public:
     std::vector<double> qualities;
     all_quality_measures(hex, qs, qualities); \endcode
     */
-  ErrorCode all_quality_measures(EntityHandle eh, std::vector<QualityType> & qs, std::vector<double> & qualities);
+  ErrorCode all_quality_measures(EntityHandle eh, std::map<QualityType, double> & qualities);
 private:
   Interface * mbImpl;
 

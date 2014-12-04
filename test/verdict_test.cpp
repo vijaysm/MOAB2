@@ -38,6 +38,9 @@ int main( int argc, char* argv[] )
   for (Range::iterator eit=entities.begin(); eit!=entities.end(); eit++)
   {
     EntityHandle eh=*eit;
+    EntityType etype=TYPE_FROM_HANDLE(eh);
+    if (etype==MBVERTEX || etype>MBHEX)
+      continue;
     for (int quality=0; quality<MB_QUALITY_COUNT; quality++)
     {
       QualityType q = (QualityType)quality;
@@ -57,16 +60,15 @@ int main( int argc, char* argv[] )
       }
     }
     // now compute all qualities for each entity handle
-    std::vector<QualityType> qtypes;
-    std::vector<double> qualities;
+    std::map<QualityType, double> qualities;
 
-    rval = vw.all_quality_measures(eh, qtypes, qualities);
+    rval = vw.all_quality_measures(eh, qualities);
     if (MB_SUCCESS == rval)
     {
       mb->list_entity(eh);
-      for (size_t i=0; i<qtypes.size(); i++)
+      for (std::map<QualityType, double>::iterator mit=qualities.begin(); mit!=qualities.end(); mit++)
       {
-        std::cout << "   " << vw.quality_name(qtypes[i]) << " " << qualities[i] << " \n";
+        std::cout << "   " << vw.quality_name(mit->first) << " " << mit->second << " \n";
       }
     }
 
