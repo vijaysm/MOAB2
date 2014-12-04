@@ -73,38 +73,38 @@ static int possibleQuality[MBMAXTYPE][MB_QUALITY_COUNT] = {
 
 static char const * nameQuality [MB_QUALITY_COUNT] =
 {
-   " edge ratio ",          //  MB_EDGE_RATIO = 0,  // 0
-   " maximum edge ratio ",  //  MB_MAX_EDGE_RATIO , // 1
-   " skew ",                //  MB_SKEW,            // 2
-   " taper " ,              //   MB_TAPER,            // 3
-   " volume " ,             //   MB_VOLUME,          // 4
-   " stretch " ,            //   MB_STRETCH,         // 5
-   " diagonal " ,           //   MB_DIAGONAL,        // 6
-   " dimension ",           //  MB_DIMENSION,       // 7
-   " oddy " ,               //   MB_ODDY,            // 8
+   " edge ratio",          //  MB_EDGE_RATIO = 0,  // 0
+   " maximum edge ratio",  //  MB_MAX_EDGE_RATIO , // 1
+   " skew",                //  MB_SKEW,            // 2
+   " taper" ,              //   MB_TAPER,            // 3
+   " volume" ,             //   MB_VOLUME,          // 4
+   " stretch" ,            //   MB_STRETCH,         // 5
+   " diagonal" ,           //   MB_DIAGONAL,        // 6
+   " dimension",           //  MB_DIMENSION,       // 7
+   " oddy" ,               //   MB_ODDY,            // 8
    " average Frobenius aspect", //  MB_MED_ASPECT_FROBENIUS,// 9
-   " maximum Frobenius aspect ", //   MB_MAX_ASPECT_FROBENIUS, // 10
-   " condition number " ,   //   MB_CONDITION,       // 11
-   " jacobian " ,           //   MB_JACOBIAN,        // 12
-   " scaled jacobian " ,    //   MB_SCALED_JACOBIAN, // 13
-   " shear " ,              //   MB_SHEAR,           // 14
-   " shape " ,              //  MB_SHAPE,           // 15
-   " relative size squared ",//    MB_RELATIVE_SIZE_SQUARED, // 16
-   " shape and size " ,      //   MB_SHAPE_AND_SIZE,        // 17
-   " shear and size " ,      //   MB_SHEAR_AND_SIZE,        // 18
-   " distortion " ,          //   MB_DISTORTION,            // 19
+   " maximum Frobenius aspect", //   MB_MAX_ASPECT_FROBENIUS, // 10
+   " condition number" ,   //   MB_CONDITION,       // 11
+   " jacobian" ,           //   MB_JACOBIAN,        // 12
+   " scaled jacobian" ,    //   MB_SCALED_JACOBIAN, // 13
+   " shear" ,              //   MB_SHEAR,           // 14
+   " shape" ,              //  MB_SHAPE,           // 15
+   " relative size squared",//    MB_RELATIVE_SIZE_SQUARED, // 16
+   " shape and size" ,      //   MB_SHAPE_AND_SIZE,        // 17
+   " shear and size" ,      //   MB_SHEAR_AND_SIZE,        // 18
+   " distortion" ,          //   MB_DISTORTION,            // 19
       // next are QuadMetricVals that are not in hex metrics
       // length for edge:
-   " length "  ,             //   MB_LENGTH,                // 20 only for edge
-   " radius ratio ",         //   MB_RADIUS_RATIO           // 21 tet
-   " aspect beta ",          // MB_ASPECT_BETA              // 22 tet
-   " aspect ratio ",         // MB_ASPECT_RATIO,            // 23 MBTET
-   " aspect gamma ",         // MB_ASPECT_GAMMA             // 24 tet
-   " minimum angle ",        //  MB_MINIMUM_ANGLE,         // 25  MBTET
-   " collapse ratio ",        // MB_COLLAPSE_RATIO,        // 26  MBTET
-   " warpage ",               // MB_WARPAGE                // 27  MBQUAD
-   " area ",                   // MB_AREA                   // 28  MBQAD
-   " maximum angle "          // MB_MAXIMUM_ANGLE          // 29  MBQUAD
+   " length"  ,             //   MB_LENGTH,                // 20 only for edge
+   " radius ratio",         //   MB_RADIUS_RATIO           // 21 tet
+   " aspect beta",          // MB_ASPECT_BETA              // 22 tet
+   " aspect ratio",         // MB_ASPECT_RATIO,            // 23 MBTET
+   " aspect gamma",         // MB_ASPECT_GAMMA             // 24 tet
+   " minimum angle",        //  MB_MINIMUM_ANGLE,         // 25  MBTET
+   " collapse ratio",        // MB_COLLAPSE_RATIO,        // 26  MBTET
+   " warpage",               // MB_WARPAGE                // 27  MBQUAD
+   " area",                   // MB_AREA                   // 28  MBQAD
+   " maximum angle"          // MB_MAXIMUM_ANGLE          // 29  MBQUAD
 };
 
 ErrorCode VerdictWrapper::quality_measure(EntityHandle eh, QualityType q, double & quality,

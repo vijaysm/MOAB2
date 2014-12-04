@@ -4,7 +4,7 @@ AM_CPPFLAGS += -I$(top_srcdir)/src \
                -I$(top_srcdir)/src/parallel \
 	       -I$(top_srcdir)/itaps \
 	       -I$(top_builddir)/itaps/imesh \
-               -I$(top_builddir)/src/parallel 
+               -I$(top_builddir)/src/parallel
 
 LDADD = $(top_builddir)/src/libMOAB.la
 if ENABLE_imesh
@@ -130,6 +130,11 @@ else
   mbcslam_DIR = 
 endif
 
+if ENABLE_mbquality
+  AM_CPPFLAGS += -I$(top_srcdir)/src/verdict
+  bin_PROGRAMS += mbquality
+endif 
+
 noinst_PROGRAMS = $(parread)
 
 SUBDIRS = . \
@@ -153,5 +158,6 @@ mbsurfplot_SOURCES = surfplot.cpp
 mbtagprop_SOURCES = parse.cpp parse.hpp propagate_tags.cpp
 mbmem_SOURCES = mbmem.cpp
 parread_SOURCES = parread.cpp
+mbquality_SOURCES = quality.cpp
 
 
