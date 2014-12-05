@@ -1870,5 +1870,16 @@ C_FUNC_DEF void v_quad_quality( int num_nodes, double coordinates[][3],
     metric_vals->warpage = (double) VERDICT_MAX( metric_vals->warpage, -VERDICT_DBL_MAX );
   }
 
+  if(metrics_request_flag & V_QUAD_MED_ASPECT_FROBENIUS)
+    metric_vals->med_aspect_frobenius = v_quad_med_aspect_frobenius(4, coordinates);
+  if(metrics_request_flag & V_QUAD_MAX_ASPECT_FROBENIUS)
+    metric_vals->max_aspect_frobenius = v_quad_max_aspect_frobenius(4, coordinates);
+  if(metrics_request_flag & V_QUAD_EDGE_RATIO)
+    metric_vals->edge_ratio = v_quad_edge_ratio(4, coordinates);
+  if (metrics_request_flag & V_QUAD_ASPECT_RATIO)
+    metric_vals->aspect_ratio = v_quad_aspect_ratio(4, coordinates);
+  if (metrics_request_flag & V_QUAD_RADIUS_RATIO)
+    metric_vals->radius_ratio = v_quad_radius_ratio(4, coordinates);
+
 }
 

@@ -1183,4 +1183,18 @@ C_FUNC_DEF void v_tri_quality( int num_nodes, double coordinates[][3],
     metric_vals->distortion = (double) VERDICT_MIN( metric_vals->distortion, VERDICT_DBL_MAX );
   else
     metric_vals->distortion = (double) VERDICT_MAX( metric_vals->distortion, -VERDICT_DBL_MAX );
+
+  if(metrics_request_flag & V_TRI_EDGE_RATIO)
+  {
+    metric_vals->edge_ratio=v_tri_edge_ratio(3, coordinates);
+  }
+  if(metrics_request_flag & V_TRI_RADIUS_RATIO)
+  {
+    metric_vals->radius_ratio=v_tri_radius_ratio(3, coordinates);
+  }
+  if(metrics_request_flag & V_TRI_ASPECT_FROBENIUS) // there is no V_TRI_ASPECT_RATIO !
+  {
+    metric_vals->aspect_ratio=v_tri_radius_ratio(3, coordinates);
+  }
+
 }

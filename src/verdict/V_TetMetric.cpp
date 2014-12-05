@@ -1260,5 +1260,18 @@ C_FUNC_DEF void v_tet_quality( int num_nodes, double coordinates[][3],
     metric_vals->distortion = (double) VERDICT_MAX( metric_vals->distortion, -VERDICT_DBL_MAX );
   }
 
+  if (metrics_request_flag & V_TET_ASPECT_RATIO)
+    metric_vals->aspect_ratio= v_tet_aspect_ratio(4, coordinates);
 
+  if (metrics_request_flag & V_TET_ASPECT_FROBENIUS)
+    metric_vals->aspect_frobenius = v_tet_aspect_frobenius(4, coordinates);
+
+  if (metrics_request_flag & V_TET_MINIMUM_ANGLE)
+    metric_vals->minimum_angle = v_tet_minimum_angle(4, coordinates);
+
+  if (metrics_request_flag & V_TET_COLLAPSE_RATIO)
+    metric_vals->collapse_ratio = v_tet_collapse_ratio(4, coordinates);
+
+  if (metrics_request_flag & V_TET_RADIUS_RATIO)
+    metric_vals->radius_ratio = v_tet_radius_ratio(4, coordinates);
 }

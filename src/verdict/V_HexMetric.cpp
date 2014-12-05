@@ -248,8 +248,8 @@ double safe_ratio3( const double numerator,
   else
     {
     return_value = fabs(numerator) / max_ratio >= fabs(denominator) ?
-      ( numerator >= 0.0 && denominator >= 0.0 ||
-        numerator < 0.0 && denominator < 0.0 ?
+      ( (numerator >= 0.0 && denominator >= 0.0) ||
+        (numerator < 0.0 && denominator < 0.0) ?
         max_ratio : -max_ratio )
       : numerator / denominator;
     }
@@ -3403,6 +3403,11 @@ C_FUNC_DEF void v_hex_quality( int num_nodes, double coordinates[][3],
   else
     metric_vals->distortion = (double) VERDICT_MAX( metric_vals->distortion, -VERDICT_DBL_MAX );
 
+  if(metrics_request_flag & V_HEX_MED_ASPECT_FROBENIUS)
+    metric_vals->med_aspect_frobenius = v_hex_med_aspect_frobenius(8, coordinates);
+
+  if(metrics_request_flag & V_HEX_EDGE_RATIO)
+    metric_vals->edge_ratio = v_hex_edge_ratio(8, coordinates);
 }
 
 
