@@ -1,6 +1,6 @@
 BUILT_SOURCES = iMesh_protos.h iMeshP_protos.h iMesh_extensions_protos.h iMeshP_extensions_protos.h
 
-MESHDIR = $(top_srcdir)/MeshFiles/unittest
+MESHDIR = $(abs_top_srcdir)/MeshFiles/unittest
 
 AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
                -DMESHDIR=$(MESHDIR) \
@@ -48,7 +48,7 @@ endif
 endif
 
 TESTS = $(check_PROGRAMS)
-LDADD = libiMesh.la $(top_builddir)/src/libMOAB.la ${MOAB_CXX_LINKFLAGS} ${MOAB_CXX_LIBS}
+LDADD = ${IMESH_LIBS}
 TESTDEPS = libiMesh.la $(top_builddir)/src/libMOAB.la
 
 testc_cbind_SOURCES = testc_cbind.cpp
@@ -63,13 +63,10 @@ MOAB_iMesh_extensions_tests_SOURCES = MOAB_iMesh_extensions_tests.cpp
 MOAB_iMesh_extensions_tests_DEPENDENCIES = $(TESTDEPS)
 
 ScdMeshF90_SOURCES = ScdMeshF90.F90
-ScdMeshF90_DEPENDENCIES = $(TESTDEPS)
 
 ScdMeshF77_SOURCES = ScdMeshF77.F
-ScdMeshF77_DEPENDENCIES = $(TESTDEPS)
 
 FindAdjacencyF90_SOURCES = FindAdjacencyF90.F90
-FindAdjacencyF90_DEPENDENCIES = $(TESTDEPS)
 
 lib_LTLIBRARIES = libiMesh.la
 
@@ -107,3 +104,4 @@ iMeshP_protos.h: iMeshP.h ../mkprotos.sh
 iMeshP_extensions_protos.h: iMeshP_extensions.h ../mkprotos.sh
 	$(AM_V_GEN)$(srcdir)/../mkprotos.sh iMeshP MOAB $< $@ MOAB_FCDefs.h
 
+include $(abs_top_builddir)/itaps/imesh/iMesh-Defs.inc

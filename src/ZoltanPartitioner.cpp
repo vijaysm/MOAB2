@@ -25,7 +25,7 @@
 #include <sstream>
 #include <algorithm>
 
-#include "MBZoltan.hpp"
+#include "moab/ZoltanPartitioner.hpp"
 #include "moab/Interface.hpp"
 #include "Internals.hpp"
 #include "moab/ParallelComm.hpp"
@@ -66,7 +66,7 @@ static int *Parts=NULL;
 
 const bool debug = false;
 
-MBZoltan::MBZoltan( Interface *impl,
+ZoltanPartitioner::ZoltanPartitioner( Interface *impl,
                     const bool use_coords,
                     int argc,
                     char **argv
@@ -92,7 +92,7 @@ MBZoltan::MBZoltan( Interface *impl,
   }
 }
 
-MBZoltan::~MBZoltan() 
+ZoltanPartitioner::~ZoltanPartitioner()
 {
   if (NULL != myZZ)
     delete myZZ;
@@ -101,7 +101,7 @@ MBZoltan::~MBZoltan()
     delete mbpc;
 }
 
-ErrorCode MBZoltan::balance_mesh(const char *zmethod,
+ErrorCode ZoltanPartitioner::balance_mesh(const char *zmethod,
                                  const char *other_method,
                                  const bool write_as_sets,
                                  const bool write_as_tags) 
@@ -244,7 +244,7 @@ ErrorCode MBZoltan::balance_mesh(const char *zmethod,
   return MB_SUCCESS;
 }
 
-ErrorCode  MBZoltan::repartition(std::vector<double> & x,std::vector<double>&y, std::vector<double> &z, int StartID,
+ErrorCode  ZoltanPartitioner::repartition(std::vector<double> & x,std::vector<double>&y, std::vector<double> &z, int StartID,
     const char * zmethod, Range & localGIDs)
 {
   //
@@ -352,7 +352,7 @@ ErrorCode  MBZoltan::repartition(std::vector<double> & x,std::vector<double>&y, 
   return MB_SUCCESS;
 }
 
-ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
+ErrorCode ZoltanPartitioner::partition_mesh_geom(const double part_geom_mesh_size,
                                         const int nparts,
                                         const char *zmethod,
                                         const char *other_method,
@@ -373,7 +373,7 @@ ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
 {
     // should only be called in serial
   if (mbpc->proc_config().proc_size() != 1) {
-    std::cout << "MBZoltan::partition_mesh_geom must be called in serial." 
+    std::cout << "ZoltanPartitioner::partition_mesh_geom must be called in serial." 
               << std::endl;
     return MB_FAILURE;
   }
@@ -622,7 +622,7 @@ ErrorCode MBZoltan::partition_mesh_geom(const double part_geom_mesh_size,
   return MB_SUCCESS;
 }
 
-ErrorCode MBZoltan::include_closure() 
+ErrorCode ZoltanPartitioner::include_closure() 
 {
   ErrorCode result;
   Range ents;
@@ -685,7 +685,7 @@ ErrorCode MBZoltan::include_closure()
   return MB_SUCCESS;
 }
 
-ErrorCode MBZoltan::assemble_graph(const int dimension,
+ErrorCode ZoltanPartitioner::assemble_graph(const int dimension,
                                    std::vector<double> &coords,
                                    std::vector<int> &moab_ids,
                                    std::vector<int> &adjacencies, 
@@ -781,7 +781,7 @@ ErrorCode MBZoltan::assemble_graph(const int dimension,
 }
 
 #ifdef CGM
-ErrorCode MBZoltan::assemble_graph(const int /* dimension */,
+ErrorCode ZoltanPartitioner::assemble_graph(const int /* dimension */,
                                    std::vector<double> & /* coords */,
                                    std::vector<int> &moab_ids,
                                    std::vector<int> &adjacencies, 
@@ -924,7 +924,7 @@ ErrorCode MBZoltan::assemble_graph(const int /* dimension */,
   return MB_SUCCESS;
 }
 
-double MBZoltan::estimate_face_mesh_load(RefEntity* face, const double h)
+double ZoltanPartitioner::estimate_face_mesh_load(RefEntity* face, const double h)
 {
   GeometryType type = CAST_TO(face, RefFace)->geometry_type();
   double n = face->measure()/h/h;
@@ -945,7 +945,7 @@ double MBZoltan::estimate_face_mesh_load(RefEntity* face, const double h)
   return 0.0;
 }
 
-double MBZoltan::estimate_face_comm_load(RefEntity* face, const double h)
+double ZoltanPartitioner::estimate_face_comm_load(RefEntity* face, const double h)
 {
   double peri = 0.;
   DLIList<DLIList<RefEdge*>*> ref_edge_loops;
@@ -964,7 +964,7 @@ double MBZoltan::estimate_face_comm_load(RefEntity* face, const double h)
   return (104*face->measure()/sqrt(3)/h/h + 56/3*peri/h)/700000.;
 }
 
-ErrorCode MBZoltan::write_partition(const int nparts,
+ErrorCode ZoltanPartitioner::write_partition(const int nparts,
                                     DLIList<RefEntity*> entities,
                                     const int *assignment,
                                     std::vector<double> &obj_weights,
@@ -1091,7 +1091,7 @@ ErrorCode MBZoltan::write_partition(const int nparts,
   return MB_SUCCESS;
 }
 
-ErrorCode MBZoltan::partition_surface(const int nparts,
+ErrorCode ZoltanPartitioner::partition_surface(const int nparts,
                                       DLIList<RefEntity*> entities,
                                       const int *assignment,
                                       std::vector<double> &obj_weights)
@@ -1193,7 +1193,7 @@ ErrorCode MBZoltan::partition_surface(const int nparts,
   return MB_SUCCESS;
 }
 
-ErrorCode MBZoltan::partition_round_robin(const int n_part)
+ErrorCode ZoltanPartitioner::partition_round_robin(const int n_part)
 {
   int i, j, k;
   double* loads = new double[n_part]; // estimated loads for each processor
@@ -1332,7 +1332,7 @@ ErrorCode MBZoltan::partition_round_robin(const int n_part)
 }
 
 // partition child entities to one of parent entity shared processors
-ErrorCode MBZoltan::partition_child_entities(const int dim,
+ErrorCode ZoltanPartitioner::partition_child_entities(const int dim,
                                              const int n_part,
                                              const bool part_surf,
                                              const bool ghost)
@@ -1456,7 +1456,7 @@ ErrorCode MBZoltan::partition_child_entities(const int dim,
 }
 #endif
 
-ErrorCode MBZoltan::write_partition(const int nparts,
+ErrorCode ZoltanPartitioner::write_partition(const int nparts,
                                     Range &elems, 
                                     const int *assignment,
                                     const bool write_as_sets,
@@ -1555,7 +1555,7 @@ ErrorCode MBZoltan::write_partition(const int nparts,
   return MB_SUCCESS;
 }
 
-void MBZoltan::SetRCB_Parameters()
+void ZoltanPartitioner::SetRCB_Parameters()
 {
   if (mbpc->proc_config().proc_rank() == 0) std::cout << "\nRecursive Coordinate Bisection" << std::endl;
   // General parameters:
@@ -1570,7 +1570,7 @@ void MBZoltan::SetRCB_Parameters()
   myZZ->Set_Param("RCB_RECTILINEAR_BLOCKS", "1"); // don't split point on boundary
 }
 
-void MBZoltan::SetRIB_Parameters()
+void ZoltanPartitioner::SetRIB_Parameters()
 {
   if (mbpc->proc_config().proc_rank() == 0) std::cout << "\nRecursive Inertial Bisection" << std::endl;
   // General parameters:
@@ -1584,7 +1584,7 @@ void MBZoltan::SetRIB_Parameters()
   myZZ->Set_Param("AVERAGE_CUTS", "1");
 }
 
-void MBZoltan::SetHSFC_Parameters()
+void ZoltanPartitioner::SetHSFC_Parameters()
 {
   if (mbpc->proc_config().proc_rank() == 0) std::cout << "\nHilbert Space Filling Curve" << std::endl;
   // General parameters:
@@ -1597,7 +1597,7 @@ void MBZoltan::SetHSFC_Parameters()
   myZZ->Set_Param("KEEP_CUTS", "1");              // save decomposition
 }
 
-void MBZoltan::SetHypergraph_Parameters(const char *phg_method)
+void ZoltanPartitioner::SetHypergraph_Parameters(const char *phg_method)
 {
   if (mbpc->proc_config().proc_rank() == 0) std::cout << "\nHypergraph (or PHG): " << std::endl;
   // General parameters:
@@ -1609,7 +1609,7 @@ void MBZoltan::SetHypergraph_Parameters(const char *phg_method)
   myZZ->Set_Param("PHG_COARSEPARTITION_METHOD",phg_method);//CoarsePartitionMethod
 }
 
-void MBZoltan::SetPARMETIS_Parameters(const char *parmetis_method)
+void ZoltanPartitioner::SetPARMETIS_Parameters(const char *parmetis_method)
 {
   if (mbpc->proc_config().proc_rank() == 0) std::cout << "\nPARMETIS: " << parmetis_method << std::endl;
   // General parameters:
@@ -1622,7 +1622,7 @@ void MBZoltan::SetPARMETIS_Parameters(const char *parmetis_method)
   myZZ->Set_Param("PARMETIS_METHOD", parmetis_method); // method in the library
 }
 
-void MBZoltan::SetOCTPART_Parameters(const char *oct_method)
+void ZoltanPartitioner::SetOCTPART_Parameters(const char *oct_method)
 {
   if (mbpc->proc_config().proc_rank() == 0) std::cout << "\nOctree Partitioning: " << oct_method
 			   << std::endl;
@@ -1637,7 +1637,7 @@ void MBZoltan::SetOCTPART_Parameters(const char *oct_method)
   myZZ->Set_Param("OCT_OUTPUT_LEVEL", "3");
 }
 
-int MBZoltan::mbInitializePoints(int npts, double *pts, int *ids, 
+int ZoltanPartitioner::mbInitializePoints(int npts, double *pts, int *ids, 
                                  int *adjs, int *length,
                                  double *obj_weights, double *edge_weights,
                                  int *parts, bool part_geom)
@@ -1749,7 +1749,7 @@ int MBZoltan::mbInitializePoints(int npts, double *pts, int *ids,
   return mySize;
 }     
 
-void MBZoltan::mbFinalizePoints(int npts, int numExport,
+void ZoltanPartitioner::mbFinalizePoints(int npts, int numExport,
                                 ZOLTAN_ID_PTR exportLocalIDs, int *exportProcs,
                                 int **assignment)
 {
@@ -1791,7 +1791,7 @@ void MBZoltan::mbFinalizePoints(int npts, int numExport,
   }
 }
 
-int MBZoltan::mbGlobalSuccess(int rc)
+int ZoltanPartitioner::mbGlobalSuccess(int rc)
 {
   int fail = 0;
   unsigned int i;
@@ -1812,7 +1812,7 @@ int MBZoltan::mbGlobalSuccess(int rc)
   return fail;
 }
 
-void MBZoltan::mbPrintGlobalResult(const char *s, 
+void ZoltanPartitioner::mbPrintGlobalResult(const char *s, 
                                    int begin, int import, int exp, int change)
 {
   unsigned int i;
@@ -1847,7 +1847,7 @@ void MBZoltan::mbPrintGlobalResult(const char *s,
   free(v1);
 }
 
-void MBZoltan::mbShowError(int val, const char *s)
+void ZoltanPartitioner::mbShowError(int val, const char *s)
 {
   if (s)
     printf("%s ", s);

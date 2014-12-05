@@ -1,4 +1,4 @@
-MESHDIR = $(top_srcdir)/MeshFiles/unittest
+MESHDIR = $(abs_top_srcdir)/MeshFiles/unittest
 
 AM_CPPFLAGS += -DIS_BUILDING_MB \
                -I$(top_builddir)/src \
@@ -17,9 +17,7 @@ AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
                -I$(top_srcdir)/test 
 
 lib_LTLIBRARIES = libmbcslam.la
-libmbcslam_la_LIBADD = $(top_builddir)/src/libMOAB.la $(top_builddir)/itaps/imesh/libiMesh.la 
-         
-LDADD = libmbcslam.la  $(top_builddir)/src/libMOAB.la 
+LDADD = libmbcslam.la  $(top_builddir)/src/libMOAB.la
 
 libmbcslam_la_SOURCES = \
    Intx2Mesh.cpp Intx2Mesh.hpp Intx2MeshOnSphere.cpp Intx2MeshOnSphere.hpp \
@@ -43,12 +41,12 @@ cfgdir = $(libdir)
 TESTS = intx_on_sphere_test  intx_in_plane_test spherical_area_test \
          case1_test  
 if PARALLEL
-     TESTS+=intx_mpas
+     TESTS += intx_mpas
 endif
 
 noinst_PROGRAMS =  proj1 create_dp 
 if PARALLEL
-  noinst_PROGRAMS +=cslam_par_test diffusion  intx_imesh 
+  noinst_PROGRAMS += cslam_par_test diffusion intx_imesh
 if ENABLE_FORTRAN
   noinst_PROGRAMS += advection
 endif
@@ -57,7 +55,6 @@ endif
 check_PROGRAMS = $(TESTS) 
 
 intx_on_sphere_test_SOURCES = intx_on_sphere_test.cpp
-
 intx_in_plane_test_SOURCES = intx_in_plane_test.cpp
 # spec_visu_test_SOURCES = spec_visu_test.cpp
 spherical_area_test_SOURCES = spherical_area_test.cpp
@@ -68,12 +65,12 @@ create_dp_SOURCES = create_dp.cpp
 if PARALLEL
   diffusion_SOURCES = diffusion.cpp
   intx_imesh_SOURCES = intx_imesh.cpp
-  intx_imesh_LDADD = $(LDADD) $(top_builddir)/itaps/imesh/libiMesh.la
+  intx_imesh_LDADD = libmbcslam.la  $(top_builddir)/itaps/imesh/libiMesh.la $(top_builddir)/src/libMOAB.la
   cslam_par_test_SOURCES = cslam_par_test.cpp
   intx_mpas_SOURCES = intx_mpas.cpp
 if ENABLE_FORTRAN
   advection_SOURCES = advection.F90
-  advection_LDADD = $(LDADD) $(top_builddir)/itaps/imesh/libiMesh.la -lstdc++ 
+  advection_LDADD = libmbcslam.la  $(top_builddir)/itaps/imesh/libiMesh.la $(top_builddir)/src/libMOAB.la $(FCLIBS)
 endif
 endif 
 

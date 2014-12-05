@@ -10,8 +10,8 @@ AC_DEFUN([FATHOM_CHECK_CGNS],[
 
 AC_MSG_CHECKING([if CGNS support is enabled])
 AC_ARG_WITH(cgns, 
-[AC_HELP_STRING([--with-cgns<:@=DIR@:>@], [Specify CGNS library to use for CGNS file format])
-AC_HELP_STRING([--without-cgns], [Disable support for CGNS file format])],
+[AS_HELP_STRING([--with-cgns<:@=DIR@:>@], [Specify CGNS library to use for CGNS file format])
+AS_HELP_STRING([--without-cgns], [Disable support for CGNS file format])],
 [CGNS_ARG=$withval
 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-cgns=\"${withval}\""
 ]

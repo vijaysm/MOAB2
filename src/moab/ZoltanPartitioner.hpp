@@ -19,8 +19,8 @@
  *
  */
 
-#ifndef MB_ZOLTAN_HPP
-#define MB_ZOLTAN_HPP
+#ifndef ZOLTANPARTITIONER_HPP
+#define ZOLTANPARTITIONER_HPP
 
 #include <stdlib.h>
 #include "moab_mpi.h"
@@ -81,11 +81,11 @@ namespace moab {
 
 using namespace moab;
 
-  class MBZoltan 
+  class ZoltanPartitioner
   {
 
   public:
-    MBZoltan( Interface *impl = NULL,
+    ZoltanPartitioner( Interface *impl = NULL,
               const bool use_coords = false,
               int argc = 0, 
               char **argv = NULL
@@ -95,7 +95,7 @@ using namespace moab;
               );
 
     
-    ~MBZoltan();
+    ~ZoltanPartitioner();
 
     ErrorCode balance_mesh(const char *zmethod,
                            const char *other_method,

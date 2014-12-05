@@ -8,8 +8,8 @@ AC_DEFUN([FATHOM_CHECK_BOOST],[
 AC_MSG_CHECKING([if boost library is enabled])
 FATHOM_BOOST_OPT_HEADER_LIST="$1"
 AC_ARG_WITH(boost, 
-[AC_HELP_STRING([--with-boost=DIR], [Specify directory where boost is installed])
-AC_HELP_STRING([--without-boost], [Disable support for boost libraries])],
+[AS_HELP_STRING([--with-boost=DIR], [Specify directory where boost is installed])
+AS_HELP_STRING([--without-boost], [Disable support for boost libraries])],
 [BOOST_ARG=$withval
 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-boost=\"${withval}\""
 ]

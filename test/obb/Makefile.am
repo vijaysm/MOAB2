@@ -1,7 +1,7 @@
 check_PROGRAMS = obb_test obb_time obb_tree_tool
 TESTS = obb_test
 
-MESHDIR = $(top_srcdir)/MeshFiles/unittest
+MESHDIR = $(abs_top_srcdir)/MeshFiles/unittest
 
 AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
                -DMESHDIR=$(MESHDIR) \
