@@ -1404,6 +1404,8 @@ AC_CONFIG_FILES([Makefile
                  MeshFiles/unittest/dagmc/Makefile
                  MeshFiles/unittest/mbcslam/Makefile
                  MeshFiles/unittest/h5file/Makefile
+                 MeshFiles/examples/Makefile
+                 MeshFiles/examples/deformed_mesh_remap/Makefile
                  ])
 AC_CONFIG_COMMANDS([src/MOAB_FCDefs.h],
   [sed -e "s/FC_FUNC/MOAB_FC_FUNC/" src/FCDefs.h >src/MOAB_FCDefs.h])
