@@ -160,14 +160,14 @@ ErrorCode refine_entities(Core *mb, int *level_degrees, const int num_levels, bo
   ErrorCode error;
 
   //Get the range of entities in the initial mesh
-  Range edges, faces, cells;
+  Range init_verts, edges, faces, cells;
+  error = mb->get_entities_by_dimension(0, 0, init_verts); CHECK_ERR(error);
   error = mb->get_entities_by_dimension(0, 1, edges); CHECK_ERR(error);
   error = mb->get_entities_by_dimension(0, 2, faces); CHECK_ERR(error);
   error = mb->get_entities_by_dimension(0, 3, cells);  CHECK_ERR(error);
 
   Range init_ents;
   int dim;
-
 
   if (!edges.empty() && faces.empty() && cells.empty())
     {
@@ -184,11 +184,6 @@ ErrorCode refine_entities(Core *mb, int *level_degrees, const int num_levels, bo
       dim = 3;
       init_ents = cells;
     }
-//  else
- //   {
- //     std::cout<<"The input is a mixed mesh: Currently Not Supported"<<std::endl;
- //     return MB_FAILURE;
-//    }
 
 
   if (output)
@@ -212,6 +207,9 @@ ErrorCode refine_entities(Core *mb, int *level_degrees, const int num_levels, bo
   std::cout<<"Finished hierarchy generation"<<std::endl;
 
   int factor=1;
+   Range prev_verts, prev_ents;
+   prev_verts = init_verts;
+   prev_ents = init_ents;
 
   //Loop over each mesh level and check its topological properties
   for (int l=0; l<num_levels; l++)
@@ -236,6 +234,22 @@ ErrorCode refine_entities(Core *mb, int *level_degrees, const int num_levels, bo
       //Check adjacencies
       error = test_adjacencies(mb, &uref, dim, verts, ents); CHECK_ERR(error);
 
+      //Check interlevel child-parent query between previous and current level
+      for (Range::iterator e = prev_ents.begin(); e != prev_ents.end(); e++)
+        {
+          std::vector<EntityHandle> children;
+          error = uref.parent_to_child(*e, l-1, l, children); CHECK_ERR(error);
+          for (int i=0; i<(int)children.size(); i++)
+            {
+              EntityHandle parent;
+              error = uref.child_to_parent(children[i], l, l-1, &parent); CHECK_ERR(error);
+              assert(parent == *e);
+            }
+        }
+      prev_verts = verts;
+      prev_ents = ents;
+
+      //Print out the mesh
       if (output)
         {
           int inents = init_ents.size();
@@ -246,6 +260,19 @@ ErrorCode refine_entities(Core *mb, int *level_degrees, const int num_levels, bo
           const char* output_file = str.c_str();
           char * write_opts = NULL;
           error = mb->write_file(output_file, 0, write_opts, &set[l], 1); CHECK_ERR(error);
+        }
+    }
+
+  //Check interlevel child-parent query between initial and most refined mesh
+  for (Range::iterator e= init_ents.begin(); e != init_ents.end(); e++)
+    {
+      std::vector<EntityHandle> children;
+      error = uref.parent_to_child(*e, -1, num_levels-1, children); CHECK_ERR(error);
+      for (int i=0; i<(int)children.size(); i++)
+        {
+          EntityHandle parent;
+          error = uref.child_to_parent(children[i], num_levels-1, -1, &parent); CHECK_ERR(error);
+          assert(parent == *e);
         }
     }
 
