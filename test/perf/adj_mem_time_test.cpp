@@ -38,6 +38,7 @@ int number_tests_failed = 0;
 
 struct query_time
 {
+  double ds_construction;
   double vertex_to_edges_total;
   double vertex_to_edges_avg;
   double edge_to_edges_total;
@@ -117,7 +118,7 @@ ErrorCode adj_perf(const char* filename)
     MPI_Comm_size(MPI_COMM_WORLD, &procs);
 
     if (procs > 1){
-    read_options = "PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;PARALLEL_GHOSTS=3.0.1.3";
+    read_options = "PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS";
 
     error = mbImpl->load_file(filename, 0, read_options.c_str());
     CHECK_ERR(error);
@@ -130,48 +131,34 @@ ErrorCode adj_perf(const char* filename)
     }
 #endif
 
-  //Create ranges for handles of explicit elements of the mixed mesh
-  Range verts, edges, faces, cells;
-  error = mbImpl->get_entities_by_dimension( 0, 0, verts);
-  error = mbImpl->get_entities_by_dimension( 0, 1, edges);
-  error = mbImpl->get_entities_by_dimension( 0, 2, faces); 
-  error = mbImpl->get_entities_by_dimension( 0, 3, cells);
-  
+    //Storage Costs before calling ahf functionalities
+    unsigned long long sTotS, sTAS, sES, sAES, sAS, sAAS, sTS, sATS;
+    sTotS = sTAS = sES = sAES = sAS = sAAS = sTS = sATS = 0;
+    mbImpl->estimated_memory_use(NULL, 0, &sTotS, &sTAS, &sES, &sAES, &sAS, &sAAS, NULL, 0, &sTS, &sATS);
+
+    qmem.total_storage[0] = sTotS;
+    qmem.amortized_total_storage[0] = sTAS;
+    qmem.entity_storage[0] = sES;
+    qmem.amortized_entity_storage[0] = sAES;
+    qmem.adjacency_storage[0] = sAS;
+    qmem.amortized_adjacency_storage[0] = sAAS;
+    qmem.tag_storage[0] = sTS;
+    qmem.amortized_tag_storage[0] = sATS;
+
+
+    //Create ranges for handles of explicit elements of the mixed mesh
+    Range verts, edges, faces, cells;
+    error = mbImpl->get_entities_by_dimension( 0, 0, verts);
+    error = mbImpl->get_entities_by_dimension( 0, 1, edges);
+    error = mbImpl->get_entities_by_dimension( 0, 2, faces);
+    error = mbImpl->get_entities_by_dimension( 0, 3, cells);
+
   int nverts = verts.size(); 
   int nedges = edges.size();
   int nfaces = faces.size();
   int ncells = cells.size();
 
-  std::cout<<"nverts = "<<nverts<<", nedges = "<<nedges<<", nfaces = "<<nfaces<<", ncells = "<<ncells<<std::endl;
-
-
-  //Storage Costs before calling ahf functionalities
-  std::cout<<std::endl;
-  std::cout<<"STORAGE BEFORE CALLING ADJACENCIES"<<std::endl;
-  unsigned long long sTotS, sTAS, sES, sAES, sAS, sAAS, sTS, sATS;
-  sTotS = sTAS = sES = sAES = sAS = sAAS = sTS = sATS = 0;
-  mbImpl->estimated_memory_use(NULL, 0, &sTotS, &sTAS, &sES, &sAES, &sAS, &sAAS, NULL, 0, &sTS, &sATS);
-
-  qmem.total_storage[0] = sTotS;
-  qmem.amortized_total_storage[0] = sTAS;
-  qmem.entity_storage[0] = sES;
-  qmem.amortized_entity_storage[0] = sAES;
-  qmem.adjacency_storage[0] = sAS;
-  qmem.amortized_adjacency_storage[0] = sAAS;
-  qmem.tag_storage[0] = sTS;
-  qmem.amortized_tag_storage[0] = sATS;
-
-  std::cout<<std::endl;
-  std::cout<<"Total storage = "<<sTotS<<std::endl;
-  std::cout<<"Total amortized storage = "<<sTAS<<std::endl;
-  std::cout<<"Entity storage = "<<sES<<std::endl;
-  std::cout<<"Amortized entity storage = "<<sAES<<std::endl;
-  std::cout<<"Adjacency storage = "<<sAS<<std::endl;
-  std::cout<<"Amortized adjacency storage = "<<sAAS<<std::endl;
-  std::cout<<"Tag storage = "<<sTS<<std::endl;
-  std::cout<<"Amortized tag storage = "<<sATS<<std::endl;
-  std::cout<<std::endl;
-
+  std::cout<<"MESH SIZE :: "<<"NV = "<<nverts<<", NE = "<<nedges<<", NF = "<<nfaces<<", NC = "<<ncells<<std::endl;
 
   double time_start, time_avg, time_total;
 
@@ -180,11 +167,16 @@ ErrorCode adj_perf(const char* filename)
   Range ngbents;
 
   // This call should create all the necessary ahf maps or adjacency lists
+  time_start = wtime();
   error = mbImpl->get_adjacencies( &*verts.begin(), 1, 1, false, adjents );
+  time_total = wtime() - time_start;
+  qtime.ds_construction = time_total;
 
   //1D Queries
+
+  std::cout<<"1D QUERIES Start"<<std::endl;
+
   //IQ1: For every vertex, obtain incident edges
-  std::cout<<"1D QUERIES"<<std::endl;
   time_start = wtime();
   for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {    
     adjents.clear();
@@ -192,14 +184,6 @@ ErrorCode adj_perf(const char* filename)
   }
   time_total = wtime()-time_start;
   time_avg = time_total/(double)verts.size();
-
-#ifdef USE_AHF
-  std::cout<<"QUERY: Vertex -> Edges :: MOAB_AHF: Average time =  "<< time_avg<<" secs" <<std::endl;
-  std::cout<<std::endl;
-#else
-  std::cout<<"QUERY: Vertex -> Edges :: MOAB: Average time =  "<< time_avg<<" secs" <<std::endl;
-  std::cout<<std::endl;
-#endif
 
   qtime.vertex_to_edges_total = time_total;
   qtime.vertex_to_edges_avg = time_avg;
@@ -212,10 +196,7 @@ ErrorCode adj_perf(const char* filename)
     error = mbImpl->get_adjacencies( &*i, 1, 1, false, adjents);
   }
   time_total = wtime()-time_start;
-  time_avg = time_total/(double)edges.size();
-
-  std::cout<<"QUERY: Edge -> Edges :: MOAB_AHF: Average time = "<<time_avg<<" secs" << std::endl;
-  std::cout<<std::endl;
+  time_avg = time_total/(double)edges.size();  
 #else
   error = mtu.get_bridge_adjacencies( *edges.begin(), 0, 1, ngbents);
   time_start = wtime();
@@ -225,16 +206,17 @@ ErrorCode adj_perf(const char* filename)
   }
   time_total = wtime()-time_start;
   time_avg = time_total/(double)edges.size();
-
-  std::cout<<"QUERY: Edge -> Edges :: MOAB: Average time = "<<time_avg<<" secs" << std::endl;
-  std::cout<<std::endl;
 #endif
 
   qtime.edge_to_edges_total = time_total;
   qtime.edge_to_edges_avg = time_avg;
 
+  std::cout<<"1D QUERIES End"<<std::endl;
+
   // 2D Queries
-  std::cout<<"2D QUERIES"<<std::endl;
+
+  std::cout<<"2D QUERIES Start"<<std::endl;
+
   //IQ21: For every vertex, obtain incident faces
   time_start = wtime();
   for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
@@ -243,14 +225,6 @@ ErrorCode adj_perf(const char* filename)
   }
   time_total = wtime()-time_start;
   time_avg = time_total/(double)edges.size();
-
-#ifdef USE_AHF
-  std::cout<<"QUERY: Vertex -> Faces :: MOAB_AHF: Average time =  "<<time_avg<<" secs" <<std::endl;
-  std::cout<<std::endl;
-#else
-  std::cout<<"QUERY: Vertex -> Faces :: MOAB: Average time =  "<<time_avg<<" secs" <<std::endl;
-  std::cout<<std::endl;
-#endif
 
   qtime.vertex_to_faces_total = time_total;
   qtime.vertex_to_faces_avg = time_avg;
@@ -264,14 +238,6 @@ ErrorCode adj_perf(const char* filename)
   time_total = wtime()-time_start;
   time_avg = time_total/(double)edges.size();
 
-#ifdef USE_AHF
-  std::cout<<"QUERY: Edge -> Faces :: MOAB_AHF: Average time =  "<<time_avg<<" secs" <<std::endl;
-  std::cout<<std::endl;
-#else
-  std::cout<<"QUERY: Edge -> Faces :: MOAB: Average time =  "<<time_avg<<" secs" <<std::endl;
-  std::cout<<std::endl;
-#endif
-
   qtime.edge_to_faces_total = time_total;
   qtime.edge_to_faces_avg = time_avg;
 
@@ -284,9 +250,6 @@ ErrorCode adj_perf(const char* filename)
   }
   time_total = wtime()-time_start;
   time_avg = time_total/(double)faces.size();
-
-  std::cout<<"QUERY: Face -> Faces :: MOAB_AHF: Average time = "<< time_avg<<" secs" <<std::endl;
-  std::cout<<std::endl;
 #else
   error = mtu.get_bridge_adjacencies( *faces.begin(), 1, 2, ngbents);
   time_start = wtime();
@@ -296,9 +259,6 @@ ErrorCode adj_perf(const char* filename)
   }
   time_total = wtime()-time_start;
   time_avg = time_total/(double)faces.size();
-
-  std::cout<<"QUERY: Face -> Faces :: MOAB: Average time = "<< time_avg<<" secs" <<std::endl;
-  std::cout<<std::endl;
 #endif
 
   qtime.face_to_faces_total = time_total;
@@ -313,19 +273,15 @@ ErrorCode adj_perf(const char* filename)
   time_total = wtime()-time_start;
   time_avg = time_total/(double)faces.size();
 
-#ifdef USE_AHF
-  std::cout<<"QUERY: Face -> Edges :: MOAB_AHF: Average time =  "<<time_avg<<" secs" <<std::endl;
-  std::cout<<std::endl;
-#else
-  std::cout<<"QUERY: Face -> Edges :: MOAB: Average time =  "<<time_avg<<" secs" <<std::endl;
-  std::cout<<std::endl;
-#endif
-
   qtime.face_to_edges_total = time_total;
   qtime.face_to_edges_avg = time_avg;
 
+  std::cout<<"2D QUERIES End"<<std::endl;
+
   // 3D Queries
-  std::cout<<"3D QUERIES"<<std::endl;
+
+  std::cout<<"3D QUERIES Start "<<std::endl;
+
   //IQ31: For every vertex, obtain incident cells
   time_start = wtime();
   for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
@@ -334,14 +290,6 @@ ErrorCode adj_perf(const char* filename)
   }
   time_total = wtime()-time_start;
   time_avg = time_total/(double)edges.size();
-
-#ifdef USE_AHF
-  std::cout<<"QUERY: Vertex -> Cells :: MOAB_AHF: Average time =  "<<time_avg <<" secs"<<std::endl;
-  std::cout<<std::endl;
-#else
-  std::cout<<"QUERY: Vertex -> Cells :: MOAB: Average time =  "<<time_avg <<" secs"<<std::endl;
-  std::cout<<std::endl;
-#endif
 
   qtime.vertex_to_cells_total = time_total;
   qtime.vertex_to_cells_avg = time_avg;
@@ -355,14 +303,6 @@ ErrorCode adj_perf(const char* filename)
   time_total = wtime()-time_start;
   time_avg = time_total/(double)edges.size();
 
-#ifdef USE_AHF
-  std::cout<<"QUERY: Edge -> Cells :: MOAB_AHF: Average time =  "<<time_avg <<" secs"<<std::endl;
-  std::cout<<std::endl;
-#else
-  std::cout<<"QUERY: Edge -> Cells :: MOAB: Average time =  "<<time_avg <<" secs"<<std::endl;
-  std::cout<<std::endl;
-#endif
-
   qtime.edge_to_cells_total = time_total;
   qtime.edge_to_cells_avg = time_avg;
 
@@ -374,14 +314,6 @@ ErrorCode adj_perf(const char* filename)
   }
   time_total = wtime()-time_start;
   time_avg = time_total/(double)faces.size();
-
-#ifdef USE_AHF
-  std::cout<<"QUERY: Face -> Cells :: MOAB_AHF: Average time =  "<<time_avg <<" secs"<<std::endl;
-  std::cout<<std::endl;
-#else
-  std::cout<<"QUERY: Face -> Cells :: MOAB: Average time =  "<<time_avg <<" secs"<<std::endl;
-  std::cout<<std::endl;
-#endif
 
   qtime.face_to_cells_total = time_total;
   qtime.face_to_cells_avg = time_avg;
@@ -395,9 +327,6 @@ ErrorCode adj_perf(const char* filename)
   }
   time_total = wtime()-time_start;
   time_avg = time_total/(double)cells.size();
-
-  std::cout<<"QUERY: Cell -> Cells :: MOAB_AHF: Average time =  "<< time_avg <<" secs" << std::endl;
-  std::cout<<std::endl;
 #else
   error = mtu.get_bridge_adjacencies( *cells.begin(), 2, 3, ngbents);
   time_start = wtime();
@@ -407,9 +336,6 @@ ErrorCode adj_perf(const char* filename)
   }
   time_total = wtime()-time_start;
   time_avg = time_total/(double)cells.size();
-
-  std::cout<<"QUERY: Cell -> Cells :: MOAB: Average time =  "<< time_avg <<" secs" << std::endl;
-  std::cout<<std::endl;
 #endif
 
   qtime.cell_to_cells_total = time_total;
@@ -424,14 +350,6 @@ ErrorCode adj_perf(const char* filename)
   time_total = wtime()-time_start;
   time_avg = time_total/(double)cells.size();
 
-#ifdef USE_AHF
-  std::cout<<"QUERY: Cell -> Edges :: MOAB_AHF: Average time =  "<<time_avg<<" secs" <<std::endl;
-  std::cout<<std::endl;
-#else
-  std::cout<<"QUERY: Cell -> Edges :: MOAB: Average time =  "<<time_avg<<" secs" <<std::endl;
-  std::cout<<std::endl;
-#endif
-
   qtime.cell_to_edges_total = time_total;
   qtime.cell_to_edges_avg = time_avg;
 
@@ -444,20 +362,12 @@ ErrorCode adj_perf(const char* filename)
   time_total = wtime()-time_start;
   time_avg = time_total/(double)cells.size();
 
-#ifdef USE_AHF
-  std::cout<<"QUERY: Cell -> Faces :: MOAB_AHF: Average time =  "<<time_avg<<" secs" <<std::endl;
-  std::cout<<std::endl;
-#else
-  std::cout<<"QUERY: Cell -> Faces :: MOAB: Average time =  "<<time_avg<<" secs" <<std::endl;
-  std::cout<<std::endl;
-#endif
-
   qtime.cell_to_faces_total = time_total;
   qtime.cell_to_faces_avg = time_avg;
 
+   std::cout<<"3D QUERIES End"<<std::endl;
+
   //Storage Costs after calling ahf deinitialize
-  std::cout<<std::endl;
-  std::cout<<"STORAGE AFTER CALLING ADJACENCIES"<<std::endl;
   unsigned long long eTotS, eTAS, eES, eAES, eAS, eAAS, eTS, eATS;
   eTotS = eTAS = eES = eAES = eAS = eAAS = eTS = eATS = 0;
   mbImpl->estimated_memory_use(NULL, 0, &eTotS, &eTAS, &eES, &eAES, &eAS, &eAAS, NULL, 0, &eTS, &eATS);
@@ -478,27 +388,171 @@ ErrorCode adj_perf(const char* filename)
   qmem.amortized_tag_storage[1] = eATS;
   #endif
 
+
+  //Print times
   std::cout<<std::endl;
-  std::cout<<"Total storage = "<<eTotS<<std::endl;
-  std::cout<<"Total amortized storage = "<<eTAS<<std::endl;
+  std::cout<<" Data Structure Construction Time = "<<qtime.ds_construction<<" Secs"<<std::endl;
   std::cout<<std::endl;
-  std::cout<<"Entity storage = "<<eES<<std::endl;
-  std::cout<<"Amortized entity storage = "<<eAES<<std::endl;
-  std::cout<<std::endl;
+  std::cout<<"Query times in Seconds"<<std::endl;
 #ifdef USE_AHF
-  std::cout<<"AHF adjacency tag storage  = "<<eTS-sTS<<std::endl;
-  std::cout<<"Amortized AHF adjacency tag storage = "<<eATS-sATS<<std::endl;
+  std::cout<<"QUERY: Vertex -> Edges :: MOAB_AHF: Average time =  "<< qtime.vertex_to_edges_avg ;
+  std::cout<<", Total time = "<<qtime.vertex_to_edges_total<<std::endl;
   std::cout<<std::endl;
-  std::cout<<"Tag storage = "<<sTS<<std::endl;
-  std::cout<<"Amortized tag storage = "<<sATS<<std::endl;
 #else
-  std::cout<<"Adjacency lists storage = "<<eAS<<std::endl;
-  std::cout<<"Amortized adjacency lists storage = "<<eAAS<<std::endl;
+  std::cout<<"QUERY: Vertex -> Edges :: MOAB: Average time =  "<<  qtime.vertex_to_edges_avg;
+  std::cout<<", Total time = "<<qtime.vertex_to_edges_total<<std::endl;
   std::cout<<std::endl;
-  std::cout<<"Tag storage = "<<eTS<<std::endl;
-  std::cout<<"Amortized tag storage = "<<eATS<<std::endl;
 #endif
+
+#ifdef USE_AHF
+  std::cout<<"QUERY: Edge -> Edges :: MOAB_AHF: Average time = "<<qtime.edge_to_edges_avg;
+  std::cout<<", Total time = "<<qtime.edge_to_edges_total<<std::endl;
   std::cout<<std::endl;
+#else
+  std::cout<<"QUERY: Edge -> Edges :: MOAB: Average time = "<<qtime.edge_to_edges_avg;
+  std::cout<<", Total time = "<<qtime.edge_to_edges_total<<std::endl;
+  std::cout<<std::endl;
+#endif
+
+#ifdef USE_AHF
+  std::cout<<"QUERY: Vertex -> Faces :: MOAB_AHF: Average time =  "<<qtime.vertex_to_faces_avg;
+  std::cout<<", Total time = "<<qtime.vertex_to_faces_total<<std::endl;
+  std::cout<<std::endl;
+#else
+  std::cout<<"QUERY: Vertex -> Faces :: MOAB: Average time =  "<<qtime.vertex_to_faces_avg;
+  std::cout<<", Total time = "<<qtime.vertex_to_faces_total<<std::endl;
+  std::cout<<std::endl;
+#endif
+
+#ifdef USE_AHF
+  std::cout<<"QUERY: Edge -> Faces :: MOAB_AHF: Average time =  "<<qtime.edge_to_faces_avg;
+  std::cout<<", Total time = "<<qtime.edge_to_faces_total<<std::endl;
+  std::cout<<std::endl;
+#else
+  std::cout<<"QUERY: Edge -> Faces :: MOAB: Average time =  "<<qtime.edge_to_faces_avg;
+  std::cout<<", Total time = "<<qtime.edge_to_faces_total<<std::endl;
+  std::cout<<std::endl;
+#endif
+
+#ifdef USE_AHF
+  std::cout<<"QUERY: Face -> Faces :: MOAB_AHF: Average time = "<< qtime.face_to_faces_avg;
+  std::cout<<", Total time = "<<qtime.face_to_faces_total<<std::endl;
+  std::cout<<std::endl;
+#else
+  std::cout<<"QUERY: Face -> Faces :: MOAB: Average time = "<< qtime.face_to_faces_avg;
+  std::cout<<", Total time = "<<qtime.face_to_faces_total<<std::endl;
+  std::cout<<std::endl;
+#endif
+
+#ifdef USE_AHF
+  std::cout<<"QUERY: Face -> Edges :: MOAB_AHF: Average time =  "<<qtime.face_to_edges_avg;
+  std::cout<<", Total time = "<<qtime.face_to_edges_total<<std::endl;
+  std::cout<<std::endl;
+#else
+  std::cout<<"QUERY: Face -> Edges :: MOAB: Average time =  "<<qtime.face_to_edges_avg;
+  std::cout<<", Total time = "<<qtime.face_to_edges_total<<std::endl;
+  std::cout<<std::endl;
+#endif
+
+#ifdef USE_AHF
+  std::cout<<"QUERY: Vertex -> Cells :: MOAB_AHF: Average time =  "<<qtime.vertex_to_cells_avg;
+  std::cout<<", Total time = "<<qtime.vertex_to_cells_total<<std::endl;
+  std::cout<<std::endl;
+#else
+  std::cout<<"QUERY: Vertex -> Cells :: MOAB: Average time =  "<<qtime.vertex_to_cells_avg;
+  std::cout<<", Total time = "<<qtime.vertex_to_cells_total<<std::endl;
+  std::cout<<std::endl;
+#endif
+
+#ifdef USE_AHF
+  std::cout<<"QUERY: Edge -> Cells :: MOAB_AHF: Average time =  "<<qtime.edge_to_cells_avg;
+  std::cout<<", Total time = "<<qtime.edge_to_cells_total<<std::endl;
+  std::cout<<std::endl;
+#else
+  std::cout<<"QUERY: Edge -> Cells :: MOAB: Average time =  "<<qtime.edge_to_cells_avg;
+  std::cout<<", Total time = "<<qtime.edge_to_cells_total<<std::endl;
+  std::cout<<std::endl;
+#endif
+
+#ifdef USE_AHF
+  std::cout<<"QUERY: Face -> Cells :: MOAB_AHF: Average time =  "<<qtime.face_to_cells_avg;
+  std::cout<<", Total time = "<<qtime.face_to_cells_total<<std::endl;
+  std::cout<<std::endl;
+#else
+  std::cout<<"QUERY: Face -> Cells :: MOAB: Average time =  "<<qtime.face_to_cells_avg;
+  std::cout<<", Total time = "<<qtime.face_to_cells_total<<std::endl;
+  std::cout<<std::endl;
+#endif
+
+#ifdef USE_AHF
+  std::cout<<"QUERY: Cell -> Cells :: MOAB_AHF: Average time =  "<< qtime.cell_to_cells_avg;
+  std::cout<<", Total time = "<<qtime.cell_to_cells_total<<std::endl;
+  std::cout<<std::endl;
+#else
+  std::cout<<"QUERY: Cell -> Cells :: MOAB: Average time =  "<< qtime.cell_to_cells_avg;
+  std::cout<<", Total time = "<<qtime.cell_to_cells_total<<std::endl;
+  std::cout<<std::endl;
+#endif
+
+#ifdef USE_AHF
+  std::cout<<"QUERY: Cell -> Edges :: MOAB_AHF: Average time =  "<<qtime.cell_to_edges_avg;
+  std::cout<<", Total time = "<<qtime.cell_to_edges_total<<std::endl;
+  std::cout<<std::endl;
+#else
+  std::cout<<"QUERY: Cell -> Edges :: MOAB: Average time =  "<<qtime.cell_to_edges_avg;
+  std::cout<<", Total time = "<<qtime.cell_to_edges_total<<std::endl;
+  std::cout<<std::endl;
+#endif
+
+#ifdef USE_AHF
+  std::cout<<"QUERY: Cell -> Faces :: MOAB_AHF: Average time =  "<<qtime.cell_to_faces_avg;
+  std::cout<<", Total time = "<<qtime.cell_to_faces_total<<std::endl;
+  std::cout<<std::endl;
+#else
+  std::cout<<"QUERY: Cell -> Faces :: MOAB: Average time =  "<<qtime.cell_to_faces_avg;
+  std::cout<<", Total time = "<<qtime.cell_to_faces_total<<std::endl;
+  std::cout<<std::endl;
+#endif
+
+
+  //Print Storage
+  std::cout<<std::endl;
+  for (int i=0; i<2; i++){
+      if (i==0)
+        std::cout<<"STORAGE BEFORE CALLING ADJACENCIES"<<std::endl;
+      else
+        std::cout<<"STORAGE AFTER CALLING ADJACENCIES"<<std::endl;
+
+      std::cout<<"Total storage = "<<qmem.total_storage[i]<<std::endl;
+      std::cout<<"Total amortized storage = "<<qmem.amortized_total_storage[i]<<std::endl;
+      std::cout<<std::endl;
+      std::cout<<"Entity storage = "<<qmem.entity_storage[i]<<std::endl;
+      std::cout<<"Amortized entity storage = "<<qmem.amortized_entity_storage[i]<<std::endl;
+      std::cout<<std::endl;
+#ifdef USE_AHF
+      if (i==0)
+        {
+          std::cout<<"Adjacency storage  = "<<qmem.adjacency_storage[i]<<std::endl;
+          std::cout<<"Amortized adjacency storage = "<<qmem.amortized_adjacency_storage[i]<<std::endl;
+          std::cout<<std::endl;
+        }
+        else
+        {
+          std::cout<<"AHF adjacency storage  = "<<qmem.adjacency_storage[i]<<std::endl;
+          std::cout<<"Amortized AHF adjacency storage = "<<qmem.amortized_adjacency_storage[i]<<std::endl;
+          std::cout<<std::endl;
+        }
+      std::cout<<"Tag storage = "<<qmem.tag_storage[i]<<std::endl;
+      std::cout<<"Amortized tag storage = "<<qmem.amortized_tag_storage[i]<<std::endl;
+#else
+      std::cout<<"EntFact Adjacency storage = "<<qmem.adjacency_storage[i]<<std::endl;
+      std::cout<<"Amortized EntFact adjacency lists storage = "<<qmem.amortized_adjacency_storage[i]<<std::endl;
+      std::cout<<std::endl;
+      std::cout<<"Tag storage = "<<qmem.tag_storage[i]<<std::endl;
+      std::cout<<"Amortized tag storage = "<<qmem.amortized_tag_storage[i]<<std::endl;
+#endif
+      std::cout<<std::endl;
+    }
 
   return MB_SUCCESS;
 }

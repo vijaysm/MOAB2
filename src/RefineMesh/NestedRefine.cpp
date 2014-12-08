@@ -2353,7 +2353,7 @@ ErrorCode NestedRefine::count_subentities(EntityHandle set, int cur_level, int *
 
 ErrorCode NestedRefine::get_octahedron_corner_coords(int cur_level, int deg, EntityHandle *vbuffer, double *ocoords)
 {
-  int lid[6];
+  int lid[6]={0,0,0,0,0,0};
 
   if (deg==2)
     {
@@ -2390,7 +2390,6 @@ int NestedRefine::find_shortest_diagonal_octahedron(int cur_level, int deg, Enti
   double length = std::numeric_limits<double>::max();
 
   int diag = 0;
-  //double dlen = 0;
   double x, y,z;
   x = y = z = 0;
 

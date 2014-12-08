@@ -13,9 +13,6 @@
  * 
  */
 
-#ifdef WIN32
-#pragma warning (disable : 4786)
-#endif
 
 #include "moab/HalfFacetRep.hpp"
 #include <iostream>
@@ -872,7 +869,7 @@ namespace moab {
       local_id = true;
 
     EntityHandle start_eid, eid, sibeid[2];
-    int start_lid, lid, siblid[2];    
+    int start_lid, lid, siblid[2];
    
     error = mb->tag_get_data(v2hv_eid, &vid, 1, &start_eid);
     if (MB_SUCCESS != error) return error;
@@ -886,8 +883,8 @@ namespace moab {
       if (local_id)
         lvids->push_back(lid);
 
-      while (eid !=0) {	 
-	  error = mb->tag_get_data(sibhvs_eid, &eid, 1, sibeid);
+      while (eid !=0) {
+          error = mb->tag_get_data(sibhvs_eid, &eid, 1, sibeid);
 	  if (MB_SUCCESS != error) return error;
 	  error = mb->tag_get_data(sibhvs_lvid, &eid, 1, siblid);
 	  if (MB_SUCCESS != error) return error;
@@ -911,13 +908,13 @@ namespace moab {
     ErrorCode error;
 
     EntityHandle sib_eids[2], sibhv_eid;
-    int sib_lids[2], sibhv_lid;    
+    int sib_lids[2], sibhv_lid;
 
     error = mb->tag_get_data(sibhvs_eid, &eid, 1, sib_eids);
     if (MB_SUCCESS != error) return error;
     error = mb->tag_get_data(sibhvs_lvid, &eid, 1, sib_lids);
     if (MB_SUCCESS != error) return error;
-    
+
     for (int lid = 0;lid < 2; ++lid){
       sibhv_eid = sib_eids[lid];
       sibhv_lid = sib_lids[lid];
@@ -925,7 +922,7 @@ namespace moab {
       if (sibhv_eid != 0){
         adjents.push_back(sibhv_eid);
 	
-	EntityHandle next_eid[2], hv_eid; 
+	EntityHandle next_eid[2], hv_eid;
 	int next_lid[2], hv_lid;
 	
 	error = mb->tag_get_data(sibhvs_eid, &sibhv_eid, 1, next_eid);

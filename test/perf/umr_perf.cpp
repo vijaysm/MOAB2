@@ -39,14 +39,32 @@ int number_tests_failed = 0;
 
 struct mesh_mem
 {
-   unsigned long long total_storage;
-   unsigned long long amortized_total_storage;
+
+ /* unsigned long long total_storage;
+  unsigned long long amortized_total_storage;
+  unsigned long long entity_storage;
+  unsigned long long amortized_entity_storage;
+  unsigned long long adjacency_storage;
+  unsigned long long amortized_adjacency_storage;
+  unsigned long long tag_storage;
+  unsigned long long amortized_tag_storage;*/
+
+  //Total storage
+  unsigned long long total_storage;
+  unsigned long long total_amortized_storage;
+
+  //Tag storage
+  unsigned long long tag_storage;
+  unsigned long long amortized_tag_storage;
+
+  //Vertex storage
+   unsigned long long vertex_storage;
+   unsigned long long amortized_vertex_storage;
+
+   //Entity storage
    unsigned long long entity_storage;
    unsigned long long amortized_entity_storage;
-   unsigned long long adjacency_storage;
-   unsigned long long amortized_adjacency_storage;
-   unsigned long long tag_storage;
-   unsigned long long amortized_tag_storage;
+
 };
 
 enum OUTTYPE{
@@ -97,7 +115,7 @@ ErrorCode umr_perf_test(Core *mb, int *level_degrees, int num_levels, OUTTYPE ou
   error = mbImpl->get_entities_by_dimension( 0, 3, incells);
 
   Range init_ents;
-  int dim;
+  int dim=0;
   if (inedges.size())
     {
       dim = 1;
@@ -119,7 +137,7 @@ ErrorCode umr_perf_test(Core *mb, int *level_degrees, int num_levels, OUTTYPE ou
 
   if (output == MEM || output == BOTH){
       //Storage Costs before mesh hierarchy generation
-      std::cout<<std::endl;
+ /*     std::cout<<std::endl;
       unsigned long long sTotS, sTAS, sES, sAES, sAS, sAAS, sTS, sATS;
       sTotS = sTAS = sES = sAES = sAS = sAAS = sTS = sATS = 0;
       mbImpl->estimated_memory_use(NULL, 0, &sTotS, &sTAS, &sES, &sAES, &sAS, &sAAS, NULL, 0, &sTS, &sATS);
@@ -131,18 +149,37 @@ ErrorCode umr_perf_test(Core *mb, int *level_degrees, int num_levels, OUTTYPE ou
       umem[0].adjacency_storage = sAS;
       umem[0].amortized_adjacency_storage = sAAS;
       umem[0].tag_storage = sTS;
-      umem[0].amortized_tag_storage = sATS;
+      umem[0].amortized_tag_storage = sATS;*/
+
+      unsigned long long vTotS, vTAS, vES, vAES, vAS, vAAS, vTS, vATS;
+      vTotS = vTAS = vES = vAES = vAS = vAAS = vTS = vATS = 0;
+      mbImpl->estimated_memory_use(inverts, &vTotS, &vTAS, &vES, &vAES, &vAS, &vAAS, NULL, 0, &vTS, &vATS);
+
+      unsigned long long eTotS, eTAS, eES, eAES, eAS, eAAS, eTS, eATS;
+      eTotS = eTAS = eES = eAES = eAS = eAAS = eTS = eATS = 0;
+      mbImpl->estimated_memory_use(init_ents, &eTotS, &eTAS, &eES, &eAES, &eAS, &eAAS, NULL, 0, &eTS, &eATS);
+
+      umem[0].total_storage = vTotS+eTotS;
+      umem[0].vertex_storage = vES;
+      umem[0].entity_storage = eES;
+      umem[0].tag_storage = vTS+eTS;
 
       std::cout<<"MEMORY STORAGE:: Initial Mesh"<<std::endl;
       std::cout<<std::endl;
       std::cout<<"Total storage = "<<umem[0].total_storage<<std::endl;
+      std::cout<<"Vertex storage = "<<umem[0].vertex_storage<<std::endl;
+      std::cout<<"Entity storage = "<<umem[0].entity_storage<<std::endl;
+      std::cout<<"Tag storage = "<< umem[0].tag_storage<<std::endl;
+
+
+  /*    std::cout<<"Total storage = "<<umem[0].total_storage<<std::endl;
       std::cout<<"Total amortized storage = "<< umem[0].amortized_total_storage<<std::endl;
       std::cout<<"Entity storage = "<<umem[0].entity_storage<<std::endl;
       std::cout<<"Amortized entity storage = "<<umem[0].amortized_entity_storage<<std::endl;
       std::cout<<"Adjacency storage = "<< umem[0].adjacency_storage <<std::endl;
       std::cout<<"Amortized adjacency storage = "<<umem[0].amortized_adjacency_storage <<std::endl;
       std::cout<<"Tag storage = "<< umem[0].tag_storage<<std::endl;
-      std::cout<<"Amortized tag storage = "<<umem[0].amortized_tag_storage <<std::endl;
+      std::cout<<"Amortized tag storage = "<<umem[0].amortized_tag_storage <<std::endl;*/
       std::cout<<std::endl;
     }
 
@@ -189,28 +226,38 @@ ErrorCode umr_perf_test(Core *mb, int *level_degrees, int num_levels, OUTTYPE ou
           mbImpl->estimated_memory_use(ents, &eTotS, &eTAS, &eES, &eAES, &eAS, &eAAS, NULL, 0, &eTS, &eATS);
 
           umem[l+1].total_storage = vTotS+eTotS;
+          umem[l+1].vertex_storage = vES;
+          umem[l+1].entity_storage = eES;
+          umem[l+1].tag_storage = vTS+eTS;
+
+         /* umem[l+1].total_storage = vTotS+eTotS;
           umem[l+1].amortized_total_storage = vTAS+eTAS;
           umem[l+1].entity_storage = vES+eES;
           umem[l+1].amortized_entity_storage = vAES+eAES;
           umem[l+1].adjacency_storage = vAS+eAS;
           umem[l+1].amortized_adjacency_storage = vAAS+eAAS;
           umem[l+1].tag_storage = vTS+eTS;
-          umem[l+1].amortized_tag_storage = vATS+eATS;
+          umem[l+1].amortized_tag_storage = vATS+eATS;*/
 
           std::cout<<"MEMORY STORAGE:: Mesh level "<<l+1<<std::endl;
           std::cout<<std::endl;
           std::cout<<"Total storage = "<<umem[l+1].total_storage<<std::endl;
+          std::cout<<"Vertex storage = "<<umem[l+1].vertex_storage<<std::endl;
+          std::cout<<"Entity storage = "<<umem[l+1].entity_storage<<std::endl;
+          std::cout<<"Tag storage = "<< umem[l+1].tag_storage<<std::endl;
+
+        /*  std::cout<<"Total storage = "<<umem[l+1].total_storage<<std::endl;
           std::cout<<"Total amortized storage = "<< umem[l+1].amortized_total_storage<<std::endl;
           std::cout<<"Entity storage = "<<umem[l+1].entity_storage<<std::endl;
           std::cout<<"Amortized entity storage = "<<umem[l+1].amortized_entity_storage<<std::endl;
           std::cout<<"Adjacency storage = "<< umem[l+1].adjacency_storage <<std::endl;
           std::cout<<"Amortized adjacency storage = "<<umem[l+1].amortized_adjacency_storage <<std::endl;
           std::cout<<"Tag storage = "<< umem[l+1].tag_storage<<std::endl;
-          std::cout<<"Amortized tag storage = "<<umem[l+1].amortized_tag_storage <<std::endl;
+          std::cout<<"Amortized tag storage = "<<umem[l+1].amortized_tag_storage <<std::endl;*/
           std::cout<<std::endl;
         }
 
-      if (output == TIME || output == BOTH){
+      if (output == BOTH){
           //Loop over all vertices and get their coordinates
           time_start = wtime();
           for (Range::iterator i = verts.begin(); i != verts.end(); ++i)
@@ -268,7 +315,7 @@ ErrorCode umr_perf_test(Core *mb, int *level_degrees, int num_levels, OUTTYPE ou
     }
 
 
-  if (output == MEM || output == BOTH){
+ /* if (output == MEM || output == BOTH){
 
       unsigned long long sTotS, sTAS, sES, sAES, sAS, sAAS, sTS, sATS;
       sTotS = sTAS = sES = sAES = sAS = sAAS = sTS = sATS = 0;
@@ -294,7 +341,7 @@ ErrorCode umr_perf_test(Core *mb, int *level_degrees, int num_levels, OUTTYPE ou
       std::cout<<"Tag storage = "<< umem[num_levels+1].tag_storage<<std::endl;
       std::cout<<"Amortized tag storage = "<<umem[num_levels+1].amortized_tag_storage <<std::endl;
       std::cout<<std::endl;
-    }
+    }*/
 
     return MB_SUCCESS;
 }
@@ -730,7 +777,7 @@ int main(int argc, char *argv[])
         const char *filename = argv[1];
         ErrorCode result;
 
-        OUTTYPE output = TIME;
+        OUTTYPE output = MEM;
 
         if (output == MEM){
             int deg[3] = {2,2,2};
@@ -744,7 +791,7 @@ int main(int argc, char *argv[])
             handle_error_code(result, number_tests_failed, number_tests_successful);
             std::cout<<"\n";
 
-          /*  deg[0] = 5; deg[1] = 5; deg[2] = 5;
+         /*   deg[0] = 5; deg[1] = 5; deg[2] = 5;
             result = perf_inmesh(filename, deg, len, output);
             handle_error_code(result, number_tests_failed, number_tests_successful);
             std::cout<<"\n";*/

@@ -4018,7 +4018,7 @@ void Core::estimated_memory_use_internal( const Range* ents,
         if (amortized_tag_storage) {
           tag_array[i]->num_tagged_entities( sequenceManager, count2 );
           if (count2)
-            amortized_tag_storage[i] = (unsigned long)((double)total * count / count2);
+            amortized_tag_storage[i] = (unsigned long long)((double)total * count / count2);
         }
       }
       else {
@@ -4054,7 +4054,7 @@ void Core::estimated_memory_use_internal( const Range* ents,
         if (amortized_total_tag_storage) {
           (*i)->num_tagged_entities( sequenceManager, count2 );
           if (count2)
-            *amortized_total_tag_storage += (unsigned long)((double)total * count / count2);
+            *amortized_total_tag_storage += (unsigned long long)((double)total * count / count2);
         }
       }
       else {
