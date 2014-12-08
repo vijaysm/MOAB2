@@ -5,8 +5,7 @@
 
 namespace moab{
 
-  const NestedRefine::refPatterns NestedRefine::refTemplates[9][MAX_DEGREE]=
-  {
+  const NestedRefine::refPatterns NestedRefine::refTemplates[9][MAX_DEGREE] = {
     //EDGE
     {
       // Deg 2
@@ -100,7 +99,7 @@ namespace moab{
 
        {{3,4},{5,6},{7,8}},
        {9},
-       {{3,1,3,5},{3,5,8,9},{3,9,6,1}},
+       {{3,1,3,5},{3,5,8,9},{3,9,6,1}}
        },
 
       // Deg 5
@@ -172,7 +171,7 @@ namespace moab{
 
        {{4},{5},{6},{7}},
        {8},
-       {{2,1,2},{2,2,3},{2,3,4},{2,4,1}},
+       {{2,1,2},{2,2,3},{2,3,4},{2,4,1}}
       },
 
       // Deg 3
