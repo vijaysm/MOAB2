@@ -171,6 +171,7 @@ namespace moab{
 
   ErrorCode NestedRefine::get_coordinates(EntityHandle *verts, int num_verts, int level, double *coords)
   {
+    assert(level >= 0);
     const EntityHandle& vstart = level_mesh[level].start_vertex;
     for (int i=0; i< num_verts; i++)
       {
@@ -196,7 +197,7 @@ namespace moab{
 
   ErrorCode NestedRefine::child_to_parent(EntityHandle child, int child_level, int parent_level, EntityHandle *parent)
   {
-    assert((parent_level>=0) &&(child_level>parent_level));
+    assert((child_level>=0) &&(child_level>parent_level));
     EntityType type = mbImpl->type_from_handle(child);
     assert(type != MBVERTEX);
 
@@ -217,36 +218,65 @@ namespace moab{
     int l = child_level - parent_level;
     for (int i=0; i< l; i++)
       {
-        int d = get_index_from_degree(level_dsequence[child_level-i-1]);
+        int d = get_index_from_degree(level_dsequence[child_level-i]);
         int nch = refTemplates[type-1][d].total_new_ents;
         child_index = child_index/nch;
       }
      parent_index = child_index;
 
     if (type == MBEDGE)
-      *parent = level_mesh[child_level].start_edge + parent_index;
+      {
+        if (parent_level>=0)
+          *parent = level_mesh[parent_level].start_edge + parent_index;
+        else
+          *parent = _inedges[parent_index];
+      }
     else if (type == MBTRI || type == MBQUAD)
-      *parent = level_mesh[child_level].start_face + parent_index;
+      {
+        if (parent_level>=0)
+          *parent = level_mesh[parent_level].start_face + parent_index;
+        else
+          *parent = _infaces[parent_index];
+      }
     else if (type == MBTET || type == MBHEX)
-      *parent = level_mesh[child_level].start_cell + parent_index;
-
+      {
+        if (parent_level>=0)
+          *parent = level_mesh[parent_level].start_cell + parent_index;
+        else
+          *parent = _incells[parent_index];
+      }
 
     return MB_SUCCESS;
   }
 
   ErrorCode NestedRefine::parent_to_child(EntityHandle parent, int parent_level, int child_level,  std::vector<EntityHandle> &children)
   {
-    assert((parent_level>=0) &&(child_level>parent_level));
+    assert ((child_level>=0) && (child_level>parent_level));
     EntityType type = mbImpl->type_from_handle(parent);
     assert(type != MBVERTEX);
 
     int parent_index;
     if (type == MBEDGE)
-      parent_index = parent - level_mesh[parent_level].start_edge;
+      {
+        if(parent_level>=0)
+          parent_index = parent - level_mesh[parent_level].start_edge;
+        else
+          parent_index = _inedges.index(parent);
+      }
     else if (type == MBTRI || type == MBQUAD)
-      parent_index = parent - level_mesh[parent_level].start_face;
+      {
+        if (parent_level>=0)
+          parent_index = parent - level_mesh[parent_level].start_face;
+        else
+          parent_index = _infaces.index(parent);
+      }
     else if (type == MBTET || type == MBHEX)
-      parent_index = parent - level_mesh[parent_level].start_cell;
+      {
+        if (parent_level>=0)
+          parent_index = parent - level_mesh[parent_level].start_cell;
+        else
+          parent_index = _incells.index(parent);
+      }
     else
       {
         std::cout<<"Requesting children for unsupported entity type"<<std::endl;
@@ -255,13 +285,16 @@ namespace moab{
 
     int start, end;
     start = end = parent_index;
-    for (int i=parent_level; i< child_level; i++)
+    for (int i=parent_level+1; i<= child_level; i++)
       {
         int d = get_index_from_degree(level_dsequence[i]);
         int nch = refTemplates[type-1][d].total_new_ents;
         start = start*nch;
         end = end*nch + nch-1;
       }
+
+    int num_child = end-start;
+    children.reserve(num_child);
 
     for (int i=start; i<=end; i++)
       {
@@ -282,6 +315,7 @@ namespace moab{
 
   ErrorCode NestedRefine::vertex_to_entities(EntityHandle vertex, int level, std::vector<EntityHandle> &incident_entities)
   {
+    assert(level>=0);
     ErrorCode error;
 
     //Step 1: Get the incident entities at the current level
