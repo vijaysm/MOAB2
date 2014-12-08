@@ -23,7 +23,7 @@ std::string TestDir( STRINGIFY(MESHDIR) );
 std::string TestDir(".");
 #endif
 
-std::string file_name("./uniform_15.g");
+//std::string file_name("./uniform_15.g");
 //std::string file_name("./eulerHomme.vtk");
 
 using namespace moab;
