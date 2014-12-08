@@ -39,14 +39,14 @@ libmbcslam_la_includedir = $(includedir)
 cfgdir = $(libdir)
 
 TESTS = intx_on_sphere_test  intx_in_plane_test spherical_area_test \
-         case1_test  arc_intx_tests  IntxRllCssphere_test diffusion linear_remap
+         case1_test  arc_intx_tests  IntxRllCssphere_test diffusion linear_remap 
 if PARALLEL
      TESTS += intx_mpas
 endif
 
 noinst_PROGRAMS =  proj1 create_dp 
 if PARALLEL
-  noinst_PROGRAMS += cslam_par_test intx_imesh
+  noinst_PROGRAMS += cslam_par_test intx_imesh linear_advection
 if ENABLE_FORTRAN
   noinst_PROGRAMS += advection
 endif
@@ -65,6 +65,7 @@ arc_intx_tests_SOURCES = arc_intx_tests.cpp
 # this test is for netcdf only ; maybe convert to vtk for the test
 IntxRllCssphere_test_SOURCES = IntxRllCssphere_test.cpp
 linear_remap_SOURCES = linear_remap.cpp
+linear_advection_SOURCES = linear_advection.cpp
 
 if PARALLEL
   diffusion_SOURCES = diffusion.cpp
