@@ -1365,6 +1365,7 @@ AC_CONFIG_FILES([Makefile
                  moab.make                  
                  MOABConfig.cmake
                  examples/makefile
+                 examples/old/deform_mesh/makefile
                  src/Makefile
                  src/io/Makefile
                  src/io/mhdf/Makefile
@@ -1405,7 +1406,6 @@ AC_CONFIG_FILES([Makefile
                  MeshFiles/unittest/mbcslam/Makefile
                  MeshFiles/unittest/h5file/Makefile
                  MeshFiles/examples/Makefile
-                 MeshFiles/examples/deformed_mesh_remap/Makefile
                  ])
 AC_CONFIG_COMMANDS([src/MOAB_FCDefs.h],
   [sed -e "s/FC_FUNC/MOAB_FC_FUNC/" src/FCDefs.h >src/MOAB_FCDefs.h])
