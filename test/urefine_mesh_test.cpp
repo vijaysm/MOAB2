@@ -7,7 +7,6 @@
 #include "moab/Core.hpp"
 #include "moab/Range.hpp"
 #include "moab/MeshTopoUtil.hpp"
-#include "moab/HalfFacetRep.hpp"
 #include "../RefineMesh/moab/NestedRefine.hpp"
 #include "TestUtil.hpp"
 
@@ -102,7 +101,7 @@ ErrorCode test_adjacencies(Core *mb, NestedRefine *nr, int dim, Range verts, Ran
           std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
           mbents = subtract(mbents, ahfents);
           CHECK(!mbents.size());
-      }
+        }
 
       //NQ2: For every face, obtain neighbor faces
       for (Range::iterator i = ents.begin(); i != ents.end(); ++i) {
@@ -238,11 +237,11 @@ ErrorCode refine_entities(Core *mb, int *level_degrees, const int num_levels, bo
       for (Range::iterator e = prev_ents.begin(); e != prev_ents.end(); e++)
         {
           std::vector<EntityHandle> children;
-          error = uref.parent_to_child(*e, l-1, l, children); CHECK_ERR(error);
+          error = uref.parent_to_child(*e, l, l+1, children); CHECK_ERR(error);
           for (int i=0; i<(int)children.size(); i++)
             {
               EntityHandle parent;
-              error = uref.child_to_parent(children[i], l, l-1, &parent); CHECK_ERR(error);
+              error = uref.child_to_parent(children[i], l+1, l, &parent); CHECK_ERR(error);
               assert(parent == *e);
             }
         }
@@ -267,13 +266,25 @@ ErrorCode refine_entities(Core *mb, int *level_degrees, const int num_levels, bo
   for (Range::iterator e= init_ents.begin(); e != init_ents.end(); e++)
     {
       std::vector<EntityHandle> children;
-      error = uref.parent_to_child(*e, -1, num_levels-1, children); CHECK_ERR(error);
+      error = uref.parent_to_child(*e, 0, num_levels, children); CHECK_ERR(error);
       for (int i=0; i<(int)children.size(); i++)
         {
           EntityHandle parent;
-          error = uref.child_to_parent(children[i], num_levels-1, -1, &parent); CHECK_ERR(error);
+          error = uref.child_to_parent(children[i], num_levels, 0, &parent); CHECK_ERR(error);
           assert(parent == *e);
         }
+    }
+
+  //Print out the whole hierarchy into a single file
+  if (output)
+    {
+      int inents = init_ents.size();
+      EntityType type = mb->type_from_handle(*init_ents.begin());
+      std::stringstream file;
+      file <<  "INIT_"<<type<<"_"<<inents<<"_dim_"<<dim<<".vtk";
+      std::string str = file.str();
+      const char* output_file = str.c_str();
+      error = mb->write_file(output_file); CHECK_ERR(error);
     }
 
   delete [] set;
@@ -999,7 +1010,7 @@ ErrorCode test_mesh(const char* filename, int *level_degrees, int num_levels)
 #endif
 
     //Generate hierarchy
-    error = refine_entities(&moab, level_degrees, num_levels, false);  CHECK_ERR(error);
+    error = refine_entities(&moab, level_degrees, num_levels, true);  CHECK_ERR(error);
 
     return MB_SUCCESS;
 }
@@ -1016,7 +1027,7 @@ int main(int argc, char *argv[])
 
     ErrorCode result;
     if (argc ==1){
-       result = test_1D();
+        result = test_1D();
         handle_error_code(result, number_tests_failed, number_tests_successful);
         std::cout<<"\n";
 
@@ -1031,16 +1042,16 @@ int main(int argc, char *argv[])
     else if (argc == 2)
       {
         const char* filename = argv[1];
-        int deg[2] = {2,2};
+        int deg = 3;
         int len = sizeof(deg) / sizeof(int);
-        result = test_mesh(filename, deg, len);
+        result = test_mesh(filename, &deg, len);
         handle_error_code(result, number_tests_failed, number_tests_successful);
         std::cout<<"\n";
 
-        deg[0] = 3; deg[1] = 3;
+     /*   deg[0] = 3; deg[1] = 3;
         result = test_mesh(filename, deg, len);
         handle_error_code(result, number_tests_failed, number_tests_successful);
-        std::cout<<"\n";
+        std::cout<<"\n";*/
 
     /*    deg = 5;
         result = test_mesh(filename, &deg, len);
