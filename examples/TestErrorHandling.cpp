@@ -22,7 +22,7 @@ ErrorCode TestErrorHandling_1()
 
   // Load a CAM-FV file and read a variable on edges (not supported yet)
   string test_file = string(MESH_DIR) + string("/io/fv3x46x72.t.3.nc");
-  ErrorCode rval = mb.load_file(test_file.c_str(), NULL, "VARIABLE=US");CHK_ERR(rval);
+  ErrorCode rval = mb.load_file(test_file.c_str(), NULL, "VARIABLE=US");MB_CHK_ERR(rval);
 
   return MB_SUCCESS;
 }
@@ -35,7 +35,7 @@ ErrorCode TestErrorHandling_2()
 
   // Load a HOMME file with an invalid GATHER_SET option
   string test_file = string(MESH_DIR) + string("/io/homme3x3458.t.3.nc");
-  ErrorCode rval = mb.load_file(test_file.c_str(), NULL, "VARIABLE=T;GATHER_SET=0.1");CHK_ERR(rval);
+  ErrorCode rval = mb.load_file(test_file.c_str(), NULL, "VARIABLE=T;GATHER_SET=0.1");MB_CHK_ERR(rval);
 
   return MB_SUCCESS;
 }
@@ -48,7 +48,7 @@ ErrorCode TestErrorHandling_3()
 
   // Load a CAM-FV file with NOMESH option and a NULL file set
   string test_file = string(MESH_DIR) + string("/io/fv3x46x72.t.3.nc");
-  ErrorCode rval = mb.load_file(test_file.c_str(), NULL, "NOMESH;VARIABLE=");CHK_ERR(rval);
+  ErrorCode rval = mb.load_file(test_file.c_str(), NULL, "NOMESH;VARIABLE=");MB_CHK_ERR(rval);
 
   return MB_SUCCESS;
 }
@@ -63,18 +63,18 @@ ErrorCode TestErrorHandling_4()
   const int NUM_VTX = 100;
   vector<double> coords(3 * NUM_VTX);
   Range verts;
-  ErrorCode rval = mb.create_vertices(&coords[0], NUM_VTX, verts);CHK_SET_ERR(rval, "Failed to create vertices");
+  ErrorCode rval = mb.create_vertices(&coords[0], NUM_VTX, verts);MB_CHK_SET_ERR(rval, "Failed to create vertices");
 
   // Create a variable-length dense tag
   Tag tag;
   rval = mb.tag_get_handle("var_len_den", 1, MB_TYPE_INTEGER, tag,
-                          MB_TAG_VARLEN | MB_TAG_DENSE | MB_TAG_CREAT);CHK_SET_ERR(rval, "Failed to create a tag");
+                          MB_TAG_VARLEN | MB_TAG_DENSE | MB_TAG_CREAT);MB_CHK_SET_ERR(rval, "Failed to create a tag");
 
   // Attempt to iterate over a variable-length tag, which will never be possible
   void* ptr = NULL;
   int count = 0;
   rval = mb.tag_iterate(tag, verts.begin(), verts.end(),
-                        count, ptr);CHK_SET_ERR(rval, "Failed to iterate over tag on " << NUM_VTX << " vertices");
+                        count, ptr);MB_CHK_SET_ERR(rval, "Failed to iterate over tag on " << NUM_VTX << " vertices");
 
   return MB_SUCCESS;
 }
@@ -98,16 +98,16 @@ int main(int argc, char** argv)
   int test_case_num = atoi(argv[1]);
   switch (test_case_num) {
     case 1:
-      rval = TestErrorHandling_1();CHK_ERR(rval);
+      rval = TestErrorHandling_1();MB_CHK_ERR(rval);
       break;
     case 2:
-      rval = TestErrorHandling_2();CHK_ERR(rval);
+      rval = TestErrorHandling_2();MB_CHK_ERR(rval);
       break;
     case 3:
-      rval = TestErrorHandling_3();CHK_ERR(rval);
+      rval = TestErrorHandling_3();MB_CHK_ERR(rval);
       break;
     case 4:
-      rval = TestErrorHandling_4();CHK_ERR(rval);
+      rval = TestErrorHandling_4();MB_CHK_ERR(rval);
       break;
     default:
       break;

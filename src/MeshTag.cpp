@@ -14,7 +14,7 @@ namespace moab {
 
 static ErrorCode not_root_set(const std::string& name, EntityHandle h)
 {
-  SET_ERR(MB_VARIABLE_DATA_LENGTH, "Cannot get/set mesh/global tag " << name << " on non-root-set " << CN::EntityTypeName(TYPE_FROM_HANDLE(h)) << " " << (unsigned long)ID_FROM_HANDLE(h));
+  MB_SET_ERR(MB_VARIABLE_DATA_LENGTH, "Cannot get/set mesh/global tag " << name << " on non-root-set " << CN::EntityTypeName(TYPE_FROM_HANDLE(h)) << " " << (unsigned long)ID_FROM_HANDLE(h));
 }
 
 static inline bool all_root_set(std::string name, const EntityHandle* array, size_t len)
@@ -31,7 +31,7 @@ static inline bool all_root_set(std::string name, const EntityHandle* array, siz
 
 static ErrorCode not_found(const std::string& name)
 {
-  // MB_TAG_NOT_FOUND could be a non-error condition, do not call SET_ERR on it
+  // MB_TAG_NOT_FOUND could be a non-error condition, do not call MB_SET_ERR on it
   // Print warning messages for debugging only
   bool mydebug = false;
   if (mydebug) {
@@ -95,7 +95,7 @@ ErrorCode MeshTag::get_data(const SequenceManager*,
                             void*) const
 {
   if (variable_length()) {
-    SET_ERR(MB_VARIABLE_DATA_LENGTH, "No length specified for variable-length tag " << get_name() << " value");
+    MB_SET_ERR(MB_VARIABLE_DATA_LENGTH, "No length specified for variable-length tag " << get_name() << " value");
   }
   else if (r.empty())
     return MB_SUCCESS;
@@ -155,7 +155,7 @@ ErrorCode MeshTag::set_data(SequenceManager*,
                             const void* data)
 {
   if (variable_length()) {
-    SET_ERR(MB_VARIABLE_DATA_LENGTH, "No length specified for variable-length tag " << get_name() << " value");
+    MB_SET_ERR(MB_VARIABLE_DATA_LENGTH, "No length specified for variable-length tag " << get_name() << " value");
   }
   if (!all_root_set(get_name(), entities, num_entities))
     return MB_TAG_NOT_FOUND;
@@ -175,7 +175,7 @@ ErrorCode MeshTag::set_data(SequenceManager*,
                             const void*)
 {
   if (variable_length()) {
-    SET_ERR(MB_VARIABLE_DATA_LENGTH, "No length specified for variable-length tag " << get_name() << " value");
+    MB_SET_ERR(MB_VARIABLE_DATA_LENGTH, "No length specified for variable-length tag " << get_name() << " value");
   }
   else if (range.empty())
     return MB_SUCCESS;
@@ -193,7 +193,7 @@ ErrorCode MeshTag::set_data(SequenceManager*,
   if (!all_root_set(get_name(), entities, num_entities))
     return MB_TAG_NOT_FOUND;
 
-  ErrorCode valid = validate_lengths(NULL, data_lengths, num_entities);CHK_ERR(valid);
+  ErrorCode valid = validate_lengths(NULL, data_lengths, num_entities);MB_CHK_ERR(valid);
 
   if (num_entities > 0) {
     mValue.resize(data_lengths[num_entities - 1]);
@@ -225,7 +225,7 @@ ErrorCode MeshTag::clear_data(SequenceManager*,
   if (!all_root_set(get_name(), entities, num_entities))
     return MB_TAG_NOT_FOUND;
 
-  ErrorCode valid = validate_lengths(NULL, value_len ? &value_len : 0, 1);CHK_ERR(valid);
+  ErrorCode valid = validate_lengths(NULL, value_len ? &value_len : 0, 1);MB_CHK_ERR(valid);
 
   if (num_entities > 0) {
     mValue.resize(value_len);

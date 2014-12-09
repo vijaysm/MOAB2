@@ -54,7 +54,7 @@ ErrorCode WriteUtil::check_doesnt_exist(const char* file_name)
 {
   struct stat s;
   if (0 == stat(file_name, &s)) {
-    SET_ERR(MB_ALREADY_ALLOCATED, file_name << ": file already exists");
+    MB_SET_ERR(MB_ALREADY_ALLOCATED, file_name << ": file already exists");
   }
   else if (errno == ENOENT)
     return MB_SUCCESS;
@@ -750,16 +750,16 @@ ErrorCode WriteUtil::get_tag_list(std::vector<Tag>& result_list,
     result_list.reserve(user_tag_list_length);
     for (int i = 0; i < user_tag_list_length; ++i) {
       std::string name;
-      rval = mMB->tag_get_name(user_tag_list[i], name);CHK_SET_ERR(rval, "Error " << (int)rval << " getting name for tag (Invalid input tag handle?)");
+      rval = mMB->tag_get_name(user_tag_list[i], name);MB_CHK_SET_ERR(rval, "Error " << (int)rval << " getting name for tag (Invalid input tag handle?)");
 
       if (name.empty()) {
-        SET_ERR(MB_TAG_NOT_FOUND, "Explicit request to save anonymous tag");
+        MB_SET_ERR(MB_TAG_NOT_FOUND, "Explicit request to save anonymous tag");
       }
 
       int size;
       if (!include_variable_length_tags &&
           MB_VARIABLE_DATA_LENGTH == mMB->tag_get_length(user_tag_list[i], size)) {
-        SET_ERR(MB_TYPE_OUT_OF_RANGE, "File format cannot store variable-length tag: \"" << name << "\"");
+        MB_SET_ERR(MB_TYPE_OUT_OF_RANGE, "File format cannot store variable-length tag: \"" << name << "\"");
       }
 
       result_list.push_back(user_tag_list[i]);
@@ -767,7 +767,7 @@ ErrorCode WriteUtil::get_tag_list(std::vector<Tag>& result_list,
   }
   else {
     std::vector<Tag> temp_list;
-    rval = mMB->tag_get_tags(temp_list);CHK_SET_ERR(rval, "Interface::tag_get_tags failed");
+    rval = mMB->tag_get_tags(temp_list);MB_CHK_SET_ERR(rval, "Interface::tag_get_tags failed");
 
     result_list.clear();
     result_list.reserve(temp_list.size());
@@ -775,7 +775,7 @@ ErrorCode WriteUtil::get_tag_list(std::vector<Tag>& result_list,
     std::vector<Tag>::iterator i;
     for (i = temp_list.begin(); i != temp_list.end(); ++i) {
       std::string name;
-      rval = mMB->tag_get_name(*i, name);CHK_SET_ERR(rval, "Error " << (int)rval << " getting name for tag (Stale tag handle?)");
+      rval = mMB->tag_get_name(*i, name);MB_CHK_SET_ERR(rval, "Error " << (int)rval << " getting name for tag (Stale tag handle?)");
 
       // Skip anonymous tags
       if (name.empty())

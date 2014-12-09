@@ -96,7 +96,7 @@ ErrorCode DataCoupler::interpolate(/*DataCoupler::Method*/ int method,
   // Tag name input, translate to tag handle and pass down the chain
 
   Tag tag;
-  ErrorCode result = mbImpl->tag_get_handle(interp_tag.c_str(), tag);CHK_SET_ERR(result, "Failed to get handle for interpolation tag \"" << interp_tag << "\"");
+  ErrorCode result = mbImpl->tag_get_handle(interp_tag.c_str(), tag);MB_CHK_SET_ERR(result, "Failed to get handle for interpolation tag \"" << interp_tag << "\"");
 
   return interpolate(method, tag, interp_vals, point_indices, normalize);
 }

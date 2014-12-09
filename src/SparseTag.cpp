@@ -29,7 +29,7 @@ namespace moab {
 
 static ErrorCode not_found(const std::string& name, EntityHandle h)
 {
-  // MB_TAG_NOT_FOUND could be a non-error condition, do not call SET_ERR on it
+  // MB_TAG_NOT_FOUND could be a non-error condition, do not call MB_SET_ERR on it
   // Print warning messages for debugging only
   bool mydebug = false;
   if (mydebug) {
@@ -141,7 +141,7 @@ ErrorCode SparseTag::get_data(const SequenceManager*,
   ErrorCode rval;
   unsigned char* ptr = reinterpret_cast<unsigned char*>(data);
   for (size_t i = 0; i < num_entities; ++i, ptr += get_size()) {
-    rval = get_data(NULL, entities[i], ptr);CHK_ERR(rval);
+    rval = get_data(NULL, entities[i], ptr);MB_CHK_ERR(rval);
   }
 
   return MB_SUCCESS;
@@ -156,7 +156,7 @@ ErrorCode SparseTag::get_data(const SequenceManager*,
   unsigned char* ptr = reinterpret_cast<unsigned char*>(data);
   Range::const_iterator i;
   for (i = entities.begin(); i != entities.end(); ++i, ptr += get_size()) {
-    rval = get_data(NULL, *i, ptr);CHK_ERR(rval);
+    rval = get_data(NULL, *i, ptr);MB_CHK_ERR(rval);
   }
 
   return MB_SUCCESS;
@@ -220,11 +220,11 @@ ErrorCode SparseTag::set_data(SequenceManager* seqman,
                               size_t num_entities,
                               const void* data)
 {
-  ErrorCode rval = seqman->check_valid_entities(NULL, entities, num_entities, true);CHK_ERR(rval);
+  ErrorCode rval = seqman->check_valid_entities(NULL, entities, num_entities, true);MB_CHK_ERR(rval);
 
   const unsigned char* ptr = reinterpret_cast<const unsigned char*>(data);
   for (size_t i = 0; i < num_entities; ++i, ptr += get_size()) {
-    rval = set_data(NULL, entities[i], ptr);CHK_ERR(rval);
+    rval = set_data(NULL, entities[i], ptr);MB_CHK_ERR(rval);
   }
 
   return MB_SUCCESS;
@@ -235,7 +235,7 @@ ErrorCode SparseTag::set_data(SequenceManager* seqman,
                               const Range& entities,
                               const void* data)
 {
-  ErrorCode rval = seqman->check_valid_entities(NULL, entities);CHK_ERR(rval);
+  ErrorCode rval = seqman->check_valid_entities(NULL, entities);MB_CHK_ERR(rval);
 
   const unsigned char* ptr = reinterpret_cast<const unsigned char*>(data);
   Range::const_iterator i;
@@ -253,12 +253,12 @@ ErrorCode SparseTag::set_data(SequenceManager* seqman,
                               void const* const* pointers,
                               const int* lengths)
 {
-  ErrorCode rval = validate_lengths(NULL, lengths, num_entities);CHK_ERR(rval);
+  ErrorCode rval = validate_lengths(NULL, lengths, num_entities);MB_CHK_ERR(rval);
 
-  rval = seqman->check_valid_entities(NULL, entities, num_entities, true);CHK_ERR(rval);
+  rval = seqman->check_valid_entities(NULL, entities, num_entities, true);MB_CHK_ERR(rval);
 
   for (size_t i = 0; i < num_entities; ++i, ++pointers) {
-    rval = set_data(NULL, entities[i], *pointers);CHK_ERR(rval);
+    rval = set_data(NULL, entities[i], *pointers);MB_CHK_ERR(rval);
   }
 
   return MB_SUCCESS;
@@ -270,13 +270,13 @@ ErrorCode SparseTag::set_data(SequenceManager* seqman,
                               void const* const* pointers,
                               const int* lengths)
 {
-  ErrorCode rval = validate_lengths(NULL, lengths, entities.size());CHK_ERR(rval);
+  ErrorCode rval = validate_lengths(NULL, lengths, entities.size());MB_CHK_ERR(rval);
 
-  rval = seqman->check_valid_entities(NULL, entities);CHK_ERR(rval);
+  rval = seqman->check_valid_entities(NULL, entities);MB_CHK_ERR(rval);
 
   Range::const_iterator i;
   for (i = entities.begin(); i != entities.end(); ++i, ++pointers) {
-    rval = set_data(NULL, *i, *pointers);CHK_ERR(rval);
+    rval = set_data(NULL, *i, *pointers);MB_CHK_ERR(rval);
   }
 
   return MB_SUCCESS;
@@ -290,13 +290,13 @@ ErrorCode SparseTag::clear_data(SequenceManager* seqman,
                                 int value_len)
 {
   if (value_len && value_len != get_size()) {
-    SET_ERR(MB_INVALID_SIZE, "Invalid data size " << get_size() << " specified for sparse tag " << get_name() << " of size " << value_len);
+    MB_SET_ERR(MB_INVALID_SIZE, "Invalid data size " << get_size() << " specified for sparse tag " << get_name() << " of size " << value_len);
   }
 
-  ErrorCode rval = seqman->check_valid_entities(NULL, entities, num_entities, true);CHK_ERR(rval);
+  ErrorCode rval = seqman->check_valid_entities(NULL, entities, num_entities, true);MB_CHK_ERR(rval);
 
   for (size_t i = 0; i < num_entities; ++i) {
-    rval = set_data(NULL, entities[i], value_ptr);CHK_ERR(rval);
+    rval = set_data(NULL, entities[i], value_ptr);MB_CHK_ERR(rval);
   }
 
   return MB_SUCCESS;
@@ -309,14 +309,14 @@ ErrorCode SparseTag::clear_data(SequenceManager* seqman,
                                 int value_len)
 {
   if (value_len && value_len != get_size()) {
-    SET_ERR(MB_INVALID_SIZE, "Invalid data size " << get_size() << " specified for sparse tag " << get_name() << " of size " << value_len);
+    MB_SET_ERR(MB_INVALID_SIZE, "Invalid data size " << get_size() << " specified for sparse tag " << get_name() << " of size " << value_len);
   }
 
-  ErrorCode rval = seqman->check_valid_entities(NULL, entities);CHK_ERR(rval);
+  ErrorCode rval = seqman->check_valid_entities(NULL, entities);MB_CHK_ERR(rval);
 
   Range::const_iterator i;
   for (i = entities.begin(); i != entities.end(); ++i) {
-    rval = set_data(NULL, *i, value_ptr);CHK_ERR(rval);
+    rval = set_data(NULL, *i, value_ptr);MB_CHK_ERR(rval);
   }
 
   return MB_SUCCESS;
@@ -329,7 +329,7 @@ ErrorCode SparseTag::remove_data(SequenceManager*,
 {
   ErrorCode rval;
   for (size_t i = 0; i < num_entities; ++i) {
-    rval = remove_data(NULL, entities[i]);CHK_ERR(rval);
+    rval = remove_data(NULL, entities[i]);MB_CHK_ERR(rval);
   }
 
   return MB_SUCCESS;
@@ -366,7 +366,7 @@ ErrorCode SparseTag::tag_iterate(SequenceManager* seqman,
   // Note: get_data_ptr will return the default value if the
   //       handle is not found, so test to make sure that the
   //       handle is valid.
-  ErrorCode rval = seqman->check_valid_entities(NULL, &*iter, 1);CHK_ERR(rval);
+  ErrorCode rval = seqman->check_valid_entities(NULL, &*iter, 1);MB_CHK_ERR(rval);
 
   // Get pointer to tag storage for entity pointed to by iter
   const void* ptr = NULL;
@@ -473,7 +473,7 @@ ErrorCode SparseTag::find_entities_with_value(const SequenceManager* seqman,
                                               const Range* intersect_entities) const
 {
   if (value_bytes && value_bytes != get_size()) {
-    SET_ERR(MB_INVALID_SIZE, "Invalid data size " << get_size() << " specified for sparse tag " << get_name() << " of size " << value_bytes);
+    MB_SET_ERR(MB_INVALID_SIZE, "Invalid data size " << get_size() << " specified for sparse tag " << get_name() << " of size " << value_bytes);
   }
 
   MapType::const_iterator iter, end;

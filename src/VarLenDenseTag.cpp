@@ -19,7 +19,7 @@ namespace moab {
 
 static ErrorCode not_found(std::string name, EntityHandle h)
 {
-  // MB_TAG_NOT_FOUND could be a non-error condition, do not call SET_ERR on it
+  // MB_TAG_NOT_FOUND could be a non-error condition, do not call MB_SET_ERR on it
   // Print warning messages for debugging only
   bool mydebug = false;
   if (mydebug) {
@@ -140,7 +140,7 @@ ErrorCode VarLenDenseTag::get_array(SequenceManager* seqman,
   if (!mem && allocate) {
     mem = seq->data()->allocate_tag_array(mySequenceArray, sizeof(VarLenTag));
     if (!mem) {
-      SET_ERR(MB_MEMORY_ALLOCATION_FAILED, "Memory allocation for variable-length dense tag data failed");
+      MB_SET_ERR(MB_MEMORY_ALLOCATION_FAILED, "Memory allocation for variable-length dense tag data failed");
     }
 
     memset(mem, 0, sizeof(VarLenTag) * seq->data()->size());
@@ -160,7 +160,7 @@ ErrorCode VarLenDenseTag::get_data(const SequenceManager*,
                                    size_t,
                                    void*) const
 {
-  SET_ERR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
+  MB_SET_ERR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
 }
 
 ErrorCode VarLenDenseTag::get_data(const SequenceManager*,
@@ -168,7 +168,7 @@ ErrorCode VarLenDenseTag::get_data(const SequenceManager*,
                                    const Range&,
                                    void*) const
 {
-  SET_ERR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
+  MB_SET_ERR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
 }
 
 ErrorCode VarLenDenseTag::get_data(const SequenceManager* seqman,
@@ -179,7 +179,7 @@ ErrorCode VarLenDenseTag::get_data(const SequenceManager* seqman,
                                    int* lengths) const
 {
   if (!lengths) {
-    SET_ERR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
+    MB_SET_ERR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
   }
 
   ErrorCode result = MB_SUCCESS, rval;
@@ -188,7 +188,7 @@ ErrorCode VarLenDenseTag::get_data(const SequenceManager* seqman,
   const VarLenTag* ptr;
 
   for (const EntityHandle* i = entities; i != end; ++i, ++pointers, ++lengths) {
-    rval = get_array(seqman, NULL, *i, ptr, junk);CHK_ERR(rval);
+    rval = get_array(seqman, NULL, *i, ptr, junk);MB_CHK_ERR(rval);
 
     if (ptr && ptr->size()) {
       *pointers = ptr->data();
@@ -215,7 +215,7 @@ ErrorCode VarLenDenseTag::get_data(const SequenceManager* seqman,
                                    int* lengths) const
 {
   if (!lengths) {
-    SET_ERR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
+    MB_SET_ERR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
   }
 
   ErrorCode rval;
@@ -226,7 +226,7 @@ ErrorCode VarLenDenseTag::get_data(const SequenceManager* seqman,
        p != entities.const_pair_end(); ++p) {
     EntityHandle start = p->first;
     while (start <= p->second) {
-      rval = get_array(seqman, NULL, start, array, avail);CHK_ERR(rval);
+      rval = get_array(seqman, NULL, start, array, avail);MB_CHK_ERR(rval);
 
       const size_t count = std::min<size_t>(p->second - start + 1, avail);
 
@@ -273,7 +273,7 @@ ErrorCode VarLenDenseTag::set_data(SequenceManager*,
                                    size_t,
                                    const void*)
 {
-  SET_ERR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
+  MB_SET_ERR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
 }
 
 ErrorCode VarLenDenseTag::set_data(SequenceManager*,
@@ -281,7 +281,7 @@ ErrorCode VarLenDenseTag::set_data(SequenceManager*,
                                    const Range&,
                                    const void*)
 {
-  SET_ERR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
+  MB_SET_ERR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
 }
 
 ErrorCode VarLenDenseTag::set_data(SequenceManager* seqman,
@@ -292,7 +292,7 @@ ErrorCode VarLenDenseTag::set_data(SequenceManager* seqman,
                                    void const* const* pointers,
                                    const int* lengths)
 {
-  ErrorCode rval = validate_lengths(NULL, lengths, one_value ? 1 : num_entities);CHK_ERR(rval);
+  ErrorCode rval = validate_lengths(NULL, lengths, one_value ? 1 : num_entities);MB_CHK_ERR(rval);
 
   const EntityHandle* const end = entities + num_entities;
   VarLenTag* array;
@@ -300,7 +300,7 @@ ErrorCode VarLenDenseTag::set_data(SequenceManager* seqman,
   const size_t step = one_value ? 0 : 1;
 
   for (const EntityHandle* i = entities; i != end; ++i) {
-    rval = get_array(seqman, NULL, *i, array, junk, true);CHK_ERR(rval);
+    rval = get_array(seqman, NULL, *i, array, junk, true);MB_CHK_ERR(rval);
 
     array->set(*pointers, *lengths);
     pointers += step;
@@ -317,7 +317,7 @@ ErrorCode VarLenDenseTag::set_data(SequenceManager* seqman,
                                    void const* const* pointers,
                                    const int* lengths)
 {
-  ErrorCode rval = validate_lengths(NULL, lengths, one_value ? 1 : entities.size());CHK_ERR(rval);
+  ErrorCode rval = validate_lengths(NULL, lengths, one_value ? 1 : entities.size());MB_CHK_ERR(rval);
 
   VarLenTag* array;
   size_t avail;
@@ -327,7 +327,7 @@ ErrorCode VarLenDenseTag::set_data(SequenceManager* seqman,
        p != entities.const_pair_end(); ++p) {
     EntityHandle start = p->first;
     while (start <= p->second) {
-      rval = get_array(seqman, NULL, start, array, avail, true);CHK_ERR(rval);
+      rval = get_array(seqman, NULL, start, array, avail, true);MB_CHK_ERR(rval);
 
       const EntityHandle end = std::min<EntityHandle>(p->second + 1, start + avail);
       while (start != end) {
@@ -398,7 +398,7 @@ ErrorCode VarLenDenseTag::remove_data(SequenceManager* seqman,
   ErrorCode rval;
 
   for (const EntityHandle* i = entities; i != end; ++i) {
-    rval = get_array(seqman, NULL, *i, array, junk, false);CHK_ERR(rval);
+    rval = get_array(seqman, NULL, *i, array, junk, false);MB_CHK_ERR(rval);
 
     if (array) 
       array->clear();
@@ -419,7 +419,7 @@ ErrorCode VarLenDenseTag::remove_data(SequenceManager* seqman,
        p != entities.const_pair_end(); ++p) {
     EntityHandle start = p->first;
     while (start <= p->second) {
-      rval = get_array(seqman, NULL, start, array, avail, false);CHK_ERR(rval);
+      rval = get_array(seqman, NULL, start, array, avail, false);MB_CHK_ERR(rval);
 
       const EntityHandle end = std::min<EntityHandle>(p->second + 1, start + avail);
       if (array) {
@@ -445,7 +445,7 @@ ErrorCode VarLenDenseTag::tag_iterate(SequenceManager*,
                                       void*&,
                                       bool)
 {
-  SET_ERR(MB_VARIABLE_DATA_LENGTH, "Cannot iterate over variable-length tag data");
+  MB_SET_ERR(MB_VARIABLE_DATA_LENGTH, "Cannot iterate over variable-length tag data");
 }
 
 template <class Container> static inline
@@ -582,7 +582,7 @@ ErrorCode VarLenDenseTag::find_entities_with_value(const SequenceManager* seqman
          ++p) {
       EntityHandle start = p->first;
       while (start <= p->second) {
-        rval = get_array(seqman, error, start, array, count);CHK_ERR(rval);
+        rval = get_array(seqman, error, start, array, count);MB_CHK_ERR(rval);
 
         if (p->second - start < count - 1)
           count = p->second - start + 1;

@@ -30,7 +30,7 @@ ErrorCode TestErrorHandlingPar_1()
   // Load a CAM-FV file and read a variable on edges (not supported yet)
   string test_file = string(MESH_DIR) + string("/io/fv3x46x72.t.3.nc");
   opts += ";VARIABLE=US";
-  ErrorCode rval = mb.load_file(test_file.c_str(), NULL, opts.c_str());CHK_ERR(rval);
+  ErrorCode rval = mb.load_file(test_file.c_str(), NULL, opts.c_str());MB_CHK_ERR(rval);
 
   return MB_SUCCESS;
 }
@@ -51,7 +51,7 @@ ErrorCode TestErrorHandlingPar_2()
   // Load a CAM-FV file with an unknown partition method specified
   string test_file = string(MESH_DIR) + string("/io/fv3x46x72.t.3.nc");
   opts += ";VARIABLE=T";
-  ErrorCode rval = mb.load_file(test_file.c_str(), NULL, opts.c_str());CHK_ERR(rval);
+  ErrorCode rval = mb.load_file(test_file.c_str(), NULL, opts.c_str());MB_CHK_ERR(rval);
 
   return MB_SUCCESS;
 }
@@ -75,10 +75,10 @@ int main(int argc, char** argv)
   int test_case_num = atoi(argv[1]);
   switch (test_case_num) {
     case 1:
-      rval = TestErrorHandlingPar_1();CHK_ERR(rval);
+      rval = TestErrorHandlingPar_1();MB_CHK_ERR(rval);
       break;
     case 2:
-      rval = TestErrorHandlingPar_2();CHK_ERR(rval);
+      rval = TestErrorHandlingPar_2();MB_CHK_ERR(rval);
       break;
     default:
       break;

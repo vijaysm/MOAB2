@@ -551,10 +551,10 @@ ErrorCode Coupler::interpolate(Coupler::Method method,
   Tag tag;
   ErrorCode result ;
   if (_spectralSource) {
-    result = mbImpl->tag_get_handle(interp_tag.c_str(), _ntot, MB_TYPE_DOUBLE, tag);CHK_SET_ERR(result, "Failed to get handle for interpolation tag \"" << interp_tag << "\"");
+    result = mbImpl->tag_get_handle(interp_tag.c_str(), _ntot, MB_TYPE_DOUBLE, tag);MB_CHK_SET_ERR(result, "Failed to get handle for interpolation tag \"" << interp_tag << "\"");
   }
   else {
-    result = mbImpl->tag_get_handle(interp_tag.c_str(), 1, MB_TYPE_DOUBLE, tag);CHK_SET_ERR(result, "Failed to get handle for interpolation tag \"" << interp_tag << "\"");
+    result = mbImpl->tag_get_handle(interp_tag.c_str(), 1, MB_TYPE_DOUBLE, tag);MB_CHK_SET_ERR(result, "Failed to get handle for interpolation tag \"" << interp_tag << "\"");
   }
 
   return interpolate(method, tag, interp_vals, tl, normalize);

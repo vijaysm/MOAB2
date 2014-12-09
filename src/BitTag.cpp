@@ -96,7 +96,7 @@ ErrorCode BitTag::set_data(SequenceManager* seqman,
                            size_t num_handles,
                            const void* gen_data)
 {
-  ErrorCode rval = seqman->check_valid_entities(NULL, handles, num_handles, true);CHK_ERR(rval);
+  ErrorCode rval = seqman->check_valid_entities(NULL, handles, num_handles, true);MB_CHK_ERR(rval);
 
   EntityType type;
   size_t page;
@@ -124,7 +124,7 @@ ErrorCode BitTag::clear_data(SequenceManager* seqman,
   if (value_len)
     return MB_INVALID_SIZE;
 
-  ErrorCode rval = seqman->check_valid_entities(NULL, handles, num_handles, true);CHK_ERR(rval);
+  ErrorCode rval = seqman->check_valid_entities(NULL, handles, num_handles, true);MB_CHK_ERR(rval);
 
   EntityType type;
   size_t page;
@@ -203,7 +203,7 @@ ErrorCode BitTag::set_data(SequenceManager* seqman,
                            const Range& handles,
                            const void* gen_data)
 {
-  ErrorCode rval = seqman->check_valid_entities(NULL, handles);CHK_ERR(rval);
+  ErrorCode rval = seqman->check_valid_entities(NULL, handles);MB_CHK_ERR(rval);
 
   EntityType type;
   EntityID count;
@@ -244,7 +244,7 @@ ErrorCode BitTag::clear_data(SequenceManager* seqman,
   if (value_len)
     return MB_INVALID_SIZE;
 
-  ErrorCode rval = seqman->check_valid_entities(NULL, handles);CHK_ERR(rval);
+  ErrorCode rval = seqman->check_valid_entities(NULL, handles);MB_CHK_ERR(rval);
 
   EntityType type;
   EntityID count;
@@ -307,7 +307,7 @@ ErrorCode BitTag::get_data(const SequenceManager*,
                            const void**,
                            int*) const
 {
-  SET_ERR(MB_TYPE_OUT_OF_RANGE, "Operation get_data not supported for bit tags");
+  MB_SET_ERR(MB_TYPE_OUT_OF_RANGE, "Operation get_data not supported for bit tags");
 }
 
 ErrorCode BitTag::get_data(const SequenceManager*,
@@ -316,7 +316,7 @@ ErrorCode BitTag::get_data(const SequenceManager*,
                            const void**,
                            int*) const
 {
-  SET_ERR(MB_TYPE_OUT_OF_RANGE, "Operation get_data not supported for bit tags");
+  MB_SET_ERR(MB_TYPE_OUT_OF_RANGE, "Operation get_data not supported for bit tags");
 }
 
 ErrorCode BitTag::set_data(SequenceManager*,
@@ -326,7 +326,7 @@ ErrorCode BitTag::set_data(SequenceManager*,
                            void const* const*,
                            const int*)
 {
-  SET_ERR(MB_TYPE_OUT_OF_RANGE, "Operation set_data not supported for bit tags");
+  MB_SET_ERR(MB_TYPE_OUT_OF_RANGE, "Operation set_data not supported for bit tags");
 }
 
 ErrorCode BitTag::set_data(SequenceManager*,
@@ -335,7 +335,7 @@ ErrorCode BitTag::set_data(SequenceManager*,
                            void const* const*,
                            const int*)
 {
-  SET_ERR(MB_TYPE_OUT_OF_RANGE, "Operation set_data not supported for bit tags");
+  MB_SET_ERR(MB_TYPE_OUT_OF_RANGE, "Operation set_data not supported for bit tags");
 }
 
 ErrorCode BitTag::tag_iterate(SequenceManager*,
@@ -345,7 +345,7 @@ ErrorCode BitTag::tag_iterate(SequenceManager*,
                               void*&,
                               bool)
 {
-  SET_ERR(MB_TYPE_OUT_OF_RANGE, "Operation tag_iterate not supported for bit tags");
+  MB_SET_ERR(MB_TYPE_OUT_OF_RANGE, "Operation tag_iterate not supported for bit tags");
 }
 
 template <class Container> inline
@@ -448,7 +448,7 @@ ErrorCode BitTag::find_entities_with_value(const SequenceManager*,
                                            const Range* intersect_entities) const
 {
   if (value_bytes && value_bytes != 1) {
-    SET_ERR(MB_INVALID_SIZE, "Invalid tag size for bit tag: " << value_bytes << " bytes");
+    MB_SET_ERR(MB_INVALID_SIZE, "Invalid tag size for bit tag: " << value_bytes << " bytes");
   }
 
   const signed char bits = *reinterpret_cast<const unsigned char*>(value);
@@ -492,7 +492,7 @@ ErrorCode BitTag::get_entities_with_bits(const Range &range,
   if (MBMAXTYPE == in_type) {
     ErrorCode rval;
     for (--in_type; in_type >= MBVERTEX; --in_type) {
-      rval = get_entities_with_bits(range, in_type, entities, bits);CHK_ERR(rval);
+      rval = get_entities_with_bits(range, in_type, entities, bits);MB_CHK_ERR(rval);
     }
     return MB_SUCCESS;
   }

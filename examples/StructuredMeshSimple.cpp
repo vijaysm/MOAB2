@@ -54,7 +54,7 @@ int main(int argc, char **argv)
   if (NULL == mb)
     return 1;
   ScdInterface *scdiface;
-  ErrorCode rval = mb->query_interface(scdiface);CHK_ERR(rval); // Get a ScdInterface object through moab instance
+  ErrorCode rval = mb->query_interface(scdiface);MB_CHK_ERR(rval); // Get a ScdInterface object through moab instance
 
   // 1. Decide what the local parameters of the mesh will be, based on parallel/serial and rank.
   int ilow = 0, ihigh = N;
@@ -69,13 +69,13 @@ int main(int argc, char **argv)
   rval = scdiface->construct_box(HomCoord(ilow, (dim > 1? 0 : -1), (dim > 2? 0 : -1)), // Use in-line logical tests to handle dimensionality
                                  HomCoord(ihigh, (dim > 1? N : -1), (dim > 2? N : -1)),
                                  NULL, 0, // NULL coords vector and 0 coords (don't specify coords for now)
-                                 box);CHK_ERR(rval); // box is the structured box object providing the parametric
+                                 box);MB_CHK_ERR(rval); // box is the structured box object providing the parametric
                                                      // structured mesh interface for this rectangle of elements
 
   // 3. Get the vertices and elements from moab and check their numbers against (N+1)^d and N^d, resp.
   Range verts, elems;
-  rval = mb->get_entities_by_dimension(0, 0, verts);CHK_ERR(rval); // First '0' specifies "root set", or entire MOAB instance, second the entity dimension being requested
-  rval = mb->get_entities_by_dimension(0, dim, elems);CHK_ERR(rval);
+  rval = mb->get_entities_by_dimension(0, 0, verts);MB_CHK_ERR(rval); // First '0' specifies "root set", or entire MOAB instance, second the entity dimension being requested
+  rval = mb->get_entities_by_dimension(0, dim, elems);MB_CHK_ERR(rval);
 
 #define MYSTREAM(a) if (!rank) cout << a << endl
 
@@ -99,9 +99,9 @@ int main(int argc, char **argv)
         EntityHandle ehandle = box->get_element(i, j, k);
         if (0 == ehandle) return MB_FAILURE;
         // 4b. Get the connectivity of the element
-        rval = mb->get_connectivity(&ehandle, 1, connect);CHK_ERR(rval); // Get the connectivity, in canonical order
+        rval = mb->get_connectivity(&ehandle, 1, connect);MB_CHK_ERR(rval); // Get the connectivity, in canonical order
         // 4c. Get the coordinates of the vertices comprising that element
-        rval = mb->get_coords(connect.data(), connect.size(), coords.data());CHK_ERR(rval); // Get the coordinates of those vertices
+        rval = mb->get_coords(connect.data(), connect.size(), coords.data());MB_CHK_ERR(rval); // Get the coordinates of those vertices
       }
     }
   }

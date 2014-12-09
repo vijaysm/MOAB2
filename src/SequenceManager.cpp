@@ -113,7 +113,7 @@ ErrorCode SequenceManager::check_valid_entities(Error* /* error_handler */,
     rval = find(*entities, ptr);
     if (MB_SUCCESS != rval && !(root_set_okay && !*entities)) {
       if (MB_ENTITY_NOT_FOUND == rval) {
-        // MB_ENTITY_NOT_FOUND could be a non-error condition, do not call SET_ERR on it
+        // MB_ENTITY_NOT_FOUND could be a non-error condition, do not call MB_SET_ERR on it
         // Print warning messages for debugging only
         bool mydebug = false;
         if (mydebug) {
@@ -818,7 +818,7 @@ ErrorCode SequenceManager::reserve_tag_array(Error* /* error_handler */,
                                              int size, int& index)
 {
   if (size < 1 && size != MB_VARIABLE_LENGTH) {
-    SET_ERR(MB_INVALID_SIZE, "Invalid tag size: " << size);
+    MB_SET_ERR(MB_INVALID_SIZE, "Invalid tag size: " << size);
   }
 
   std::vector<int>::iterator i = std::find(tagSizes.begin(), tagSizes.end(), UNUSED_SIZE);
@@ -838,7 +838,7 @@ ErrorCode SequenceManager::release_tag_array(Error* /* error_handler */,
                                              int index, bool release_id)
 {
   if ((unsigned)index >= tagSizes.size() || UNUSED_SIZE == tagSizes[index]) {
-    // MB_TAG_NOT_FOUND could be a non-error condition, do not call SET_ERR on it
+    // MB_TAG_NOT_FOUND could be a non-error condition, do not call MB_SET_ERR on it
     // Print warning messages for debugging only
     bool mydebug = false;
     if (mydebug) {

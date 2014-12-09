@@ -234,18 +234,18 @@ void DeformMeshRemap::xdisp_name(const string &nm, int idx)
 ErrorCode DeformMeshRemap::execute() 
 {
   // Read master/slave files and get fluid/solid material sets
-  ErrorCode rval = read_file(MASTER, masterFileName, masterSet);CHK_ERR(rval);
+  ErrorCode rval = read_file(MASTER, masterFileName, masterSet);MB_CHK_ERR(rval);
 
   if (solidSetNos[MASTER].empty() || fluidSetNos[MASTER].empty()) {
-    rval = find_other_sets(MASTER, masterSet);CHK_SET_ERR(rval, "Failed to find other sets in master mesh");
+    rval = find_other_sets(MASTER, masterSet);MB_CHK_SET_ERR(rval, "Failed to find other sets in master mesh");
   }
 
   bool have_slave = !(slaveFileName == "none");
   if (have_slave) {
-    rval = read_file(SLAVE, slaveFileName, slaveSet);CHK_ERR(rval);
+    rval = read_file(SLAVE, slaveFileName, slaveSet);MB_CHK_ERR(rval);
 
     if (solidSetNos[SLAVE].empty() || fluidSetNos[SLAVE].empty()) {
-      rval = find_other_sets(SLAVE, slaveSet);CHK_SET_ERR(rval, "Failed to find other sets in slave mesh");
+      rval = find_other_sets(SLAVE, slaveSet);MB_CHK_SET_ERR(rval, "Failed to find other sets in slave mesh");
     }
   }
 
@@ -263,11 +263,11 @@ ErrorCode DeformMeshRemap::execute()
     // later interpolate
     Range tmp_range = solidElems[SLAVE];
     tmp_range.merge(fluidElems[SLAVE]);
-    rval = mbImpl->get_adjacencies(tmp_range, 0, false, tgt_verts, Interface::UNION);CHK_SET_ERR(rval, "Failed to get target verts");
+    rval = mbImpl->get_adjacencies(tmp_range, 0, false, tgt_verts, Interface::UNION);MB_CHK_SET_ERR(rval, "Failed to get target verts");
 
     // Locate slave vertices, caching results in dc
     if (debug) cout << "Locating slave vertices in master mesh..." << endl;
-    rval = dc_master.locate_points(tgt_verts);CHK_SET_ERR(rval, "Point location of tgt verts failed");
+    rval = dc_master.locate_points(tgt_verts);MB_CHK_SET_ERR(rval, "Point location of tgt verts failed");
     int num_located = dc_master.spatial_locator()->local_num_located();
     if (num_located != (int)tgt_verts.size()) {
       rval = MB_FAILURE;
@@ -278,7 +278,7 @@ ErrorCode DeformMeshRemap::execute()
 
   // Deform the master's solid mesh, put results in a new tag
   if (debug) cout << "Deforming fluid elements in master mesh..." << endl;
-  rval = deform_master(fluidElems[MASTER], solidElems[MASTER], "xnew");CHK_ERR(rval);
+  rval = deform_master(fluidElems[MASTER], solidElems[MASTER], "xnew");MB_CHK_ERR(rval);
 
   { // To isolate the lloyd smoother & delete when done
     if (debug) {
@@ -286,38 +286,38 @@ ErrorCode DeformMeshRemap::execute()
       // Get the skin; get facets, because we might need to filter on shared entities
       Skinner skinner(mbImpl);
       Range skin;
-      rval = skinner.find_skin(0, fluidElems[MASTER], false, skin);CHK_SET_ERR(rval, "Unable to find skin");
+      rval = skinner.find_skin(0, fluidElems[MASTER], false, skin);MB_CHK_SET_ERR(rval, "Unable to find skin");
       EntityHandle skin_set;
       cout << "Writing skin_mesh.g and fluid_mesh.g." << endl;
-      rval = mbImpl->create_meshset(MESHSET_SET, skin_set);CHK_SET_ERR(rval, "Failed to create skin set");
-      rval = mbImpl->add_entities(skin_set, skin);CHK_SET_ERR(rval, "Failed to add skin entities to set");
-      rval = mbImpl->write_file("skin_mesh.vtk", NULL, NULL, &skin_set, 1);CHK_SET_ERR(rval, "Failure to write skin set");
-      rval = mbImpl->remove_entities(skin_set, skin);CHK_SET_ERR(rval, "Failed to remove skin entities from set");
-      rval = mbImpl->add_entities(skin_set, fluidElems[MASTER]);CHK_SET_ERR(rval, "Failed to add fluid entities to set");
-      rval = mbImpl->write_file("fluid_mesh.vtk", NULL, NULL, &skin_set, 1);CHK_SET_ERR(rval, "Failure to write fluid set");
-      rval = mbImpl->delete_entities(&skin_set, 1);CHK_SET_ERR(rval, "Failed to delete skin set");
+      rval = mbImpl->create_meshset(MESHSET_SET, skin_set);MB_CHK_SET_ERR(rval, "Failed to create skin set");
+      rval = mbImpl->add_entities(skin_set, skin);MB_CHK_SET_ERR(rval, "Failed to add skin entities to set");
+      rval = mbImpl->write_file("skin_mesh.vtk", NULL, NULL, &skin_set, 1);MB_CHK_SET_ERR(rval, "Failure to write skin set");
+      rval = mbImpl->remove_entities(skin_set, skin);MB_CHK_SET_ERR(rval, "Failed to remove skin entities from set");
+      rval = mbImpl->add_entities(skin_set, fluidElems[MASTER]);MB_CHK_SET_ERR(rval, "Failed to add fluid entities to set");
+      rval = mbImpl->write_file("fluid_mesh.vtk", NULL, NULL, &skin_set, 1);MB_CHK_SET_ERR(rval, "Failure to write fluid set");
+      rval = mbImpl->delete_entities(&skin_set, 1);MB_CHK_SET_ERR(rval, "Failed to delete skin set");
     }
 
     // Smooth the master mesh
     if (debug) cout << "Smoothing fluid elements in master mesh..." << endl;
     LloydSmoother ll(mbImpl, NULL, fluidElems[MASTER], xNew);
-    rval = ll.perform_smooth();CHK_SET_ERR(rval, "Failed in lloyd smoothing");
+    rval = ll.perform_smooth();MB_CHK_SET_ERR(rval, "Failed in lloyd smoothing");
     cout << "Lloyd smoothing required " << ll.num_its() << " iterations." << endl;
   }
 
   // Transfer xNew to coords, for master
   if (debug) cout << "Transferring coords tag to vertex coordinates in master mesh..." << endl;
-  rval = write_to_coords(solidElems[MASTER], xNew);CHK_SET_ERR(rval, "Failed writing tag to master fluid verts");
-  rval = write_to_coords(fluidElems[MASTER], xNew);CHK_SET_ERR(rval, "Failed writing tag to master fluid verts");
+  rval = write_to_coords(solidElems[MASTER], xNew);MB_CHK_SET_ERR(rval, "Failed writing tag to master fluid verts");
+  rval = write_to_coords(fluidElems[MASTER], xNew);MB_CHK_SET_ERR(rval, "Failed writing tag to master fluid verts");
 
   if (have_slave) {
     // Map new locations to slave
     // Interpolate xNew to slave points
     if (debug) cout << "Interpolating new coordinates to slave vertices..." << endl;
-    rval = dc_master.interpolate((int)DataCoupler::VOLUME, "xnew");CHK_SET_ERR(rval, "Failed to interpolate target solution");
+    rval = dc_master.interpolate((int)DataCoupler::VOLUME, "xnew");MB_CHK_SET_ERR(rval, "Failed to interpolate target solution");
     // Transfer xNew to coords, for slave
     if (debug) cout << "Transferring coords tag to vertex coordinates in slave mesh..." << endl;
-    rval = write_to_coords(tgt_verts, xNew);CHK_SET_ERR(rval, "Failed writing tag to slave verts");
+    rval = write_to_coords(tgt_verts, xNew);MB_CHK_SET_ERR(rval, "Failed writing tag to slave verts");
   }
 
   if (debug) {
@@ -466,11 +466,11 @@ ErrorCode DeformMeshRemap::write_and_save(Range &ents, EntityHandle seth, Tag ta
   if (restore_coords)
     rval = mbImpl->tag_get_handle("", 3, MB_TYPE_DOUBLE, tmp_tag, MB_TAG_CREAT|MB_TAG_DENSE);
 
-  rval = write_to_coords(ents, tagh, tmp_tag);CHK_ERR(rval);
-  rval = mbImpl->write_file(filename, NULL, NULL, &seth, 1);CHK_ERR(rval);
+  rval = write_to_coords(ents, tagh, tmp_tag);MB_CHK_ERR(rval);
+  rval = mbImpl->write_file(filename, NULL, NULL, &seth, 1);MB_CHK_ERR(rval);
   if (restore_coords) {
-    rval = write_to_coords(ents, tmp_tag);CHK_ERR(rval);
-    rval = mbImpl->tag_delete(tmp_tag);CHK_ERR(rval);
+    rval = write_to_coords(ents, tmp_tag);MB_CHK_ERR(rval);
+    rval = mbImpl->tag_delete(tmp_tag);MB_CHK_ERR(rval);
   }
 
   return rval;
@@ -480,17 +480,17 @@ ErrorCode DeformMeshRemap::write_to_coords(Range &elems, Tag tagh, Tag tmp_tag)
 {
   // Write the tag to coordinates
   Range verts;
-  ErrorCode rval = mbImpl->get_adjacencies(elems, 0, false, verts, Interface::UNION);CHK_SET_ERR(rval, "Failed to get adj vertices");
+  ErrorCode rval = mbImpl->get_adjacencies(elems, 0, false, verts, Interface::UNION);MB_CHK_SET_ERR(rval, "Failed to get adj vertices");
   vector<double> coords(3*verts.size());
 
   if (tmp_tag) {
     // Save the coords to tmp_tag first
-    rval = mbImpl->get_coords(verts, &coords[0]);CHK_SET_ERR(rval, "Failed to get tmp copy of coords");
-    rval = mbImpl->tag_set_data(tmp_tag, verts, &coords[0]);CHK_SET_ERR(rval, "Failed to save tmp copy of coords");
+    rval = mbImpl->get_coords(verts, &coords[0]);MB_CHK_SET_ERR(rval, "Failed to get tmp copy of coords");
+    rval = mbImpl->tag_set_data(tmp_tag, verts, &coords[0]);MB_CHK_SET_ERR(rval, "Failed to save tmp copy of coords");
   }
 
-  rval = mbImpl->tag_get_data(tagh, verts, &coords[0]);CHK_SET_ERR(rval, "Failed to get tag data");
-  rval = mbImpl->set_coords(verts, &coords[0]);CHK_SET_ERR(rval, "Failed to set coordinates");
+  rval = mbImpl->tag_get_data(tagh, verts, &coords[0]);MB_CHK_SET_ERR(rval, "Failed to get tag data");
+  rval = mbImpl->set_coords(verts, &coords[0]);MB_CHK_SET_ERR(rval, "Failed to set coordinates");
   return MB_SUCCESS;
 }
 
@@ -520,26 +520,26 @@ ErrorCode DeformMeshRemap::deform_master(Range &fluid_elems, Range &solid_elems,
 
   // Get all the vertices and coords in the solid
   Range solid_verts, fluid_verts;
-  rval = mbImpl->get_adjacencies(solid_elems, 0, false, solid_verts, Interface::UNION);CHK_SET_ERR(rval, "Failed to get vertices");
+  rval = mbImpl->get_adjacencies(solid_elems, 0, false, solid_verts, Interface::UNION);MB_CHK_SET_ERR(rval, "Failed to get vertices");
   vector<double> coords(3*solid_verts.size()), new_coords(3*solid_verts.size());
-  rval = mbImpl->get_coords(solid_verts, &coords[0]);CHK_SET_ERR(rval, "Failed to get vertex coords");
+  rval = mbImpl->get_coords(solid_verts, &coords[0]);MB_CHK_SET_ERR(rval, "Failed to get vertex coords");
   unsigned int num_verts = solid_verts.size();
 
   // Get or create the tag
   if (!xDispNames[0].empty() && !xDispNames[1].empty() && !xDispNames[2].empty()) {
     // 3 tags, specifying xyz individual data, integrate into one tag
     rval = mbImpl->tag_get_handle((tag_name ? tag_name : ""), 3, MB_TYPE_DOUBLE,
-        xNew, MB_TAG_CREAT | MB_TAG_DENSE);CHK_SET_ERR(rval, "Failed to create xnew tag");
+        xNew, MB_TAG_CREAT | MB_TAG_DENSE);MB_CHK_SET_ERR(rval, "Failed to create xnew tag");
     vector<double> disps(num_verts);
     for (int i = 0; i < 3; i++) {
-      rval = mbImpl->tag_get_handle(xDispNames[0].c_str(), 1, MB_TYPE_DOUBLE, xDisp[i]);CHK_SET_ERR(rval, "Failed to get xDisp tag");
-      rval = mbImpl->tag_get_data(xDisp[i], solid_verts, &disps[0]);CHK_SET_ERR(rval, "Failed to get xDisp tag values");
+      rval = mbImpl->tag_get_handle(xDispNames[0].c_str(), 1, MB_TYPE_DOUBLE, xDisp[i]);MB_CHK_SET_ERR(rval, "Failed to get xDisp tag");
+      rval = mbImpl->tag_get_data(xDisp[i], solid_verts, &disps[0]);MB_CHK_SET_ERR(rval, "Failed to get xDisp tag values");
       for (unsigned int j = 0; j < num_verts; j++)
         new_coords[3*j+i] = coords[3*j+i] + disps[j];
     }
   }
   else if (!xDispNames[0].empty()) {
-    rval = mbImpl->tag_get_handle(xDispNames[0].c_str(), 3, MB_TYPE_DOUBLE, xDisp[0]);CHK_SET_ERR(rval, "Failed to get first xDisp tag");
+    rval = mbImpl->tag_get_handle(xDispNames[0].c_str(), 3, MB_TYPE_DOUBLE, xDisp[0]);MB_CHK_SET_ERR(rval, "Failed to get first xDisp tag");
     xNew = xDisp[0];
     vector<double> disps(3*num_verts);
     rval = mbImpl->tag_get_data(xDisp[0], solid_verts, &disps[0]);
@@ -573,26 +573,26 @@ ErrorCode DeformMeshRemap::deform_master(Range &fluid_elems, Range &solid_elems,
 
   if (!xNew) {
     rval = mbImpl->tag_get_handle((tag_name ? tag_name : ""), 3, MB_TYPE_DOUBLE, 
-                                  xDisp[0], MB_TAG_CREAT|MB_TAG_DENSE);CHK_SET_ERR(rval, "Failed to get xNew tag");
+                                  xDisp[0], MB_TAG_CREAT|MB_TAG_DENSE);MB_CHK_SET_ERR(rval, "Failed to get xNew tag");
     xNew = xDisp[0];
   }
 
   // Set the new tag to those coords
-  rval = mbImpl->tag_set_data(xNew, solid_verts, &new_coords[0]);CHK_SET_ERR(rval, "Failed to set tag data");
+  rval = mbImpl->tag_set_data(xNew, solid_verts, &new_coords[0]);MB_CHK_SET_ERR(rval, "Failed to set tag data");
 
   // Get all the vertices and coords in the fluid, set xnew to them
-  rval = mbImpl->get_adjacencies(fluid_elems, 0, false, fluid_verts, Interface::UNION);CHK_SET_ERR(rval, "Failed to get vertices");
+  rval = mbImpl->get_adjacencies(fluid_elems, 0, false, fluid_verts, Interface::UNION);MB_CHK_SET_ERR(rval, "Failed to get vertices");
   fluid_verts = subtract(fluid_verts, solid_verts);
 
   if (coords.size() < 3*fluid_verts.size()) coords.resize(3*fluid_verts.size());
-  rval = mbImpl->get_coords(fluid_verts, &coords[0]);CHK_SET_ERR(rval, "Failed to get vertex coords");
-  rval = mbImpl->tag_set_data(xNew, fluid_verts, &coords[0]);CHK_SET_ERR(rval, "Failed to set xnew tag on fluid verts");
+  rval = mbImpl->get_coords(fluid_verts, &coords[0]);MB_CHK_SET_ERR(rval, "Failed to get vertex coords");
+  rval = mbImpl->tag_set_data(xNew, fluid_verts, &coords[0]);MB_CHK_SET_ERR(rval, "Failed to set xnew tag on fluid verts");
 
   if (debug) {
     // Save deformed mesh coords to new file for visualizing
     Range tmp_range(fluidElems[MASTER]);
     tmp_range.merge(solidElems[MASTER]);
-    rval = write_and_save(tmp_range, masterSet, xNew, "deformed_master.h5m", true);CHK_ERR(rval);
+    rval = write_and_save(tmp_range, masterSet, xNew, "deformed_master.h5m", true);MB_CHK_ERR(rval);
   }
 
   return MB_SUCCESS;
@@ -601,7 +601,7 @@ ErrorCode DeformMeshRemap::deform_master(Range &fluid_elems, Range &solid_elems,
 ErrorCode DeformMeshRemap::read_file(int m_or_s, string &fname, EntityHandle &seth)
 {
   // Create meshset
-  ErrorCode rval = mbImpl->create_meshset(0, seth);CHK_SET_ERR(rval, "Couldn't create master/slave set");
+  ErrorCode rval = mbImpl->create_meshset(0, seth);MB_CHK_SET_ERR(rval, "Couldn't create master/slave set");
   ostringstream options;
 #ifdef USE_MPI
   ParallelComm *pc = (m_or_s == MASTER ? pcMaster : pcSlave);
@@ -611,20 +611,20 @@ ErrorCode DeformMeshRemap::read_file(int m_or_s, string &fname, EntityHandle &se
             << "PARALLEL_GHOSTS=2.0.1;PARALLEL_COMM=" << pc->get_id();
   }
 #endif  
-  rval = mbImpl->load_file(fname.c_str(), &seth, options.str().c_str());CHK_SET_ERR(rval, "Couldn't load master/slave mesh");
+  rval = mbImpl->load_file(fname.c_str(), &seth, options.str().c_str());MB_CHK_SET_ERR(rval, "Couldn't load master/slave mesh");
 
   if (*solidSetNos[m_or_s].begin() == -1 || *fluidSetNos[m_or_s].begin() == -1) return MB_SUCCESS;
 
   // Get material sets for solid/fluid
   Tag tagh;
-  rval = mbImpl->tag_get_handle(MATERIAL_SET_TAG_NAME, tagh);CHK_SET_ERR(rval, "Couldn't get material set tag name");
+  rval = mbImpl->tag_get_handle(MATERIAL_SET_TAG_NAME, tagh);MB_CHK_SET_ERR(rval, "Couldn't get material set tag name");
   for (set<int>::iterator sit = solidSetNos[m_or_s].begin(); sit != solidSetNos[m_or_s].end(); ++sit) {
     Range sets;
     int set_no = *sit;
     const void *setno_ptr = &set_no;
     rval = mbImpl->get_entities_by_type_and_tag(seth, MBENTITYSET, &tagh, &setno_ptr, 1, sets);
     if (MB_SUCCESS != rval || sets.empty()) {
-      SET_ERR(MB_FAILURE, "Couldn't find solid set #" << *sit);
+      MB_SET_ERR(MB_FAILURE, "Couldn't find solid set #" << *sit);
     }
     else
       solidSets[m_or_s].merge(sets);
@@ -633,7 +633,7 @@ ErrorCode DeformMeshRemap::read_file(int m_or_s, string &fname, EntityHandle &se
   // Get solid entities, and dimension
   Range tmp_range;
   for (Range::iterator rit = solidSets[m_or_s].begin(); rit != solidSets[m_or_s].end(); ++rit) {
-    rval = mbImpl->get_entities_by_handle(*rit, tmp_range, true);CHK_SET_ERR(rval, "Failed to get entities in solid");
+    rval = mbImpl->get_entities_by_handle(*rit, tmp_range, true);MB_CHK_SET_ERR(rval, "Failed to get entities in solid");
   }
   if (!tmp_range.empty()) {
     int dim = mbImpl->dimension_from_handle(*tmp_range.rbegin());
@@ -651,7 +651,7 @@ ErrorCode DeformMeshRemap::read_file(int m_or_s, string &fname, EntityHandle &se
     const void *setno_ptr = &set_no;
     rval = mbImpl->get_entities_by_type_and_tag(seth, MBENTITYSET, &tagh, &setno_ptr, 1, sets);
     if (MB_SUCCESS != rval || sets.empty()) {
-      SET_ERR(MB_FAILURE, "Couldn't find fluid set #" << *sit);
+      MB_SET_ERR(MB_FAILURE, "Couldn't find fluid set #" << *sit);
     }
     else
       fluidSets[m_or_s].merge(sets);
@@ -660,7 +660,7 @@ ErrorCode DeformMeshRemap::read_file(int m_or_s, string &fname, EntityHandle &se
   // Get fluid entities, and dimension
   tmp_range.clear();
   for (Range::iterator rit = fluidSets[m_or_s].begin(); rit != fluidSets[m_or_s].end(); ++rit) {
-    rval = mbImpl->get_entities_by_handle(*rit, tmp_range, true);CHK_SET_ERR(rval, "Failed to get entities in fluid");
+    rval = mbImpl->get_entities_by_handle(*rit, tmp_range, true);MB_CHK_SET_ERR(rval, "Failed to get entities in fluid");
   }
   if (!tmp_range.empty()) {
     int dim = mbImpl->dimension_from_handle(*tmp_range.rbegin());
@@ -697,25 +697,25 @@ ErrorCode DeformMeshRemap::find_other_sets(int m_or_s, EntityHandle file_set)
 
   // Ok, we know the filled sets, now fill the unfilled sets, and the elems from those
   Tag tagh;
-  ErrorCode rval = mbImpl->tag_get_handle(MATERIAL_SET_TAG_NAME, tagh);CHK_SET_ERR(rval, "Couldn't get material set tag name");
+  ErrorCode rval = mbImpl->tag_get_handle(MATERIAL_SET_TAG_NAME, tagh);MB_CHK_SET_ERR(rval, "Couldn't get material set tag name");
   Range matsets;
   rval = mbImpl->get_entities_by_type_and_tag(file_set, MBENTITYSET, &tagh, NULL, 1, matsets);
   if (MB_SUCCESS != rval || matsets.empty()) {
-    SET_ERR(MB_FAILURE, "Couldn't get any material sets");
+    MB_SET_ERR(MB_FAILURE, "Couldn't get any material sets");
   }
   *unfilled_sets = subtract(matsets, *filled_sets);
   if (unfilled_sets->empty()) {
-    SET_ERR(MB_FAILURE, "Failed to find any unfilled material sets");
+    MB_SET_ERR(MB_FAILURE, "Failed to find any unfilled material sets");
   }
   Range tmp_range;
   for (Range::iterator rit = unfilled_sets->begin(); rit != unfilled_sets->end(); ++rit) {
-    rval = mbImpl->get_entities_by_handle(*rit, tmp_range, true);CHK_SET_ERR(rval, "Failed to get entities in unfilled set");
+    rval = mbImpl->get_entities_by_handle(*rit, tmp_range, true);MB_CHK_SET_ERR(rval, "Failed to get entities in unfilled set");
   }
   int dim = mbImpl->dimension_from_handle(*tmp_range.rbegin());
   assert(dim > 0 && dim < 4);  
   *unfilled_elems = tmp_range.subset_by_dimension(dim);
   if (unfilled_elems->empty()) {
-    SET_ERR(MB_FAILURE, "Failed to find any unfilled set entities");
+    MB_SET_ERR(MB_FAILURE, "Failed to find any unfilled set entities");
   }
 
   if (debug) 

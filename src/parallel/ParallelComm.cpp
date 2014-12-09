@@ -407,12 +407,12 @@ namespace moab {
     std::vector<unsigned char> pstatus;
     for (int dim = 0; dim <= dimension; dim++) {
       if (dim == 0 || !largest_dim_only || dim == dimension) {
-        result = mbImpl->get_entities_by_dimension(this_set, dim, entities[dim]);CHK_SET_ERR(result, "Failed to get vertices in assign_global_ids");
+        result = mbImpl->get_entities_by_dimension(this_set, dim, entities[dim]);MB_CHK_SET_ERR(result, "Failed to get vertices in assign_global_ids");
       }
 
       // Need to filter out non-locally-owned entities!!!
       pstatus.resize(entities[dim].size());
-      result = mbImpl->tag_get_data(pstatus_tag(), entities[dim], &pstatus[0]);CHK_SET_ERR(result, "Failed to get pstatus in assign_global_ids");
+      result = mbImpl->tag_get_data(pstatus_tag(), entities[dim], &pstatus[0]);MB_CHK_SET_ERR(result, "Failed to get pstatus in assign_global_ids");
 
       Range dum_range;
       Range::iterator rit;
@@ -479,7 +479,7 @@ namespace moab {
       for (Range::iterator rit = entities[dim].begin(); rit != entities[dim].end(); ++rit)
         num_elements[i++] = total_elems[dim]++;
     
-      result = mbImpl->tag_set_data(gid_tag, entities[dim], &num_elements[0]);CHK_SET_ERR(result, "Failed to set global id tag in assign_global_ids");
+      result = mbImpl->tag_set_data(gid_tag, entities[dim], &num_elements[0]);MB_CHK_SET_ERR(result, "Failed to set global id tag in assign_global_ids");
     }
 
     if (owned_only)
@@ -531,18 +531,18 @@ namespace moab {
     Buffer buff(INITIAL_BUFF_SIZE);
     buff.reset_ptr(sizeof(int));
     if ((int)procConfig.proc_rank() == from_proc) {
-      result = add_verts(entities);CHK_SET_ERR(result, "Failed to add adj vertices");
+      result = add_verts(entities);MB_CHK_SET_ERR(result, "Failed to add adj vertices");
 
       buff.reset_ptr(sizeof(int));
       result = pack_buffer(entities, adjacencies, tags,
-                           false, -1, &buff);CHK_SET_ERR(result, "Failed to compute buffer size in broadcast_entities");
+                           false, -1, &buff);MB_CHK_SET_ERR(result, "Failed to compute buffer size in broadcast_entities");
       buff.set_stored_size();
       buff_size = buff.buff_ptr - buff.mem_ptr;
     }
 
     success = MPI_Bcast(&buff_size, 1, MPI_INT, from_proc, procConfig.proc_comm());
     if (MPI_SUCCESS != success) {
-      SET_ERR(MB_FAILURE, "MPI_Bcast of buffer size failed");
+      MB_SET_ERR(MB_FAILURE, "MPI_Bcast of buffer size failed");
     }
 
     if (!buff_size) // No data
@@ -556,7 +556,7 @@ namespace moab {
       int sz = std::min(buff_size, MAX_BCAST_SIZE);
       success = MPI_Bcast(buff.mem_ptr + offset, sz, MPI_UNSIGNED_CHAR, from_proc, procConfig.proc_comm());
       if (MPI_SUCCESS != success) {
-        SET_ERR(MB_FAILURE, "MPI_Bcast of buffer failed");
+        MB_SET_ERR(MB_FAILURE, "MPI_Bcast of buffer failed");
       }
 
       offset += sz;
@@ -570,7 +570,7 @@ namespace moab {
       std::vector<unsigned int> dum3;
       buff.reset_ptr(sizeof(int));
       result = unpack_buffer(buff.buff_ptr, false, from_proc, -1,
-                             dum1a, dum1b, dum1p, dum2, dum2, dum3, dum4);CHK_SET_ERR(result, "Failed to unpack buffer in broadcast_entities");
+                             dum1a, dum1b, dum1p, dum2, dum2, dum3, dum4);MB_CHK_SET_ERR(result, "Failed to unpack buffer in broadcast_entities");
       std::copy(dum4.begin(), dum4.end(), range_inserter(entities));
     }
 
@@ -603,14 +603,14 @@ namespace moab {
       for (i = 1; i < nProcs; i++) {
         prev_size = buff.buff_ptr - buff.mem_ptr;
         buff.reset_ptr(prev_size + sizeof(int));
-        result = add_verts(entities[i]);CHK_SET_ERR(result, "Failed to add verts");
+        result = add_verts(entities[i]);MB_CHK_SET_ERR(result, "Failed to add verts");
 
         result = pack_buffer(entities[i], adjacencies, tags, 
                              false, -1, &buff); 
         if (MB_SUCCESS != result) {
           delete[] sendCounts;
           delete[] displacements;
-          SET_ERR(result, "Failed to pack buffer in scatter_entities");
+          MB_SET_ERR(result, "Failed to pack buffer in scatter_entities");
         }
 
         buff_size = buff.buff_ptr - buff.mem_ptr - prev_size;
@@ -624,7 +624,7 @@ namespace moab {
     if (MPI_SUCCESS != success) {
       delete[] sendCounts;
       delete[] displacements;
-      SET_ERR(MB_FAILURE, "MPI_Bcast of buffer size failed");
+      MB_SET_ERR(MB_FAILURE, "MPI_Bcast of buffer size failed");
     }
 
     for (i = 1; i < nProcs; i++) {
@@ -642,7 +642,7 @@ namespace moab {
     if (MPI_SUCCESS != success) {
       delete[] sendCounts;
       delete[] displacements;
-      SET_ERR(MB_FAILURE, "MPI_Scatterv of buffer failed");
+      MB_SET_ERR(MB_FAILURE, "MPI_Scatterv of buffer failed");
     }
 
     // Unpack in remote processors
@@ -657,7 +657,7 @@ namespace moab {
       if (MB_SUCCESS != result) {
         delete[] sendCounts;
         delete[] displacements;
-        SET_ERR(result, "Failed to unpack buffer in scatter_entities");
+        MB_SET_ERR(result, "Failed to unpack buffer in scatter_entities");
       }
 
       std::copy(dum4.begin(), dum4.end(), range_inserter(entities[my_proc]));
@@ -692,18 +692,18 @@ namespace moab {
     localOwnedBuffs[ind]->reset_ptr(sizeof(int));
 
     // Add vertices
-    result = add_verts(orig_ents);CHK_SET_ERR(result, "Failed to add verts in send_entities");
+    result = add_verts(orig_ents);MB_CHK_SET_ERR(result, "Failed to add verts in send_entities");
 
     // Filter out entities already shared with destination
     Range tmp_range;
     result = filter_pstatus(orig_ents, PSTATUS_SHARED, PSTATUS_AND,
-                            to_proc, &tmp_range);CHK_SET_ERR(result, "Failed to filter on owner");
+                            to_proc, &tmp_range);MB_CHK_SET_ERR(result, "Failed to filter on owner");
     if (!tmp_range.empty()) {
       orig_ents = subtract(orig_ents, tmp_range);
     }
 
     result = pack_buffer(orig_ents, adjs, tags, store_remote_handles,
-                         to_proc, localOwnedBuffs[ind], &entprocs);CHK_SET_ERR(result, "Failed to pack buffer in send_entities");
+                         to_proc, localOwnedBuffs[ind], &entprocs);MB_CHK_SET_ERR(result, "Failed to pack buffer in send_entities");
 
     // Send buffer
     result = send_buffer(to_proc, localOwnedBuffs[ind], MB_MESG_ENTS_SIZE,
@@ -714,7 +714,7 @@ namespace moab {
                          MB_MESG_REMOTEH_SIZE,
                          (!is_iface && store_remote_handles ?
                           localOwnedBuffs[ind] : NULL),
-                         &recv_remoteh_reqs[2*ind], &incoming2);CHK_SET_ERR(result, "Failed to send buffer");
+                         &recv_remoteh_reqs[2*ind], &incoming2);MB_CHK_SET_ERR(result, "Failed to send buffer");
 
     return MB_SUCCESS;
 #endif
@@ -744,12 +744,12 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
   unsigned int n_proc = send_procs.size();
   for (i = 0; i < n_proc; i++) {
     ind = get_buffers(send_procs[i]);
-    result = add_verts(*send_ents[i]);CHK_SET_ERR(result, "Failed to add verts");
+    result = add_verts(*send_ents[i]);MB_CHK_SET_ERR(result, "Failed to add verts");
 
     // Filter out entities already shared with destination
     Range tmp_range;
     result = filter_pstatus(*send_ents[i], PSTATUS_SHARED, PSTATUS_AND,
-                            buffProcs[ind], &tmp_range);CHK_SET_ERR(result, "Failed to filter on owner");
+                            buffProcs[ind], &tmp_range);MB_CHK_SET_ERR(result, "Failed to filter on owner");
     if (!tmp_range.empty()) {
       *send_ents[i] = subtract(*send_ents[i], tmp_range);
     }
@@ -821,7 +821,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                            MB_MESG_REMOTEH_SIZE,
                            (store_remote_handles ?
                             localOwnedBuffs[ind] : NULL),
-                           &recvRemotehReqs[2*ind], &incoming2);CHK_SET_ERR(result, "Failed to Isend in ghost send");
+                           &recvRemotehReqs[2*ind], &incoming2);MB_CHK_SET_ERR(result, "Failed to Isend in ghost send");
     }
   }
   entprocs.reset();
@@ -864,7 +864,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                             MB_MESG_ENTS_SIZE, procConfig.proc_comm(),
                             &recvReqs[2*ind1]);
     if (success != MPI_SUCCESS) {
-      SET_ERR(MB_FAILURE, "Failed to post irecv in ghost exchange");
+      MB_SET_ERR(MB_FAILURE, "Failed to post irecv in ghost exchange");
     }
 
     // Receive messages in while loop
@@ -900,7 +900,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
       success = MPI_Waitany(2*buffProcs.size(), &recvReqs[0], &ind, &status);
       if (MPI_SUCCESS != success) {
-        SET_ERR(MB_FAILURE, "Failed in waitany in owned entity exchange");
+        MB_SET_ERR(MB_FAILURE, "Failed in waitany in owned entity exchange");
       }
 
       PRINT_DEBUG_RECD(status);
@@ -921,7 +921,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                            (store_remote_handles ?
                             localOwnedBuffs[ind/2] : NULL),
                            MB_MESG_REMOTEH_SIZE,
-                           &recvRemotehReqs[base_ind], &incoming2);CHK_SET_ERR(result, "Failed to receive buffer");
+                           &recvRemotehReqs[base_ind], &incoming2);MB_CHK_SET_ERR(result, "Failed to receive buffer");
 
       if (done) {
         if (myDebug->get_verbosity() == 4) {
@@ -955,7 +955,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                                 MB_MESG_REMOTEH_SIZE, procConfig.proc_comm(),
                                 &recvRemotehReqs[i]);
             if (success != MPI_SUCCESS) {
-              SET_ERR(MB_FAILURE, "Failed to post irecv for remote handles in ghost exchange");
+              MB_SET_ERR(MB_FAILURE, "Failed to post irecv for remote handles in ghost exchange");
             }
           }
           recvReqs.resize(2*buffProcs.size(), MPI_REQUEST_NULL);
@@ -965,15 +965,15 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     }
 
     // Assign and remove newly created elements from/to receive processor
-    result = assign_entities_part(new_ents, procConfig.proc_rank());CHK_SET_ERR(result, "Failed to assign entities to part");
+    result = assign_entities_part(new_ents, procConfig.proc_rank());MB_CHK_SET_ERR(result, "Failed to assign entities to part");
     if (migrate) {
-      //result = remove_entities_part(allsent, procConfig.proc_rank());CHK_SET_ERR(ressult, "Failed to remove entities to part");
+      //result = remove_entities_part(allsent, procConfig.proc_rank());MB_CHK_SET_ERR(ressult, "Failed to remove entities to part");
     }
 
     // Add requests for any new addl procs
     if (recvReqs.size() != 2*buffProcs.size()) {
       // Shouldn't get here...
-      SET_ERR(MB_FAILURE, "Requests length doesn't match proc count in entity exchange");
+      MB_SET_ERR(MB_FAILURE, "Requests length doesn't match proc count in entity exchange");
     }
 
   #ifdef USE_MPE
@@ -993,7 +993,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       remoteOwnedBuffs[ind]->reset_buffer(sizeof(int));
 
       result = pack_remote_handles(L1hloc[ind], L1hrem[ind], L1p[ind],
-                                   buffProcs[ind], remoteOwnedBuffs[ind]);CHK_SET_ERR(result, "Failed to pack remote handles");
+                                   buffProcs[ind], remoteOwnedBuffs[ind]);MB_CHK_SET_ERR(result, "Failed to pack remote handles");
       remoteOwnedBuffs[ind]->set_stored_size();
 
       if (myDebug->get_verbosity() == 4) {
@@ -1004,7 +1004,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                            MB_MESG_REMOTEH_SIZE,
                            sendReqs[2*ind], recvRemotehReqs[2*ind + 1],
                            &ackbuff,
-                           incoming2);CHK_SET_ERR(result, "Failed to send remote handles");
+                           incoming2);MB_CHK_SET_ERR(result, "Failed to send remote handles");
     }
 
     //===========================================
@@ -1014,7 +1014,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       PRINT_DEBUG_WAITANY(recvRemotehReqs, MB_MESG_REMOTEH_SIZE, procConfig.proc_rank());
       success = MPI_Waitany(2*buffProcs.size(), &recvRemotehReqs[0], &ind, &status);
       if (MPI_SUCCESS != success) {
-        SET_ERR(MB_FAILURE, "Failed in waitany in owned entity exchange");
+        MB_SET_ERR(MB_FAILURE, "Failed in waitany in owned entity exchange");
       }
 
       // OK, received something; decrement incoming counter
@@ -1028,7 +1028,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                            recvRemotehReqs[ind], recvRemotehReqs[ind + 1], incoming2,
                            remoteOwnedBuffs[ind/2],
                            sendReqs[base_ind], sendReqs[base_ind + 1],
-                           done);CHK_SET_ERR(result, "Failed to receive remote handles");
+                           done);MB_CHK_SET_ERR(result, "Failed to receive remote handles");
       if (done) {
         // Incoming remote handles
         if (myDebug->get_verbosity() == 4) {
@@ -1039,7 +1039,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         localOwnedBuffs[ind/2]->reset_ptr(sizeof(int));
         result = unpack_remote_handles(buffProcs[ind/2],
                                        localOwnedBuffs[ind/2]->buff_ptr,
-                                       L2hloc, L2hrem, L2p);CHK_SET_ERR(result, "Failed to unpack remote handles");
+                                       L2hloc, L2hrem, L2p);MB_CHK_SET_ERR(result, "Failed to unpack remote handles");
       }
     }
 
@@ -1083,7 +1083,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       PRINT_DEBUG_WAITANY(recvReqs, MB_MESG_TAGS_SIZE, procConfig.proc_rank());
       success = MPI_Waitany(2, &recvReqs[2*ind1], &ind2, &status);
       if (MPI_SUCCESS != success) {
-        SET_ERR(MB_FAILURE, "Failed in waitany in recv_messages");
+        MB_SET_ERR(MB_FAILURE, "Failed in waitany in recv_messages");
       }
 
       PRINT_DEBUG_RECD(status);
@@ -1106,7 +1106,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                            (!is_iface && store_remote_handles ?
                             localOwnedBuffs[ind2/2] : NULL),
                            MB_MESG_REMOTEH_SIZE,
-                           &recv_remoteh_reqs[base_ind], &incoming2);CHK_SET_ERR(result, "Failed to receive buffer");
+                           &recv_remoteh_reqs[base_ind], &incoming2);MB_CHK_SET_ERR(result, "Failed to receive buffer");
 
       if (done) {
         // If it is done, unpack buffer
@@ -1114,7 +1114,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         result = unpack_buffer(remoteOwnedBuffs[ind2/2]->buff_ptr,
                                store_remote_handles, from_proc, ind2/2,
                                L1hloc, L1hrem, L1p, L2hloc, L2hrem,
-                               L2p, new_ents);CHK_SET_ERR(result, "Failed to unpack buffer in recev_messages");
+                               L2p, new_ents);MB_CHK_SET_ERR(result, "Failed to unpack buffer in recev_messages");
 
         std::copy(new_ents.begin(), new_ents.end(), range_inserter(final_ents));
 
@@ -1123,7 +1123,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         remoteOwnedBuffs[ind2/2]->reset_buffer(sizeof(int));
 
         result = pack_remote_handles(L1hloc[ind2/2], L1hrem[ind2/2], L1p[ind2/2],
-                                     from_proc, remoteOwnedBuffs[ind2/2]);CHK_SET_ERR(result, "Failed to pack remote handles");
+                                     from_proc, remoteOwnedBuffs[ind2/2]);MB_CHK_SET_ERR(result, "Failed to pack remote handles");
         remoteOwnedBuffs[ind2/2]->set_stored_size();
 
         result = send_buffer(buffProcs[ind2/2], remoteOwnedBuffs[ind2/2],
@@ -1131,7 +1131,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                              sendReqs[ind2], recv_remoteh_reqs[ind2 + 1],
                              (int*)(localOwnedBuffs[ind2/2]->mem_ptr),
                              //&ackbuff,
-                             incoming2);CHK_SET_ERR(result, "Failed to send remote handles");
+                             incoming2);MB_CHK_SET_ERR(result, "Failed to send remote handles");
       }
     }
 
@@ -1160,7 +1160,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       success = MPI_Waitany(2, &recv_remoteh_reqs[2*ind1],
                             &ind2, &status);
       if (MPI_SUCCESS != success) {
-        SET_ERR(MB_FAILURE, "Failed in waitany in recv_remote_handle_messages");
+        MB_SET_ERR(MB_FAILURE, "Failed in waitany in recv_remote_handle_messages");
       }
 
       // OK, received something; decrement incoming counter
@@ -1176,13 +1176,13 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                            recv_remoteh_reqs[ind2], recv_remoteh_reqs[ind2 + 1], incoming2,
                            remoteOwnedBuffs[ind2/2],
                            sendReqs[base_ind], sendReqs[base_ind + 1],
-                           done);CHK_SET_ERR(result, "Failed to receive remote handles");
+                           done);MB_CHK_SET_ERR(result, "Failed to receive remote handles");
       if (done) {
         // Incoming remote handles
         localOwnedBuffs[ind2/2]->reset_ptr(sizeof(int));
         result = unpack_remote_handles(buffProcs[ind2/2],
                                        localOwnedBuffs[ind2/2]->buff_ptr,
-                                       L2hloc, L2hrem, L2p);CHK_SET_ERR(result, "Failed to unpack remote handles");
+                                       L2hloc, L2hrem, L2p);MB_CHK_SET_ERR(result, "Failed to unpack remote handles");
       }
     }
 
@@ -1218,18 +1218,18 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     // Entities
     result = pack_entities(orig_ents, buff,
                            store_remote_handles, to_proc, false,
-                           entprocs, allsent);CHK_SET_ERR(result, "Packing entities failed");
+                           entprocs, allsent);MB_CHK_SET_ERR(result, "Packing entities failed");
 
     // Sets
     result = pack_sets(orig_ents, buff,
-                       store_remote_handles, to_proc);CHK_SET_ERR(result, "Packing sets (count) failed");
+                       store_remote_handles, to_proc);MB_CHK_SET_ERR(result, "Packing sets (count) failed");
 
     // Tags
     Range final_ents;
     if (tags) {
-      result = get_tag_send_list(orig_ents, all_tags, tag_ranges);CHK_SET_ERR(result, "Failed to get tagged entities");
+      result = get_tag_send_list(orig_ents, all_tags, tag_ranges);MB_CHK_SET_ERR(result, "Failed to get tagged entities");
       result = pack_tags(orig_ents, all_tags, all_tags, tag_ranges, 
-                         buff, store_remote_handles, to_proc);CHK_SET_ERR(result, "Packing tags (count) failed");
+                         buff, store_remote_handles, to_proc);MB_CHK_SET_ERR(result, "Packing tags (count) failed");
     }
     else { // Set tag size to 0
       buff->check_space(sizeof(int));
@@ -1258,17 +1258,17 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     result = unpack_entities(buff_ptr, store_remote_handles,
                              ind, false, L1hloc, L1hrem, L1p,
                              L2hloc, L2hrem, L2p, new_ents,
-                             created_iface);CHK_SET_ERR(result, "Unpacking entities failed");
+                             created_iface);MB_CHK_SET_ERR(result, "Unpacking entities failed");
     if (myDebug->get_verbosity() == 3) {
       myDebug->tprintf(4, "unpack_entities buffer space: %ld bytes.\n", (long int)(buff_ptr - tmp_buff));
       tmp_buff = buff_ptr;
     }
-    result = unpack_sets(buff_ptr, new_ents, store_remote_handles, from_proc);CHK_SET_ERR(result, "Unpacking sets failed");
+    result = unpack_sets(buff_ptr, new_ents, store_remote_handles, from_proc);MB_CHK_SET_ERR(result, "Unpacking sets failed");
     if (myDebug->get_verbosity() == 3) {
       myDebug->tprintf(4, "unpack_sets buffer space: %ld bytes.\n", (long int)(buff_ptr - tmp_buff));
       tmp_buff = buff_ptr;
     }
-    result = unpack_tags(buff_ptr, new_ents, store_remote_handles, from_proc);CHK_SET_ERR(result, "Unpacking tags failed");
+    result = unpack_tags(buff_ptr, new_ents, store_remote_handles, from_proc);MB_CHK_SET_ERR(result, "Unpacking tags failed");
     if (myDebug->get_verbosity() == 3) {
       myDebug->tprintf(4, "unpack_tags buffer space: %ld bytes.\n", (long int)(buff_ptr - tmp_buff));
       tmp_buff = buff_ptr;
@@ -1311,7 +1311,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         continue;
 
       ErrorCode result = mbImpl->get_connectivity(*rit, connect, num_connect, 
-                                                  false, &dum_connect_vec);CHK_SET_ERR_RET_VAL(result, "Failed to get connectivity to estimate buffer size", -1);
+                                                  false, &dum_connect_vec);MB_CHK_SET_ERR_RET_VAL(result, "Failed to get connectivity to estimate buffer size", -1);
 
       // Number, type, nodes per entity
       buff_size += 3*sizeof(int);
@@ -1338,14 +1338,14 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
     for (; rit != entities.end(); ++rit) {
       unsigned int options;
-      result = mbImpl->get_meshset_options(*rit, options);CHK_SET_ERR_RET_VAL(result, "Failed to get meshset options", -1);
+      result = mbImpl->get_meshset_options(*rit, options);MB_CHK_SET_ERR_RET_VAL(result, "Failed to get meshset options", -1);
 
       buff_size += sizeof(int);
 
       Range set_range;
       if (options & MESHSET_SET) {
         // Range-based set; count the subranges
-        result = mbImpl->get_entities_by_handle(*rit, set_range);CHK_SET_ERR_RET_VAL(result, "Failed to get set entities", -1);
+        result = mbImpl->get_entities_by_handle(*rit, set_range);MB_CHK_SET_ERR_RET_VAL(result, "Failed to get set entities", -1);
 
         // Set range
         buff_size += RANGE_SIZE(set_range);
@@ -1353,7 +1353,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       else if (options & MESHSET_ORDERED) {
         // Just get the number of entities in the set
         int num_ents;
-        result = mbImpl->get_number_entities_by_handle(*rit, num_ents);CHK_SET_ERR_RET_VAL(result, "Failed to get number entities in ordered set", -1);
+        result = mbImpl->get_number_entities_by_handle(*rit, num_ents);MB_CHK_SET_ERR_RET_VAL(result, "Failed to get number entities in ordered set", -1);
 
         // Set vec
         buff_size += sizeof(EntityHandle) * num_ents + sizeof(int);
@@ -1361,8 +1361,8 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
       // Get numbers of parents/children
       int num_par, num_ch;
-      result = mbImpl->num_child_meshsets(*rit, &num_ch);CHK_SET_ERR_RET_VAL(result, "Failed to get num children", -1);
-      result = mbImpl->num_parent_meshsets(*rit, &num_par);CHK_SET_ERR_RET_VAL(result, "Failed to get num parents", -1);
+      result = mbImpl->num_child_meshsets(*rit, &num_ch);MB_CHK_SET_ERR_RET_VAL(result, "Failed to get num children", -1);
+      result = mbImpl->num_parent_meshsets(*rit, &num_par);MB_CHK_SET_ERR_RET_VAL(result, "Failed to get num parents", -1);
 
       buff_size += (num_ch + num_par) * sizeof(EntityHandle) + 2*sizeof(int);
     }
@@ -1389,11 +1389,11 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     // Get an estimate of the buffer size & pre-allocate buffer size
     int buff_size = estimate_ents_buffer_size(entities, store_remote_handles);
     if (buff_size < 0)
-      SET_ERR(MB_FAILURE, "Failed to estimate ents buffer size");
+      MB_SET_ERR(MB_FAILURE, "Failed to estimate ents buffer size");
     buff->check_space(buff_size);
 
     WriteUtilIface *wu;
-    ErrorCode result = mbImpl->query_interface(wu);CHK_SET_ERR(result, "Failed to get WriteUtilIface");
+    ErrorCode result = mbImpl->query_interface(wu);MB_CHK_SET_ERR(result, "Failed to get WriteUtilIface");
 
     unsigned int num_ents;
 
@@ -1414,9 +1414,9 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
       // Pre-fetch sharedp and pstatus
       std::vector<int> sharedp_vals(entities.size());
-      result = mbImpl->tag_get_data(sharedp_tag(), entities, &sharedp_vals[0]);CHK_SET_ERR(result, "Failed to get sharedp tag data");
+      result = mbImpl->tag_get_data(sharedp_tag(), entities, &sharedp_vals[0]);MB_CHK_SET_ERR(result, "Failed to get sharedp tag data");
       std::vector<char> pstatus_vals(entities.size());
-      result = mbImpl->tag_get_data(pstatus_tag(), entities, &pstatus_vals[0]);CHK_SET_ERR(result, "Failed to get pstatus tag data");
+      result = mbImpl->tag_get_data(pstatus_tag(), entities, &pstatus_vals[0]);MB_CHK_SET_ERR(result, "Failed to get pstatus tag data");
 
       unsigned int i;
       int tmp_procs[MAX_SHARING_PROCS];
@@ -1433,7 +1433,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
           dumprocs.insert(entprocs->vi_rd[ind++]);
 
         result = build_sharedhps_list(*rit, pstatus_vals[i], sharedp_vals[i],
-                                      dumprocs, num_ents, tmp_procs, tmp_handles);CHK_SET_ERR(result, "Failed to build sharedhps");
+                                      dumprocs, num_ents, tmp_procs, tmp_handles);MB_CHK_SET_ERR(result, "Failed to build sharedhps");
 
         dumprocs.clear();
 
@@ -1468,7 +1468,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       PACK_INT(buff->buff_ptr, ((int) num_ents));
 
       std::vector<double> tmp_coords(3*num_ents);
-      result = mbImpl->get_coords(these_ents, &tmp_coords[0]);CHK_SET_ERR(result, "Failed to get vertex coordinates");
+      result = mbImpl->get_coords(these_ents, &tmp_coords[0]);MB_CHK_SET_ERR(result, "Failed to get vertex coordinates");
       PACK_DBLS(buff->buff_ptr, &tmp_coords[0], 3*num_ents);
 
       myDebug->tprintf(4, "Packed %lu ents of type %s\n", (unsigned long)these_ents.size(),
@@ -1495,7 +1495,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       // Find the sequence holding current start entity, if we're not at end
       eseq = NULL;
       if (start_rit != entities.end()) {
-        result = sequenceManager->find(*start_rit, seq);CHK_SET_ERR(result, "Failed to find entity sequence");
+        result = sequenceManager->find(*start_rit, seq);MB_CHK_SET_ERR(result, "Failed to find entity sequence");
         if (NULL == seq)
           return MB_FAILURE;
         eseq = dynamic_cast<ElementSequence*>(seq);
@@ -1506,7 +1506,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
           (!eseq || eseq->type() != last_type ||
            last_nodes != (int) eseq->nodes_per_element())) {
         result = pack_entity_seq(last_nodes, store_remote_handles,
-                                 to_proc, these_ents, entities_vec, buff);CHK_SET_ERR(result, "Failed to pack entities from a sequence");
+                                 to_proc, these_ents, entities_vec, buff);MB_CHK_SET_ERR(result, "Failed to pack entities from a sequence");
         these_ents.clear();
       }
 
@@ -1551,7 +1551,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     num_ents = 0;
     unsigned char pstat;
     ErrorCode result = get_sharing_data(entity, tmp_procs, tmp_handles,
-                                        pstat, num_ents);CHK_SET_ERR(result, "Failed to get sharing data");
+                                        pstat, num_ents);MB_CHK_SET_ERR(result, "Failed to get sharing data");
     assert(pstat == pstatus);
 
     // Build shared proc/handle lists
@@ -1645,10 +1645,10 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     ErrorCode result = MB_SUCCESS;
     for (Range::const_iterator rit = these_ents.begin(); rit != these_ents.end(); ++rit) {
       connect.clear();
-      result = mbImpl->get_connectivity(&(*rit), 1, connect, false);CHK_SET_ERR(result, "Failed to get connectivity");
+      result = mbImpl->get_connectivity(&(*rit), 1, connect, false);MB_CHK_SET_ERR(result, "Failed to get connectivity");
       assert((int)connect.size() == nodes_per_entity);
       result = get_remote_handles(store_remote_handles, &connect[0], &connect[0],
-                                  connect.size(), to_proc, entities_vec);CHK_SET_ERR(result, "Failed in get_remote_handles");
+                                  connect.size(), to_proc, entities_vec);MB_CHK_SET_ERR(result, "Failed in get_remote_handles");
       PACK_EH(buff->buff_ptr, &connect[0], connect.size());
     }
 
@@ -1696,8 +1696,8 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       // Get single-proc destination handles and shared procs
       std::vector<int> sharing_procs(num_ents);
       result = mbImpl->tag_get_data(shh_tag, from_vec, num_ents,
-                                    to_vec);CHK_SET_ERR(result, "Failed to get shared handle tag for remote_handles");
-      result = mbImpl->tag_get_data(shp_tag, from_vec, num_ents, &sharing_procs[0]);CHK_SET_ERR(result, "Failed to get sharing proc tag in remote_handles");
+                                    to_vec);MB_CHK_SET_ERR(result, "Failed to get shared handle tag for remote_handles");
+      result = mbImpl->tag_get_data(shp_tag, from_vec, num_ents, &sharing_procs[0]);MB_CHK_SET_ERR(result, "Failed to get sharing proc tag in remote_handles");
       for (int j = 0; j < num_ents; j++) {
         if (to_vec[j] && sharing_procs[j] != to_proc)
           to_vec[j] = 0;
@@ -1715,7 +1715,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
               if (-1 == tmp_procs[j])
                 break;
               else if (tmp_procs[j] == to_proc) {
-                result = mbImpl->tag_get_data(shhs_tag, from_vec + i, 1, tmp_handles);CHK_SET_ERR(result, "Failed to get sharedhs tag data");
+                result = mbImpl->tag_get_data(shhs_tag, from_vec + i, 1, tmp_handles);MB_CHK_SET_ERR(result, "Failed to get sharedhs tag data");
                 to_vec[i] = tmp_handles[j];
                 assert(to_vec[i]);
                 break;
@@ -1730,12 +1730,12 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
               for (int k = 0; k <= num_ents; k++)
                 std::cout << k << ": " << from_vec[k] << " " << to_vec[k]
                           << std::endl;
-              SET_ERR(MB_FAILURE, "Failed to find new entity in send list");
+              MB_SET_ERR(MB_FAILURE, "Failed to find new entity in send list");
             }
             int err;
             to_vec[i] = CREATE_HANDLE(MBMAXTYPE, j, err);
             if (err) {
-              SET_ERR(MB_FAILURE, "Failed to create handle in remote_handles");
+              MB_SET_ERR(MB_FAILURE, "Failed to create handle in remote_handles");
             }
           }
         }
@@ -1780,8 +1780,8 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
       // Get single-proc destination handles and shared procs
       std::vector<int> sharing_procs(from_range.size());
-      result = mbImpl->tag_get_data(shh_tag, from_range, to_vec);CHK_SET_ERR(result, "Failed to get shared handle tag for remote_handles");
-      result = mbImpl->tag_get_data(shp_tag, from_range, &sharing_procs[0]);CHK_SET_ERR(result, "Failed to get sharing proc tag in remote_handles");
+      result = mbImpl->tag_get_data(shh_tag, from_range, to_vec);MB_CHK_SET_ERR(result, "Failed to get shared handle tag for remote_handles");
+      result = mbImpl->tag_get_data(shp_tag, from_range, &sharing_procs[0]);MB_CHK_SET_ERR(result, "Failed to get sharing proc tag in remote_handles");
       for (unsigned int j = 0; j < from_range.size(); j++) {
         if (to_vec[j] && sharing_procs[j] != to_proc)
           to_vec[j] = 0;
@@ -1796,7 +1796,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         if (!to_vec[i]) {
           result = mbImpl->tag_get_data(shhs_tag, &(*rit), 1, tmp_handles);
           if (MB_SUCCESS == result) {
-            result = mbImpl->tag_get_data(shps_tag, &(*rit), 1, tmp_procs);CHK_SET_ERR(result, "Failed to get sharedps tag data");
+            result = mbImpl->tag_get_data(shps_tag, &(*rit), 1, tmp_procs);MB_CHK_SET_ERR(result, "Failed to get sharedps tag data");
             for (int j = 0; j < MAX_SHARING_PROCS; j++)
               if (tmp_procs[j] == to_proc) {
                 to_vec[i] = tmp_handles[j];
@@ -1807,12 +1807,12 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
           if (!to_vec[i]) {
             int j = std::lower_bound(new_ents.begin(), new_ents.end(), *rit) - new_ents.begin();
             if ((int)new_ents.size() == j) {
-              SET_ERR(MB_FAILURE, "Failed to find new entity in send list");
+              MB_SET_ERR(MB_FAILURE, "Failed to find new entity in send list");
             }
             int err;
             to_vec[i] = CREATE_HANDLE(MBMAXTYPE, j, err);
             if (err) {
-              SET_ERR(MB_FAILURE, "Failed to create handle in remote_handles");
+              MB_SET_ERR(MB_FAILURE, "Failed to create handle in remote_handles");
             }
           }
         }
@@ -1832,7 +1832,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
     ErrorCode result =
       get_remote_handles(store_remote_handles, from_range, &to_vector[0],
-                         to_proc, new_ents);CHK_SET_ERR(result, "Failed to get remote handles");
+                         to_proc, new_ents);MB_CHK_SET_ERR(result, "Failed to get remote handles");
     std::copy(to_vector.begin(), to_vector.end(), range_inserter(to_range));
     return result;
   }
@@ -1881,7 +1881,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     bool done = false;
     ReadUtilIface *ru = NULL;
 
-    result = mbImpl->query_interface(ru);CHK_SET_ERR(result, "Failed to get ReadUtilIface");
+    result = mbImpl->query_interface(ru);MB_CHK_SET_ERR(result, "Failed to get ReadUtilIface");
 
     // procs the sending proc is telling me I'll be receiving from
     std::set<unsigned int> comm_procs;
@@ -1961,7 +1961,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
           UNPACK_EH(buff_ptr, connect, verts_per_entity);
 
           // Update connectivity to local handles
-          result = get_local_handles(connect, verts_per_entity, msg_ents);CHK_SET_ERR(result, "Failed to get local handles");
+          result = get_local_handles(connect, verts_per_entity, msg_ents);MB_CHK_SET_ERR(result, "Failed to get local handles");
         }
 
         //=======================================
@@ -1973,7 +1973,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                                         connect, verts_per_entity,
                                         this_type,
                                         L2hloc, L2hrem, L2p,
-                                        new_h);CHK_SET_ERR(result, "Failed to get existing entity");
+                                        new_h);MB_CHK_SET_ERR(result, "Failed to get existing entity");
         }
 
         //=======================================
@@ -1983,16 +1983,16 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         if (!new_h && !is_iface) {
           if (MBVERTEX == this_type) {
             // Create a vertex
-            result = mbImpl->create_vertex(coords, new_h);CHK_SET_ERR(result, "Failed to make new vertex");
+            result = mbImpl->create_vertex(coords, new_h);MB_CHK_SET_ERR(result, "Failed to make new vertex");
           }
           else {
             // Create the element
             result = mbImpl->create_element(this_type, connect, verts_per_entity,
-                                            new_h);CHK_SET_ERR(result, "Failed to make new element");
+                                            new_h);MB_CHK_SET_ERR(result, "Failed to make new element");
 
             // Update adjacencies
             result = ru->update_adjacencies(new_h, 1, verts_per_entity,
-                                            connect);CHK_SET_ERR(result, "Failed to update adjacencies");
+                                            connect);MB_CHK_SET_ERR(result, "Failed to update adjacencies");
           }
 
           // Should have a new handle now
@@ -2038,7 +2038,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
           }
 
           // Update sharing data and pstatus, adjusting order if iface
-          result = update_remote_data(new_h, &ps[0], &hs[0], num_ps, new_pstat);CHK_SET_ERR(result, "unpack_entities");
+          result = update_remote_data(new_h, &ps[0], &hs[0], num_ps, new_pstat);MB_CHK_SET_ERR(result, "unpack_entities");
 
           // If a new multi-shared entity, save owner for subsequent lookup in L2 lists
           if (store_remote_handles && !is_iface && num_ps > 2) {
@@ -2334,9 +2334,9 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     ErrorCode result;
 
     for (int i = 0; i < num_ents; i++) {
-      result = mbImpl->list_entities(ents + i, 1);CHK_ERR(result);
+      result = mbImpl->list_entities(ents + i, 1);MB_CHK_ERR(result);
 
-      result = get_sharing_data(ents[i], tmp_procs, tmp_handles, pstat, num_ps);CHK_SET_ERR(result, "Failed to get sharing data");
+      result = get_sharing_data(ents[i], tmp_procs, tmp_handles, pstat, num_ps);MB_CHK_SET_ERR(result, "Failed to get sharing data");
 
       std::cout << "Pstatus: ";
       if (!num_ps)
@@ -2384,7 +2384,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     // For each pair of local/remote handles:
     for (rit = local_range.begin(), rit2 = remote_range.begin();
          rit != local_range.end(); ++rit, ++rit2) {
-      result = update_remote_data(*rit, &other_proc, &(*rit2), 1, add_pstat);CHK_ERR(result);
+      result = update_remote_data(*rit, &other_proc, &(*rit2), 1, add_pstat);MB_CHK_ERR(result);
     }
 
     return MB_SUCCESS;
@@ -2413,7 +2413,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     std::vector<EntityHandle> new_hs(MAX_SHARING_PROCS, 0);
 
     new_numps = 0;
-    ErrorCode result = get_sharing_data(new_h, &new_ps[0], &new_hs[0], new_pstat, new_numps);CHK_SET_ERR(result, "Failed to get sharing data in update_remote_data");
+    ErrorCode result = get_sharing_data(new_h, &new_ps[0], &new_hs[0], new_pstat, new_numps);MB_CHK_SET_ERR(result, "Failed to get sharing data in update_remote_data");
     int num_exist = new_numps;
 
     // Add new pstat info to the flag
@@ -2472,7 +2472,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       }
       else {
         if (new_numps + 1 == MAX_SHARING_PROCS) {
-          SET_ERR(MB_FAILURE, "Exceeded MAX_SHARING_PROCS for " << CN::EntityTypeName(TYPE_FROM_HANDLE(new_h))
+          MB_SET_ERR(MB_FAILURE, "Exceeded MAX_SHARING_PROCS for " << CN::EntityTypeName(TYPE_FROM_HANDLE(new_h))
               << ' ' << ID_FROM_HANDLE(new_h) << " in process " << rank());
         }
         new_ps[new_numps] = ps[i];
@@ -2505,7 +2505,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     std::cout << std::endl;
 */
 
-    result = set_sharing_data(new_h, new_pstat, num_exist, new_numps, &new_ps[0], &new_hs[0]);CHK_SET_ERR(result, "Failed to set sharing data in update_remote_data");
+    result = set_sharing_data(new_h, new_pstat, num_exist, new_numps, &new_ps[0], &new_hs[0]);MB_CHK_SET_ERR(result, "Failed to set sharing data in update_remote_data");
 
     if (new_pstat & PSTATUS_SHARED)
       sharedEnts.push_back(new_h);
@@ -2525,7 +2525,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     // Get initial sharing data; tag_ps and tag_hs get terminated with -1 and 0
     // in this function, so no need to initialize
     unsigned int num_exist;
-    ErrorCode result = get_sharing_data(new_h, tag_ps, tag_hs, pstat, num_exist);CHK_ERR(result);
+    ErrorCode result = get_sharing_data(new_h, tag_ps, tag_hs, pstat, num_exist);MB_CHK_ERR(result);
 
 #ifndef NDEBUG
     {
@@ -2648,17 +2648,17 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         (pstat & PSTATUS_SHARED)) {
       // Must remove sharedp/h first, which really means set to default value
       tag_p = -1;
-      result = mbImpl->tag_set_data(sharedp_tag(), &new_h, 1, &tag_p);CHK_SET_ERR(result, "Failed to set sharedp tag data");
+      result = mbImpl->tag_set_data(sharedp_tag(), &new_h, 1, &tag_p);MB_CHK_SET_ERR(result, "Failed to set sharedp tag data");
       tag_h = 0;
-      result = mbImpl->tag_set_data(sharedh_tag(), &new_h, 1, &tag_h);CHK_SET_ERR(result, "Failed to set sharedh tag data");
+      result = mbImpl->tag_set_data(sharedh_tag(), &new_h, 1, &tag_h);MB_CHK_SET_ERR(result, "Failed to set sharedh tag data");
     }
 
     // Set sharing tags
     if (num_exist > 2) {
       std::fill(tag_ps + num_exist, tag_ps + MAX_SHARING_PROCS, -1);
       std::fill(tag_hs + num_exist, tag_hs + MAX_SHARING_PROCS, 0);
-      result = mbImpl->tag_set_data(sharedps_tag(), &new_h, 1, tag_ps);CHK_SET_ERR(result, "Failed to set sharedps tag data");
-      result = mbImpl->tag_set_data(sharedhs_tag(), &new_h, 1, tag_hs);CHK_SET_ERR(result, "Failed to set sharedhs tag data");
+      result = mbImpl->tag_set_data(sharedps_tag(), &new_h, 1, tag_ps);MB_CHK_SET_ERR(result, "Failed to set sharedps tag data");
+      result = mbImpl->tag_set_data(sharedhs_tag(), &new_h, 1, tag_hs);MB_CHK_SET_ERR(result, "Failed to set sharedhs tag data");
 
 #ifndef NDEBUG
       {
@@ -2678,12 +2678,12 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         tag_hs[0] = tag_hs[1];
       }
       assert(tag_ps[0] != -1 && tag_hs[0] != 0);
-      result = mbImpl->tag_set_data(sharedp_tag(), &new_h, 1, tag_ps);CHK_SET_ERR(result, "Failed to set sharedp tag data");
-      result = mbImpl->tag_set_data(sharedh_tag(), &new_h, 1, tag_hs);CHK_SET_ERR(result, "Failed to set sharedh tag data");
+      result = mbImpl->tag_set_data(sharedp_tag(), &new_h, 1, tag_ps);MB_CHK_SET_ERR(result, "Failed to set sharedp tag data");
+      result = mbImpl->tag_set_data(sharedh_tag(), &new_h, 1, tag_hs);MB_CHK_SET_ERR(result, "Failed to set sharedh tag data");
     }
 
     // Now set new pstatus
-    result = mbImpl->tag_set_data(pstatus_tag(), &new_h, 1, &pstat);CHK_SET_ERR(result, "Failed to set pstatus tag data");
+    result = mbImpl->tag_set_data(pstatus_tag(), &new_h, 1, &pstat);MB_CHK_SET_ERR(result, "Failed to set pstatus tag data");
 
     if (pstat & PSTATUS_SHARED)
       sharedEnts.push_back(new_h);
@@ -2705,7 +2705,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
     for (Range::const_iterator rit = entities.begin(); rit != entities.end(); ++rit) {
       // Get sharing procs
-      result = get_sharing_data(*rit, sp2, NULL, pstat, num_ps);CHK_SET_ERR(result, "Failed to get sharing data in get_sharing_data");
+      result = get_sharing_data(*rit, sp2, NULL, pstat, num_ps);MB_CHK_SET_ERR(result, "Failed to get sharing data in get_sharing_data");
       if (!(pstat & PSTATUS_SHARED) && Interface::INTERSECT == operation) {
         procs.clear();
         return MB_SUCCESS;
@@ -2742,18 +2742,18 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                                            unsigned char &pstat,
                                            unsigned int &num_ps)
   {
-    ErrorCode result = mbImpl->tag_get_data(pstatus_tag(), &entity, 1, &pstat);CHK_SET_ERR(result, "Failed to get pstatus tag data");
+    ErrorCode result = mbImpl->tag_get_data(pstatus_tag(), &entity, 1, &pstat);MB_CHK_SET_ERR(result, "Failed to get pstatus tag data");
     if (pstat & PSTATUS_MULTISHARED) {
-      result = mbImpl->tag_get_data(sharedps_tag(), &entity, 1, ps);CHK_SET_ERR(result, "Failed to get sharedps tag data");
+      result = mbImpl->tag_get_data(sharedps_tag(), &entity, 1, ps);MB_CHK_SET_ERR(result, "Failed to get sharedps tag data");
       if (hs) {
-        result = mbImpl->tag_get_data(sharedhs_tag(), &entity, 1, hs);CHK_SET_ERR(result, "Failed to get sharedhs tag data");
+        result = mbImpl->tag_get_data(sharedhs_tag(), &entity, 1, hs);MB_CHK_SET_ERR(result, "Failed to get sharedhs tag data");
       }
       num_ps = std::find(ps, ps + MAX_SHARING_PROCS, -1) - ps;
     }
     else if (pstat & PSTATUS_SHARED) {
-      result = mbImpl->tag_get_data(sharedp_tag(), &entity, 1, ps);CHK_SET_ERR(result, "Failed to get sharedp tag data");
+      result = mbImpl->tag_get_data(sharedp_tag(), &entity, 1, ps);MB_CHK_SET_ERR(result, "Failed to get sharedp tag data");
       if (hs) {
-        result = mbImpl->tag_get_data(sharedh_tag(), &entity, 1, hs);CHK_SET_ERR(result, "Failed to get sharedh tag data");
+        result = mbImpl->tag_get_data(sharedh_tag(), &entity, 1, hs);MB_CHK_SET_ERR(result, "Failed to get sharedh tag data");
         hs[1] = 0;
       }
       // Initialize past end of data
@@ -2800,7 +2800,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     Range tmp_range;
     ErrorCode result = mbImpl->get_adjacencies(connect, num_connect,
                                                CN::Dimension(this_type), false,
-                                               tmp_range);CHK_SET_ERR(result, "Failed to get existing entity");
+                                               tmp_range);MB_CHK_SET_ERR(result, "Failed to get existing entity");
     if (!tmp_range.empty()) {
       // Found a corresponding entity - return target
       new_h = *tmp_range.begin();
@@ -2895,7 +2895,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
     int buff_size = estimate_sets_buffer_size(all_sets, store_remote_handles);
     if (buff_size < 0)
-      SET_ERR(MB_FAILURE, "Failed to estimate sets buffer size");
+      MB_SET_ERR(MB_FAILURE, "Failed to estimate sets buffer size");
     buff->check_space(buff_size);
 
     // Number of sets
@@ -2907,7 +2907,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     std::vector<EntityHandle> members;
     int i;
     for (rit = all_sets.begin(), i = 0; rit != all_sets.end(); ++rit, i++) {
-      result = mbImpl->get_meshset_options(*rit, options[i]);CHK_SET_ERR(result, "Failed to get meshset options");
+      result = mbImpl->get_meshset_options(*rit, options[i]);MB_CHK_SET_ERR(result, "Failed to get meshset options");
     }
     buff->check_space(all_sets.size()*sizeof(unsigned int));
     PACK_VOID(buff->buff_ptr, &options[0], all_sets.size()*sizeof(unsigned int));
@@ -2919,12 +2919,12 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       bool b_pack = false;
       std::vector<int> id_data(n_sets);
       result = mbImpl->tag_get_handle("PARALLEL_UNIQUE_ID", 1, MB_TYPE_INTEGER, 
-                                      uid_tag, MB_TAG_SPARSE | MB_TAG_CREAT);CHK_SET_ERR(result, "Failed to create parallel geometry unique id tag");
+                                      uid_tag, MB_TAG_SPARSE | MB_TAG_CREAT);MB_CHK_SET_ERR(result, "Failed to create parallel geometry unique id tag");
 
       result = mbImpl->tag_get_data(uid_tag, all_sets, &id_data[0]);
       if (MB_TAG_NOT_FOUND != result) {
         if (MB_SUCCESS != result)
-          SET_ERR(result, "Failed to get parallel geometry unique ids");
+          MB_SET_ERR(result, "Failed to get parallel geometry unique ids");
         for (i = 0; i < n_sets; i++) {
           if (id_data[i] != 0) {
             b_pack = true;
@@ -2949,10 +2949,10 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     std::copy(entities.begin(), entities.end(), entities_vec.begin());
     for (rit = all_sets.begin(), i = 0; rit != all_sets.end(); ++rit, i++) {
       members.clear();
-      result = mbImpl->get_entities_by_handle(*rit, members);CHK_SET_ERR(result, "Failed to get entities in ordered set");
+      result = mbImpl->get_entities_by_handle(*rit, members);MB_CHK_SET_ERR(result, "Failed to get entities in ordered set");
       result = get_remote_handles(store_remote_handles, &members[0],
                                   &members[0], members.size(),
-                                  to_proc, entities_vec);CHK_SET_ERR(result, "Failed in get_remote_handles");
+                                  to_proc, entities_vec);MB_CHK_SET_ERR(result, "Failed in get_remote_handles");
       buff->check_space(members.size()*sizeof(EntityHandle) + sizeof(int));
       PACK_INT(buff->buff_ptr, members.size());
       PACK_EH(buff->buff_ptr, &members[0], members.size());
@@ -2966,10 +2966,10 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       buff->check_space(2*all_sets.size()*sizeof(int));
       for (rit = all_sets.begin(), i = 0; rit != all_sets.end(); ++rit, i++) {
         // Pack parents
-        result = mbImpl->num_parent_meshsets(*rit, &num_pch);CHK_SET_ERR(result, "Failed to get num parents");
+        result = mbImpl->num_parent_meshsets(*rit, &num_pch);MB_CHK_SET_ERR(result, "Failed to get num parents");
         PACK_INT(buff->buff_ptr, num_pch);
         tot_pch += num_pch;
-        result = mbImpl->num_child_meshsets(*rit, &num_pch);CHK_SET_ERR(result, "Failed to get num children");
+        result = mbImpl->num_child_meshsets(*rit, &num_pch);MB_CHK_SET_ERR(result, "Failed to get num children");
         PACK_INT(buff->buff_ptr, num_pch);
         tot_pch += num_pch;
       }
@@ -2979,10 +2979,10 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       members.reserve(tot_pch);
       std::vector<EntityHandle> tmp_pch;
       for (rit = all_sets.begin(), i = 0; rit != all_sets.end(); ++rit, i++) {
-        result = mbImpl->get_parent_meshsets(*rit, tmp_pch);CHK_SET_ERR(result, "Failed to get parents");
+        result = mbImpl->get_parent_meshsets(*rit, tmp_pch);MB_CHK_SET_ERR(result, "Failed to get parents");
         std::copy(tmp_pch.begin(), tmp_pch.end(), std::back_inserter(members));
         tmp_pch.clear();
-        result = mbImpl->get_child_meshsets(*rit, tmp_pch);CHK_SET_ERR(result, "Failed to get children");
+        result = mbImpl->get_child_meshsets(*rit, tmp_pch);MB_CHK_SET_ERR(result, "Failed to get children");
         std::copy(tmp_pch.begin(), tmp_pch.end(), std::back_inserter(members));
         tmp_pch.clear();
       }
@@ -2991,7 +2991,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         result = get_remote_handles(store_remote_handles,
                                     &members[0], &members[0],
                                     members.size(), to_proc,
-                                    entities_vec);CHK_SET_ERR(result, "Failed to get remote handles for set parent/child sets");
+                                    entities_vec);MB_CHK_SET_ERR(result, "Failed to get remote handles for set parent/child sets");
 #ifndef NDEBUG
         // Check that all handles are either sets or maxtype
         for (unsigned int __j = 0; __j < members.size(); __j++)
@@ -3065,7 +3065,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
       Tag uid_tag;
       result = mbImpl->tag_get_handle("PARALLEL_UNIQUE_ID", 1, MB_TYPE_INTEGER,
-                                      uid_tag, MB_TAG_SPARSE | MB_TAG_CREAT);CHK_SET_ERR(result, "Failed to create parallel geometry unique id tag");
+                                      uid_tag, MB_TAG_SPARSE | MB_TAG_CREAT);MB_CHK_SET_ERR(result, "Failed to create parallel geometry unique id tag");
 
       // Find existing sets
       for (i = 0; i < n_uid; i++) {
@@ -3081,8 +3081,8 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
           set_handle = *temp_sets.begin();
         }
         else { // Create a new set
-          result = mbImpl->create_meshset(options_vec[i], set_handle);CHK_SET_ERR(result, "Failed to create set in unpack");
-          result = mbImpl->tag_set_data(uid_tag, &set_handle, 1, &uids[i]);CHK_SET_ERR(result, "Failed to set parallel geometry unique ids");
+          result = mbImpl->create_meshset(options_vec[i], set_handle);MB_CHK_SET_ERR(result, "Failed to create set in unpack");
+          result = mbImpl->tag_set_data(uid_tag, &set_handle, 1, &uids[i]);MB_CHK_SET_ERR(result, "Failed to set parallel geometry unique ids");
         }
         new_sets.insert(set_handle);
       }
@@ -3091,7 +3091,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       // Create sets
       for (i = 0; i < num_sets; i++) {
         EntityHandle set_handle;
-        result = mbImpl->create_meshset(options_vec[i], set_handle);CHK_SET_ERR(result, "Failed to create set in unpack");
+        result = mbImpl->create_meshset(options_vec[i], set_handle);MB_CHK_SET_ERR(result, "Failed to create set in unpack");
 
         // Make sure new sets handles are monotonically increasing
         assert(set_handle > *new_sets.rbegin());
@@ -3110,8 +3110,8 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       members.resize(num_ents);
       if (num_ents)
         UNPACK_EH(buff_ptr, &members[0], num_ents);
-      result = get_local_handles(&members[0], num_ents, entities);CHK_SET_ERR(result, "Failed to get local handles for ordered set contents");
-      result = mbImpl->add_entities(*rit, &members[0], num_ents);CHK_SET_ERR(result, "Failed to add ents to ordered set in unpack");
+      result = get_local_handles(&members[0], num_ents, entities);MB_CHK_SET_ERR(result, "Failed to get local handles for ordered set contents");
+      result = mbImpl->add_entities(*rit, &members[0], num_ents);MB_CHK_SET_ERR(result, "Failed to add ents to ordered set in unpack");
     }
 
     std::vector<int> num_pch(2*new_sets.size());
@@ -3124,7 +3124,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
     members.resize(tot_pch);
     UNPACK_EH(buff_ptr, &members[0], tot_pch);
-    result = get_local_handles(&members[0], tot_pch, entities);CHK_SET_ERR(result, "Failed to get local handle for parent/child sets");
+    result = get_local_handles(&members[0], tot_pch, entities);MB_CHK_SET_ERR(result, "Failed to get local handle for parent/child sets");
 
     int num = 0;
     EntityHandle *mem_ptr = &members[0];
@@ -3134,12 +3134,12 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       if (num_par + num_child) {
         for (i = 0; i < num_par; i++) {
           assert(0 != mem_ptr[i]);
-          result = mbImpl->add_parent_meshset(*rit, mem_ptr[i]);CHK_SET_ERR(result, "Failed to add parent to set in unpack");
+          result = mbImpl->add_parent_meshset(*rit, mem_ptr[i]);MB_CHK_SET_ERR(result, "Failed to add parent to set in unpack");
         }
         mem_ptr += num_par;
         for (i = 0; i < num_child; i++) {
           assert(0 != mem_ptr[i]);
-          result = mbImpl->add_child_meshset(*rit, mem_ptr[i]);CHK_SET_ERR(result, "Failed to add child to set in unpack");
+          result = mbImpl->add_child_meshset(*rit, mem_ptr[i]);MB_CHK_SET_ERR(result, "Failed to add child to set in unpack");
         }
         mem_ptr += num_child;
       }
@@ -3149,7 +3149,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     Range dum_range;
     if (store_remote_handles && !new_sets.empty()) {
       UNPACK_RANGE(buff_ptr, dum_range);
-      result = update_remote_data(new_sets, dum_range, from_proc, 0);CHK_SET_ERR(result, "Failed to set sharing data for sets");
+      result = update_remote_data(new_sets, dum_range, from_proc, 0);MB_CHK_SET_ERR(result, "Failed to set sharing data for sets");
     }
 
     myDebug->tprintf(4, "Done unpacking sets.");
@@ -3258,7 +3258,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                                        errorHandler,
                                        tagged_entities,
                                        &var_len_values[0],
-                                       &var_len_sizes[0]);CHK_SET_ERR(result, "Failed to get lenghts of variable-length tag values");
+                                       &var_len_sizes[0]);MB_CHK_SET_ERR(result, "Failed to get lenghts of variable-length tag values");
       count += std::accumulate(var_len_sizes.begin(), var_len_sizes.end(), 0);
     }
     else {
@@ -3331,7 +3331,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         std::cerr << "Failed to get remote handles for tagged entities:" << std::endl;
         tagged_entities.print("  ");
       }
-      SET_ERR(result, "Failed to get remote handles for tagged entities");
+      MB_SET_ERR(result, "Failed to get remote handles for tagged entities");
     }
 
     PACK_EH(buff->buff_ptr, &dum_tagged_entities[0], dum_tagged_entities.size());
@@ -3341,7 +3341,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       var_len_sizes.resize(num_ent, 0);
       var_len_values.resize(num_ent, 0);
       result = mbImpl->tag_get_by_ptr(src_tag, tagged_entities, &var_len_values[0], 
-                                      &var_len_sizes[0]);CHK_SET_ERR(result, "Failed to get variable-length tag data in pack_tags");
+                                      &var_len_sizes[0]);MB_CHK_SET_ERR(result, "Failed to get variable-length tag data in pack_tags");
       buff->check_space(num_ent * sizeof(int));
       PACK_INTS(buff->buff_ptr, &var_len_sizes[0], num_ent);
       for (unsigned int i = 0; i < num_ent; i++) {
@@ -3353,7 +3353,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       buff->check_space(num_ent * src_tag->get_size());
       // Should be OK to read directly into buffer, since tags are untyped and
       // handled by memcpy
-      result = mbImpl->tag_get_data(src_tag, tagged_entities, buff->buff_ptr);CHK_SET_ERR(result, "Failed to get tag data in pack_tags");
+      result = mbImpl->tag_get_data(src_tag, tagged_entities, buff->buff_ptr);MB_CHK_SET_ERR(result, "Failed to get tag data in pack_tags");
       buff->buff_ptr += num_ent * src_tag->get_size();
       PC(num_ent*src_tag->get_size(), " void");
     }
@@ -3366,7 +3366,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                                             std::vector<Range>& tag_ranges)
   {
     std::vector<Tag> tmp_tags;
-    ErrorCode result = mbImpl->tag_get_tags(tmp_tags);CHK_SET_ERR(result, "Failed to get tags in pack_tags");
+    ErrorCode result = mbImpl->tag_get_tags(tmp_tags);MB_CHK_SET_ERR(result, "Failed to get tags in pack_tags");
 
     std::vector<Tag>::iterator tag_it;
     for (tag_it = tmp_tags.begin(); tag_it != tmp_tags.end(); ++tag_it) {
@@ -3376,7 +3376,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         continue;
 
       Range tmp_range;
-      result = (*tag_it)->get_tagged_entities(sequenceManager, tmp_range);CHK_SET_ERR(result, "Failed to get entities for tag in pack_tags");
+      result = (*tag_it)->get_tagged_entities(sequenceManager, tmp_range);MB_CHK_SET_ERR(result, "Failed to get entities for tag in pack_tags");
       tmp_range = intersect(tmp_range, whole_range);
 
       if (tmp_range.empty())
@@ -3459,13 +3459,13 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
       // In this case handles are indices into new entity range; need to convert
       // to local handles
-      result = get_local_handles(&dum_ents[0], num_ents, entities);CHK_SET_ERR(result, "Unable to convert to local handles");
+      result = get_local_handles(&dum_ents[0], num_ents, entities);MB_CHK_SET_ERR(result, "Unable to convert to local handles");
 
       // If it's a handle type, also convert tag vals in-place in buffer
       if (MB_TYPE_HANDLE == tag_type) {
         dum_ehvals.resize(num_ents);
         UNPACK_EH(buff_ptr, &dum_ehvals[0], num_ents);
-        result = get_local_handles(&dum_ehvals[0], num_ents, entities);CHK_SET_ERR(result, "Failed to get local handles for tag vals");
+        result = get_local_handles(&dum_ehvals[0], num_ents, entities);MB_CHK_SET_ERR(result, "Failed to get local handles for tag vals");
       }
 
       DataType data_type;
@@ -3490,19 +3490,19 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
             UPC(var_lengths[j], " void");
           }
           result = mbImpl->tag_set_by_ptr(tag_handle, &dum_ents[0], num_ents,
-                                          &var_len_vals[0], &var_lengths[0]);CHK_SET_ERR(result, "Failed to set tag data when unpacking variable-length tag");
+                                          &var_len_vals[0], &var_lengths[0]);MB_CHK_SET_ERR(result, "Failed to set tag data when unpacking variable-length tag");
         }
         else {
               // Get existing values of dst tag
             dum_vals.resize(tag_size*num_ents);
             if (mpi_op) {
               int tag_length;
-              result = mbImpl->tag_get_length(tag_handle, tag_length);CHK_SET_ERR(result, "Failed to get tag length");
-              result = mbImpl->tag_get_data(tag_handle, &dum_ents[0], num_ents, &dum_vals[0]);CHK_SET_ERR(result, "Failed to get existing value of dst tag on entities");
-              result = reduce_void(tag_data_type, *mpi_op, tag_length*num_ents, &dum_vals[0], buff_ptr);CHK_SET_ERR(result, "Failed to perform mpi op on dst tags");
+              result = mbImpl->tag_get_length(tag_handle, tag_length);MB_CHK_SET_ERR(result, "Failed to get tag length");
+              result = mbImpl->tag_get_data(tag_handle, &dum_ents[0], num_ents, &dum_vals[0]);MB_CHK_SET_ERR(result, "Failed to get existing value of dst tag on entities");
+              result = reduce_void(tag_data_type, *mpi_op, tag_length*num_ents, &dum_vals[0], buff_ptr);MB_CHK_SET_ERR(result, "Failed to perform mpi op on dst tags");
             }
           result = mbImpl->tag_set_data(tag_handle, &dum_ents[0],
-                                        num_ents, buff_ptr);CHK_SET_ERR(result, "Failed to set range-based tag data when unpacking tag");
+                                        num_ents, buff_ptr);MB_CHK_SET_ERR(result, "Failed to set range-based tag data when unpacking tag");
           buff_ptr += num_ents * tag_size;
           UPC(num_ents * tag_size, " void");
         }
@@ -3648,7 +3648,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     myDebug->tprintf(1, "Resolving shared entities.\n");
 
     if (resolve_dim < shared_dim) {
-      SET_ERR(MB_FAILURE, "MOAB does not support vertex-based partitions, only element-based ones");
+      MB_SET_ERR(MB_FAILURE, "MOAB does not support vertex-based partitions, only element-based ones");
     }
 
     if (-1 == shared_dim) {
@@ -3659,7 +3659,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     }
 
     if (shared_dim < 0 || resolve_dim < 0) {
-      SET_ERR(MB_FAILURE, "Unable to guess shared_dim or resolve_dim");
+      MB_SET_ERR(MB_FAILURE, "Unable to guess shared_dim or resolve_dim");
     }
 
     // Get the skin entities by dimension
@@ -3673,14 +3673,14 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       skin_ents[resolve_dim] = proc_ents;
       Skinner skinner(mbImpl);
       result = skinner.find_skin(this_set, skin_ents[skin_dim + 1], false, skin_ents[skin_dim],
-                                 NULL, true, true, true);CHK_SET_ERR(result, "Failed to find skin");
+                                 NULL, true, true, true);MB_CHK_SET_ERR(result, "Failed to find skin");
       myDebug->tprintf(1, "Found skin, now resolving.\n");
 
       // Get entities adjacent to skin ents from shared_dim down to zero
       for (int this_dim = skin_dim - 1; this_dim >= 0; this_dim--) {
         result = mbImpl->get_adjacencies(skin_ents[skin_dim], this_dim,
                                          true, skin_ents[this_dim],
-                                         Interface::UNION);CHK_SET_ERR(result, "Failed to get skin adjacencies");
+                                         Interface::UNION);MB_CHK_SET_ERR(result, "Failed to get skin adjacencies");
       }
     }
     else if (skin_ents[resolve_dim].empty())
@@ -3697,18 +3697,18 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                                       gid_tag, MB_TAG_DENSE | MB_TAG_CREAT,
                                       &def_val, &tag_created);
       if (MB_ALREADY_ALLOCATED != result && MB_SUCCESS != result) {
-        SET_ERR(result, "Failed to create/get gid tag handle");
+        MB_SET_ERR(result, "Failed to create/get gid tag handle");
       }
       else if (tag_created) {
         // Just created it, so we need global ids
-        result = assign_global_ids(this_set, skin_dim + 1, true, true, true);CHK_SET_ERR(result, "Failed to assign global ids");
+        result = assign_global_ids(this_set, skin_dim + 1, true, true, true);MB_CHK_SET_ERR(result, "Failed to assign global ids");
       }
     }
 
     DataType tag_type;
-    result = mbImpl->tag_get_data_type(gid_tag, tag_type);CHK_SET_ERR(result, "Failed to get tag data type");
+    result = mbImpl->tag_get_data_type(gid_tag, tag_type);MB_CHK_SET_ERR(result, "Failed to get tag data type");
     int bytes_per_tag;
-    result = mbImpl->tag_get_bytes(gid_tag, bytes_per_tag);CHK_SET_ERR(result, "Failed to get number of bytes per tag");
+    result = mbImpl->tag_get_bytes(gid_tag, bytes_per_tag);MB_CHK_SET_ERR(result, "Failed to get number of bytes per tag");
     // On 64 bits, long and int are different
     // On 32 bits, they are not; if size of long is 8, it is a 64 bit machine (really?)
 
@@ -3717,16 +3717,16 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     // Size is either long or int
     // On 64 bit is 8 or 4
     if (sizeof(long) == bytes_per_tag && ((MB_TYPE_HANDLE == tag_type) || (MB_TYPE_OPAQUE == tag_type))) { // It is a special id tag
-      result = mbImpl->tag_get_data(gid_tag, skin_ents[0], &lgid_data[0]);CHK_SET_ERR(result, "Couldn't get gid tag for skin vertices");
+      result = mbImpl->tag_get_data(gid_tag, skin_ents[0], &lgid_data[0]);MB_CHK_SET_ERR(result, "Couldn't get gid tag for skin vertices");
     }
     else if (4 == bytes_per_tag) { // Must be GLOBAL_ID tag or 32 bits ...
       std::vector<int> gid_data(lgid_data.size());
-      result = mbImpl->tag_get_data(gid_tag, skin_ents[0], &gid_data[0]);CHK_SET_ERR(result, "Failed to get gid tag for skin vertices");
+      result = mbImpl->tag_get_data(gid_tag, skin_ents[0], &gid_data[0]);MB_CHK_SET_ERR(result, "Failed to get gid tag for skin vertices");
       std::copy(gid_data.begin(), gid_data.end(), lgid_data.begin());
     }
     else {
       // Not supported flag
-      SET_ERR(MB_FAILURE, "Unsupported id tag");
+      MB_SET_ERR(MB_FAILURE, "Unsupported id tag");
     }
 
     // Put handles in vector for passing to gs setup
@@ -3752,19 +3752,19 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     int failure = MPI_Allreduce(num_local, num_total, 1,
     MPI_INTEGER, MPI_SUM, procConfig.proc_comm());
     if (failure) {
-      SET_ERR(MB_FAILURE, "Allreduce for total number of shared ents failed");
+      MB_SET_ERR(MB_FAILURE, "Allreduce for total number of shared ents failed");
     }
     */
     // Call gather-scatter to get shared ids & procs
     gs_data *gsd = new gs_data();
    // assert(sizeof(ulong_) == sizeof(EntityHandle));
     result = gsd->initialize(skin_ents[0].size(), &lgid_data[0],
-                              &handle_vec[0], 2, 1, 1, cd);CHK_SET_ERR(result, "Failed to create gs data");
+                              &handle_vec[0], 2, 1, 1, cd);MB_CHK_SET_ERR(result, "Failed to create gs data");
 
     // Get shared proc tags
     Tag shp_tag, shps_tag, shh_tag, shhs_tag, pstat_tag;
     result = get_shared_proc_tags(shp_tag, shps_tag,
-                                  shh_tag, shhs_tag, pstat_tag);CHK_SET_ERR(result, "Failed to get shared proc tags");
+                                  shh_tag, shhs_tag, pstat_tag);MB_CHK_SET_ERR(result, "Failed to get shared proc tags");
 
     // Load shared verts into a tuple, then sort by index
     TupleList shared_verts;
@@ -3799,10 +3799,10 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     std::map<std::vector<int>, std::vector<EntityHandle> > proc_nvecs;
     Range proc_verts;
     result = mbImpl->get_adjacencies(proc_ents, 0, false, proc_verts,
-                                     Interface::UNION);CHK_SET_ERR(result, "Failed to get proc_verts");
+                                     Interface::UNION);MB_CHK_SET_ERR(result, "Failed to get proc_verts");
 
     result = tag_shared_verts(shared_verts, skin_ents,
-                              proc_nvecs, proc_verts);CHK_SET_ERR(result, "Failed to tag shared verts");
+                              proc_nvecs, proc_verts);MB_CHK_SET_ERR(result, "Failed to tag shared verts");
 
 #ifdef USE_MPE
     if (myDebug->get_verbosity() == 2) {
@@ -3811,7 +3811,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 #endif
 
     // Get entities shared by 1 or n procs
-    result = get_proc_nvecs(resolve_dim, shared_dim, skin_ents, proc_nvecs);CHK_SET_ERR(result, "Failed to tag shared entities");
+    result = get_proc_nvecs(resolve_dim, shared_dim, skin_ents, proc_nvecs);MB_CHK_SET_ERR(result, "Failed to tag shared entities");
 
     shared_verts.reset();
 
@@ -3828,22 +3828,22 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     // Create the sets for each interface; store them as tags on
     // the interface instance
     Range iface_sets;
-    result = create_interface_sets(proc_nvecs);CHK_SET_ERR(result, "Failed to create interface sets");
+    result = create_interface_sets(proc_nvecs);MB_CHK_SET_ERR(result, "Failed to create interface sets");
 
     // Establish comm procs and buffers for them
     std::set<unsigned int> procs;
-    result = get_interface_procs(procs, true);CHK_SET_ERR(result, "Failed to get interface procs");
+    result = get_interface_procs(procs, true);MB_CHK_SET_ERR(result, "Failed to get interface procs");
 
 #ifndef NDEBUG
-    result = check_all_shared_handles(true);CHK_SET_ERR(result, "Shared handle check failed after interface vertex exchange");
+    result = check_all_shared_handles(true);MB_CHK_SET_ERR(result, "Shared handle check failed after interface vertex exchange");
 #endif  
 
     // Resolve shared entity remote handles; implemented in ghost cell exchange
     // code because it's so similar
-    result = exchange_ghost_cells(-1, -1, 0, 0, true, true);CHK_SET_ERR(result, "Failed to resolve shared entity remote handles");
+    result = exchange_ghost_cells(-1, -1, 0, 0, true, true);MB_CHK_SET_ERR(result, "Failed to resolve shared entity remote handles");
 
     // Now build parent/child links for interface sets
-    result = create_iface_pc_links();CHK_SET_ERR(result, "Failed to create interface parent/child links");
+    result = create_iface_pc_links();MB_CHK_SET_ERR(result, "Failed to create interface parent/child links");
 
     gsd->reset();
     delete gsd;
@@ -3993,10 +3993,10 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     for (Range::iterator rit = interfaceSets.begin(); rit != interfaceSets.end(); ++rit) {
       iface_ents.clear();
 
-      result = mbImpl->get_entities_by_handle(*rit, iface_ents);CHK_SET_ERR(result, "Failed to get interface set contents");
+      result = mbImpl->get_entities_by_handle(*rit, iface_ents);MB_CHK_SET_ERR(result, "Failed to get interface set contents");
       pstat.resize(iface_ents.size());
-      result = mbImpl->tag_get_data(pstatus_tag(), iface_ents, &pstat[0]);CHK_SET_ERR(result, "Failed to get pstatus values for interface set entities");
-      result = mbImpl->tag_get_data(pstatus_tag(), &(*rit), 1, &set_pstat);CHK_SET_ERR(result, "Failed to get pstatus values for interface set");
+      result = mbImpl->tag_get_data(pstatus_tag(), iface_ents, &pstat[0]);MB_CHK_SET_ERR(result, "Failed to get pstatus values for interface set entities");
+      result = mbImpl->tag_get_data(pstatus_tag(), &(*rit), 1, &set_pstat);MB_CHK_SET_ERR(result, "Failed to get pstatus values for interface set");
       rmv_ents.clear();
       for (rit2 = iface_ents.begin(), i = 0; rit2 != iface_ents.end(); ++rit2, i++) {
         if (!(pstat[i] & PSTATUS_INTERFACE)) {
@@ -4004,7 +4004,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
           pstat[i] = 0x0;
         }
       }
-      result = mbImpl->remove_entities(*rit, rmv_ents);CHK_SET_ERR(result, "Failed to remove entities from interface set");
+      result = mbImpl->remove_entities(*rit, rmv_ents);MB_CHK_SET_ERR(result, "Failed to remove entities from interface set");
 
       if (!(set_pstat & PSTATUS_NOT_OWNED))
         continue;
@@ -4021,7 +4021,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         pstat[i] |= PSTATUS_NOT_OWNED;
 
       // Set the tag on the entities
-      result = mbImpl->tag_set_data(pstatus_tag(), iface_ents, &pstat[0]);CHK_SET_ERR(result, "Failed to set pstatus values for interface set entities");
+      result = mbImpl->tag_set_data(pstatus_tag(), iface_ents, &pstat[0]);MB_CHK_SET_ERR(result, "Failed to set pstatus values for interface set entities");
     }
 
     return MB_SUCCESS;
@@ -4042,11 +4042,11 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       int start_dim = (lower_dim_ents ? mbImpl->dimension_from_handle(*pstatus_ents.rbegin()) - 1 : 0);
       for (; start_dim >= 0; start_dim--) {
         result = mbImpl->get_adjacencies(all_ents, start_dim, true, all_ents,
-                                         Interface::UNION);CHK_SET_ERR(result, "Failed to get adjacencies for pstatus entities");
+                                         Interface::UNION);MB_CHK_SET_ERR(result, "Failed to get adjacencies for pstatus entities");
       }
     }
     if (Interface::UNION == operation) {
-      result = mbImpl->tag_get_data(pstatus_tag(), *range_ptr, &pstatus_vals[0]);CHK_SET_ERR(result, "Failed to get pstatus tag data");
+      result = mbImpl->tag_get_data(pstatus_tag(), *range_ptr, &pstatus_vals[0]);MB_CHK_SET_ERR(result, "Failed to get pstatus tag data");
       for (unsigned int i = 0; i < pstatus_vals.size(); i++)
         pstatus_vals[i] |= pstatus_val;
     }
@@ -4054,7 +4054,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       for (unsigned int i = 0; i < pstatus_vals.size(); i++)
         pstatus_vals[i] = pstatus_val;
     }
-    result = mbImpl->tag_set_data(pstatus_tag(), *range_ptr, &pstatus_vals[0]);CHK_SET_ERR(result, "Failed to set pstatus tag data");
+    result = mbImpl->tag_set_data(pstatus_tag(), *range_ptr, &pstatus_vals[0]);MB_CHK_SET_ERR(result, "Failed to set pstatus tag data");
 
     return MB_SUCCESS;
   }
@@ -4077,7 +4077,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     }
 
     if (Interface::UNION == operation) {
-      result = mbImpl->tag_get_data(pstatus_tag(), pstatus_ents, num_ents, &pstatus_vals[0]);CHK_SET_ERR(result, "Failed to get pstatus tag data");
+      result = mbImpl->tag_get_data(pstatus_tag(), pstatus_ents, num_ents, &pstatus_vals[0]);MB_CHK_SET_ERR(result, "Failed to get pstatus tag data");
       for (unsigned int i = 0; i < (unsigned int) num_ents; i++)
         pstatus_vals[i] |= pstatus_val;
     }
@@ -4085,7 +4085,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       for (unsigned int i = 0; i < (unsigned int) num_ents; i++)
         pstatus_vals[i] = pstatus_val;
     }
-    result = mbImpl->tag_set_data(pstatus_tag(), pstatus_ents, num_ents, &pstatus_vals[0]);CHK_SET_ERR(result, "Failed to set pstatus tag data");
+    result = mbImpl->tag_set_data(pstatus_tag(), pstatus_ents, num_ents, &pstatus_vals[0]);MB_CHK_SET_ERR(result, "Failed to set pstatus tag data");
 
     return MB_SUCCESS;
   }
@@ -4242,9 +4242,9 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     // This code must work on 32 bit too, where long is 4 bytes, also
     // so test first size 4, then we should be fine
     DataType tag_type;
-    result = mbImpl->tag_get_data_type(idtag, tag_type);CHK_SET_ERR(result, "Failed getting tag data type");
+    result = mbImpl->tag_get_data_type(idtag, tag_type);MB_CHK_SET_ERR(result, "Failed getting tag data type");
     int bytes_per_tag;
-    result = mbImpl->tag_get_bytes(idtag, bytes_per_tag);CHK_SET_ERR(result, "Failed getting number of bytes per tag");
+    result = mbImpl->tag_get_bytes(idtag, bytes_per_tag);MB_CHK_SET_ERR(result, "Failed getting number of bytes per tag");
     // On 64 bits, long and int are different
     // On 32 bits, they are not; if size of long is 8, it is a 64 bit machine (really?)
 
@@ -4278,7 +4278,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     // Do communication of data
     gs_data::crystal_data *cd = procConfig.crystal_router();
     gs_data *gsd = new gs_data();
-    result = gsd->initialize(nsets, &larray[0], &handles[0], 2, 1, 1, cd);CHK_SET_ERR(result, "Failed to create gs data");
+    result = gsd->initialize(nsets, &larray[0], &handles[0], 2, 1, 1, cd);MB_CHK_SET_ERR(result, "Failed to create gs data");
 
     // Convert from global IDs grouped by process rank to list
     // of <idx, rank> pairs so that we can sort primarily
@@ -4372,7 +4372,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     for (std::vector<EntityHandle>::iterator vit = sharedEnts.begin(); vit != sharedEnts.end(); ++vit) {
       if (shared_dim != -1 && mbImpl->dimension_from_handle(*vit) > shared_dim)
         continue;
-      result = get_sharing_data(*vit, procs, handles, pstat, nprocs);CHK_SET_ERR(result, "Failed to get sharing data");
+      result = get_sharing_data(*vit, procs, handles, pstat, nprocs);MB_CHK_SET_ERR(result, "Failed to get sharing data");
       std::sort(procs, procs + nprocs);
       std::vector<int> tmp_procs(procs, procs + nprocs);
       assert(tmp_procs.size() != 2);
@@ -4381,12 +4381,12 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
     Skinner skinner(mbImpl);
     Range skin_ents[4];
-    result = mbImpl->get_entities_by_dimension(this_set, resolve_dim, skin_ents[resolve_dim]);CHK_SET_ERR(result, "Failed to get skin entities by dimension");
+    result = mbImpl->get_entities_by_dimension(this_set, resolve_dim, skin_ents[resolve_dim]);MB_CHK_SET_ERR(result, "Failed to get skin entities by dimension");
     result = skinner.find_skin(this_set, skin_ents[resolve_dim], false,
-                               skin_ents[resolve_dim - 1], 0, true, true, true);CHK_SET_ERR(result, "Failed to find skin");
+                               skin_ents[resolve_dim - 1], 0, true, true, true);MB_CHK_SET_ERR(result, "Failed to find skin");
     if (shared_dim > 1) {
       result = mbImpl->get_adjacencies(skin_ents[resolve_dim - 1], resolve_dim - 2, true,
-                                       skin_ents[resolve_dim - 2], Interface::UNION);CHK_SET_ERR(result, "Failed to get skin adjacencies");
+                                       skin_ents[resolve_dim - 2], Interface::UNION);MB_CHK_SET_ERR(result, "Failed to get skin adjacencies");
     }
 
     result = get_proc_nvecs(resolve_dim, shared_dim, skin_ents, proc_nvecs);
@@ -4404,7 +4404,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     Tag shp_tag, shps_tag, shh_tag, shhs_tag, pstat_tag;
     ErrorCode result = get_shared_proc_tags(shp_tag, shps_tag,
                                             shh_tag, shhs_tag,
-                                            pstat_tag);CHK_SET_ERR(result, "Failed to get shared proc tags in create_interface_sets");
+                                            pstat_tag);MB_CHK_SET_ERR(result, "Failed to get shared proc tags in create_interface_sets");
     Range::iterator rit;
 
     // Create interface sets, tag them, and tag their contents with iface set tag
@@ -4414,20 +4414,20 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
          vit != proc_nvecs.end(); ++vit) {
       // Create the set
       EntityHandle new_set;
-      result = mbImpl->create_meshset(MESHSET_SET, new_set);CHK_SET_ERR(result, "Failed to create interface set");
+      result = mbImpl->create_meshset(MESHSET_SET, new_set);MB_CHK_SET_ERR(result, "Failed to create interface set");
       interfaceSets.insert(new_set);
 
       // Add entities
       assert(!vit->second.empty());
-      result = mbImpl->add_entities(new_set, &(vit->second)[0], (vit->second).size());CHK_SET_ERR(result, "Failed to add entities to interface set");
+      result = mbImpl->add_entities(new_set, &(vit->second)[0], (vit->second).size());MB_CHK_SET_ERR(result, "Failed to add entities to interface set");
       // Tag set with the proc rank(s)
       if (vit->first.size() == 1) {
         assert((vit->first)[0] != (int)procConfig.proc_rank());
         result = mbImpl->tag_set_data(shp_tag, &new_set, 1,
-                                      &(vit->first)[0]);CHK_SET_ERR(result, "Failed to tag interface set with procs");
+                                      &(vit->first)[0]);MB_CHK_SET_ERR(result, "Failed to tag interface set with procs");
         proc_handles[0] = 0;
         result = mbImpl->tag_set_data(shh_tag, &new_set, 1,
-                                      proc_handles);CHK_SET_ERR(result, "Failed to tag interface set with procs");
+                                      proc_handles);MB_CHK_SET_ERR(result, "Failed to tag interface set with procs");
       }
       else {
         // Pad tag data out to MAX_SHARING_PROCS with -1
@@ -4443,13 +4443,13 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         //assert(vit->first.size() <= MAX_SHARING_PROCS);
         std::copy(vit->first.begin(), vit->first.end(), proc_ids);
         std::fill(proc_ids + vit->first.size(), proc_ids + MAX_SHARING_PROCS, -1);
-        result = mbImpl->tag_set_data(shps_tag, &new_set, 1, proc_ids);CHK_SET_ERR(result, "Failed to tag interface set with procs");
+        result = mbImpl->tag_set_data(shps_tag, &new_set, 1, proc_ids);MB_CHK_SET_ERR(result, "Failed to tag interface set with procs");
         unsigned int ind = std::find(proc_ids, proc_ids + vit->first.size(), procConfig.proc_rank())
           - proc_ids;
         assert(ind < vit->first.size());
         std::fill(proc_handles, proc_handles + MAX_SHARING_PROCS, 0);
         proc_handles[ind] = new_set;
-        result = mbImpl->tag_set_data(shhs_tag, &new_set, 1, proc_handles);CHK_SET_ERR(result, "Failed to tag interface set with procs");
+        result = mbImpl->tag_set_data(shhs_tag, &new_set, 1, proc_handles);MB_CHK_SET_ERR(result, "Failed to tag interface set with procs");
       }
 
       // Get the owning proc, then set the pstatus tag on iface set
@@ -4459,7 +4459,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         pval |= PSTATUS_NOT_OWNED;
       if (vit->first.size() > 1)
         pval |= PSTATUS_MULTISHARED;
-      result = mbImpl->tag_set_data(pstat_tag, &new_set, 1, &pval);CHK_SET_ERR(result, "Failed to tag interface set with pstatus");
+      result = mbImpl->tag_set_data(pstat_tag, &new_set, 1, &pval);MB_CHK_SET_ERR(result, "Failed to tag interface set with pstatus");
 
       // Tag the vertices with the same thing
       pstatus.clear();
@@ -4468,7 +4468,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         if (mbImpl->type_from_handle(*v2it) == MBVERTEX) verts.push_back(*v2it);
       pstatus.resize(verts.size(), pval);
       if (!verts.empty()) {
-        result = mbImpl->tag_set_data(pstat_tag, &verts[0], verts.size(), &pstatus[0]);CHK_SET_ERR(result, "Failed to tag interface set vertices with pstatus");
+        result = mbImpl->tag_set_data(pstat_tag, &verts[0], verts.size(), &pstatus[0]);MB_CHK_SET_ERR(result, "Failed to tag interface set vertices with pstatus");
       }
     }
 
@@ -4485,7 +4485,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     EntityHandle tmp_iface_set = 0;
     ErrorCode result = mbImpl->tag_get_handle("__tmp_iface", 1, MB_TYPE_HANDLE,
                                               tmp_iface_tag, MB_TAG_DENSE | MB_TAG_CREAT,
-                                              &tmp_iface_set);CHK_SET_ERR(result, "Failed to create temporary interface set tag");
+                                              &tmp_iface_set);MB_CHK_SET_ERR(result, "Failed to create temporary interface set tag");
 
     Range iface_ents;
     std::vector<EntityHandle> tag_vals;
@@ -4494,14 +4494,14 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     for (rit = interfaceSets.begin(); rit != interfaceSets.end(); ++rit) {
       // tag entities with interface set
       iface_ents.clear();
-      result = mbImpl->get_entities_by_handle(*rit, iface_ents);CHK_SET_ERR(result, "Failed to get entities in interface set");
+      result = mbImpl->get_entities_by_handle(*rit, iface_ents);MB_CHK_SET_ERR(result, "Failed to get entities in interface set");
 
       if (iface_ents.empty())
         continue;
 
       tag_vals.resize(iface_ents.size());
       std::fill(tag_vals.begin(), tag_vals.end(), *rit);
-      result = mbImpl->tag_set_data(tmp_iface_tag, iface_ents, &tag_vals[0]);CHK_SET_ERR(result, "Failed to tag iface entities with interface set");
+      result = mbImpl->tag_set_data(tmp_iface_tag, iface_ents, &tag_vals[0]);MB_CHK_SET_ERR(result, "Failed to tag iface entities with interface set");
     }
 
     // Now go back through interface sets and add parent/child links
@@ -4510,21 +4510,21 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       for (rit = interfaceSets.begin(); rit != interfaceSets.end(); ++rit) {
         // Get entities on this interface
         iface_ents.clear();
-        result = mbImpl->get_entities_by_handle(*rit, iface_ents, true);CHK_SET_ERR(result, "Failed to get entities by handle");
+        result = mbImpl->get_entities_by_handle(*rit, iface_ents, true);MB_CHK_SET_ERR(result, "Failed to get entities by handle");
         if (iface_ents.empty() || mbImpl->dimension_from_handle(*iface_ents.rbegin()) != d)
           continue;
 
         // Get higher-dimensional entities and their interface sets
         result = mbImpl->get_adjacencies(&(*iface_ents.begin()), 1, d + 1,
-                                         false, tmp_ents2);CHK_SET_ERR(result, "Failed to get adjacencies for interface sets");
+                                         false, tmp_ents2);MB_CHK_SET_ERR(result, "Failed to get adjacencies for interface sets");
         tag_vals.resize(tmp_ents2.size());
-        result = mbImpl->tag_get_data(tmp_iface_tag, tmp_ents2, &tag_vals[0]);CHK_SET_ERR(result, "Failed to get tmp iface tag for interface sets");
+        result = mbImpl->tag_get_data(tmp_iface_tag, tmp_ents2, &tag_vals[0]);MB_CHK_SET_ERR(result, "Failed to get tmp iface tag for interface sets");
 
         // Go through and for any on interface make it a parent
         EntityHandle last_set = 0;
         for (unsigned int i = 0; i < tag_vals.size(); i++) {
           if (tag_vals[i] && tag_vals[i] != last_set) {
-            result = mbImpl->add_parent_child(tag_vals[i], *rit);CHK_SET_ERR(result, "Failed to add parent/child link for interface set");
+            result = mbImpl->add_parent_child(tag_vals[i], *rit);MB_CHK_SET_ERR(result, "Failed to add parent/child link for interface set");
             last_set = tag_vals[i];
           }
         }
@@ -4532,7 +4532,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     }
 
     // Delete the temporary tag
-    result = mbImpl->tag_delete(tmp_iface_tag);CHK_SET_ERR(result, "Failed to delete tmp iface tag");
+    result = mbImpl->tag_delete(tmp_iface_tag);MB_CHK_SET_ERR(result, "Failed to delete tmp iface tag");
 
     return MB_SUCCESS;
   }
@@ -4557,10 +4557,10 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
            rit != skin_ents[d].end(); ++rit) {
         // Get connectivity
         result = mbImpl->get_connectivity(*rit, connect, num_connect, false,
-                                          &dum_connect);CHK_SET_ERR(result, "Failed to get connectivity on non-vertex skin entities");
+                                          &dum_connect);MB_CHK_SET_ERR(result, "Failed to get connectivity on non-vertex skin entities");
 
         int op = (resolve_dim < shared_dim ? Interface::UNION : Interface::INTERSECT);
-        result = get_sharing_data(connect, num_connect, sharing_procs, op);CHK_SET_ERR(result, "Failed to get sharing data in get_proc_nvecs");
+        result = get_sharing_data(connect, num_connect, sharing_procs, op);MB_CHK_SET_ERR(result, "Failed to get sharing data in get_proc_nvecs");
         if (sharing_procs.empty() ||
             (sharing_procs.size() == 1 && *sharing_procs.begin() == (int)procConfig.proc_rank()))
           continue;
@@ -4606,7 +4606,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     Tag shp_tag, shps_tag, shh_tag, shhs_tag, pstat_tag;
     ErrorCode result = get_shared_proc_tags(shp_tag, shps_tag,
                                             shh_tag, shhs_tag,
-                                            pstat_tag);CHK_SET_ERR(result, "Failed to get shared proc tags in tag_shared_verts");
+                                            pstat_tag);MB_CHK_SET_ERR(result, "Failed to get shared proc tags in tag_shared_verts");
 
     unsigned int j = 0, i = 0;
     std::vector<int> sharing_procs, sharing_procs2, tag_procs;
@@ -4680,10 +4680,10 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         sharing_procs.resize(MAX_SHARING_PROCS, -1);
         sharing_handles.resize(MAX_SHARING_PROCS, 0);
         result = mbImpl->tag_set_data(shps_tag, &this_ent, 1,
-                                      &sharing_procs[0]);CHK_SET_ERR(result, "Failed to set sharedps tag on shared vertex");
+                                      &sharing_procs[0]);MB_CHK_SET_ERR(result, "Failed to set sharedps tag on shared vertex");
         result = mbImpl->tag_set_data(shhs_tag, &this_ent, 1,
-                                      &sharing_handles[0]);CHK_SET_ERR(result, "Failed to set sharedhs tag on shared vertex");
-        result = mbImpl->tag_set_data(pstat_tag, &this_ent, 1, &ms_flag);CHK_SET_ERR(result, "Failed to set pstatus tag on shared vertex");
+                                      &sharing_handles[0]);MB_CHK_SET_ERR(result, "Failed to set sharedhs tag on shared vertex");
+        result = mbImpl->tag_set_data(pstat_tag, &this_ent, 1, &ms_flag);MB_CHK_SET_ERR(result, "Failed to set pstatus tag on shared vertex");
         sharedEnts.push_back(this_ent);
       }
 
@@ -4694,10 +4694,10 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
     if (!tag_procs.empty()) {
       result = mbImpl->tag_set_data(shp_tag, &tag_lhandles[0], tag_procs.size(),
-                                    &tag_procs[0]);CHK_SET_ERR(result, "Failed to set sharedp tag on shared vertex");
+                                    &tag_procs[0]);MB_CHK_SET_ERR(result, "Failed to set sharedp tag on shared vertex");
       result = mbImpl->tag_set_data(shh_tag, &tag_lhandles[0], tag_procs.size(),
-                                    &tag_rhandles[0]);CHK_SET_ERR(result, "Failed to set sharedh tag on shared vertex");
-      result = mbImpl->tag_set_data(pstat_tag, &tag_lhandles[0], tag_procs.size(), &pstatus[0]);CHK_SET_ERR(result, "Failed to set pstatus tag on shared vertex");
+                                    &tag_rhandles[0]);MB_CHK_SET_ERR(result, "Failed to set sharedh tag on shared vertex");
+      result = mbImpl->tag_set_data(pstat_tag, &tag_lhandles[0], tag_procs.size(), &pstatus[0]);MB_CHK_SET_ERR(result, "Failed to set pstatus tag on shared vertex");
       std::copy(tag_lhandles.begin(), tag_lhandles.end(), std::back_inserter(sharedEnts));
     }
 
@@ -4722,7 +4722,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
   {
     Tag shp_tag, shps_tag, shh_tag, shhs_tag, pstat_tag;
     ErrorCode result = get_shared_proc_tags(shp_tag, shps_tag,
-                                            shh_tag, shhs_tag, pstat_tag);CHK_SET_ERR(result, "Failed to get shared proc tags in tag_shared_verts");
+                                            shh_tag, shhs_tag, pstat_tag);MB_CHK_SET_ERR(result, "Failed to get shared proc tags in tag_shared_verts");
 
     unsigned int j = 0, i = 0;
     std::vector<int> sharing_procs, sharing_procs2;
@@ -4771,10 +4771,10 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         ms_flag = (PSTATUS_SHARED | PSTATUS_MULTISHARED);
       if (sharing_procs.size() == 1) {
         result = mbImpl->tag_set_data(shp_tag, &this_ent, 1,
-                                      &sharing_procs[0]);CHK_SET_ERR(result, "Failed to set sharedp tag on shared vertex");
+                                      &sharing_procs[0]);MB_CHK_SET_ERR(result, "Failed to set sharedp tag on shared vertex");
         result = mbImpl->tag_set_data(shh_tag, &this_ent, 1,
-                                      &sharing_handles[0]);CHK_SET_ERR(result, "Failed to set sharedh tag on shared vertex");
-        result = mbImpl->tag_set_data(pstat_tag, &this_ent, 1, &share_flag);CHK_SET_ERR(result, "Failed to set pstatus tag on shared vertex");
+                                      &sharing_handles[0]);MB_CHK_SET_ERR(result, "Failed to set sharedh tag on shared vertex");
+        result = mbImpl->tag_set_data(pstat_tag, &this_ent, 1, &share_flag);MB_CHK_SET_ERR(result, "Failed to set pstatus tag on shared vertex");
         sharedEnts.push_back(this_ent);
       }
       else {
@@ -4789,10 +4789,10 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         sharing_procs.resize(MAX_SHARING_PROCS, -1);
         sharing_handles.resize(MAX_SHARING_PROCS, 0);
         result = mbImpl->tag_set_data(shps_tag, &this_ent, 1,
-                                      &sharing_procs[0]);CHK_SET_ERR(result, "Failed to set sharedps tag on shared vertex");
+                                      &sharing_procs[0]);MB_CHK_SET_ERR(result, "Failed to set sharedps tag on shared vertex");
         result = mbImpl->tag_set_data(shhs_tag, &this_ent, 1,
-                                      &sharing_handles[0]);CHK_SET_ERR(result, "Failed to set sharedhs tag on shared vertex");
-        result = mbImpl->tag_set_data(pstat_tag, &this_ent, 1, &ms_flag);CHK_SET_ERR(result, "Failed to set pstatus tag on shared vertex");
+                                      &sharing_handles[0]);MB_CHK_SET_ERR(result, "Failed to set sharedhs tag on shared vertex");
+        result = mbImpl->tag_set_data(pstat_tag, &this_ent, 1, &ms_flag);MB_CHK_SET_ERR(result, "Failed to set pstatus tag on shared vertex");
         sharedEnts.push_back(this_ent);
       }
 
@@ -4825,7 +4825,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     // Pre-load vector of single-proc tag values
     unsigned int i, j;
     std::vector<int> iface_proc(interfaceSets.size());
-    ErrorCode result = mbImpl->tag_get_data(sharedp_tag(), interfaceSets, &iface_proc[0]);CHK_SET_ERR(result, "Failed to get iface_proc for iface sets");
+    ErrorCode result = mbImpl->tag_get_data(sharedp_tag(), interfaceSets, &iface_proc[0]);MB_CHK_SET_ERR(result, "Failed to get iface_proc for iface sets");
 
     // Get sharing procs either from single-proc vector or by getting
     // multi-proc tag value
@@ -4840,7 +4840,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       else {
         // Get the sharing_procs tag
         result = mbImpl->tag_get_data(sharedps_tag(), &(*rit), 1,
-                                      tmp_iface_procs);CHK_SET_ERR(result, "Failed to get iface_procs for iface set");
+                                      tmp_iface_procs);MB_CHK_SET_ERR(result, "Failed to get iface_procs for iface set");
         for (j = 0; j < MAX_SHARING_PROCS; j++) {
           if (-1 != tmp_iface_procs[j] && tmp_iface_procs[j] != (int)procConfig.proc_rank()) 
             procs_set.insert((unsigned int) tmp_iface_procs[j]);
@@ -4863,7 +4863,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
   ErrorCode ParallelComm::get_pstatus(EntityHandle entity,
                                       unsigned char &pstatus_val)
   {
-    ErrorCode result = mbImpl->tag_get_data(pstatus_tag(), &entity, 1, &pstatus_val);CHK_SET_ERR(result, "Failed to get pastatus tag data");
+    ErrorCode result = mbImpl->tag_get_data(pstatus_tag(), &entity, 1, &pstatus_val);MB_CHK_SET_ERR(result, "Failed to get pastatus tag data");
     return result;
   }
 
@@ -4875,14 +4875,14 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     ErrorCode result;
 
     if (-1 == dim) {
-      result = mbImpl->get_entities_by_handle(0, ents);CHK_SET_ERR(result, "Failed to get all entities");
+      result = mbImpl->get_entities_by_handle(0, ents);MB_CHK_SET_ERR(result, "Failed to get all entities");
     }
     else {
-      result = mbImpl->get_entities_by_dimension(0, dim, ents);CHK_SET_ERR(result, "Failed to get entities of dimension " << dim);
+      result = mbImpl->get_entities_by_dimension(0, dim, ents);MB_CHK_SET_ERR(result, "Failed to get entities of dimension " << dim);
     }
 
     std::vector<unsigned char> pstatus(ents.size());
-    result = mbImpl->tag_get_data(pstatus_tag(), ents, &pstatus[0]);CHK_SET_ERR(result, "Failed to get pastatus tag data");
+    result = mbImpl->tag_get_data(pstatus_tag(), ents, &pstatus[0]);MB_CHK_SET_ERR(result, "Failed to get pastatus tag data");
     Range::iterator rit = ents.begin();
     int i = 0;
     if (pstatus_val) {
@@ -4915,7 +4915,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     ErrorCode result = mbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER,
                                               gid_tag, MB_TAG_DENSE | MB_TAG_CREAT, &def_val);
     if (MB_ALREADY_ALLOCATED != result && MB_SUCCESS != result) {
-      SET_ERR(result, "Failed to create/get gid tag handle");
+      MB_SET_ERR(result, "Failed to create/get gid tag handle");
     }
 
     Range dum_range;
@@ -4923,13 +4923,13 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       void *tag_ptr = &def_val;
       ErrorCode tmp_result = mbImpl->get_entities_by_type_and_tag(this_set, MBVERTEX, 
                                                                   &gid_tag, &tag_ptr, 1,
-                                                                  dum_range);CHK_SET_ERR(tmp_result, "Failed to get entities by MBVERTEX type and gid tag");
+                                                                  dum_range);MB_CHK_SET_ERR(tmp_result, "Failed to get entities by MBVERTEX type and gid tag");
     }
 
     if (MB_ALREADY_ALLOCATED != result || !dum_range.empty()) {
       // Just created it, so we need global ids
       result = assign_global_ids(this_set, dimension, start_id, largest_dim_only,
-                                 parallel, owned_only);CHK_SET_ERR(result, "Failed assigning global ids");
+                                 parallel, owned_only);MB_CHK_SET_ERR(result, "Failed assigning global ids");
     }
 
     return MB_SUCCESS;
@@ -4979,7 +4979,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     // who are already shared with to_proc
     std::vector<unsigned char> shared_flags(ents.size()), shared_flags2;
     ErrorCode result = mbImpl->tag_get_data(pstatus_tag(), ents,
-                                            &shared_flags[0]);CHK_SET_ERR(result, "Failed to get pstatus flag");
+                                            &shared_flags[0]);MB_CHK_SET_ERR(result, "Failed to get pstatus flag");
     Range::const_iterator rit, hint = tmp_ents.begin();;
     int i;
     if (op == PSTATUS_OR) {
@@ -5024,7 +5024,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         // We need to check sharing procs
         if (shared_flags2[i] & PSTATUS_MULTISHARED) {
           result = mbImpl->tag_get_data(sharedps_tag(), &(*rit), 1,
-                                        sharing_procs);CHK_SET_ERR(result, "Failed to get sharedps tag");
+                                        sharing_procs);MB_CHK_SET_ERR(result, "Failed to get sharedps tag");
           assert(-1 != sharing_procs[0]);
           for (unsigned int j = 0; j < MAX_SHARING_PROCS; j++) {
             // If to_proc shares this entity, add it to list
@@ -5039,7 +5039,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         }
         else if (shared_flags2[i] & PSTATUS_SHARED) {
           result = mbImpl->tag_get_data(sharedp_tag(), &(*rit), 1,
-                                        sharing_procs);CHK_SET_ERR(result, "Failed to get sharedp tag");
+                                        sharing_procs);MB_CHK_SET_ERR(result, "Failed to get sharedp tag");
           assert(-1 != sharing_procs[0]);
           if (sharing_procs[0] == to_proc) 
             hint = tmp_ents2.insert(hint, *rit);
@@ -5124,7 +5124,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                           MB_MESG_ENTS_SIZE, procConfig.proc_comm(),
                           &recv_ent_reqs[2*ind]);
       if (success != MPI_SUCCESS) {
-        SET_ERR(MB_FAILURE, "Failed to post irecv in ghost exchange");
+        MB_SET_ERR(MB_FAILURE, "Failed to post irecv in ghost exchange");
       }
     }
 
@@ -5135,7 +5135,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     TupleList entprocs;
     int dum_ack_buff;
     result = get_sent_ents(is_iface, bridge_dim, ghost_dim, num_layers,
-                           addl_ents, sent_ents, allsent, entprocs);CHK_SET_ERR(result, "get_sent_ents failed");
+                           addl_ents, sent_ents, allsent, entprocs);MB_CHK_SET_ERR(result, "get_sent_ents failed");
 
     myDebug->tprintf(1, "allsent ents compactness (size) = %f (%lu)\n", allsent.compactness(),
                      (unsigned long)allsent.size());
@@ -5154,7 +5154,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       // Entities
       result = pack_entities(sent_ents[p], localOwnedBuffs[p],
                              store_remote_handles, buffProcs[p], is_iface,
-                             &entprocs, &allsent);CHK_SET_ERR(result, "Packing entities failed");
+                             &entprocs, &allsent);MB_CHK_SET_ERR(result, "Packing entities failed");
 
       if (myDebug->get_verbosity() == 4) {
         msgs.resize(msgs.size() + 1);
@@ -5169,7 +5169,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                            MB_MESG_REMOTEH_SIZE,
                            (!is_iface && store_remote_handles ?
                             localOwnedBuffs[p] : NULL),
-                           &recv_remoteh_reqs[2*p], &incoming2);CHK_SET_ERR(result, "Failed to Isend in ghost exchange");
+                           &recv_remoteh_reqs[2*p], &incoming2);MB_CHK_SET_ERR(result, "Failed to Isend in ghost exchange");
     }
 
     entprocs.reset();
@@ -5194,7 +5194,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
       success = MPI_Waitany(2*buffProcs.size(), &recv_ent_reqs[0], &ind, &status);
       if (MPI_SUCCESS != success) {
-        SET_ERR(MB_FAILURE, "Failed in waitany in ghost exchange");
+        MB_SET_ERR(MB_FAILURE, "Failed in waitany in ghost exchange");
       }
 
       PRINT_DEBUG_RECD(status);
@@ -5215,7 +5215,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                            (!is_iface && store_remote_handles ?
                             localOwnedBuffs[ind/2] : NULL),
                            MB_MESG_REMOTEH_SIZE,
-                           &recv_remoteh_reqs[base_ind], &incoming2);CHK_SET_ERR(result, "Failed to receive buffer");
+                           &recv_remoteh_reqs[base_ind], &incoming2);MB_CHK_SET_ERR(result, "Failed to receive buffer");
 
       if (done) {
         if (myDebug->get_verbosity() == 4) {
@@ -5250,7 +5250,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                                 MB_MESG_REMOTEH_SIZE, procConfig.proc_comm(),
                                 &recv_remoteh_reqs[i]);
             if (success != MPI_SUCCESS) {
-              SET_ERR(MB_FAILURE, "Failed to post irecv for remote handles in ghost exchange");
+              MB_SET_ERR(MB_FAILURE, "Failed to post irecv for remote handles in ghost exchange");
             }
           }
           recv_ent_reqs.resize(2*buffProcs.size(), MPI_REQUEST_NULL);
@@ -5262,7 +5262,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     // Add requests for any new addl procs
     if (recv_ent_reqs.size() != 2*buffProcs.size()) {
       // Shouldn't get here...
-      SET_ERR(MB_FAILURE, "Requests length doesn't match proc count in ghost exchange");
+      MB_SET_ERR(MB_FAILURE, "Requests length doesn't match proc count in ghost exchange");
     }
 
 #ifdef USE_MPE
@@ -5280,7 +5280,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         std::cout << "Failed check." << std::endl;
 
       // Now set the shared/interface tag on non-vertex entities on interface
-      result = tag_iface_entities();CHK_SET_ERR(result, "Failed to tag iface entities");
+      result = tag_iface_entities();MB_CHK_SET_ERR(result, "Failed to tag iface entities");
 
 #ifndef NDEBUG
       result = check_sent_ents(allsent);
@@ -5308,7 +5308,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
           success = MPI_Waitall(2*buffProcs.size(), &sendReqs[0], mult_status);
         }
         if (MPI_SUCCESS != success) {
-          SET_ERR(MB_FAILURE, "Failed in waitall in ghost exchange");
+          MB_SET_ERR(MB_FAILURE, "Failed in waitall in ghost exchange");
         }
       }
 
@@ -5329,7 +5329,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       remoteOwnedBuffs[p]->reset_buffer(sizeof(int));
 
       result = pack_remote_handles(L1hloc[p], L1hrem[p], L1p[p], *proc_it,
-                                   remoteOwnedBuffs[p]);CHK_SET_ERR(result, "Failed to pack remote handles");
+                                   remoteOwnedBuffs[p]);MB_CHK_SET_ERR(result, "Failed to pack remote handles");
       remoteOwnedBuffs[p]->set_stored_size();
 
       if (myDebug->get_verbosity() == 4) {
@@ -5339,7 +5339,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       result = send_buffer(buffProcs[p], remoteOwnedBuffs[p],
                            MB_MESG_REMOTEH_SIZE,
                            sendReqs[2*p], recv_remoteh_reqs[2*p + 1],
-                           &dum_ack_buff, incoming2);CHK_SET_ERR(result, "Failed to send remote handles");
+                           &dum_ack_buff, incoming2);MB_CHK_SET_ERR(result, "Failed to send remote handles");
     }
 
     //===========================================
@@ -5349,7 +5349,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       PRINT_DEBUG_WAITANY(recv_remoteh_reqs, MB_MESG_REMOTEH_SIZE, procConfig.proc_rank());
       success = MPI_Waitany(2*buffProcs.size(), &recv_remoteh_reqs[0], &ind, &status);
       if (MPI_SUCCESS != success) {
-        SET_ERR(MB_FAILURE, "Failed in waitany in ghost exchange");
+        MB_SET_ERR(MB_FAILURE, "Failed in waitany in ghost exchange");
       }
 
       // OK, received something; decrement incoming counter
@@ -5364,7 +5364,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                            recv_remoteh_reqs[ind], recv_remoteh_reqs[ind + 1], incoming2,
                            remoteOwnedBuffs[ind/2],
                            sendReqs[base_ind], sendReqs[base_ind + 1],
-                           done);CHK_SET_ERR(result, "Failed to receive remote handles");
+                           done);MB_CHK_SET_ERR(result, "Failed to receive remote handles");
       if (done) {
         // Incoming remote handles
         if (myDebug->get_verbosity() == 4) {
@@ -5374,7 +5374,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         localOwnedBuffs[ind/2]->reset_ptr(sizeof(int));
         result = unpack_remote_handles(buffProcs[ind/2],
                                        localOwnedBuffs[ind/2]->buff_ptr,
-                                       L2hloc, L2hrem, L2p);CHK_SET_ERR(result, "Failed to unpack remote handles");
+                                       L2hloc, L2hrem, L2p);MB_CHK_SET_ERR(result, "Failed to unpack remote handles");
       }
     }
 
@@ -5399,17 +5399,17 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         success = MPI_Waitall(2*buffProcs.size(), &sendReqs[0], mult_status);
       }
       if (MPI_SUCCESS != success) {
-        SET_ERR(MB_FAILURE, "Failed in waitall in ghost exchange");
+        MB_SET_ERR(MB_FAILURE, "Failed in waitall in ghost exchange");
       }
     }
 
 #ifndef NDEBUG
-    result = check_sent_ents(allsent);CHK_SET_ERR(result, "Failed check on shared entities");
-    result = check_all_shared_handles(true);CHK_SET_ERR(result, "Failed check on all shared handles");
+    result = check_sent_ents(allsent);MB_CHK_SET_ERR(result, "Failed check on shared entities");
+    result = check_all_shared_handles(true);MB_CHK_SET_ERR(result, "Failed check on all shared handles");
 #endif
 
     if (file_set && !new_ents.empty()) {
-      result = mbImpl->add_entities(*file_set, &new_ents[0], new_ents.size());CHK_SET_ERR(result, "Failed to add new entities to set");
+      result = mbImpl->add_entities(*file_set, &new_ents[0], new_ents.size());MB_CHK_SET_ERR(result, "Failed to add new entities to set");
     }
 
     myDebug->tprintf(1, "Total number of shared entities = %lu.\n", (unsigned long)sharedEnts.size());
@@ -5443,7 +5443,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                           next_mesg_tag, procConfig.proc_comm(), 
                           next_recv_req);
       if (success != MPI_SUCCESS) {
-        SET_ERR(MB_FAILURE, "Failed to post irecv for next message in ghost exchange");
+        MB_SET_ERR(MB_FAILURE, "Failed to post irecv for next message in ghost exchange");
       }
     }
     // If large, we'll need an ack before sending the rest
@@ -5456,7 +5456,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                           mesg_tag - 1, procConfig.proc_comm(),
                           &ack_req);
       if (success != MPI_SUCCESS) {
-        SET_ERR(MB_FAILURE, "Failed to post irecv for entity ack in ghost exchange");
+        MB_SET_ERR(MB_FAILURE, "Failed to post irecv for entity ack in ghost exchange");
       }
     }
 
@@ -5520,7 +5520,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                           mesg_tag_expected + 1, procConfig.proc_comm(),
                           &recv_req);
       if (success != MPI_SUCCESS) {
-        SET_ERR(MB_FAILURE, "Failed to post 2nd iRecv in ghost exchange");
+        MB_SET_ERR(MB_FAILURE, "Failed to post 2nd iRecv in ghost exchange");
       }
 
       // Send ack, doesn't matter what data actually is
@@ -5530,7 +5530,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                           MPI_UNSIGNED_CHAR, from_proc,
                           mesg_tag_expected - 1, procConfig.proc_comm(), &sent_ack_req);
       if (success != MPI_SUCCESS) {
-        SET_ERR(MB_FAILURE, "Failed to send ack in ghost exchange");
+        MB_SET_ERR(MB_FAILURE, "Failed to send ack in ghost exchange");
       }
     }
     else if (mpi_status.MPI_TAG == mesg_tag_expected - 1) {
@@ -5552,7 +5552,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                             next_tag, procConfig.proc_comm(),
                             next_req);
         if (success != MPI_SUCCESS) {
-          SET_ERR(MB_FAILURE, "Failed to post next irecv in ghost exchange");
+          MB_SET_ERR(MB_FAILURE, "Failed to post next irecv in ghost exchange");
         }
       }
 
@@ -5569,7 +5569,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                           MPI_UNSIGNED_CHAR, from_proc, mesg_tag_expected + 1,
                           procConfig.proc_comm(), &send_req);
       if (success != MPI_SUCCESS) {
-        SET_ERR(MB_FAILURE, "Failed to send 2nd message in ghost exchange");
+        MB_SET_ERR(MB_FAILURE, "Failed to send 2nd message in ghost exchange");
       }
     }
     else if ((mpi_status.MPI_TAG == mesg_tag_expected &&
@@ -5615,7 +5615,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     ProcList sharedp;
     EntityHandle sharedh[MAX_SHARING_PROCS];
     for (rvit = allsent.rbegin(); rvit != allsent.rend(); ++rvit) {
-      result = get_sharing_data(*rvit, sharedp.procs, sharedh, pstatus, nump);CHK_SET_ERR(result, "Failed to get sharing data");
+      result = get_sharing_data(*rvit, sharedp.procs, sharedh, pstatus, nump);MB_CHK_SET_ERR(result, "Failed to get sharing data");
       assert("Should be shared with at least one other proc" && 
              (nump > 1 || sharedp.procs[0] != (int)procConfig.proc_rank()));
       assert(nump == MAX_SHARING_PROCS || sharedp.procs[nump] == -1);
@@ -5652,7 +5652,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
           pstatus &= ~PSTATUS_NOT_OWNED;
       }
 
-      result = set_sharing_data(*rvit, pstatus, nump, new_nump, sharedp.procs, sharedh);CHK_SET_ERR(result, "Failed to set sharing data in check_clean_iface");
+      result = set_sharing_data(*rvit, pstatus, nump, new_nump, sharedp.procs, sharedh);MB_CHK_SET_ERR(result, "Failed to set sharing data in check_clean_iface");
 
       if (new_nump > 1) {
         if (new_nump == 2) {
@@ -5679,22 +5679,22 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     //std::vector<unsigned char> pstatus_list;
     rit = interface_sets().begin();
     while (rit != interface_sets().end()) {
-      result = get_sharing_data(*rit, sharedp.procs, sharedh, pstatus, nump);CHK_SET_ERR(result, "Failed to get sharing data for interface set");
+      result = get_sharing_data(*rit, sharedp.procs, sharedh, pstatus, nump);MB_CHK_SET_ERR(result, "Failed to get sharing data for interface set");
       assert(nump != 2);
       std::sort(sharedp.procs, sharedp.procs + nump);
       assert(nump == MAX_SHARING_PROCS || sharedp.procs[nump] == -1);
     
       pmit = old_procs.find(sharedp);
       if (pmit != old_procs.end()) {
-        result = mbImpl->remove_entities(*rit, pmit->second);CHK_SET_ERR(result, "Failed to remove entities from interface set");
+        result = mbImpl->remove_entities(*rit, pmit->second);MB_CHK_SET_ERR(result, "Failed to remove entities from interface set");
       }
 
       pmit = new_procs.find(sharedp);
       if (pmit == new_procs.end()) {
         int count;
-        result = mbImpl->get_number_entities_by_handle(*rit, count);CHK_SET_ERR(result, "Failed to get number of entities in interface set");
+        result = mbImpl->get_number_entities_by_handle(*rit, count);MB_CHK_SET_ERR(result, "Failed to get number of entities in interface set");
         if (!count) {
-          result = mbImpl->delete_entities(&*rit, 1);CHK_SET_ERR(result, "Failed to delete entities from interface set");
+          result = mbImpl->delete_entities(&*rit, 1);MB_CHK_SET_ERR(result, "Failed to delete entities from interface set");
           rit = interface_sets().erase(rit);
         }
         else {
@@ -5702,7 +5702,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         }
       }
       else {
-        result = mbImpl->add_entities(*rit, pmit->second);CHK_SET_ERR(result, "Failed to add entities to interface set");
+        result = mbImpl->add_entities(*rit, pmit->second);MB_CHK_SET_ERR(result, "Failed to add entities to interface set");
 
         // Remove those that we've processed so that we know which ones
         // are new.
@@ -5715,35 +5715,35 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     std::fill(sharedh, sharedh + MAX_SHARING_PROCS, 0);
     for (pmit = new_procs.begin(); pmit != new_procs.end(); ++pmit) {
       EntityHandle new_set;
-      result = mbImpl->create_meshset(MESHSET_SET, new_set);CHK_SET_ERR(result, "Failed to create interface set");
+      result = mbImpl->create_meshset(MESHSET_SET, new_set);MB_CHK_SET_ERR(result, "Failed to create interface set");
       interfaceSets.insert(new_set);
 
       // Add entities
-      result = mbImpl->add_entities(new_set, pmit->second);CHK_SET_ERR(result, "Failed to add entities to interface set");
+      result = mbImpl->add_entities(new_set, pmit->second);MB_CHK_SET_ERR(result, "Failed to add entities to interface set");
       // Tag set with the proc rank(s)
       assert(pmit->first.procs[0] >= 0);
       pstatus = PSTATUS_SHARED|PSTATUS_INTERFACE;
       if (pmit->first.procs[1] == -1) {
         int other = pmit->first.procs[0];
         assert(other != (int)procConfig.proc_rank());
-        result = mbImpl->tag_set_data(sharedp_tag(), &new_set, 1, pmit->first.procs);CHK_SET_ERR(result, "Failed to tag interface set with procs");
+        result = mbImpl->tag_set_data(sharedp_tag(), &new_set, 1, pmit->first.procs);MB_CHK_SET_ERR(result, "Failed to tag interface set with procs");
         sharedh[0] = 0;
-        result = mbImpl->tag_set_data(sharedh_tag(), &new_set, 1, sharedh);CHK_SET_ERR(result, "Failed to tag interface set with procs");
+        result = mbImpl->tag_set_data(sharedh_tag(), &new_set, 1, sharedh);MB_CHK_SET_ERR(result, "Failed to tag interface set with procs");
         if (other < (int)proc_config().proc_rank())
           pstatus |= PSTATUS_NOT_OWNED;
       }
       else {
-        result = mbImpl->tag_set_data(sharedps_tag(), &new_set, 1, pmit->first.procs);CHK_SET_ERR(result, "Failed to tag interface set with procs");
-        result = mbImpl->tag_set_data(sharedhs_tag(), &new_set, 1, sharedh);CHK_SET_ERR(result, "Failed to tag interface set with procs");
+        result = mbImpl->tag_set_data(sharedps_tag(), &new_set, 1, pmit->first.procs);MB_CHK_SET_ERR(result, "Failed to tag interface set with procs");
+        result = mbImpl->tag_set_data(sharedhs_tag(), &new_set, 1, sharedh);MB_CHK_SET_ERR(result, "Failed to tag interface set with procs");
         pstatus |= PSTATUS_MULTISHARED;
         if (pmit->first.procs[0] < (int)proc_config().proc_rank())
           pstatus |= PSTATUS_NOT_OWNED;
       }
 
-      result = mbImpl->tag_set_data(pstatus_tag(), &new_set, 1, &pstatus);CHK_SET_ERR(result, "Failed to tag interface set with pstatus");
+      result = mbImpl->tag_set_data(pstatus_tag(), &new_set, 1, &pstatus);MB_CHK_SET_ERR(result, "Failed to tag interface set with pstatus");
 
       // Set pstatus on all interface entities in set
-      result = mbImpl->tag_clear_data(pstatus_tag(), pmit->second, &pstatus);CHK_SET_ERR(result, "Failed to tag interface entities with pstatus");
+      result = mbImpl->tag_clear_data(pstatus_tag(), pmit->second, &pstatus);MB_CHK_SET_ERR(result, "Failed to tag interface entities with pstatus");
     }
 
     return MB_SUCCESS;
@@ -5783,8 +5783,8 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     // Reset any old data that needs to be
     if (old_nump > 2 && new_nump < 3) {
       // Need to remove multishared tags
-      result = mbImpl->tag_delete_data(sharedps_tag(), &ent, 1);CHK_SET_ERR(result, "set_sharing_data:1");
-      result = mbImpl->tag_delete_data(sharedhs_tag(), &ent, 1);CHK_SET_ERR(result, "set_sharing_data:2");
+      result = mbImpl->tag_delete_data(sharedps_tag(), &ent, 1);MB_CHK_SET_ERR(result, "set_sharing_data:1");
+      result = mbImpl->tag_delete_data(sharedhs_tag(), &ent, 1);MB_CHK_SET_ERR(result, "set_sharing_data:2");
 //    if (new_nump < 2)
 //      pstatus = 0x0;
 //    else if (ps[0] != (int)proc_config().proc_rank())
@@ -5794,8 +5794,8 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       // Reset sharedp and sharedh tags
       int tmp_p = -1;
       EntityHandle tmp_h = 0;
-      result = mbImpl->tag_set_data(sharedp_tag(), &ent, 1, &tmp_p);CHK_SET_ERR(result, "set_sharing_data:3");
-      result = mbImpl->tag_set_data(sharedh_tag(), &ent, 1, &tmp_h);CHK_SET_ERR(result, "set_sharing_data:4");
+      result = mbImpl->tag_set_data(sharedp_tag(), &ent, 1, &tmp_p);MB_CHK_SET_ERR(result, "set_sharing_data:3");
+      result = mbImpl->tag_set_data(sharedh_tag(), &ent, 1, &tmp_h);MB_CHK_SET_ERR(result, "set_sharing_data:4");
     }
 
     assert("check for multishared/owner I'm first proc" &&
@@ -5808,17 +5808,17 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
     // Now set new data
     if (new_nump > 2) {
-      result = mbImpl->tag_set_data(sharedps_tag(), &ent, 1, ps);CHK_SET_ERR(result, "set_sharing_data:5");
-      result = mbImpl->tag_set_data(sharedhs_tag(), &ent, 1, hs);CHK_SET_ERR(result, "set_sharing_data:6");
+      result = mbImpl->tag_set_data(sharedps_tag(), &ent, 1, ps);MB_CHK_SET_ERR(result, "set_sharing_data:5");
+      result = mbImpl->tag_set_data(sharedhs_tag(), &ent, 1, hs);MB_CHK_SET_ERR(result, "set_sharing_data:6");
     }
     else {
       unsigned int j = (ps[0] == (int)procConfig.proc_rank() ? 1 : 0);
       assert(-1 != ps[j]);
-      result = mbImpl->tag_set_data(sharedp_tag(), &ent, 1, ps + j);CHK_SET_ERR(result, "set_sharing_data:7");
-      result = mbImpl->tag_set_data(sharedh_tag(), &ent, 1, hs + j);CHK_SET_ERR(result, "set_sharing_data:8");
+      result = mbImpl->tag_set_data(sharedp_tag(), &ent, 1, ps + j);MB_CHK_SET_ERR(result, "set_sharing_data:7");
+      result = mbImpl->tag_set_data(sharedh_tag(), &ent, 1, hs + j);MB_CHK_SET_ERR(result, "set_sharing_data:8");
     }
 
-    result = mbImpl->tag_set_data(pstatus_tag(), &ent, 1, &pstatus);CHK_SET_ERR(result, "set_sharing_data:9");
+    result = mbImpl->tag_set_data(pstatus_tag(), &ent, 1, &pstatus);MB_CHK_SET_ERR(result, "set_sharing_data:9");
 
     if (old_nump > 1 && new_nump < 2)
       sharedEnts.erase(std::find(sharedEnts.begin(), sharedEnts.end(), ent));
@@ -5843,16 +5843,16 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
          proc_it != buffProcs.end(); ++proc_it, ind++) {
       if (!is_iface) {
         result = get_ghosted_entities(bridge_dim, ghost_dim, buffProcs[ind],
-                                      num_layers, addl_ents, sent_ents[ind]);CHK_SET_ERR(result, "Failed to get ghost layers");
+                                      num_layers, addl_ents, sent_ents[ind]);MB_CHK_SET_ERR(result, "Failed to get ghost layers");
       }
       else {
-        result = get_iface_entities(buffProcs[ind], -1, sent_ents[ind]);CHK_SET_ERR(result, "Failed to get interface layers");
+        result = get_iface_entities(buffProcs[ind], -1, sent_ents[ind]);MB_CHK_SET_ERR(result, "Failed to get interface layers");
       }
 
       // Filter out entities already shared with destination
       tmp_range.clear();
       result = filter_pstatus(sent_ents[ind], PSTATUS_SHARED, PSTATUS_AND,
-                              buffProcs[ind], &tmp_range);CHK_SET_ERR(result, "Failed to filter on owner");
+                              buffProcs[ind], &tmp_range);MB_CHK_SET_ERR(result, "Failed to filter on owner");
       if (!tmp_range.empty())
         sent_ents[ind] = subtract(sent_ents[ind], tmp_range);
 
@@ -5938,7 +5938,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     for (unsigned int p = 0; p < num_procs; p++) {
       pc = pcs[p];
       result = pc->get_sent_ents(is_iface, bridge_dim, ghost_dim, num_layers, addl_ents,
-                                 sent_ents[p], allsent[p], entprocs[p]);CHK_SET_ERR(result, "p = " << p << ", get_sent_ents failed");
+                                 sent_ents[p], allsent[p], entprocs[p]);MB_CHK_SET_ERR(result, "p = " << p << ", get_sent_ents failed");
   
       //===========================================
       // Pack entities into buffers
@@ -5948,7 +5948,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         pc->localOwnedBuffs[ind]->reset_ptr(sizeof(int));
         result = pc->pack_entities(sent_ents[p][ind], pc->localOwnedBuffs[ind],
                                    store_remote_handles, pc->buffProcs[ind], is_iface,
-                                   &entprocs[p], &allsent[p]);CHK_SET_ERR(result, "p = " << p << ", packing entities failed");
+                                   &entprocs[p], &allsent[p]);MB_CHK_SET_ERR(result, "p = " << p << ", packing entities failed");
       }
 
       entprocs[p].reset();
@@ -5989,7 +5989,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         result = pcs[to_p]->unpack_entities(pc->localOwnedBuffs[ind]->buff_ptr,
                                             store_remote_handles, ind, is_iface,
                                             L1hloc[to_p], L1hrem[to_p], L1p[to_p], L2hloc[to_p],
-                                            L2hrem[to_p], L2p[to_p], new_ents[to_p]);CHK_SET_ERR(result, "p = " << p << ", failed to unpack entities");
+                                            L2hrem[to_p], L2p[to_p], new_ents[to_p]);MB_CHK_SET_ERR(result, "p = " << p << ", failed to unpack entities");
       }
     }
 
@@ -5998,14 +5998,14 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       // handles for them from all expected procs; if not, need to clean
       // them up
       for (unsigned int p = 0; p < num_procs; p++) {
-        result = pcs[p]->check_clean_iface(allsent[p]);CHK_SET_ERR(result, "p = " << p << ", failed to check on shared entities");
+        result = pcs[p]->check_clean_iface(allsent[p]);MB_CHK_SET_ERR(result, "p = " << p << ", failed to check on shared entities");
       }
 
 #ifndef NDEBUG
       for (unsigned int p = 0; p < num_procs; p++) {
-        result = pcs[p]->check_sent_ents(allsent[p]);CHK_SET_ERR(result, "p = " << p << ", failed to check on shared entities");
+        result = pcs[p]->check_sent_ents(allsent[p]);MB_CHK_SET_ERR(result, "p = " << p << ", failed to check on shared entities");
       }
-      result = check_all_shared_handles(pcs, num_procs);CHK_SET_ERR(result, "Failed to check on all shared handles");
+      result = check_all_shared_handles(pcs, num_procs);MB_CHK_SET_ERR(result, "Failed to check on all shared handles");
 #endif
       return MB_SUCCESS;
     }
@@ -6023,7 +6023,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         // Skip if iface layer and higher-rank proc
         pc->localOwnedBuffs[ind]->reset_ptr(sizeof(int));
         result = pc->pack_remote_handles(L1hloc[p][ind], L1hrem[p][ind], L1p[p][ind], *proc_it,
-                                         pc->localOwnedBuffs[ind]);CHK_SET_ERR(result, "p = " << p << ", failed to pack remote handles");
+                                         pc->localOwnedBuffs[ind]);MB_CHK_SET_ERR(result, "p = " << p << ", failed to pack remote handles");
       }
     }
 
@@ -6040,23 +6040,23 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         pc->localOwnedBuffs[ind]->reset_ptr(sizeof(int));
         result = pcs[to_p]->unpack_remote_handles(p,
                                                   pc->localOwnedBuffs[ind]->buff_ptr,
-                                                  L2hloc[to_p], L2hrem[to_p], L2p[to_p]);CHK_SET_ERR(result, "p = " << p << ", failed to unpack remote handles");
+                                                  L2hloc[to_p], L2hrem[to_p], L2p[to_p]);MB_CHK_SET_ERR(result, "p = " << p << ", failed to unpack remote handles");
       }
     }
 
 #ifndef NDEBUG
     for (unsigned int p = 0; p < num_procs; p++) {
-      result = pcs[p]->check_sent_ents(allsent[p]);CHK_SET_ERR(result, "p = " << p << ", failed to check on shared entities");
+      result = pcs[p]->check_sent_ents(allsent[p]);MB_CHK_SET_ERR(result, "p = " << p << ", failed to check on shared entities");
     }
 
-    result = ParallelComm::check_all_shared_handles(pcs, num_procs);CHK_SET_ERR(result, "Failed to check on all shared handles");
+    result = ParallelComm::check_all_shared_handles(pcs, num_procs);MB_CHK_SET_ERR(result, "Failed to check on all shared handles");
 #endif
 
     if (file_sets) {
       for (unsigned int p = 0; p < num_procs; p++) {
         if (new_ents[p].empty())
           continue;
-        result = pcs[p]->get_moab()->add_entities(file_sets[p], &new_ents[p][0], new_ents[p].size());CHK_SET_ERR(result, "p = " << p << ", failed to add new entities to set");
+        result = pcs[p]->get_moab()->add_entities(file_sets[p], &new_ents[p][0], new_ents[p].size());MB_CHK_SET_ERR(result, "p = " << p << ", failed to add new entities to set");
       }
     }
 
@@ -6090,7 +6090,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                           MB_MESG_ENTS_SIZE, procConfig.proc_comm(),
                           &recvReqs[2*ind]);
       if (success != MPI_SUCCESS) {
-        SET_ERR(MB_FAILURE, "Failed to post irecv in owned entity exchange");
+        MB_SET_ERR(MB_FAILURE, "Failed to post irecv in owned entity exchange");
       }
     }
 
@@ -6133,7 +6133,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                           MB_MESG_ENTS_SIZE, procConfig.proc_comm(),
                           &recvReqs[2*ind]);
       if (success != MPI_SUCCESS) {
-        SET_ERR(MB_FAILURE, "Failed to post irecv in owned entity exchange");
+        MB_SET_ERR(MB_FAILURE, "Failed to post irecv in owned entity exchange");
       }
     }
 
@@ -6167,7 +6167,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       // Exchange entities first
       result = exchange_owned_mesh(exchange_procs, exchange_ents,
                                    recvReqs, recvRemotehReqs, true,
-                                   store_remote_handles, wait_all, migrate);CHK_SET_ERR(result, "Failed to exchange owned mesh entities");
+                                   store_remote_handles, wait_all, migrate);MB_CHK_SET_ERR(result, "Failed to exchange owned mesh entities");
 
       // Exchange sets
       result = exchange_owned_mesh(exchange_procs_sets, exchange_sets,
@@ -6178,12 +6178,12 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       // Exchange entities first
       result = exchange_owned_mesh(exchange_procs, exchange_ents,
                                    recv_ent_reqs, recv_remoteh_reqs, false,
-                                   store_remote_handles, wait_all, migrate);CHK_SET_ERR(result, "Failed to exchange owned mesh entities");
+                                   store_remote_handles, wait_all, migrate);MB_CHK_SET_ERR(result, "Failed to exchange owned mesh entities");
 
       // Exchange sets
       result = exchange_owned_mesh(exchange_procs_sets, exchange_sets,
                                    recv_ent_reqs, recv_remoteh_reqs, false,
-                                   store_remote_handles, wait_all, migrate);CHK_SET_ERR(result, "Failed to exchange owned mesh sets");
+                                   store_remote_handles, wait_all, migrate);MB_CHK_SET_ERR(result, "Failed to exchange owned mesh sets");
     }
 
     for (int i = 0; i < n_proc; i++)
@@ -6198,7 +6198,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     for (std::vector<EntityHandle>::iterator vit = sharedEnts.begin(); vit != sharedEnts.end(); ++vit) {
       if (mbImpl->dimension_from_handle(*vit) > 2)
         continue;
-      result = get_sharing_data(*vit, procs, handles, pstat, nprocs);CHK_SET_ERR(result, "Failed to get sharing data in exchange_owned_meshs");
+      result = get_sharing_data(*vit, procs, handles, pstat, nprocs);MB_CHK_SET_ERR(result, "Failed to get sharing data in exchange_owned_meshs");
       std::sort(procs, procs + nprocs);
       std::vector<int> tmp_procs(procs, procs + nprocs);
       assert(tmp_procs.size() != 2);
@@ -6206,7 +6206,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     }
 
     // Create interface sets from shared entities
-    result = create_interface_sets(proc_nvecs);CHK_SET_ERR(result, "Failed to create interface sets");
+    result = create_interface_sets(proc_nvecs);MB_CHK_SET_ERR(result, "Failed to create interface sets");
 
     return MB_SUCCESS;
   }
@@ -6240,12 +6240,12 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     unsigned int n_proc = exchange_procs.size();
     for (i = 0; i < n_proc; i++) {
       ind = get_buffers(exchange_procs[i]);
-      result = add_verts(*exchange_ents[i]);CHK_SET_ERR(result, "Failed to add verts");
+      result = add_verts(*exchange_ents[i]);MB_CHK_SET_ERR(result, "Failed to add verts");
 
       // Filter out entities already shared with destination
       Range tmp_range;
       result = filter_pstatus(*exchange_ents[i], PSTATUS_SHARED, PSTATUS_AND,
-                              buffProcs[ind], &tmp_range);CHK_SET_ERR(result, "Failed to filter on owner");
+                              buffProcs[ind], &tmp_range);MB_CHK_SET_ERR(result, "Failed to filter on owner");
       if (!tmp_range.empty()) {
         *exchange_ents[i] = subtract(*exchange_ents[i], tmp_range);
       }
@@ -6278,7 +6278,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                             MB_MESG_ENTS_SIZE, procConfig.proc_comm(),
                             &recv_ent_reqs[2*ind]);
         if (success != MPI_SUCCESS) {
-          SET_ERR(MB_FAILURE, "Failed to post irecv in owned entity exchange");
+          MB_SET_ERR(MB_FAILURE, "Failed to post irecv in owned entity exchange");
         }
       }
     }
@@ -6349,7 +6349,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                            MB_MESG_REMOTEH_SIZE,
                            (store_remote_handles ?
                            localOwnedBuffs[ind] : NULL),
-                           &recv_remoteh_reqs[2*ind], &incoming2);CHK_SET_ERR(result, "Failed to Isend in ghost exchange");
+                           &recv_remoteh_reqs[2*ind], &incoming2);MB_CHK_SET_ERR(result, "Failed to Isend in ghost exchange");
     }
 
     entprocs.reset();
@@ -6373,7 +6373,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     
       success = MPI_Waitany(2*buffProcs.size(), &recv_ent_reqs[0], &ind, &status);
       if (MPI_SUCCESS != success) {
-        SET_ERR(MB_FAILURE, "Failed in waitany in owned entity exchange");
+        MB_SET_ERR(MB_FAILURE, "Failed in waitany in owned entity exchange");
       }
 
       PRINT_DEBUG_RECD(status);
@@ -6394,7 +6394,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                            (store_remote_handles ?
                             localOwnedBuffs[ind/2] : NULL),
                            MB_MESG_REMOTEH_SIZE,
-                           &recv_remoteh_reqs[base_ind], &incoming2);CHK_SET_ERR(result, "Failed to receive buffer");
+                           &recv_remoteh_reqs[base_ind], &incoming2);MB_CHK_SET_ERR(result, "Failed to receive buffer");
 
       if (done) {
         if (myDebug->get_verbosity() == 4) {
@@ -6428,7 +6428,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                                 MB_MESG_REMOTEH_SIZE, procConfig.proc_comm(),
                                 &recv_remoteh_reqs[i]);
             if (success != MPI_SUCCESS) {
-              SET_ERR(MB_FAILURE, "Failed to post irecv for remote handles in ghost exchange");
+              MB_SET_ERR(MB_FAILURE, "Failed to post irecv for remote handles in ghost exchange");
             }
           }
           recv_ent_reqs.resize(2*buffProcs.size(), MPI_REQUEST_NULL);
@@ -6438,15 +6438,15 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     }
 
     // Assign and remove newly created elements from/to receive processor
-    result = assign_entities_part(new_ents, procConfig.proc_rank());CHK_SET_ERR(result, "Failed to assign entities to part");
+    result = assign_entities_part(new_ents, procConfig.proc_rank());MB_CHK_SET_ERR(result, "Failed to assign entities to part");
     if (migrate) {
-      result = remove_entities_part(allsent, procConfig.proc_rank());CHK_SET_ERR(result, "Failed to remove entities to part");
+      result = remove_entities_part(allsent, procConfig.proc_rank());MB_CHK_SET_ERR(result, "Failed to remove entities to part");
     }
 
     // Add requests for any new addl procs
     if (recv_ent_reqs.size() != 2*buffProcs.size()) {
       // Shouldn't get here...
-      SET_ERR(MB_FAILURE, "Requests length doesn't match proc count in entity exchange");
+      MB_SET_ERR(MB_FAILURE, "Requests length doesn't match proc count in entity exchange");
     }
 
 #ifdef USE_MPE
@@ -6464,7 +6464,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       remoteOwnedBuffs[ind]->reset_buffer(sizeof(int));
 
       result = pack_remote_handles(L1hloc[ind], L1hrem[ind], L1p[ind],
-                                   buffProcs[ind], remoteOwnedBuffs[ind]);CHK_SET_ERR(result, "Failed to pack remote handles");
+                                   buffProcs[ind], remoteOwnedBuffs[ind]);MB_CHK_SET_ERR(result, "Failed to pack remote handles");
       remoteOwnedBuffs[ind]->set_stored_size();
 
       if (myDebug->get_verbosity() == 4) {
@@ -6474,7 +6474,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       result = send_buffer(buffProcs[ind], remoteOwnedBuffs[ind],
                            MB_MESG_REMOTEH_SIZE,
                            sendReqs[2*ind], recv_remoteh_reqs[2*ind + 1],
-                           &dum_ack_buff, incoming2);CHK_SET_ERR(result, "Failed to send remote handles");
+                           &dum_ack_buff, incoming2);MB_CHK_SET_ERR(result, "Failed to send remote handles");
     }
 
     //===========================================
@@ -6484,7 +6484,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       PRINT_DEBUG_WAITANY(recv_remoteh_reqs, MB_MESG_REMOTEH_SIZE, procConfig.proc_rank());
       success = MPI_Waitany(2*buffProcs.size(), &recv_remoteh_reqs[0], &ind, &status);
       if (MPI_SUCCESS != success) {
-        SET_ERR(MB_FAILURE, "Failed in waitany in owned entity exchange");
+        MB_SET_ERR(MB_FAILURE, "Failed in waitany in owned entity exchange");
       }
 
       // OK, received something; decrement incoming counter
@@ -6499,7 +6499,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                            recv_remoteh_reqs[ind], recv_remoteh_reqs[ind + 1], incoming2,
                            remoteOwnedBuffs[ind/2],
                            sendReqs[base_ind], sendReqs[base_ind + 1],
-                           done);CHK_SET_ERR(result, "Failed to receive remote handles");
+                           done);MB_CHK_SET_ERR(result, "Failed to receive remote handles");
 
       if (done) {
         // Incoming remote handles
@@ -6511,7 +6511,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         localOwnedBuffs[ind/2]->reset_ptr(sizeof(int));
         result = unpack_remote_handles(buffProcs[ind/2],
                                        localOwnedBuffs[ind/2]->buff_ptr,
-                                       L2hloc, L2hrem, L2p);CHK_SET_ERR(result, "Failed to unpack remote handles");
+                                       L2hloc, L2hrem, L2p);MB_CHK_SET_ERR(result, "Failed to unpack remote handles");
       }
     }
 
@@ -6536,12 +6536,12 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         success = MPI_Waitall(2*buffProcs.size(), &sendReqs[0], mult_status);
       }
       if (MPI_SUCCESS != success) {
-        SET_ERR(MB_FAILURE, "Failed in waitall in owned entity exchange");
+        MB_SET_ERR(MB_FAILURE, "Failed in waitall in owned entity exchange");
       }
     }
 
 #ifndef NDEBUG
-    result = check_sent_ents(allsent);CHK_SET_ERR(result, "Failed check on shared entities");
+    result = check_sent_ents(allsent);MB_CHK_SET_ERR(result, "Failed check on shared entities");
 #endif
     myDebug->tprintf(1, "Exiting exchange_owned_mesh\n");
 
@@ -6560,10 +6560,10 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         continue;
 
       if (-1 == dim) {
-        result = mbImpl->get_entities_by_handle(*rit, iface_ents);CHK_SET_ERR(result, "Failed to get entities in iface set");
+        result = mbImpl->get_entities_by_handle(*rit, iface_ents);MB_CHK_SET_ERR(result, "Failed to get entities in iface set");
       }
       else {
-        result = mbImpl->get_entities_by_dimension(*rit, dim, iface_ents);CHK_SET_ERR(result, "Failed to get entities in iface set");
+        result = mbImpl->get_entities_by_dimension(*rit, dim, iface_ents);MB_CHK_SET_ERR(result, "Failed to get entities in iface set");
       }
     }
 
@@ -6573,10 +6573,10 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
   ErrorCode ParallelComm::assign_entities_part(std::vector<EntityHandle> &entities, const int proc)
   {
     EntityHandle part_set;
-    ErrorCode result = get_part_handle(proc, part_set);CHK_SET_ERR(result, "Failed to get part handle");
+    ErrorCode result = get_part_handle(proc, part_set);MB_CHK_SET_ERR(result, "Failed to get part handle");
 
     if (part_set > 0) {
-      result = mbImpl->add_entities(part_set, &entities[0], entities.size());CHK_SET_ERR(result, "Failed to add entities to part set");
+      result = mbImpl->add_entities(part_set, &entities[0], entities.size());MB_CHK_SET_ERR(result, "Failed to add entities to part set");
     }
 
     return MB_SUCCESS;
@@ -6585,10 +6585,10 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
   ErrorCode ParallelComm::remove_entities_part(Range &entities, const int proc)
   {
     EntityHandle part_set;
-    ErrorCode result = get_part_handle(proc, part_set);CHK_SET_ERR(result, "Failed to get part handle");
+    ErrorCode result = get_part_handle(proc, part_set);MB_CHK_SET_ERR(result, "Failed to get part handle");
 
     if (part_set > 0) {
-      result = mbImpl->remove_entities(part_set, entities);CHK_SET_ERR(result, "Failed to remove entities from part set");
+      result = mbImpl->remove_entities(part_set, entities);MB_CHK_SET_ERR(result, "Failed to remove entities from part set");
     }
 
     return MB_SUCCESS;
@@ -6599,11 +6599,11 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     // Check entities to make sure there are no zero-valued remote handles
     // where they shouldn't be
     std::vector<unsigned char> pstat(allsent.size());
-    ErrorCode result = mbImpl->tag_get_data(pstatus_tag(), allsent, &pstat[0]);CHK_SET_ERR(result, "Failed to get pstatus tag data");
+    ErrorCode result = mbImpl->tag_get_data(pstatus_tag(), allsent, &pstat[0]);MB_CHK_SET_ERR(result, "Failed to get pstatus tag data");
     std::vector<EntityHandle> handles(allsent.size());
-    result = mbImpl->tag_get_data(sharedh_tag(), allsent, &handles[0]);CHK_SET_ERR(result, "Failed to get sharedh tag data");
+    result = mbImpl->tag_get_data(sharedh_tag(), allsent, &handles[0]);MB_CHK_SET_ERR(result, "Failed to get sharedh tag data");
     std::vector<int> procs(allsent.size());
-    result = mbImpl->tag_get_data(sharedp_tag(), allsent, &procs[0]);CHK_SET_ERR(result, "Failed to get sharedp tag data");
+    result = mbImpl->tag_get_data(sharedp_tag(), allsent, &procs[0]);MB_CHK_SET_ERR(result, "Failed to get sharedp tag data");
 
     Range bad_entities;
 
@@ -6621,8 +6621,8 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         if (MB_TAG_NOT_FOUND == result)
           continue;
         else if (MB_SUCCESS != result)
-          SET_ERR(result, "Failed to get sharedps tag data");
-        result = mbImpl->tag_get_data(sharedhs_tag(), &(*rit), 1, dum_hs);CHK_SET_ERR(result, "Failed to get sharedhs tag data");
+          MB_SET_ERR(result, "Failed to get sharedps tag data");
+        result = mbImpl->tag_get_data(sharedhs_tag(), &(*rit), 1, dum_hs);MB_CHK_SET_ERR(result, "Failed to get sharedhs tag data");
 
         // Find first non-set proc
         int *ns_proc = std::find(dum_ps, dum_ps + MAX_SHARING_PROCS, -1);
@@ -6693,7 +6693,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       if (-1 != proc) {
         result = find_existing_entity(false, proc, hpair[0], 3, NULL, 0,
                                       mbImpl->type_from_handle(hpair[1]),
-                                      L2hloc, L2hrem, L2p, new_h);CHK_SET_ERR(result, "Didn't get existing entity");
+                                      L2hloc, L2hrem, L2p, new_h);MB_CHK_SET_ERR(result, "Didn't get existing entity");
         if (new_h)
           hpair[0] = new_h;
         else
@@ -6702,7 +6702,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       if (!(hpair[0] && hpair[1]))
         return MB_FAILURE;
       int this_proc = from_proc;
-      result = update_remote_data(hpair[0], &this_proc, hpair + 1, 1, 0);CHK_SET_ERR(result, "Failed to set remote data range on sent entities in ghost exchange");
+      result = update_remote_data(hpair[0], &this_proc, hpair + 1, 1, 0);MB_CHK_SET_ERR(result, "Failed to set remote data range on sent entities in ghost exchange");
     }
 
     return MB_SUCCESS;
@@ -6726,10 +6726,10 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
       // Get starting "from" entities
       if (bridge_dim == -1) {
-        result = mbImpl->get_entities_by_handle(*rit, from_ents);CHK_SET_ERR(result, "Failed to get bridge ents in the set");
+        result = mbImpl->get_entities_by_handle(*rit, from_ents);MB_CHK_SET_ERR(result, "Failed to get bridge ents in the set");
       }
       else {
-        result = mbImpl->get_entities_by_dimension(*rit, bridge_dim, from_ents);CHK_SET_ERR(result, "Failed to get bridge ents in the set");
+        result = mbImpl->get_entities_by_dimension(*rit, bridge_dim, from_ents);MB_CHK_SET_ERR(result, "Failed to get bridge ents in the set");
       }
 
       // Need to get layers of bridge-adj entities
@@ -6737,10 +6737,10 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         continue;
       result = MeshTopoUtil(mbImpl).get_bridge_adjacencies(from_ents, bridge_dim,
                                                            ghost_dim, ghosted_ents,
-                                                           num_layers);CHK_SET_ERR(result, "Failed to get bridge adjacencies");
+                                                           num_layers);MB_CHK_SET_ERR(result, "Failed to get bridge adjacencies");
     }
 
-    result = add_verts(ghosted_ents);CHK_SET_ERR(result, "Failed to add verts");
+    result = add_verts(ghosted_ents);MB_CHK_SET_ERR(result, "Failed to add verts");
 
     if (addl_ents) {
       // First get the ents of ghost_dim
@@ -6752,18 +6752,18 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       tmp_notowned = tmp_owned;
 
       // Next, filter by pstatus; can only create adj entities for entities I own
-      result = filter_pstatus(tmp_owned, PSTATUS_NOT_OWNED, PSTATUS_NOT, -1, &tmp_owned);CHK_SET_ERR(result, "Failed to filter owned entities");
+      result = filter_pstatus(tmp_owned, PSTATUS_NOT_OWNED, PSTATUS_NOT, -1, &tmp_owned);MB_CHK_SET_ERR(result, "Failed to filter owned entities");
 
       tmp_notowned -= tmp_owned;
 
       // Get edges first
       if (1 == addl_ents || 3 == addl_ents) {
-        result = mbImpl->get_adjacencies(tmp_owned, 1, true, tmp_ents, Interface::UNION);CHK_SET_ERR(result, "Failed to get edge adjacencies for owned ghost entities");
-        result = mbImpl->get_adjacencies(tmp_notowned, 1, false, tmp_ents, Interface::UNION);CHK_SET_ERR(result, "Failed to get edge adjacencies for notowned ghost entities");
+        result = mbImpl->get_adjacencies(tmp_owned, 1, true, tmp_ents, Interface::UNION);MB_CHK_SET_ERR(result, "Failed to get edge adjacencies for owned ghost entities");
+        result = mbImpl->get_adjacencies(tmp_notowned, 1, false, tmp_ents, Interface::UNION);MB_CHK_SET_ERR(result, "Failed to get edge adjacencies for notowned ghost entities");
       }
       if (2 == addl_ents || 3 == addl_ents) {
-        result = mbImpl->get_adjacencies(tmp_owned, 2, true, tmp_ents, Interface::UNION);CHK_SET_ERR(result, "Failed to get face adjacencies for owned ghost entities");
-        result = mbImpl->get_adjacencies(tmp_notowned, 2, false, tmp_ents, Interface::UNION);CHK_SET_ERR(result, "Failed to get face adjacencies for notowned ghost entities");
+        result = mbImpl->get_adjacencies(tmp_owned, 2, true, tmp_ents, Interface::UNION);MB_CHK_SET_ERR(result, "Failed to get face adjacencies for owned ghost entities");
+        result = mbImpl->get_adjacencies(tmp_notowned, 2, false, tmp_ents, Interface::UNION);MB_CHK_SET_ERR(result, "Failed to get face adjacencies for notowned ghost entities");
       }
 
       ghosted_ents.merge(tmp_ents);
@@ -6781,14 +6781,14 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       set_range = sent_ents.equal_range(MBENTITYSET);
     ErrorCode result = MB_SUCCESS, tmp_result;
     for (Range::const_iterator rit = set_range.first; rit != set_range.second; ++rit) {
-      tmp_result = mbImpl->get_entities_by_type(*rit, MBVERTEX, sent_ents);CHK_SET_ERR(tmp_result, "Failed to get contained verts");
+      tmp_result = mbImpl->get_entities_by_type(*rit, MBVERTEX, sent_ents);MB_CHK_SET_ERR(tmp_result, "Failed to get contained verts");
     }
 
     // Now non-sets
     Range tmp_ents;
     std::copy(sent_ents.begin(), set_range.first, range_inserter(tmp_ents));
     result = mbImpl->get_adjacencies(tmp_ents, 0, false, sent_ents,
-                                     Interface::UNION);CHK_SET_ERR(result, "Failed to get vertices adj to ghosted ents");
+                                     Interface::UNION);MB_CHK_SET_ERR(result, "Failed to get vertices adj to ghosted ents");
 
     return result;
   }
@@ -6826,7 +6826,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                           MB_MESG_TAGS_SIZE, procConfig.proc_comm(),
                           &recv_tag_reqs[3*ind]);
       if (success != MPI_SUCCESS) {
-        SET_ERR(MB_FAILURE, "Failed to post irecv in ghost exchange");
+        MB_SET_ERR(MB_FAILURE, "Failed to post irecv in ghost exchange");
       }
     }
 
@@ -6847,11 +6847,11 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       Range tag_ents = entities;
 
       // Get ents shared by proc *sit
-      result = filter_pstatus(tag_ents, PSTATUS_SHARED, PSTATUS_AND, *sit);CHK_SET_ERR(result, "Failed pstatus AND check");
+      result = filter_pstatus(tag_ents, PSTATUS_SHARED, PSTATUS_AND, *sit);MB_CHK_SET_ERR(result, "Failed pstatus AND check");
 
       // Remote nonowned entities
       if (!tag_ents.empty()) {
-        result = filter_pstatus(tag_ents, PSTATUS_NOT_OWNED, PSTATUS_NOT);CHK_SET_ERR(result, "Failed pstatus NOT check");
+        result = filter_pstatus(tag_ents, PSTATUS_NOT_OWNED, PSTATUS_NOT);MB_CHK_SET_ERR(result, "Failed pstatus NOT check");
       }
 
       // Pack-send; this also posts receives if store_remote_handles is true
@@ -6875,11 +6875,11 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
       result = pack_tags(tag_ents,
                          src_tags, dst_tags, tag_ranges,
-                         localOwnedBuffs[ind], true, *sit);CHK_SET_ERR(result, "Failed to count buffer in pack_send_tag");
+                         localOwnedBuffs[ind], true, *sit);MB_CHK_SET_ERR(result, "Failed to count buffer in pack_send_tag");
 
       // Now send it
       result = send_buffer(*sit, localOwnedBuffs[ind], MB_MESG_TAGS_SIZE, sendReqs[3*ind],
-                           recv_tag_reqs[3*ind + 2], &dum_ack_buff, incoming);CHK_SET_ERR(result, "Failed to send buffer");
+                           recv_tag_reqs[3*ind + 2], &dum_ack_buff, incoming);MB_CHK_SET_ERR(result, "Failed to send buffer");
     }
 
     // Receive/unpack tags
@@ -6889,7 +6889,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       PRINT_DEBUG_WAITANY(recv_tag_reqs, MB_MESG_TAGS_SIZE, procConfig.proc_rank());
       success = MPI_Waitany(3*buffProcs.size(), &recv_tag_reqs[0], &index_in_recv_requests, &status);
       if (MPI_SUCCESS != success) {
-        SET_ERR(MB_FAILURE, "Failed in waitany in tag exchange");
+        MB_SET_ERR(MB_FAILURE, "Failed in waitany in tag exchange");
       }
       // Processor index in the list is divided by 3
       ind = index_in_recv_requests / 3;
@@ -6910,11 +6910,11 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                            localOwnedBuffs[ind],
                            sendReqs[3*ind + 1], // Send request for sending the second message
                            sendReqs[3*ind + 2], // This is for sending the ack
-                           done);CHK_SET_ERR(result, "Failed to resize recv buffer");
+                           done);MB_CHK_SET_ERR(result, "Failed to resize recv buffer");
       if (done) {
         remoteOwnedBuffs[ind]->reset_ptr(sizeof(int));
         result = unpack_tags(remoteOwnedBuffs[ind]->buff_ptr,
-                             dum_vec, true, buffProcs[ind]);CHK_SET_ERR(result, "Failed to recv-unpack-tag message");
+                             dum_vec, true, buffProcs[ind]);MB_CHK_SET_ERR(result, "Failed to recv-unpack-tag message");
       }
     }
 
@@ -6927,7 +6927,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       success = MPI_Waitall(3*buffProcs.size(), &sendReqs[0], status);
     }
     if (MPI_SUCCESS != success) {
-      SET_ERR(MB_FAILURE, "Failure in waitall in tag exchange");
+      MB_SET_ERR(MB_FAILURE, "Failure in waitall in tag exchange");
     }
 
     // If source tag is not equal to destination tag, then
@@ -6940,7 +6940,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         std::copy(sharedEnts.begin(), sharedEnts.end(), range_inserter(entities));
       else
         owned_ents = entities_in;
-      result = filter_pstatus(owned_ents, PSTATUS_NOT_OWNED, PSTATUS_NOT);CHK_SET_ERR(result, "Failure to get subset of owned entities");
+      result = filter_pstatus(owned_ents, PSTATUS_NOT_OWNED, PSTATUS_NOT);MB_CHK_SET_ERR(result, "Failure to get subset of owned entities");
 
       if (!owned_ents.empty()) { // Check this here, otherwise we get
         // Unexpected results from get_entities_by_type_and_tag w/ Interface::INTERSECT
@@ -6952,18 +6952,18 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
           result = mbImpl->get_entities_by_type_and_tag(0, MBMAXTYPE,
                                                         &src_tags[0],
                                                         0, 1, tagged_ents,
-                                                        Interface::INTERSECT);CHK_SET_ERR(result, "get_entities_by_type_and_tag(type == MBMAXTYPE) failed");
+                                                        Interface::INTERSECT);MB_CHK_SET_ERR(result, "get_entities_by_type_and_tag(type == MBMAXTYPE) failed");
 
           int sz, size2;
-          result = mbImpl->tag_get_bytes(src_tags[i], sz);CHK_SET_ERR(result, "tag_get_size failed");
-          result = mbImpl->tag_get_bytes(dst_tags[i], size2);CHK_SET_ERR(result, "tag_get_size failed");
+          result = mbImpl->tag_get_bytes(src_tags[i], sz);MB_CHK_SET_ERR(result, "tag_get_size failed");
+          result = mbImpl->tag_get_bytes(dst_tags[i], size2);MB_CHK_SET_ERR(result, "tag_get_size failed");
           if (sz != size2) {
-            SET_ERR(MB_FAILURE, "tag sizes don't match");
+            MB_SET_ERR(MB_FAILURE, "tag sizes don't match");
           }
 
           data.resize(sz * tagged_ents.size());
-          result = mbImpl->tag_get_data(src_tags[i], tagged_ents, &data[0]);CHK_SET_ERR(result, "tag_get_data failed");
-          result = mbImpl->tag_set_data(dst_tags[i], tagged_ents, &data[0]);CHK_SET_ERR(result, "tag_set_data failed");
+          result = mbImpl->tag_get_data(src_tags[i], tagged_ents, &data[0]);MB_CHK_SET_ERR(result, "tag_get_data failed");
+          result = mbImpl->tag_set_data(dst_tags[i], tagged_ents, &data[0]);MB_CHK_SET_ERR(result, "tag_set_data failed");
         }
       }
     }
@@ -6985,7 +6985,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
     // Check that restrictions are met: number of source/dst tags...
     if (src_tags.size() != dst_tags.size()) {
-      SET_ERR(MB_FAILURE, "Source and destination tag handles must be specified for reduce_tags");
+      MB_SET_ERR(MB_FAILURE, "Source and destination tag handles must be specified for reduce_tags");
     }
 
     // ... tag data types
@@ -6996,15 +6996,15 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     std::vector<int> tags_sizes;
     for (vits = src_tags.begin(), vitd = dst_tags.begin(); vits != src_tags.end(); ++vits, ++vitd) {
       // Checks on tag characteristics
-      result = mbImpl->tag_get_data_type(*vits, tags_type);CHK_SET_ERR(result, "Failed to get src tag data type");
+      result = mbImpl->tag_get_data_type(*vits, tags_type);MB_CHK_SET_ERR(result, "Failed to get src tag data type");
       if (tags_type != MB_TYPE_INTEGER && tags_type != MB_TYPE_DOUBLE &&
           tags_type != MB_TYPE_BIT) {
-        SET_ERR(MB_FAILURE, "Src/dst tags must have integer, double, or bit data type");
+        MB_SET_ERR(MB_FAILURE, "Src/dst tags must have integer, double, or bit data type");
       }
 
-      result = mbImpl->tag_get_bytes(*vits, tags_size);CHK_SET_ERR(result, "Failed to get src tag bytes");
+      result = mbImpl->tag_get_bytes(*vits, tags_size);MB_CHK_SET_ERR(result, "Failed to get src tag bytes");
       vals.resize(tags_size);
-      result = mbImpl->tag_get_default_value(*vits, &vals[0]);CHK_SET_ERR(result, "Src tag must have default value");
+      result = mbImpl->tag_get_default_value(*vits, &vals[0]);MB_CHK_SET_ERR(result, "Src tag must have default value");
 
       tags_sizes.push_back(tags_size);
 
@@ -7012,13 +7012,13 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       if (*vits == *vitd)
         continue;
 
-      result = mbImpl->tag_get_bytes(*vitd, tagd_size);CHK_SET_ERR(result, "Coudln't get dst tag bytes");
+      result = mbImpl->tag_get_bytes(*vitd, tagd_size);MB_CHK_SET_ERR(result, "Coudln't get dst tag bytes");
       if (tags_size != tagd_size) {
-        SET_ERR(MB_FAILURE, "Sizes between src and dst tags don't match");
+        MB_SET_ERR(MB_FAILURE, "Sizes between src and dst tags don't match");
       }
-      result = mbImpl->tag_get_data_type(*vitd, tagd_type);CHK_SET_ERR(result, "Coudln't get dst tag data type");
+      result = mbImpl->tag_get_data_type(*vitd, tagd_type);MB_CHK_SET_ERR(result, "Coudln't get dst tag data type");
       if (tags_type != tagd_type) {
-        SET_ERR(MB_FAILURE, "Src and dst tags must be of same data type");
+        MB_SET_ERR(MB_FAILURE, "Src and dst tags must be of same data type");
       }
     }
 
@@ -7046,7 +7046,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                           MB_MESG_TAGS_SIZE, procConfig.proc_comm(), 
                           &recv_tag_reqs[3*ind]);
       if (success != MPI_SUCCESS) {
-        SET_ERR(MB_FAILURE, "Failed to post irecv in ghost exchange");
+        MB_SET_ERR(MB_FAILURE, "Failed to post irecv in ghost exchange");
       }
     }
 
@@ -7068,8 +7068,8 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       if (*vit == *vit2)
         continue;
       vals.resize(entities.size()*(*vsizes));
-      result = mbImpl->tag_get_data(*vit, entities, &vals[0]);CHK_SET_ERR(result, "Didn't get data properly");
-      result = mbImpl->tag_set_data(*vit2, entities, &vals[0]);CHK_SET_ERR(result, "Didn't set data properly");
+      result = mbImpl->tag_get_data(*vit, entities, &vals[0]);MB_CHK_SET_ERR(result, "Didn't get data properly");
+      result = mbImpl->tag_set_data(*vit2, entities, &vals[0]);MB_CHK_SET_ERR(result, "Didn't set data properly");
     }
 
     int dum_ack_buff;
@@ -7078,7 +7078,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       Range tag_ents = entities;
 
       // Get ents shared by proc *sit
-      result = filter_pstatus(tag_ents, PSTATUS_SHARED, PSTATUS_AND, *sit);CHK_SET_ERR(result, "Failed pstatus AND check");
+      result = filter_pstatus(tag_ents, PSTATUS_SHARED, PSTATUS_AND, *sit);MB_CHK_SET_ERR(result, "Failed pstatus AND check");
 
       // Pack-send
       std::vector<Range> tag_ranges;
@@ -7100,11 +7100,11 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
       result = pack_tags(tag_ents,
                          src_tags, dst_tags, tag_ranges,
-                         localOwnedBuffs[ind], true, *sit);CHK_SET_ERR(result, "Failed to count buffer in pack_send_tag");
+                         localOwnedBuffs[ind], true, *sit);MB_CHK_SET_ERR(result, "Failed to count buffer in pack_send_tag");
 
       // Now send it
       result = send_buffer(*sit, localOwnedBuffs[ind], MB_MESG_TAGS_SIZE, sendReqs[3*ind],
-                           recv_tag_reqs[3*ind + 2], &dum_ack_buff, incoming);CHK_SET_ERR(result, "Failed to send buffer");
+                           recv_tag_reqs[3*ind + 2], &dum_ack_buff, incoming);MB_CHK_SET_ERR(result, "Failed to send buffer");
     }
 
     // Receive/unpack tags
@@ -7114,7 +7114,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       PRINT_DEBUG_WAITANY(recv_tag_reqs, MB_MESG_TAGS_SIZE, procConfig.proc_rank());
       success = MPI_Waitany(3*buffProcs.size(), &recv_tag_reqs[0], &index_in_recv_requests, &status);
       if (MPI_SUCCESS != success) {
-        SET_ERR(MB_FAILURE, "Failed in waitany in ghost exchange");
+        MB_SET_ERR(MB_FAILURE, "Failed in waitany in ghost exchange");
       }
       ind = index_in_recv_requests / 3;
 
@@ -7132,11 +7132,11 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                         incoming, localOwnedBuffs[ind],
                         sendReqs[3*ind + 1], // Send request for sending the second message
                         sendReqs[3*ind + 2], // This is for sending the ack
-                        done);CHK_SET_ERR(result, "Failed to resize recv buffer");
+                        done);MB_CHK_SET_ERR(result, "Failed to resize recv buffer");
       if (done) {
         remoteOwnedBuffs[ind]->reset_ptr(sizeof(int));
         result = unpack_tags(remoteOwnedBuffs[ind]->buff_ptr,
-                             dum_vec, true, buffProcs[ind], &mpi_op);CHK_SET_ERR(result, "Failed to recv-unpack-tag message");
+                             dum_vec, true, buffProcs[ind], &mpi_op);MB_CHK_SET_ERR(result, "Failed to recv-unpack-tag message");
       }
     }
 
@@ -7149,7 +7149,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       success = MPI_Waitall(3*buffProcs.size(), &sendReqs[0], status);
     }
     if (MPI_SUCCESS != success) {
-      SET_ERR(MB_FAILURE, "Failure in waitall in tag exchange");
+      MB_SET_ERR(MB_FAILURE, "Failure in waitall in tag exchange");
     }
 
     myDebug->tprintf(1, "Exiting reduce_tags");
@@ -7429,25 +7429,25 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     EntityHandle sharing_handles[MAX_SHARING_PROCS];
 
     ErrorCode result = mbImpl->tag_get_data(pstatus_tag(), &entity, 1,
-                                            &pstat);CHK_SET_ERR(result, "Failed to get pstatus tag data");
+                                            &pstat);MB_CHK_SET_ERR(result, "Failed to get pstatus tag data");
     if (!(pstat & PSTATUS_NOT_OWNED)) {
       owner = proc_config().proc_rank();
       handle = entity;
     }
     else if (pstat & PSTATUS_MULTISHARED) {
       result = mbImpl->tag_get_data(sharedps_tag(), &entity, 1,
-                                    sharing_procs);CHK_SET_ERR(result, "Failed to get sharedps tag data");
+                                    sharing_procs);MB_CHK_SET_ERR(result, "Failed to get sharedps tag data");
       owner = sharing_procs[0];
       result = mbImpl->tag_get_data(sharedhs_tag(), &entity, 1,
-                                    sharing_handles);CHK_SET_ERR(result, "Failed to get sharedhs tag data");
+                                    sharing_handles);MB_CHK_SET_ERR(result, "Failed to get sharedhs tag data");
       handle = sharing_handles[0];
     }
     else if (pstat & PSTATUS_SHARED) {
       result = mbImpl->tag_get_data(sharedp_tag(), &entity, 1,
-                                    sharing_procs);CHK_SET_ERR(result, "Failed to get sharedp tag data");
+                                    sharing_procs);MB_CHK_SET_ERR(result, "Failed to get sharedp tag data");
       owner = sharing_procs[0];
       result = mbImpl->tag_get_data(sharedh_tag(), &entity, 1,
-                                    sharing_handles);CHK_SET_ERR(result, "Failed to get sharedh tag data");
+                                    sharing_handles);MB_CHK_SET_ERR(result, "Failed to get sharedh tag data");
       handle = sharing_handles[0];
     }
     else {
@@ -7624,7 +7624,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     // If entity is not shared, then we're the owner.
     unsigned char pstat;
     ErrorCode result = mbImpl->tag_get_data(pstatus_tag(), &handle, 1,
-                                            &pstat);CHK_SET_ERR(result, "Failed to get pstatus tag data");
+                                            &pstat);MB_CHK_SET_ERR(result, "Failed to get pstatus tag data");
     if (!(pstat & PSTATUS_NOT_OWNED)) {
       owning_part_id = proc_config().proc_rank();
       if (remote_handle)
@@ -7635,7 +7635,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     // If entity is shared with one other proc, then
     // sharedp_tag will contain a positive value.
     result = mbImpl->tag_get_data(sharedp_tag(), &handle, 1,
-                                  &owning_part_id);CHK_SET_ERR(result, "Failed to get sharedp tag data");
+                                  &owning_part_id);MB_CHK_SET_ERR(result, "Failed to get sharedp tag data");
     if (owning_part_id != -1) {
       // Done?
       if (!remote_handle)
@@ -7677,7 +7677,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     // If entity is not shared, then we're the owner.
     unsigned char pstat;
     ErrorCode result = mbImpl->tag_get_data(pstatus_tag(), &entity, 1,
-                                            &pstat);CHK_SET_ERR(result, "Failed to get pstatus tag data");
+                                            &pstat);MB_CHK_SET_ERR(result, "Failed to get pstatus tag data");
     if (!(pstat & PSTATUS_SHARED)) {
       part_ids_out[0] = proc_config().proc_rank();
       if (remote_handles)
@@ -7689,7 +7689,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     // If entity is shared with one other proc, then
     // sharedp_tag will contain a positive value.
     result = mbImpl->tag_get_data(sharedp_tag(), &entity, 1,
-                                  part_ids_out);CHK_SET_ERR(result, "Failed to get sharedp tag data");
+                                  part_ids_out);MB_CHK_SET_ERR(result, "Failed to get sharedp tag data");
     if (part_ids_out[0] != -1) {
       num_part_ids_out = 2;
       part_ids_out[1] = proc_config().proc_rank();
@@ -8102,17 +8102,17 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
     // Filter by iface
     if (iface) {
-      result = filter_pstatus(shared_ents, PSTATUS_INTERFACE, PSTATUS_AND);CHK_SET_ERR(result, "Failed to filter by iface");
+      result = filter_pstatus(shared_ents, PSTATUS_INTERFACE, PSTATUS_AND);MB_CHK_SET_ERR(result, "Failed to filter by iface");
     }
 
     // Filter by owned
     if (owned_filter) {
-      result = filter_pstatus(shared_ents, PSTATUS_NOT_OWNED, PSTATUS_NOT);CHK_SET_ERR(result, "Failed to filter by owned");
+      result = filter_pstatus(shared_ents, PSTATUS_NOT_OWNED, PSTATUS_NOT);MB_CHK_SET_ERR(result, "Failed to filter by owned");
     }
 
     // Filter by proc
     if (-1 != other_proc) {
-      result = filter_pstatus(shared_ents, PSTATUS_SHARED, PSTATUS_AND, other_proc);CHK_SET_ERR(result, "Failed to filter by proc");
+      result = filter_pstatus(shared_ents, PSTATUS_SHARED, PSTATUS_AND, other_proc);MB_CHK_SET_ERR(result, "Failed to filter by proc");
     }
 
     return result;
@@ -8130,9 +8130,9 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         ErrorCode result = mbImpl->tag_get_data(sharedp_tag(), &(*ents->begin()), 1,
                                                 &sharing_proc);
         if (result != MB_TAG_NOT_FOUND && sharing_proc == -1) {
-          result = mbImpl->tag_delete_data(sharedp_tag(), &(*it), 1);CHK_SET_ERR(result, "Failed to delete sharedp tag data");
-          result = mbImpl->tag_delete_data(sharedh_tag(), &(*it), 1);CHK_SET_ERR(result, "Failed to delete sharedh tag data");
-          result = mbImpl->tag_delete_data(pstatus_tag(), &(*it), 1);CHK_SET_ERR(result, "Failed to delete pstatus tag data");
+          result = mbImpl->tag_delete_data(sharedp_tag(), &(*it), 1);MB_CHK_SET_ERR(result, "Failed to delete sharedp tag data");
+          result = mbImpl->tag_delete_data(sharedh_tag(), &(*it), 1);MB_CHK_SET_ERR(result, "Failed to delete sharedh tag data");
+          result = mbImpl->tag_delete_data(pstatus_tag(), &(*it), 1);MB_CHK_SET_ERR(result, "Failed to delete pstatus tag data");
         }
         ++it;
       }
@@ -8323,7 +8323,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
           MPI_UNSIGNED_CHAR, *sit, MB_MESG_TAGS_SIZE, procConfig.proc_comm(),
           &recv_intx_reqs[3 * ind]);
       if (success != MPI_SUCCESS) {
-        SET_ERR(MB_FAILURE, "Failed to post irecv in settle intersection point");
+        MB_SET_ERR(MB_FAILURE, "Failed to post irecv in settle intersection point");
       }
     }
 
@@ -8340,7 +8340,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       Range edges_to_send = entities;
 
       // Get ents shared by proc *sit
-      result = filter_pstatus(edges_to_send, PSTATUS_SHARED, PSTATUS_AND, *sit);CHK_SET_ERR(result, "Failed pstatus AND check");
+      result = filter_pstatus(edges_to_send, PSTATUS_SHARED, PSTATUS_AND, *sit);MB_CHK_SET_ERR(result, "Failed pstatus AND check");
 
       // Remote nonowned entities; not needed, edges are already owned by this proc
 
@@ -8367,7 +8367,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       std::vector<EntityHandle> dum_vec;
       result = get_remote_handles(true,
           edges_to_send, &dum_remote_edges[0], *sit,
-                                      dum_vec);CHK_SET_ERR(result, "Failed to get remote handles");
+                                      dum_vec);MB_CHK_SET_ERR(result, "Failed to get remote handles");
       int count = 4; // Size of data
       count += sizeof(int)*(int)edges_to_send.size();
       count += sizeof(EntityHandle)*(int)edges_to_send.size(); // We will send the remote handles
@@ -8389,7 +8389,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         PACK_INT(buff->buff_ptr, intx_nodes.size());
 
         result = mbImpl->get_coords(&intx_nodes[0], intx_nodes.size(),
-                                    (double*)buff->buff_ptr);CHK_SET_ERR(result, "Failed to get coords");
+                                    (double*)buff->buff_ptr);MB_CHK_SET_ERR(result, "Failed to get coords");
         buff->buff_ptr += 3 * sizeof(double) * intx_nodes.size();
       }
 
@@ -8398,7 +8398,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
       // Now send it
       result = send_buffer(*sit, localOwnedBuffs[ind], MB_MESG_TAGS_SIZE,
-          sendReqs[3 * ind], recv_intx_reqs[3 * ind + 2], &dum_ack_buff, incoming);CHK_SET_ERR(result, "Failed to send buffer");
+          sendReqs[3 * ind], recv_intx_reqs[3 * ind + 2], &dum_ack_buff, incoming);MB_CHK_SET_ERR(result, "Failed to send buffer");
     }
 
     // Receive/unpack intx points
@@ -8409,7 +8409,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       success = MPI_Waitany(3 * buffProcs.size(), &recv_intx_reqs[0],
           &index_in_recv_requests, &status);
       if (MPI_SUCCESS != success) {
-        SET_ERR(MB_FAILURE, "Failed in waitany in ghost exchange");
+        MB_SET_ERR(MB_FAILURE, "Failed in waitany in ghost exchange");
       }
       // Processor index in the list is divided by 3
       ind = index_in_recv_requests / 3;
@@ -8429,7 +8429,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
           localOwnedBuffs[ind],
           sendReqs[3*ind + 1], // Send request for sending the second message
           sendReqs[3*ind + 2], // This is for sending the ack
-          done);CHK_SET_ERR(result, "Failed to resize recv buffer");
+          done);MB_CHK_SET_ERR(result, "Failed to resize recv buffer");
       if (done) {
         Buffer * buff = remoteOwnedBuffs[ind];
         buff->reset_ptr(sizeof(int));
@@ -8456,7 +8456,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
           pos_from_owner.resize(3*nverts);
           UNPACK_DBLS(buff->buff_ptr, &pos_from_owner[0], 3*nverts);
           std::vector<double> current_positions(3*nverts);
-          result = mbImpl->get_coords(&intx_nodes[0], nverts, &current_positions[0]);CHK_SET_ERR(result, "Failed to get current positions");
+          result = mbImpl->get_coords(&intx_nodes[0], nverts, &current_positions[0]);MB_CHK_SET_ERR(result, "Failed to get current positions");
           // Now, look at what we have in current pos, compare to pos from owner, and reset
           for (int k = 0; k < nverts; k++) {
             double * pk = &current_positions[3*k];
@@ -8478,7 +8478,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
             }
           }
           // After we are done resetting, we can set the new positions of nodes:
-          result = mbImpl->set_coords(&intx_nodes[0], nverts, &current_positions[0]);CHK_SET_ERR(result, "Failed to set new current positions");
+          result = mbImpl->set_coords(&intx_nodes[0], nverts, &current_positions[0]);MB_CHK_SET_ERR(result, "Failed to set new current positions");
         }
       }
     }
@@ -8491,7 +8491,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       success = MPI_Waitall(3 * buffProcs.size(), &sendReqs[0], status);
     }
     if (MPI_SUCCESS != success) {
-      SET_ERR(MB_FAILURE, "Failure in waitall in tag exchange");
+      MB_SET_ERR(MB_FAILURE, "Failure in waitall in tag exchange");
     }
 
     myDebug->tprintf(1, "Exiting settle_intersection_points");
@@ -8532,7 +8532,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     gs_data::crystal_data *cd = this->procConfig.crystal_router();
     // All communication happens here; no other mpi calls
     // Also, this is a collective call
-    rval = cd->gs_transfer(1, ents_to_delete, 0);CHK_SET_ERR(rval, "Error in tuple transfer");
+    rval = cd->gs_transfer(1, ents_to_delete, 0);MB_CHK_SET_ERR(rval, "Error in tuple transfer");
 
     // Add to the range of ents to delete the new ones that were sent from other procs
     unsigned int received = ents_to_delete.get_n();
@@ -8541,7 +8541,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       unsigned long valrec = ents_to_delete.vul_rd[i];
       to_delete.insert((EntityHandle)valrec);
     }
-    rval = mbImpl->delete_entities(to_delete);CHK_SET_ERR(rval, "Error in deleting actual entities");
+    rval = mbImpl->delete_entities(to_delete);MB_CHK_SET_ERR(rval, "Error in deleting actual entities");
 
     std::vector<EntityHandle> good_ents;
     for (size_t j = 0; j<sharedEnts.size(); j++) {

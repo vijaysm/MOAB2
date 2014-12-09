@@ -74,7 +74,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
   int parallel_mode;
   ErrorCode result = opts.match_option("PARALLEL", parallelOptsNames, parallel_mode);
   if (MB_FAILURE == result) {
-    SET_ERR(MB_FAILURE, "Unexpected value for 'PARALLEL' option");
+    MB_SET_ERR(MB_FAILURE, "Unexpected value for 'PARALLEL' option");
   }
   else if (MB_ENTITY_NOT_FOUND == result) {
     parallel_mode = 0;
@@ -128,7 +128,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
   else if (MB_SUCCESS == result) {
     int num_fields = sscanf(ghost_str.c_str(), "%d.%d.%d.%d", &ghost_dim, &bridge_dim, &num_layers, &addl_ents);
     if (3 > num_fields) {
-      SET_ERR(MB_FAILURE, "Didn't read 3 fields from PARALLEL_GHOSTS string");
+      MB_SET_ERR(MB_FAILURE, "Didn't read 3 fields from PARALLEL_GHOSTS string");
     }
   }
 
@@ -143,7 +143,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
   else if (MB_SUCCESS == result) {
     int num_fields = sscanf(shared_str.c_str(), "%d.%d", &resolve_dim, &shared_dim);
     if (2 != num_fields) {
-      SET_ERR(MB_FAILURE, "Didn't read 2 fields from PARALLEL_RESOLVE_SHARED_ENTS string");
+      MB_SET_ERR(MB_FAILURE, "Didn't read 2 fields from PARALLEL_RESOLVE_SHARED_ENTS string");
     }
   }
 
@@ -153,7 +153,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
   if (MB_ENTITY_NOT_FOUND == result)
     reader_rank = 0;
   else if (MB_SUCCESS != result) {
-    SET_ERR(MB_FAILURE, "Unexpected value for 'MPI_IO_RANK' option");
+    MB_SET_ERR(MB_FAILURE, "Unexpected value for 'MPI_IO_RANK' option");
   }
 
   // Now that we've parsed all the parallel options, make an instruction queue
@@ -164,7 +164,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
   if (MB_SUCCESS == opts.get_null_option("PARTITION_BY_RANK")) {
     partition_by_rank = true;
     if (!partition_tag_vals.empty()) {
-      SET_ERR(MB_FAILURE, "Cannot specify both PARTITION_VALS and PARTITION_BY_RANK");
+      MB_SET_ERR(MB_FAILURE, "Cannot specify both PARTITION_VALS and PARTITION_BY_RANK");
     }
   }
 
@@ -209,7 +209,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
         break;
 
     default:
-        SET_ERR(MB_FAILURE, "Unexpected parallel read mode");
+        MB_SET_ERR(MB_FAILURE, "Unexpected parallel read mode");
   }
 
   if (-2 != resolve_dim)
@@ -231,7 +231,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
                      subset_list, file_id_tag,
                      reader_rank, cputime,
                      resolve_dim, shared_dim,
-                     ghost_dim, bridge_dim, num_layers, addl_ents);CHK_ERR(result);
+                     ghost_dim, bridge_dim, num_layers, addl_ents);MB_CHK_ERR(result);
 
   if (parallel_mode == POPT_BCAST_DELETE && !is_reader)
     opts.mark_all_seen();
@@ -279,7 +279,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
   // Make a new set for the parallel read
   EntityHandle file_set;
   if (!file_set_ptr || !(*file_set_ptr)) {
-    result = mbImpl->create_meshset(MESHSET_SET, file_set);CHK_SET_ERR(result, "Trouble creating file set");
+    result = mbImpl->create_meshset(MESHSET_SET, file_set);MB_CHK_SET_ERR(result, "Trouble creating file set");
   }
   else
     file_set = *file_set_ptr;
@@ -300,7 +300,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
             myDebug.tprintf(1, "Reading file: \"%s\"\n", file_names[j]);
 
             EntityHandle new_file_set;
-            result = mbImpl->create_meshset(MESHSET_SET, new_file_set);CHK_SET_ERR(result, "Trouble creating file set");
+            result = mbImpl->create_meshset(MESHSET_SET, new_file_set);MB_CHK_SET_ERR(result, "Trouble creating file set");
             tmp_result = impl->serial_load_file(file_names[j],
                                                 &new_file_set,
                                                 opts,
@@ -340,7 +340,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
 
           i_read = true;
           if (num_files != 1) {
-            SET_ERR(MB_NOT_IMPLEMENTED, "Multiple file read not supported for READ_PART");
+            MB_SET_ERR(MB_NOT_IMPLEMENTED, "Multiple file read not supported for READ_PART");
           }
 
           // If we're going to resolve shared entities, then we need
@@ -519,11 +519,11 @@ ErrorCode ReadParallel::load_file(const char **file_names,
 
 //==================
       default:
-          SET_ERR(MB_FAILURE, "Unexpected parallel action");
+          MB_SET_ERR(MB_FAILURE, "Unexpected parallel action");
     } // switch (*vit)
 
     if (MB_SUCCESS != tmp_result) {
-        SET_ERR(MB_FAILURE, "Failed in step " << ParallelActionsNames[*vit]);
+        MB_SET_ERR(MB_FAILURE, "Failed in step " << ParallelActionsNames[*vit]);
     }
 
     if (cputime)
@@ -531,7 +531,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
   } // for (i = 1, vit = pa_vec.begin(); vit != pa_vec.end(); ++vit, i++)
 
   if (use_id_tag) {
-    result = mbImpl->tag_delete(id_tag);CHK_SET_ERR(result, "Trouble deleting id tag");
+    result = mbImpl->tag_delete(id_tag);MB_CHK_SET_ERR(result, "Trouble deleting id tag");
   }
 
   if (cputime) {
@@ -576,11 +576,11 @@ ErrorCode ReadParallel::delete_nonlocal_entities(std::string &ptag_name,
   ErrorCode result = MB_SUCCESS;
 
   Tag ptag;
-  result = mbImpl->tag_get_handle(ptag_name.c_str(), 1, MB_TYPE_INTEGER, ptag);CHK_SET_ERR(result, "Failed getting tag handle in delete_nonlocal_entities");
+  result = mbImpl->tag_get_handle(ptag_name.c_str(), 1, MB_TYPE_INTEGER, ptag);MB_CHK_SET_ERR(result, "Failed getting tag handle in delete_nonlocal_entities");
 
   result = mbImpl->get_entities_by_type_and_tag(file_set, MBENTITYSET,
                                                 &ptag, NULL, 1,
-                                                myPcomm->partition_sets());CHK_SET_ERR(result, "Failed to get sets with partition-type tag");
+                                                myPcomm->partition_sets());MB_CHK_SET_ERR(result, "Failed to get sets with partition-type tag");
 
   int proc_sz = myPcomm->proc_config().proc_size();
   int proc_rk = myPcomm->proc_config().proc_rank();
@@ -589,7 +589,7 @@ ErrorCode ReadParallel::delete_nonlocal_entities(std::string &ptag_name,
     // Values input, get sets with those values
     Range tmp_sets;
     std::vector<int> tag_vals(myPcomm->partition_sets().size());
-    result = mbImpl->tag_get_data(ptag, myPcomm->partition_sets(), &tag_vals[0]);CHK_SET_ERR(result, "Failed to get tag data for partition vals tag");
+    result = mbImpl->tag_get_data(ptag, myPcomm->partition_sets(), &tag_vals[0]);MB_CHK_SET_ERR(result, "Failed to get tag data for partition vals tag");
     for (std::vector<int>::iterator pit = tag_vals.begin();
          pit != tag_vals.end(); ++pit) {
       std::vector<int>::iterator pit2 = std::find(ptag_vals.begin(),
@@ -605,7 +605,7 @@ ErrorCode ReadParallel::delete_nonlocal_entities(std::string &ptag_name,
     // For now, require that number of partition sets be greater
     // than number of procs
     if (myPcomm->partition_sets().size() < (unsigned int) proc_sz) {
-      SET_ERR(MB_FAILURE, "Too few parts; P = " << proc_rk << ", tag = " << ptag << ", # sets = " << myPcomm->partition_sets().size());
+      MB_SET_ERR(MB_FAILURE, "Too few parts; P = " << proc_rk << ", tag = " << ptag << ", # sets = " << myPcomm->partition_sets().size());
     }
 
     Range tmp_sets;
@@ -628,7 +628,7 @@ ErrorCode ReadParallel::delete_nonlocal_entities(std::string &ptag_name,
 
   myDebug.print(1, "My partition sets: ", myPcomm->partition_sets());
 
-  result = delete_nonlocal_entities(file_set);CHK_ERR(result);
+  result = delete_nonlocal_entities(file_set);MB_CHK_ERR(result);
 
   return MB_SUCCESS;
 }
@@ -647,7 +647,7 @@ ErrorCode ReadParallel::create_partition_sets(std::string &ptag_name,
   bool tag_created = false;
   result = mbImpl->tag_get_handle(ptag_name.c_str(), 1, MB_TYPE_INTEGER,
                                   ptag, MB_TAG_SPARSE | MB_TAG_CREAT, 0,
-                                  &tag_created);CHK_SET_ERR(result, "Trouble getting PARALLEL_PARTITION tag");
+                                  &tag_created);MB_CHK_SET_ERR(result, "Trouble getting PARALLEL_PARTITION tag");
 
   if (!tag_created) {
     // This tag already exists; better check to see that tagged sets
@@ -656,9 +656,9 @@ ErrorCode ReadParallel::create_partition_sets(std::string &ptag_name,
     int *proc_rk_ptr = &proc_rk;
     result = mbImpl->get_entities_by_type_and_tag(file_set, MBENTITYSET, &ptag,
                                                   (const void* const*)&proc_rk_ptr, 1,
-                                                  tagged_sets);CHK_SET_ERR(result, "Trouble getting tagged sets");
+                                                  tagged_sets);MB_CHK_SET_ERR(result, "Trouble getting tagged sets");
     if (!tagged_sets.empty() && tagged_sets != myPcomm->partition_sets()) {
-      result = mbImpl->tag_delete_data(ptag, tagged_sets);CHK_SET_ERR(result, "Trouble deleting data of PARALLEL_PARTITION tag");
+      result = mbImpl->tag_delete_data(ptag, tagged_sets);MB_CHK_SET_ERR(result, "Trouble deleting data of PARALLEL_PARTITION tag");
     }
     else if (tagged_sets == myPcomm->partition_sets())
       return MB_SUCCESS;
@@ -668,7 +668,7 @@ ErrorCode ReadParallel::create_partition_sets(std::string &ptag_name,
   std::vector<int> values(myPcomm->partition_sets().size());
   for (unsigned int i = 0; i < myPcomm->partition_sets().size(); i++)
     values[i] = proc_rk;
-  result = mbImpl->tag_set_data(ptag, myPcomm->partition_sets(), &values[0]);CHK_SET_ERR(result, "Trouble setting data to PARALLEL_PARTITION tag");
+  result = mbImpl->tag_set_data(ptag, myPcomm->partition_sets(), &values[0]);MB_CHK_SET_ERR(result, "Trouble setting data to PARALLEL_PARTITION tag");
 
   return MB_SUCCESS;
 }
@@ -686,11 +686,11 @@ ErrorCode ReadParallel::delete_nonlocal_entities(EntityHandle file_set)
   myDebug.tprint(2, "Gathering related entities.\n");
 
   result = read_iface->gather_related_ents(myPcomm->partition_sets(), partition_ents,
-                                           &file_set);CHK_SET_ERR(result, "Failure gathering related entities");
+                                           &file_set);MB_CHK_SET_ERR(result, "Failure gathering related entities");
 
   // Get pre-existing entities
   Range file_ents;
-  result = mbImpl->get_entities_by_handle(file_set, file_ents);CHK_SET_ERR(result, "Couldn't get pre-existing entities");
+  result = mbImpl->get_entities_by_handle(file_set, file_ents);MB_CHK_SET_ERR(result, "Couldn't get pre-existing entities");
 
   if (0 == myPcomm->proc_config().proc_rank()) {
     myDebug.print( 2, "File entities: ", file_ents );
@@ -708,9 +708,9 @@ ErrorCode ReadParallel::delete_nonlocal_entities(EntityHandle file_set)
   // Remove deletable ents from all keepable sets
   for (Range::iterator rit = keepable_sets.begin();
        rit != keepable_sets.end(); ++rit) {
-    result = mbImpl->remove_entities(*rit, deletable_ents);CHK_SET_ERR(result, "Failure removing deletable entities");
+    result = mbImpl->remove_entities(*rit, deletable_ents);MB_CHK_SET_ERR(result, "Failure removing deletable entities");
   }
-  result = mbImpl->remove_entities(file_set, deletable_ents);CHK_SET_ERR(result, "Failure removing deletable entities");
+  result = mbImpl->remove_entities(file_set, deletable_ents);MB_CHK_SET_ERR(result, "Failure removing deletable entities");
 
   myDebug.tprint(2, "Deleting deletable entities.\n");
 
@@ -720,7 +720,7 @@ ErrorCode ReadParallel::delete_nonlocal_entities(EntityHandle file_set)
 
   // Delete sets, then ents
   if (!deletable_sets.empty()) {
-    result = mbImpl->delete_entities(deletable_sets);CHK_SET_ERR(result, "Failure deleting sets in delete_nonlocal_entities");
+    result = mbImpl->delete_entities(deletable_sets);MB_CHK_SET_ERR(result, "Failure deleting sets in delete_nonlocal_entities");
   }
 
   deletable_ents -= deletable_sets;
@@ -730,7 +730,7 @@ ErrorCode ReadParallel::delete_nonlocal_entities(EntityHandle file_set)
   }
 
   if (!deletable_ents.empty()) {
-    result = mbImpl->delete_entities(deletable_ents);CHK_SET_ERR(result, "Failure deleting entities in delete_nonlocal_entities");
+    result = mbImpl->delete_entities(deletable_ents);MB_CHK_SET_ERR(result, "Failure deleting entities in delete_nonlocal_entities");
   }
 
   return MB_SUCCESS;

@@ -80,7 +80,7 @@ const char* mpi_err_str(int errorcode) {
 #define CHECK_MPI(A) \
   do { \
     if (MPI_SUCCESS != (A)) { \
-      SET_ERR_CONT("MPI Failure : (Code " << (int)(A) << ") " << mpi_err_str((A))); \
+      MB_SET_ERR_CONT("MPI Failure : (Code " << (int)(A) << ") " << mpi_err_str((A))); \
       dbgOut.printf(1, MPI_FAILURE_MSG((A))); \
       return error(MB_FAILURE); \
     } \
@@ -92,7 +92,7 @@ const char* mpi_err_str(int errorcode) {
 #define CHECK_MB(A) \
   do { \
     if (MB_SUCCESS != (A)) { \
-      SET_ERR_CONT("MOAB Failure : " << ErrorCodeStr[(A)]); \
+      MB_SET_ERR_CONT("MOAB Failure : " << ErrorCodeStr[(A)]); \
       dbgOut.printf(1, MB_FAILURE_MSG((A))); \
       return error(A); \
     } \
@@ -104,7 +104,7 @@ const char* mpi_err_str(int errorcode) {
 #define CHECK_HDF(A) \
   do { \
     if (mhdf_isError(&(A))) { \
-      SET_ERR_CONT("MHDF Failure : " << mhdf_message(&(A))); \
+      MB_SET_ERR_CONT("MHDF Failure : " << mhdf_message(&(A))); \
       dbgOut.printf(1, HDF_FAILURE_MSG((A))); \
       return error(MB_FAILURE); \
     } \
@@ -113,7 +113,7 @@ const char* mpi_err_str(int errorcode) {
 #define CHECK_HDFN(A) \
   do { \
     if (mhdf_isError(&(A))) { \
-      SET_ERR_CONT("MHDF Failure : " << mhdf_message(&(A))); \
+      MB_SET_ERR_CONT("MHDF Failure : " << mhdf_message(&(A))); \
       return error(MB_FAILURE); \
     } \
   } while (false)
@@ -390,7 +390,7 @@ ErrorCode WriteHDF5Parallel::parallel_create_file(const char* filename,
     dbgOut.tprint(1, "call mhdf_createFile\n");
     filePtr = mhdf_createFile(filename, overwrite, type_names, MBMAXTYPE, id_type, &status);
     if (!filePtr) {
-      SET_ERR(MB_FAILURE, mhdf_message(&status));
+      MB_SET_ERR(MB_FAILURE, mhdf_message(&status));
     }
 
     dbgOut.tprint(1, "call write_qa\n");
@@ -495,7 +495,7 @@ ErrorCode WriteHDF5Parallel::parallel_create_file(const char* filename,
   filePtr = mhdf_openFileWithOpt(filename, 1, &junk, id_type, hdf_opt, &status);
   H5Pclose(hdf_opt);
   if (!filePtr) {
-    SET_ERR(MB_FAILURE, mhdf_message(&status));
+    MB_SET_ERR(MB_FAILURE, mhdf_message(&status));
   }
 
   if (collectiveIO) {
@@ -684,12 +684,12 @@ ErrorCode WriteHDF5Parallel::check_serial_tag_data(const std::vector<unsigned ch
       DataType type;
       iFace->tag_get_data_type(tag_iter->tag_id, type);
       if (type != ptr->type) {
-        SET_ERR(MB_FAILURE, "Processes have inconsistent data type for tag \"" << name << "\"");
+        MB_SET_ERR(MB_FAILURE, "Processes have inconsistent data type for tag \"" << name << "\"");
       }
       int size;
       iFace->tag_get_length(tag_iter->tag_id, size);
       if (size != ptr->size) {
-        SET_ERR(MB_FAILURE, "Processes have inconsistent size for tag \"" <<  name << "\"");
+        MB_SET_ERR(MB_FAILURE, "Processes have inconsistent size for tag \"" <<  name << "\"");
       }
       tag_iter->write_sparse = false;
     }
@@ -771,7 +771,7 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
   int code, lcode = (MB_SUCCESS != rval) ? rval + 2 : missing.empty() ? 0 : 1;
   err = MPI_Allreduce(&lcode, &code, 1, MPI_INT, MPI_MAX, comm);CHECK_MPI(err);
   if (code > 1) {
-    SET_ERR_CONT("Inconsistent tag definitions between procs");
+    MB_SET_ERR_CONT("Inconsistent tag definitions between procs");
     return error((ErrorCode)(code - 2));
   }
 
@@ -810,7 +810,7 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
       this_size = -rval;
     err = MPI_Bcast(&this_size, 1, MPI_LONG, 0, comm);CHECK_MPI(err);
     if (this_size < 0) {
-      SET_ERR_CONT("Inconsistent tag definitions between procs");
+      MB_SET_ERR_CONT("Inconsistent tag definitions between procs");
       return error((ErrorCode) - this_size);
     }
     tag_buffer.resize(this_size);
@@ -2216,7 +2216,7 @@ ErrorCode WriteHDF5Parallel::exchange_file_ids(const Range& nonlocal)
        myPcomm->get_owner(*i, owner);
        const char* name = CN::EntityTypeName(TYPE_FROM_HANDLE(*i));
        int id = ID_FROM_HANDLE(*i);
-       SET_ERR_CONT("Process " << myPcomm->proc_config().proc_rank() << " did not receive valid id handle for shared " << name << " " << id << " owned by process " << owner);
+       MB_SET_ERR_CONT("Process " << myPcomm->proc_config().proc_rank() << " did not receive valid id handle for shared " << name << " " << id << " owned by process " << owner);
        dbgOut.printf(1, "Did not receive valid remote id for "
                                 "shared %s %d owned by process %d",
                                 name, id, owner);
@@ -2254,7 +2254,7 @@ ErrorCode WriteHDF5Parallel::exchange_file_ids(const Range& nonlocal)
   }
   if (invalid_count) {
     iFace->tag_delete(file_id_tag);
-    SET_ERR(MB_FAILURE, invalid_count << " entities with conflicting ownership found by process " << myPcomm->proc_config().proc_rank() << ". This will result in duplicate entities written to file");
+    MB_SET_ERR(MB_FAILURE, invalid_count << " entities with conflicting ownership found by process " << myPcomm->proc_config().proc_rank() << ". This will result in duplicate entities written to file");
   }
 #endif
 

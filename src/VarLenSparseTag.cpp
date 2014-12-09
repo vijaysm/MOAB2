@@ -28,7 +28,7 @@ namespace moab {
 
 static ErrorCode not_found(std::string name, EntityHandle h)
 {
-  // MB_TAG_NOT_FOUND could be a non-error condition, do not call SET_ERR on it
+  // MB_TAG_NOT_FOUND could be a non-error condition, do not call MB_SET_ERR on it
   // Print warning messages for debugging only
   bool mydebug = false;
   if (mydebug) {
@@ -94,7 +94,7 @@ ErrorCode VarLenSparseTag::get_data(const SequenceManager*,
                                     size_t ,
                                     void*) const
 {
-  SET_ERR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
+  MB_SET_ERR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
 }
 
 ErrorCode VarLenSparseTag::get_data(const SequenceManager*,
@@ -102,7 +102,7 @@ ErrorCode VarLenSparseTag::get_data(const SequenceManager*,
                                     const Range& /*entities*/,
                                     void* /* data */) const
 {
-  SET_ERR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
+  MB_SET_ERR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
 }
 
 ErrorCode VarLenSparseTag::get_data(const SequenceManager*,
@@ -113,12 +113,12 @@ ErrorCode VarLenSparseTag::get_data(const SequenceManager*,
                                     int* lengths) const
 {
   if (!lengths) {
-    SET_ERR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
+    MB_SET_ERR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
   }
 
   ErrorCode rval;
   for (size_t i = 0; i < num_entities; ++i) {
-    rval = get_data_ptr(NULL, entities[i], pointers[i], lengths[i]);CHK_ERR(rval);
+    rval = get_data_ptr(NULL, entities[i], pointers[i], lengths[i]);MB_CHK_ERR(rval);
   }
 
   return MB_SUCCESS;
@@ -131,13 +131,13 @@ ErrorCode VarLenSparseTag::get_data(const SequenceManager*,
                                     int* lengths) const
 {
   if (!lengths) {
-    SET_ERR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
+    MB_SET_ERR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
   }
 
   ErrorCode rval;
   Range::const_iterator i;
   for (i = entities.begin(); i != entities.end(); ++i, ++pointers, ++lengths) {
-    rval = get_data_ptr(NULL, *i, *pointers, *lengths);CHK_ERR(rval);
+    rval = get_data_ptr(NULL, *i, *pointers, *lengths);MB_CHK_ERR(rval);
   }
 
   return MB_SUCCESS;
@@ -149,7 +149,7 @@ ErrorCode VarLenSparseTag::set_data(SequenceManager* /* seqman */,
                                     size_t /* num_entities */,
                                     const void* /* data */)
 {
-  SET_ERR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
+  MB_SET_ERR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
 }
 
 ErrorCode VarLenSparseTag::set_data(SequenceManager* /* seqman */,
@@ -157,7 +157,7 @@ ErrorCode VarLenSparseTag::set_data(SequenceManager* /* seqman */,
                                     const Range& /* entities */,
                                     const void* /* data */)
 {
-  SET_ERR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
+  MB_SET_ERR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
 }
 
 ErrorCode VarLenSparseTag::set_data(SequenceManager* seqman,
@@ -167,9 +167,9 @@ ErrorCode VarLenSparseTag::set_data(SequenceManager* seqman,
                                     void const* const* pointers,
                                     const int* lengths)
 {
-  ErrorCode rval = validate_lengths(NULL, lengths, num_entities);CHK_ERR(rval);
+  ErrorCode rval = validate_lengths(NULL, lengths, num_entities);MB_CHK_ERR(rval);
 
-  rval = seqman->check_valid_entities(NULL, entities, num_entities, true);CHK_ERR(rval);
+  rval = seqman->check_valid_entities(NULL, entities, num_entities, true);MB_CHK_ERR(rval);
 
   for (size_t i = 0; i < num_entities; ++i) {
     if (lengths[i])
@@ -192,9 +192,9 @@ ErrorCode VarLenSparseTag::set_data(SequenceManager* seqman,
                                     void const* const* pointers,
                                     const int* lengths)
 {
-  ErrorCode rval = validate_lengths(NULL, lengths, entities.size());CHK_ERR(rval);
+  ErrorCode rval = validate_lengths(NULL, lengths, entities.size());MB_CHK_ERR(rval);
 
-  rval = seqman->check_valid_entities(NULL, entities);CHK_ERR(rval);
+  rval = seqman->check_valid_entities(NULL, entities);MB_CHK_ERR(rval);
 
   Range::const_iterator i;
   for (i = entities.begin(); i != entities.end(); ++i, ++pointers, ++lengths) {
@@ -224,9 +224,9 @@ ErrorCode VarLenSparseTag::clear_data(SequenceManager* seqman,
     return MB_SUCCESS;
   }
 
-  ErrorCode rval = validate_lengths(NULL, &value_len, 1);CHK_ERR(rval);
+  ErrorCode rval = validate_lengths(NULL, &value_len, 1);MB_CHK_ERR(rval);
 
-  rval = seqman->check_valid_entities(NULL, entities, num_entities, true);CHK_ERR(rval);
+  rval = seqman->check_valid_entities(NULL, entities, num_entities, true);MB_CHK_ERR(rval);
 
   for (size_t i = 0; i < num_entities; ++i)
     mData[entities[i]].set(value_ptr, value_len);
@@ -245,9 +245,9 @@ ErrorCode VarLenSparseTag::clear_data(SequenceManager* seqman,
     return MB_SUCCESS;
   }
 
-  ErrorCode rval = validate_lengths(NULL, &value_len, 1);CHK_ERR(rval);
+  ErrorCode rval = validate_lengths(NULL, &value_len, 1);MB_CHK_ERR(rval);
 
-  rval = seqman->check_valid_entities(NULL, entities);CHK_ERR(rval);
+  rval = seqman->check_valid_entities(NULL, entities);MB_CHK_ERR(rval);
 
   Range::const_iterator i;
   for (i = entities.begin(); i != entities.end(); ++i)
@@ -300,7 +300,7 @@ ErrorCode VarLenSparseTag::tag_iterate(SequenceManager*,
                                        void*&,
                                        bool)
 {
-  SET_ERR(MB_VARIABLE_DATA_LENGTH, "Cannot iterate over variable-length tag data");
+  MB_SET_ERR(MB_VARIABLE_DATA_LENGTH, "Cannot iterate over variable-length tag data");
 }
 
 template <class Container> static inline

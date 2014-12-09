@@ -34,23 +34,23 @@ int main(int argc, char **argv)
   }
 
   // Load the mesh from vtk file
-  ErrorCode rval = mb->load_mesh(test_file_name.c_str());CHK_ERR(rval);
+  ErrorCode rval = mb->load_mesh(test_file_name.c_str());MB_CHK_ERR(rval);
 
   // Get verts entities, by type
   Range verts;
-  rval = mb->get_entities_by_type(0, MBVERTEX, verts);CHK_ERR(rval);
+  rval = mb->get_entities_by_type(0, MBVERTEX, verts);MB_CHK_ERR(rval);
 
   // Get edge entities, by type
   Range edges;
-  rval = mb->get_entities_by_type(0, MBEDGE, edges);CHK_ERR(rval);
+  rval = mb->get_entities_by_type(0, MBEDGE, edges);MB_CHK_ERR(rval);
 
   // Get faces, by dimension, so we stay generic to entity type
   Range faces;
-  rval = mb->get_entities_by_dimension(0, 2, faces);CHK_ERR(rval);
+  rval = mb->get_entities_by_dimension(0, 2, faces);MB_CHK_ERR(rval);
 
   // Get regions, by dimension, so we stay generic to entity type
   Range elems;
-  rval = mb->get_entities_by_dimension(0, 3, elems);CHK_ERR(rval);
+  rval = mb->get_entities_by_dimension(0, 3, elems);MB_CHK_ERR(rval);
 
   // Output the number of entities
   cout << "Number of vertices is " << verts.size() << endl;

@@ -142,7 +142,7 @@ int main(int argc, char **argv)
 
   clock_t tt = clock();
   // All communication happens here; no mpi calls for the user
-  ErrorCode rval = cd->gs_transfer(1, tl, 0);CHK_SET_ERR(rval, "Error in tuple transfer");
+  ErrorCode rval = cd->gs_transfer(1, tl, 0);MB_CHK_SET_ERR(rval, "Error in tuple transfer");
 
   double secs = 0;
   if (rank == reportrank || (reportrank >= size && 0 == rank)) {

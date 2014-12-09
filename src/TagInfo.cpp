@@ -90,7 +90,7 @@ ErrorCode TagInfo::validate_lengths(Error* /* error_handler */,
   int bits = 0;
   if (variable_length()) {
     if (!lengths) {
-      SET_ERR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag");
+      MB_SET_ERR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag");
     }
     const unsigned type_size = size_from_data_type(get_data_type());
     if (type_size == 1)
@@ -105,7 +105,7 @@ ErrorCode TagInfo::validate_lengths(Error* /* error_handler */,
   if (0 == bits)
     return MB_SUCCESS;
 
-  SET_ERR(MB_INVALID_SIZE, "Tag data with invalid size");
+  MB_SET_ERR(MB_INVALID_SIZE, "Tag data with invalid size");
 }
 
 } // namespace moab
