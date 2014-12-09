@@ -5,18 +5,13 @@
 #include <string>
 #include <stdio.h>
 #include <iomanip>
-#ifndef WIN32
-#  include <sys/times.h>
-#  include <limits.h>
-#  include <unistd.h>
-#endif
-#include <time.h>
 #ifdef USE_MPI
-#  include "moab_mpi.h"
+  #include "moab_mpi.h"
+  #include "moab/ParallelComm.hpp"
 #endif
 #if !defined(_MSC_VER) && !defined(__MINGW32__)
-#  include <termios.h>
-#  include <sys/ioctl.h>
+  #include <termios.h>
+  #include <sys/ioctl.h>
 #endif
 #include <math.h>
 #include <assert.h>
@@ -83,58 +78,133 @@ int main( int argc, char* argv[] )
   }
   for (EntityType et=MBEDGE; et<MBENTITYSET; et++)
   {
-    Range typed=entities.subset_by_type(et);
-    if (!typed.empty())
-    {
-      std::map<QualityType, double> qualities, minq, maxq;
-      Range::iterator  it = typed.begin();
-      rval = vw.all_quality_measures(*it, qualities);
-      if (MB_SUCCESS!=rval )
-      {
-        fprintf(stderr, "Error getting quality for entity type %d with id %ld \n", et, mb.id_from_handle(*it) );
+    int num_qualities = vw.num_qualities(et);
+    if (!num_qualities)
+      continue;
+    Range owned=entities.subset_by_type(et);
+    std::map<QualityType, double> qualities, minq, maxq;
+    int ne_local = (int)owned.size();
+    int ne_global = ne_local;
+
 #ifdef USE_MPI
+    int mpi_err;
+    if (size>1)
+    {
+      // filter the entities not owned, so we do not process them more than once
+      ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
+      Range current = owned;
+      owned.clear();
+
+      rval = pcomm->filter_pstatus(current, PSTATUS_NOT_OWNED, PSTATUS_NOT, -1, &owned);
+      if (rval != MB_SUCCESS)
+      {
         MPI_Finalize();
-#endif
         return 1;
       }
-      minq=qualities; maxq=qualities;
-      it++;
-      for ( ;it!=typed.end(); it++)
+      ne_local = (int)owned.size();
+      mpi_err = MPI_Reduce(&ne_local, &ne_global, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+      if (mpi_err)
       {
+        MPI_Finalize();
+        return 1;
+      }
+    }
+#endif
+    if (ne_global>0)
+    {
+      if (ne_local>0)
+      {
+        Range::iterator  it = owned.begin();
         rval = vw.all_quality_measures(*it, qualities);
         if (MB_SUCCESS!=rval )
         {
           fprintf(stderr, "Error getting quality for entity type %d with id %ld \n", et, mb.id_from_handle(*it) );
-#ifdef USE_MPI
+  #ifdef USE_MPI
           MPI_Finalize();
-#endif
+  #endif
           return 1;
         }
-        std::map<QualityType, double>::iterator minit=minq.begin();
-        std::map<QualityType, double>::iterator maxit=maxq.begin();
-        for (std::map<QualityType, double>::iterator mit=qualities.begin();
-            mit!=qualities.end();
-            mit++, minit++, maxit++)
+        minq=qualities; maxq=qualities;
+        it++;
+        for ( ;it!=owned.end(); it++)
         {
-          if (mit->second > maxit->second) maxit->second = mit->second;
-          if (mit->second < minit->second) minit->second = mit->second;
+          rval = vw.all_quality_measures(*it, qualities);
+          if (MB_SUCCESS!=rval )
+          {
+            fprintf(stderr, "Error getting quality for entity type %d with id %ld \n", et, mb.id_from_handle(*it) );
+  #ifdef USE_MPI
+            MPI_Finalize();
+  #endif
+            return 1;
+          }
+          std::map<QualityType, double>::iterator minit=minq.begin();
+          std::map<QualityType, double>::iterator maxit=maxq.begin();
+          for (std::map<QualityType, double>::iterator mit=qualities.begin();
+              mit!=qualities.end();
+              mit++, minit++, maxit++)
+          {
+            if (mit->second > maxit->second) maxit->second = mit->second;
+            if (mit->second < minit->second) minit->second = mit->second;
+          }
         }
       }
-      std::cout <<" \n\n   " <<  typed.size() << " entities of type " << et << "\n";
-      std::cout <<std::setw(30) << "Quality Name" << std::setw(15) << "    MIN" << std::setw(15) << "  MAX" << "\n";
-      std::map<QualityType, double>::iterator minit=minq.begin();
-      for (std::map<QualityType, double>::iterator maxit=maxq.begin();
-                  maxit!=maxq.end();
-                  minit++, maxit++)
+      if (0==proc_id)
       {
-        std::cout <<std::setw(30) << vw.quality_name(minit->first)
-            << std::setw(15) << minit->second <<
-               std::setw(15) << maxit->second << "\n";
+        std::cout <<" \n\n   " <<  ne_global << " entities of type " <<  vw.entity_type_name(et) << "\n";
+        std::cout <<std::setw(30) << "Quality Name" << std::setw(15) << "    MIN" << std::setw(15) << "  MAX" << "\n";
       }
 
+      std::map<QualityType, double>::iterator minit;
+      std::map<QualityType, double>::iterator maxit;
+      if (ne_local>0)
+      {
+        minit = minq.begin();
+        maxit = maxq.begin();
+      }
+      QualityType quality_type=MB_EDGE_RATIO;
+      for (int i=0; i<num_qualities; i++, quality_type=(QualityType)(quality_type+1))
+      {
+        while(! (vw.possible_quality(et, quality_type)) && quality_type<MB_QUALITY_COUNT)
+          quality_type=(QualityType)(quality_type+1); // will get them in order
+        const char * name_q = vw.quality_name(quality_type);
+        double local_min, global_min;
+        double local_max, global_max;
+        if (ne_local>0)
+        {
+          local_min = global_min = minit->second;
+          local_max = global_max = maxit->second;
+          maxit++; minit++;
+        }
+        else
+        {
+          local_min = global_min = 1.e38; // so this task has no entities of this type
+          local_max = global_max = -1.e38;// it can get here only in parallel
+        }
+#ifdef USE_MPI
+        mpi_err = MPI_Reduce(&local_min, &global_min, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
+        if (mpi_err)
+        {
+          MPI_Finalize();
+          return 1;
+        }
+        mpi_err = MPI_Reduce(&local_max, &global_max, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+        if (mpi_err)
+        {
+          MPI_Finalize();
+          return 1;
+        }
+#endif
+        if (0==proc_id)
+        {
+          std::cout <<std::setw(30) << name_q
+              << std::setw(15) << global_min <<
+                 std::setw(15) << global_max << "\n";
 
+        }
+
+      }
     }
-  }
+  }//etype
 #ifdef USE_MPI
   MPI_Finalize();
 #endif

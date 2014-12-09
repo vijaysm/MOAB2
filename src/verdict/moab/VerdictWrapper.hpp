@@ -86,6 +86,10 @@ public:
   const char * quality_name (QualityType q);
   //! return a string with entity type name
   const char * entity_type_name(EntityType etype);
+  //! return an int with total available qualities for type
+  int num_qualities(EntityType etype);
+  //! return true if quality possible
+  int possible_quality(EntityType et, QualityType q);
   // relative size needs a base size, that is set at global level, one for each major type (hex, tet, quad, tri)
   ErrorCode set_size(double size);
   //! return all qualities for an element

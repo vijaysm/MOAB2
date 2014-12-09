@@ -71,6 +71,21 @@ static int possibleQuality[MBMAXTYPE][MB_QUALITY_COUNT] = {
      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}            //  MBENTITYSET
 };
 
+static int numQualities[MBMAXTYPE] =
+{
+   0, // "MBVERTEX"
+   1, // "MBEDGE", /**< Mesh Edge */
+   13, // "MBTRI", /**< Triangular element (including shells) */
+   22, // "MBQUAD", /**< Quadrilateral element (including shells) */
+   0, // "MBPOLYGON", /**< Polygon */
+   14, // "MBTET", /**< Tetrahedral element */
+   0, //"MBPYRAMID", /**< Pyramid element (where are the face ids for this defined?) */
+   1, // "MBPRISM", /**< Wedge element (Exodus has one, Cubit doesn't. Does Mesh need it?) */
+   1, // "MBKNIFE", /**< Knife element */
+   20,// "MBHEX", /**< Hexahedral element */
+   0, //"MBPOLYHEDRON", /**< Polyhedron */
+   0, // "MBENTITYSET", /**< MeshSet */
+};
 static char const * nameQuality [MB_QUALITY_COUNT] =
 {
    " edge ratio",          //  MB_EDGE_RATIO = 0,  // 0
@@ -80,7 +95,7 @@ static char const * nameQuality [MB_QUALITY_COUNT] =
    " volume" ,             //   MB_VOLUME,          // 4
    " stretch" ,            //   MB_STRETCH,         // 5
    " diagonal" ,           //   MB_DIAGONAL,        // 6
-   " dimension",           //  MB_DIMENSION,       // 7
+   " characteristic length",           //  MB_DIMENSION,       // 7
    " oddy" ,               //   MB_ODDY,            // 8
    " average Frobenius aspect", //  MB_MED_ASPECT_FROBENIUS,// 9
    " maximum Frobenius aspect", //   MB_MAX_ASPECT_FROBENIUS, // 10
@@ -122,6 +137,7 @@ static const char * nameType[MBMAXTYPE] =
     "MBPOLYHEDRON", /**< Polyhedron */
     "MBENTITYSET", /**< MeshSet */
 };
+
 ErrorCode VerdictWrapper::quality_measure(EntityHandle eh, QualityType q, double & quality,
     int num_nodes, double * coords)
 {
@@ -310,6 +326,14 @@ const char * VerdictWrapper::quality_name (QualityType q)
 const char * VerdictWrapper::entity_type_name(EntityType etype)
 {
   return nameType[etype];
+}
+int VerdictWrapper::num_qualities(EntityType etype)
+{
+  return numQualities[etype];
+}
+int VerdictWrapper::possible_quality(EntityType et, QualityType q)
+{
+  return possibleQuality[et][q];
 }
   // relative size needs a base size, that is set at global level, one for each major type (hex, tet, quad, tri)
 ErrorCode VerdictWrapper::set_size(double size)
