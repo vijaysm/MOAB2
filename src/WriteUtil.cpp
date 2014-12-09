@@ -54,7 +54,7 @@ ErrorCode WriteUtil::check_doesnt_exist(const char* file_name)
 {
   struct stat s;
   if (0 == stat(file_name, &s)) {
-    SET_ERR_STR(MB_ALREADY_ALLOCATED, file_name << ": file already exists");
+    SET_ERR(MB_ALREADY_ALLOCATED, file_name << ": file already exists");
   }
   else if (errno == ENOENT)
     return MB_SUCCESS;
@@ -750,7 +750,7 @@ ErrorCode WriteUtil::get_tag_list(std::vector<Tag>& result_list,
     result_list.reserve(user_tag_list_length);
     for (int i = 0; i < user_tag_list_length; ++i) {
       std::string name;
-      rval = mMB->tag_get_name(user_tag_list[i], name);CHK_SET_ERR_STR(rval, "Error " << (int)rval << " getting name for tag (Invalid input tag handle?)");
+      rval = mMB->tag_get_name(user_tag_list[i], name);CHK_SET_ERR(rval, "Error " << (int)rval << " getting name for tag (Invalid input tag handle?)");
 
       if (name.empty()) {
         SET_ERR(MB_TAG_NOT_FOUND, "Explicit request to save anonymous tag");
@@ -759,7 +759,7 @@ ErrorCode WriteUtil::get_tag_list(std::vector<Tag>& result_list,
       int size;
       if (!include_variable_length_tags &&
           MB_VARIABLE_DATA_LENGTH == mMB->tag_get_length(user_tag_list[i], size)) {
-        SET_ERR_STR(MB_TYPE_OUT_OF_RANGE, "File format cannot store variable-length tag: \"" << name << "\"");
+        SET_ERR(MB_TYPE_OUT_OF_RANGE, "File format cannot store variable-length tag: \"" << name << "\"");
       }
 
       result_list.push_back(user_tag_list[i]);
@@ -775,7 +775,7 @@ ErrorCode WriteUtil::get_tag_list(std::vector<Tag>& result_list,
     std::vector<Tag>::iterator i;
     for (i = temp_list.begin(); i != temp_list.end(); ++i) {
       std::string name;
-      rval = mMB->tag_get_name(*i, name);CHK_SET_ERR_STR(rval, "Error " << (int)rval << " getting name for tag (Stale tag handle?)");
+      rval = mMB->tag_get_name(*i, name);CHK_SET_ERR(rval, "Error " << (int)rval << " getting name for tag (Stale tag handle?)");
 
       // Skip anonymous tags
       if (name.empty())

@@ -448,7 +448,7 @@ ErrorCode BitTag::find_entities_with_value(const SequenceManager*,
                                            const Range* intersect_entities) const
 {
   if (value_bytes && value_bytes != 1) {
-    SET_ERR_STR(MB_INVALID_SIZE, "Invalid tag size for bit tag: " << value_bytes << " bytes");
+    SET_ERR(MB_INVALID_SIZE, "Invalid tag size for bit tag: " << value_bytes << " bytes");
   }
 
   const signed char bits = *reinterpret_cast<const unsigned char*>(value);

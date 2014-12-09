@@ -2472,7 +2472,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       }
       else {
         if (new_numps + 1 == MAX_SHARING_PROCS) {
-          SET_ERR_STR(MB_FAILURE, "Exceeded MAX_SHARING_PROCS for " << CN::EntityTypeName(TYPE_FROM_HANDLE(new_h))
+          SET_ERR(MB_FAILURE, "Exceeded MAX_SHARING_PROCS for " << CN::EntityTypeName(TYPE_FROM_HANDLE(new_h))
               << ' ' << ID_FROM_HANDLE(new_h) << " in process " << rank());
         }
         new_ps[new_numps] = ps[i];
@@ -4878,7 +4878,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       result = mbImpl->get_entities_by_handle(0, ents);CHK_SET_ERR(result, "Failed to get all entities");
     }
     else {
-      result = mbImpl->get_entities_by_dimension(0, dim, ents);CHK_SET_ERR_STR(result, "Failed to get entities of dimension " << dim);
+      result = mbImpl->get_entities_by_dimension(0, dim, ents);CHK_SET_ERR(result, "Failed to get entities of dimension " << dim);
     }
 
     std::vector<unsigned char> pstatus(ents.size());
@@ -5938,7 +5938,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     for (unsigned int p = 0; p < num_procs; p++) {
       pc = pcs[p];
       result = pc->get_sent_ents(is_iface, bridge_dim, ghost_dim, num_layers, addl_ents,
-                                 sent_ents[p], allsent[p], entprocs[p]);CHK_SET_ERR_STR(result, "p = " << p << ", get_sent_ents failed");
+                                 sent_ents[p], allsent[p], entprocs[p]);CHK_SET_ERR(result, "p = " << p << ", get_sent_ents failed");
   
       //===========================================
       // Pack entities into buffers
@@ -5948,7 +5948,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         pc->localOwnedBuffs[ind]->reset_ptr(sizeof(int));
         result = pc->pack_entities(sent_ents[p][ind], pc->localOwnedBuffs[ind],
                                    store_remote_handles, pc->buffProcs[ind], is_iface,
-                                   &entprocs[p], &allsent[p]);CHK_SET_ERR_STR(result, "p = " << p << ", packing entities failed");
+                                   &entprocs[p], &allsent[p]);CHK_SET_ERR(result, "p = " << p << ", packing entities failed");
       }
 
       entprocs[p].reset();
@@ -5989,7 +5989,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         result = pcs[to_p]->unpack_entities(pc->localOwnedBuffs[ind]->buff_ptr,
                                             store_remote_handles, ind, is_iface,
                                             L1hloc[to_p], L1hrem[to_p], L1p[to_p], L2hloc[to_p],
-                                            L2hrem[to_p], L2p[to_p], new_ents[to_p]);CHK_SET_ERR_STR(result, "p = " << p << ", failed to unpack entities");
+                                            L2hrem[to_p], L2p[to_p], new_ents[to_p]);CHK_SET_ERR(result, "p = " << p << ", failed to unpack entities");
       }
     }
 
@@ -5998,12 +5998,12 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       // handles for them from all expected procs; if not, need to clean
       // them up
       for (unsigned int p = 0; p < num_procs; p++) {
-        result = pcs[p]->check_clean_iface(allsent[p]);CHK_SET_ERR_STR(result, "p = " << p << ", failed to check on shared entities");
+        result = pcs[p]->check_clean_iface(allsent[p]);CHK_SET_ERR(result, "p = " << p << ", failed to check on shared entities");
       }
 
 #ifndef NDEBUG
       for (unsigned int p = 0; p < num_procs; p++) {
-        result = pcs[p]->check_sent_ents(allsent[p]);CHK_SET_ERR_STR(result, "p = " << p << ", failed to check on shared entities");
+        result = pcs[p]->check_sent_ents(allsent[p]);CHK_SET_ERR(result, "p = " << p << ", failed to check on shared entities");
       }
       result = check_all_shared_handles(pcs, num_procs);CHK_SET_ERR(result, "Failed to check on all shared handles");
 #endif
@@ -6023,7 +6023,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         // Skip if iface layer and higher-rank proc
         pc->localOwnedBuffs[ind]->reset_ptr(sizeof(int));
         result = pc->pack_remote_handles(L1hloc[p][ind], L1hrem[p][ind], L1p[p][ind], *proc_it,
-                                         pc->localOwnedBuffs[ind]);CHK_SET_ERR_STR(result, "p = " << p << ", failed to pack remote handles");
+                                         pc->localOwnedBuffs[ind]);CHK_SET_ERR(result, "p = " << p << ", failed to pack remote handles");
       }
     }
 
@@ -6040,13 +6040,13 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         pc->localOwnedBuffs[ind]->reset_ptr(sizeof(int));
         result = pcs[to_p]->unpack_remote_handles(p,
                                                   pc->localOwnedBuffs[ind]->buff_ptr,
-                                                  L2hloc[to_p], L2hrem[to_p], L2p[to_p]);CHK_SET_ERR_STR(result, "p = " << p << ", failed to unpack remote handles");
+                                                  L2hloc[to_p], L2hrem[to_p], L2p[to_p]);CHK_SET_ERR(result, "p = " << p << ", failed to unpack remote handles");
       }
     }
 
 #ifndef NDEBUG
     for (unsigned int p = 0; p < num_procs; p++) {
-      result = pcs[p]->check_sent_ents(allsent[p]);CHK_SET_ERR_STR(result, "p = " << p << ", failed to check on shared entities");
+      result = pcs[p]->check_sent_ents(allsent[p]);CHK_SET_ERR(result, "p = " << p << ", failed to check on shared entities");
     }
 
     result = ParallelComm::check_all_shared_handles(pcs, num_procs);CHK_SET_ERR(result, "Failed to check on all shared handles");
@@ -6056,7 +6056,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       for (unsigned int p = 0; p < num_procs; p++) {
         if (new_ents[p].empty())
           continue;
-        result = pcs[p]->get_moab()->add_entities(file_sets[p], &new_ents[p][0], new_ents[p].size());CHK_SET_ERR_STR(result, "p = " << p << ", failed to add new entities to set");
+        result = pcs[p]->get_moab()->add_entities(file_sets[p], &new_ents[p][0], new_ents[p].size());CHK_SET_ERR(result, "p = " << p << ", failed to add new entities to set");
       }
     }
 

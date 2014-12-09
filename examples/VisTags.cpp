@@ -162,7 +162,7 @@ int main(int argc, char **argv)
     mb->tag_delete(tagh); // No need for the tag anymore, write it to the new file
   } // for (size_t i = 0; i < tagsNames.size(); i++)
 
-  rval = mb->write_file(file_output);CHK_SET_ERR_STR(rval, "Can't write file " << file_output);
+  rval = mb->write_file(file_output);CHK_SET_ERR(rval, "Can't write file " << file_output);
   cout << "Successfully wrote file " << file_output << "\n";
 
   delete mb;

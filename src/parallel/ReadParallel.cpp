@@ -523,7 +523,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
     } // switch (*vit)
 
     if (MB_SUCCESS != tmp_result) {
-        SET_ERR_STR(MB_FAILURE, "Failed in step " << ParallelActionsNames[*vit]);
+        SET_ERR(MB_FAILURE, "Failed in step " << ParallelActionsNames[*vit]);
     }
 
     if (cputime)
@@ -605,7 +605,7 @@ ErrorCode ReadParallel::delete_nonlocal_entities(std::string &ptag_name,
     // For now, require that number of partition sets be greater
     // than number of procs
     if (myPcomm->partition_sets().size() < (unsigned int) proc_sz) {
-      SET_ERR_STR(MB_FAILURE, "Too few parts; P = " << proc_rk << ", tag = " << ptag << ", # sets = " << myPcomm->partition_sets().size());
+      SET_ERR(MB_FAILURE, "Too few parts; P = " << proc_rk << ", tag = " << ptag << ", # sets = " << myPcomm->partition_sets().size());
     }
 
     Range tmp_sets;

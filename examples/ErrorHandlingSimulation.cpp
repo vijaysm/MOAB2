@@ -31,13 +31,13 @@ ErrorCode FunctionC(int test_case_num, int rank)
     case 2:
       // Simulate a per-processor relevant error MB_INDEX_OUT_OF_RANGE on all processors
       // Note, it is printed by all processors
-      SET_ERR_STR(MB_INDEX_OUT_OF_RANGE, "A contrived error MB_INDEX_OUT_OF_RANGE on processor " << rank);
+      SET_ERR(MB_INDEX_OUT_OF_RANGE, "A contrived error MB_INDEX_OUT_OF_RANGE on processor " << rank);
       break;
     case 3:
       // Simulate a per-processor relevant error MB_TYPE_OUT_OF_RANGE on all processors except root
       // Note, it is printed by all non-root processors
       if (0 != rank)
-        SET_ERR_STR(MB_TYPE_OUT_OF_RANGE, "A contrived error MB_TYPE_OUT_OF_RANGE on processor " << rank);
+        SET_ERR(MB_TYPE_OUT_OF_RANGE, "A contrived error MB_TYPE_OUT_OF_RANGE on processor " << rank);
       break;
     case 4:
       // Simulate a per-processor relevant error MB_INDEX_OUT_OF_RANGE on processor 1

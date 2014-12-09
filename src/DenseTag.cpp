@@ -592,7 +592,7 @@ ErrorCode DenseTag::find_entities_with_value(const SequenceManager* seqman,
                                              const Range* intersect_entities) const
 {
   if (value_bytes && value_bytes != get_size()) {
-    SET_ERR_STR(MB_INVALID_SIZE, "Cannot compare data of size " << value_bytes << " with tag of size " << get_size());
+    SET_ERR(MB_INVALID_SIZE, "Cannot compare data of size " << value_bytes << " with tag of size " << get_size());
   }
 
   if (!intersect_entities) {

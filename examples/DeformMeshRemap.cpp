@@ -624,7 +624,7 @@ ErrorCode DeformMeshRemap::read_file(int m_or_s, string &fname, EntityHandle &se
     const void *setno_ptr = &set_no;
     rval = mbImpl->get_entities_by_type_and_tag(seth, MBENTITYSET, &tagh, &setno_ptr, 1, sets);
     if (MB_SUCCESS != rval || sets.empty()) {
-      SET_ERR_STR(MB_FAILURE, "Couldn't find solid set #" << *sit);
+      SET_ERR(MB_FAILURE, "Couldn't find solid set #" << *sit);
     }
     else
       solidSets[m_or_s].merge(sets);
@@ -651,7 +651,7 @@ ErrorCode DeformMeshRemap::read_file(int m_or_s, string &fname, EntityHandle &se
     const void *setno_ptr = &set_no;
     rval = mbImpl->get_entities_by_type_and_tag(seth, MBENTITYSET, &tagh, &setno_ptr, 1, sets);
     if (MB_SUCCESS != rval || sets.empty()) {
-      SET_ERR_STR(MB_FAILURE, "Couldn't find fluid set #" << *sit);
+      SET_ERR(MB_FAILURE, "Couldn't find fluid set #" << *sit);
     }
     else
       fluidSets[m_or_s].merge(sets);

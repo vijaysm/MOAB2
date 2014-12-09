@@ -189,7 +189,7 @@ ErrorCode ReaderWriterSet::register_factory( reader_factory_t reader,
     // check for duplicate names
   iterator h = handler_by_name( name );
   if (h != end()) {
-    SET_ERR_STR(MB_FAILURE, "Conflicting string name for file formats: \"" << name << "\"");
+    SET_ERR(MB_FAILURE, "Conflicting string name for file formats: \"" << name << "\"");
   }
 
     // count extensions and check for duplicates
@@ -200,9 +200,9 @@ ErrorCode ReaderWriterSet::register_factory( reader_factory_t reader,
     if (h != end())
     {
       if (NULL != reader && h->have_reader())
-        SET_ERR_STR(MB_FAILURE, "Conflicting readers for file extension \"" << *iter << "\": \"" << h->description() << "\" and \"" << description << "\".");
+        SET_ERR(MB_FAILURE, "Conflicting readers for file extension \"" << *iter << "\": \"" << h->description() << "\" and \"" << description << "\".");
       else if (NULL != writer && h->have_writer())
-        SET_ERR_STR(MB_FAILURE, "Conflicting writers for file extension \"" << *iter << "\": \"" << h->description() << "\" and \"" << description << "\".");
+        SET_ERR(MB_FAILURE, "Conflicting writers for file extension \"" << *iter << "\": \"" << h->description() << "\" and \"" << description << "\".");
     }
   }
   handlerList.push_back( Handler(reader, writer, name, description, extensions, iter - extensions) );

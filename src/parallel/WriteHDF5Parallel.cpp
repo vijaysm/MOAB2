@@ -80,7 +80,7 @@ const char* mpi_err_str(int errorcode) {
 #define CHECK_MPI(A) \
   do { \
     if (MPI_SUCCESS != (A)) { \
-      SET_ERR_STR_CONT("MPI Failure : (Code " << (int)(A) << ") " << mpi_err_str((A))); \
+      SET_ERR_CONT("MPI Failure : (Code " << (int)(A) << ") " << mpi_err_str((A))); \
       dbgOut.printf(1, MPI_FAILURE_MSG((A))); \
       return error(MB_FAILURE); \
     } \
@@ -92,7 +92,7 @@ const char* mpi_err_str(int errorcode) {
 #define CHECK_MB(A) \
   do { \
     if (MB_SUCCESS != (A)) { \
-      SET_ERR_STR_CONT("MOAB Failure : " << ErrorCodeStr[(A)]); \
+      SET_ERR_CONT("MOAB Failure : " << ErrorCodeStr[(A)]); \
       dbgOut.printf(1, MB_FAILURE_MSG((A))); \
       return error(A); \
     } \
@@ -104,7 +104,7 @@ const char* mpi_err_str(int errorcode) {
 #define CHECK_HDF(A) \
   do { \
     if (mhdf_isError(&(A))) { \
-      SET_ERR_STR_CONT("MHDF Failure : " << mhdf_message(&(A))); \
+      SET_ERR_CONT("MHDF Failure : " << mhdf_message(&(A))); \
       dbgOut.printf(1, HDF_FAILURE_MSG((A))); \
       return error(MB_FAILURE); \
     } \
@@ -113,7 +113,7 @@ const char* mpi_err_str(int errorcode) {
 #define CHECK_HDFN(A) \
   do { \
     if (mhdf_isError(&(A))) { \
-      SET_ERR_STR_CONT("MHDF Failure : " << mhdf_message(&(A))); \
+      SET_ERR_CONT("MHDF Failure : " << mhdf_message(&(A))); \
       return error(MB_FAILURE); \
     } \
   } while (false)
@@ -684,12 +684,12 @@ ErrorCode WriteHDF5Parallel::check_serial_tag_data(const std::vector<unsigned ch
       DataType type;
       iFace->tag_get_data_type(tag_iter->tag_id, type);
       if (type != ptr->type) {
-        SET_ERR_STR(MB_FAILURE, "Processes have inconsistent data type for tag \"" << name << "\"");
+        SET_ERR(MB_FAILURE, "Processes have inconsistent data type for tag \"" << name << "\"");
       }
       int size;
       iFace->tag_get_length(tag_iter->tag_id, size);
       if (size != ptr->size) {
-        SET_ERR_STR(MB_FAILURE, "Processes have inconsistent size for tag \"" <<  name << "\"");
+        SET_ERR(MB_FAILURE, "Processes have inconsistent size for tag \"" <<  name << "\"");
       }
       tag_iter->write_sparse = false;
     }
@@ -2216,7 +2216,7 @@ ErrorCode WriteHDF5Parallel::exchange_file_ids(const Range& nonlocal)
        myPcomm->get_owner(*i, owner);
        const char* name = CN::EntityTypeName(TYPE_FROM_HANDLE(*i));
        int id = ID_FROM_HANDLE(*i);
-       SET_ERR_STR_CONT("Process " << myPcomm->proc_config().proc_rank() << " did not receive valid id handle for shared " << name << " " << id << " owned by process " << owner);
+       SET_ERR_CONT("Process " << myPcomm->proc_config().proc_rank() << " did not receive valid id handle for shared " << name << " " << id << " owned by process " << owner);
        dbgOut.printf(1, "Did not receive valid remote id for "
                                 "shared %s %d owned by process %d",
                                 name, id, owner);
@@ -2254,7 +2254,7 @@ ErrorCode WriteHDF5Parallel::exchange_file_ids(const Range& nonlocal)
   }
   if (invalid_count) {
     iFace->tag_delete(file_id_tag);
-    SET_ERR_STR(MB_FAILURE, invalid_count << " entities with conflicting ownership found by process " << myPcomm->proc_config().proc_rank() << ". This will result in duplicate entities written to file");
+    SET_ERR(MB_FAILURE, invalid_count << " entities with conflicting ownership found by process " << myPcomm->proc_config().proc_rank() << ". This will result in duplicate entities written to file");
   }
 #endif
 

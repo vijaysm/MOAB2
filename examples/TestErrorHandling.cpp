@@ -74,7 +74,7 @@ ErrorCode TestErrorHandling_4()
   void* ptr = NULL;
   int count = 0;
   rval = mb.tag_iterate(tag, verts.begin(), verts.end(),
-                        count, ptr);CHK_SET_ERR_STR(rval, "Failed to iterate over tag on " << NUM_VTX << " vertices");
+                        count, ptr);CHK_SET_ERR(rval, "Failed to iterate over tag on " << NUM_VTX << " vertices");
 
   return MB_SUCCESS;
 }

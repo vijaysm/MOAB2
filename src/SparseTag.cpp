@@ -290,7 +290,7 @@ ErrorCode SparseTag::clear_data(SequenceManager* seqman,
                                 int value_len)
 {
   if (value_len && value_len != get_size()) {
-    SET_ERR_STR(MB_INVALID_SIZE, "Invalid data size " << get_size() << " specified for sparse tag " << get_name() << " of size " << value_len);
+    SET_ERR(MB_INVALID_SIZE, "Invalid data size " << get_size() << " specified for sparse tag " << get_name() << " of size " << value_len);
   }
 
   ErrorCode rval = seqman->check_valid_entities(NULL, entities, num_entities, true);CHK_ERR(rval);
@@ -309,7 +309,7 @@ ErrorCode SparseTag::clear_data(SequenceManager* seqman,
                                 int value_len)
 {
   if (value_len && value_len != get_size()) {
-    SET_ERR_STR(MB_INVALID_SIZE, "Invalid data size " << get_size() << " specified for sparse tag " << get_name() << " of size " << value_len);
+    SET_ERR(MB_INVALID_SIZE, "Invalid data size " << get_size() << " specified for sparse tag " << get_name() << " of size " << value_len);
   }
 
   ErrorCode rval = seqman->check_valid_entities(NULL, entities);CHK_ERR(rval);
@@ -473,7 +473,7 @@ ErrorCode SparseTag::find_entities_with_value(const SequenceManager* seqman,
                                               const Range* intersect_entities) const
 {
   if (value_bytes && value_bytes != get_size()) {
-    SET_ERR_STR(MB_INVALID_SIZE, "Invalid data size " << get_size() << " specified for sparse tag " << get_name() << " of size " << value_bytes);
+    SET_ERR(MB_INVALID_SIZE, "Invalid data size " << get_size() << " specified for sparse tag " << get_name() << " of size " << value_bytes);
   }
 
   MapType::const_iterator iter, end;

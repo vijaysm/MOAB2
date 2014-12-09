@@ -94,7 +94,7 @@ ErrorCode VarLenSparseTag::get_data(const SequenceManager*,
                                     size_t ,
                                     void*) const
 {
-  SET_ERR_STR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
+  SET_ERR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
 }
 
 ErrorCode VarLenSparseTag::get_data(const SequenceManager*,
@@ -102,7 +102,7 @@ ErrorCode VarLenSparseTag::get_data(const SequenceManager*,
                                     const Range& /*entities*/,
                                     void* /* data */) const
 {
-  SET_ERR_STR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
+  SET_ERR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
 }
 
 ErrorCode VarLenSparseTag::get_data(const SequenceManager*,
@@ -113,7 +113,7 @@ ErrorCode VarLenSparseTag::get_data(const SequenceManager*,
                                     int* lengths) const
 {
   if (!lengths) {
-    SET_ERR_STR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
+    SET_ERR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
   }
 
   ErrorCode rval;
@@ -131,7 +131,7 @@ ErrorCode VarLenSparseTag::get_data(const SequenceManager*,
                                     int* lengths) const
 {
   if (!lengths) {
-    SET_ERR_STR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
+    SET_ERR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
   }
 
   ErrorCode rval;
@@ -149,7 +149,7 @@ ErrorCode VarLenSparseTag::set_data(SequenceManager* /* seqman */,
                                     size_t /* num_entities */,
                                     const void* /* data */)
 {
-  SET_ERR_STR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
+  SET_ERR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
 }
 
 ErrorCode VarLenSparseTag::set_data(SequenceManager* /* seqman */,
@@ -157,7 +157,7 @@ ErrorCode VarLenSparseTag::set_data(SequenceManager* /* seqman */,
                                     const Range& /* entities */,
                                     const void* /* data */)
 {
-  SET_ERR_STR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
+  SET_ERR(MB_VARIABLE_DATA_LENGTH, "No size specified for variable-length tag " << get_name() << " data");
 }
 
 ErrorCode VarLenSparseTag::set_data(SequenceManager* seqman,

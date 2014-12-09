@@ -527,7 +527,7 @@ ErrorCode Core::load_file( const char* file_name,
   if (MB_SUCCESS == rval && !opts.all_seen()) {
     std::string bad_opt;
     if (MB_SUCCESS == opts.get_unseen_option( bad_opt )) {
-      SET_ERR_STR(MB_UNHANDLED_OPTION, "Unrecognized option: \"" << bad_opt << "\"");
+      SET_ERR(MB_UNHANDLED_OPTION, "Unrecognized option: \"" << bad_opt << "\"");
     }
     else {
       SET_ERR(MB_UNHANDLED_OPTION, "Unrecognized option");
@@ -573,14 +573,14 @@ ErrorCode Core::serial_load_file( const char* file_name,
   status = stat(file_name, &stat_data);
 #endif
   if (status) {
-    SET_GLB_ERR_STR(MB_FILE_DOES_NOT_EXIST, file_name << ": " << strerror(errno));
+    SET_GLB_ERR(MB_FILE_DOES_NOT_EXIST, file_name << ": " << strerror(errno));
   }
 #if defined(WIN32) || defined(WIN64) || defined(MSC_VER)
   else if (stat_data.st_mode & _S_IFDIR) {
 #else
   else if (S_ISDIR(stat_data.st_mode)) {
 #endif
-    SET_GLB_ERR_STR(MB_FILE_DOES_NOT_EXIST, file_name << ": Cannot read directory/folder");
+    SET_GLB_ERR(MB_FILE_DOES_NOT_EXIST, file_name << ": Cannot read directory/folder");
   }
 
   ErrorCode rval = MB_FAILURE;
@@ -763,7 +763,7 @@ ErrorCode Core::write_file( const char* file_name,
   }
 
   if (file_type && rval == MB_TYPE_OUT_OF_RANGE) {
-    SET_ERR_STR(rval, "Unrecognized file type \"" << file_type << "\"");
+    SET_ERR(rval, "Unrecognized file type \"" << file_type << "\"");
   }
   // Should we use default writer (e.g. HDF5)?
   else if (MB_SUCCESS != rval) {
@@ -776,7 +776,7 @@ ErrorCode Core::write_file( const char* file_name,
   if (MB_SUCCESS == rval && !opts.all_seen()) {
     std::string bad_opt;
     if (MB_SUCCESS == opts.get_unseen_option( bad_opt )) {
-      SET_ERR_STR(MB_UNHANDLED_OPTION, "Unrecognized option: \"" << bad_opt << "\"");
+      SET_ERR(MB_UNHANDLED_OPTION, "Unrecognized option: \"" << bad_opt << "\"");
     }
     else {
       SET_ERR(MB_UNHANDLED_OPTION, "Unrecognized option");

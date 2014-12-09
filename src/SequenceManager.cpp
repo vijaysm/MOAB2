@@ -818,7 +818,7 @@ ErrorCode SequenceManager::reserve_tag_array(Error* /* error_handler */,
                                              int size, int& index)
 {
   if (size < 1 && size != MB_VARIABLE_LENGTH) {
-    SET_ERR_STR(MB_INVALID_SIZE, "Invalid tag size: " << size);
+    SET_ERR(MB_INVALID_SIZE, "Invalid tag size: " << size);
   }
 
   std::vector<int>::iterator i = std::find(tagSizes.begin(), tagSizes.end(), UNUSED_SIZE);
