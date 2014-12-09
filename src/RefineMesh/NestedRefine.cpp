@@ -128,31 +128,31 @@ namespace moab{
     ErrorCode error;
     EntityType type = mbImpl->type_from_handle(ent);
     EntityHandle start_ent ;
-    if (level>= 0)
+    if (level> 0)
       {
         if (type == MBEDGE)
           {
             conn.reserve(2);
-            start_ent = level_mesh[level].start_edge;
-            conn.push_back( level_mesh[level].edge_conn[2*(ent-start_ent)]);
-            conn.push_back( level_mesh[level].edge_conn[2*(ent-start_ent)+1]);
+            start_ent = level_mesh[level-1].start_edge;
+            conn.push_back( level_mesh[level-1].edge_conn[2*(ent-start_ent)]);
+            conn.push_back( level_mesh[level-1].edge_conn[2*(ent-start_ent)+1]);
           }
         else if (type == MBTRI || type == MBQUAD)
           {
             int num_corners = ahf->local_maps_2d(ent);
             conn.reserve(num_corners);
-            start_ent = level_mesh[level].start_face;
+            start_ent = level_mesh[level-1].start_face;
             for (int i=0; i<num_corners; i++)
-              conn.push_back(level_mesh[level].face_conn[num_corners*(ent-start_ent)+i]);
+              conn.push_back(level_mesh[level-1].face_conn[num_corners*(ent-start_ent)+i]);
           }
         else if (type == MBTET || type == MBHEX)
           {
             int index = ahf->get_index_from_type(*_incells.begin());
             int num_corners = ahf->lConnMap3D[index].num_verts_in_cell;
             conn.reserve(num_corners);
-            start_ent = level_mesh[level].start_cell;
+            start_ent = level_mesh[level-1].start_cell;
             for (int i=0; i<num_corners; i++)
-              conn.push_back(level_mesh[level].cell_conn[num_corners*(ent-start_ent)+i]);
+              conn.push_back(level_mesh[level-1].cell_conn[num_corners*(ent-start_ent)+i]);
           }
         else
           {
@@ -171,14 +171,14 @@ namespace moab{
 
   ErrorCode NestedRefine::get_coordinates(EntityHandle *verts, int num_verts, int level, double *coords)
   {
-    assert(level >= 0);
-    const EntityHandle& vstart = level_mesh[level].start_vertex;
+    assert(level > 0);
+    const EntityHandle& vstart = level_mesh[level-1].start_vertex;
     for (int i=0; i< num_verts; i++)
       {
         const EntityHandle& vid = verts[i];
-        coords[3*i] = level_mesh[level].coordinates[0][vid-vstart];
-        coords[3*i+1] =  level_mesh[level].coordinates[1][vid-vstart];
-        coords[3*i+2] =  level_mesh[level].coordinates[2][vid-vstart];
+        coords[3*i] = level_mesh[level-1].coordinates[0][vid-vstart];
+        coords[3*i+1] =  level_mesh[level-1].coordinates[1][vid-vstart];
+        coords[3*i+2] =  level_mesh[level-1].coordinates[2][vid-vstart];
       }
     return MB_SUCCESS;
   }
@@ -197,17 +197,17 @@ namespace moab{
 
   ErrorCode NestedRefine::child_to_parent(EntityHandle child, int child_level, int parent_level, EntityHandle *parent)
   {
-    assert((child_level>=0) &&(child_level>parent_level));
+    assert((child_level>0) &&(child_level>parent_level));
     EntityType type = mbImpl->type_from_handle(child);
     assert(type != MBVERTEX);
 
     int child_index;
     if (type == MBEDGE)
-      child_index = child - level_mesh[child_level].start_edge;
+      child_index = child - level_mesh[child_level-1].start_edge;
     else if (type == MBTRI || type == MBQUAD)
-      child_index = child - level_mesh[child_level].start_face;
+      child_index = child - level_mesh[child_level-1].start_face;
     else if (type == MBTET || type == MBHEX)
-      child_index = child - level_mesh[child_level].start_cell;
+      child_index = child - level_mesh[child_level-1].start_cell;
     else
       {
         std::cout<<"Requesting parent for unsupported entity type"<<std::endl;
@@ -218,7 +218,7 @@ namespace moab{
     int l = child_level - parent_level;
     for (int i=0; i< l; i++)
       {
-        int d = get_index_from_degree(level_dsequence[child_level-i]);
+        int d = get_index_from_degree(level_dsequence[child_level-i-1]);
         int nch = refTemplates[type-1][d].total_new_ents;
         child_index = child_index/nch;
       }
@@ -226,22 +226,22 @@ namespace moab{
 
     if (type == MBEDGE)
       {
-        if (parent_level>=0)
-          *parent = level_mesh[parent_level].start_edge + parent_index;
+        if (parent_level>0)
+          *parent = level_mesh[parent_level-1].start_edge + parent_index;
         else
           *parent = _inedges[parent_index];
       }
     else if (type == MBTRI || type == MBQUAD)
       {
-        if (parent_level>=0)
-          *parent = level_mesh[parent_level].start_face + parent_index;
+        if (parent_level>0)
+          *parent = level_mesh[parent_level-1].start_face + parent_index;
         else
           *parent = _infaces[parent_index];
       }
     else if (type == MBTET || type == MBHEX)
       {
-        if (parent_level>=0)
-          *parent = level_mesh[parent_level].start_cell + parent_index;
+        if (parent_level>0)
+          *parent = level_mesh[parent_level-1].start_cell + parent_index;
         else
           *parent = _incells[parent_index];
       }
@@ -251,29 +251,29 @@ namespace moab{
 
   ErrorCode NestedRefine::parent_to_child(EntityHandle parent, int parent_level, int child_level,  std::vector<EntityHandle> &children)
   {
-    assert ((child_level>=0) && (child_level>parent_level));
+    assert ((child_level>0) && (child_level>parent_level));
     EntityType type = mbImpl->type_from_handle(parent);
     assert(type != MBVERTEX);
 
     int parent_index;
     if (type == MBEDGE)
       {
-        if(parent_level>=0)
-          parent_index = parent - level_mesh[parent_level].start_edge;
+        if(parent_level>0)
+          parent_index = parent - level_mesh[parent_level-1].start_edge;
         else
           parent_index = _inedges.index(parent);
       }
     else if (type == MBTRI || type == MBQUAD)
       {
-        if (parent_level>=0)
-          parent_index = parent - level_mesh[parent_level].start_face;
+        if (parent_level>0)
+          parent_index = parent - level_mesh[parent_level-1].start_face;
         else
           parent_index = _infaces.index(parent);
       }
     else if (type == MBTET || type == MBHEX)
       {
-        if (parent_level>=0)
-          parent_index = parent - level_mesh[parent_level].start_cell;
+        if (parent_level>0)
+          parent_index = parent - level_mesh[parent_level-1].start_cell;
         else
           parent_index = _incells.index(parent);
       }
@@ -285,7 +285,7 @@ namespace moab{
 
     int start, end;
     start = end = parent_index;
-    for (int i=parent_level+1; i<= child_level; i++)
+    for (int i=parent_level; i< child_level; i++)
       {
         int d = get_index_from_degree(level_dsequence[i]);
         int nch = refTemplates[type-1][d].total_new_ents;
@@ -300,11 +300,11 @@ namespace moab{
       {
         EntityHandle child;
         if (type == MBEDGE)
-          child = level_mesh[child_level].start_edge + i;
+          child = level_mesh[child_level-1].start_edge + i;
         else if (type == MBTRI || type == MBQUAD)
-          child = level_mesh[child_level].start_face + i;
+          child = level_mesh[child_level-1].start_face + i;
         else if (type == MBTET || type == MBHEX)
-          child = level_mesh[child_level].start_cell + i;
+          child = level_mesh[child_level-1].start_cell + i;
 
         children.push_back(child);
       }
@@ -579,7 +579,7 @@ namespace moab{
         else
           edge = _inedges[eid]; // Makes the assumption initial mesh is contiguous in memory
 
-        error = get_connectivity(edge, cur_level-1, conn);
+        error = get_connectivity(edge, cur_level, conn);
         if (error != MB_SUCCESS) return error;
 
         //Add the vertex handles to vbuffer for the current level for the working edge
@@ -589,6 +589,7 @@ namespace moab{
         // when the old vertices are copied. Thus, there is no need to explicitly store another map between
         // the old and duplicates in the subsequent levels. The second part in the following sum is the local
         // index in the previous level.
+
         // Add the corners to the vbuffer first.
 
         for (int i=0; i<(int)conn.size(); i++)
@@ -712,7 +713,7 @@ namespace moab{
         else
           face = _infaces[fid];
 
-        error = get_connectivity(face, cur_level-1, conn);
+        error = get_connectivity(face, cur_level, conn);
         if (error != MB_SUCCESS) return error;
 
         //Step 1: Add vertices from the current level for the working face that will be used for subdivision.
@@ -815,7 +816,7 @@ namespace moab{
 
         //Step 5: Compute the coordinates of the new vertices, avoids computing more than once via the flag_verts array.
         double *corner_coords = new double[nepf*3];
-        error = get_coordinates(&cur_conn[0], nepf, cur_level, corner_coords);
+        error = get_coordinates(&cur_conn[0], nepf, cur_level+1, corner_coords);
         if (error != MB_SUCCESS) return error;
 
         error = compute_coordinates(cur_level, deg, type, vbuffer, vtotal, corner_coords, flag_verts, nverts_prev);
@@ -908,7 +909,7 @@ namespace moab{
         else
           cell = _incells[cid];
 
-        error = get_connectivity(cell, cur_level-1, conn);
+        error = get_connectivity(cell, cur_level, conn);
         if (error != MB_SUCCESS) return error;
 
         //Step 1: Add vertices from the current level for the working face that will be used for subdivision.
@@ -975,7 +976,7 @@ namespace moab{
 
         //Step 5: Coordinates of the new vertices
         double *corner_coords = new double[nvpc*3];
-        error = get_coordinates(&cur_conn[0], nvpc, cur_level, corner_coords);
+        error = get_coordinates(&cur_conn[0], nvpc, cur_level+1, corner_coords);
         if (error != MB_SUCCESS) return error;
 
         error = compute_coordinates(cur_level, deg, type, vbuffer, vtotal, corner_coords, flag_verts, nverts_prev);
@@ -1052,7 +1053,7 @@ namespace moab{
         else
           cell = _incells[cid];
 
-        error = get_connectivity(cell, cur_level-1, conn);
+        error = get_connectivity(cell, cur_level, conn);
         if (error != MB_SUCCESS) return error;
 
         //Step 1: Add vertices from the current level for the working face that will be used for subdivision.
@@ -1095,7 +1096,7 @@ namespace moab{
 
         //Step 2: Coordinates of the new vertices
         double *corner_coords = new double[nvpc*3];
-        error = get_coordinates(&cur_conn[0], nvpc, cur_level, corner_coords);
+        error = get_coordinates(&cur_conn[0], nvpc, cur_level+1, corner_coords);
         if (error != MB_SUCCESS) return error;
 
         error = compute_coordinates(cur_level, deg, type, vbuffer, vtotal, corner_coords, flag_verts, nverts_prev);
@@ -1666,7 +1667,7 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
          ent = _infaces[i];
 
        std::vector<EntityHandle> fid_conn;
-       error = get_connectivity(ent, cur_level-1, fid_conn);
+       error = get_connectivity(ent, cur_level, fid_conn);
        if (MB_SUCCESS != error) return error;
 
        EntityHandle *sib_entids = new EntityHandle[nhf];
@@ -1689,7 +1690,7 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
            int slid = sib_lids[l];
 
            std::vector<EntityHandle> conn;
-           error = get_connectivity(sfid, cur_level-1, conn);
+           error = get_connectivity(sfid, cur_level, conn);
            if (MB_SUCCESS != error) return error;
 
            bool orient;
@@ -2298,10 +2299,10 @@ ErrorCode NestedRefine::reorder_indices(int cur_level, int deg, EntityHandle cel
     {
       //Get connectivity of the cell and its sibling cell
       std::vector<EntityHandle> conn, sib_conn;
-      error = get_connectivity(cell, cur_level-1, conn);
+      error = get_connectivity(cell, cur_level, conn);
       if (error != MB_SUCCESS) return error;
 
-      error = get_connectivity(sib_cell, cur_level-1, sib_conn);
+      error = get_connectivity(sib_cell, cur_level, sib_conn);
       if (error != MB_SUCCESS) return error;
 
       //Get the connectivity of the local face in the cell and its sibling
@@ -2451,7 +2452,7 @@ int NestedRefine::get_local_vid(EntityHandle vid, EntityHandle ent, int level)
   //Given a vertex, find its local id in the given entity
   std::vector<EntityHandle> conn;
 
-  error = get_connectivity(ent, level, conn);
+  error = get_connectivity(ent, level+1, conn);
   assert(error == MB_SUCCESS);
 
   int lid=-1;

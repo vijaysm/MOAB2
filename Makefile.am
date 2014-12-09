@@ -46,7 +46,8 @@ examples_DATA = examples/DeformMeshRemap.cpp \
                 examples/DirectAccessNoHolesF90.F90 \
                 examples/point_in_elem_search.cpp \
                 examples/structuredmesh.cpp \
-                examples/SetsNTags.cpp
+                examples/SetsNTags.cpp \
+		examples/UniformRefinement.cpp
 
 EXTRA_DIST = $(doc_DATA) $(examples_DATA)
 
