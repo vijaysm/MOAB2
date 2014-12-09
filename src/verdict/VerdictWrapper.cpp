@@ -384,6 +384,7 @@ ErrorCode VerdictWrapper::all_quality_measures(EntityHandle eh, std::map<Quality
     qualities[MB_ODDY] = hexMetric.oddy;
     qualities[MB_MED_ASPECT_FROBENIUS] = hexMetric.med_aspect_frobenius;
     // MB_CONDITION is the same as MB_MAX_ASPECT_FROBENIUS
+    qualities[MB_MAX_ASPECT_FROBENIUS] = hexMetric.condition;
     qualities[MB_CONDITION] = hexMetric.condition;
     qualities[MB_JACOBIAN] = hexMetric.jacobian;
     qualities[MB_SCALED_JACOBIAN] = hexMetric.scaled_jacobian;

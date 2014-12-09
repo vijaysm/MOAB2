@@ -53,7 +53,7 @@ int main( int argc, char* argv[] )
   Core mb;
   std::string read_options;
   if (size>1)
-    read_options="PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS";
+    read_options="PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION";
 
   if (MB_SUCCESS != mb.load_file(argv[1], 0, read_options.c_str() ) )
   {
@@ -76,7 +76,7 @@ int main( int argc, char* argv[] )
 #endif
     return 1;
   }
-  for (EntityType et=MBEDGE; et<MBENTITYSET; et++)
+  for (EntityType et=MBENTITYSET; et >= MBEDGE; et--)
   {
     int num_qualities = vw.num_qualities(et);
     if (!num_qualities)
@@ -90,17 +90,6 @@ int main( int argc, char* argv[] )
     int mpi_err;
     if (size>1)
     {
-      // filter the entities not owned, so we do not process them more than once
-      ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
-      Range current = owned;
-      owned.clear();
-
-      rval = pcomm->filter_pstatus(current, PSTATUS_NOT_OWNED, PSTATUS_NOT, -1, &owned);
-      if (rval != MB_SUCCESS)
-      {
-        MPI_Finalize();
-        return 1;
-      }
       ne_local = (int)owned.size();
       mpi_err = MPI_Reduce(&ne_local, &ne_global, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
       if (mpi_err)
@@ -154,13 +143,12 @@ int main( int argc, char* argv[] )
         std::cout <<std::setw(30) << "Quality Name" << std::setw(15) << "    MIN" << std::setw(15) << "  MAX" << "\n";
       }
 
-      std::map<QualityType, double>::iterator minit;
+      /*std::map<QualityType, double>::iterator minit;
       std::map<QualityType, double>::iterator maxit;
-      if (ne_local>0)
-      {
+      if (ne_local > 0) {
         minit = minq.begin();
         maxit = maxq.begin();
-      }
+      }*/
       QualityType quality_type=MB_EDGE_RATIO;
       for (int i=0; i<num_qualities; i++, quality_type=(QualityType)(quality_type+1))
       {
@@ -171,9 +159,8 @@ int main( int argc, char* argv[] )
         double local_max, global_max;
         if (ne_local>0)
         {
-          local_min = global_min = minit->second;
-          local_max = global_max = maxit->second;
-          maxit++; minit++;
+          local_min = global_min = minq[quality_type];
+          local_max = global_max = maxq[quality_type];
         }
         else
         {
@@ -203,6 +190,8 @@ int main( int argc, char* argv[] )
         }
 
       }
+      // break out at the first set of entities qualified
+      break; // so it will report only hexas, if it has mixed elements
     }
   }//etype
 #ifdef USE_MPI
