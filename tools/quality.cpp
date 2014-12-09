@@ -38,19 +38,34 @@ static void print_usage( const char* name, std::ostream& stream )
   stream << "Usage: " << name << " <input_file> " << std::endl;
 }
 
-Core mb;
-
 
 int main( int argc, char* argv[] )
 {
-  if (argc<2)
+  int proc_id = 0, size = 1;
+#ifdef USE_MPI
+  MPI_Init(&argc,&argv);
+  MPI_Comm_rank( MPI_COMM_WORLD, &proc_id );
+  MPI_Comm_size( MPI_COMM_WORLD, &size );
+#endif
+  if (argc<2 && 0==proc_id)
   {
     print_usage(argv[0], std::cerr);
+#ifdef USE_MPI
+    MPI_Finalize();
+#endif
     return 1;
   }
-  if (MB_SUCCESS != mb.load_file(argv[1]) )
+  Core mb;
+  std::string read_options;
+  if (size>1)
+    read_options="PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS";
+
+  if (MB_SUCCESS != mb.load_file(argv[1], 0, read_options.c_str() ) )
   {
     fprintf(stderr, "Error reading file: %s\n", argv[1] );
+#ifdef USE_MPI
+    MPI_Finalize();
+#endif
     return 1;
   }
 
@@ -61,6 +76,9 @@ int main( int argc, char* argv[] )
   if (MB_SUCCESS!=rval )
   {
     fprintf(stderr, "Error getting entities from file %s\n", argv[1] );
+#ifdef USE_MPI
+    MPI_Finalize();
+#endif
     return 1;
   }
   for (EntityType et=MBEDGE; et<MBENTITYSET; et++)
@@ -74,6 +92,9 @@ int main( int argc, char* argv[] )
       if (MB_SUCCESS!=rval )
       {
         fprintf(stderr, "Error getting quality for entity type %d with id %ld \n", et, mb.id_from_handle(*it) );
+#ifdef USE_MPI
+        MPI_Finalize();
+#endif
         return 1;
       }
       minq=qualities; maxq=qualities;
@@ -84,6 +105,9 @@ int main( int argc, char* argv[] )
         if (MB_SUCCESS!=rval )
         {
           fprintf(stderr, "Error getting quality for entity type %d with id %ld \n", et, mb.id_from_handle(*it) );
+#ifdef USE_MPI
+          MPI_Finalize();
+#endif
           return 1;
         }
         std::map<QualityType, double>::iterator minit=minq.begin();
@@ -111,6 +135,9 @@ int main( int argc, char* argv[] )
 
     }
   }
+#ifdef USE_MPI
+  MPI_Finalize();
+#endif
   return 0;
 }
 

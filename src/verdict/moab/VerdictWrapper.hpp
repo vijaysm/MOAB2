@@ -81,9 +81,11 @@ public:
     return string
     Example: \code
 
-    cont char * name = quality_name(MB_JACOBIAN); \endcode
+    const char * name = quality_name(MB_JACOBIAN); \endcode
     */
   const char * quality_name (QualityType q);
+  //! return a string with entity type name
+  const char * entity_type_name(EntityType etype);
   // relative size needs a base size, that is set at global level, one for each major type (hex, tet, quad, tri)
   ErrorCode set_size(double size);
   //! return all qualities for an element

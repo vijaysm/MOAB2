@@ -107,6 +107,21 @@ static char const * nameQuality [MB_QUALITY_COUNT] =
    " maximum angle"          // MB_MAXIMUM_ANGLE          // 29  MBQUAD
 };
 
+static const char * nameType[MBMAXTYPE] =
+{
+    "MBVERTEX", /**< Mesh Vertex AKA node */
+    "MBEDGE", /**< Mesh Edge */
+    "MBTRI", /**< Triangular element (including shells) */
+    "MBQUAD", /**< Quadrilateral element (including shells) */
+    "MBPOLYGON", /**< Polygon */
+    "MBTET", /**< Tetrahedral element */
+    "MBPYRAMID", /**< Pyramid element (where are the face ids for this defined?) */
+    "MBPRISM", /**< Wedge element (Exodus has one, Cubit doesn't. Does Mesh need it?) */
+    "MBKNIFE", /**< Knife element */
+    "MBHEX", /**< Hexahedral element */
+    "MBPOLYHEDRON", /**< Polyhedron */
+    "MBENTITYSET", /**< MeshSet */
+};
 ErrorCode VerdictWrapper::quality_measure(EntityHandle eh, QualityType q, double & quality,
     int num_nodes, double * coords)
 {
@@ -291,6 +306,10 @@ ErrorCode VerdictWrapper::quality_measure(EntityHandle eh, QualityType q, double
 const char * VerdictWrapper::quality_name (QualityType q)
 {
   return nameQuality[q];
+}
+const char * VerdictWrapper::entity_type_name(EntityType etype)
+{
+  return nameType[etype];
 }
   // relative size needs a base size, that is set at global level, one for each major type (hex, tet, quad, tri)
 ErrorCode VerdictWrapper::set_size(double size)
