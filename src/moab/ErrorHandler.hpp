@@ -48,9 +48,9 @@ ErrorCode MBError(int line, const char* func, const char* file, const char* dir,
     return MBError(__LINE__, __func__, __FILENAME__, __SDIR__, err_code, err_ostr.str().c_str(), MB_ERROR_TYPE_NEW_LOCAL); \
   } while (false)
 
-//! Set a new error with the given error message (a string or a stream) and return (void)
-//! Used in functions which return void
-#define MB_SET_ERR_RET_VOID(err_msg) \
+//! Set a new error with the given error message (a string or a stream) and return
+//! Used in functions which return void types (or have no return types at all, e.g. constructors)
+#define MB_SET_ERR_RET(err_msg) \
   do { \
     std::ostringstream err_ostr; \
     err_ostr << err_msg; \
@@ -77,7 +77,7 @@ ErrorCode MBError(int line, const char* func, const char* file, const char* dir,
     MBError(__LINE__, __func__, __FILENAME__, __SDIR__, MB_FAILURE, err_ostr.str().c_str(), MB_ERROR_TYPE_NEW_LOCAL); \
   } while (false)
 
-//! Similar to SET_ERR except that the error is considered globally fatal
+//! Similar to MB_SET_ERR except that the error is considered globally fatal
 #define MB_SET_GLB_ERR(err_code, err_msg) \
   do { \
     std::ostringstream err_ostr; \
@@ -85,8 +85,8 @@ ErrorCode MBError(int line, const char* func, const char* file, const char* dir,
     return MBError(__LINE__, __func__, __FILENAME__, __SDIR__, err_code, err_ostr.str().c_str(), MB_ERROR_TYPE_NEW_GLOBAL); \
   } while (false)
 
-//! Similar to SET_ERR_RET_VOID except that the error is considered globally fatal
-#define MB_SET_GLB_ERR_RET_VOID(err_msg) \
+//! Similar to MB_SET_ERR_RET except that the error is considered globally fatal
+#define MB_SET_GLB_ERR_RET(err_msg) \
   do { \
     std::ostringstream err_ostr; \
     err_ostr << err_msg; \
@@ -94,7 +94,7 @@ ErrorCode MBError(int line, const char* func, const char* file, const char* dir,
     return; \
   } while (false)
 
-//! Similar to SET_ERR_RET_VAL except that the error is considered globally fatal
+//! Similar to MB_SET_ERR_RET_VAL except that the error is considered globally fatal
 #define MB_SET_GLB_ERR_RET_VAL(err_msg, ret_val) \
   do { \
     std::ostringstream err_ostr; \
@@ -103,7 +103,7 @@ ErrorCode MBError(int line, const char* func, const char* file, const char* dir,
     return ret_val; \
   } while (false)
 
-//! Similar to SET_ERR_CONT except that the error is considered globally fatal
+//! Similar to MB_SET_ERR_CONT except that the error is considered globally fatal
 #define MB_SET_GLB_ERR_CONT(err_msg) \
   do { \
     std::ostringstream err_ostr; \
@@ -119,9 +119,9 @@ ErrorCode MBError(int line, const char* func, const char* file, const char* dir,
       return MBError(__LINE__, __func__, __FILENAME__, __SDIR__, err_code, "", MB_ERROR_TYPE_EXISTING); \
   } while (false)
 
-//! Check error code, if not MB_SUCCESS, call the error handler and return (void)
-//! Used in functions which return void
-#define MB_CHK_ERR_RET_VOID(err_code) \
+//! Check error code, if not MB_SUCCESS, call the error handler and return
+//! Used in functions which return void types (or have no return types at all, e.g. constructors)
+#define MB_CHK_ERR_RET(err_code) \
   do { \
     if (MB_SUCCESS != err_code) { \
       MBError(__LINE__, __func__, __FILENAME__, __SDIR__, err_code, "", MB_ERROR_TYPE_EXISTING); \
@@ -156,12 +156,12 @@ ErrorCode MBError(int line, const char* func, const char* file, const char* dir,
     MB_SET_ERR(err_code, err_msg); \
   } while (false)
 
-//! Check error code, if not MB_SUCCESS, set a new error with the given error message and return (void)
-//! Used in functions which return void
-#define MB_CHK_SET_ERR_RET_VOID(err_code, err_msg) \
+//! Check error code, if not MB_SUCCESS, set a new error with the given error message and return
+//! Used in functions which return void types (or have no return types at all, e.g. constructors)
+#define MB_CHK_SET_ERR_RET(err_code, err_msg) \
   do { \
     if (MB_SUCCESS != err_code) \
-    MB_SET_ERR_RET_VOID(err_msg); \
+    MB_SET_ERR_RET(err_msg); \
   } while (false)
 
 //! Check error code, if not MB_SUCCESS, set a new error with the given error message and return the given value
