@@ -53,7 +53,7 @@ int main( int argc, char* argv[] )
   Core mb;
   std::string read_options;
   if (size>1)
-    read_options="PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION";
+    read_options="PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS";
 
   if (MB_SUCCESS != mb.load_file(argv[1], 0, read_options.c_str() ) )
   {
@@ -65,7 +65,7 @@ int main( int argc, char* argv[] )
   }
 
   VerdictWrapper vw(&mb);
-  vw.set_size(1.); // for relative size measures
+  vw.set_size(1.); // for relative size measures; maybe it should be user input
   Range entities;
   ErrorCode rval = mb.get_entities_by_handle(0, entities);
   if (MB_SUCCESS!=rval )
@@ -76,6 +76,30 @@ int main( int argc, char* argv[] )
 #endif
     return 1;
   }
+  // get all edges and faces, force them to be created
+  Range allfaces, alledges;
+  Range cells = entities.subset_by_dimension(3);
+  rval = mb.get_adjacencies(cells, 2, true, allfaces);
+  if (MB_SUCCESS!=rval )
+  {
+    fprintf(stderr, "Error getting all faces" );
+#ifdef USE_MPI
+    MPI_Finalize();
+#endif
+    return 1;
+  }
+
+  rval = mb.get_adjacencies(allfaces, 1, true, alledges);
+  if (MB_SUCCESS!=rval )
+  {
+    fprintf(stderr, "Error getting all edges" );
+#ifdef USE_MPI
+    MPI_Finalize();
+#endif
+    return 1;
+  }
+  entities.merge(allfaces);
+  entities.merge(alledges);
   for (EntityType et=MBENTITYSET; et >= MBEDGE; et--)
   {
     int num_qualities = vw.num_qualities(et);
@@ -90,6 +114,16 @@ int main( int argc, char* argv[] )
     int mpi_err;
     if (size>1)
     {
+    // filter the entities not owned, so we do not process them more than once
+      ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
+      Range current = owned;
+      owned.clear();
+      rval = pcomm->filter_pstatus(current, PSTATUS_NOT_OWNED, PSTATUS_NOT, -1, &owned);
+      if (rval != MB_SUCCESS)
+      {
+        MPI_Finalize();
+        return 1;
+      }
       ne_local = (int)owned.size();
       mpi_err = MPI_Reduce(&ne_local, &ne_global, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
       if (mpi_err)
@@ -190,8 +224,6 @@ int main( int argc, char* argv[] )
         }
 
       }
-      // break out at the first set of entities qualified
-      break; // so it will report only hexas, if it has mixed elements
     }
   }//etype
 #ifdef USE_MPI
