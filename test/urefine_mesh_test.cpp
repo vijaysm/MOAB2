@@ -1010,7 +1010,7 @@ ErrorCode test_mesh(const char* filename, int *level_degrees, int num_levels)
 #endif
 
     //Generate hierarchy
-    error = refine_entities(&moab, level_degrees, num_levels, true);  CHECK_ERR(error);
+    error = refine_entities(&moab, level_degrees, num_levels, false);  CHECK_ERR(error);
 
     return MB_SUCCESS;
 }
@@ -1042,9 +1042,9 @@ int main(int argc, char *argv[])
     else if (argc == 2)
       {
         const char* filename = argv[1];
-        int deg = 3;
+        int deg[3] = {2,3,2};
         int len = sizeof(deg) / sizeof(int);
-        result = test_mesh(filename, &deg, len);
+        result = test_mesh(filename, deg, len);
         handle_error_code(result, number_tests_failed, number_tests_successful);
         std::cout<<"\n";
 
