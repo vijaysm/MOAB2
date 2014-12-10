@@ -79,7 +79,7 @@ int main( int argc, char* argv[] )
   // get all edges and faces, force them to be created
   Range allfaces, alledges;
   Range cells = entities.subset_by_dimension(3);
-  rval = mb.get_adjacencies(cells, 2, true, allfaces);
+  rval = mb.get_adjacencies(cells, 2, true, allfaces, Interface::UNION);
   if (MB_SUCCESS!=rval )
   {
     fprintf(stderr, "Error getting all faces" );
@@ -89,7 +89,7 @@ int main( int argc, char* argv[] )
     return 1;
   }
 
-  rval = mb.get_adjacencies(allfaces, 1, true, alledges);
+  rval = mb.get_adjacencies(allfaces, 1, true, alledges, Interface::UNION);
   if (MB_SUCCESS!=rval )
   {
     fprintf(stderr, "Error getting all edges" );
