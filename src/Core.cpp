@@ -3935,22 +3935,22 @@ ErrorCode Core::get_set_iterators(EntityHandle meshset,
 }
 
 void Core::estimated_memory_use_internal( const Range* ents,
-                                  unsigned long long* total_storage,
-                                  unsigned long long* total_amortized_storage,
-                                  unsigned long long* entity_storage,
-                                  unsigned long long* amortized_entity_storage,
-                                  unsigned long long* adjacency_storage,
-                                  unsigned long long* amortized_adjacency_storage,
+                                  type_memstorage* total_storage,
+                                  type_memstorage* total_amortized_storage,
+                                  type_memstorage* entity_storage,
+                                  type_memstorage* amortized_entity_storage,
+                                  type_memstorage* adjacency_storage,
+                                  type_memstorage* amortized_adjacency_storage,
                                   const Tag* tag_array,
                                   unsigned num_tags,
-                                  unsigned long long* tag_storage,
-                                  unsigned long long* amortized_tag_storage )
+                                  type_memstorage* tag_storage,
+                                  type_memstorage* amortized_tag_storage )
 {
     // Figure out which values we need to calulate
-  unsigned long long i_entity_storage,    ia_entity_storage,
+  type_memstorage i_entity_storage,    ia_entity_storage,
                 i_adjacency_storage, ia_adjacency_storage,
                 i_tag_storage,       ia_tag_storage;
-  unsigned long long *total_tag_storage = 0,
+  type_memstorage *total_tag_storage = 0,
                 *amortized_total_tag_storage =0;
   if (!tag_array) {
     total_tag_storage = tag_storage;
@@ -4018,7 +4018,7 @@ void Core::estimated_memory_use_internal( const Range* ents,
         if (amortized_tag_storage) {
           tag_array[i]->num_tagged_entities( sequenceManager, count2 );
           if (count2)
-            amortized_tag_storage[i] = (unsigned long)((double)total * count / count2);
+            amortized_tag_storage[i] = static_cast<type_memstorage>(total * count * 1.0/ count2);
         }
       }
       else {
@@ -4054,7 +4054,7 @@ void Core::estimated_memory_use_internal( const Range* ents,
         if (amortized_total_tag_storage) {
           (*i)->num_tagged_entities( sequenceManager, count2 );
           if (count2)
-            *amortized_total_tag_storage += (unsigned long)((double)total * count / count2);
+            *amortized_total_tag_storage += static_cast<type_memstorage>(total * count * 1.0/ count2);
         }
       }
       else {
@@ -4082,16 +4082,16 @@ void Core::estimated_memory_use_internal( const Range* ents,
 
 void  Core::estimated_memory_use( const EntityHandle* ent_array,
                                     unsigned long num_ents,
-                                    unsigned long long* total_storage,
-                                    unsigned long long* total_amortized_storage,
-                                    unsigned long long* entity_storage,
-                                    unsigned long long* amortized_entity_storage,
-                                    unsigned long long* adjacency_storage,
-                                    unsigned long long* amortized_adjacency_storage,
+                                    type_memstorage* total_storage,
+                                    type_memstorage* total_amortized_storage,
+                                    type_memstorage* entity_storage,
+                                    type_memstorage* amortized_entity_storage,
+                                    type_memstorage* adjacency_storage,
+                                    type_memstorage* amortized_adjacency_storage,
                                     const Tag* tag_array,
                                     unsigned num_tags,
-                                    unsigned long long* tag_storage,
-                                    unsigned long long* amortized_tag_storage )
+                                    type_memstorage* tag_storage,
+                                    type_memstorage* amortized_tag_storage )
 {
   Range range;
 
@@ -4119,16 +4119,16 @@ void  Core::estimated_memory_use( const EntityHandle* ent_array,
 }
 
 void Core::estimated_memory_use( const Range& ents,
-                                   unsigned long long* total_storage,
-                                   unsigned long long* total_amortized_storage,
-                                   unsigned long long* entity_storage,
-                                   unsigned long long* amortized_entity_storage,
-                                   unsigned long long* adjacency_storage,
-                                   unsigned long long* amortized_adjacency_storage,
+                                   type_memstorage* total_storage,
+                                   type_memstorage* total_amortized_storage,
+                                   type_memstorage* entity_storage,
+                                   type_memstorage* amortized_entity_storage,
+                                   type_memstorage* adjacency_storage,
+                                   type_memstorage* amortized_adjacency_storage,
                                    const Tag* tag_array,
                                    unsigned num_tags,
-                                   unsigned long long* tag_storage,
-                                   unsigned long long* amortized_tag_storage )
+                                   type_memstorage* tag_storage,
+                                   type_memstorage* amortized_tag_storage )
 {
   estimated_memory_use_internal( &ents,
                          total_storage,     total_amortized_storage,
