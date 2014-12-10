@@ -5,6 +5,7 @@
 #include <string>
 #include <stdio.h>
 #include <iomanip>
+#include <fstream>
 #ifdef USE_MPI
   #include "moab_mpi.h"
   #include "moab/ParallelComm.hpp"
@@ -30,7 +31,7 @@ using namespace moab;
 
 static void print_usage( const char* name, std::ostream& stream )
 {
-  stream << "Usage: " << name << " <input_file> " << std::endl;
+  stream << "Usage: " << name << " <input_file> [<output_file>]" << std::endl;
 }
 
 
@@ -55,6 +56,24 @@ int main( int argc, char* argv[] )
   if (size>1)
     read_options="PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS";
 
+  if (size>1 && argc>2)
+  {
+    std::cerr<<" cannot use verbose option in parallel \n";
+#ifdef USE_MPI
+    MPI_Finalize();
+#endif
+    return 1;
+  }
+
+  char * out_file=NULL;
+  std::ofstream ofile;
+
+  if (argc==3)
+  {
+    std::cout<<" write verbose output to a CSV file " << argv[2] << "\n";
+    out_file = argv[2];
+    ofile.open (out_file);
+  }
   if (MB_SUCCESS != mb.load_file(argv[1], 0, read_options.c_str() ) )
   {
     fprintf(stderr, "Error reading file: %s\n", argv[1] );
@@ -147,6 +166,23 @@ int main( int argc, char* argv[] )
   #endif
           return 1;
         }
+        if (ofile.is_open())
+        {
+          // write first header or this entity type, then the first values, separated by commas
+          ofile<<" There are " << ne_local << " entities of type " << vw.entity_type_name(et) << " with " <<
+              qualities.size() << " qualities:\n" << " Entity id ";
+          for (std::map<QualityType, double>::iterator qit=qualities.begin(); qit!=qualities.end(); qit++)
+          {
+            ofile<<", " << vw.quality_name(qit->first);
+          }
+          ofile<<"\n";
+          ofile <<  mb.id_from_handle(*it) ;
+          for (std::map<QualityType, double>::iterator qit=qualities.begin(); qit!=qualities.end(); qit++)
+          {
+            ofile<<", " << qit->second;
+          }
+          ofile<<"\n";
+        }
         minq=qualities; maxq=qualities;
         it++;
         for ( ;it!=owned.end(); it++)
@@ -159,6 +195,15 @@ int main( int argc, char* argv[] )
             MPI_Finalize();
   #endif
             return 1;
+          }
+          if (ofile.is_open())
+          {
+            ofile <<  mb.id_from_handle(*it) ;
+            for (std::map<QualityType, double>::iterator qit=qualities.begin(); qit!=qualities.end(); qit++)
+            {
+              ofile<< ", " << qit->second;
+            }
+            ofile<<"\n";
           }
           std::map<QualityType, double>::iterator minit=minq.begin();
           std::map<QualityType, double>::iterator maxit=maxq.begin();
@@ -226,6 +271,10 @@ int main( int argc, char* argv[] )
       }
     }
   }//etype
+  if (ofile.is_open())
+  {
+    ofile.close();
+  }
 #ifdef USE_MPI
   MPI_Finalize();
 #endif
