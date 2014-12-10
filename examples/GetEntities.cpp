@@ -31,24 +31,24 @@ int main(int argc, char **argv)
   Core* mb = new (std::nothrow) Core;
   if (NULL == mb)
     return 1;
-  ErrorCode rval = mb->load_mesh(test_file_name.c_str());CHK_ERR(rval);
+  ErrorCode rval = mb->load_mesh(test_file_name.c_str());MB_CHK_ERR(rval);
 
   Range ents;
 
   // Get all entities in the database
-  rval = mb->get_entities_by_handle(0, ents);CHK_ERR(rval);
+  rval = mb->get_entities_by_handle(0, ents);MB_CHK_ERR(rval);
 
   for (Range::iterator it = ents.begin(); it != ents.end(); ++it) {
     if (MBVERTEX == mb->type_from_handle(*it)) {
       Range adjs;
-      rval = mb->get_adjacencies(&(*it), 1, 3, false, adjs);CHK_ERR(rval);
+      rval = mb->get_adjacencies(&(*it), 1, 3, false, adjs);MB_CHK_ERR(rval);
       cout << "Vertex " << mb->id_from_handle(*it) << " adjacencies:" << endl;
       adjs.print();
     }
     else if (mb->type_from_handle(*it) < MBENTITYSET) {
       const EntityHandle *connect;
       int num_connect;
-      rval = mb->get_connectivity(*it, connect, num_connect);CHK_ERR(rval);
+      rval = mb->get_connectivity(*it, connect, num_connect);MB_CHK_ERR(rval);
       cout << CN::EntityTypeName(mb->type_from_handle(*it)) << " " << mb->id_from_handle(*it)
            << " vertex connectivity is: ";
       for (int i = 0; i < num_connect; i++)

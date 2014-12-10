@@ -154,7 +154,7 @@ int main(int argc, char **argv)
   }
 
   ReadUtilIface* iface;
-  ErrorCode rval = mb->query_interface(iface);CHK_SET_ERR(rval, "Can't get reader interface");
+  ErrorCode rval = mb->query_interface(iface);MB_CHK_SET_ERR(rval, "Can't get reader interface");
 
   int rank, size;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -215,7 +215,7 @@ int main(int argc, char **argv)
 
   Tag global_id_tag;
   rval = mb->tag_get_handle("GLOBAL_ID", 1, MB_TYPE_INTEGER,
-                             global_id_tag);CHK_SET_ERR(rval, "Can't get global id tag");
+                             global_id_tag);MB_CHK_SET_ERR(rval, "Can't get global id tag");
 
   // set global ids
   Tag new_id_tag;
@@ -225,20 +225,20 @@ int main(int argc, char **argv)
   Tag part_tag;
   int dum_id = -1;
   rval = mb->tag_get_handle("PARALLEL_PARTITION", 1, MB_TYPE_INTEGER,
-                             part_tag, MB_TAG_CREAT | MB_TAG_SPARSE, &dum_id);CHK_SET_ERR(rval, "Can't get parallel partition tag");
+                             part_tag, MB_TAG_CREAT | MB_TAG_SPARSE, &dum_id);MB_CHK_SET_ERR(rval, "Can't get parallel partition tag");
 
   // Create tags on vertices and cells, look in the list of options
   vector<Tag> intTags(intTagNames.size());
   vector<Tag> doubleTags(doubleTagNames.size());
   for (size_t i = 0; i < intTagNames.size(); i++) {
     rval = mb->tag_get_handle(intTagNames[i].c_str(), 1, MB_TYPE_INTEGER, intTags[i],
-                              MB_TAG_CREAT | MB_TAG_DENSE, &dum_id);CHK_SET_ERR(rval, "Can't create integer tag");
+                              MB_TAG_CREAT | MB_TAG_DENSE, &dum_id);MB_CHK_SET_ERR(rval, "Can't create integer tag");
   }
 
   double defval = 0.;
   for (size_t i = 0; i < doubleTagNames.size(); i++) {
     rval = mb->tag_get_handle(doubleTagNames[i].c_str(), 1, MB_TYPE_DOUBLE, doubleTags[i],
-                              MB_TAG_CREAT | MB_TAG_DENSE, &defval);CHK_SET_ERR(rval, "Can't create double tag");
+                              MB_TAG_CREAT | MB_TAG_DENSE, &defval);MB_CHK_SET_ERR(rval, "Can't create double tag");
   }
 
   for (int a = 0; a < A; a++) {
@@ -251,7 +251,7 @@ int main(int argc, char **argv)
 
         vector<double*> arrays;
         EntityHandle startv;
-        rval = iface->get_node_coords(3, num_nodes, 0, startv, arrays);CHK_SET_ERR(rval, "Can't get node coords");
+        rval = iface->get_node_coords(3, num_nodes, 0, startv, arrays);MB_CHK_SET_ERR(rval, "Can't get node coords");
 
         // Will start with the lower corner:
         int x = m*A*q*blockSize + a*q*blockSize;
@@ -273,15 +273,15 @@ int main(int argc, char **argv)
               EntityHandle v = startv + ix;
               for (size_t i = 0; i < intTags.size(); i++) {
                 int valv = gids[ix]/2 + 3 + i*1000;
-                rval = mb->tag_set_data(intTags[i], &v, 1, &valv);CHK_SET_ERR(rval, "Can't set integer tag on a vertex");
+                rval = mb->tag_set_data(intTags[i], &v, 1, &valv);MB_CHK_SET_ERR(rval, "Can't set integer tag on a vertex");
               }
               ix++;
             }
           }
         }
 
-        rval = mb->tag_set_data(global_id_tag, verts, &gids[0]);CHK_SET_ERR(rval, "Can't set global ids to vertices");
-        rval = mb->tag_set_data(new_id_tag, verts, &lgids[0]);CHK_SET_ERR(rval, "Can't set the new handle id tags");
+        rval = mb->tag_set_data(global_id_tag, verts, &gids[0]);MB_CHK_SET_ERR(rval, "Can't set global ids to vertices");
+        rval = mb->tag_set_data(new_id_tag, verts, &lgids[0]);MB_CHK_SET_ERR(rval, "Can't set the new handle id tags");
         int num_hexas = blockSize * blockSize * blockSize;
         int num_el = num_hexas * factor;
 
@@ -290,14 +290,14 @@ int main(int argc, char **argv)
         int num_v_per_elem = 8;
         if (quadratic) {
           num_v_per_elem = 27;
-          rval = iface->get_element_connect(num_el, 27, MBHEX, 0, starte, conn);CHK_SET_ERR(rval, "Can't get element connectivity");
+          rval = iface->get_element_connect(num_el, 27, MBHEX, 0, starte, conn);MB_CHK_SET_ERR(rval, "Can't get element connectivity");
         }
         else if (tetra) {
           num_v_per_elem = 4;
-          rval = iface->get_element_connect(num_el, 4, MBTET, 0, starte, conn);CHK_SET_ERR(rval, "Can't get element connectivity");
+          rval = iface->get_element_connect(num_el, 4, MBTET, 0, starte, conn);MB_CHK_SET_ERR(rval, "Can't get element connectivity");
         }
         else {
-          rval = iface->get_element_connect(num_el, 8, MBHEX, 0, starte, conn);CHK_SET_ERR(rval, "Can't get element connectivity");
+          rval = iface->get_element_connect(num_el, 8, MBHEX, 0, starte, conn);MB_CHK_SET_ERR(rval, "Can't get element connectivity");
         }
 
         Range cells(starte, starte + num_el - 1); // Should be elements
@@ -319,7 +319,7 @@ int main(int argc, char **argv)
               EntityHandle eh = starte + ie;
               for (size_t i = 0; i < doubleTags.size(); i++) {
                 double valv = gids[ie]/30. + i*5000.;
-                rval = mb->tag_set_data(doubleTags[i], &eh, 1, &valv);CHK_SET_ERR(rval, "Can't set double tag on an element");
+                rval = mb->tag_set_data(doubleTags[i], &eh, 1, &valv);MB_CHK_SET_ERR(rval, "Can't set double tag on an element");
               }
               ie++;
               if (quadratic) {
@@ -425,7 +425,7 @@ int main(int argc, char **argv)
                   eh = starte + ie;
                   for (size_t i = 0; i < doubleTags.size(); i++) {
                     double valv = gids[ie]/30. + i*5000.;
-                    rval = mb->tag_set_data(doubleTags[i], &eh, 1, &valv);CHK_SET_ERR(rval, "Can't set double tag on an element");
+                    rval = mb->tag_set_data(doubleTags[i], &eh, 1, &valv);MB_CHK_SET_ERR(rval, "Can't set double tag on an element");
                   }
                   ie++;
                 }
@@ -446,27 +446,27 @@ int main(int argc, char **argv)
         }
 
         EntityHandle part_set;
-        rval = mb->create_meshset(MESHSET_SET, part_set);CHK_SET_ERR(rval, "Can't create mesh set");
-        rval = mb->add_entities(part_set, cells);CHK_SET_ERR(rval, "Can't add entities to set");
+        rval = mb->create_meshset(MESHSET_SET, part_set);MB_CHK_SET_ERR(rval, "Can't create mesh set");
+        rval = mb->add_entities(part_set, cells);MB_CHK_SET_ERR(rval, "Can't add entities to set");
         // If needed, add all edges and faces
         if (adjEnts) {
           // We need to update adjacencies now, because some elements are new
-          rval = iface->update_adjacencies(starte, num_el, num_v_per_elem, conn);CHK_SET_ERR(rval, "Can't update adjacencies");
+          rval = iface->update_adjacencies(starte, num_el, num_v_per_elem, conn);MB_CHK_SET_ERR(rval, "Can't update adjacencies");
           // Generate all adj entities dimension 1 and 2 (edges and faces/ tri or qua)
           Range edges, faces;
           rval = mb->get_adjacencies(cells, 1, true, edges,
-                                     Interface::UNION);CHK_SET_ERR(rval, "Can't get edges");
+                                     Interface::UNION);MB_CHK_SET_ERR(rval, "Can't get edges");
           rval = mb->get_adjacencies(cells, 2, true, faces,
-                                     Interface::UNION);CHK_SET_ERR(rval, "Can't get faces");
-          rval = mb->add_entities(part_set, edges);CHK_SET_ERR(rval, "Can't add edges to partition set");
-          rval = mb->add_entities(part_set, faces);CHK_SET_ERR(rval, "Can't add faces to partition set");
+                                     Interface::UNION);MB_CHK_SET_ERR(rval, "Can't get faces");
+          rval = mb->add_entities(part_set, edges);MB_CHK_SET_ERR(rval, "Can't add edges to partition set");
+          rval = mb->add_entities(part_set, faces);MB_CHK_SET_ERR(rval, "Can't add faces to partition set");
         }
 
-        rval = mb->tag_set_data(global_id_tag, cells, &gids[0]);CHK_SET_ERR(rval, "Can't set global ids to elements");
-        rval = mb->tag_set_data(new_id_tag, cells, &lgids[0]);CHK_SET_ERR(rval, "Can't set new ids to elements");
+        rval = mb->tag_set_data(global_id_tag, cells, &gids[0]);MB_CHK_SET_ERR(rval, "Can't set global ids to elements");
+        rval = mb->tag_set_data(new_id_tag, cells, &lgids[0]);MB_CHK_SET_ERR(rval, "Can't set new ids to elements");
 
         int part_num = a + m*A + (b + n*B)*(M*A) + (c + k*C)*(M*A * N*B);
-        rval = mb->tag_set_data(part_tag, &part_set, 1, &part_num);CHK_SET_ERR(rval, "Can't set part tag on set");
+        rval = mb->tag_set_data(part_tag, &part_set, 1, &part_num);MB_CHK_SET_ERR(rval, "Can't set part tag on set");
       }
     }
   }
@@ -479,22 +479,22 @@ int main(int argc, char **argv)
 
   /*
   // Before merge locally
-  rval = mb->write_file("test0.h5m", 0, ";;PARALLEL=WRITE_PART");CHK_SET_ERR(rval, "Can't write in parallel, before merging");
+  rval = mb->write_file("test0.h5m", 0, ";;PARALLEL=WRITE_PART");MB_CHK_SET_ERR(rval, "Can't write in parallel, before merging");
   */
   // After the mesh is generated on each proc, merge the vertices
   MergeMesh mm(mb);
   Range all3dcells;
-  rval = mb->get_entities_by_dimension(0, 3, all3dcells);CHK_SET_ERR(rval, "Can't get all 3d cells elements");
+  rval = mb->get_entities_by_dimension(0, 3, all3dcells);MB_CHK_SET_ERR(rval, "Can't get all 3d cells elements");
 
   Range verts;
-  rval = mb->get_entities_by_dimension(0, 0, verts);CHK_SET_ERR(rval, "Can't get all vertices");
+  rval = mb->get_entities_by_dimension(0, 0, verts);MB_CHK_SET_ERR(rval, "Can't get all vertices");
 
   if (A*B*C != 1) { // Merge needed
     if (newMergeMethod) {
-      rval = mm.merge_using_integer_tag(verts, global_id_tag);CHK_SET_ERR(rval, "Can't merge");
+      rval = mm.merge_using_integer_tag(verts, global_id_tag);MB_CHK_SET_ERR(rval, "Can't merge");
     }
     else {
-      rval = mm.merge_entities(all3dcells, 0.0001);CHK_SET_ERR(rval, "Can't merge");
+      rval = mm.merge_entities(all3dcells, 0.0001);MB_CHK_SET_ERR(rval, "Can't merge");
     }
 
     if (0 == rank) {
@@ -508,9 +508,9 @@ int main(int argc, char **argv)
     if (NULL == pcomm)
       pcomm = new ParallelComm(mb, MPI_COMM_WORLD);
     EntityHandle mesh_set;
-    rval = mb->create_meshset(MESHSET_SET, mesh_set);CHK_SET_ERR(rval, "Can't create new set");
+    rval = mb->create_meshset(MESHSET_SET, mesh_set);MB_CHK_SET_ERR(rval, "Can't create new set");
     mb->add_entities(mesh_set, all3dcells);
-    rval = pcomm->resolve_shared_ents(mesh_set, -1, -1, &new_id_tag);CHK_SET_ERR(rval, "Can't resolve shared ents");
+    rval = pcomm->resolve_shared_ents(mesh_set, -1, -1, &new_id_tag);MB_CHK_SET_ERR(rval, "Can't resolve shared ents");
 
     if (0 == rank) {
        cout << "resolve shared entities: "
@@ -521,11 +521,11 @@ int main(int argc, char **argv)
     if (!keep_skins) { // Default is to delete the 1- and 2-dimensional entities
       // Delete all quads and edges
       Range toDelete;
-      rval = mb->get_entities_by_dimension(0, 1, toDelete);CHK_SET_ERR(rval, "Can't get edges");
+      rval = mb->get_entities_by_dimension(0, 1, toDelete);MB_CHK_SET_ERR(rval, "Can't get edges");
 
-      rval = mb->get_entities_by_dimension(0, 2, toDelete);CHK_SET_ERR(rval, "Can't get faces");
+      rval = mb->get_entities_by_dimension(0, 2, toDelete);MB_CHK_SET_ERR(rval, "Can't get faces");
 
-      rval = pcomm->delete_entities(toDelete);CHK_SET_ERR(rval, "Can't delete entities");
+      rval = pcomm->delete_entities(toDelete);MB_CHK_SET_ERR(rval, "Can't delete entities");
 
       if (0 == rank) {
         cout << "delete edges and faces, and correct sharedEnts: "
@@ -535,7 +535,7 @@ int main(int argc, char **argv)
     }
   }
 
-  rval = mb->write_file(outFileName.c_str(), 0, ";;PARALLEL=WRITE_PART");CHK_SET_ERR(rval, "Can't write in parallel");
+  rval = mb->write_file(outFileName.c_str(), 0, ";;PARALLEL=WRITE_PART");MB_CHK_SET_ERR(rval, "Can't write in parallel");
 
   if (0 == rank) {
     cout << "write file " << outFileName << " in "

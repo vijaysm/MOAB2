@@ -57,7 +57,7 @@ int main(int argc, char **argv)
   int rank = pcomm->proc_config().proc_rank();
 
   EntityHandle set;
-  ErrorCode rval = mb->create_meshset(MESHSET_SET, set);CHK_ERR(rval);
+  ErrorCode rval = mb->create_meshset(MESHSET_SET, set);MB_CHK_ERR(rval);
 
   clock_t tt = clock();
 
@@ -66,7 +66,7 @@ int main(int argc, char **argv)
          << "\n on " << nprocs << " processors\n";
 
   // Read the file with the specified options
-  rval = mb->load_file(input_file, &set, read_opts);CHK_ERR(rval);
+  rval = mb->load_file(input_file, &set, read_opts);MB_CHK_ERR(rval);
 
   if (0 == rank) {
     cout << "Time: " << (clock() - tt) / (double) CLOCKS_PER_SEC << " seconds" << endl;
@@ -74,7 +74,7 @@ int main(int argc, char **argv)
   }
 
   // Write back the file with the specified options
-  rval = mb->write_file(output_file, 0, write_opts, &set, 1);CHK_ERR(rval);
+  rval = mb->write_file(output_file, 0, write_opts, &set, 1);MB_CHK_ERR(rval);
 
   if (0 == rank) {
     cout << "Writing file " << output_file << "\n with options: " << write_opts << endl;

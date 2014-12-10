@@ -36,11 +36,11 @@ int main(int argc, char **argv)
   Core mb;
 
   // Load the file
-  ErrorCode rval = mb.load_file(argv[1]);CHK_SET_ERR(rval, "Error loading file");
+  ErrorCode rval = mb.load_file(argv[1]);MB_CHK_SET_ERR(rval, "Error loading file");
 
   // Get all 3d elements in the file
   Range elems;
-  rval = mb.get_entities_by_dimension(0, 3, elems);CHK_SET_ERR(rval, "Error getting 3d elements");
+  rval = mb.get_entities_by_dimension(0, 3, elems);MB_CHK_SET_ERR(rval, "Error getting 3d elements");
 
   // Create a tree to use for the location service
   AdaptiveKDTree tree(&mb);
@@ -64,7 +64,7 @@ int main(int argc, char **argv)
   for (int i = 0; i < num_queries; i++) {
     pos = box.bMin + CartVect(box_extents[0] * .01 * (rand() % 100), box_extents[1] * .01 * (rand() % 100),
         box_extents[2] * .01 * (rand() % 100));
-    rval = sl.locate_point(pos.array(), elem, params.array(), &is_inside, 0.0, 0.0);CHK_ERR(rval);
+    rval = sl.locate_point(pos.array(), elem, params.array(), &is_inside, 0.0, 0.0);MB_CHK_ERR(rval);
     if (is_inside) num_inside++;
   }
 

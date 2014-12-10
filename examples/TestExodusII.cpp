@@ -48,20 +48,20 @@ int main(int argc, char **argv)
   if (argc == 1) {
     cout << "Running default case, loading ../MeshFiles/unittest/mbtest2.g" << endl;
     cout << "Usage: " << argv[0] << " <filename>\n" << endl;
-    rval = mb->load_file("../MeshFiles/unittest/mbtest2.g");CHK_ERR(rval);
+    rval = mb->load_file("../MeshFiles/unittest/mbtest2.g");MB_CHK_ERR(rval);
   }
   else {
-    rval = mb->load_file(argv[argc - 1]);CHK_ERR(rval);
+    rval = mb->load_file(argv[argc - 1]);MB_CHK_ERR(rval);
     cout << "Loaded mesh file: " << argv[argc - 1] << endl;
   }
 
   // Loop over set types
   for (int i = 0; i < 3; i++) {
-    rval = mb->tag_get_handle(tag_nms[i], 1, MB_TYPE_INTEGER, mtag);CHK_ERR(rval);
+    rval = mb->tag_get_handle(tag_nms[i], 1, MB_TYPE_INTEGER, mtag);MB_CHK_ERR(rval);
 
     // Get all the sets of that type in the mesh
     sets.clear();
-    rval = mb->get_entities_by_type_and_tag(0, MBENTITYSET, &mtag, NULL, 1, sets);CHK_ERR(rval);
+    rval = mb->get_entities_by_type_and_tag(0, MBENTITYSET, &mtag, NULL, 1, sets);MB_CHK_ERR(rval);
 
     // Iterate over each set, getting entities
     Range::iterator set_it;
@@ -70,10 +70,10 @@ int main(int argc, char **argv)
 
       // Get the id for this set
       int set_id;
-      rval = mb->tag_get_data(mtag, &this_set, 1, &set_id);CHK_ERR(rval);
+      rval = mb->tag_get_data(mtag, &this_set, 1, &set_id);MB_CHK_ERR(rval);
 
       // Get the entities in the set, recursively
-      rval = mb->get_entities_by_handle(this_set, set_ents, true);CHK_ERR(rval);
+      rval = mb->get_entities_by_handle(this_set, set_ents, true);MB_CHK_ERR(rval);
 
       cout << tag_nms[i] << " " << set_id << " has " << set_ents.size() << " entities:" << endl;
 

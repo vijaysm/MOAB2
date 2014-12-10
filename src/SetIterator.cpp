@@ -162,7 +162,7 @@ ErrorCode RangeSetIterator::get_next_by_dimension(const EntityHandle *&ptr, int 
 {
     // iterating by dimension - type should be maxtype
   if (entType != MBMAXTYPE) {
-    SET_ERR(MB_FAILURE, "Both dimension and type should not be set on an iterator");
+    MB_SET_ERR(MB_FAILURE, "Both dimension and type should not be set on an iterator");
   }
     
   unsigned int num_ret = 0;
