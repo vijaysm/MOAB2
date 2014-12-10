@@ -1,2 +1,2 @@
-SUBDIRS = deformed_mesh_remap
+SUBDIRS = 
 EXTRA_DIST = 
