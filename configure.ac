@@ -1,16 +1,15 @@
 ################################################################################
 #                           Standard Stuff
 ################################################################################
-AC_INIT(Lasso, 3.1.1pre)
+AC_INIT([Lasso],[3.1.1pre])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR([.])
-AC_CANONICAL_SYSTEM
+AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE
 
 AC_PROG_SED
 
-AC_ARG_ENABLE([fortran],[AC_HELP_STRING([--disable-fortran],
-  [No Fortran name mangling in ITAPS C headers])],
+AC_ARG_ENABLE([fortran],[AS_HELP_STRING([--disable-fortran],[No Fortran name mangling in ITAPS C headers])],
   [ENABLE_FORTRAN=$enableval],[ENABLE_FORTRAN=yes])
 
 EXTRA_GNU_FLAGS='-Wall -pipe -pedantic -Wno-long-long'
@@ -23,7 +22,7 @@ AC_PROG_LN_S
 AC_PROG_MAKE_SET
 AC_DISABLE_SHARED
 AC_PROG_FC
-AC_PROG_LIBTOOL
+LT_INIT
 
 FATHOM_CHECK_CXX_WORKS([], [AC_MSG_ERROR([Cannot build without C++ compiler])])
 
@@ -46,7 +45,7 @@ AM_CONDITIONAL(USE_MPI, [test "xyes" == "x$WITH_MPI"])
 #                           iGeom
 ################################################################################
 AC_ARG_WITH(igeom, 
-[AC_HELP_STRING([--with-igeom=DIR], [Specify directory containing iGeom libs/includes or dirs under which lib/ and include/ are located])],
+[AS_HELP_STRING([--with-igeom=DIR],[Specify directory containing iGeom libs/includes or dirs under which lib/ and include/ are located])],
 [IGEOM_DIR=$withval
  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-igeom=\"${withval}\""
  ], [IGEOM_DIR=])
@@ -84,7 +83,7 @@ AM_CONDITIONAL([ENABLE_IGEOM], [test x$IGEOM_MISSING = xno])
 ################################################################################
 FBIGEOM_EXTRA_LIB= 
 AC_ARG_WITH(fbigeom, 
-[AC_HELP_STRING([--with-fbigeom=DIR], [Specify directory containing FBiGeom libs/includes or dirs under which lib/ and include/ are located])],
+[AS_HELP_STRING([--with-fbigeom=DIR],[Specify directory containing FBiGeom libs/includes or dirs under which lib/ and include/ are located])],
 [FBIGEOM_DIR=$withval
  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-fbigeom=\"${withval}\""
  ], [FBIGEOM_DIR=])
@@ -120,7 +119,7 @@ AM_CONDITIONAL([ENABLE_FBIGEOM], [test x$FBIGEOM_MISSING = xno])
 #                           iMesh
 ################################################################################
 AC_ARG_WITH(imesh, 
-[AC_HELP_STRING([--with-imesh=DIR], [Specify directory containing iMesh libs/includes or dirs under which lib/ and include/ are located])],
+[AS_HELP_STRING([--with-imesh=DIR],[Specify directory containing iMesh libs/includes or dirs under which lib/ and include/ are located])],
 [IMESH_DIR=$withval
  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-imesh=\"${withval}\""
  ], [IMESH_DIR=])
