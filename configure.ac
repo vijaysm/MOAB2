@@ -794,7 +794,7 @@ fi
 MB_OPTIONAL_TOOL([h5mtools],     [${HAVE_HDF5}], [${HAVE_HDF5}])
 MB_OPTIONAL_TOOL([mbcslam],      [no], [yes])
 MB_OPTIONAL_TOOL([ahf],          [no], [no])
-
+MB_OPTIONAL_TOOL([mbquality],    [yes], [yes])
 if test "xyes" = "x$ENABLE_dagmc"; then
    DAGMC_LIBS="-ldagmc"
    AC_SUBST(DAGMC_LIBS)
@@ -1372,6 +1372,7 @@ AC_CONFIG_FILES([Makefile
                  src/LocalDiscretization/Makefile
                  src/parallel/Makefile
                  src/oldinc/Makefile
+                 src/verdict/Makefile
                  test/Makefile
                  test/dagmc/Makefile
                  test/h5file/Makefile
