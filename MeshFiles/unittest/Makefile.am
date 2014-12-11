@@ -15,6 +15,7 @@ EXTRA_DIST  = 125hex.g \
               cell2.gen.gz \
               mb_big_test.g.gz \
               mbtest1.g \
+              mbtest1.vtk \
               mbtest2.g \
               mbtest3.g \
               test.g \
