@@ -44,12 +44,12 @@
 #include "moab/ProcConfig.hpp"
 #include "moab/TupleList.hpp"
 #include "moab/ProgOptions.hpp"
+#include "moab/ErrorHandler.hpp"
 #include <time.h>
 #include <iostream>
 #include <sstream>
 
-const char BRIEF_DESC[] =
-    "Example of gather scatter with tuple lists \n";
+const char BRIEF_DESC[] = "Example of gather scatter with tuple lists \n";
 std::ostringstream LONG_DESC;
 
 using namespace moab;
@@ -59,11 +59,14 @@ int main(int argc, char **argv)
 {
   MPI_Init(&argc, &argv);
 
+  // Initialize error handler, required for this example (not using a moab instance)
+  MBErrorHandler_Init();
+
   ProcConfig pc(MPI_COMM_WORLD);
   int size = pc.proc_size();
   int rank = pc.proc_rank();
 
-  // start copy
+  // Start copy
   LONG_DESC << "This program does a gather scatter with a list of tuples. \n"
           " It tries to see how much communication costs in terms of time and memory. \n"
           << "It starts with creating a list of tuples to be sent from each processor, \n to a list of other processors.\n" <<
@@ -71,7 +74,7 @@ int main(int argc, char **argv)
           "After communication, we verify locally if we received what we expected. \n";
   ProgOptions opts(LONG_DESC.str(), BRIEF_DESC);
 
-  // how many procs communicate to current proc, on average (we will vary that too)
+  // How many procs communicate to current proc, on average (we will vary that too)
   int num_comms = 2;
   opts.addOpt<int>("num_comms,n",
        "each task will send to about num_comms other tasks some tuples (default 2)", &num_comms);
@@ -80,108 +83,95 @@ int main(int argc, char **argv)
   opts.addOpt<int>("num_tuples,t",
         "each task will send to some task about num_tuples tuples (default 4)", &num_tuples);
 
-  int reportrank = size+1;
+  int reportrank = size + 1;
   opts.addOpt<int>("reporting_rank,r",
       "this rank will report the tuples sent and the tuples received; it could be higher than num_procs, then no reporting"
       ,&reportrank);
 
   opts.parseCommandLine(argc, argv);
 
-
-
-
-  if (rank==reportrank || (reportrank>=size && rank == 0))
-  {
-    std::cout << " There are " << size << " tasks in example.\n";
-    std::cout<< " We will send groups of " << num_tuples << " from each task towards " <<
+  if (rank == reportrank || (reportrank >= size && 0 == rank)) {
+    cout << " There are " << size << " tasks in example.\n";
+    cout << " We will send groups of " << num_tuples << " from each task towards " <<
         num_comms << " other tasks.\n";
   }
 
-  // send some data from proc i to i+n/2, also to i +n/2+1 modulo n, where n is num procs
+  // Send some data from proc i to i + n/2, also to i + n/2 + 1 modulo n, where n is num procs
 
   gs_data::crystal_data *cd = pc.crystal_router();
 
-  long total_n_tuples = num_comms*num_tuples;
+  long total_n_tuples = num_comms * num_tuples;
 
-  // vary the number of tasks to send to, and the number of tuples to send
-  if (rank<size/2)
+  // Vary the number of tasks to send to, and the number of tuples to send
+  if (rank < size/2)
     num_comms--;
   else
     num_comms++;
 
-  if (rank<size/3)
-    num_tuples*=2;
-  else if (rank>size-size/3)
-    num_tuples/=2;
-
+  if (rank < size/3)
+    num_tuples *= 2;
+  else if (rank > size - size/3)
+    num_tuples /= 2;
 
   TupleList tl;
-  // at most num_tuples* num_comms to send
-  // we do a preallocate with this; some tuples on some processors might need more memory, to be able
+  // At most num_tuples* num_comms to send
+  // We do a preallocate with this; some tuples on some processors might need more memory, to be able
   // to grow locally; Some tasks might receive more tuples though, and in the process, some might grow more than
   // others. By doing these logP sends/receives, we do not grow local memory too much.
   tl.initialize(1, 1, 0, 1, num_tuples*num_comms);
   tl.enableWriteAccess();
-  // form num_tuples*num_comms tuples, send to various ranks
+  // Form num_tuples*num_comms tuples, send to various ranks
   unsigned int n = tl.get_n();
-  for (int i=0; i<num_comms; i++)
-  {
-    int sendTo = rank+i*size/2+1;// spread out the send to, for a stress-like test
-    sendTo = sendTo%size;//
+  for (int i = 0; i < num_comms; i++) {
+    int sendTo = rank + i*size/2 + 1; // Spread out the send to, for a stress-like test
+    sendTo = sendTo % size;//
     long intToSend = 1000*rank + 100000*sendTo;
-    for (int j=0; j<num_tuples; j++)
-    {
+    for (int j = 0; j < num_tuples; j++) {
       n = tl.get_n();
-      tl.vi_wr[n]= sendTo;
-      tl.vl_wr[n]= intToSend+j;
-      tl.vr_wr[n]= 10000.*rank+j;
+      tl.vi_wr[n] = sendTo;
+      tl.vl_wr[n] = intToSend + j;
+      tl.vr_wr[n] = 10000.*rank + j;
       tl.inc_n();
     }
   }
 
-  if (rank==reportrank)
-  {
-    std::cout << "rank " << rank << "\n";
+  if (rank == reportrank) {
+    cout << "rank " << rank << "\n";
     tl.print(" before sending");
   }
 
   clock_t tt = clock();
-  // all communication happens here; no mpi calls for the user
-  ErrorCode rval = cd->gs_transfer(1,tl,0);
+  // All communication happens here; no mpi calls for the user
+  ErrorCode rval = cd->gs_transfer(1, tl, 0);MB_CHK_SET_ERR(rval, "Error in tuple transfer");
 
-  if (MB_SUCCESS!= rval)
-  {
-    std::cout << "error in tuple transfer\n";
-  }
-
-  double secs=0;
-  if (rank==reportrank || (reportrank>=size && rank == 0))
-  {
+  double secs = 0;
+  if (rank == reportrank || (reportrank >= size && 0 == rank)) {
     secs = (clock() - tt) / (double) CLOCKS_PER_SEC;
   }
-  if (rank==reportrank)
-  {
-    std::cout << "rank " << rank << "\n";
+  if (rank == reportrank) {
+    cout << "rank " << rank << "\n";
     tl.print(" after transfer");
   }
-  // check that all tuples received have the form 10000* rank + 100*from
+
+  // Check that all tuples received have the form 10000*rank + 100*from
   unsigned int received = tl.get_n();
-  for (int i=0; i<(int)received; i++)
-  {
+  for (int i = 0; i < (int)received; i++) {
     int from = tl.vi_rd[i];
     long valrec = tl.vl_rd[i];
-    int remainder = valrec -100000*rank -1000*from;
+    int remainder = valrec - 100000*rank - 1000*from;
     if (remainder < 0 || remainder >= num_tuples*4)
-      std::cout << " error: tuple " << i << " received at proc rank " << rank << " from proc " << from << " has value " <<
-         valrec << " remainder " <<  remainder << "\n";
+      cout << " error: tuple " << i << " received at proc rank " << rank << " from proc " << from <<
+      " has value " << valrec << " remainder " << remainder << "\n";
   }
 
-  if (rank==reportrank || (reportrank>=size && rank == 0))
-  {
-    std::cout << "communication of about "<<  total_n_tuples << " tuples/per proc took "
-        << secs  << " seconds" << std::endl;
-        tt = clock();
+  if (rank == reportrank || (reportrank >= size && 0 == rank)) {
+    cout << "communication of about " << total_n_tuples << " tuples/per proc took " << secs << " seconds" << "\n";
+    tt = clock();
   }
+
+  // Finalize error handler, required for this example (not using a moab instance)
+  MBErrorHandler_Finalize();
+
   MPI_Finalize();
 
   return 0;

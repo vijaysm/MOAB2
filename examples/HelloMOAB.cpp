@@ -9,7 +9,6 @@
 
 #include "moab/Core.hpp"
 #include <iostream>
-#include <assert.h>
 
 using namespace moab;
 using namespace std;
@@ -18,47 +17,48 @@ using namespace std;
 #define MESH_DIR "."
 #endif
 
+// Note: change the file name below to test a trivial "No such file or directory" error
 string test_file_name = string(MESH_DIR) + string("/3k-tri-sphere.vtk");
 
-int main( int argc, char** argv )
+int main(int argc, char **argv)
 {
-  Interface *iface = new Core;
+  // Get MOAB instance
+  Interface* mb = new (std::nothrow) Core;
+  if (NULL == mb)
+    return 1;
 
-    // need option handling here for input filename
-  if (argc > 1){
-    //user has input a mesh file
+  // Need option handling here for input filename
+  if (argc > 1) {
+    // User has input a mesh file
     test_file_name = argv[1];
-  }  
-    //load the mesh from vtk file
-  ErrorCode rval = iface->load_mesh( test_file_name.c_str() );
-  assert(rval == MB_SUCCESS);
+  }
 
-    // get verts entities, by type
+  // Load the mesh from vtk file
+  ErrorCode rval = mb->load_mesh(test_file_name.c_str());MB_CHK_ERR(rval);
+
+  // Get verts entities, by type
   Range verts;
-  rval = iface->get_entities_by_type(0, MBVERTEX, verts);
-  assert(rval == MB_SUCCESS);
-    //get edge entities, by type
+  rval = mb->get_entities_by_type(0, MBVERTEX, verts);MB_CHK_ERR(rval);
+
+  // Get edge entities, by type
   Range edges;
-  rval = iface->get_entities_by_type(0, MBEDGE, edges);
-  assert(rval == MB_SUCCESS);
+  rval = mb->get_entities_by_type(0, MBEDGE, edges);MB_CHK_ERR(rval);
 
-    // get faces, by dimension, so we stay generic to entity type
+  // Get faces, by dimension, so we stay generic to entity type
   Range faces;
-  rval = iface->get_entities_by_dimension(0, 2, faces);
-  assert(rval == MB_SUCCESS);
+  rval = mb->get_entities_by_dimension(0, 2, faces);MB_CHK_ERR(rval);
 
-    //get regions, by dimension, so we stay generic to entity type
+  // Get regions, by dimension, so we stay generic to entity type
   Range elems;
-  rval = iface->get_entities_by_dimension(0, 3, elems);
-  assert(rval == MB_SUCCESS);
+  rval = mb->get_entities_by_dimension(0, 3, elems);MB_CHK_ERR(rval);
 
-   //output the number of entities
-  cout << "Number of vertices is " << verts.size() <<  endl;
-  cout << "Number of edges is " << edges.size() <<  endl;
-  cout << "Number of faces is " << faces.size() <<  endl;
-  cout << "Number of elements is " << elems.size() <<  endl;
+  // Output the number of entities
+  cout << "Number of vertices is " << verts.size() << endl;
+  cout << "Number of edges is " << edges.size() << endl;
+  cout << "Number of faces is " << faces.size() << endl;
+  cout << "Number of elements is " << elems.size() << endl;
 
-  delete iface;
+  delete mb;
 
   return 0;
 }

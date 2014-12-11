@@ -12,8 +12,9 @@ EXAMPLES = HelloMOAB GetEntities SetsNTags LoadPartial structuredmesh Structured
 PAREXAMPLES = HelloParMOAB ReduceExchangeTags LloydRelaxation CrystalRouterExample ReadWriteTest GenLargeMesh
 EXOIIEXAMPLES = TestExodusII
 F90EXAMPLES = DirectAccessNoHolesF90 PushParMeshIntoMoabF90
+ERROREXAMPLES = ErrorHandlingSimulation TestErrorHandling TestErrorHandlingPar
 
-default: ${EXAMPLES} ${PAREXAMPLES} ${EXOIIEXAMPLES} ${F90EXAMPLES}
+default: ${EXAMPLES} ${PAREXAMPLES} ${EXOIIEXAMPLES} ${F90EXAMPLES} ${ERROREXAMPLES}
 
 HelloMOAB: HelloMOAB.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
@@ -67,16 +68,25 @@ DeformMeshRemap: DeformMeshRemap.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} -lmbcoupler ${MOAB_LIBS_LINK}
 
 VisTags: VisTags.o ${MOAB_LIBDIR}/libMOAB.la
-	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} 
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
 ReadWriteTest: ReadWriteTest.o ${MOAB_LIBDIR}/libMOAB.la
-	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} 
-	
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
 GenLargeMesh: GenLargeMesh.o ${MOAB_LIBDIR}/libMOAB.la
-	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} 
-	
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+ErrorHandlingSimulation: ErrorHandlingSimulation.o ${MOAB_LIBDIR}/libMOAB.la
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+TestErrorHandling: TestErrorHandling.o ${MOAB_LIBDIR}/libMOAB.la
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+TestErrorHandlingPar: TestErrorHandlingPar.o ${MOAB_LIBDIR}/libMOAB.la
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
 clean:
-	rm -rf *.o *.mod *.h5m ${EXAMPLES} ${PAREXAMPLES} ${EXOIIEXAMPLES} ${F90EXAMPLES}
+	rm -rf *.o *.mod *.h5m ${EXAMPLES} ${PAREXAMPLES} ${EXOIIEXAMPLES} ${F90EXAMPLES} ${ERROREXAMPLES}
 
 .cpp.o:
 	${MOAB_CXX} ${CXXFLAGS} ${MOAB_CXXFLAGS} ${MOAB_CPPFLAGS} ${MOAB_INCLUDES} -DMESH_DIR=\"${MESH_DIR}\" -c $<
