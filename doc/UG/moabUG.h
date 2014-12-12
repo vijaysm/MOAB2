@@ -641,6 +641,11 @@ TODO:: Other features to be added
   - obtain ring neighborhoods with support for half-rings
   - efficient extraction of boundaries
 
+  \ref contents
+
+  \subsection umr 4.8. Uniform Mesh Refinement
+  Uniform mesh refinement is an useful capability that is required for a number of purposes such as generating a sequence of meshes for convergence studies or for multilevel methods such as multigrid, generate large meshes, etc.
+
  \ref contents
 
   \section parallel 5.Parallel Mesh Representation and Query
