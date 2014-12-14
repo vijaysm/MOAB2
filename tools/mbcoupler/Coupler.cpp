@@ -38,6 +38,7 @@ Coupler::Coupler(Interface *impl,
 
   // Keep track of the local points, at least for now
   myRange = local_elems;
+  myTree = NULL;
 
   // Now initialize the tree
   if (init_tree)
@@ -56,6 +57,9 @@ Coupler::~Coupler()
   // This will clear the cache
   delete (moab::Element::SpectralHex*)_spectralSource;
   delete (moab::Element::SpectralHex*)_spectralTarget;
+  delete myTree;
+  delete targetPts;
+  delete mappedPts;
 }
 
 ErrorCode Coupler::initialize_tree()
@@ -647,6 +651,9 @@ ErrorCode Coupler::nat_param(double xyz[3],
                              std::vector<CartVect> &nat_coords,
                              double epsilon)
 {
+  if (!myTree)
+    return MB_FAILURE;
+
   AdaptiveKDTreeIter treeiter;
   ErrorCode result = myTree->get_tree_iterator(localRoot, treeiter);
   if (MB_SUCCESS != result) {
