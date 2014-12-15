@@ -20,6 +20,10 @@
  * \date August, 2006
  */
 
+#ifdef _WIN32
+#define _USE_MATH_DEFINES
+#endif
+
 #include "AffineXform.hpp"
 #include "moab/Interface.hpp"
 #include <assert.h>
@@ -76,10 +80,6 @@ using namespace moab;
 const double TOL = 1e-6;
 
 int error_count = 0;
-
-#ifndef M_PI  /* windows */
-# define M_PI 3.14159265358979323846
-#endif
 
 void assert_vectors_equal( const double* a, const double* b,
                            const char* sa, const char* sb,
