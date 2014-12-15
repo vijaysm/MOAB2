@@ -199,7 +199,7 @@ ErrorCode DenseTag::get_data(const SequenceManager* seqman,
                              size_t num_entities,
                              void* adata) const
 {
-  size_t junk;
+  size_t junk = 0;
   unsigned char* ptr = reinterpret_cast<unsigned char*>(adata);
   const EntityHandle *const end = entities + num_entities;
   for (const EntityHandle* i = entities; i != end; ++i, ptr += get_size()) {
@@ -223,7 +223,7 @@ ErrorCode DenseTag::get_data(const SequenceManager* seqman,
                              void* values) const
 {
   ErrorCode rval;
-  size_t avail;
+  size_t avail = 0;
   const unsigned char* array = NULL; // Initialize to get rid of warning
   unsigned char* data = reinterpret_cast<unsigned char*>(values);
 
@@ -258,7 +258,7 @@ ErrorCode DenseTag::get_data(const SequenceManager* seqman,
 {
   ErrorCode result;
   const EntityHandle *const end = entities + num_entities;
-  size_t junk;
+  size_t junk = 0;
   const unsigned char* ptr = NULL; // Initialize to get rid of warning
 
   if (data_lengths) {
@@ -287,8 +287,8 @@ ErrorCode DenseTag::get_data(const SequenceManager* seqman,
                              int* data_lengths) const
 {
   ErrorCode rval;
-  size_t avail;
-  const unsigned char* array = 0;
+  size_t avail = 0;
+  const unsigned char* array = NULL;
 
   if (data_lengths) {
     int len = get_size();
@@ -332,8 +332,8 @@ ErrorCode DenseTag::set_data(SequenceManager* seqman,
   ErrorCode rval;
   const unsigned char* ptr = reinterpret_cast<const unsigned char*>(data);
   const EntityHandle* const end = entities + num_entities;
-  unsigned char* array;
-  size_t junk;
+  unsigned char* array = NULL;
+  size_t junk = 0;
 
   for (const EntityHandle* i = entities; i != end; ++i, ptr += get_size()) {
     rval = get_array(seqman, NULL, *i, array, junk, true);MB_CHK_ERR(rval);
@@ -351,8 +351,8 @@ ErrorCode DenseTag::set_data(SequenceManager* seqman,
 {
   ErrorCode rval;
   const char* data = reinterpret_cast<const char*>(values);
-  unsigned char* array;
-  size_t avail;
+  unsigned char* array = NULL;
+  size_t avail = 0;
 
   for (Range::const_pair_iterator p = entities.const_pair_begin();
        p != entities.const_pair_end(); ++p) {
@@ -380,8 +380,8 @@ ErrorCode DenseTag::set_data(SequenceManager* seqman,
   ErrorCode rval = validate_lengths(NULL, data_lengths, num_entities);MB_CHK_ERR(rval);
 
   const EntityHandle* const end = entities + num_entities;
-  unsigned char* array;
-  size_t junk;
+  unsigned char* array = NULL;
+  size_t junk = 0;
 
   for (const EntityHandle* i = entities; i != end; ++i, ++pointers) {
     rval = get_array(seqman, NULL, *i, array, junk, true);MB_CHK_ERR(rval);
@@ -399,8 +399,8 @@ ErrorCode DenseTag::set_data(SequenceManager* seqman,
                              const int* /* data_lengths */)
 {
   ErrorCode rval;
-  unsigned char* array;
-  size_t avail;
+  unsigned char* array = NULL;
+  size_t avail = 0;
 
   for (Range::const_pair_iterator p = entities.const_pair_begin();
        p != entities.const_pair_end(); ++p) {
@@ -430,8 +430,8 @@ ErrorCode DenseTag::clear_data(bool allocate,
 {
   ErrorCode rval;
   const EntityHandle* const end = entities + num_entities;
-  unsigned char* array;
-  size_t junk;
+  unsigned char* array = NULL;
+  size_t junk = 0;
 
   for (const EntityHandle* i = entities; i != end; ++i) {
     rval = get_array(seqman, NULL, *i, array, junk, allocate);MB_CHK_ERR(rval);
@@ -450,8 +450,8 @@ ErrorCode DenseTag::clear_data(bool allocate,
                                const void* value_ptr)
 {
   ErrorCode rval;
-  unsigned char* array;
-  size_t avail;
+  unsigned char* array = NULL;
+  size_t avail = 0;
 
   for (Range::const_pair_iterator p = entities.const_pair_begin(); 
        p != entities.const_pair_end(); ++p) {
@@ -534,8 +534,8 @@ ErrorCode DenseTag::tag_iterate(SequenceManager* seqman,
   if (iter == end)
     return MB_SUCCESS;
 
-  unsigned char* array;
-  size_t avail;
+  unsigned char* array = NULL;
+  size_t avail = 0;
   ErrorCode rval = get_array(seqman, NULL, *iter, array, avail, allocate);MB_CHK_ERR(rval);
   data_ptr = array;
 

@@ -184,8 +184,8 @@ ErrorCode VarLenDenseTag::get_data(const SequenceManager* seqman,
 
   ErrorCode result = MB_SUCCESS, rval;
   const EntityHandle *const end = entities + num_entities;
-  size_t junk;
-  const VarLenTag* ptr;
+  size_t junk = 0;
+  const VarLenTag* ptr = NULL;
 
   for (const EntityHandle* i = entities; i != end; ++i, ++pointers, ++lengths) {
     rval = get_array(seqman, NULL, *i, ptr, junk);MB_CHK_ERR(rval);
@@ -219,7 +219,7 @@ ErrorCode VarLenDenseTag::get_data(const SequenceManager* seqman,
   }
 
   ErrorCode rval;
-  size_t avail;
+  size_t avail = 0;
   const VarLenTag* array = NULL;
 
   for (Range::const_pair_iterator p = entities.const_pair_begin(); 
@@ -295,8 +295,8 @@ ErrorCode VarLenDenseTag::set_data(SequenceManager* seqman,
   ErrorCode rval = validate_lengths(NULL, lengths, one_value ? 1 : num_entities);MB_CHK_ERR(rval);
 
   const EntityHandle* const end = entities + num_entities;
-  VarLenTag* array;
-  size_t junk;
+  VarLenTag* array = NULL;
+  size_t junk = 0;
   const size_t step = one_value ? 0 : 1;
 
   for (const EntityHandle* i = entities; i != end; ++i) {
@@ -319,8 +319,8 @@ ErrorCode VarLenDenseTag::set_data(SequenceManager* seqman,
 {
   ErrorCode rval = validate_lengths(NULL, lengths, one_value ? 1 : entities.size());MB_CHK_ERR(rval);
 
-  VarLenTag* array;
-  size_t avail;
+  VarLenTag* array = NULL;
+  size_t avail = 0;
   const size_t step = one_value ? 0 : 1;
 
   for (Range::const_pair_iterator p = entities.const_pair_begin();
@@ -393,8 +393,8 @@ ErrorCode VarLenDenseTag::remove_data(SequenceManager* seqman,
                                       size_t num_entities)
 {
   const EntityHandle* const end = entities + num_entities;
-  VarLenTag* array;
-  size_t junk;
+  VarLenTag* array = NULL;
+  size_t junk = 0;
   ErrorCode rval;
 
   for (const EntityHandle* i = entities; i != end; ++i) {
@@ -411,8 +411,8 @@ ErrorCode VarLenDenseTag::remove_data(SequenceManager* seqman,
                                       Error* /* error */,
                                       const Range& entities)
 {
-  VarLenTag* array;
-  size_t avail;
+  VarLenTag* array = NULL;
+  size_t avail = 0;
   ErrorCode rval;
 
   for (Range::const_pair_iterator p = entities.const_pair_begin();

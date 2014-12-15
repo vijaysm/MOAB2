@@ -893,7 +893,7 @@ void ProgOptions::write_man_page( std::ostream& s )
     if (!it->first)
       continue;
     
-    if (!expect_optional_args || (it - arg_help_strings.begin()) != optional_args_position)
+    if (!expect_optional_args || (unsigned)(it - arg_help_strings.begin()) != optional_args_position)
       s << it->first->longname << ' ';
     else if (1 == max_optional_args)
       s << '[' << it->first->longname << "] ";
