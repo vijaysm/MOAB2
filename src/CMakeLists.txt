@@ -10,7 +10,6 @@ if(MOAB_USE_MPI AND MPI_FOUND)
   set( MOAB_MPI moabpar )
   set( MOABPAR_OBJECTS $<TARGET_OBJECTS:moabpar> )
   set( MPI_LIBRARIES ${MPI_LIBRARY} ${MPI_EXTRA_LIBRARY} )
-  include_directories(${MPI_INCLUDE_PATH})
 endif()
 
 #create the FCDefs.h and src/MOAB_FCDefs.h files
@@ -76,6 +75,8 @@ set(MOAB_LIB_SOURCES
         DualTool.cpp
         ElementSequence.hpp
         EntitySequence.hpp  EntitySequence.cpp
+        ErrorHandler.cpp
+        ErrorOutput.hpp  ErrorOutput.cpp
         Factory.cpp
         FBEngine.cpp
         FileOptions.cpp
@@ -152,6 +153,7 @@ set( MOAB_INSTALL_HEADERS
         moab/HigherOrderFactory.hpp
         moab/HomXform.hpp
         moab/EntityType.hpp
+        moab/ErrorHandler.hpp
         moab/FBEngine.hpp
         moab/FileOptions.hpp
         moab/FindPtFuncs.h

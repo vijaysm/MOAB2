@@ -25,6 +25,11 @@ if(NOT TARGET MOAB AND NOT MOAB_BINARY_DIR)
   include("${MOAB_CMAKE_DIR}/MOABTargets.cmake")
 endif()
 
+# Target information
+set(MOAB_HAS_FBIGEOM "@ENABLE_IGEOM@")
+set(MOAB_HAS_IMESH "@ENABLE_IMESH@")
+set(MOAB_HAS_MPI "@MOAB_HAS_MPI@")
+
 if(MOAB_USE_HDF)
   if(EXISTS "@HDF5_DIR@/share/cmake/hdf5/hdf5-config.cmake")
     include(@HDF5_DIR@/share/cmake/hdf5/hdf5-config.cmake)

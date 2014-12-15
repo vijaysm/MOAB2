@@ -1,5 +1,5 @@
 AC_DEFUN([FATHOM_HDF5_LIBS_HELPER],[
-if test $HAVE_LIB_HDF5 = no; then
+if (test $HAVE_LIB_HDF5 == no); then
    unset "ac_cv_lib_${HDF5_LIBNAME}_H5Fopen"
    unset "ac_cv_lib_${HDF5_LIBNAME}___H5Fopen"
    AC_CHECK_LIB( [${HDF5_LIBNAME}], [H5Fopen], [HAVE_LIB_HDF5=yes; HDF5_LIBS="$HDF5_LIBS $1"], [], [$1] )
@@ -19,15 +19,9 @@ AC_DEFUN([FATHOM_DETECT_HDF5_LIBS],[
 
  # if we've already done this check, then don't do it again
 if test "xyes" != "x$HAVE_LIB_HDF5"; then
-    # Check for IBM parallel IO library
-  if test "x$enablempi" != "xno"; then
-    AC_CHECK_LIB([gpfs],[gpfs_stat],[HDF5_LIBS="-lgpfs $HDF5_LIBS"])
-  fi
-  
   test "x" != "x$HDF5_LIBNAME" || HDF5_LIBNAME=hdf5
   
   HAVE_LIB_HDF5=no
-  FATHOM_HDF5_LIBS_HELPER
   FATHOM_HDF5_LIBS_HELPER([$LIBS])
   if test $HAVE_SZIP = yes; then
     FATHOM_HDF5_LIBS_HELPER([-lsz $LIBS])
@@ -153,9 +147,13 @@ if test "xno" != "x$HDF5_ARG"; then
       HDF5_CPPFLAGS="$HDF5_CPPFLAGS -I${HDF5_ARG}"
     fi
   fi
-  
-    # Add flag to defines
+ 
+  # Check for IBM parallel IO library
+  if test "x$enablempi" != "xno"; then
+    AC_CHECK_LIB([gpfs],[gpfs_stat],[LIBS="-lgpfs $LIBS"])
+  fi
 
+  # Add flag to defines
   old_CPPFLAGS="$CPPFLAGS"
   old_LDFLAGS="$LDFLAGS"
   old_LIBS="$LIBS"

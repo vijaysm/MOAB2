@@ -23,7 +23,6 @@ set( MOAB_GENERATED_INSTALL_PHEADERS
      ${CMAKE_CURRENT_BINARY_DIR}/moab_mpi_config.h )
 
 include_directories(
-    ${MPI_INCLUDE_PATH}
     ${MOAB_SOURCE_DIR}/src
     ${MOAB_SOURCE_DIR}/src/parallel
     ${CMAKE_CURRENT_BINARY_DIR}
