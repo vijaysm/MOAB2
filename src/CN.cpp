@@ -40,6 +40,9 @@ const char *CN::entityTypeNames[] = {
 
 short int CN::numberBasis = 0;
 
+short int CN::permuteVec[MBMAXTYPE][3][MAX_SUB_ENTITIES + 1];
+short int CN::revPermuteVec[MBMAXTYPE][3][MAX_SUB_ENTITIES + 1];
+
 const DimensionPair CN::TypeDimensionMap[] = 
 {
     DimensionPair(MBVERTEX,   MBVERTEX), 
