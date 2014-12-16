@@ -67,6 +67,8 @@
 
     \ref fourseven
 
+    \ref foureight
+
   \ref parallel      
 
     \ref fiveone    
@@ -643,8 +645,81 @@ TODO:: Other features to be added
 
   \ref contents
 
-  \subsection umr 4.8. Uniform Mesh Refinement
-  Uniform mesh refinement is an useful capability that is required for a number of purposes such as generating a sequence of meshes for convergence studies or for multilevel methods such as multigrid, generate large meshes, etc.
+  \subsection foureight 4.8. Uniform Mesh Refinement
+  Many applications require a hierarchy of successively refined meshes for multilevel methods such as multigrid, convergence studies, in parallel computing such as increasing mesh sizes with increase in number of processors, etc. Uniform mesh refinement provides a simple and efficient way to generate such hierarchies.  MOAB supports generation of a mesh hierarchy i.e., a sequence of meshes with user specified degrees for each level of refinement, from an initial unstructured mesh. The standard nested refinement patterns used are the subdivision schemes from 1 to 4 for 2D (triangles, quads) and 1 to 8 for 3D (tets, hexes) entity types. However, many applications might require degree 3 or more for p-refinements. MOAB provides support for higher degrees of refinement (supported degrees are listed later).  Thus MOAB supports multi-degree and multi-level mesh generation via uniform refinement. The following figure shows the initial and most refined mesh for four simple meshes to illustrate the multi-degree capability.
+
+  \image html uref_allEtype.png "Uniform Refinement of 2D and 3D meshes"
+
+  Applications using mesh hierarchies require two types of mesh access: intralevel and interlevel. The intralevel access involves working with the mesh at a particular level whereas interlevel access involves querying across different levels. In order to achieve data locality with reduced cache misses for efficient intralevel mesh access, old vertices in the previous i.e. immediate parent mesh are duplicated in the current level. All the entities thus created for the current level use the new entityhandles of old vertices along with the handles of the new vertices. This design makes mesh at each level of the hierarchy independent of those at previous levels. For each mesh in the hierarchy, a MESHSET is created and all entities of the mesh are added to this MESHSET. Thus the meshes of the hierarchy are accessible via these MESHSET handles.
+
+ For interlevel queries, separate interface functions are defined to allow queries across different levels. These queries mainly allow obtaining the parent at some specified parent level for a child from later levels and vice versa. The child-parent queries are not restricted to a level difference of one as the internal array-based layout of the memory allows traversing between different levels via index relations.
+
+ The hierarchy generation capability is implemented in NestedRefine class. In Table 4, the user interface functions are briefly described. The main hierarchy generating function takes as input a sequence of refinement degrees to be used for generating mesh at each level from its previous level, the total number of levels in the hierarchy. It returns EntityHandles for the meshsets created for mesh at each level. The number of levels in the hierarchy is prefixed (by the user) and cannot change during hierarchy generation. The next three functions for getting the coordinates, connectivity and adjacencies are standard operations to access and query a mesh. The coordinates and connectivity functions, which are similar to their counterparts in MOAB Interface class, allows one to query the mesh at a specific level via its level index. The reason to provide such similar functions is to increase efficiency by utilizing the direct access to memory pointers to EntitySequences created during hierarchy generation under the NestedRefine class instead of calling the standard interfaces where a series of calls have to made before the EntitySequence of the requested entity is located. It is important to note that any calls to the standard interfaces available under Interface class should still work. The underlying mesh data structure used for uniform refinement is the AHF datastructure. Once a level is created all the relevant AHF maps are updated for the current mesh level to allow query over it.
+
+ For interlevel queries, currently three kinds of queries are supported. The child to parent allows querying for a parent in any of the previous levels (including the initial mesh). The parent to child, on the other hand, returns all its children from a requested child level. These two types of queries are only supported for entities, not vertices. There is a separate function (vertex_to_entities) which returns entities from the previous level that are either incident or contain this vertex.
+
+
+  \subsection tablethree Table 4: User interface functions NestedRefine class.
+
+<table border="1">
+<tr>
+<th>Function group</th>
+<th>Function</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>Hierarchy generation</td>
+<td>generate_mesh_hierarchy</td>
+<td>Generate a mesh hierarchy with a given sequence of refinement degree for each level. </td>
+</tr>
+<tr>
+<td>Vertex coordinates</td>
+<td>get_coordinates</td>
+<td>Get vertex coordinates</td>
+</tr>
+<tr>
+<td>Connectivity</td>
+<td>get_connectivity</td>
+<td>Get connectivity of non-vertex entities</td>
+</tr>
+<tr>
+<td>Adjacencies</td>
+<td>get_adjacencies</td>
+<td>Get topologically adjacent entities</td>
+</tr>
+<tr>
+<td>Interlevel Queries</td>
+<td>child_to_parent</td>
+<td>Get the parent entity of a child from a specified parent level</td>
+</tr>
+<tr>
+<td>Interlevel Queries</td>
+<td>parent_to_child</td>
+<td>Get all children of the parent from a specified child level</td>
+</tr>
+<tr>
+<td>Interlevel Queries</td>
+<td>vertex_to_entities</td>
+<td>Get all the entities in the previous level incident on or containing the vertex</td>
+</tr>
+</table>
+
+
+An example of how to generate a hierarchy can be found  under examples/UniformRefinement.cpp. The following figure shows the timing for generating sequences with various degrees of refinement. If a multilevel sequence is required, a degree 2 refinement per level would give a gradually increasing mesh with more number of levels. If a very refined mesh is desired quickly, then a high-order refinement should be performed.
+
+\image html uref_timeEtype.png "Mesh sizes Vs. Time"
+
+
+  Current support:
+  - Serial
+  - Single dimension with same highest dimensional entity type
+  - Linear point projection
+  - Degree and entity types
+      - 1D: 2,3,5, MBEDGE
+      - 2D: 2,3,5, MBTRI, MBQUAD
+      - 3D: 2,3, MBTET, MBHEX
+
+
 
  \ref contents
 
