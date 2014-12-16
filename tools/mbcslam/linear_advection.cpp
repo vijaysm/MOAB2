@@ -52,8 +52,6 @@ moab::ErrorCode create_lagr_mesh(moab::Interface * mb, moab::EntityHandle euler_
 // functions to compute departure point locations
 void departure_point_swirl(moab::CartVect & arrival_point, double t, double delta_t, moab::CartVect & departure_point);
 void departure_point_swirl_rot(moab::CartVect & arrival_point, double t, double delta_t, moab::CartVect & departure_point);
-void departure_point_rotation(moab::CartVect & arrival_point, double t, double delta_t, moab::CartVect & departure_point);
-
 
 double gtol = 1.e-9; // this is for geometry tolerance
 
@@ -846,47 +844,6 @@ void departure_point_swirl_rot(moab::CartVect & arrival_point, double t, double 
 /*
  *  Zonal flow
  */
-void departure_point_rotation(CartVect & arrival_point, double t, double delta_t, CartVect & departure_point)
-{
-
-  // rotation angle (0 - around equator, pi/2 - over poles)
-  double alpha = 0.0;
-
-  //radius = 1
-  moab::SphereCoords sph = cart_to_spherical(arrival_point);
-
-  // angular velocity
-  double omega = 2.0*M_PI;
-
-  // lat/lon of rotated pole
-  double lon_p = M_PI;
-  double lat_p = M_PI/2.0 - alpha;
-
-  // rotate spherical coordinates so that rotation is along new equator
-   double coslat = cos(sph.lat);
-   double sinlat = sin(sph.lat);
-   double coslatp = cos(lat_p);
-   double sinlatp = sin(lat_p);
-   double lon_rot = atan2(coslat*sin(sph.lon - lon_p), coslat*sinlatp*cos(sph.lon-lon_p) - coslatp*sinlat);
-   double lat_rot = asin(sinlat*sinlatp + coslat*coslatp*cos(sph.lon - lon_p));
-
-  // update position in rotated coords (NOTE: for rotation in these coords only longitude changes)
-   lon_rot = lon_rot - delta_t*omega;
-
-  // convert back to standard spherical coords
-   double lon_temp = atan2(cos(lat_rot)*sin(lon_rot), sin(lat_rot)*coslatp + cos(lat_rot)*cos(lon_rot)*sinlatp);
-   double lon_dep = lon_temp + lon_p; 
-   double lat_dep = asin(sin(lat_rot)*sinlatp - cos(lat_rot)*coslatp*cos(lon_rot));
-
-   SphereCoords sph_dep;
-   sph_dep.R = 1.; // radius
-   sph_dep.lat = lat_dep;
-   sph_dep.lon = lon_dep;
-
-   departure_point = spherical_to_cart(sph_dep);
-
-  return;
-}
 
 void get_intersection_weights(moab::Interface * mb, moab::EntityHandle euler_set, moab::EntityHandle lagr_set, 
                               moab::EntityHandle intx_set, moab::Tag &planeTag, moab::Tag &weightsTag)
@@ -1007,15 +964,19 @@ ErrorCode  create_lagr_mesh(moab::Interface * mb, moab::EntityHandle euler_set, 
                                            1, MB_TYPE_HANDLE, corrTag,
                                            MB_TAG_DENSE|MB_TAG_CREAT, &dum);
 
+  CHECK_ERR(rval);
   // give the same global id to new verts and cells created in the lagr(departure) mesh
   moab::Tag gid;
   rval = mb->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid, MB_TAG_DENSE);
+  CHECK_ERR(rval);
 
   moab::Range polys;
   rval = mb->get_entities_by_dimension(euler_set, 2, polys);
+  CHECK_ERR(rval);
 
   moab::Range connecVerts;
   rval = mb->get_connectivity(polys, connecVerts);
+  CHECK_ERR(rval);
 
   std::map<moab::EntityHandle, moab::EntityHandle> newNodes;
   for (Range::iterator vit = connecVerts.begin(); vit != connecVerts.end(); vit++)
@@ -1023,13 +984,17 @@ ErrorCode  create_lagr_mesh(moab::Interface * mb, moab::EntityHandle euler_set, 
     moab::EntityHandle oldV = *vit;
     moab::CartVect posi;
     rval = mb->get_coords(&oldV, 1, &(posi[0]));
+    CHECK_ERR(rval);
     int global_id;
     rval = mb->tag_get_data(gid, &oldV, 1, &global_id);
+    CHECK_ERR(rval);
     moab::EntityHandle new_vert;
     rval = mb->create_vertex(&(posi[0]), new_vert); // duplicate the position
+    CHECK_ERR(rval);
     newNodes[oldV] = new_vert;
     // set also the correspondent tag :)
     rval = mb->tag_set_data(corrTag, &oldV, 1, &new_vert);
+    CHECK_ERR(rval);
     // also the other side
     // need to check if we really need this; the new vertex will never need the old vertex
     // we have the global id which is the same
@@ -1037,6 +1002,7 @@ ErrorCode  create_lagr_mesh(moab::Interface * mb, moab::EntityHandle euler_set, 
     CHECK_ERR(rval);*/
     // set the global id on the corresponding vertex the same as the initial vertex
     rval = mb->tag_set_data(gid, &new_vert, 1, &global_id);
+    CHECK_ERR(rval);
 
   }
  for (Range::iterator it = polys.begin(); it != polys.end(); it++)
@@ -1045,8 +1011,10 @@ ErrorCode  create_lagr_mesh(moab::Interface * mb, moab::EntityHandle euler_set, 
     int nnodes;
     const moab::EntityHandle * conn;
     rval = mb->get_connectivity(q, conn, nnodes);
+    CHECK_ERR(rval);
     int global_id;
     rval = mb->tag_get_data(gid, &q, 1, &global_id);
+    CHECK_ERR(rval);
     EntityType typeElem = mb->type_from_handle(q);
     std::vector<moab::EntityHandle> new_conn(nnodes);
     for (int i = 0; i < nnodes; i++)
@@ -1056,14 +1024,18 @@ ErrorCode  create_lagr_mesh(moab::Interface * mb, moab::EntityHandle euler_set, 
     }
     moab::EntityHandle newElement;
     rval = mb->create_element(typeElem, &new_conn[0], nnodes, newElement);
+    CHECK_ERR(rval);
     //set the corresponding tag; not sure we need this one, from old to new
     /*rval = mb->tag_set_data(corrTag, &q, 1, &newElement);
     CHECK_ERR(rval);*/
     rval = mb->tag_set_data(corrTag, &newElement, 1, &q);
+    CHECK_ERR(rval);
     // set the global id
     rval = mb->tag_set_data(gid, &newElement, 1, &global_id);
+    CHECK_ERR(rval);
 
     rval = mb->add_entities(lagr_set, &newElement, 1);
+    CHECK_ERR(rval);
   }
 
   return MB_SUCCESS;
