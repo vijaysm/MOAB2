@@ -626,8 +626,9 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
     remote_cells_with_tracers=NULL;
   }
 #else
-  std::cout <<"total mass now:" << total_mass_local << "\n";
-  std::cout <<"check: total intersection area: (4 * M_PI * R^2): "  << 4 * M_PI * R*R << " " << check_intx_area << "\n";
+  for (int k=0; k<numTracers; k++)
+        std::cout <<"total mass now tracer k=" << k+1<<" "  << total_mass_local[k] << "\n";
+  std::cout <<"check: total intersection area: (4 * M_PI * R^2): " << 4 * M_PI * R*R << " " << check_intx_area << "\n";
 #endif
   return MB_SUCCESS;
 }
