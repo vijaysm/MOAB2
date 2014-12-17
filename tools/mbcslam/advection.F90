@@ -26,7 +26,7 @@ program advection
      use ISO_C_BINDING
      implicit none
      iMesh_Instance, INTENT(IN) , VALUE :: instance
-     iBase_EntityHandle, INTENT(IN), VALUE :: opEulerSet
+     iBase_EntitySetHandle, INTENT(IN), VALUE :: opEulerSet
      integer(c_int) , INTENT (OUT) :: ierr
    END SUBROUTINE update_tracer
   END INTERFACE

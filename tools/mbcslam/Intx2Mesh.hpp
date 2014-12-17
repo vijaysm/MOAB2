@@ -65,6 +65,15 @@ public:
   virtual int findNodes(EntityHandle red, int nsRed, EntityHandle blue, int nsBlue,
       double * iP, int nP)=0;
 
+  // this is also computing the area of the red cell in plane (gnomonic plane for sphere)
+  // setting the local variables:
+  // this will be done once per red cell, and once per localQueue for blue cells
+  //  const EntityHandle * redConn;
+  // CartVect redCoords[MAXEDGES];
+  // double redCoords2D[MAXEDGES2]; // these are in plane
+
+  virtual double setup_red_cell(EntityHandle red, int & nsRed)= 0;
+
   virtual void createTags();
   ErrorCode GetOrderedNeighbors(EntityHandle set, EntityHandle quad,
       EntityHandle neighbors[MAXEDGES]);
@@ -110,9 +119,7 @@ protected: // so it can be accessed in derived classes, InPlane and OnSphere
 
   EntityHandle outSet; // will contain intersection
 
-  // tags used in computation, advanced front
-  Tag BlueFlagTag; // to mark blue quads already considered
-
+  // tags used in computation, advancing front
   Tag RedFlagTag; // to mark red quads already considered
 
   Range RedEdges; //
@@ -152,10 +159,12 @@ protected: // so it can be accessed in derived classes, InPlane and OnSphere
 
 #ifdef USE_MPI
   ParallelComm * parcomm;
-  TupleList * remote_cells;
+  TupleList * remote_cells; // not used anymore for communication, just a container
+  TupleList * remote_cells_with_tracers; // these will be used now to update tracers on remote procs
   std::map<int, EntityHandle> globalID_to_eh;// needed for parallel, mostly
 #endif
   int max_edges; // maximum number of edges in the euler set
+  int counting;
 
 
 

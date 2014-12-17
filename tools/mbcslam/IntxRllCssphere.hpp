@@ -1,26 +1,27 @@
 /*
- * Intx2MeshOnSphere.hpp
+ * IntxRllCssphere.hpp
  *
- *  Created on: Oct 3, 2012
- *      Author: iulian
  */
 
-#ifndef INTX2MESHONSPHERE_HPP_
-#define INTX2MESHONSPHERE_HPP_
+#ifndef INTXRLLCSSPHERE_HPP_
+#define INTXRLLCSSPHERE_HPP_
 
 #include "Intx2Mesh.hpp"
 
 namespace moab {
 
-class Intx2MeshOnSphere: public moab::Intx2Mesh
-{
+class IntxRllCssphere: public moab::Intx2Mesh {
 public:
-  Intx2MeshOnSphere(Interface * mbimpl);
-  virtual ~Intx2MeshOnSphere();
+  IntxRllCssphere(Interface * mbimpl);
+  virtual ~IntxRllCssphere();
 
   void SetRadius(double radius) { R=radius ;}
 
   double setup_red_cell(EntityHandle red, int & nsRed);
+
+  // blue cell will be always lat lon cell, so it will be a rectangle in lat-lon coors
+  // it will be used for "interior" determinations of other points
+  //double setup_blue_cell(EntityHandle red, int & nsRed);
 
   // main method to intersect meshes on a sphere
 
@@ -33,14 +34,12 @@ public:
 
   bool is_inside_element(double xyz[3], EntityHandle eh);
 
-  ErrorCode update_tracer_data(EntityHandle out_set, Tag & tagElem, Tag & tagArea);
-
 private:
-  int plane; // current gnomonic plane
   double R; // radius of the sphere
-
-
+  int plane; // current gnomonic plane, will still be used for projection
+  int blueEdgeType[4]; // at most 4
+  // these could be from [-PI/2, +PI/2] and [0 to 2*PI]
 };
 
 } /* namespace moab */
-#endif /* INTX2MESHONSPHERE_HPP_ */
+#endif /* INTXRLLCSSPHERE_HPP_ */

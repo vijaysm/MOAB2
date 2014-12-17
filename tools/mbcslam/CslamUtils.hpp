@@ -28,6 +28,9 @@ int SortAndRemoveDoubles2(double * P, int & nP, double epsilon);
 int EdgeIntersections2(double * blue, int nsBlue, double * red, int nsRed,
     int markb[MAXEDGES], int markr[MAXEDGES], double * points, int & nPoints);
 
+// special one, for intersection between rll (constant latitude)  and cs quads
+int EdgeIntxRllCs(double * blue, CartVect * bluec, int * blueEdgeType, int nsBlue, double * red, CartVect * redc,
+    int nsRed, int markb[MAXEDGES], int markr[MAXEDGES], int plane, double Radius, double * points, int & nPoints);
 // vec utils related to gnomonic projection on a sphere
 
 // vec utils
@@ -138,6 +141,10 @@ ErrorCode enforce_convexity(Interface * mb, EntityHandle set, int rank = 0);
 // then delete the new entities (vertices) and the set of quads
 ErrorCode create_span_quads(Interface * mb, EntityHandle euler_set, int rank);
 
+// looking at quad connectivity, collapse to triangle if 2 nodes equal
+// then delete the old quad
+ErrorCode fix_degenerate_quads(Interface * mb, EntityHandle set);
+
 // distance along a great circle on a sphere of radius 1
 double distance_on_sphere(double la1, double te1, double la2, double te2);
 // page 4 Nair Lauritzen paper
@@ -150,6 +157,33 @@ double slotted_cylinder_field(double lam, double tet, double * params);
 
 double area_spherical_element(Interface * mb, EntityHandle  elem, double R);
 
+ErrorCode positive_orientation(Interface * mb, EntityHandle set, double R);
 
+/*
+ * given 2 arcs AB and CD, compute the unique intersection point, if it exists
+ *  in between
+ */
+ErrorCode intersect_great_circle_arcs(double * A, double * B, double * C, double * D, double R,
+     double * E);
+/*
+ * given 2 arcs AB and CD, compute the intersection points, if it exists
+ *  AB is a great circle arc
+ *  CD is a constant latitude arc
+ */
+ErrorCode intersect_great_circle_arc_with_clat_arc(double * A, double * B, double * C, double * D, double R,
+     double * E, int & np);
+
+//ErrorCode  set_edge_type_flag(Interface * mb, EntityHandle sf1);
+
+int  borderPointsOfCSinRLL(CartVect * redc, double * red2dc, int nsRed, CartVect *bluec, int nsBlue, int * blueEdgeType,
+    double * P, int * side, double epsil);
+
+// copy the euler mesh into a new set, lagr_set (or lagr set into a new euler set)
+// it will be used in 3rd method, when the positions of nodes are modified, no new nodes are
+//  created
+// it will also be used to
+ErrorCode  deep_copy_set(Interface * mb, EntityHandle source, EntityHandle dest);
+// used only by homme
+ErrorCode  deep_copy_set_with_quads(Interface * mb, EntityHandle source_set, EntityHandle dest_set);
 }
 #endif /* CSLAMUTILS_HPP_ */
