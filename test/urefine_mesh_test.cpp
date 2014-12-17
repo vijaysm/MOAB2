@@ -166,7 +166,7 @@ ErrorCode refine_entities(Core *mb, int *level_degrees, const int num_levels, bo
   error = mb->get_entities_by_dimension(0, 3, cells);  CHECK_ERR(error);
 
   Range init_ents;
-  int dim;
+  int dim=0;
 
   if (!edges.empty() && faces.empty() && cells.empty())
     {
@@ -227,8 +227,7 @@ ErrorCode refine_entities(Core *mb, int *level_degrees, const int num_levels, bo
         factor *= level_degrees[l];
 
       int  expected_nents = factor*init_ents.size();
-
-      assert(expected_nents == (int)ents.size());
+      CHECK_EQUAL(expected_nents, (int)ents.size());
 
       //Check adjacencies
       error = test_adjacencies(mb, &uref, dim, verts, ents); CHECK_ERR(error);
