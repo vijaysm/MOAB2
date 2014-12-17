@@ -3,9 +3,19 @@
 
 #include "NestedRefine.hpp"
 
+/*
+ * This header contains the field values of the refinement patterns for
+ * each entity types and their possible degrees. It also contains the permutations
+ *  of the locally ordered vertices and half-facets on parent half-facets needed
+ * for book-keeping purposes. The fields are described in the refPattern structure
+ *  in NestedRefine class.
+ *
+ */
+
 namespace moab{
 
   const NestedRefine::refPatterns NestedRefine::refTemplates[9][MAX_DEGREE] = {
+
     //EDGE
     {
       // Deg 2

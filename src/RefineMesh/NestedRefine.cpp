@@ -171,7 +171,7 @@ namespace moab{
 
   ErrorCode NestedRefine::get_coordinates(EntityHandle *verts, int num_verts, int level, double *coords)
   {
-    assert(level > 0);
+    if (level >0){
     const EntityHandle& vstart = level_mesh[level-1].start_vertex;
     for (int i=0; i< num_verts; i++)
       {
@@ -180,6 +180,14 @@ namespace moab{
         coords[3*i+1] =  level_mesh[level-1].coordinates[1][vid-vstart];
         coords[3*i+2] =  level_mesh[level-1].coordinates[2][vid-vstart];
       }
+      }
+    else
+      {
+        ErrorCode error;
+        error = mbImpl->get_coords(verts, num_verts, coords);
+        if (error != MB_SUCCESS) return error;
+      }
+
     return MB_SUCCESS;
   }
 
