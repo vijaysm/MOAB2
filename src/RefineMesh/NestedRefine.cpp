@@ -1324,7 +1324,7 @@ namespace moab{
 ErrorCode NestedRefine::update_local_ahf(int deg, EntityType type, int pat_id, EntityHandle *vbuffer, EntityHandle *ent_buffer, int etotal)
 {
   ErrorCode error;
-  int nhf, nv, total_new_verts;
+  int nhf = 0, nv = 0, total_new_verts = 0;
   int d = get_index_from_degree(deg);
 
   //Get the number of half-facets
@@ -1701,11 +1701,12 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
            error = get_connectivity(sfid, cur_level, conn);
            if (MB_SUCCESS != error) return error;
 
-           bool orient;
-           if ((fedge[0] == conn[slid])&&(fedge[1] == conn[next[slid]]))
-             orient = true;
-           else if ((fedge[1] == conn[slid])&&(fedge[0] == conn[next[slid]]))
+           bool orient = true;
+           if ((fedge[1] == conn[slid])&&(fedge[0] == conn[next[slid]]))
              orient = false;
+
+           if (orient)
+             assert((fedge[0] == conn[slid])&&(fedge[1] == conn[next[slid]]));
 
            //Find the childrens incident on the half-facet
            int nch = refTemplates[type-1][d].ents_on_pent[l][0];
@@ -2326,7 +2327,7 @@ ErrorCode NestedRefine::reorder_indices(int cur_level, int deg, EntityHandle cel
         }
 
       //Find the combination
-      int c;
+      int c = 0;
       for (int i=0; i<nco; i++)
         {
           int count = 0;
@@ -2427,7 +2428,8 @@ int NestedRefine::find_shortest_diagonal_octahedron(int cur_level, int deg, Enti
   ErrorCode error;
   double coords[18];
   error = get_octahedron_corner_coords(cur_level, deg, vbuffer, coords);
-  assert(error == MB_SUCCESS);
+  if (error != MB_SUCCESS)
+    std::cout<<"Error in obtaining octahedron corner coordinates"<<std::endl;
 
   int diag_map[6] = {1,3,2,4,5,0};
   double length = std::numeric_limits<double>::max();
@@ -2461,7 +2463,8 @@ int NestedRefine::get_local_vid(EntityHandle vid, EntityHandle ent, int level)
   std::vector<EntityHandle> conn;
 
   error = get_connectivity(ent, level+1, conn);
-  assert(error == MB_SUCCESS);
+  if (error != MB_SUCCESS)
+    std::cout<<"Error in getting connectivity of the requested entity"<<std::endl;
 
   int lid=-1;
   for (int i=0; i<(int)conn.size(); i++)

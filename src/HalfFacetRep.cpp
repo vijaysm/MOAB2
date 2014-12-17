@@ -1319,7 +1319,7 @@ namespace moab {
           adj_leids->push_back(leid);
       }
 
-    EntityHandle fedge[2];
+    EntityHandle fedge[2] = {0,0};
     int * next = new int[nepf];
     int  * prev = new int[nepf];
     error = local_maps_2d(nepf, next, prev);
