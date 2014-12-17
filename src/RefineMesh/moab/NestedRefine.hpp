@@ -42,13 +42,6 @@ namespace moab
        *  used to refine the previous level mesh to generate a new level and b) the total number of levels(should be same length as that of the
        *  array in a). Each mesh level in the hierarchy are stored in different meshsets whose handles are returned after the hierarchy generation.
        *  These handles can be used to work with a specific mesh level.
-       *
-       *  CURRENT SUPPORT:
-       *      Dimension          Degree of refinement     Number of new entities(from 1 parent entity)
-       *      1D(edges)              2, 3, 5                                2, 3, 5
-       *      2D(tri,quad)           2, 3, 5                                4, 9, 25
-       *      3D(tet, hex)           2, 3                                    8, 27
-       *
        * \param level_degrees Integer array storing the degrees used in each level.
        * \param num_level The total number of levels in the hierarchy.
        * \param hm_set EntityHandle array that returns the handles of the sets created for each mesh level.
@@ -129,25 +122,41 @@ namespace moab
     int level_dsequence[MAX_LEVELS];
     std::map<int,int> deg_index;
 
-    // Refinement Patterns
+    /*! \struct refPatterns
+     * Refinement patterns w.r.t the reference element. It consists of a locally indexed vertex list along with their natural coordinates, the connectivity of the subdivided entities with local indices, their local AHF maps along with other helper fields to aid in general book keeping such as avoiding vertex duplication during refinement. The entity and degree specific values are stored in the Templates.hpp.
+     * \sa Templates.hpp
+     */
+
+    //! refPatterns
     struct refPatterns{
-      short int nv_edge; // Number of new vertices on edge
-      short int nv_face; // Number of new vertices on face, does not include those on edge
-      short int nv_cell; // Number of new vertices in cell
-      short int total_new_verts; // Total number of new vertices per entity
-      short int total_new_ents; // Total number of new child entities
-
-      int vert_index_bnds[2]; //Lower and upper indices of the new vertices
-      double vert_nat_coord[MAX_VERTS][3]; //Natural coordinates of the new vertices
-      int ents_conn[MAX_CHILDRENS][MAX_CONN]; //Connectivity of the new entities
-
-      int v2hf[MAX_VERTS][2]; //Vertex to half-facet map of the new vertices
-      int ents_opphfs[MAX_CHILDRENS][2*MAX_CONN]; // Opposite half-facet map of the new entities
-
-      int vert_on_edges[MAX_HE][MAX_VHF]; //Helper: storing the local ids of vertices on each local edge
-      int vert_on_faces[MAX_HF][MAX_VHF]; // Helper: storing local ids of verts on each local face, doesnt include those on edges of the face
-      int ents_on_pent[MAX_HF][MAX_CHILDRENS]; //Helper: stores child half-facets incident on parent half-facet. First column contain the number of such children
+      //! Number of new vertices on edge
+      short int nv_edge;
+      //! Number of new vertices on face, does not include those on edge
+      short int nv_face;
+      //! Number of new vertices in cell
+      short int nv_cell;
+      //! Total number of new vertices per entity
+      short int total_new_verts;
+      //! Total number of new child entities
+      short int total_new_ents;
+      //! Lower and upper indices of the new vertices
+      int vert_index_bnds[2];
+      //! Natural coordinates of the new vertices w.r.t reference
+      double vert_nat_coord[MAX_VERTS][3];
+      //! Connectivity of the new entities
+      int ents_conn[MAX_CHILDRENS][MAX_CONN];
+      //! Vertex to half-facet map of the new vertices
+      int v2hf[MAX_VERTS][2];
+      //! Opposite half-facet map of the new entities
+      int ents_opphfs[MAX_CHILDRENS][2*MAX_CONN];
+      //! Helper: storing the local ids of vertices on each local edge
+      int vert_on_edges[MAX_HE][MAX_VHF];
+      //!  Helper: storing local ids of verts on each local face, doesnt include those on edges of the face
+      int vert_on_faces[MAX_HF][MAX_VHF];
+      //! Helper: stores child half-facets incident on parent half-facet. First column contain the number of such children
+      int ents_on_pent[MAX_HF][MAX_CHILDRENS];
     };
+    //! refPatterns
 
     static const refPatterns refTemplates[9][MAX_DEGREE];
 
