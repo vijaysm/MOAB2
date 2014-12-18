@@ -16,22 +16,20 @@ AC_DEFUN([FATHOM_CONFIG_MPI_EXEC],[
   AC_ARG_VAR(MPIEXEC,[Program to use to run parallel tests (default: mpiexec or mpirun)])
   AC_ARG_VAR(MPIEXEC_NP,[Command line flag to specify number of processors to use (default: -np)])
   AC_ARG_VAR(NP,[Number of processors to on which to run parallel tests (default: 2)])
-  if test "x$enablempi" != "xno"; then
-    if test "x$MPIEXEC" = "x"; then
-      if test "x$enablempi" != "xyes"; then
-        AC_CHECK_PROGS([MPIEXEC],[mpiexec mpirun],[true],[${WITH_MPI}:${WITH_MPI}/bin])
-      else
-        AC_CHECK_PROGS([MPIEXEC],[mpiexec mpirun],[true])
-      fi
-    fi
-    if test "x$MPIEXEC_NP" = "x"; then
-      MPIEXEC_NP="-np"
-    fi
-    if test "x$NP" = "x"; then
-      NP=2
+  if test "x$MPIEXEC" = "x"; then
+    if test "x$enablempi" != "xyes"; then
+      AC_CHECK_PROGS([MPIEXEC],[mpiexec mpirun],[NOTFOUND],[${WITH_MPI}:${WITH_MPI}/bin])
+    else
+      AC_CHECK_PROGS([MPIEXEC],[mpiexec mpirun],[NOTFOUND])
     fi
   fi
-  AM_CONDITIONAL(USE_MPIEXEC, [test "xtrue" != "x$MPIEXEC"])
+  if test "x$MPIEXEC_NP" = "x"; then
+    MPIEXEC_NP="-np"
+  fi
+  if test "x$NP" = "x"; then
+    NP=2
+  fi
+  AM_CONDITIONAL(USE_MPIEXEC, [test "xNOTFOUND" != "x$MPIEXEC"])
 ])
 
 # Check for OpenMPI: #ifdef OPEN_MPI
