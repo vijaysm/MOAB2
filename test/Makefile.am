@@ -24,7 +24,8 @@ AM_CPPFLAGS += -DIS_BUILDING_MB \
                -DMESHDIR=$(MESHDIR) \
                -I$(top_builddir)/src \
                -I$(top_srcdir)/src  \
-               -I$(top_srcdir)/src/LocalDiscretization
+               -I$(top_srcdir)/src/LocalDiscretization \
+               -I$(top_srcdir)/src/verdict
 
 if PARALLEL
   AM_CPPFLAGS += -I$(top_srcdir)/src/parallel
@@ -55,7 +56,8 @@ TESTS = range_test \
 	elem_eval_test \
 	spatial_locator_test \
 	test_boundbox \
-	adj_moab_test 
+        adj_moab_test \
+        verdict_test
 
 
 if HDF5_FILE
@@ -90,6 +92,8 @@ MOSTLYCLEANFILES = mb_write.g \
                    tree.h5m 
 
 # Tests and such
+
+verdict_test_SOURCES = verdict_test.cpp
 
 range_test_SOURCES = range_test.cpp
 
