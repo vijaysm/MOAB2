@@ -160,7 +160,7 @@ int main( int argc, char* argv[] )
         rval = vw.all_quality_measures(*it, qualities);
         if (MB_SUCCESS!=rval )
         {
-          fprintf(stderr, "Error getting quality for entity type %d with id %ld \n", et, mb.id_from_handle(*it) );
+          fprintf(stderr, "Error getting quality for entity type %d with id %ld \n", et, (long)mb.id_from_handle(*it) );
   #ifdef USE_MPI
           MPI_Finalize();
   #endif
@@ -190,7 +190,7 @@ int main( int argc, char* argv[] )
           rval = vw.all_quality_measures(*it, qualities);
           if (MB_SUCCESS!=rval )
           {
-            fprintf(stderr, "Error getting quality for entity type %d with id %ld \n", et, mb.id_from_handle(*it) );
+            fprintf(stderr, "Error getting quality for entity type %d with id %ld \n", et, (long)mb.id_from_handle(*it) );
   #ifdef USE_MPI
             MPI_Finalize();
   #endif
@@ -238,13 +238,13 @@ int main( int argc, char* argv[] )
         double local_max, global_max;
         if (ne_local>0)
         {
-          local_min = global_min = minq[quality_type];
-          local_max = global_max = maxq[quality_type];
+          local_min = minq[quality_type];
+          local_max = maxq[quality_type];
         }
         else
         {
-          local_min = global_min = 1.e38; // so this task has no entities of this type
-          local_max = global_max = -1.e38;// it can get here only in parallel
+          local_min = 1.e38; // so this task has no entities of this type
+          local_max = -1.e38;// it can get here only in parallel
         }
 #ifdef USE_MPI
         mpi_err = MPI_Reduce(&local_min, &global_min, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
@@ -259,6 +259,9 @@ int main( int argc, char* argv[] )
           MPI_Finalize();
           return 1;
         }
+#else
+        global_min = local_min;
+        global_max = local_max
 #endif
         if (0==proc_id)
         {
