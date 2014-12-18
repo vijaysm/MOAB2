@@ -304,18 +304,22 @@ WARN_LOGFILE           =
 # directories like "/usr/src/myproject". Separate the files or directories 
 # with spaces.
 
-INPUT                  = @top_srcdir@/src @top_srcdir@/src/moab \
+INPUT                  = @top_srcdir@/src \
+                         @top_srcdir@/src/moab \
                          @top_srcdir@/doc/UG \
                          @top_srcdir@/doc/DG \
                          @top_srcdir@/doc/MetaData \
                          @top_srcdir@/src/parallel/moab  \
                          @top_srcdir@/src/verdict/moab  \
+                         @top_srcdir@/src/RefineMesh/moab \
                          @top_srcdir@/src/MBTagConventions.hpp \
                          @top_srcdir@/src/MBCN.h \
                          @top_srcdir@/src/MBEntityType.h \
                          @top_srcdir@/src/parallel/MBParallelConventions.h \
-                         @top_srcdir@/tools/ @top_srcdir@/tools/mbcoupler @top_srcdir@/tools/dagmc/DagMC.hpp \
-			 @top_srcdir@/itaps @top_srcdir@/itaps/imesh @top_srcdir@/examples
+                         @top_srcdir@/tools/ @top_srcdir@/tools/mbcoupler \
+                         @top_srcdir@/tools/dagmc/DagMC.hpp \
+                         @top_srcdir@/itaps @top_srcdir@/itaps/imesh \
+                         @top_srcdir@/examples
 
 # If the value of the INPUT tag contains directories, you can use the 
 # FILE_PATTERNS tag to specify one or more wildcard pattern (like *.cpp 
@@ -361,7 +365,7 @@ EXAMPLE_PATTERNS       =
 # the \image command).
 
 IMAGE_PATH             =  @top_srcdir@/doc/DG/ \
-	                  @top_srcdir@/doc/UG/
+      	                  @top_srcdir@/doc/UG/
 
 # The INPUT_FILTER tag can be used to specify a program that doxygen should 
 # invoke to filter for each input file. Doxygen will invoke the filter program 

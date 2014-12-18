@@ -23,8 +23,7 @@ endif
 build-check:
 	$(MAKE) 'TESTS_ENVIRONMENT=: ' check
 
-doc_DATA = ANNOUNCE KNOWN_ISSUES LICENSE README README.IO README.IMESH \
-	RELEASE_NOTES
+doc_DATA = ANNOUNCE KNOWN_ISSUES LICENSE README README.IO README.IMESH RELEASE_NOTES
 
 examples_DATA = examples/HelloParMOAB.cpp \
                 examples/TestExodusII.cpp \
@@ -45,7 +44,8 @@ examples_DATA = examples/HelloParMOAB.cpp \
                 examples/DirectAccessNoHolesF90.F90 \
                 examples/point_in_elem_search.cpp \
                 examples/structuredmesh.cpp \
-                examples/SetsNTags.cpp
+                examples/SetsNTags.cpp \
+                examples/UniformRefinement.cpp
 
 EXTRA_DIST = $(doc_DATA) $(examples_DATA)
 
