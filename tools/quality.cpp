@@ -261,7 +261,7 @@ int main( int argc, char* argv[] )
         }
 #else
         global_min = local_min;
-        global_max = local_max
+        global_max = local_max;
 #endif
         if (0==proc_id)
         {
