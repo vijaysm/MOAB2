@@ -739,7 +739,7 @@ TODO:: Other features to be added
 </table>
 
 
-In Table 5, the currently supported degrees of refinement for each dimension is listed along with the number of children created for each such degree for a single entity. The following figure shows the cpu times for generating hierarchies with various degrees of refinement for each dimension and can be used by the user to guide in choosing the degrees of refinement for the hierarchy. For example, if a multilevel hierarchy is required, a degree 2 refinement per level would give a gradually increasing mesh with more number of levels. If a very refined mesh is desired quickly, then a small hierarchy with high-order refinement should be generated.
+In Table 5, the currently supported degrees of refinement for each dimension is listed along with the number of children created for each such degree for a single entity. The following figure shows the cpu times(serial run) for generating hierarchies with various degrees of refinement for each dimension and can be used by the user to guide in choosing the degrees of refinement for the hierarchy. For example, if a multilevel hierarchy is required, a degree 2 refinement per level would give a gradually increasing mesh with more number of levels. If a very refined mesh is desired quickly, then a small hierarchy with high-order refinement should be generated.
 
 \image html uref_timeEtype.png "Mesh sizes Vs. Time"
 
@@ -750,7 +750,7 @@ In Table 5, the currently supported degrees of refinement for each dimension is 
   - Serial
 
   TODO:
-   - Mixed-dimensional
+   - Mixed-dimensional, mixed-entity
    - High-Order point projection
    - Parallel
 
