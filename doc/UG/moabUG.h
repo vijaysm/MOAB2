@@ -750,7 +750,8 @@ In Table 5, the currently supported degrees of refinement for each dimension is 
   - Serial
 
   TODO:
-   - Mixed-dimensional, mixed-entity
+   - Mixed-dimensional meshes
+   - Mixed-entity types
    - High-Order point projection
    - Parallel
 
