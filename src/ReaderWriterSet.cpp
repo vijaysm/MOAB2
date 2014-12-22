@@ -3,7 +3,7 @@
  * storing and accessing finite element mesh data.
  *
  * Copyright 2004 Sandia Corporation.  Under the terms of Contract
- * DE-AC04-94AL85000 with Sandia Coroporation, the U.S. Government
+ * DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government
  * retains certain rights in this software.
  *
  * This library is free software; you can redistribute it and/or
@@ -14,7 +14,6 @@
  */
 
 #include "moab/Core.hpp"
-#include "moab/Error.hpp"
 
 #include "moab/ReaderWriterSet.hpp"
 #include "moab/ReaderIface.hpp"
@@ -86,8 +85,8 @@
 
 namespace moab {
 
-ReaderWriterSet::ReaderWriterSet( Core* mdb, Error* handler )
-  : mbCore( mdb ), mbError( handler )
+ReaderWriterSet::ReaderWriterSet(Core* mdb)
+  : mbCore( mdb )
 {
 #ifdef HDF5_FILE
   const char* hdf5_sufxs[] = { "h5m", "mhdf", NULL };
@@ -190,9 +189,7 @@ ErrorCode ReaderWriterSet::register_factory( reader_factory_t reader,
     // check for duplicate names
   iterator h = handler_by_name( name );
   if (h != end()) {
-    mbError->set_last_error( "Conflicting string name for file formats: \"%s\"",
-                             name );
-    return MB_FAILURE;
+    MB_SET_ERR(MB_FAILURE, "Conflicting string name for file formats: \"" << name << "\"");
   }
 
     // count extensions and check for duplicates
@@ -203,13 +200,9 @@ ErrorCode ReaderWriterSet::register_factory( reader_factory_t reader,
     if (h != end())
     {
       if (NULL != reader && h->have_reader())
-        mbError->set_last_error( "Conflicting readers for file extension \"%s\":"
-                                 " \"%s\" and \"%s\".",
-                                 *iter, h->description().c_str(), description );
-      else if(NULL != writer && h->have_writer())
-        mbError->set_last_error( "Conflicting writers for file extension \"%s\":"
-                                 " \"%s\" and \"%s\".",
-                                 *iter, h->description().c_str(), description );
+        MB_SET_ERR(MB_FAILURE, "Conflicting readers for file extension \"" << *iter << "\": \"" << h->description() << "\" and \"" << description << "\".");
+      else if (NULL != writer && h->have_writer())
+        MB_SET_ERR(MB_FAILURE, "Conflicting writers for file extension \"" << *iter << "\": \"" << h->description() << "\" and \"" << description << "\".");
     }
   }
   handlerList.push_back( Handler(reader, writer, name, description, extensions, iter - extensions) );

@@ -5,15 +5,17 @@ AUTOMAKE_OPTIONS = foreign subdir-objects
 lib_LTLIBRARIES = libMOAB.la 
 
 # Subdirectories to build
-SUBDIRS = 
-libMOAB_la_LIBADD = 
+SUBDIRS =
+libMOAB_la_LIBADD =
 if PARALLEL
   SUBDIRS += parallel
   libMOAB_la_LIBADD += parallel/libMOABpar.la
   AM_CPPFLAGS += -I$(srcdir)/parallel
 endif
-SUBDIRS += io LocalDiscretization .
-libMOAB_la_LIBADD += io/libmoabio.la LocalDiscretization/libLocalDiscretization.la
+
+SUBDIRS += io LocalDiscretization verdict RefineMesh .
+libMOAB_la_LIBADD += io/libmoabio.la LocalDiscretization/libLocalDiscretization.la verdict/libmoabverdict.la RefineMesh/libRefineMesh.la
+
 if OLD_HEADERS
   SUBDIRS += oldinc
 endif
@@ -22,11 +24,14 @@ BUILT_SOURCES = MBCN_protos.h
 
 # Some variables
 AM_CPPFLAGS += -DIS_BUILDING_MB \
+               -DLOCDIR=src/ \
                -I. \
                -I$(srcdir)/io \
                -I$(srcdir)/io/mhdf/include \
                -I$(srcdir)/parallel \
-               -I$(srcdir)/LocalDiscretization
+               -I$(srcdir)/LocalDiscretization \
+               -I$(srcdir)/verdict \
+               -I$(srcdir)/RefineMesh
 
 # The directory in which to install headers
 libMOAB_la_includedir = $(includedir)
@@ -59,6 +64,9 @@ libMOAB_la_SOURCES = \
   ElementSequence.hpp \
   EntitySequence.cpp \
   EntitySequence.hpp \
+  ErrorHandler.cpp \
+  ErrorOutput.cpp \
+  ErrorOutput.hpp \
   Factory.cpp \
   FBEngine.cpp \
   FileOptions.cpp \
@@ -166,6 +174,7 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/HomXform.hpp \
   moab/EntityType.hpp \
   moab/EntityHandle.hpp \
+  moab/ErrorHandler.hpp \
   moab/FBEngine.hpp \
   moab/FileOptions.hpp \
   moab/FindPtFuncs.h \

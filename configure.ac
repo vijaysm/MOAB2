@@ -380,7 +380,7 @@ if test "xno" != "x$HAVE_HDF5"; then
     LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"
     AC_CHECK_LIB( [hdf5], [H5Pset_fapl_mpio], [HAVE_HDF5_PARALLEL=yes],
       [WARN_PARALLEL_HDF5=yes; AC_MSG_WARN("libhdf5 library does not include parallel support.  Parallel HDF5 I/O disabled")],
-      [$HDF5_LIBS]
+      [$HDF5_LIBS $LIBS]
       )
     LDFLAGS="$old_LDFLAGS"
   fi
@@ -795,7 +795,7 @@ fi
 MB_OPTIONAL_TOOL([h5mtools],     [${HAVE_HDF5}], [${HAVE_HDF5}])
 MB_OPTIONAL_TOOL([mbcslam],      [no], [yes])
 MB_OPTIONAL_TOOL([ahf],          [no], [no])
-
+MB_OPTIONAL_TOOL([mbquality],    [yes], [yes])
 if test "xyes" = "x$ENABLE_dagmc"; then
    DAGMC_LIBS="-ldagmc"
    AC_SUBST(DAGMC_LIBS)
@@ -908,7 +908,7 @@ dnl  - Optional library path linker argument (e.g. -L/opt/foo)
     old_LIBS="$LIBS"
     LIBS="$5 ${$3} $old_LIBS"
     AC_CHECK_LIB([$1],[main],[$3="-l$1 ${$3}"],[],[$4])
-    ac_cv_lib_{$1}=ac_cv_lib_{$1}_main
+    ac_cv_lib_$1=ac_cv_lib_$1_main
 
     LIBS="$old_LIBS"
   ])
@@ -1366,12 +1366,15 @@ AC_CONFIG_FILES([Makefile
                  moab.make                  
                  MOABConfig.cmake
                  examples/makefile
+                 examples/old/deform_mesh/makefile
                  src/Makefile
                  src/io/Makefile
                  src/io/mhdf/Makefile
                  src/LocalDiscretization/Makefile
+                 src/RefineMesh/Makefile
                  src/parallel/Makefile
                  src/oldinc/Makefile
+                 src/verdict/Makefile
                  test/Makefile
                  test/dagmc/Makefile
                  test/h5file/Makefile
@@ -1405,6 +1408,7 @@ AC_CONFIG_FILES([Makefile
                  MeshFiles/unittest/dagmc/Makefile
                  MeshFiles/unittest/mbcslam/Makefile
                  MeshFiles/unittest/h5file/Makefile
+                 MeshFiles/examples/Makefile
                  ])
 AC_CONFIG_COMMANDS([src/MOAB_FCDefs.h],
   [sed -e "s/FC_FUNC/MOAB_FC_FUNC/" src/FCDefs.h >src/MOAB_FCDefs.h])
