@@ -25,3 +25,5 @@ SET(MOAB_CFLAGS "@CFLAGS@ @AM_CFLAGS@")
 SET(MOAB_FORTRAN_FLAGS "@FFLAGS@ @AM_FFLAGS@")
 
 # Library and include defs
+set(MOAB_INCLUDE_DIRS, "@prefix@/include")
+set(MOAB_LIBRARY_DIRS, "@prefix@/lib")
