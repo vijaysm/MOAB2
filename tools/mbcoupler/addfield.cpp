@@ -3,10 +3,12 @@
 #include <math.h>
 #include <cstdlib>
 #include <assert.h>
+#include "moab/ParallelComm.hpp"
+#include "MBParallelConventions.h"
+#include "moab_mpi.h"
 
 using namespace std;
-
-namespace moab {
+using namespace moab;
 
 //make a nice picture. tweak here
 //217: x,y -> [-8, 8] /// z -> [-65, 65]
@@ -55,7 +57,6 @@ void putElementField(Interface *mbi, const char *tagname, double factor){
 
 }
 
-
 void putVertexField(Interface *mbi, const char *tagname, double factor){
   Range verts;
 
@@ -82,13 +83,13 @@ void putVertexField(Interface *mbi, const char *tagname, double factor){
 }
 
 
-} // namespace moab
-
 //Using moab instead of imesh for dev speed
 int main(int argc, char **argv){
 
-  using namespace moab;
-  
+
+  // Need to init MPI first, to tell how many procs and rank
+  MPI_Init(&argc, &argv);
+
   Interface *mbi = new Core();
 
   if (argc < 3){
@@ -97,7 +98,11 @@ int main(int argc, char **argv){
     return 0;
   }
 
-  mbi->load_mesh(argv[1]);
+  std::string opts = std::string("PARALLEL=READ_PART;PARALLEL_RESOLVE_SHARED_ENTS;PARTITION=PARALLEL_PARTITION;");
+
+  EntityHandle file_set;
+  mbi->create_meshset(MESHSET_SET, file_set);
+  mbi->load_file(argv[1], &file_set, opts.c_str());
 
   double factor = 1.0;
   if (argc == 4) factor = atof(argv[3]);
@@ -105,7 +110,7 @@ int main(int argc, char **argv){
   putVertexField(mbi, "vertex_field", factor);
   putElementField(mbi, "element_field", factor);
 
-  ErrorCode result = mbi->write_mesh(argv[2]);
+  ErrorCode result = mbi->write_file(argv[2], 0 , "PARALLEL=WRITE_PART;DEBUG_IO=2", &file_set, 1);
   if (MB_SUCCESS == result) cout << "wrote " << argv[2] << endl;
   else cout << "Failed to write " << argv[2] << endl;
 
@@ -115,6 +120,8 @@ int main(int argc, char **argv){
     //  for (int i = 0; i < coords.size()/3; i++) xavg += coords[i];
     //  cout << xavg << endl;
 
-  return 1;
+  MPI_Finalize();
+
+  return 0;
 }
 
