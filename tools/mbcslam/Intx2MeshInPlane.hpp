@@ -16,6 +16,8 @@ public:
   Intx2MeshInPlane(Interface * mbimpl);
   virtual ~Intx2MeshInPlane();
 
+  double setup_red_cell(EntityHandle red, int & nsRed);
+
   int computeIntersectionBetweenRedAndBlue(EntityHandle red, EntityHandle blue,
       double * P, int & nP, double & area, int markb[MAXEDGES], int markr[MAXEDGES],
       int & nsBlue, int & nsRed, bool check_boxes_first=false);

@@ -1,30 +1,19 @@
 /*
- * intx_on_sphere_test.cpp
- *
- *  Created on: Oct 3, 2012
- *      Author: iulian
+ * IntxRllCssphere_test.cpp
  */
-#include <iostream>
-#include <sstream>
-#include <time.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include "moab/Core.hpp"
-#include "moab/Interface.hpp"
-#include "Intx2MeshOnSphere.hpp"
-#include "../test/TestUtil.hpp"
-#include <math.h>
 
+
+#include "IntxRllCssphere.hpp"
+#include "../../test/TestUtil.hpp"
 using namespace moab;
 
 int main(int argc, char* argv[])
 {
   // check command line arg// Euler grid is red, arrival, Lagrangian is blue, departure
   // will will keep the
-  const char *filename_mesh1 = STRINGIFY(MESHDIR) "/mbcslam/lagrangeHomme.vtk";
-  const char *filename_mesh2 = STRINGIFY(MESHDIR) "/mbcslam/eulerHomme.vtk";
-  double R = 6. * sqrt(3.) / 2; // input
+  const char *filename_mesh1 = STRINGIFY(MESHDIR) "/mbcslam/outRLLMesh.g";
+  const char *filename_mesh2 = STRINGIFY(MESHDIR) "/mbcslam/outCSMesh.g";
+  double R = 1.; // input
   double epsrel=1.e-8;
   const char *newFile = "intx.vtk";
   if (argc == 6)
@@ -41,7 +30,7 @@ int main(int argc, char* argv[])
         argv[0]);
     if (argc != 1)
       return 1;
-    printf("No files specified.  Defaulting to: %s  %s  %f %f %s\n",
+    printf("No files specified.  Defaulting to: %s  %s  %f %g %s\n",
         filename_mesh1, filename_mesh2, R, epsrel, newFile);
   }
 
@@ -72,9 +61,6 @@ int main(int argc, char* argv[])
   rval = fix_degenerate_quads(mb, sf1);
   if (MB_SUCCESS != rval)
     return 1;
-  rval = fix_degenerate_quads(mb, sf2);
-  if (MB_SUCCESS != rval)
-    return 1;
 
   rval =positive_orientation(mb, sf1, R);
   if (MB_SUCCESS != rval)
@@ -84,8 +70,13 @@ int main(int argc, char* argv[])
   if (MB_SUCCESS != rval)
     return 1;
 
+  /*// set the edge tags on all elements sf1
+  rval = set_edge_type_flag(mb, sf1); // form all edges, and set on them type 1 if constant latitude
+  // add them to the set after this, just so we have them
+  if (MB_SUCCESS != rval)
+    return 1;*/
 
-  Intx2MeshOnSphere  worker(mb);
+  IntxRllCssphere  worker(mb);
 
   worker.SetErrorTolerance(R*epsrel);
   //worker.SetEntityType(moab::MBQUAD);
@@ -100,17 +91,6 @@ int main(int argc, char* argv[])
   rval = mb->write_mesh(newFile, &outputSet, 1);
   if (MB_SUCCESS != rval)
     return 1;
-  double initial_area = area_on_sphere_lHuiller(mb, sf1, R);
-  double area_method1 = area_on_sphere_lHuiller(mb, outputSet, R);
-  double area_method2 = area_on_sphere(mb, outputSet, R);
-
-  std::cout << "initial area: " << initial_area << "\n";
-  std::cout<< " area with l'Huiller: " << area_method1 << " with Girard: " << area_method2<< "\n";
-  std::cout << " relative difference areas " << fabs(area_method1-area_method2)/area_method1 << "\n";
-  std::cout << " relative error " << fabs(area_method1-initial_area)/area_method1 << "\n";
-
   return 0;
 
 }
-
-

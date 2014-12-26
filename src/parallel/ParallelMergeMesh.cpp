@@ -117,6 +117,12 @@ namespace moab{
       return rval;
     }
 
+    if (ents.empty() && dim==3)
+    {
+      dim--;
+      myMB->get_entities_by_dimension(meshset,dim,ents);// maybe dimension 2
+    }
+
     //Merge Mesh Locally
     MergeMesh merger(myMB, false);
     merger.merge_entities(ents,myEps);
