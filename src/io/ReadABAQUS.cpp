@@ -99,8 +99,7 @@ void ReadABAQUS::reset()
 ReadABAQUS::~ReadABAQUS() 
 {
   mdbImpl->release_interface(readMeshIface);
-  if (abFile.fail())
-    abFile.close();
+  abFile.close();
 }
 
 /*
