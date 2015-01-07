@@ -95,6 +95,8 @@
 
   \ref performance   
 
+  \ref error-handling
+
   \ref conclusions    
 
   \ref references 
@@ -1120,7 +1122,48 @@ This test can be run on your system to determine the runtime and memory performa
 
   \ref contents
 
-  \section conclusions 11.Conclusions and Future Plans
+  \section error-handling 11.Error Handling
+
+Errors are handled through the routine MBError(). This routine calls MBTraceBackErrorHandler(), the default error handler which tries to print a traceback.
+
+The arguments to MBTraceBackErrorHandler() are the line number where the error occurred, the function where error was detected, the file in which
+the error was detected, the corresponding directory, the error message, and the error type.
+
+A small set of macros is used to make the error handling lightweight. These macros are used throughout
+the MOAB libraries and can be employed by the application programmer as well. When an error is first
+detected, one should set it by calling\n
+\code
+MB_SET_ERR(err_code, err_msg);
+\endcode
+Note, err_msg can be a string literal, or a C++ style output stream with << operators, such that the error message string is formated, like\n
+\code
+MB_SET_ERR(MB_FAILURE, "Failed " << n << " times");
+\endcode
+
+The user should check the return codes for all MOAB routines (and possibly user-defined routines as well) with\n
+\code
+ErrorCode rval = MOABRoutine(...);MB_CHK_ERR(rval);
+\endcode
+To pass back a new error message (if rval is not MB_SUCCESS), use\n
+\code
+ErrorCode rval = MOABRoutine(...);MB_CHK_SET_ERR(rval, "User specified error message string (or stream)");
+\endcode
+If this procedure is followed throughout all of the user’s libraries and codes, any error will by default generate
+a clean traceback of the location of the error.
+
+In addition to the basic macros mentioned above, there are some variations, such as (for more information, refer to src/moab/ErrorHandler.hpp):
+- MB_SET_GLB_ERR() to set a globally fatal error (for all processors)
+- MB_SET_ERR_RET() for functions that return void type
+- MB_SET_ERR_RET_VAL() for functions that return any data type
+- MB_SET_ERR_CONT() to continue execution instead of returning from current function
+
+The error control mechanism are enabled by default if a MOAB Core instance is created. Otherwise, the user needs to call
+MBErrorHandler_Init() and MBErrorHandler_Finalize() at the application level in the main function.
+For example code on error handling, please refer to examples/TestErrorHandling.cpp, examples/TestErrorHandlingPar.cpp and examples/ErrorHandlingSimulation.cpp.
+
+  \ref contents
+
+  \section conclusions 12.Conclusions and Future Plans
 
 MOAB, a Mesh-Oriented datABase, provides a simple but powerful data abstraction to structured and unstructured mesh, and makes that abstraction available through a function API.  MOAB provides the mesh representation for the VERDE mesh verification tool, which demonstrates some of the powerful mesh metadata representation capabilities in MOAB.  MOAB includes modules that import mesh in the ExodusII, CUBIT .cub and Vtk file formats, as well as the capability to write mesh to ExodusII, all without licensing restrictions normally found in ExodusII-based applications.  MOAB also has the capability to represent and query structured mesh in a way that optimizes storage space using the parametric space of a structured mesh; see Ref. [17] for details.
 
@@ -1128,7 +1171,7 @@ Initial results have demonstrated that the data abstraction provided by MOAB is 
 
   \ref contents
 
-  \section references 12.References
+  \section references 13.References
 
 [1]	M. Fatenejad and G.A. Moses, “Cooper radiation hydrodynamics code..”
 
