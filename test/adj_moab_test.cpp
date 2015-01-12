@@ -90,7 +90,7 @@ ErrorCode ahf_test(const char* filename)
     // Call the initialize function which creates the maps for each dimension
     ahf.initialize();
 
-    //ahf.print_tags();
+    ahf.print_tags();
 
     //Perform queries
     std::vector<EntityHandle> adjents;
@@ -126,6 +126,19 @@ ErrorCode ahf_test(const char* filename)
             error = mtu.get_bridge_adjacencies( *i, 0, 1, mbents);
             CHECK_ERR(error);
 
+            if (adjents.size() != mbents.size())
+              {
+                std::cout<<"ent index = "<<*i-*edges.begin()<<", ent = "<<*i<<std::endl;
+                std::cout<<"adjents = "<<std::endl;
+                for (int k=0; k< adjents.size(); k++)
+                  std::cout<<adjents[k]<<" ";
+                std::cout<<std::endl;
+
+                std::cout<<"mbents = "<<std::endl;
+                for (int k=0; k< mbents.size(); k++)
+                  std::cout<<mbents[k]<<" ";
+                std::cout<<std::endl;
+              }
             CHECK_EQUAL(adjents.size(), mbents.size());
 
             std::sort(adjents.begin(), adjents.end());
