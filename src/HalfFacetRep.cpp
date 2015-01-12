@@ -223,17 +223,24 @@ namespace moab {
   {
     ErrorCode error;
 
-    EntityHandle sdefval[2] = {0,0};  int sval[2] = {0,0};
-    EntityHandle idefval = 0; int ival = 0;
+    int nv = _verts.size();
+    int ne = _edges.size();
+    sibhvs_eid.reserve(ne*2);
+    sibhvs_lvid.reserve(ne*2);
+    v2hv_eid.reserve(nv);
+    v2hv_lvid.reserve(nv);
 
-    error = mb->tag_get_handle("__SIBHVS_EID", 2, MB_TYPE_HANDLE, sibhvs_eid, MB_TAG_DENSE | MB_TAG_CREAT, sdefval);
-    if (MB_SUCCESS != error) return error;
-    error = mb->tag_get_handle("__SIBHVS_LVID", 2, MB_TYPE_INTEGER, sibhvs_lvid, MB_TAG_DENSE | MB_TAG_CREAT, sval);
-    if (MB_SUCCESS != error) return error;
-    error = mb->tag_get_handle("__V2HV_EID", 1, MB_TYPE_HANDLE, v2hv_eid, MB_TAG_DENSE | MB_TAG_CREAT, &idefval);
-    if (MB_SUCCESS != error) return error;
-    error = mb->tag_get_handle("__V2HV_LVID", 1, MB_TYPE_INTEGER, v2hv_lvid, MB_TAG_DENSE | MB_TAG_CREAT, &ival);
-    if (MB_SUCCESS != error) return error;
+    for (int i=0; i<2*ne; i++)
+      {
+        sibhvs_eid.push_back(0);
+        sibhvs_lvid.push_back(0);
+      }
+
+    for (int i=0; i<nv; i++)
+      {
+        v2hv_eid.push_back(0);
+        v2hv_lvid.push_back(0);
+      }
 
     error = determine_sibling_halfverts(_edges);
     if (MB_SUCCESS != error) return error;
@@ -382,7 +389,7 @@ namespace moab {
    }
 
    ErrorCode HalfFacetRep::deinit_curve(){
-     ErrorCode error;
+  /*   ErrorCode error;
      error = mb->tag_delete(sibhvs_eid);
      if (MB_SUCCESS != error) return error;
      error = mb->tag_delete(sibhvs_lvid);
@@ -390,7 +397,7 @@ namespace moab {
      error = mb->tag_delete(v2hv_eid);
      if (MB_SUCCESS != error) return error;
      error = mb->tag_delete(v2hv_lvid);
-     if (MB_SUCCESS != error) return error;
+     if (MB_SUCCESS != error) return error;*/
 
      return MB_SUCCESS;
    }
@@ -441,7 +448,14 @@ namespace moab {
 
      for (Range::iterator i = _edges.begin(); i != _edges.end(); ++i){
        EntityHandle eid[2];  int lvid[2];
-       error = mb->tag_get_data(sibhvs_eid, &*i, 1, eid);
+       int eidx = _edges.index(*i);
+
+       eid[0] = sibhvs_eid[2*eidx]; eid[1] = sibhvs_eid[2*eidx+1];
+       lvid[0] = sibhvs_lvid[2*eidx]; lvid[1] = sibhvs_lvid[2*eidx+1];
+       std::cout<<"ent = "<<*i<<std::endl;
+       std::cout<<"<"<<eid[0]<<","<<lvid[0]<<">"<<"      "<<"<"<<eid[1]<<","<<lvid[1]<<">"<<std::endl;
+
+      /* error = mb->tag_get_data(sibhvs_eid, &*i, 1, eid);
        if (MB_SUCCESS != error) return error;
        error = mb->tag_get_data(sibhvs_lvid, &*i, 1, lvid);
        if (MB_SUCCESS != error) return error;
@@ -449,10 +463,10 @@ namespace moab {
        if ((eid[0] == 0)&&(eid[1] != 0))
          std::cout<<"<"<<eid[0]<<","<<lvid[0]<<">"<<"      "<<"<"<<(eid[1]-start_edge)<<","<<lvid[1]<<">"<<std::endl;
        else if ((eid[1] == 0)&&(eid[0] != 0))
-         std::cout<<"<"<<(eid[0]-start_edge)<<","<<lvid[0]<<">"<<"      "<<"<"<<eid[1]<<","<<lvid[1]<<">"<<std::endl;
+         std::cout<<"<"<<(eid[0]-start_edge)<<","<<lvid[0]<<">"<<"      "<<"<"<<eid[1]<<","<<lvid[1]<<">"<<std::endl;*/
      }
 
-     std::cout<<"<V2HV_EID, V2HV_LVID>"<<std::endl;
+/*     std::cout<<"<V2HV_EID, V2HV_LVID>"<<std::endl;
 
      for (Range::iterator i = _verts.begin(); i != _verts.end(); ++i){
        EntityHandle eid; int lvid;
@@ -536,6 +550,7 @@ namespace moab {
        else
          std::cout<<"For vertex = "<<*i<<"::Incident halfface "<<(fid-start_cell+1)<<"  "<<lid<<std::endl;
      }
+    */
      return MB_SUCCESS;
    }
 
@@ -735,8 +750,8 @@ namespace moab {
       is_index[i+1] = is_index[i] + is_index[i+1];
 
     //Step 2: Define two arrays v2hv_eid, v2hv_lvid storing every half-facet on a vertex
-    EntityHandle * v2hv_map_eid = new EntityHandle[2*edges.size()];
-    int * v2hv_map_lvid = new int[2*edges.size()];
+    EntityHandle *v2hv_map_eid = new EntityHandle[2*edges.size()];
+    int *v2hv_map_lvid = new int[2*edges.size()];
 
     for (Range::iterator eid = edges.begin(); eid != edges.end(); ++eid)
       {
@@ -758,70 +773,29 @@ namespace moab {
     is_index[0] = 0;
 
     //Step 3: Fill up sibling half-verts map
-    for (Range::iterator eid = edges.begin(); eid != edges.end(); ++eid)
+    for (Range::iterator vid = _verts.begin(); vid != _verts.end(); ++vid)
       {
-        conn.clear();
-        error = mb->get_connectivity(&*eid, 1, conn);
-        if (MB_SUCCESS != error) return error;
-
-        EntityHandle sibeid[2];
-        int siblvid[2];
-
-        error = mb->tag_get_data(sibhvs_eid, &*eid, 1, sibeid);
-        if (MB_SUCCESS != error) return error;
-
-        error = mb->tag_get_data(sibhvs_lvid, &*eid, 1, siblvid);
-        if (MB_SUCCESS != error) return error;
-
-        for (int k =0; k<2; k++)
+        int v = _verts.index(*vid);
+        int last = is_index[v+1] - 1;
+        if (last > is_index[v])
           {
+            EntityHandle prev_eid = v2hv_map_eid[last];
+            int prev_lvid = v2hv_map_lvid[last];
 
-            if (sibeid[k] != 0)
-              continue;
-
-            int v = _verts.index(conn[k]);
-            int last = is_index[v+1] - 1;
-            if (last > is_index[v])
+            for (int i=is_index[v]; i<=last; i++)
               {
-                EntityHandle prev_eid = v2hv_map_eid[last];
-                int prev_lvid = v2hv_map_lvid[last];
+                EntityHandle cur_eid = v2hv_map_eid[i];
+                int cur_lvid = v2hv_map_lvid[i];
 
-                EntityHandle seteid[2];
-                int setlvid[2];
-                error = mb->tag_get_data(sibhvs_eid, &prev_eid, 1, seteid);
-                if (MB_SUCCESS != error) return error;
+                int pidx = edges.index(prev_eid);
+                sibhvs_eid[2*pidx+prev_lvid] = cur_eid;
+                sibhvs_lvid[2*pidx+prev_lvid] = cur_lvid;
+                prev_eid = cur_eid;
+                prev_lvid = cur_lvid;
 
-                error = mb->tag_get_data(sibhvs_lvid, &prev_eid, 1, setlvid);
-                if (MB_SUCCESS != error) return error;
-
-                for (int i=is_index[v]; i<=last; i++)
-                  {
-                    EntityHandle cur_eid = v2hv_map_eid[i];
-                    int cur_lvid = v2hv_map_lvid[i];
-
-
-                    seteid[prev_lvid] = cur_eid;
-                    setlvid[prev_lvid] = cur_lvid;
-
-                    error = mb->tag_set_data(sibhvs_eid, &prev_eid, 1, seteid);
-                    if (MB_SUCCESS != error) return error;
-
-                    error = mb->tag_set_data(sibhvs_lvid, &prev_eid, 1, setlvid);
-                    if (MB_SUCCESS != error) return error;
-
-                    prev_eid = cur_eid;
-                    prev_lvid = cur_lvid;
-                    error = mb->tag_get_data(sibhvs_eid, &prev_eid, 1, seteid);
-                    if (MB_SUCCESS != error) return error;
-
-                    error = mb->tag_get_data(sibhvs_lvid, &prev_eid, 1, setlvid);
-                    if (MB_SUCCESS != error) return error;
-
-                  }
               }
           }
       }
-
 
     delete [] is_index;
     delete [] v2hv_map_eid;
@@ -840,18 +814,13 @@ namespace moab {
       if (MB_SUCCESS != error) return error;
 
       for(int i=0; i<2; ++i){
-	EntityHandle v = conn[i], eid = 0;	 
-	error = mb->tag_get_data(v2hv_eid, &v, 1, &eid); 
-	if (MB_SUCCESS != error) return error;
+        EntityHandle v = conn[i], eid = 0;
+        int vidx = _verts.index(v);
+        eid = v2hv_eid[vidx];
 
 	if (eid==0){
-	  EntityHandle edg = *e_it;	  
-	  int lvid = i;
-
-	  error = mb->tag_set_data(v2hv_eid, &v, 1, &edg); 
-	  if (MB_SUCCESS != error) return error;
-	  error = mb->tag_set_data(v2hv_lvid, &v, 1, &lvid);
-	  if (MB_SUCCESS != error) return error;
+	    v2hv_eid[vidx] = *e_it;
+	    v2hv_lvid[vidx] = i;
 	}
       }      
     }  
@@ -862,19 +831,17 @@ namespace moab {
   ErrorCode  HalfFacetRep::get_up_adjacencies_1d( EntityHandle vid,
                                                   std::vector< EntityHandle > &adjents,
                                                   std::vector<int> * lvids){
-    ErrorCode error;
 
     bool local_id = false;
     if (lvids != NULL)
       local_id = true;
 
-    EntityHandle start_eid, eid, sibeid[2];
-    int start_lid, lid, siblid[2];
+    EntityHandle start_eid, eid;
+    int start_lid, lid;
    
-    error = mb->tag_get_data(v2hv_eid, &vid, 1, &start_eid);
-    if (MB_SUCCESS != error) return error;
-    error = mb->tag_get_data(v2hv_lvid, &vid, 1, &start_lid);    
-    if (MB_SUCCESS != error) return error;
+    int vidx = _verts.index(vid);
+    start_eid = v2hv_eid[vidx];
+    start_lid = v2hv_lvid[vidx];
 
     eid = start_eid; lid = start_lid;
 
@@ -884,13 +851,11 @@ namespace moab {
         lvids->push_back(lid);
 
       while (eid !=0) {
-          error = mb->tag_get_data(sibhvs_eid, &eid, 1, sibeid);
-	  if (MB_SUCCESS != error) return error;
-	  error = mb->tag_get_data(sibhvs_lvid, &eid, 1, siblid);
-	  if (MB_SUCCESS != error) return error;
 
-	  eid = sibeid[lid];
-	  lid = siblid[lid];
+	  int eidx = _edges.index(eid);
+	  eid = sibhvs_eid[2*eidx+lid];
+	  lid = sibhvs_lvid[2*eidx+lid];
+
 	  if ((!eid)||(eid == start_eid))
 	    break;
 	  adjents.push_back(eid);
@@ -903,49 +868,41 @@ namespace moab {
   }
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   ErrorCode  HalfFacetRep::get_neighbor_adjacencies_1d( EntityHandle eid,
-                                                        std::vector<EntityHandle> &adjents){
+                                                        std::vector<EntityHandle> &adjents)
+  {
+    EntityHandle sibhv_eid;
+    int sibhv_lid;
 
-    ErrorCode error;
+    int eidx = _edges.index(eid);
 
-    EntityHandle sib_eids[2], sibhv_eid;
-    int sib_lids[2], sibhv_lid;
-
-    error = mb->tag_get_data(sibhvs_eid, &eid, 1, sib_eids);
-    if (MB_SUCCESS != error) return error;
-    error = mb->tag_get_data(sibhvs_lvid, &eid, 1, sib_lids);
-    if (MB_SUCCESS != error) return error;
+    if (eidx == 66)
+      {
+        std::cout<<"stop here";
+      }
 
     for (int lid = 0;lid < 2; ++lid){
-      sibhv_eid = sib_eids[lid];
-      sibhv_lid = sib_lids[lid];
+
+        sibhv_eid = sibhvs_eid[2*eidx+lid];
+        sibhv_lid = sibhvs_lvid[2*eidx+lid];
 
       if (sibhv_eid != 0){
         adjents.push_back(sibhv_eid);
-	
-	EntityHandle next_eid[2], hv_eid;
-	int next_lid[2], hv_lid;
-	
-	error = mb->tag_get_data(sibhvs_eid, &sibhv_eid, 1, next_eid);
-	if (MB_SUCCESS != error) return error;
-	error = mb->tag_get_data(sibhvs_lvid, &sibhv_eid, 1, next_lid);
-	if (MB_SUCCESS != error) return error;
-	
-	hv_eid = next_eid[sibhv_lid];
-	hv_lid = next_lid[sibhv_lid];
+
+        eidx = _edges.index(sibhv_eid);
+
+	EntityHandle hv_eid = sibhvs_eid[2*eidx+sibhv_lid];
+	int hv_lid = sibhvs_lvid[2*eidx+sibhv_lid];
 	
 	while (hv_eid != 0){	    
 	  if (hv_eid != eid)
 	    adjents.push_back(hv_eid);
-	  
-	  error = mb->tag_get_data(sibhvs_eid, &hv_eid, 1, next_eid);
-	  if (MB_SUCCESS != error) return error;
-	  error = mb->tag_get_data(sibhvs_lvid, &hv_eid, 1, next_lid);
-	  if (MB_SUCCESS != error) return error;
 
-	  if (next_eid[hv_lid] == sibhv_eid)
+	  eidx = _edges.index(hv_eid);
+	  if (sibhvs_eid[2*eidx+hv_lid] == sibhv_eid)
 	    break;
-	  hv_eid = next_eid[hv_lid];
-	  hv_lid = next_lid[hv_lid];      
+
+	  hv_eid = sibhvs_eid[2*eidx+hv_lid];
+	  hv_lid = sibhvs_lvid[2*eidx+hv_lid];
 	}
       }
     } 
@@ -2728,11 +2685,13 @@ namespace moab {
 
     if (type == MBEDGE)
       {
-        error = mb->tag_get_data(sibhvs_eid, &ent, 1, &sib_entids[0]);
-        if (MB_SUCCESS != error) return error;
+     //   error = mb->tag_get_data(sibhvs_eid, &ent, 1, &sib_entids[0]);
+    //    if (MB_SUCCESS != error) return error;
 
-        error = mb->tag_get_data(sibhvs_lvid, &ent, 1, &sib_lids[0]);
-        if (MB_SUCCESS != error) return error;
+    //    error = mb->tag_get_data(sibhvs_lvid, &ent, 1, &sib_lids[0]);
+    //    if (MB_SUCCESS != error) return error;
+
+
       }
     else if (type == MBTRI || type == MBQUAD)
       {
@@ -2758,11 +2717,11 @@ namespace moab {
     ErrorCode error;
     if (type == MBEDGE)
       {
-        error = mb->tag_set_data(sibhvs_eid, &ent, 1, &set_entids[0]);
-        if (MB_SUCCESS != error) return error;
+     //   error = mb->tag_set_data(sibhvs_eid, &ent, 1, &set_entids[0]);
+     //   if (MB_SUCCESS != error) return error;
 
-        error = mb->tag_set_data(sibhvs_lvid, &ent, 1, &set_lids[0]);
-        if (MB_SUCCESS != error) return error;
+     //   error = mb->tag_set_data(sibhvs_lvid, &ent, 1, &set_lids[0]);
+    //    if (MB_SUCCESS != error) return error;
       }
     else if (type == MBTRI || type == MBQUAD)
       {
@@ -2789,7 +2748,7 @@ namespace moab {
 
     if (type == MBEDGE)
       {
-        EntityHandle entid= 0;
+     /*   EntityHandle entid= 0;
         int lid = 0;
         error = mb->tag_get_data(v2hv_eid, &vid, 1, &entid);
         if (MB_SUCCESS != error) return error;
@@ -2797,7 +2756,7 @@ namespace moab {
         error = mb->tag_get_data(v2hv_lvid, &vid, 1, &lid);
         if (MB_SUCCESS != error) return error;
         inci_entid[0] = entid;
-        inci_lid[0] = lid;
+        inci_lid[0] = lid;*/
       }
     else if (type == MBTRI || type == MBQUAD)
       {
@@ -2823,11 +2782,11 @@ namespace moab {
     ErrorCode error;
     if (type == MBEDGE)
       {
-        error = mb->tag_set_data(v2hv_eid, &vid, 1, set_entid);
+       /* error = mb->tag_set_data(v2hv_eid, &vid, 1, set_entid);
         if (MB_SUCCESS != error) return error;
 
         error = mb->tag_set_data(v2hv_lvid, &vid, 1, set_lid);
-        if (MB_SUCCESS != error) return error;
+        if (MB_SUCCESS != error) return error;*/
       }
     else if (type == MBTRI || type == MBQUAD)
       {
