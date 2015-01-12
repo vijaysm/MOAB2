@@ -156,6 +156,7 @@ int main(int argc, char *argv[]) {
 */
 
 
+    // pworker is global here; maybe we should pass it around
     pworker = new Intx2MeshOnSphere(&mb);
     pworker->SetErrorTolerance(gtol);
     pworker->SetRadius(radius);

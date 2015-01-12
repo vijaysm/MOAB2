@@ -632,4 +632,97 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
 #endif
   return MB_SUCCESS;
 }
+
+ErrorCode Intx2MeshOnSphere::update_density( Tag & rhoTag,
+    Tag & areaTag, Tag & rhoCoefTag, Tag & weightsTag,
+    Tag & planeTag)
+{
+
+  ErrorCode rval = MB_SUCCESS;
+
+  //double R = 1.0;
+
+  EntityHandle dum=0;
+  Tag corrTag;
+  mb->tag_get_handle(CORRTAGNAME, 1, MB_TYPE_HANDLE, corrTag,
+                                             MB_TAG_DENSE, &dum);
+
+  Tag gid;
+  rval = mb->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid, MB_TAG_DENSE);
+    if (MB_SUCCESS != rval)
+      return rval;
+
+  // get all polygons out of out_set; then see where are they coming from
+  moab::Range polys;
+  rval = mb->get_entities_by_dimension(outSet, 2, polys); MB_CHK_ERR(rval);
+
+  // get gnomonic plane for Eulerian cells
+  std::vector<int>  planeArr(rs2.size());
+  rval = mb->tag_get_data(planeTag, rs2, &planeArr[0]); MB_CHK_ERR(rval);
+
+  // get Eulerian cell reconstruction coefficients
+  std::vector<double>  rhoCoefs(3*rs2.size());
+  rval = mb->tag_get_data(rhoCoefTag, rs2, &rhoCoefs[0]); MB_CHK_ERR(rval);
+
+  // get intersection weights
+  std::vector<double>  weights(6*polys.size());
+  rval = mb->tag_get_data(weightsTag, polys, &weights[0]); MB_CHK_ERR(rval);
+
+  // Initialize the new values
+  std::vector<double> newValues(rs2.size(), 0.);// initialize with 0 all of them
+
+  // mass_lagr = (\sum_intx \int rho^h(x,y) dV)
+  // rho_eul^n+1 = mass_lagr/area_eul
+  double check_intx_area = 0.;
+  int polyIndex = 0;
+  for (Range::iterator it= polys.begin(); it!=polys.end(); it++)
+  {
+
+    EntityHandle poly=*it;
+    int blueIndex, redIndex;
+    rval =  mb->tag_get_data(blueParentTag, &poly, 1, &blueIndex); MB_CHK_ERR(rval);
+    moab::EntityHandle blue = rs1[blueIndex];
+
+    rval = mb->tag_get_data(redParentTag, &poly, 1, &redIndex);
+
+    EntityHandle redArr;
+    rval = mb->tag_get_data(corrTag, &blue, 1, &redArr); MB_CHK_ERR(rval);
+    int arrRedIndex = rs2.index(redArr);
+
+    // sum into new density values
+    newValues[arrRedIndex] += rhoCoefs[redIndex*3]*weights[polyIndex*6] + rhoCoefs[redIndex*3+1]*weights[polyIndex*6+1]
+                                + rhoCoefs[redIndex*3+2]*weights[polyIndex*6+2];
+
+    check_intx_area += weights[polyIndex*6];
+
+    polyIndex++;
+
+  }
+
+
+ // now divide by red area (current)
+  int j=0;
+  Range::iterator iter = rs2.begin();
+  void * data=NULL; //used for stored area
+  int count =0;
+  double total_mass_local=0.;
+  while (iter != rs2.end())
+  {
+    rval = mb->tag_iterate(areaTag, iter, rs2.end(), count, data);
+    double * ptrArea=(double*)data;
+    for (int i=0; i<count; i++, iter++, j++, ptrArea++)
+    {
+      total_mass_local+=newValues[j];
+      newValues[j]/= (*ptrArea);
+    }
+  }
+
+  rval = mb->tag_set_data(rhoTag, rs2, &newValues[0]);
+
+  std::cout <<"total mass now:" << total_mass_local << "\n";
+  std::cout <<"check: total intersection area: (4 * M_PI * R^2): "  << 4 * M_PI * R*R << " " << check_intx_area << "\n";
+
+  return MB_SUCCESS;
+}
+
 } /* namespace moab */

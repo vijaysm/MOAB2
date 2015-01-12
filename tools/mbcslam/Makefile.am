@@ -52,7 +52,7 @@ endif
    
 noinst_PROGRAMS =  proj1 create_dp 
 if PARALLEL
-  noinst_PROGRAMS += cslam_par_test intx_imesh linear_advection
+  noinst_PROGRAMS += cslam_par_test intx_imesh linear_advection linear_advection_tracer
 if ENABLE_FORTRAN
   noinst_PROGRAMS += advection
 endif
@@ -72,6 +72,7 @@ arc_intx_tests_SOURCES = arc_intx_tests.cpp
 IntxRllCssphere_test_SOURCES = IntxRllCssphere_test.cpp
 linear_remap_SOURCES = linear_remap.cpp
 linear_advection_SOURCES = linear_advection.cpp
+linear_advection_tracer_SOURCES = linear_advection_tracer.cpp
 
 if PARALLEL
 if HDF5_FILE
