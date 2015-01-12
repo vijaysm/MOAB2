@@ -459,17 +459,19 @@ protected:
   bool mInitAHFmaps;
 
   Range _verts, _edges, _faces, _cells;
-  Tag sibhvs_eid, sibhvs_lvid, v2hv_eid, v2hv_lvid;
+
+  std::vector<EntityHandle> sibhvs_eid, v2hv_eid;
+  std::vector<int> sibhvs_lvid, v2hv_lvid;
+
+  //Tag sibhvs_eid, sibhvs_lvid, v2hv_eid, v2hv_lvid;
   Tag sibhes_fid, sibhes_leid, v2he_fid, v2he_leid;
   Tag sibhfs_cid, sibhfs_lfid, v2hf_cid, v2hf_lfid;
 
 
   EntityHandle queue_fid[MAXSIZE], Stkcells[MAXSIZE], cellq[MAXSIZE];
   EntityHandle trackfaces[MAXSIZE], trackcells[MAXSIZE];
- // std::vector<int> queue_lid;
   int queue_lid[MAXSIZE];
 
-  //MESHTYPE thismeshtype;
   MESHTYPE get_mesh_type(int nverts, int nedges, int nfaces, int ncells);
 
   struct adj_matrix{
