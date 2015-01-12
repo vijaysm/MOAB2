@@ -633,9 +633,8 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
   return MB_SUCCESS;
 }
 
-ErrorCode Intx2MeshOnSphere::update_density( Tag & rhoTag,
-    Tag & areaTag, Tag & rhoCoefTag, Tag & weightsTag,
-    Tag & planeTag)
+ErrorCode Intx2MeshOnSphere::update_density_and_tracers(Tag & rhoTag, Tag & areaTag, Tag & rhoCoefTag,
+      Tag & tauTag, Tag & tauCoefTag, Tag & weightsTag, Tag & planeTag)
 {
 
   ErrorCode rval = MB_SUCCESS;
@@ -664,12 +663,17 @@ ErrorCode Intx2MeshOnSphere::update_density( Tag & rhoTag,
   std::vector<double>  rhoCoefs(3*rs2.size());
   rval = mb->tag_get_data(rhoCoefTag, rs2, &rhoCoefs[0]); MB_CHK_ERR(rval);
 
+  // get Eulerian cell reconstruction coefficients
+  std::vector<double>  tauCoefs(3*rs2.size());
+  rval = mb->tag_get_data(tauCoefTag, rs2, &tauCoefs[0]);  MB_CHK_ERR(rval);
+
   // get intersection weights
   std::vector<double>  weights(6*polys.size());
   rval = mb->tag_get_data(weightsTag, polys, &weights[0]); MB_CHK_ERR(rval);
 
   // Initialize the new values
-  std::vector<double> newValues(rs2.size(), 0.);// initialize with 0 all of them
+  std::vector<double> newMass(rs2.size(), 0.);// initialize with 0  \int rho dV
+  std::vector<double> newValues(rs2.size(), 0.);// initialize with 0  \int rho*tau dV
 
   // mass_lagr = (\sum_intx \int rho^h(x,y) dV)
   // rho_eul^n+1 = mass_lagr/area_eul
@@ -689,16 +693,24 @@ ErrorCode Intx2MeshOnSphere::update_density( Tag & rhoTag,
     rval = mb->tag_get_data(corrTag, &blue, 1, &redArr); MB_CHK_ERR(rval);
     int arrRedIndex = rs2.index(redArr);
 
-    // sum into new density values
-    newValues[arrRedIndex] += rhoCoefs[redIndex*3]*weights[polyIndex*6] + rhoCoefs[redIndex*3+1]*weights[polyIndex*6+1]
+    // sum into new values
+    newMass[arrRedIndex] += rhoCoefs[redIndex*3]*weights[polyIndex*6] + rhoCoefs[redIndex*3+1]*weights[polyIndex*6+1]
                                 + rhoCoefs[redIndex*3+2]*weights[polyIndex*6+2];
+
+    double A = rhoCoefs[redIndex*3]*tauCoefs[redIndex*3];
+    double B = rhoCoefs[redIndex*3+1]*tauCoefs[redIndex*3] + rhoCoefs[redIndex*3]*tauCoefs[redIndex*3+1];
+    double C = rhoCoefs[redIndex*3+2]*tauCoefs[redIndex*3] + rhoCoefs[redIndex*3]*tauCoefs[redIndex*3+2];
+    double D = rhoCoefs[redIndex*3+1]*tauCoefs[redIndex*3+1];
+    double E = rhoCoefs[redIndex*3+2]*tauCoefs[redIndex*3+2];
+    double F = rhoCoefs[redIndex*3+1]*tauCoefs[redIndex*3+2] + rhoCoefs[redIndex*3+2]*tauCoefs[redIndex*3+1];
+    newValues[arrRedIndex] += A*weights[polyIndex*6] + B*weights[polyIndex*6+1] + C*weights[polyIndex*6+2]
+                              + D*weights[polyIndex*6+3] + E*weights[polyIndex*6+4] + F*weights[polyIndex*6+5];
 
     check_intx_area += weights[polyIndex*6];
 
     polyIndex++;
 
   }
-
 
  // now divide by red area (current)
   int j=0;
@@ -713,11 +725,21 @@ ErrorCode Intx2MeshOnSphere::update_density( Tag & rhoTag,
     for (int i=0; i<count; i++, iter++, j++, ptrArea++)
     {
       total_mass_local+=newValues[j];
-      newValues[j]/= (*ptrArea);
+
+      if (newMass[j]>1.0e-12)
+      {
+         newValues[j]/= newMass[j];
+      }
+      else
+      {
+         newValues[j] = 0.0;
+      }
+      newMass[j]/= (*ptrArea); // density now
     }
   }
 
-  rval = mb->tag_set_data(rhoTag, rs2, &newValues[0]);
+  rval = mb->tag_set_data(rhoTag, rs2, &newMass[0]); MB_CHK_ERR(rval);
+  rval = mb->tag_set_data(tauTag, rs2, &newValues[0]); MB_CHK_ERR(rval);
 
   std::cout <<"total mass now:" << total_mass_local << "\n";
   std::cout <<"check: total intersection area: (4 * M_PI * R^2): "  << 4 * M_PI * R*R << " " << check_intx_area << "\n";

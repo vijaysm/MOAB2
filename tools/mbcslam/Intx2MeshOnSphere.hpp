@@ -35,10 +35,10 @@ public:
 
   ErrorCode update_tracer_data(EntityHandle out_set, Tag & tagElem, Tag & tagArea);
 
-  // new method, to update density for linear appx; see Kara's code
-  ErrorCode update_density( Tag & rhoTag,
-      Tag & areaTag, Tag & rhoCoefTag, Tag & weightsTag,
-      Tag & planeTag);
+  // new method, to update density and tracers for linear appx; see Kara's code
+  ErrorCode  update_density_and_tracers(Tag & rhoTag, Tag & areaTag, Tag & rhoCoefTag,
+      Tag & tauTag, Tag & tauCoefTag, Tag & weightsTag, Tag & planeTag);
+
 
 private:
   int plane; // current gnomonic plane
