@@ -221,7 +221,10 @@ int main(int argc, char *argv[]) {
         {
       std::stringstream newTracer;
       newTracer << "Tracer" << rank << "_" << ts - 1 << ".vtk";
-      rval = mb.write_file(newTracer.str().c_str(), 0, 0, &euler_set, 1);
+      rval = mb.write_file(newTracer.str().c_str(), 0, 0, &euler_set, 1); MB_CHK_ERR(rval);
+      std::stringstream newTracer2;
+      newTracer2 << "Tracer_00" << ".h5m";
+      rval = mb.write_file(newTracer2.str().c_str(), 0, "PARALLEL=WRITE_PART", &euler_set,1); MB_CHK_ERR(rval);
     }
 
     // get density bounds
@@ -257,15 +260,19 @@ int main(int argc, char *argv[]) {
     rval = get_departure_grid(&mb, euler_set, lagrange_set, covering_set, ts,
         local_verts);
 
+    // intersect the meshes
+    rval = pworker->intersect_meshes(covering_set, euler_set, out_set);MB_CHK_ERR(rval);
+
     if (writeFiles) // so if write
     {
       std::stringstream coverFile;
       coverFile << "cover" << rank << "_" << ts << ".vtk";
-      rval = mb.write_file(coverFile.str().c_str(), 0, 0, &covering_set, 1);
-    }
+      rval = mb.write_file(coverFile.str().c_str(), 0, 0, &covering_set, 1); MB_CHK_ERR(rval);
+      std::stringstream intxFile;
+      intxFile << "intx" << rank << "_" << ts << ".vtk";
+      rval = mb.write_file(intxFile.str().c_str(), 0, 0, &out_set, 1); MB_CHK_ERR(rval);
 
-    // intersect the meshes
-    rval = pworker->intersect_meshes(covering_set, euler_set, out_set);MB_CHK_ERR(rval);
+    }
 
     // intersection weights (i.e. area, x integral, and y integral over cell intersections)
     get_intersection_weights(&mb, euler_set, out_set, planeTag,
@@ -281,11 +288,15 @@ int main(int argc, char *argv[]) {
      rval = update_tracer(&mb, euler_set, lagrange_set, out_set, tauTag, areaTag,
      rhoCoefTag, tauCoefTag, weightsTag, planeTag);*/
 
-    if (writeFiles && (ts % 2 == 0)) // so if write
-        {
+    if (writeFiles) // so if write
+    {
       std::stringstream newTracer;
       newTracer << "Tracer" << rank << "_" << ts << ".vtk";
-      rval = mb.write_file(newTracer.str().c_str(), 0, 0, &euler_set, 1);
+      rval = mb.write_file(newTracer.str().c_str(), 0, 0, &euler_set, 1); MB_CHK_ERR(rval);
+
+      std::stringstream newTracer2;
+      newTracer2 << "Tracer_0" << ts << ".h5m";
+      rval = mb.write_file(newTracer2.str().c_str(), 0, "PARALLEL=WRITE_PART", &euler_set,1); MB_CHK_ERR(rval);
     }
 
     // delete the polygons and elements of out_set
@@ -296,8 +307,7 @@ int main(int argc, char *argv[]) {
     rval = mb.get_entities_by_dimension(0, 2, allElems);
 
     // get Eulerian and lagrangian cells
-    moab::Range polys;
-    rval = mb.get_entities_by_dimension(euler_set, 2, polys);
+    moab::Range polys=allCells; // these are ghosted cells, too, in euler set, we need them
     rval = mb.get_entities_by_dimension(lagrange_set, 2, polys); // do not delete lagr set either, with its vertices
 
     // add to the connecVerts range all verts, from all initial polys
