@@ -90,7 +90,7 @@ ErrorCode ahf_test(const char* filename)
     // Call the initialize function which creates the maps for each dimension
     ahf.initialize();
 
-    ahf.print_tags();
+    //ahf.print_tags();
 
     //Perform queries
     std::vector<EntityHandle> adjents;
@@ -341,7 +341,7 @@ ErrorCode ahf_test(const char* filename)
           }
       }
 
-    ahf.deinitialize();
+   // ahf.deinitialize();
 
     return MB_SUCCESS;
 

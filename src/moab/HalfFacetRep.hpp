@@ -87,7 +87,7 @@ public:
 
   //! Deletes all the created tags.
 
-  ErrorCode deinitialize();
+  //ErrorCode deinitialize();
 
   //! Prints the tag values.
   ErrorCode print_tags();
@@ -428,25 +428,48 @@ public:
   // 2D and 3D local maps
   int local_maps_2d(EntityHandle face);
   ErrorCode local_maps_2d(int nepf, int *next, int *prev);
+
+  //! 2D local maps
+  struct LocalMaps2D{
+    //! Number of vertices in a face
+    short int num_verts_in_face;
+    //! Local ids of the next half-edge
+    int next[MAX_INCIDENT_HF];
+    //! Local ids of the previous half-edge
+    int prev[MAX_INCIDENT_HF];
+  };
+  static const LocalMaps2D lConnMap2D[2];
+
+//! 3D local maps
   struct LocalMaps3D{
-    short int num_verts_in_cell; // Number of vertices per cell
-    short int num_edges_in_cell; // Number of edges per cell
-    short int num_faces_in_cell; // Number of faces per cell
-
-    int hf2v_num[MAX_FACES]; //
+    //! Number of vertices in cell
+    short int num_verts_in_cell;
+    //! Number of edges in cell
+    short int num_edges_in_cell;
+    // Number of faces in cell
+    short int num_faces_in_cell;
+    //! Number of vertices in each half-face
+    int hf2v_num[MAX_FACES];
+    //! Map: Half-face to local vertex ids
     int hf2v[MAX_FACES][MAX_VERTS_HF];
-
+    //! Number of incident half-faces on each vertex
     int v2hf_num[MAX_VERTICES];
+    //! Map: Local vertices to incident half-facets
     int v2hf[MAX_VERTICES][MAX_INCIDENT_HF];
-
+    //!  Map: Local edges to local vertices
     int e2v[MAX_EDGES][2];
+    //! Map: Local edges to incident half-faces
     int e2hf[MAX_EDGES][2];
+    //! Map: Half-faces to local edges
     int f2leid[MAX_FACES][MAX_VERTS_HF];
+    //! Map: local vertices to local edges
     int lookup_leids[MAX_VERTICES][MAX_VERTICES];
   };
-
   static const LocalMaps3D lConnMap3D[4];
   MESHTYPE thismeshtype;
+
+   std::map<EntityType, int> cell_index;
+
   int get_index_from_type(EntityHandle cid);
   ErrorCode get_entity_ranges(Range &verts, Range &edges, Range &faces, Range &cells);
 
@@ -460,12 +483,21 @@ protected:
 
   Range _verts, _edges, _faces, _cells;
 
+  //AHF map storage containers for 1D
   std::vector<EntityHandle> sibhvs_eid, v2hv_eid;
   std::vector<int> sibhvs_lvid, v2hv_lvid;
 
+  //AHF map storage containers for 2D
+  std::vector<EntityHandle> sibhes_fid, v2he_fid;
+  std::vector<int> sibhes_leid, v2he_leid;
+
+  //AHF map storage containers for 3D
+  std::vector<EntityHandle> sibhfs_cid, v2hf_cid;
+  std::vector<int> sibhfs_lfid, v2hf_lfid;
+
   //Tag sibhvs_eid, sibhvs_lvid, v2hv_eid, v2hv_lvid;
-  Tag sibhes_fid, sibhes_leid, v2he_fid, v2he_leid;
-  Tag sibhfs_cid, sibhfs_lfid, v2hf_cid, v2hf_lfid;
+//  Tag sibhes_fid, sibhes_leid, v2he_fid, v2he_leid;
+//  Tag sibhfs_cid, sibhfs_lfid, v2hf_cid, v2hf_lfid;
 
 
   EntityHandle queue_fid[MAXSIZE], Stkcells[MAXSIZE], cellq[MAXSIZE];
@@ -578,61 +610,6 @@ protected:
                              int *qsize, int *count,
                              EntityHandle *he_fid,
                              int *he_lid);
-
-
-    //! The local maps for 3D entities.
-    /** Types of 3D entities supported: tets, pyramid, prism, hex
-        Determines the type from input "cell"
-
-	_3d_numels:
-	nvpc: Number of vertices per cell
-	nepc: Number of edges per cell
-	nfpc: Number of faces per cell
-
-	_3d_numels:
-	nvmax: The maximum number of vertices of all half-faces of the cell
-
-	_3d_hf2v: Map half-face to vertices
-	hf2v_num: Array storing number of vertices per half-face
-	hf2v_map: Local ids of vertices of each half-face, stored in an array
-	hf2v_idx: Starting index for each half-face to access vertices
-
-	_3d_v2hf: Map vertex to half-face
-	v2hf_num: Array storing number of incident half-faces per vertex
-	v2hf_map: Local ids of incident half-faces, stored in an array
-	v2hf_idx: Starting index for each vertex to access incident half-faces
-
-	_3d_edges: Maps for edges
-	e2v: Local edge to local vertices
-	e2hf: Local edge to incident half-faces
-	f2leid: Local edges for each half-faces
-
-	_3d_lookup_leid:
-	nvpc: Is an input #vertices per cell
-	lookup_leid: Map between local vertex v0 to local vertex v1 storing the local edge id e = <v0,v1>
-    */
-
-/*
-    struct LocalMaps3D{
-      short int num_verts_in_cell; // Number of vertices per cell
-      short int num_edges_in_cell; // Number of edges per cell
-      short int num_faces_in_cell; // Number of faces per cell
-
-      int hf2v_num[MAX_FACES]; //
-      int hf2v[MAX_FACES][MAX_VERTS_HF];
-
-      int v2hf_num[MAX_VERTICES];
-      int v2hf[MAX_VERTICES][MAX_INCIDENT_HF];
-
-      int e2v[MAX_EDGES][2];
-      int e2hf[MAX_EDGES][2];
-      int f2leid[MAX_FACES][MAX_VERTS_HF];
-      int lookup_leids[MAX_VERTICES][MAX_VERTICES];
-    }; */
-
-   // static const LocalMaps3D lConnMap3D[4];
-
-   // int get_index_from_type(EntityHandle cid);
 
     //! Given an edge, finds a matching local edge in an incident cell.
     /** Find a local edge with the same connectivity as the input edge, belonging to an incident cell.
