@@ -2367,7 +2367,8 @@ namespace moab {
     bool found = false;
     for (int i = 0; i<= count; i++)
       {
-        if (!((int)(ent - ent_list[i])))
+        //if (!((int)(ent - ent_list[i])))
+        if (ent == ent_list[i])
           {
             found = true;
             if (get_index)
