@@ -12,6 +12,8 @@ if(MOAB_HAVE_MPI AND MPI_FOUND)
   set( MPI_LIBRARIES ${MPI_LIBRARY} ${MPI_EXTRA_LIBRARY} )
 endif()
 
+add_subdirectory(verdict)
+
 #create the FCDefs.h and src/MOAB_FCDefs.h files
 configure_file(FCDefs.h.in "${CMAKE_CURRENT_BINARY_DIR}/FCDefs.h" @ONLY)
 #sed -e "s/FC_FUNC/MOAB_FC_FUNC/" src/FCDefs.h >src/MOAB_FCDefs.h
@@ -219,6 +221,7 @@ endif()
 add_library( MOAB ${MOAB_LIB_SOURCES} ${MOAB_INSTALL_HEADERS} ${MOAB_GENERATED_INSTALL_HEADERS}
                   $<TARGET_OBJECTS:moabio>
                   $<TARGET_OBJECTS:moab_loc_discr>
+                  $<TARGET_OBJECTS:moabverdict>
                   ${MOABPAR_OBJECTS}
                   ${MDHF_OBJ} )
 set_target_properties( MOAB PROPERTIES DEFINE_SYMBOL "IS_BUILDING_MB_SHARED")
