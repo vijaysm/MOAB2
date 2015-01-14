@@ -425,10 +425,6 @@ public:
 
   ErrorCode set_incident_tag(EntityType type, EntityHandle vid, EntityHandle *set_entid, int *set_lid);
 
-  // 2D and 3D local maps
-  int local_maps_2d(EntityHandle face);
-  ErrorCode local_maps_2d(int nepf, int *next, int *prev);
-
   //! 2D local maps
   struct LocalMaps2D{
     //! Number of vertices in a face
@@ -606,7 +602,7 @@ protected:
      * and add a list of half-edges belonging to the one-ring neighborhood to a queue till it finds a match.
     */
 
-    bool collect_and_compare(std::vector<EntityHandle> &edg_vert,
+    bool collect_and_compare(const EntityHandle* edg_vert,
                              int *qsize, int *count,
                              EntityHandle *he_fid,
                              int *he_lid);
