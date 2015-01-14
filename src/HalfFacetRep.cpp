@@ -600,12 +600,12 @@ namespace moab {
     for (int i =0; i<nv+1; i++)
       is_index[i] = 0;
 
-    std::vector<EntityHandle> conn(2);
+    //std::vector<EntityHandle> conn(2);
     for (Range::iterator eid = edges.begin(); eid != edges.end(); ++eid)
       {
-        conn.clear();
-        error = mb->get_connectivity(&*eid, 1, conn);
-        if (MB_SUCCESS != error) return error;
+        const EntityHandle* conn;
+        int num_conn = 0;
+        error = mb->get_connectivity(*eid, conn, num_conn);
 
         int index = _verts.index(conn[0]);
         is_index[index+1] += 1;
@@ -623,9 +623,9 @@ namespace moab {
 
     for (Range::iterator eid = edges.begin(); eid != edges.end(); ++eid)
       {
-        conn.clear();
-        error = mb->get_connectivity(&*eid, 1, conn);
-        if (MB_SUCCESS != error) return error;
+        const EntityHandle* conn;
+        int num_conn = 0;
+        error = mb->get_connectivity(*eid, conn, num_conn);
 
         for (int j = 0; j< 2; j++)
           {
@@ -677,32 +677,37 @@ namespace moab {
     ErrorCode error;
 
     for (Range::iterator e_it = edges.begin(); e_it != edges.end(); ++e_it){      
-      std::vector<EntityHandle> conn(2);
-      error = mb->get_connectivity(&*e_it, 1, conn);
-      if (MB_SUCCESS != error) return error;
+        const EntityHandle* conn;
+        int num_conn = 0;
+        error = mb->get_connectivity(*e_it, conn, num_conn);
 
-      for(int i=0; i<2; ++i){
-        EntityHandle v = conn[i], eid = 0;
-        int vidx = _verts.index(v);
-        eid = v2hv_eid[vidx];
+        for(int i=0; i<2; ++i){
+            EntityHandle v = conn[i], eid = 0;
+            int vidx = _verts.index(v);
+            eid = v2hv_eid[vidx];
 
-	if (eid==0){
-	    v2hv_eid[vidx] = *e_it;
-	    v2hv_lvid[vidx] = i;
-	}
-      }      
-    }  
+            if (eid==0){
+                v2hv_eid[vidx] = *e_it;
+                v2hv_lvid[vidx] = i;
+              }
+          }
+      }
 
     return MB_SUCCESS;
   }
   ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   ErrorCode  HalfFacetRep::get_up_adjacencies_1d( EntityHandle vid,
                                                   std::vector< EntityHandle > &adjents,
-                                                  std::vector<int> * lvids){
+                                                  std::vector<int> * lvids)
+  {
+    adjents.reserve(20);
 
     bool local_id = false;
     if (lvids != NULL)
-      local_id = true;
+      {
+        local_id = true;
+        lvids->reserve(20);
+      }
 
     EntityHandle start_eid, eid;
     int start_lid, lid;
@@ -738,6 +743,8 @@ namespace moab {
   ErrorCode  HalfFacetRep::get_neighbor_adjacencies_1d( EntityHandle eid,
                                                         std::vector<EntityHandle> &adjents)
   {
+    adjents.reserve(20);
+
     EntityHandle sibhv_eid;
     int sibhv_lid;
 
@@ -776,35 +783,6 @@ namespace moab {
   /*******************************************************
   * 2D: sibhes, v2he, incident and neighborhood queries  *
   ********************************************************/
-  int HalfFacetRep::local_maps_2d( EntityHandle face)
-  {
-    // nepf: Number of edges per face
-    EntityType type = mb->type_from_handle(face);
-
-    int nepf = 0;
-    if (type == MBTRI)  nepf = 3;
-    else if (type ==MBQUAD)   nepf = 4;
-
-    return nepf;
-  }
-  /////////////////////////////////////////////////////////////////////////////////
-  ErrorCode HalfFacetRep::local_maps_2d( int nepf, int *next, int *prev)
-  {
-    // nepf: Number of edges per face
-    // next: Local ids of next edges
-    // prev: Local ids of prev edges
-
-    for (int k=0; k<nepf-1; k++)
-       {
-         next[k]=k+1;
-         prev[k+1]=k;
-       }
-       next[nepf-1]=0;
-       prev[0] = nepf-1;
-
-    return MB_SUCCESS;
-  }
-
   const HalfFacetRep::LocalMaps2D HalfFacetRep::lConnMap2D[2] = {
     //Triangle
     {3, {1,2,0}, {2,0,1}},
@@ -827,12 +805,11 @@ namespace moab {
       is_index[i] = 0;
 
     int index;
-    std::vector<EntityHandle> conn(nepf);
+   // std::vector<EntityHandle> conn(nepf);
     for (Range::iterator fid = faces.begin(); fid != faces.end(); ++fid)
        {
-        conn.clear();
-         error = mb->get_connectivity(&*fid, 1, conn);
-         if (MB_SUCCESS != error) return error;
+        const EntityHandle* conn;
+        error = mb->get_connectivity(*fid, conn, nepf);
 
          for (int i = 0; i<nepf; i++)
            {
@@ -852,9 +829,8 @@ namespace moab {
 
      for (Range::iterator fid = faces.begin(); fid != faces.end(); ++fid)
        {
-         conn.clear();
-         error = mb->get_connectivity(&*fid, 1, conn);
-         if (MB_SUCCESS != error) return error;
+         const EntityHandle* conn;
+         error = mb->get_connectivity(*fid, conn, nepf);
 
          for (int j = 0; j< nepf; j++)
            {
@@ -875,9 +851,8 @@ namespace moab {
      //Step 3: Fill up sibling half-verts map
      for (Range::iterator fid = faces.begin(); fid != faces.end(); ++fid)
        {
-         conn.clear();
-         error = mb->get_connectivity(&*fid, 1, conn);
-         if (MB_SUCCESS != error) return error;
+         const EntityHandle* conn;
+         error = mb->get_connectivity(*fid, conn, nepf);
 
          int fidx = faces.index(*fid);
 
@@ -934,7 +909,6 @@ namespace moab {
                  int pidx = faces.index(prev_fid);
                  sibhes_fid[nepf*pidx+prev_leid] = first_fid;
                  sibhes_leid[nepf*pidx+prev_leid] = first_leid;
-
              }
            }
        }
@@ -954,29 +928,25 @@ namespace moab {
     EntityType ftype = mb->type_from_handle(*faces.begin());
     int nepf = lConnMap2D[ftype-2].num_verts_in_face;
 
-    std::vector<EntityHandle> conn(nepf);
-
     for (Range::iterator it = faces.begin(); it != faces.end(); ++it){      
-      conn.clear();
-      error = mb->get_connectivity(&*it, 1, conn); 
-      if (MB_SUCCESS != error) return error;
+        const EntityHandle* conn;
+        error = mb->get_connectivity(*it, conn, nepf);
 
-      int fidx = faces.index(*it);
+        int fidx = faces.index(*it);
 
-      for(int i=0; i<nepf; ++i){
-        EntityHandle v = conn[i];
-        int vidx = _verts.index(v);
-        EntityHandle vfid = v2he_fid[vidx];
-        EntityHandle sibfid = sibhes_fid[nepf*fidx+i];
+        for(int i=0; i<nepf; ++i){
+            EntityHandle v = conn[i];
+            int vidx = _verts.index(v);
+            EntityHandle vfid = v2he_fid[vidx];
+            EntityHandle sibfid = sibhes_fid[nepf*fidx+i];
 
-	if ((vfid==0)||((vfid!=0) && (sibfid==0))){
-	    v2he_fid[vidx] = *it;
-	    v2he_leid[vidx] = i;
-	  }
-	}
+            if ((vfid==0)||((vfid!=0) && (sibfid==0))){
+                v2he_fid[vidx] = *it;
+                v2he_leid[vidx] = i;
+              }
+          }
       }
 
-    
     return MB_SUCCESS;
   }
   ///////////////////////////////////////////////////////////////////
@@ -991,6 +961,7 @@ namespace moab {
     if (!fid)
       return MB_SUCCESS;
 
+    adjents.reserve(20);
     adjents.push_back(fid);
 
     int qsize = 0, count = -1;
@@ -1074,13 +1045,20 @@ namespace moab {
 
     if (!fid)
       return MB_FAILURE;
+    adj_ents.reserve(20);
 
     bool local_id =false;
     bool orient = false;
     if (adj_leids != NULL)
+      {
         local_id = true;
+        adj_leids->reserve(20);
+      }
     if (adj_orients != NULL)
-      orient = true;
+      {
+        orient = true;
+        adj_orients->reserve(20);
+      }
 
     if (add_inent)
       {
@@ -1094,9 +1072,8 @@ namespace moab {
     if (orient)
       {
         //get connectivity and match their directions
-        std::vector<EntityHandle> fid_conn(nepf);
-        error = mb->get_connectivity(&fid, 1, fid_conn);
-        if (MB_SUCCESS != error) return error;
+        const EntityHandle* fid_conn;
+        error = mb->get_connectivity(fid, fid_conn, nepf);
 
         int nidx = lConnMap2D[ftype-2].next[leid];
         fedge[0] = fid_conn[leid];
@@ -1116,9 +1093,9 @@ namespace moab {
         if (orient)
           {
             //get connectivity and match their directions
-            std::vector<EntityHandle> conn(nepf);
-            error = mb->get_connectivity(&curfid, 1, conn);
-            if (MB_SUCCESS != error) return error;
+            const EntityHandle* conn;
+            error = mb->get_connectivity(curfid, conn, nepf);
+
             int nidx = lConnMap2D[ftype-2].next[curlid];
 
             if ((fedge[0] == conn[curlid])&&(fedge[1] == conn[nidx]))
@@ -1183,9 +1160,9 @@ namespace moab {
                                              EntityHandle *hefid,
                                              int *helid){
     ErrorCode error;
-    std::vector<EntityHandle> conn(2);
-    error = mb->get_connectivity(&eid, 1, conn);
-    if (MB_SUCCESS != error) return error;
+    const EntityHandle* conn;
+    int num_conn = 0;
+    error = mb->get_connectivity(eid, conn, num_conn);
 
     int vidx = _verts.index(conn[0]);
     EntityHandle fid = v2he_fid[vidx];
@@ -1260,10 +1237,9 @@ namespace moab {
     ErrorCode error;
     EntityType ftype = mb->type_from_handle(he_fid);
     int nepf = lConnMap2D[ftype-2].num_verts_in_face;
-    
-    std::vector<EntityHandle> conn(nepf);
-    error = mb->get_connectivity(&he_fid, 1, conn);
-    if (MB_SUCCESS != error) return error;
+
+    const EntityHandle* conn;
+    error = mb->get_connectivity(he_fid, conn, nepf);
 
     *he2_fid = he_fid;
     if (conn[he_lid] == vid)
@@ -1275,7 +1251,7 @@ namespace moab {
   }
   
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  bool HalfFacetRep::collect_and_compare(std::vector<EntityHandle> &edg_vert,
+  bool HalfFacetRep::collect_and_compare(const EntityHandle *edg_vert,
                                          int *qsize,
                                          int *count,
                                          EntityHandle *he_fid,
@@ -1294,9 +1270,8 @@ namespace moab {
         int curlid = queue_lid[num_qvals];
         num_qvals += 1;       
 
-        std::vector<EntityHandle> conn(nepf);
-        error = mb->get_connectivity(&curfid, 1, conn);
-        if (MB_SUCCESS != error) return error;
+        const EntityHandle* conn;
+        error = mb->get_connectivity(curfid, conn, nepf);
 
         int id = lConnMap2D[ftype-2].next[curlid];
         if (((conn[curlid]==edg_vert[0])&&(conn[id]==edg_vert[1]))||((conn[curlid]==edg_vert[1])&&(conn[id]==edg_vert[0]))){
@@ -1331,6 +1306,7 @@ namespace moab {
                                                         std::vector<EntityHandle> &adjents)
   {
     ErrorCode error; 
+
     if (fid != 0){
       EntityType ftype = mb->type_from_handle(fid);
       int nepf = lConnMap2D[ftype-2].num_verts_in_face;
@@ -1350,15 +1326,56 @@ namespace moab {
   {
       //Returns explicit edges, if any, of the face
       ErrorCode error;
+      adjents.reserve(10);
       EntityType ftype = mb->type_from_handle(fid);
       int nepf = lConnMap2D[ftype-2].num_verts_in_face;
 
-      std::vector<EntityHandle> conn(nepf);
-      error = mb->get_connectivity(&fid, 1, conn);
+      const EntityHandle* conn;
+      error = mb->get_connectivity(fid, conn, nepf);
       if (error != MB_SUCCESS) return error;
 
+      std::vector<EntityHandle> temp;
+      for (int i=0; i<nepf; i++)
+        {
+          //Get the current, next and prev vertices
+          int nidx = lConnMap2D[ftype-2].next[i];
+          int pidx = lConnMap2D[ftype-2].prev[i];
+          EntityHandle v = conn[i];
+          EntityHandle vnext = conn[nidx];
+          EntityHandle vprev = conn[pidx];
+
+          //Get incident edges on v
+          error = get_up_adjacencies_1d(conn[i], temp);
+          if (error != MB_SUCCESS) return error;
+
+          //Loop over the incident edges and check if its end vertices match those in the face
+          for (int k=0; k<(int)temp.size(); k++)
+            {
+              const EntityHandle* econn;
+              int num_conn = 0;
+              error = mb->get_connectivity(temp[k],econn, num_conn);
+              if (error != MB_SUCCESS) return error;
+
+              if ((econn[0] == v && econn[1] == vnext)||(econn[0] == v && econn[1] == vprev)||(econn[0] == vnext && econn[1] == v)||(econn[0] == vprev && econn[1] == v))
+                {
+                  bool found = false;
+                  for (int j=0; j<(int)adjents.size(); j++)
+                    {
+                      if (adjents[j] == temp[k])
+                        {
+                          found = true;
+                          break;
+                        }
+                    }
+                  if (!found)
+                    adjents.push_back(temp[k]);
+                }
+
+            }
+        }
+
       //Gather all the incident edges on each vertex of the face
-      std::vector< std::vector<EntityHandle> > temp(nepf);
+    /*  std::vector< std::vector<EntityHandle> > temp(nepf);
       for (int i=0; i<nepf; i++)
       {
           error = get_up_adjacencies_1d(conn[i], temp[i]);
@@ -1367,7 +1384,7 @@ namespace moab {
       }
 
       //Loop over all the local edges and find the intersection.
-      for (int i = 0; i < nepf; ++i)
+    / for (int i = 0; i < nepf; ++i)
       {
           std::vector<EntityHandle> common(10);
           if (i == nepf-1){
@@ -1385,7 +1402,7 @@ namespace moab {
 
               adjents.push_back(*common.begin());
           }
-      }
+      }*/
       return MB_SUCCESS;
   }
 
@@ -1393,8 +1410,8 @@ namespace moab {
   int HalfFacetRep::find_total_edges_2d(Range &faces)
   {
     ErrorCode error;
-    EntityHandle firstF = *faces.begin();
-    int nepf = local_maps_2d(firstF);
+    EntityType ftype = mb->type_from_handle(*faces.begin());
+    int nepf = lConnMap2D[ftype-2].num_verts_in_face;
     int nfaces = faces.size();
 
     int total_edges = nepf*nfaces;
@@ -1471,12 +1488,11 @@ namespace moab {
       is_index[i] = 0;
 
     int vindex;
-    std::vector<EntityHandle> conn(nvpc);
+
     for (Range::iterator cid = cells.begin(); cid != cells.end(); ++cid)
        {
-        conn.clear();
-        error = mb->get_connectivity(&*cid, 1, conn);
-        if (MB_SUCCESS != error) return error;
+        const EntityHandle* conn;
+        error = mb->get_connectivity(*cid, conn, nvpc);
 
         for (int i = 0; i<nfpc; ++i)
           {
@@ -1505,14 +1521,14 @@ namespace moab {
 
      for (Range::iterator cid = cells.begin(); cid != cells.end(); ++cid)
        {
-         conn.clear();
-         error = mb->get_connectivity(&*cid, 1, conn);
-         if (MB_SUCCESS != error) return error;
+         const EntityHandle* conn;
+         error = mb->get_connectivity(*cid, conn, nvpc);
 
          for (int i = 0; i< nfpc; i++)
            {
              int nvF = lConnMap3D[index].hf2v_num[i];
-             EntityHandle *vs = new EntityHandle[nvF];
+          //   EntityHandle *vs = new EntityHandle[nvF];
+             std::vector<EntityHandle> vs(nvF);
              EntityHandle vmax = 0;
              int lv = -1;
              for (int k = 0; k<nvF; k++)
@@ -1536,7 +1552,7 @@ namespace moab {
              v2hf_map_lfid[is_index[v]] = i;
              is_index[v] += 1;
 
-             delete [] vs;
+             //delete [] vs;
            }
        }
 
@@ -1547,9 +1563,8 @@ namespace moab {
      //Step 3: Fill up sibling half-verts map
      for (Range::iterator cid = cells.begin(); cid != cells.end(); ++cid)
        {
-         conn.clear();
-         error = mb->get_connectivity(&*cid, 1, conn);
-         if (MB_SUCCESS != error) return error;
+         const EntityHandle* conn;
+         error = mb->get_connectivity(*cid, conn, nvpc);
 
          int cidx = _cells.index(*cid);
 
@@ -1562,7 +1577,8 @@ namespace moab {
 
 
              int nvF = lConnMap3D[index].hf2v_num[i];
-             EntityHandle *vs = new EntityHandle[nvF];
+         //    EntityHandle *vs = new EntityHandle[nvF];
+             std::vector<EntityHandle> vs(nvF);
              EntityHandle vmax = 0;
              int lv = -1;
              for (int k = 0; k<nvF; k++)
@@ -1599,17 +1615,15 @@ namespace moab {
                      sibhfs_lfid[nfpc*scidx+cur_lfid] = i;
                    }
                }
-             delete [] vs;
+             //delete [] vs;
            }
        }
-
 
      delete [] is_index;
      delete [] v2oe_v1;
      delete [] v2oe_v2;
      delete [] v2hf_map_cid;
      delete [] v2hf_map_lfid;
-
 
      return MB_SUCCESS;
 
@@ -1624,13 +1638,11 @@ namespace moab {
     int nvpc = lConnMap3D[index].num_verts_in_cell;
     int nfpc = lConnMap3D[index].num_faces_in_cell;
   
-    std::vector<EntityHandle> conn(nvpc);
 
     for (Range::iterator cid = cells.begin(); cid != cells.end(); ++cid){
       EntityHandle cell = *cid;
-      conn.clear();
-      error = mb->get_connectivity(&cell, 1, conn);
-      if (MB_SUCCESS != error) return error;
+      const EntityHandle* conn;
+      error = mb->get_connectivity(*cid, conn, nvpc);
 
       int cidx = _cells.index(cell);
       
@@ -1671,29 +1683,28 @@ namespace moab {
     int nfpc = lConnMap3D[index].num_faces_in_cell;
 
     int val= 1;
-    std::vector<EntityHandle> conn(nvpc);
 
     for(Range::iterator t= cells.begin(); t !=cells.end(); ++t){
-      conn.clear();     
-      error = mb->get_connectivity(&*t, 1, conn);
-      if (MB_SUCCESS != error) return error;
 
-      int cidx = _cells.index(*t);
+        const EntityHandle* conn;
+        error = mb->get_connectivity(*t, conn, nvpc);
 
-      for (int i = 0; i < nfpc; ++i){
-          EntityHandle sib_cid = sibhfs_cid[nfpc*cidx+i];
+        int cidx = _cells.index(*t);
 
-	  if (sib_cid ==0){
-	  int nvF = lConnMap3D[index].hf2v_num[i];
-	  
-	  for (int j = 0; j < nvF; ++j){
-	    int ind = lConnMap3D[index].hf2v[i][j];
-	    error = mb->tag_set_data(isborder, &conn[ind], 1, &val);	    
-	    if (MB_SUCCESS != error) return error;
-	  }
-	}	
+        for (int i = 0; i < nfpc; ++i){
+            EntityHandle sib_cid = sibhfs_cid[nfpc*cidx+i];
+
+            if (sib_cid ==0){
+                int nvF = lConnMap3D[index].hf2v_num[i];
+
+                for (int j = 0; j < nvF; ++j){
+                    int ind = lConnMap3D[index].hf2v[i][j];
+                    error = mb->tag_set_data(isborder, &conn[ind], 1, &val);
+                    if (MB_SUCCESS != error) return error;
+                  }
+              }
+          }
       }
-    }    
 
     return MB_SUCCESS;
   }
@@ -1701,6 +1712,7 @@ namespace moab {
   ErrorCode HalfFacetRep::get_up_adjacencies_vert_3d(EntityHandle vid, std::vector<EntityHandle> &adjents)
   {
       ErrorCode error;
+      adjents.reserve(20);
 
       // Obtain a half-face incident on v
       int vidx = _verts.index(vid);
@@ -1729,9 +1741,8 @@ namespace moab {
               }
 
               // Connectivity of the cell
-              std::vector<EntityHandle> conn;
-              error = mb->get_connectivity(&cur_cid, 1, conn);
-              if (MB_SUCCESS != error) return error;
+              const EntityHandle* conn;
+              error = mb->get_connectivity(cur_cid, conn, nvpc);
 
               // Local id of vid in the cell and the half-faces incident on it
               int lv = -1;
@@ -1805,24 +1816,30 @@ namespace moab {
     ErrorCode error;
 
     int index = get_index_from_type(cid);
+    int nvpc = lConnMap3D[index].num_verts_in_cell;
     int nfpc = lConnMap3D[index].num_faces_in_cell;
 
+    adjents.reserve(20);
     bool local_id = false;
     bool orient = false;
     if (leids != NULL)
-      local_id = true;
+      {
+        local_id = true;
+        leids->reserve(20);
+      }
     if (adj_orients != NULL)
-      orient = true;
-
+      {
+        orient = true;
+        adj_orients->reserve(20);
+      }
     adjents.push_back(cid);
     if (local_id)
       leids->push_back(leid);
     if (orient)
       adj_orients->push_back(1);
 
-    std::vector<EntityHandle> conn;
-    error =mb->get_connectivity(&cid, 1, conn);
-    if (MB_SUCCESS != error) return error;
+    const EntityHandle* conn;
+    error = mb->get_connectivity(cid, conn, nvpc);
 
     // Get the end vertices of the edge <cid,leid>
     int id = lConnMap3D[index].e2v[leid][0];
@@ -1847,10 +1864,9 @@ namespace moab {
 	  //Check if loop reached starting cell or a boundary
 	  if ((cur_cell == cid) || ( cur_cell==0))
 	    break;
-	  
-	  std::vector<EntityHandle> sib_conn;
-	  error =mb->get_connectivity(&cur_cell, 1, sib_conn);
-	  if (MB_SUCCESS != error) return error;
+
+	  const EntityHandle* sib_conn;
+	  error = mb->get_connectivity(cur_cell, sib_conn, nvpc);
 
 	  //Find the local edge id wrt to sibhf
 	  int nv_curF = lConnMap3D[index].hf2v_num[lfid];
@@ -1937,9 +1953,14 @@ namespace moab {
     EntityHandle start_cell = *_cells.begin();
     int index = get_index_from_type(start_cell);
     int nfpc = lConnMap3D[index].num_faces_in_cell;
+
+    adjents.reserve(20);
     bool local_id = false;
     if (lfids != NULL)
-      local_id = true;
+      {
+        local_id = true;
+        lfids->reserve(20);
+      }
 
     int cidx = _cells.index(cid);
     EntityHandle sibcid = sibhfs_cid[nfpc*cidx+lfid];
@@ -1972,9 +1993,9 @@ namespace moab {
     ErrorCode error;
 
     // Find the edge vertices
-    std::vector<EntityHandle> econn;
-    error = mb->get_connectivity(&eid, 1, econn);
-    if (MB_SUCCESS != error) return error;
+    const EntityHandle* econn;
+    int num_conn = 0;
+    error = mb->get_connectivity(eid, econn, num_conn);
 
     EntityHandle v_start = econn[0], v_end = econn[1];
     int v1idx = _verts.index(v_start);
@@ -2004,9 +2025,8 @@ namespace moab {
         EntityHandle cell_id = cellq[num_qvals];
         num_qvals += 1;
 
-        std::vector<EntityHandle> conn;
-        error =mb->get_connectivity(&cell_id, 1, conn);
-        if (MB_SUCCESS != error) return error;
+        const EntityHandle* conn;
+        error = mb->get_connectivity(cell_id, conn, nvpc);
 
         int lv0 = -1, lv1 = -1, lv = -1;
 
@@ -2064,11 +2084,11 @@ namespace moab {
     int index = get_index_from_type(start_cell);
     int nvpc = lConnMap3D[index].num_verts_in_cell;
     int nfpc = lConnMap3D[index].num_faces_in_cell;
-    int nvF = local_maps_2d(fid);
+    EntityType ftype = mb->type_from_handle(fid);
+    int nvF = lConnMap2D[ftype-2].num_verts_in_face;
 
-    std::vector<EntityHandle> fid_verts;
-    error = mb->get_connectivity(&fid, 1, fid_verts);
-    if (MB_SUCCESS != error) return error;
+    const EntityHandle* fid_verts;
+    error = mb->get_connectivity(fid, fid_verts, nvF);
 
     int vidx = _verts.index(fid_verts[0]);
     EntityHandle cur_cid = v2hf_cid[vidx];
@@ -2085,9 +2105,8 @@ namespace moab {
             count += 1;
             trackcells[count] = cur_cid;
 
-            std::vector<EntityHandle> conn;
-            error = mb->get_connectivity(&cur_cid, 1, conn);
-            if (MB_SUCCESS != error) return error;
+            const EntityHandle* conn;
+            error = mb->get_connectivity(cur_cid, conn, nvpc);
 
             // Local id of fid_verts[0] in the cell
             int lv0 = -1;
@@ -2165,7 +2184,7 @@ namespace moab {
   ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   ErrorCode HalfFacetRep::get_neighbor_adjacencies_3d( EntityHandle cid, std::vector<EntityHandle> &adjents)
   {
-    //ErrorCode error;
+    adjents.reserve(20);
     int index = get_index_from_type(cid);
     int nfpc = lConnMap3D[index].num_faces_in_cell;
     int cidx = _cells.index(cid);
@@ -2186,13 +2205,13 @@ namespace moab {
   {
       //Returns explicit edges, if any, of the face
       ErrorCode error;
+      adjents.reserve(20);
       int index = get_index_from_type(cid);
       int nvpc = lConnMap3D[index].num_verts_in_cell;
       int nepc = lConnMap3D[index].num_edges_in_cell;
 
-      std::vector<EntityHandle> conn;
-      error = mb->get_connectivity(&cid, 1, conn);
-      if (error != MB_SUCCESS) return error;
+      const EntityHandle* conn;
+      error = mb->get_connectivity(cid, conn, nvpc);
 
       //Gather all the incident edges on each vertex of the face
       std::vector< std::vector<EntityHandle> > temp(nvpc);
@@ -2226,13 +2245,13 @@ namespace moab {
   {
       //Returns explicit edges, if any, of the face
       ErrorCode error;
+      adjents.reserve(20);
       int index = get_index_from_type(cid);
       int nvpc = lConnMap3D[index].num_verts_in_cell;
       int nfpc = lConnMap3D[index].num_faces_in_cell;
 
-      std::vector<EntityHandle> conn(nvpc);
-      error = mb->get_connectivity(&cid, 1, conn);
-      if (error != MB_SUCCESS) return error;
+      const EntityHandle* conn;
+      error = mb->get_connectivity(cid, conn, nvpc);
 
       std::vector<EntityHandle> temp(50);
       for (int i = 0; i < nfpc; i++)
@@ -2255,14 +2274,13 @@ namespace moab {
           };
 
           //Match this face with all the incident faces
-          std::vector<EntityHandle> fid_verts;
           for (int k = 0; k < (int)temp.size(); k++)
           {
-              fid_verts.clear();
-              error = mb->get_connectivity(&temp[k], 1, fid_verts);
-              if (MB_SUCCESS != error) return error;
+              const EntityHandle* fid_verts;
+              int fsize = 0;
+              error = mb->get_connectivity(temp[k], fid_verts, fsize);
 
-              int nvthisface = fid_verts.size();
+              int nvthisface = fsize;
               if (nvF != nvthisface)
                   continue;
 

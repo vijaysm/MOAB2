@@ -126,7 +126,7 @@ namespace moab{
           }
         else if (type == MBTRI || type == MBQUAD)
           {
-            int num_corners = ahf->local_maps_2d(ent);
+            int num_corners = ahf->lConnMap2D[type-2].num_verts_in_face;
             conn.reserve(num_corners);
             start_ent = level_mesh[level-1].start_face;
             for (int i=0; i<num_corners; i++)
@@ -424,7 +424,7 @@ namespace moab{
     if (estL[2])
       {
         EntityType type = mbImpl->type_from_handle(*(_infaces.begin()));
-        int nvpf = ahf->local_maps_2d(*(_infaces.begin()));
+        int nvpf = ahf->lConnMap2D[type-2].num_verts_in_face;
         error = read_iface->get_element_connect(estL[2], nvpf, type, 0, level_mesh[cur_level].start_face, level_mesh[cur_level].face_conn); MB_CHK_ERR(error);
         level_mesh[cur_level].num_faces = estL[2];
 
@@ -636,7 +636,8 @@ namespace moab{
       }
 
     //Create some book-keeping arrays over the old mesh to avoid introducing duplicate vertices and calculating vertices more than once.
-    int nepf = ahf->local_maps_2d(*_infaces.begin());
+    EntityType ftype = mbImpl->type_from_handle(*_infaces.begin());
+    int nepf = ahf->lConnMap2D[ftype-2].num_verts_in_face;
     EntityType type = mbImpl->type_from_handle(*(_infaces.begin()));
     int findex = type-1;
 
@@ -1268,7 +1269,7 @@ ErrorCode NestedRefine::update_local_ahf(int deg, EntityType type, int pat_id, E
     }
   else if (type == MBTRI || type == MBQUAD)
     {
-      nhf = ahf->local_maps_2d(*_infaces.begin());
+      nhf = ahf->lConnMap2D[type-2].num_verts_in_face;
       nv = nhf;
       total_new_verts = refTemplates[pat_id][d].total_new_verts;
     }
@@ -1521,7 +1522,7 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
    EntityType type = mbImpl->type_from_handle(*_infaces.begin());
    int nhf, nchilds, nverts_prev, nents_prev;
 
-   nhf = ahf->local_maps_2d(*_infaces.begin());
+   nhf = ahf->lConnMap2D[type-2].num_verts_in_face;
    int d = get_index_from_degree(deg);
    nchilds = refTemplates[type-1][d].total_new_ents;
 
@@ -1574,9 +1575,9 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
 
 
    EntityHandle fedge[2];
-   int * next = new int[nhf];
+  /* int * next = new int[nhf];
    int  * prev = new int[nhf];
-   error = ahf->local_maps_2d(nhf, next, prev); MB_CHK_ERR(error);
+   error = ahf->local_maps_2d(nhf, next, prev); MB_CHK_ERR(error);*/
 
    //Update the sibling half-facet maps across entities
    for (int i=0; i< nents_prev; i++)
@@ -1603,8 +1604,9 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
            if (!sib_entids[l])
              continue;
 
+           int nidx = ahf->lConnMap2D[type-2].next[l];
            fedge[0] = fid_conn[l];
-           fedge[1] = fid_conn[next[l]];
+           fedge[1] = fid_conn[nidx];
 
            EntityHandle sfid = sib_entids[l];
            int slid = sib_lids[l];
@@ -1614,11 +1616,12 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
            if (MB_SUCCESS != error) return error;
 
            bool orient = true;
-           if ((fedge[1] == conn[slid])&&(fedge[0] == conn[next[slid]]))
+           nidx = ahf->lConnMap2D[type-2].next[slid];
+           if ((fedge[1] == conn[slid])&&(fedge[0] == conn[nidx]))
              orient = false;
 
            if (orient)
-             assert((fedge[0] == conn[slid])&&(fedge[1] == conn[next[slid]]));
+             assert((fedge[0] == conn[slid])&&(fedge[1] == conn[nidx]));
 
            //Find the childrens incident on the half-facet
            int nch = refTemplates[type-1][d].ents_on_pent[l][0];
@@ -1674,8 +1677,8 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
        delete [] sib_lids;
      }
 
-   delete [] next;
-   delete [] prev;
+ //  delete [] next;
+ //  delete [] prev;
 
    return MB_SUCCESS;
 
@@ -2426,7 +2429,8 @@ ErrorCode NestedRefine::print_tags_2D(int level, EntityType type)
   //SIBHES
   std::cout<<"start_face = "<<start_face<<std::endl;
   std::cout<<"<SIBHES_FID,SIBHES_LEID>"<<std::endl;
-  int nepf = ahf->local_maps_2d(*_infaces.begin());
+  EntityType ftype = mbImpl->type_from_handle(*_infaces.begin());
+  int nepf = ahf->lConnMap2D[ftype-2].num_verts_in_face;
 
   std::vector<EntityHandle> fid;
   std::vector<int> leid;
