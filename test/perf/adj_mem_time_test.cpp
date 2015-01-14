@@ -153,7 +153,7 @@ ErrorCode adj_perf(const char* filename)
     error = mbImpl->get_entities_by_dimension( 0, 2, faces);
     error = mbImpl->get_entities_by_dimension( 0, 3, cells);
 
-  int nverts = verts.size(); 
+  int nverts = verts.size();
   int nedges = edges.size();
   int nfaces = faces.size();
   int ncells = cells.size();
@@ -178,7 +178,7 @@ ErrorCode adj_perf(const char* filename)
 
   //IQ1: For every vertex, obtain incident edges
   time_start = wtime();
-  for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {    
+  for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
     adjents.clear();
     error = mbImpl->get_adjacencies( &*i, 1, 1, false, adjents);
   }
