@@ -26,7 +26,21 @@
 
   \ref sets
 
-  \section sequence  EntitySequence & SequenceData 
+  \ref impl-error-handling
+
+    \ref dgfiveone
+
+    \ref dgfivetwo
+
+    \ref dgfivethree
+
+    \ref dgfivefour
+
+    \ref dgfivefive
+
+    \ref dgfivesix
+
+  \section sequence  1.EntitySequence & SequenceData
 
   \subsection figure1 Figure 1: EntitySequences For One SequenceData
   \image html figure1.jpg
@@ -94,7 +108,7 @@ some other invalid value.
 
  \ref dg-contents "Top"
 
-  \section manager TypeSequenceManager & SequenceManager 
+  \section manager 2.TypeSequenceManager & SequenceManager
 
 The <I>TypeSequenceManager</I> class maintains an organized set of <I>EntitySequence</I>
 instances and corresponding <I>SequenceData</I> instances. It is used to manage
@@ -161,7 +175,7 @@ such as allocating the correct <I>EntitySequence</I> subtype for a given <I>Enti
 
   \ref dg-contents "Top"
 
- \section s-mesh Structured Mesh
+ \section s-mesh 3.Structured Mesh
 
 Structured mesh storage is implemented using subclasses of <I>SequenceData</I>:
 <I>ScdElementData</I> and <I>ScdVertexData</I>. The <I>StructuredElementSeq</I> class is
@@ -171,7 +185,7 @@ is the same as for unstructured mesh.
 
   \ref dg-contents "Top"
 
-  \section sets Entity Sets
+  \section sets 4.Entity Sets
 
 - MeshSetSequence
 
@@ -267,6 +281,121 @@ parent or child links of a set without every querying other set properties. The
 downside of this solution is that it makes the implementation a little less mod-
 ular and maintainable because the existing logic contained in the <I>MeshSet</I> class
 would need to be spread throughout the <I>MeshSetSequence</I> class.
+
+  \ref dg-contents "Top"
+
+ \section impl-error-handling 5.Implementation of Error Handling
+
+When a certain error occurs, a MOAB routine can return an enum type ErrorCode (defined in src/moab/Types.hpp)
+to its callers. Since MOAB 4.8, the existing error handling model has been completely redesigned to better set
+and check errors.
+
+ \subsection dgfiveone 5.1. Existing Error Handling Model
+
+To keep track of detail information about errors, a class Error (defined in src/moab/Error.hpp) is used to
+store corresponding error messages. Some locally defined macros call Error::set_last_error() to report a new
+error message, before a non-success error code is returned. At any time, user may call Core::get_last_error()
+to retrieve the latest error message from the Error class instance held by MOAB.
+
+Limitations:
+- The Error class can only store the last error message that is being set. When an error originates from a lower
+level in a call hierarchy, upper level callers might continue to report more error messages. As a result, previously
+reported error messages get overwritten and they will no longer be available to the user.
+- There is no useful stack trace for the user to find out where an error first occurs, making MOAB difficult to debug.
+
+ \subsection dgfivetwo 5.2. Enhanced Error Handling Model
+
+The error handling model of PETSc (http://www.mcs.anl.gov/petsc/) has nice support of stack trace, and our design has
+borrowed many ideas from that. The new features of the enhanced model include:
+- Lightweight and easy to use with a macro-based interface
+- Generate a stack trace starting from the first non-success error
+- Support C++ style streams to build up error messages rather than C style sprintf:
+\code
+MB_SET_ERR(MB_FAILURE, "Failed to iterate over tag on " << NUM_VTX << " vertices");
+\endcode
+- Have preprocessor-like functionality such that we can do something like:
+\code
+result = MOABRoutine(...);MB_CHK_SET_ERR(result, "Error message to set if result is not MB_SUCCESS");
+\endcode
+- Define and handle globally fatal errors or per-processor specific errors.
+
+The public include file for error handling is src/moab/ErrorHandler.hpp, the source code for the error
+handling is in src/ErrorHandler.cpp.
+
+\subsection dgfivethree 5.3. Error Handler
+
+The error handling function MBError() only calls one default error handler, MBTraceBackErrorHandler(), which tries to print
+out a stack trace. Other kind of error handlers (e.g. attach debugger handler) might be supported in the future.
+
+The arguments to MBTraceBackErrorHandler() are the line number where the error occurred, the function where error was detected,
+the file in which the error was detected, the source directory, the error message, and the error type indicating whether the
+error message should be printed.
+\code
+ErrorCode MBTraceBackErrorHandler(int line, const char* func, const char* file, const char* dir, const char* err_msg, ErrorType err_type);
+\endcode
+This handler will print out a line of stack trace, indicating line number, function name, directory and file name. If MB_ERROR_TYPE_EXISTING
+is passed as the error type, the error message will not be printed.
+
+\subsection dgfivefour 5.4. Simplified Interface
+
+The simplified C/C++ macro-based interface consists of the following three basic macros:
+\code
+MB_SET_ERR(Error code, "Error message");
+MB_CHK_ERR(Error code);
+MB_CHK_SET_ERR(Error code, "Error message");
+\endcode
+
+The macro MB_SET_ERR(err_code, err_msg) is given by
+\code
+std::ostringstream err_ostr;
+err_ostr << err_msg;
+return MBError(__LINE__, __func__, __FILENAME__, __SDIR__, err_code, err_ostr.str().c_str(), MB_ERROR_TYPE_NEW_LOCAL);
+\endcode
+It calls the error handler with the current function name and location: line number, file and directory, plus an error code,
+an error message and an error type. With an embedded std::ostringstream object, it supports C++ style streams to build up error
+messages. The error type is MB_ERROR_TYPE_NEW_LOCAL/MB_ERROR_TYPE_NEW_GLOBAL on detection of the initial error and MB_ERROR_TYPE_EXISTING
+for any additional calls. This is so that the detailed error information is only printed once instead of for all levels of returned errors.
+
+The macro MB_CHK_ERR(err_code) is defined by
+\code
+if (MB_SUCCESS != err_code)
+  return MBError(__LINE__, __func__, __FILENAME__, __SDIR__, err_code, "", MB_ERROR_TYPE_EXISTING);
+\endcode
+It checks the error code, if not MB_SUCCESS, calls the error handler with error type MB_ERROR_TYPE_EXISTING and return.
+
+The MB_CHK_SET_ERR(err_code, err_msg) is defined by
+\code
+if (MB_SUCCESS != err_code)
+  MB_SET_ERR(err_code, err_msg);
+\endcode
+It checks the error code, if not MB_SUCCESS, calls MB_SET_ERR() to set a new error.
+
+To obtain correct line numbers in the stack trace, we recommend putting MB_CHK_ERR() and MB_CHK_SET_ERR() at the same line as a MOAB routine.
+
+In addition to the basic macros mentioned above, there are some variations, such as (for more information, refer to src/moab/ErrorHandler.hpp):
+- MB_SET_GLB_ERR() to set a globally fatal error (for all processors)
+- MB_SET_ERR_RET() for functions that return void type
+- MB_SET_ERR_RET_VAL() for functions that return any data type
+- MB_SET_ERR_CONT() to continue execution instead of returning from current function
+These macros should be used appropriately in MOAB source code depending on the context.
+
+\subsection dgfivefive 5.5. Embedded Parallel Functionality
+
+We define a global MPI rank with which to prefix the output, as most systems have mechanisms for separating output by rank anyway.
+For the error handler, we can pass error type MB_ERROR_TYPE_NEW_GLOBAL for globally fatal errors and MB_ERROR_TYPE_NEW_LOCAL for
+per-processor relevant errors.
+
+Note, if the error handler uses std::cout to print error messages and stack traces in each processor, it can result in a messy output.
+This is a known MPI issue with std::cout, and existing DebugOutput class has solved this issue with buffered lines. A new class
+ErrorOutput (implemented similar to DebugOutput) is used by the error handler to print each line prefixed with the MPI rank.
+
+\subsection dgfivesix 5.6. Handle Non-error Conditions
+
+We should notice that sometimes ErrorCode is used to return a non-error condition (some internal error code that can be handled, or even expected,
+e.g. MB_TAG_NOT_FOUND). Therefore, MB_SET_ERR() should be appropriately placed to report an error to the the caller. Before it is used, we need to
+carefully decide whether that error is intentional. For example, a lower level MOAB routine that could return MB_TAG_NOT_FOUND should probably not
+set an error on it, since the caller might expect to get that error code. In this case, the lower level routine just return MB_TAG_NOT_FOUND as a
+condition, and no error is being set. It is then up to the upper level callers to decide whether it should be a true error or not.
 
   \ref dg-contents "Top"
 */
