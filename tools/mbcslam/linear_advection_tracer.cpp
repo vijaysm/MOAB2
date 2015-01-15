@@ -20,6 +20,7 @@
 std::string file_name("./uniform_30.g");
 //std::string file_name("./uniform_120.g");
 
+extern bool debugflag;
 #ifdef MESHDIR
 std::string TestDir( STRINGIFY(MESHDIR) );
 #else
@@ -154,6 +155,9 @@ int main(int argc, char *argv[]) {
   moab::Tag weightsTag = 0;
   rval = mb.tag_get_handle("Weights", 6, moab::MB_TYPE_DOUBLE, weightsTag,
       moab::MB_TAG_CREAT | moab::MB_TAG_DENSE); MB_CHK_ERR(rval);
+  moab::Tag gid;
+  rval = mb.tag_get_handle(GLOBAL_ID_TAG_NAME, 1,
+      MB_TYPE_INTEGER, gid, MB_TAG_DENSE); MB_CHK_ERR(rval);
 
   // get cell plane
   get_gnomonic_plane(&mb, euler_set, planeTag);
@@ -180,9 +184,12 @@ int main(int argc, char *argv[]) {
   rval = mb.tag_get_data(tauTag, redEls, &iniValsTau[0]); MB_CHK_ERR(rval);
 
   // Get Lagrangian set
-  moab::EntityHandle out_set, lagrange_set, covering_set; // covering set created again; maybe it should be created only once
+  moab::EntityHandle out_set, lagrange_set, covering_set, extended_set; // covering set created again; maybe it should be created only once
   rval = mb.create_meshset(MESHSET_SET, out_set); MB_CHK_ERR(rval);
   rval = mb.create_meshset(MESHSET_SET, lagrange_set); MB_CHK_ERR(rval);
+  rval = mb.create_meshset(MESHSET_SET, extended_set); MB_CHK_ERR(rval);
+  // add all cells, which include ghosts
+  rval = mb.add_entities(extended_set, allCells);
   //rval = mb.create_meshset(MESHSET_SET, covering_set); MB_CHK_ERR(rval);
 
   rval = deep_copy_set(&mb, euler_set, lagrange_set); MB_CHK_ERR(rval);
@@ -209,10 +216,19 @@ int main(int argc, char *argv[]) {
 
   rval = pcomm.exchange_tags(tags, tags, allCells); MB_CHK_ERR(rval);
 
+  /*rval = pcomm.exchange_tags(rhoTag, allCells); MB_CHK_ERR(rval);
+  // write the part
+  std::stringstream meshFile1;
+  meshFile1 << "density_" << rank << ".vtk";
+  rval = mb.write_file(meshFile1.str().c_str(), 0, 0, &extended_set, 1); MB_CHK_ERR(rval);
+
+  rval = pcomm.exchange_tags(tauTag, allCells); MB_CHK_ERR(rval);
+  rval = pcomm.exchange_tags(barycenterTag, allCells); MB_CHK_ERR(rval);*/
+
   // write the part
   std::stringstream meshFile;
   meshFile << "mesh_" << rank << ".vtk";
-  rval = mb.write_file(meshFile.str().c_str()); MB_CHK_ERR(rval);
+  rval = mb.write_file(meshFile.str().c_str(), 0, 0, &extended_set, 1); MB_CHK_ERR(rval);
 
   // loop over time to update density
   for (int ts = 1; ts < numSteps + 1; ts++) {
@@ -256,6 +272,28 @@ int main(int argc, char *argv[]) {
     limit_linear_reconstruction(&mb, euler_set, tauTag, planeTag, tauBoundsTag,
         centerOfMassTag, tauCoefTag);
 
+    if (debugflag)
+    {
+      std::vector<int> gids(redEls.size());
+      std::vector<double> tauv(redEls.size());
+      std::vector<double> taul(redEls.size()*3);
+      mb.tag_get_data(tauTag, redEls, &tauv[0]);
+      mb.tag_get_data(gid, redEls, &gids[0]);
+      mb.tag_get_data(tauCoefTag, redEls, &taul[0]);
+      for (int p=0; p<pcomm.size(); p++)
+      {
+        if (p==rank)
+        {
+          int i=0;
+          for (moab::Range::iterator it=redEls.begin(); it!=redEls.end(); it++, i++)
+          {
+            std::cout<<gids[i] << " " << tauv[i] << " " << taul[3*i] << " " << taul[3*i+1] << taul[3*i+2] << "\n";
+          }
+        }
+        MPI_Barrier(pcomm.comm());
+      }
+
+    }
     // get depature grid
     rval = get_departure_grid(&mb, euler_set, lagrange_set, covering_set, ts,
         local_verts);
@@ -279,7 +317,7 @@ int main(int argc, char *argv[]) {
         weightsTag);
 
     // update the density and tracer
-   rval = pworker->update_density_and_tracers(rhoTag, areaTag, rhoCoefTag,
+    rval = pworker->update_density_and_tracers(rhoTag, areaTag, rhoCoefTag,
         tauTag, tauCoefTag, weightsTag, planeTag); MB_CHK_ERR(rval);
     /*rval = update_density(&mb, euler_set, lagrange_set, out_set, rhoTag,
      areaTag, rhoCoefTag, weightsTag, planeTag);
@@ -287,7 +325,9 @@ int main(int argc, char *argv[]) {
      // update the tracer
      rval = update_tracer(&mb, euler_set, lagrange_set, out_set, tauTag, areaTag,
      rhoCoefTag, tauCoefTag, weightsTag, planeTag);*/
-
+    std::vector<moab::Tag> tags1;
+    tags1.push_back(rhoTag); tags1.push_back(tauTag);
+    pcomm.exchange_tags(tags1, tags1, allCells); MB_CHK_ERR(rval);
     if (writeFiles) // so if write
     {
       std::stringstream newTracer;
@@ -324,6 +364,9 @@ int main(int argc, char *argv[]) {
     rval = mb.delete_entities(todeleteVerts);
     if (rank == 0)
       std::cout << " step: " << ts << "\n";
+    // temporary, stop here
+    MPI_Finalize();
+    return 0;
 
   }
 

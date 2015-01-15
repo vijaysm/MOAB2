@@ -10,7 +10,8 @@
 #ifdef USE_MPI
 #include "moab/ParallelComm.hpp"
 #endif
-
+extern bool debugflag;
+unsigned int run_rank = 1;
 namespace moab {
 
 
@@ -698,6 +699,17 @@ ErrorCode Intx2MeshOnSphere::update_density_and_tracers(Tag & rhoTag, Tag & area
     }
     delete remote_cells;
     remote_cells = NULL;
+    if (debugflag)
+    {
+      for (unsigned int p=0; p<parcomm->size(); p++)
+      {
+        if (p==my_rank)
+        {
+          remote_cells_with_tracers->print("remote_cells_with_tracers");
+        }
+        MPI_Barrier(parcomm->comm());
+      }
+    }
   }
 #endif
   // for each polygon, we have 2 indices: red and blue parents
@@ -757,6 +769,14 @@ ErrorCode Intx2MeshOnSphere::update_density_and_tracers(Tag & rhoTag, Tag & area
     // the blue corresponds to a red arrival
     EntityHandle redArr;
     rval = mb->tag_get_data(corrTag, &blue, 1, &redArr);
+    if (debugflag && run_rank==my_rank)
+    {
+      int rid, bid;
+      EntityHandle redc= rs2[redIndex];
+      mb->tag_get_data(gid, &redc, 1, &rid);
+      mb->tag_get_data(gid, &blue, 1, &bid);
+      std::cout<< " rank " << my_rank<< " red:" << rid <<" blue:" <<  bid << " " << areap << " " << rhoDA << " \n"  ;
+    }
     if (0==redArr || MB_TAG_NOT_FOUND==rval)
     {
 #ifdef USE_MPI
@@ -773,6 +793,8 @@ ErrorCode Intx2MeshOnSphere::update_density_and_tracers(Tag & rhoTag, Tag & area
 
       // update density \int rho dA
       remote_cells_with_tracers->vr_wr[index_in_remote*(numTracers+1)] += rhoDA;
+      if (debugflag)
+        std::cout << " index: " << index_in_remote << " " << global_id_blue << "\n";
       // update tracer  \int (tau * rho) dA
       for (int k=0; k<numTracers; k++)
         remote_cells_with_tracers->vr_wr[index_in_remote*(numTracers+1)+k+1] +=
@@ -785,6 +807,8 @@ ErrorCode Intx2MeshOnSphere::update_density_and_tracers(Tag & rhoTag, Tag & area
       if (-1 == arrRedIndex)
         ERRORR(MB_FAILURE, "can't find the red arrival index");
       newMass[arrRedIndex] += rhoDA;
+      if (debugflag && run_rank == my_rank)
+              std::cout << " arrRedIndex: " << arrRedIndex << "\n";
       for (int k=0; k<numTracers; k++)
         newValues[numTracers*arrRedIndex+k] += taurhoDA[k];
     }
@@ -801,11 +825,31 @@ ErrorCode Intx2MeshOnSphere::update_density_and_tracers(Tag & rhoTag, Tag & area
     (parcomm->proc_config().crystal_router())->gs_transfer(1, *remote_cells_with_tracers, 0);
     // now, look at the global id, find the proper "red" cell with that index and update its mass
     //remote_cells->print("remote cells after routing");
+    if (debugflag)
+    {
+      for (unsigned int p=0; p<parcomm->size(); p++)
+      {
+        if (p==my_rank)
+        {
+          remote_cells_with_tracers->print("remote_cells_after_routing");
+        }
+        MPI_Barrier(parcomm->comm());
+      }
+    }
     int n = remote_cells_with_tracers->get_n();
     for (int j=0; j<n; j++)
     {
       EntityHandle redCell = remote_cells_with_tracers->vul_rd[j];// entity handle sent back
       int arrRedIndex = rs2.index(redCell);
+      if (debugflag &&  run_rank==my_rank)
+      {
+        int rgid;
+        mb->tag_get_data(gid, &redCell, 1, &rgid);
+        int gred = remote_cells_with_tracers->vi_rd[2*j+1];
+        assert(rgid==gred);
+        std::cout << " arrRedIndex:" << arrRedIndex << " rgid:" << rgid << " addition:"
+            << remote_cells_with_tracers->vr_rd[j*(numTracers+1)] << " \n";
+      }
       if (-1 == arrRedIndex)
         ERRORR(MB_FAILURE, "can't find the red arrival index");
       newMass[arrRedIndex] += remote_cells_with_tracers->vr_rd[j*(numTracers+1)];

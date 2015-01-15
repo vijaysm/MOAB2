@@ -16,7 +16,7 @@
 #include <queue>
 #include <sstream>
 #include "moab/GeomUtil.hpp"
-
+bool debugflag = true;
 namespace moab {
 
 Intx2Mesh::Intx2Mesh(Interface * mbimpl): mb(mbimpl)
@@ -1069,6 +1069,12 @@ ErrorCode Intx2Mesh::create_departure_mesh_3rd_alg(EntityHandle & lagr_set,
       rval = mb->create_vertex(dp_pos, new_vert);
       ERRORR(rval, "can't create new vertex ");
       globalID_to_handle[globalId] = new_vert;
+      // this is mostly for debugging purposes
+      if (debugflag)
+      {
+        rval = mb->tag_set_data(gid, &new_vert, 1, &globalId);
+        ERRORR(rval, "can't set gid on new vertex ");
+      }
     }
   }
 
@@ -1148,6 +1154,17 @@ ErrorCode Intx2Mesh::create_departure_mesh_3rd_alg(EntityHandle & lagr_set,
   sort_buffer.buffer_init(n);
   remote_cells->sort(1, &sort_buffer);
   sort_buffer.reset();
+  if (debugflag)
+  {
+    for (unsigned int p=0; p<parcomm->size(); p++)
+    {
+      if (p==my_rank)
+      {
+        remote_cells->print("remote_cells");
+      }
+      MPI_Barrier(parcomm->comm());
+    }
+  }
   return MB_SUCCESS;
   //end copy
 }
