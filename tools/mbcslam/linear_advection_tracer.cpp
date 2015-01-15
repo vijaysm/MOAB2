@@ -20,7 +20,6 @@
 std::string file_name("./uniform_30.g");
 //std::string file_name("./uniform_120.g");
 
-extern bool debugflag;
 #ifdef MESHDIR
 std::string TestDir( STRINGIFY(MESHDIR) );
 #else
@@ -272,28 +271,6 @@ int main(int argc, char *argv[]) {
     limit_linear_reconstruction(&mb, euler_set, tauTag, planeTag, tauBoundsTag,
         centerOfMassTag, tauCoefTag);
 
-    if (debugflag)
-    {
-      std::vector<int> gids(redEls.size());
-      std::vector<double> tauv(redEls.size());
-      std::vector<double> taul(redEls.size()*3);
-      mb.tag_get_data(tauTag, redEls, &tauv[0]);
-      mb.tag_get_data(gid, redEls, &gids[0]);
-      mb.tag_get_data(tauCoefTag, redEls, &taul[0]);
-      for (int p=0; p<pcomm.size(); p++)
-      {
-        if (p==rank)
-        {
-          int i=0;
-          for (moab::Range::iterator it=redEls.begin(); it!=redEls.end(); it++, i++)
-          {
-            std::cout<<gids[i] << " " << tauv[i] << " " << taul[3*i] << " " << taul[3*i+1] << taul[3*i+2] << "\n";
-          }
-        }
-        MPI_Barrier(pcomm.comm());
-      }
-
-    }
     // get depature grid
     rval = get_departure_grid(&mb, euler_set, lagrange_set, covering_set, ts,
         local_verts);
@@ -365,8 +342,6 @@ int main(int argc, char *argv[]) {
     if (rank == 0)
       std::cout << " step: " << ts << "\n";
     // temporary, stop here
-    MPI_Finalize();
-    return 0;
 
   }
 
