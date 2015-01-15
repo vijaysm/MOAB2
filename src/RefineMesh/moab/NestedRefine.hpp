@@ -1,3 +1,9 @@
+/*! \file NestedRefine.hpp
+ * This class implements the generation of a hierarchy of meshes via uniform refinement from an input mesh.
+ *  The internal upper bound on the number of levels is set to 20.
+ */
+
+
 #ifndef NESTED_REFINE_HPP
 #define NESTED_REFINE_HPP
 
@@ -30,14 +36,8 @@ namespace moab
     ~NestedRefine();
     
     ErrorCode initialize();
-    //User interface functions
-    // Basic functionalities
 
-    /* Generate a hierarchy of meshes from the input mesh.
-     * level is a sequence of degrees used for each level in the hierarchy. The internal upper bound on the number of levels is set to 20.
-     */
-
-    //! Generate a mesh hierarchy.
+    //! \brief Generate a mesh hierarchy.
     /** Given a mesh, generate a sequence of meshes via uniform refinement. The inputs are: a) an array(level_degrees) storing the degrees which will be
        *  used to refine the previous level mesh to generate a new level and b) the total number of levels(should be same length as that of the
        *  array in a). Each mesh level in the hierarchy are stored in different meshsets whose handles are returned after the hierarchy generation.
