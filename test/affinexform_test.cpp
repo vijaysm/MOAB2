@@ -20,6 +20,10 @@
  * \date August, 2006
  */
 
+#ifdef _WIN32
+#define _USE_MATH_DEFINES
+#endif
+
 #include "AffineXform.hpp"
 #include "moab/Interface.hpp"
 #include <assert.h>

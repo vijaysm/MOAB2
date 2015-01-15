@@ -1,6 +1,10 @@
 #ifndef MOAB_ERROR_HANDLER_HPP
 #define MOAB_ERROR_HANDLER_HPP
 
+#ifdef _WIN32
+#define __func__ __FUNCTION__
+#endif
+
 #include "moab/Types.hpp"
 
 #include <sstream>

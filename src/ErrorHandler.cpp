@@ -6,7 +6,20 @@
 
 #include <stdlib.h>
 #include <assert.h>
+
+#ifdef _WIN32
+#include <io.h>
+#include <windows.h>
+namespace
+{
+  void sleep(int sec)
+  {
+	  Sleep(sec*1000);
+  }
+}
+#else
 #include <unistd.h>
+#endif
 
 namespace moab {
 
