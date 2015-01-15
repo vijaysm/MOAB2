@@ -26,6 +26,7 @@ std::string TestDir( STRINGIFY(MESHDIR) );
 std::string TestDir(".");
 #endif
 
+
 using namespace moab;
 
 moab::ErrorCode update_density(moab::Interface * mb, moab::EntityHandle euler_set,
@@ -214,15 +215,7 @@ int main(int argc, char *argv[]) {
   tags.push_back(rhoTag); tags.push_back(tauTag); tags.push_back(barycenterTag);
 
   rval = pcomm.exchange_tags(tags, tags, allCells); MB_CHK_ERR(rval);
-
-  /*rval = pcomm.exchange_tags(rhoTag, allCells); MB_CHK_ERR(rval);
-  // write the part
-  std::stringstream meshFile1;
-  meshFile1 << "density_" << rank << ".vtk";
-  rval = mb.write_file(meshFile1.str().c_str(), 0, 0, &extended_set, 1); MB_CHK_ERR(rval);
-
-  rval = pcomm.exchange_tags(tauTag, allCells); MB_CHK_ERR(rval);
-  rval = pcomm.exchange_tags(barycenterTag, allCells); MB_CHK_ERR(rval);*/
+  tags.pop_back(); // barycenter tag needs to be updated earlier in the loop
 
   // write the part
   std::stringstream meshFile;
@@ -273,7 +266,7 @@ int main(int argc, char *argv[]) {
 
     // get depature grid
     rval = get_departure_grid(&mb, euler_set, lagrange_set, covering_set, ts,
-        local_verts);
+        local_verts);MB_CHK_ERR(rval);
 
     // intersect the meshes
     rval = pworker->intersect_meshes(covering_set, euler_set, out_set);MB_CHK_ERR(rval);
@@ -302,9 +295,8 @@ int main(int argc, char *argv[]) {
      // update the tracer
      rval = update_tracer(&mb, euler_set, lagrange_set, out_set, tauTag, areaTag,
      rhoCoefTag, tauCoefTag, weightsTag, planeTag);*/
-    std::vector<moab::Tag> tags1;
-    tags1.push_back(rhoTag); tags1.push_back(tauTag);
-    pcomm.exchange_tags(tags1, tags1, allCells); MB_CHK_ERR(rval);
+
+    rval = pcomm.exchange_tags(tags, tags, allCells); MB_CHK_ERR(rval);
     if (writeFiles) // so if write
     {
       std::stringstream newTracer;
@@ -318,27 +310,27 @@ int main(int argc, char *argv[]) {
 
     // delete the polygons and elements of out_set
     moab::Range allVerts;
-    rval = mb.get_entities_by_dimension(0, 0, allVerts);
+    rval = mb.get_entities_by_dimension(0, 0, allVerts);MB_CHK_ERR(rval);
 
     moab::Range allElems;
-    rval = mb.get_entities_by_dimension(0, 2, allElems);
+    rval = mb.get_entities_by_dimension(0, 2, allElems);MB_CHK_ERR(rval);
 
     // get Eulerian and lagrangian cells
     moab::Range polys=allCells; // these are ghosted cells, too, in euler set, we need them
-    rval = mb.get_entities_by_dimension(lagrange_set, 2, polys); // do not delete lagr set either, with its vertices
+    rval = mb.get_entities_by_dimension(lagrange_set, 2, polys); MB_CHK_ERR(rval);// do not delete lagr set either, with its vertices
 
     // add to the connecVerts range all verts, from all initial polys
     moab::Range vertsToStay;
-    rval = mb.get_connectivity(polys, vertsToStay);
+    rval = mb.get_connectivity(polys, vertsToStay);MB_CHK_ERR(rval);
 
     moab::Range todeleteVerts = subtract(allVerts, vertsToStay);
 
     moab::Range todeleteElem = subtract(allElems, polys);
     // empty the out mesh set
-    rval = mb.clear_meshset(&out_set, 1);
+    rval = mb.clear_meshset(&out_set, 1);MB_CHK_ERR(rval);
 
-    rval = mb.delete_entities(todeleteElem);
-    rval = mb.delete_entities(todeleteVerts);
+    rval = mb.delete_entities(todeleteElem);MB_CHK_ERR(rval);
+    rval = mb.delete_entities(todeleteVerts);MB_CHK_ERR(rval);
     if (rank == 0)
       std::cout << " step: " << ts << "\n";
     // temporary, stop here
@@ -359,13 +351,13 @@ int main(int argc, char *argv[]) {
   void * data;
   int j = 0; // index in iniVals
   while (iter != redEls.end()) {
-    rval = mb.tag_iterate(rhoTag, iter, redEls.end(), count, data);
+    rval = mb.tag_iterate(rhoTag, iter, redEls.end(), count, data);MB_CHK_ERR(rval);
     double * ptrDensity = (double*) data;
 
-    rval = mb.tag_iterate(tauTag, iter, redEls.end(), count, data);
+    rval = mb.tag_iterate(tauTag, iter, redEls.end(), count, data);MB_CHK_ERR(rval);
     double * ptrTracer = (double*) data;
 
-    rval = mb.tag_iterate(areaTag, iter, redEls.end(), count, data);
+    rval = mb.tag_iterate(areaTag, iter, redEls.end(), count, data);MB_CHK_ERR(rval);
     double * ptrArea = (double*) data;
     for (int i = 0; i < count; i++, iter++, ptrTracer++, ptrArea++, j++) {
       //double area = *ptrArea;
@@ -390,29 +382,30 @@ int main(int argc, char *argv[]) {
   double total_norm2tau = 0;
   double total_exact1tau = 0;
   double total_exact2tau = 0;
-  int mpi_err = MPI_Reduce(&norm1rho, &total_norm1rho, 1, MPI_DOUBLE, MPI_SUM,
-      0, MPI_COMM_WORLD);
-  mpi_err = MPI_Reduce(&norm2rho, &total_norm2rho, 1, MPI_DOUBLE, MPI_SUM, 0,
+  MPI_Reduce(&norm1rho, &total_norm1rho, 1, MPI_DOUBLE, MPI_SUM, 0,
       MPI_COMM_WORLD);
-  mpi_err = MPI_Reduce(&exact1rho, &total_exact1rho, 1, MPI_DOUBLE, MPI_SUM, 0,
+  MPI_Reduce(&norm2rho, &total_norm2rho, 1, MPI_DOUBLE, MPI_SUM, 0,
       MPI_COMM_WORLD);
-  mpi_err = MPI_Reduce(&exact2rho, &total_exact2rho, 1, MPI_DOUBLE, MPI_SUM, 0,
+  MPI_Reduce(&exact1rho, &total_exact1rho, 1, MPI_DOUBLE, MPI_SUM, 0,
       MPI_COMM_WORLD);
-  mpi_err = MPI_Reduce(&norm1tau, &total_norm1tau, 1, MPI_DOUBLE, MPI_SUM, 0,
+  MPI_Reduce(&exact2rho, &total_exact2rho, 1, MPI_DOUBLE, MPI_SUM, 0,
       MPI_COMM_WORLD);
-  mpi_err = MPI_Reduce(&norm2tau, &total_norm2tau, 1, MPI_DOUBLE, MPI_SUM, 0,
+  MPI_Reduce(&norm1tau, &total_norm1tau, 1, MPI_DOUBLE, MPI_SUM, 0,
       MPI_COMM_WORLD);
-  mpi_err = MPI_Reduce(&exact1tau, &total_exact1tau, 1, MPI_DOUBLE, MPI_SUM, 0,
+  MPI_Reduce(&norm2tau, &total_norm2tau, 1, MPI_DOUBLE, MPI_SUM, 0,
       MPI_COMM_WORLD);
-  mpi_err = MPI_Reduce(&exact2tau, &total_exact2tau, 1, MPI_DOUBLE, MPI_SUM, 0,
+  MPI_Reduce(&exact1tau, &total_exact1tau, 1, MPI_DOUBLE, MPI_SUM, 0,
+      MPI_COMM_WORLD);
+  MPI_Reduce(&exact2tau, &total_exact2tau, 1, MPI_DOUBLE, MPI_SUM, 0,
       MPI_COMM_WORLD);
   if (0 == rank)
+  {
     std::cout << " numSteps: " << numSteps << " 1-norm rho:"
         << total_norm1rho / total_exact1rho << " 2-norm rho:"
         << std::sqrt(total_norm2rho / total_exact2rho) << "\n";
-  std::cout << "                1-norm tau:" << total_norm1tau / total_exact1tau
-      << " 2-norm tau:" << std::sqrt(total_norm2tau / total_exact2tau) << "\n";
-
+    std::cout << "                1-norm tau:"
+        << total_norm1tau / total_exact1tau << " 2-norm tau:" << std::sqrt(total_norm2tau / total_exact2tau) << "\n";
+  }
   MPI_Finalize();
   return 0;
 }
@@ -460,279 +453,3 @@ moab::ErrorCode get_departure_grid(moab::Interface * mb, moab::EntityHandle eule
 
   return rval;
 }
-
-// !!! For now serial !!!
-moab::ErrorCode update_density(moab::Interface * mb, moab::EntityHandle euler_set,
-    moab::EntityHandle lagr_set, moab::EntityHandle out_set, moab::Tag & rhoTag,
-    moab::Tag & areaTag, moab::Tag & rhoCoefTag, moab::Tag & weightsTag,
-    moab::Tag & planeTag)
-{
-
-//  moab::ParallelComm * parcomm = ParallelComm::get_pcomm(mb, 0);
-
-  ErrorCode rval = MB_SUCCESS;
-
-  double R = 1.0;
-
-  moab::EntityHandle dum=0;
-  Tag corrTag;
-  mb->tag_get_handle(CORRTAGNAME, 1, MB_TYPE_HANDLE, corrTag,
-                                             MB_TAG_DENSE, &dum);
-
-  moab::Tag gid;
-  rval = mb->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid, MB_TAG_DENSE);
-    if (MB_SUCCESS != rval)
-      return rval;
-
-  // get all polygons out of out_set; then see where are they coming from
-  moab::Range polys;
-  rval = mb->get_entities_by_dimension(out_set, 2, polys);
-    if (MB_SUCCESS != rval)
-      return rval;
-
-  // get all Lagrangian cells 
-  moab::Range rs1;
-  rval = mb->get_entities_by_dimension(lagr_set, 2, rs1);
-    if (MB_SUCCESS != rval)
-      return rval;
-
-  // get all Eulerian cells 
-  moab::Range rs2;
-  rval = mb->get_entities_by_dimension(euler_set, 2, rs2);
-    if (MB_SUCCESS != rval)
-      return rval;
-
-  // get gnomonic plane for Eulerian cells
-  std::vector<int>  plane(rs2.size());
-  rval = mb->tag_get_data(planeTag, rs2, &plane[0]);
-    if (MB_SUCCESS != rval)
-      return rval;
-
-  // get Eulerian cell reconstruction coefficients
-  std::vector<double>  rhoCoefs(3*rs2.size());
-  rval = mb->tag_get_data(rhoCoefTag, rs2, &rhoCoefs[0]);
-    if (MB_SUCCESS != rval)
-      return rval;
-
-  // get intersection weights 
-  std::vector<double>  weights(6*polys.size());
-  rval = mb->tag_get_data(weightsTag, polys, &weights[0]);
-    if (MB_SUCCESS != rval)
-      return rval;
-
-  // Initialize the new values
-  std::vector<double> newValues(rs2.size(), 0.);// initialize with 0 all of them
-
-  // For each polygon get red/blue parent
-  moab::Tag redParentTag;
-  moab::Tag blueParentTag;
-  rval = mb->tag_get_handle("RedParent", 1, MB_TYPE_INTEGER, redParentTag, MB_TAG_DENSE);
-    if (MB_SUCCESS != rval)
-      return rval;
-  rval = mb->tag_get_handle("BlueParent", 1, MB_TYPE_INTEGER, blueParentTag, MB_TAG_DENSE);
-    if (MB_SUCCESS != rval)
-      return rval;
-
-  // mass_lagr = (\sum_intx \int rho^h(x,y) dV)
-  // rho_eul^n+1 = mass_lagr/area_eul
-  double check_intx_area = 0.;
-  int polyIndex = 0;
-  for (Range::iterator it= polys.begin(); it!=polys.end(); it++)
-  {
-
-    moab::EntityHandle poly=*it;
-    int blueIndex, redIndex;
-    rval =  mb->tag_get_data(blueParentTag, &poly, 1, &blueIndex);
-    moab::EntityHandle blue = rs1[blueIndex];
-       
-    rval = mb->tag_get_data(redParentTag, &poly, 1, &redIndex);
-
-    moab::EntityHandle redArr;
-    rval = mb->tag_get_data(corrTag, &blue, 1, &redArr);
-    int arrRedIndex = rs2.index(redArr);
-
-    // sum into new density values
-    newValues[arrRedIndex] += rhoCoefs[redIndex*3]*weights[polyIndex*6] + rhoCoefs[redIndex*3+1]*weights[polyIndex*6+1] 
-                                + rhoCoefs[redIndex*3+2]*weights[polyIndex*6+2];
-
-    check_intx_area += weights[polyIndex*6];
-
-    polyIndex++;
-
-  }
-
-
- // now divide by red area (current)
-  int j=0;
-  Range::iterator iter = rs2.begin();
-  void * data=NULL; //used for stored area
-  int count =0;
-  double total_mass_local=0.;
-  while (iter != rs2.end())
-  {
-    rval = mb->tag_iterate(areaTag, iter, rs2.end(), count, data);
-    double * ptrArea=(double*)data;
-    for (int i=0; i<count; i++, iter++, j++, ptrArea++)
-    {
-      total_mass_local+=newValues[j];
-      newValues[j]/= (*ptrArea);
-    }
-  }
-
-  rval = mb->tag_set_data(rhoTag, rs2, &newValues[0]);
-
-  std::cout <<"total mass now:" << total_mass_local << "\n";
-  std::cout <<"check: total intersection area: (4 * M_PI * R^2): "  << 4 * M_PI * R*R << " " << check_intx_area << "\n";
-
-  return MB_SUCCESS;
-}
-
-// !!! For now serial !!!
-moab::ErrorCode update_tracer(moab::Interface * mb, moab::EntityHandle euler_set,
-    moab::EntityHandle lagr_set, moab::EntityHandle out_set, moab::Tag & tauTag, 
-    moab::Tag & areaTag, moab::Tag & rhoCoefTag, moab::Tag & tauCoefTag, moab::Tag & weightsTag, 
-    moab::Tag & planeTag)
-{
-
-//  moab::ParallelComm * parcomm = ParallelComm::get_pcomm(mb, 0);
-
-  ErrorCode rval = MB_SUCCESS;
-
-  double R = 1.0;
-
-  moab::EntityHandle dum=0;
-  Tag corrTag;
-  mb->tag_get_handle(CORRTAGNAME, 1, MB_TYPE_HANDLE, corrTag,
-                                             MB_TAG_DENSE, &dum);
-
-  moab::Tag gid;
-  rval = mb->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid, MB_TAG_DENSE);
-    if (MB_SUCCESS != rval)
-      return rval;
-
-  // get all polygons out of out_set; then see where are they coming from
-  moab::Range polys;
-  rval = mb->get_entities_by_dimension(out_set, 2, polys);
-    if (MB_SUCCESS != rval)
-      return rval;
-
-  // get all Lagrangian cells 
-  moab::Range rs1;
-  rval = mb->get_entities_by_dimension(lagr_set, 2, rs1);
-    if (MB_SUCCESS != rval)
-      return rval;
-
-  // get all Eulerian cells 
-  moab::Range rs2;
-  rval = mb->get_entities_by_dimension(euler_set, 2, rs2);
-    if (MB_SUCCESS != rval)
-      return rval;
-
-  // get gnomonic plane for Eulerian cells
-  std::vector<int>  plane(rs2.size());
-  rval = mb->tag_get_data(planeTag, rs2, &plane[0]);
-    if (MB_SUCCESS != rval)
-      return rval;
-
-  // get Eulerian cell reconstruction coefficients
-  std::vector<double>  rhoCoefs(3*rs2.size());
-  rval = mb->tag_get_data(rhoCoefTag, rs2, &rhoCoefs[0]);
-    if (MB_SUCCESS != rval)
-      return rval;
-
-  // get Eulerian cell reconstruction coefficients
-  std::vector<double>  tauCoefs(3*rs2.size());
-  rval = mb->tag_get_data(tauCoefTag, rs2, &tauCoefs[0]);
-    if (MB_SUCCESS != rval)
-      return rval;
-
-  // get intersection weights 
-  std::vector<double>  weights(6*polys.size());
-  rval = mb->tag_get_data(weightsTag, polys, &weights[0]);
-    if (MB_SUCCESS != rval)
-      return rval;
-
-  // Initialize the new values
-  std::vector<double> newValues(rs2.size(), 0.);// initialize with 0 all of them
-  std::vector<double> newMass(rs2.size(), 0.);// initialize with 0 all of them
-
-  // For each polygon get red/blue parent
-  moab::Tag redParentTag;
-  moab::Tag blueParentTag;
-  rval = mb->tag_get_handle("RedParent", 1, MB_TYPE_INTEGER, redParentTag, MB_TAG_DENSE);
-    if (MB_SUCCESS != rval)
-      return rval;
-  rval = mb->tag_get_handle("BlueParent", 1, MB_TYPE_INTEGER, blueParentTag, MB_TAG_DENSE);
-    if (MB_SUCCESS != rval)
-      return rval;
-
-  // tracer_mass_lagr = (\sum_intx \int rho^h(x,y) tau^h(x,y) dV)
-  // tau_eul^n+1 = tracer_mass_lagr/mass_lagr
-  double check_intx_area = 0.;
-  int polyIndex = 0;
-  for (Range::iterator it= polys.begin(); it!=polys.end(); it++)
-  {
-
-    moab::EntityHandle poly=*it;
-    int blueIndex, redIndex;
-    rval =  mb->tag_get_data(blueParentTag, &poly, 1, &blueIndex);
-    moab::EntityHandle blue = rs1[blueIndex];
-       
-    rval = mb->tag_get_data(redParentTag, &poly, 1, &redIndex);
-
-    moab::EntityHandle redArr;
-    rval = mb->tag_get_data(corrTag, &blue, 1, &redArr);
-    int arrRedIndex = rs2.index(redArr);
-
-    // sum into new values
-    newMass[arrRedIndex] += rhoCoefs[redIndex*3]*weights[polyIndex*6] + rhoCoefs[redIndex*3+1]*weights[polyIndex*6+1] 
-                                + rhoCoefs[redIndex*3+2]*weights[polyIndex*6+2];
-
-    double A = rhoCoefs[redIndex*3]*tauCoefs[redIndex*3];
-    double B = rhoCoefs[redIndex*3+1]*tauCoefs[redIndex*3] + rhoCoefs[redIndex*3]*tauCoefs[redIndex*3+1];
-    double C = rhoCoefs[redIndex*3+2]*tauCoefs[redIndex*3] + rhoCoefs[redIndex*3]*tauCoefs[redIndex*3+2];
-    double D = rhoCoefs[redIndex*3+1]*tauCoefs[redIndex*3+1];
-    double E = rhoCoefs[redIndex*3+2]*tauCoefs[redIndex*3+2];
-    double F = rhoCoefs[redIndex*3+1]*tauCoefs[redIndex*3+2] + rhoCoefs[redIndex*3+2]*tauCoefs[redIndex*3+1];
-    newValues[arrRedIndex] += A*weights[polyIndex*6] + B*weights[polyIndex*6+1] + C*weights[polyIndex*6+2]
-                              + D*weights[polyIndex*6+3] + E*weights[polyIndex*6+4] + F*weights[polyIndex*6+5];
-
-    check_intx_area += weights[polyIndex*6];
-
-    polyIndex++;
-
-  }
-
-
- // now divide by red area (current)
-  int j=0;
-  Range::iterator iter = rs2.begin();
-  void * data=NULL; //used for stored area
-  int count =0;
-  double total_mass_local=0.;
-  while (iter != rs2.end())
-  {
-    rval = mb->tag_iterate(areaTag, iter, rs2.end(), count, data);
-    double * ptrArea=(double*)data;
-    for (int i=0; i<count; i++, iter++, j++, ptrArea++)
-    {
-      total_mass_local+=newValues[j];
-      if (newMass[j] > 1.0e-12)
-      {
-         newValues[j]/= newMass[j];
-      }
-      else
-      {
-         newValues[j] = 0.0;
-      }
-    }
-  }
-
-  rval = mb->tag_set_data(tauTag, rs2, &newValues[0]);
-
-  std::cout <<"total tracer mass now:" << total_mass_local << "\n";
-  std::cout <<"check: total intersection area: (4 * M_PI * R^2): "  << 4 * M_PI * R*R << " " << check_intx_area << "\n";
-
-  return MB_SUCCESS;
-}
-

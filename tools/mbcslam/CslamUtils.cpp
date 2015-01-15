@@ -2730,7 +2730,7 @@ void departure_point_swirl_rot(moab::CartVect & arrival_point, double t, double 
 /*
  *  Zonal flow
  */
-void departure_point_rotation(CartVect & arrival_point, double t, double delta_t, CartVect & departure_point)
+void departure_point_rotation(CartVect & arrival_point, double /*t */, double delta_t, CartVect & departure_point)
 {
 
   // rotation angle (0 - around equator, pi/2 - over poles)
