@@ -1,6 +1,7 @@
 
 #include <iostream>
 #include <sstream>
+#include <iomanip>
 #include <time.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -26,7 +27,7 @@ std::string TestDir( STRINGIFY(MESHDIR) );
 std::string TestDir(".");
 #endif
 
-
+bool debugflag = false;
 using namespace moab;
 
 moab::ErrorCode update_density(moab::Interface * mb, moab::EntityHandle euler_set,
@@ -308,6 +309,24 @@ int main(int argc, char *argv[]) {
       rval = mb.write_file(newTracer2.str().c_str(), 0, "PARALLEL=WRITE_PART", &euler_set,1); MB_CHK_ERR(rval);
     }
 
+    // debug
+    if (debugflag)
+    {
+      std::vector<double> rhov(redEls.size());
+      std::vector<int> gids(redEls.size());
+      std::vector<double> tauv(redEls.size());
+      mb.tag_get_data(rhoTag, redEls, &rhov[0]);
+      mb.tag_get_data(gid, redEls, &gids[0]);
+      mb.tag_get_data(tauTag, redEls, &tauv[0]);
+      for (int p = 0; p < (int) pcomm.size(); p++) {
+        if (rank == p) {
+          for (size_t i = 0; i < redEls.size(); i++)
+            std::cout << " gid:" << gids[i] << std::setprecision(11) << " dens:" << rhov[i] << " tau:"<<tauv[i]<<"\n";
+        }
+        MPI_Barrier(pcomm.comm());
+      }
+
+    }
     // delete the polygons and elements of out_set
     moab::Range allVerts;
     rval = mb.get_entities_by_dimension(0, 0, allVerts);MB_CHK_ERR(rval);
@@ -334,7 +353,6 @@ int main(int argc, char *argv[]) {
     if (rank == 0)
       std::cout << " step: " << ts << "\n";
     // temporary, stop here
-
   }
 
   //final vals and errors
@@ -398,6 +416,7 @@ int main(int argc, char *argv[]) {
       MPI_COMM_WORLD);
   MPI_Reduce(&exact2tau, &total_exact2tau, 1, MPI_DOUBLE, MPI_SUM, 0,
       MPI_COMM_WORLD);
+
   if (0 == rank)
   {
     std::cout << " numSteps: " << numSteps << " 1-norm rho:"
