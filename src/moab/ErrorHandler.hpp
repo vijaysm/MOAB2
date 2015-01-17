@@ -153,7 +153,7 @@ ErrorCode MBError(int line, const char* func, const char* file, const char* dir,
 #define MB_CHK_SET_ERR(err_code, err_msg) \
   do { \
     if (MB_SUCCESS != err_code) \
-    MB_SET_ERR(err_code, err_msg); \
+      MB_SET_ERR(err_code, err_msg); \
   } while (false)
 
 //! Check error code, if not MB_SUCCESS, set a new error with the given error message and return
@@ -161,7 +161,7 @@ ErrorCode MBError(int line, const char* func, const char* file, const char* dir,
 #define MB_CHK_SET_ERR_RET(err_code, err_msg) \
   do { \
     if (MB_SUCCESS != err_code) \
-    MB_SET_ERR_RET(err_msg); \
+      MB_SET_ERR_RET(err_msg); \
   } while (false)
 
 //! Check error code, if not MB_SUCCESS, set a new error with the given error message and return the given value
@@ -169,7 +169,7 @@ ErrorCode MBError(int line, const char* func, const char* file, const char* dir,
 #define MB_CHK_SET_ERR_RET_VAL(err_code, err_msg, ret_val) \
   do { \
     if (MB_SUCCESS != err_code) \
-    MB_SET_ERR_RET_VAL(err_msg, ret_val); \
+      MB_SET_ERR_RET_VAL(err_msg, ret_val); \
   } while (false)
 
 //! Check error code, if not MB_SUCCESS, set a new error with the given error message and continue
@@ -177,7 +177,7 @@ ErrorCode MBError(int line, const char* func, const char* file, const char* dir,
 #define MB_CHK_SET_ERR_CONT(err_code, err_msg) \
   do { \
     if (MB_SUCCESS != err_code) \
-    MB_SET_ERR_CONT(err_msg); \
+      MB_SET_ERR_CONT(err_msg); \
   } while (false)
 
 } // namespace moab
