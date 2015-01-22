@@ -2397,6 +2397,22 @@ void get_linear_reconstruction(moab::Interface * mb, moab::EntityHandle set, moa
   if (MB_SUCCESS != rval)
     return;
 
+  // cellValTag can be multi dimensional (for density is 1, but for tracers, could be more , like 4?)
+  int numTracers = 0;
+  rval = mb->tag_get_length(cellValTag, numTracers);
+  if (MB_SUCCESS != rval)
+      return;
+  if (numTracers < 1)
+  {
+    std::cout <<" tag length problem\n";
+    return;
+  }
+  int lenLinear;
+  rval =  mb->tag_get_length(linearCoefTag, lenLinear);
+  if(3*numTracers!=lenLinear)
+  {
+    std::cout<<" wrong size of tags  numTracers:" << numTracers << " line coeff tag:" << lenLinear <<"\n";
+  }
   // Get coefficients for reconstruction (in cubed-sphere coordinates)
   for (Range::iterator it = cells.begin(); it != cells.end(); it++)
   {
@@ -2422,7 +2438,7 @@ void get_linear_reconstruction(moab::Interface * mb, moab::EntityHandle set, moa
 
     std::vector<double> dx(adjacentCells.size() - 1);
     std::vector<double> dy(adjacentCells.size() - 1);
-    std::vector<double> dr(adjacentCells.size() - 1);
+    std::vector<double> dr( (adjacentCells.size() - 1)*numTracers);
     double center_x;
     double center_y;
 
@@ -2436,15 +2452,15 @@ void get_linear_reconstruction(moab::Interface * mb, moab::EntityHandle set, moa
      gnomonic_projection(cellcenter, rad, plane, cellx, celly);
 
     // get cell average value
-     double cellVal = 0;
-     rval = mb->tag_get_data(cellValTag, &icell, 1, &cellVal );
+     std::vector<double> cellVals(numTracers);
+     rval = mb->tag_get_data(cellValTag, &icell, 1, &cellVals[0] );
 
     // get centers of surrounding cells
      std::vector<double> cell_cents(3*adjacentCells.size());
      rval = mb->tag_get_data(centerTag, adjacentCells, &cell_cents[0]);
 
     // get density of surrounding cells
-     std::vector<double> adjCellVals(adjacentCells.size());
+     std::vector<double> adjCellVals(adjacentCells.size()*numTracers);
      rval = mb->tag_get_data(cellValTag, adjacentCells, &adjCellVals[0]);
 
      std::size_t jind = 0;
@@ -2457,40 +2473,51 @@ void get_linear_reconstruction(moab::Interface * mb, moab::EntityHandle set, moa
 
             dx[jind] = center_x - cellx;
             dy[jind] = center_y - celly;
-            dr[jind] = adjCellVals[i] - cellVal;
+            for(int k=0; k<numTracers; k++)
+            {
+              dr[jind*numTracers+k] = adjCellVals[i*numTracers+k] - cellVals[k];
+            }
 
             jind++;
          }
      }
 
-     std::vector<double> linearCoef(3);
+     std::vector<double> linearCoef(3*numTracers);
      if (adjacentCells.size() == 5) {
 
        // compute normal equations matrix
         double N11 = dx[0]*dx[0] + dx[1]*dx[1] + dx[2]*dx[2] + dx[3]*dx[3];
         double N22 = dy[0]*dy[0] + dy[1]*dy[1] + dy[2]*dy[2] + dy[3]*dy[3];
         double N12 = dx[0]*dy[0] + dx[1]*dy[1] + dx[2]*dy[2] + dx[3]*dy[3];
-
-       // rhs
-        double Rx = dx[0]*dr[0] + dx[1]*dr[1] + dx[2]*dr[2] + dx[3]*dr[3];
-        double Ry = dy[0]*dr[0] + dy[1]*dr[1] + dy[2]*dr[2] + dy[3]*dr[3];
-
-       // determinant
+        // determinant
         double Det = N11*N22 - N12*N12;
 
-       // solution
-        linearCoef[1] = (Rx*N22 - Ry*N12)/Det;
-        linearCoef[2] = (Ry*N11 - Rx*N12)/Det;
-        linearCoef[0] = cellVal - linearCoef[1]*cellx - linearCoef[2]*celly;
+        for (int k=0; k<numTracers; k++)
+        {
+       // rhs
+          int ix=k*3;
+          double Rx = dx[0]*dr[ix+0] + dx[1]*dr[ix+1] + dx[2]*dr[ix+2] + dx[3]*dr[ix+3];
+          double Ry = dy[0]*dr[ix+0] + dy[1]*dr[ix+1] + dy[2]*dr[ix+2] + dy[3]*dr[ix+3];
+
+          linearCoef[ix+1] = (Rx*N22 - Ry*N12)/Det;
+          linearCoef[ix+2] = (Ry*N11 - Rx*N12)/Det;
+          linearCoef[ix+0] = cellVals[k] - linearCoef[ix+1]*cellx - linearCoef[ix+2]*celly;
+        }
 
      }
      else
      {
         // default to first order
-        linearCoef[0] = cellVal;
-        linearCoef[1] = 0.0;
-        linearCoef[2] = 0.0;
-        std::cout<< "Need 4 adjacent cells for linear reconstruction! \n";
+       for (int k=0; k<numTracers; k++)
+       {
+              // rhs
+          int ix=k*3;
+          linearCoef[ix+0] = cellVals[k];
+          linearCoef[ix+1] = 0.0;
+          linearCoef[ix+2] = 0.0;
+
+       }
+       std::cout<< "Need 4 adjacent cells for linear reconstruction! \n";
      }
 
      rval = mb->tag_set_data(linearCoefTag, &icell, 1, &linearCoef[0]);
@@ -2508,6 +2535,35 @@ void limit_linear_reconstruction(moab::Interface * mb, moab::EntityHandle set, m
   ErrorCode rval = mb->get_entities_by_dimension(set, 2, cells);
   if (MB_SUCCESS != rval)
     return;
+
+  // cellValTag can be multi dimensional (for density is 1, but for tracers, could be more , like 4?)
+  int numTracers = 0;
+  rval = mb->tag_get_length(cellValTag, numTracers);
+  if (MB_SUCCESS != rval)
+      return;
+  if (numTracers < 1)
+  {
+    std::cout <<" tag length problem\n";
+    return;
+  }
+  int lenBounds;
+  rval =  mb->tag_get_length(boundsTag, lenBounds);
+  if (MB_SUCCESS != rval)
+    return;
+  if(2*numTracers!=lenBounds)
+  {
+    std::cout<<" wrong size of tags  numTracers:" << numTracers << " bounds tag:" << lenBounds <<"\n";
+  }
+
+  int lenLinear;
+  rval =  mb->tag_get_length(linearCoefTag, lenLinear);
+  if (MB_SUCCESS != rval)
+    return;
+
+  if(3*numTracers!=lenLinear)
+  {
+    std::cout<<" wrong size of tags  numTracers:" << numTracers << " linear coeff tag:" << lenBounds <<"\n";
+  }
 
   // Get coefficients for reconstruction (in cubed-sphere coordinates)
   for (Range::iterator it = cells.begin(); it != cells.end(); it++)
@@ -2543,58 +2599,63 @@ void limit_linear_reconstruction(moab::Interface * mb, moab::EntityHandle set, m
      }
 
      // get Eulerian cell reconstruction coefficients
-     std::vector<double>  linearCoefs(3);
+     std::vector<double>  linearCoefs(3*numTracers);
      rval = mb->tag_get_data(linearCoefTag, &icell, 1, &linearCoefs[0]);
      if (MB_SUCCESS != rval)
          return;
 
-     // get min/max value of linear function in cell (occurs at endpoints)
-     double valMin = 9999.0;
-     double valMax = 0.0;
-     for (int inode = 0; inode < num_nodes; inode++){
-        valMin = std::min(valMin,(linearCoefs[0] + linearCoefs[1]*x[inode] + linearCoefs[2]*y[inode]));
-        valMax = std::max(valMax,(linearCoefs[0] + linearCoefs[1]*x[inode] + linearCoefs[2]*y[inode]));
-     }
+     // get center of cell where reconstruction occurs
+      double rad = 1;
+      std::vector<double> cent(3);
+      rval = mb->tag_get_data(centerTag, &icell, 1, &cent[0] );
+      CartVect cellcenter(cent[0],cent[1],cent[2]);
+      double cellx = 0;
+      double celly = 0;
+      gnomonic_projection(cellcenter, rad, plane, cellx, celly);
 
-    // get center of cell where reconstruction occurs
-     double rad = 1;
-     std::vector<double> cent(3);
-     rval = mb->tag_get_data(centerTag, &icell, 1, &cent[0] );
-     CartVect cellcenter(cent[0],cent[1],cent[2]);
-     double cellx = 0;
-     double celly = 0;
-     gnomonic_projection(cellcenter, rad, plane, cellx, celly);
+     // get cell average value
+      std::vector<double> cellVals(numTracers);
+      rval = mb->tag_get_data(cellValTag, &icell, 1, &cellVals[0] );
 
-    // get cell average value
-     double cellVal = 0;
-     rval = mb->tag_get_data(cellValTag, &icell, 1, &cellVal );
-
-    // get cell bounds
-     std::vector<double> bounds(2);
+      // get cell bounds
+     std::vector<double> bounds(2*numTracers);
      rval = mb->tag_get_data(boundsTag, &icell, 1, &bounds[0] );
 
-     // calculate limiting coefficient
-      double alphaMin = 1.0;
-      double alphaMax = 1.0;
+     // get min/max value of linear function in cell (occurs at nodes)
+     for (int k=0; k<numTracers; k++)
+     {
+       int ix = 3*k; //
+       double valMin = 9999.0;
+       double valMax = 0.0;
+       for (int inode = 0; inode < num_nodes; inode++){
+         double cornerVal = linearCoefs[ix+0] + linearCoefs[ix+1]*x[inode] + linearCoefs[ix+2]*y[inode];
+         valMin = std::min(valMin, cornerVal);
+         valMax = std::max(valMax, cornerVal);
+       }
 
-      if (std::abs(valMin - cellVal) > 1.0e-10) {
-        alphaMin = std::max(0.0, (bounds[0] - cellVal)/(valMin - cellVal));
-      }
+       // calculate limiting coefficient
+        double alphaMin = 1.0;
+        double alphaMax = 1.0;
 
-      if (std::abs(valMax - cellVal) > 1.0e-10) {
-        alphaMax = std::max(0.0, (bounds[1] - cellVal)/(valMax - cellVal));
-      }
+        if (std::abs(valMin - cellVals[k]) > 1.0e-10) {
+          alphaMin = std::max(0.0, (bounds[2*k] - cellVals[k])/(valMin - cellVals[k]));
+        }
 
-      double alpha  = std::min(std::min(1.0, alphaMin), alphaMax);
+        if (std::abs(valMax - cellVals[k]) > 1.0e-10) {
+          alphaMax = std::max(0.0, (bounds[2*k+1] - cellVals[k])/(valMax - cellVals[k]));
+        }
 
-      if (alpha<1.0)
-      {
-        linearCoefs[1] = alpha*linearCoefs[1];
-        linearCoefs[2] = alpha*linearCoefs[2];
-        linearCoefs[0] = cellVal - linearCoefs[1]*cellx - linearCoefs[2]*celly;
-      }
+        double alpha  = std::min(std::min(1.0, alphaMin), alphaMax);
 
-      rval = mb->tag_set_data(linearCoefTag, &icell, 1, &linearCoefs[0]);
+        if (alpha<1.0)
+        {
+          linearCoefs[ix+1] = alpha*linearCoefs[ix+1];
+          linearCoefs[ix+2] = alpha*linearCoefs[ix+2];
+          linearCoefs[ix+0] = cellVals[k] - linearCoefs[ix+1]*cellx - linearCoefs[ix+2]*celly;
+        }
+     } // end loop over k, numTracers
+
+     rval = mb->tag_set_data(linearCoefTag, &icell, 1, &linearCoefs[0]);
 
   }
   return;
@@ -2608,6 +2669,23 @@ void get_neighborhood_bounds(moab::Interface * mb, moab::EntityHandle set, moab:
   ErrorCode rval = mb->get_entities_by_dimension(set, 2, cells);
   if (MB_SUCCESS != rval)
     return;
+
+  // cellValTag can be multi dimensional (for density is 1, but for tracers, could be more , like 4?)
+  int numTracers = 0;
+  rval = mb->tag_get_length(cellValTag, numTracers);
+  if (MB_SUCCESS != rval)
+      return;
+  if (numTracers < 1)
+  {
+    std::cout <<" tag length problem\n";
+    return;
+  }
+  int lenBounds;
+  rval =  mb->tag_get_length(boundsTag, lenBounds);
+  if(2*numTracers!=lenBounds)
+  {
+    std::cout<<" wrong size of tags  numTracers:" << numTracers << " bounds tag:" << lenBounds <<"\n";
+  }
 
   // Get min/max value from neighborhood of cell
   for (Range::iterator it = cells.begin(); it != cells.end(); it++)
@@ -2626,26 +2704,31 @@ void get_neighborhood_bounds(moab::Interface * mb, moab::EntityHandle set, moab:
      rval = mb->get_adjacencies(verts, num_nodes, 2, true, adjacentCells, Interface::UNION);
 
     // get cell value of middle cell
-     double cellVal = 0;
-     rval = mb->tag_get_data(cellValTag, &icell, 1, &cellVal );
-     double minVal = cellVal;
-     double maxVal = cellVal;
+     std::vector<double> cellVals(numTracers);
+     rval = mb->tag_get_data(cellValTag, &icell, 1, &cellVals[0] );
+
+     std::vector<double> bounds(2*numTracers);// min and max in the same array
+
+     for (int k=0; k<numTracers; k++)
+     {
+       bounds[2*k]=cellVals[k]; // this will be min
+       bounds[2*k+1]=cellVals[k]; // this will be max
+     }
 
     // get values of surrounding cells and take min/max
-     std::vector<double> adjCellVals(adjacentCells.size());
+     std::vector<double> adjCellVals(adjacentCells.size()*numTracers);
      rval = mb->tag_get_data(cellValTag, adjacentCells, &adjCellVals[0]);
 
      for (std::size_t i=0; i< adjacentCells.size(); i++){
 
          if (adjacentCells[i] != icell) {
-            minVal = std::min(minVal,adjCellVals[i]);
-            maxVal = std::max(maxVal,adjCellVals[i]);
+           for (int k=0; k<numTracers; k++)
+           {
+             bounds[2*k] = std::min(bounds[2*k], adjCellVals[i*numTracers+k]);
+             bounds[2*k+1]= std::max(bounds[2*k+1], adjCellVals[i*numTracers+k]);
+           }
          }
      }
-
-     std::vector<double> bounds(2);
-     bounds[0] = minVal;
-     bounds[1] = maxVal;
      rval = mb->tag_set_data(boundsTag, &icell, 1, &bounds[0]);
 
   }

@@ -30,20 +30,11 @@ std::string TestDir(".");
 bool debugflag = false;
 using namespace moab;
 
-moab::ErrorCode update_density(moab::Interface * mb, moab::EntityHandle euler_set,
-    moab::EntityHandle lagr_set, moab::EntityHandle out_set, moab::Tag & rhoTag, 
-    moab::Tag & areaTag, moab::Tag & rhoCoefTag, moab::Tag & weightsTag, moab::Tag & planeTag);
-
-moab::ErrorCode update_tracer(moab::Interface * mb, moab::EntityHandle euler_set,
-    moab::EntityHandle lagr_set, moab::EntityHandle out_set, moab::Tag & tauTag, 
-    moab::Tag & areaTag, moab::Tag & rhoCoefTag, moab::Tag & tauCoefTag, moab::Tag & weightsTag, 
-    moab::Tag & planeTag);
-
 // covering set is output now (!)
 moab::ErrorCode get_departure_grid(moab::Interface * mb, moab::EntityHandle euler_set,
                                    moab::EntityHandle lagr_set, moab::EntityHandle & covering_set, int tStep, moab::Range & connecVerts);
 
-double gtol = 1.e-9; // this is for geometry tolerance
+double gtol = 1.e-12; // this is for geometry tolerance
 
 double radius = 1.;
 
@@ -321,7 +312,7 @@ int main(int argc, char *argv[]) {
       for (int p = 0; p < (int) pcomm.size(); p++) {
         if (rank == p) {
           for (size_t i = 0; i < redEls.size(); i++)
-            std::cout << " gid:" << gids[i] << std::setprecision(11) << " dens:" << rhov[i] << " tau:"<<tauv[i]<<"\n";
+            std::cout << " gid:" << gids[i] << std::setprecision(14) << " dens:" << rhov[i] << " tau:"<<tauv[i]<<"\n";
         }
         MPI_Barrier(pcomm.comm());
       }

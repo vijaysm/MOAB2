@@ -42,6 +42,8 @@ int numVertices = 0;
 // should be cleaned up at the end
 Intx2MeshOnSphere * pworker = NULL;
 
+Range allCells; /// these will be cells on current task, on fine set, and they will be used for tags exchange
+
 // should get rid of this; instead of using array[NC+1][NC+1], use  row based indexing (C-style):
 // parray =  new int[ (NC+1)*(NC+1) ] , and instead of array[i][j], use parray[ i*(NC+1) + j ]
 #define  NC  3
@@ -98,7 +100,8 @@ void initialize_area_and_tracer(iMesh_Instance instance,
 
 void update_tracer_test(iMesh_Instance instance,
     iBase_EntitySetHandle imesh_euler_set,
-    iBase_EntitySetHandle imesh_output_set, int numTracers, double * tracer_vals, int * ierr) {
+    iBase_EntitySetHandle imesh_output_set, int numTracers,
+    int transport_type, double * density_vals, double * tracer_vals, int * ierr) {
 
   EntityHandle eul_set = (EntityHandle) imesh_euler_set;
   EntityHandle output_set = (EntityHandle) imesh_output_set;
@@ -659,16 +662,14 @@ ErrorCode create_fine_mesh(Interface * mb, ParallelComm * pcomm,
   rval = mb->tag_set_data(partitionTag, &fine_set, 1, &rank);
   ERRORR(rval, "can't set partition tag on fine set");
 
-  /*
-   // delete the coarse mesh, except vertices
-   mb->delete_entities(coarseQuads);
-   mb->delete_entities(edges);
-   */
-
   // the vertices on the boundary edges of the partition need to be shared and resolved
   ParallelMergeMesh pmerge(pcomm, 0.0001);
   rval = pmerge.merge();
   ERRORR(rval, "can't resolve vertices on interior of boundary edges ");
+
+  // delete the coarse mesh, except vertices
+  pcomm->delete_entities(coarseQuads);
+  pcomm->delete_entities(edges);
 
   rval = mb->get_connectivity(quads3, verts);
   ERRORR(rval, "can't get vertices ");
@@ -697,6 +698,25 @@ ErrorCode create_fine_mesh(Interface * mb, ParallelComm * pcomm,
 
   rval = mb->write_file("fine.h5m", 0, "PARALLEL=WRITE_PART", &fine_set, 1);
   ERRORR(rval, "can't write set 3, fine ");
+
+  // exchange 1 layer of ghost elements for fine set
+  // in the end, fine set will be euler set, I think
+
+  rval = pcomm->exchange_ghost_cells(2, // int ghost_dim
+        0, // int bridge_dim
+        1, // int num_layers
+        0, // int addl_ents
+        true); MB_CHK_ERR(rval);
+
+   rval = mb->get_entities_by_dimension(0, 2, allCells); MB_CHK_ERR(rval);
+   // more debugging stuff
+   fff.clear();
+   fff << "fine_gh_" <<  pcomm->proc_config().proc_rank() << ".h5m";
+   EntityHandle ghSet;
+   mb->create_meshset(MESHSET_SET, ghSet);
+   mb->add_entities(ghSet, allCells);
+   mb->write_mesh(fff.str().c_str(), &ghSet, 1);
+   //
 
   // we need to keep a mapping index, from the coords array to the vertex handles
   // so, for a given vertex entity handle, at what index in the coords array the vertex
@@ -744,7 +764,7 @@ void create_mesh(iMesh_Instance instance,
     iBase_EntitySetHandle * imesh_euler_set,
     iBase_EntitySetHandle * imesh_departure_set,
     iBase_EntitySetHandle * imesh_intx_set, double * coords, int * corners,
-    int nc, int nelem, MPI_Fint comm, int * ierr) {
+    int nc, int nelem, int transport_type, MPI_Fint comm, int * ierr) {
   /* double * coords=(double*) icoords;
    int * corners = (int*) icorners;*/
   *ierr = 1;
@@ -773,16 +793,20 @@ void create_mesh(iMesh_Instance instance,
       start_vert, numCornerVertices, coordv);
   ERRORV(rval, "can't create fine mesh set ");
 
-  *imesh_departure_set = (iBase_EntitySetHandle) fine_set;
+  // now make euler set the fine set; the order of vertices will be the same after deep copy
+  //*imesh_departure_set = (iBase_EntitySetHandle) fine_set;
+  *imesh_euler_set = (iBase_EntitySetHandle) fine_set;
+  EntityHandle euler_set = fine_set;
 
-  EntityHandle euler_set;
-  rval = mb->create_meshset(MESHSET_SET, euler_set);
-  ERRORV(rval, "can't create moab euler set ");
-  *imesh_euler_set = (iBase_EntitySetHandle) euler_set;
+  EntityHandle lagr_set;
+  rval = mb->create_meshset(MESHSET_SET, lagr_set);
+  ERRORV(rval, "can't create moab lagr set ");
+  // *imesh_euler_set = (iBase_EntitySetHandle) euler_set;
+  *imesh_departure_set = (iBase_EntitySetHandle) lagr_set;
 
   // call in cslam utils
   // it will copy the second set from the first set
-  rval = deep_copy_set_with_quads(mb, fine_set, euler_set);
+  rval = deep_copy_set_with_quads(mb, fine_set, lagr_set);
   ERRORV(rval, "can't populate lagrange set ");
 
   EntityHandle intx_set;
