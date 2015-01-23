@@ -199,9 +199,10 @@ void get_eul_cell_integrals(moab::Interface * mb, moab::EntityHandle set, moab::
 void get_gnomonic_plane(moab::Interface * mb, moab::EntityHandle set, moab::Tag &planeTag);
 
 void get_linear_reconstruction(moab::Interface * mb, moab::EntityHandle set, moab::Tag &cellValTag, moab::Tag &planeTag,
-                               moab::Tag &centerTag, moab::Tag &linearCoefTag);
+                               moab::Tag &centerTag, moab::Tag &linearCoefTag,  Range * filter = NULL);
 
-void get_neighborhood_bounds(moab::Interface * mb, moab::EntityHandle set, moab::Tag &cellValTag, moab::Tag &boundsTag);
+void get_neighborhood_bounds(moab::Interface * mb, moab::EntityHandle set, moab::Tag &cellValTag, moab::Tag &boundsTag,
+    Range * filter = NULL);
 
 void limit_linear_reconstruction(moab::Interface * mb, moab::EntityHandle set, moab::Tag &cellValTag, moab::Tag &planeTag,
                                  moab::Tag &boundsTag, moab::Tag &centerTag, moab::Tag &linearCoefTag);

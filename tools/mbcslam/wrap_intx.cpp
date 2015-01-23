@@ -219,15 +219,15 @@ void update_tracer_test(iMesh_Instance instance,
     rval = pcomm->exchange_tags(tags, tags, allCells);
 
     // start copy
-    // get density bounds
-    get_neighborhood_bounds(mb, eul_set, rhoTag, rhoBoundsTag);
+    // get density bounds, filter the adjacent cells with allCells ()
+    get_neighborhood_bounds(mb, eul_set, rhoTag, rhoBoundsTag, &allCells);
 
     // get tracer bounds
-    get_neighborhood_bounds(mb, eul_set, tauTag, tauBoundsTag);
+    get_neighborhood_bounds(mb, eul_set, tauTag, tauBoundsTag, &allCells);
 
        // get linear reconstruction coefficients for density
     get_linear_reconstruction(mb, eul_set, rhoTag, planeTag, barycenterTag,
-           rhoCoefTag);
+           rhoCoefTag, &allCells); // also filter for adjacent cells
 
     // limit linear reconstruction coefficients for density
     limit_linear_reconstruction(mb, eul_set, rhoTag, planeTag, rhoBoundsTag,
@@ -242,7 +242,7 @@ void update_tracer_test(iMesh_Instance instance,
     rval = pcomm->exchange_tags(centerOfMassTag, allCells); MB_CHK_ERR_RET(rval);
      // get linear reconstruction coefficients for tracer
     get_linear_reconstruction(mb, eul_set, tauTag, planeTag, centerOfMassTag,
-         tauCoefTag);
+         tauCoefTag, &allCells);
 
        // limit linear reconstruction coefficients for tracer
     limit_linear_reconstruction(mb, eul_set, tauTag, planeTag, tauBoundsTag,

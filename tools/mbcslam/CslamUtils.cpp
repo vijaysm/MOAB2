@@ -2389,7 +2389,7 @@ void set_density(moab::Interface * mb, moab::EntityHandle euler_set, moab::Tag &
 }
 
 void get_linear_reconstruction(moab::Interface * mb, moab::EntityHandle set, moab::Tag &cellValTag,
-                               moab::Tag &planeTag, moab::Tag &centerTag, moab::Tag &linearCoefTag)
+                               moab::Tag &planeTag, moab::Tag &centerTag, moab::Tag &linearCoefTag,  Range * filter)
 {
   // get all entities of dimension 2
   Range cells;
@@ -2432,6 +2432,8 @@ void get_linear_reconstruction(moab::Interface * mb, moab::EntityHandle set, moa
     moab::Range adjacentCells;
     rval = mb->get_adjacencies(adjacentEdges, 2, true, adjacentCells, Interface::UNION);
 
+    if (filter)
+      adjacentCells = intersect(adjacentCells, *filter);
     // get gnomonic plane
      int plane = 0;
      rval = mb->tag_get_data(planeTag, &icell, 1, &plane );
@@ -2662,7 +2664,7 @@ void limit_linear_reconstruction(moab::Interface * mb, moab::EntityHandle set, m
 }
 
 void get_neighborhood_bounds(moab::Interface * mb, moab::EntityHandle set, moab::Tag &cellValTag,
-                             moab::Tag &boundsTag)
+                             moab::Tag &boundsTag, Range * filter)
 {
   // get all entities of dimension 2
   Range cells;
@@ -2715,6 +2717,8 @@ void get_neighborhood_bounds(moab::Interface * mb, moab::EntityHandle set, moab:
        bounds[2*k+1]=cellVals[k]; // this will be max
      }
 
+     if(filter)
+       adjacentCells = intersect(adjacentCells, *filter);
     // get values of surrounding cells and take min/max
      std::vector<double> adjCellVals(adjacentCells.size()*numTracers);
      rval = mb->tag_get_data(cellValTag, adjacentCells, &adjCellVals[0]);
