@@ -1043,7 +1043,7 @@ void intersection_at_level(iMesh_Instance instance,
   return;
 }
 void cleanup_after_intersection(iMesh_Instance instance,
-    iBase_EntitySetHandle fine_set, iBase_EntitySetHandle lagr_set,
+    iBase_EntitySetHandle lagr_set, iBase_EntitySetHandle euler_set,
     iBase_EntitySetHandle intx_set, int * ierr) {
   *ierr = 1;
   Interface * mb = MOABI;
@@ -1058,8 +1058,8 @@ void cleanup_after_intersection(iMesh_Instance instance,
   rval = mb->get_entities_by_dimension(0, 2, allElems);
   ERRORV(rval, "can't get all elems");
 
-  Range polys; // first euler polys
-  rval = mb->get_entities_by_dimension((EntityHandle) fine_set, 2, polys);
+  Range polys=allCells; // first euler polys and ghosts, if created
+  rval = mb->get_entities_by_dimension((EntityHandle) euler_set, 2, polys); // redundant, these are already here, from allCells FIXME
 
   // add to polys range the lagr polys
   rval = mb->get_entities_by_dimension((EntityHandle) lagr_set, 2, polys); // do not delete lagr set either, with its vertices
