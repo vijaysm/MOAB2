@@ -417,6 +417,10 @@ public:
      *  Interface to AHF tags   *
      **************************/
 
+  ErrorCode update_entity_ranges();
+
+  //ErrorCode update_hf_maps(
+
   ErrorCode get_sibling_tag(EntityType type, EntityHandle ent, EntityHandle *sib_entids, int *sib_lids);
 
   ErrorCode set_sibling_tag(EntityType type, EntityHandle ent, EntityHandle *set_entids, int *set_lids);
@@ -517,9 +521,9 @@ protected:
   ErrorCode init_surface();
   ErrorCode init_volume();
 
-  ErrorCode deinit_curve();
-  ErrorCode deinit_surface();
-  ErrorCode deinit_volume();
+//  ErrorCode deinit_curve();
+//  ErrorCode deinit_surface();
+//  ErrorCode deinit_volume();
 
 
   //! Contains the local information for 2D entities
@@ -528,8 +532,6 @@ protected:
      * \param face EntityHandle. Used to gather info about the type of face for which local info is required
      * \param nepf: Returns the number of vertices/edges for given face type.
     */
-
-  // int local_maps_2d(EntityHandle face);
 
   //! Contains the local information for 2D entities
   /** Given number of edges, returns local indices of next and previous local edges.
@@ -547,8 +549,6 @@ protected:
         v0  e0  v1     v0  e0  v1
     */
 
-
-   // ErrorCode local_maps_2d(int nepf, int *next, int *prev);
 
     //! Given a half-edge as <he_fid,he_lid> , finds the half-edges incident on it and adds them
     //  to an input queue if it not already added.
