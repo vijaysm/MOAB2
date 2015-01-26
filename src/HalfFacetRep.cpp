@@ -1335,17 +1335,27 @@ namespace moab {
       if (error != MB_SUCCESS) return error;
 
       std::vector<EntityHandle> temp;
-      for (int i=0; i<nepf; i++)
+    //  for (int i=0; i<nepf; i++)
+      for (int i=0; i<2; i++) //Loop over 2 vertices
         {
+
+          //EntityHandle v = conn[i];
+          //Choose the two adjacent vertices for a triangle, and two opposite vertices for a quad
+          int l;
+          if (ftype == MBTRI)
+            l=i;
+          else
+            l = 2*i;
+
           //Get the current, next and prev vertices
-          int nidx = lConnMap2D[ftype-2].next[i];
-          int pidx = lConnMap2D[ftype-2].prev[i];
-          EntityHandle v = conn[i];
+          int nidx = lConnMap2D[ftype-2].next[l];
+          int pidx = lConnMap2D[ftype-2].prev[l];
+          EntityHandle v = conn[l];
           EntityHandle vnext = conn[nidx];
           EntityHandle vprev = conn[pidx];
 
           //Get incident edges on v
-          error = get_up_adjacencies_1d(conn[i], temp);
+          error = get_up_adjacencies_1d(v, temp);
           if (error != MB_SUCCESS) return error;
 
           //Loop over the incident edges and check if its end vertices match those in the face
@@ -1373,6 +1383,8 @@ namespace moab {
 
             }
         }
+
+      //TO DO: In the nepf loop above, instead of getting the incident edges for each edge and checking if they match any of the face, the following seem to be optimized: 1. Get incident edges for 2 vertices (v0, v1 for triangles, and v0,v2 for quads) and add them to a single vector, 2. Match the explicit edges in the vector with the implicit edges in the face, then get the intersected edges. Reduce the number of loops by at least 1 round.
 
       //Gather all the incident edges on each vertex of the face
     /*  std::vector< std::vector<EntityHandle> > temp(nepf);
@@ -1748,7 +1760,10 @@ namespace moab {
               int lv = -1;
               for (int i = 0; i< nvpc; ++i){
                   if (conn[i] == vid)
+                    {
                       lv = i;
+                      break;
+                    }
               };
 
               int nhf_thisv = lConnMap3D[index].v2hf_num[lv];
@@ -1820,23 +1835,26 @@ namespace moab {
     int nfpc = lConnMap3D[index].num_faces_in_cell;
 
     adjents.reserve(20);
-    bool local_id = false;
-    bool orient = false;
+    adjents.push_back(cid);
+  //  bool local_id = false;
+ //   bool orient = false;
     if (leids != NULL)
       {
         local_id = true;
         leids->reserve(20);
+        leids->push_back(leid);
       }
     if (adj_orients != NULL)
       {
         orient = true;
         adj_orients->reserve(20);
+        adj_orients->push_back(1);
       }
-    adjents.push_back(cid);
+ /*   adjents.push_back(cid);
     if (local_id)
       leids->push_back(leid);
     if (orient)
-      adj_orients->push_back(1);
+      adj_orients->push_back(1);*/
 
     const EntityHandle* conn;
     error = mb->get_connectivity(cid, conn, nvpc);
@@ -1891,7 +1909,7 @@ namespace moab {
 	    lface = 0;
 
 	  //Memory allocation
-	  if (adjents.capacity()<=adjents.size()){
+	/*  if (adjents.capacity()<=adjents.size()){
 	    if (100<adjents.size()){
 		std::cout<<"Too many incident cells"<<std::endl;
 		return MB_FAILURE;
@@ -1899,15 +1917,15 @@ namespace moab {
 	    adjents.reserve(20+adjents.size());
 	    if (local_id)
 	      leids->reserve(20+leids->size());
-	  }
+	  }*/
 
 	  //insert new incident cell and local edge ids
 	  adjents.push_back(cur_cell);
 
-	  if (local_id)
+	  if (leids != NULL)
 	    leids->push_back(cur_leid);
 
-	  if (orient)
+	  if (adj_orients != NULL)
 	    {
 	      int id1 =  lConnMap3D[index].e2v[cur_leid][0];
 	      int id2 =  lConnMap3D[index].e2v[cur_leid][1];
@@ -1954,33 +1972,24 @@ namespace moab {
     int index = get_index_from_type(start_cell);
     int nfpc = lConnMap3D[index].num_faces_in_cell;
 
-    adjents.reserve(20);
-    bool local_id = false;
+    adjents.reserve(4);
+    adjents.push_back(cid);
+
     if (lfids != NULL)
       {
-        local_id = true;
-        lfids->reserve(20);
+        lfids->reserve(4);
+        lfids->push_back(lfid);
       }
 
     int cidx = _cells.index(cid);
     EntityHandle sibcid = sibhfs_cid[nfpc*cidx+lfid];
     int siblid = sibhfs_lfid[nfpc*cidx+lfid];
 
-    if (sibcid > 0)
+    if (sibcid !=  0)
       {
-        adjents.push_back(cid);
         adjents.push_back(sibcid);
-        if (local_id)
-          {
-            lfids->push_back(lfid);
-            lfids->push_back(siblid);
-          }
-      }
-    else if (sibcid == 0)
-      {
-        adjents.push_back(cid);
-        if (local_id)
-          lfids->push_back(lfid);
+        if (lfids != NULL)
+          lfids->push_back(siblid);
       }
 
     return MB_SUCCESS;
@@ -2114,6 +2123,7 @@ namespace moab {
                 if (conn[i] == fid_verts[0])
                 {
                     lv0 = i;
+                    break;
                 }
             };
 
@@ -2147,6 +2157,13 @@ namespace moab {
                     break;
                 }
             }
+
+            //If a matching local face is found, return from this code.
+            if (found)
+              {
+                return found;
+                break;
+              }
 
             // Add other cells that are incident on fid_verts[0]
             int cidx = _cells.index(cur_cid);
@@ -2203,6 +2220,7 @@ namespace moab {
   /////////////////////////////////////////////////////////////////////////////////////////////////
   ErrorCode HalfFacetRep::get_down_adjacencies_edg_3d(EntityHandle cid, std::vector<EntityHandle> &adjents)
   {
+    //TODO: Try intersection without using std templates
       //Returns explicit edges, if any, of the face
       ErrorCode error;
       adjents.reserve(20);
@@ -2243,22 +2261,105 @@ namespace moab {
   /////////////////////////////////////////////////////////////////////////////////////////////////
   ErrorCode HalfFacetRep::get_down_adjacencies_face_3d(EntityHandle cid, std::vector<EntityHandle> &adjents)
   {
-      //Returns explicit edges, if any, of the face
+      //Returns explicit face, if any of the cell
       ErrorCode error;
-      adjents.reserve(20);
+      adjents.reserve(10);
       int index = get_index_from_type(cid);
       int nvpc = lConnMap3D[index].num_verts_in_cell;
       int nfpc = lConnMap3D[index].num_faces_in_cell;
 
       const EntityHandle* conn;
       error = mb->get_connectivity(cid, conn, nvpc);
+      EntityHandle half_faces[nfpc][6];
+      for (int i=0; i<nfpc; i++)
+        {
+          int nvf = lConnMap3D[index].hf2v_num[i];
+          for (int j=0; j< nvf; j++)
+            {
+              int ind = lConnMap3D[index].hf2v[i][j];
+              half_faces[i][j] = conn[ind];
+            }
+        }
 
-      std::vector<EntityHandle> temp(50);
-      for (int i = 0; i < nfpc; i++)
+      int search_verts[2] = {0,0};
+      if (index==0)
+        search_verts[1] = 1;
+      else if (index ==1)
+        search_verts[1] = 4;
+      else if (index == 2)
+        search_verts[1] = 5;
+      else
+        search_verts[1] =6;
+
+      std::vector<EntityHandle> temp;
+      temp.reserve(20);
+      for (int i=0; i<2; i++)
+        {
+          //Get the incident faces on the local vertex
+          int lv = search_verts[i];
+          temp.clear();
+          error = get_up_adjacencies_vert_2d(conn[lv], temp);
+          if (error != MB_SUCCESS) return error;
+
+          if (temp.size() == 0)
+              continue;
+
+          //Get the half-faces incident on the local vertex and match it with the obtained faces
+          int nhfthisv =  lConnMap3D[index].v2hf_num[lv];
+          for (int k=0; k<(int)temp.size(); k++)
+            {
+              const EntityHandle* fid_verts;
+              int fsize = 0;
+              error = mb->get_connectivity(temp[k], fid_verts, fsize);
+
+              for (int j=0; j<nhfthisv; j++)
+                {
+                  //Collect all the vertices of this half-face
+                  int idx = lConnMap3D[index].v2hf[lv][j];
+                  int nvF = lConnMap3D[index].hf2v_num[idx];
+
+                  if  (fsize != nvF)
+                    continue;
+
+                /*  std::vector<EntityHandle> vthisface(nvF);
+                  for(int l = 0; l < nvF; ++l){
+                      int ind = lConnMap3D[index].hf2v[idx][l];
+                      vthisface[l] = conn[ind];
+                    };*/
+
+                  int direct,offset;
+                  bool they_match = CN::ConnectivityMatch(&half_faces[idx][0],&fid_verts[0],nvF,direct,offset);
+
+                  if (they_match)
+                    {
+                      bool found = false;
+                      for (int p=0; p<(int)adjents.size(); p++)
+                        {
+                          if (adjents[p] == temp[k])
+                            {
+                              found = true;
+                              break;
+                            }
+                        }
+                      if (!found)
+                        adjents.push_back(temp[k]);
+
+                    }
+
+                }
+            }
+
+        }
+
+
+
+      //std::vector<EntityHandle> temp(50);
+   /*   for (int i = 0; i < nfpc; i++)
       {
           // Obtain the incident faces on one of the vertices
           int lv0 = lConnMap3D[index].hf2v[i][0];
-          temp.clear();
+        //  temp.clear();
+          std::vector<EntityHandle> temp;
           error = get_up_adjacencies_vert_2d(conn[lv0], temp);
           if (error != MB_SUCCESS) return error;
 
@@ -2292,7 +2393,7 @@ namespace moab {
                   break;
               }
           }
-      }
+      }*/
 
       return MB_SUCCESS;
   }
