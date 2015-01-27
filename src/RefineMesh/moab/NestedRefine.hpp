@@ -211,9 +211,9 @@ namespace moab
     static const pmat permutation[2];
 
     // Print functions
-    ErrorCode print_tags_1D(int level);
-    ErrorCode print_tags_2D(int level, EntityType type);
-    ErrorCode print_tags_3D(int level, EntityType type);
+    ErrorCode print_maps_1D(int level);
+    ErrorCode print_maps_2D(int level, EntityType type);
+    ErrorCode print_maps_3D(int level, EntityType type);
 
     // Coordinates
     ErrorCode compute_coordinates(int cur_level, int deg, EntityType type, EntityHandle *vbuffer, int vtotal, double *corner_coords, std::vector<int> &vflag, int nverts_prev);
