@@ -25,9 +25,9 @@ int main(int argc, char *argv[])
   error = mbImpl->load_file(filename);
   if (error != MB_SUCCESS) return error;
 
-  NestedRefine uref(mb);
+  NestedRefine uref(&mb);
 
-  int level_degrees = {2,3,2,3};
+  int level_degrees[4] = {2,3,2,3};
   int num_levels = sizeof(level_degrees) / sizeof(int);
   EntityHandle *set = new EntityHandle[num_levels];
 
@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
   file <<"mesh_hierarchy.vtk";
   std::string str = file.str();
   const char* output_file = str.c_str();
-  error = mb->write_file(output_file);
+  error = mbImpl->write_file(output_file);
   if (error != MB_SUCCESS) return error;
 
   delete [] set;
