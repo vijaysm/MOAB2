@@ -16,6 +16,7 @@
   - PR#54: WriteNCDF - minor bug when writing out side sets
   - PR#94: Exodus Writer - fixes for variable length tags
 * Additional unit tests for testing several finer grained APIs
+* Several updates to the User and Developer guide in documentation to detail aspects of the new features (UMR, Verdict, Error handling)
 * Overall enhanced Windows support (VS2008) (contributions by Kitware)
 
 # Version 4.7.0:
