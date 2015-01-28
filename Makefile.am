@@ -65,18 +65,13 @@ install-data-hook:
 	$(AM_V_at)echo "MOAB_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/moab.make
 	$(AM_V_at)echo "MOAB_INCLUDES=-I${includedir}" >> $(DESTDIR)$(cfgdir)/moab.make
 	$(AM_V_at)echo "SET(MOAB_INCLUDE_DIRS \"${includedir}\")" >> $(DESTDIR)$(cfgdir)/MOABConfig.cmake
-	echo -n "SET(MOAB_LIBRARIES \"" >> $(DESTDIR)$(cfgdir)/MOABConfig.cmake
 # next line: get the post-substitution set of link commands, then filter out leading
 # and trailing spaces, then terminate with close-quote and close-paren
-	echo -n "@EXPORT_LDFLAGS@ -L$(libdir) -lMOAB @LIBS@ @PNETCDF_LIBS@ @NETCDF_LIBS@" \
-                " @CGNS_LIBS@ @HDF5_LIBS@ @CCMIO_LIBS@ @CGM_LIBS@ @ZOLTAN_LIBS@" | \
-	   sed -e 's/^ *//;s/ *$$/\")\n/' >> $(DESTDIR)$(cfgdir)/MOABConfig.cmake
-
-	echo -n "SET(DAGMC_LIBRARIES \"" >> $(DESTDIR)$(cfgdir)/MOABConfig.cmake
-# next line: get the post-substitution set of link commands, then filter out leading
-# and trailing spaces, then terminate with close-quote and close-paren
-	echo -n "@EXPORT_LDFLAGS@ -L$(libdir) @DAGMC_LIBS@ -lMOAB @LIBS@ @PNETCDF_LIBS@ @NETCDF_LIBS@ @CGNS_LIBS@ @HDF5_LIBS@ @CCMIO_LIBS@ @CGM_LIBS@" | \
-	   sed -e 's/^ *//;s/ *$$/\")\n/' >> $(DESTDIR)$(cfgdir)/MOABConfig.cmake
+	$(AM_V_at)echo "SET(MOAB_LIBRARIES \"@EXPORT_LDFLAGS@ @CXX_LDFLAGS@ -L$(libdir) -lMOAB @PNETCDF_LIBS@ @NETCDF_LIBS@ @CGNS_LIBS@ @HDF5_LIBS@ @CCMIO_LIBS@ @CGM_LIBS@ @ZOLTAN_LIBS@ @LIBS@" | \
+	   sed -e 's/^ *//;s/ *$$/\")$(echo -e "\n\r")/' >> $(DESTDIR)$(cfgdir)/MOABConfig.cmake
+# linker libs for DagMC
+	$(AM_V_at)echo "SET(DAGMC_LIBRARIES \"@EXPORT_LDFLAGS@ @CXX_LDFLAGS@ -L$(libdir) @DAGMC_LIBS@ -lMOAB @PNETCDF_LIBS@ @NETCDF_LIBS@ @CGNS_LIBS@ @HDF5_LIBS@ @CCMIO_LIBS@ @CGM_LIBS@ @ZOLTAN_LIBS@ @LIBS@" | \
+	   sed -e 's/^ *//;s/ *$$/\")$(echo -e "\n\r")/' >> $(DESTDIR)$(cfgdir)/MOABConfig.cmake
 
 
 # Generate a file to be installed in $libdir containing the configuration

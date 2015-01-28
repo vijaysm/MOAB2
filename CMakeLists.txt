@@ -294,9 +294,6 @@ ELSE (CMAKE_BUILD_TYPE MATCHES "Debug")
   set(CFLAGS ${CMAKE_C_FLAGS_RELEASE})
   set(FFLAGS ${CMAKE_Fortran_FLAGS_RELEASE})
 ENDIF (CMAKE_BUILD_TYPE MATCHES "Debug")
-set(AM_CXXFLAGS)
-set(AM_CFLAGS)
-set(AM_FFLAGS)
 
 # CMake does not define uninstall target. Look at install manifest and remove
 # all the files recursively.
