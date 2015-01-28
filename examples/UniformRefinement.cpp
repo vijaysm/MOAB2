@@ -22,8 +22,7 @@ int main(int argc, char *argv[])
     }
 
   const char *filename = argv[1];
-  error = mbImpl->load_file(filename);
-  if (error != MB_SUCCESS) return error;
+  error = mbImpl->load_file(filename); MB_CHK_ERR(error);
 
   NestedRefine uref(&mb);
 
@@ -33,8 +32,7 @@ int main(int argc, char *argv[])
 
   std::cout<<"Starting hierarchy generation"<<std::endl;
 
-  error = uref.generate_mesh_hierarchy(level_degrees, num_levels, set);
-  if (error != MB_SUCCESS) return error;
+  error = uref.generate_mesh_hierarchy(level_degrees, num_levels, set); MB_CHK_ERR(error);
 
   std::cout<<"Finished hierarchy generation"<<std::endl;
 
@@ -42,8 +40,7 @@ int main(int argc, char *argv[])
   file <<"mesh_hierarchy.vtk";
   std::string str = file.str();
   const char* output_file = str.c_str();
-  error = mbImpl->write_file(output_file);
-  if (error != MB_SUCCESS) return error;
+  error = mbImpl->write_file(output_file); MB_CHK_ERR(error);
 
   delete [] set;
 
