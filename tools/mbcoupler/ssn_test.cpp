@@ -5,7 +5,6 @@
 #include "moab/FileOptions.hpp"
 #include "ReadParallel.hpp"
 #include "Coupler.hpp"
-#include "iMesh_extensions.h"
 #include "DebugOutput.hpp"
 #include "ElemUtil.hpp"
 #include <iostream>
@@ -32,19 +31,6 @@ using namespace moab;
 
 bool debug = true;
 
-// Error routines for use with iMesh API
-#define CHKERR(CODE, MSG)                           \
-  do {                                              \
-    if (iMesh_isError((CODE)))                      \
-      std::cerr << MSG << std::endl;                \
-  } while(false)
-
-static inline bool iMesh_isError(int code)
-  { return (iBase_SUCCESS != code); }
-
-static inline bool iMesh_isError(ErrorCode code)
-  { return (MB_SUCCESS != code); }
-
 // Forward declarations
 void get_file_options(int argc, char **argv, 
                       std::vector<const char *> &filenames,
@@ -57,9 +43,8 @@ void get_file_options(int argc, char **argv,
 void print_tuples(TupleList *tlp);
 
 int print_vertex_fields(Interface* mbi,
-                        iMesh_Instance iMeshInst,
                         std::vector< std::vector<EntityHandle> > &groups,
-                        iBase_TagHandle                                &norm_hdl,
+                        Tag                               &norm_hdl,
                         Coupler::IntegType                             integ_type);
 
 double const_field(double x, double y, double z);
@@ -92,11 +77,11 @@ int main(int argc, char **argv) {
     std::cerr << "file_opts       : quoted string of parallel file read options, e.g. \"OPTION1=VALUE1;OPTION2;OPTION3=VALUE3\"" << std::endl;
 
     err = integrate_scalar_field_test();
-    CHKERR(err, "Integrate scalar field test failed");
+    MB_CHK_SET_ERR( (ErrorCode)err, "Integrate scalar field test failed");
 
     err = MPI_Finalize();
     
-    return 1;
+    return err;
   }
 
   int nprocs, rank;
@@ -115,9 +100,6 @@ int main(int argc, char **argv) {
     std::cerr << "MOAB constructor failed" << std::endl;
     return 1;
   }
-  
-  // Get an iMesh_Instance from the Core Interface.
-  iMesh_Instance iMeshInst = reinterpret_cast<iMesh_Instance>(mbi);
 
   // Get the input options
   std::cout << "Getting options..." << std::endl;
@@ -126,7 +108,7 @@ int main(int argc, char **argv) {
   std::vector<const char *> tagValues;
   std::string normTag, fileOpts;
   get_file_options(argc, argv, filenames, normTag, tagNames, tagValues, fileOpts, &err);
-  CHKERR(err, "get_file_options failed");
+  MB_CHK_SET_ERR( (ErrorCode)err, "get_file_options failed");
 
   // Print out the input parameters
   std::cout << "    Input Parameters - " << std::endl;
@@ -158,19 +140,19 @@ int main(int argc, char **argv) {
   std::vector<ParallelComm *> pcs(filenames.size()); 
   std::vector<ReadParallel *> rps(filenames.size()); 
 
-  // Create root sets for each mesh using the iMesh API.  Then pass these
-  // to the load_file functions to be populated.
-  iBase_EntitySetHandle *roots = (iBase_EntitySetHandle *) malloc(sizeof(iBase_EntitySetHandle) * filenames.size());
+  // allocate root sets for each mesh for moab
+  std::vector<EntityHandle> roots(filenames.size());
 
   ErrorCode result;
   for (unsigned int i = 0; i < filenames.size(); i++) {
     pcs[i] = new ParallelComm(mbi, MPI_COMM_WORLD);
     rps[i] = new ReadParallel(mbi, pcs[i]);
     
-    iMesh_createEntSet(iMeshInst, 0, &(roots[i]), &err);
-    CHKERR(err, "Creating root set failed");
-    result = rps[i]->load_file(filenames[i], (EntityHandle *)&roots[i], FileOptions(fileOpts.c_str()));
-    CHKERR(result, "iMeshInstance::load_file failed");
+    result = mbi->create_meshset(MESHSET_SET, roots[i]);
+
+    MB_CHK_SET_ERR(result, "Creating root set failed");
+    result = rps[i]->load_file(filenames[i], &roots[i], FileOptions(fileOpts.c_str()));
+    MB_CHK_SET_ERR(result, "load_file failed");
   }
 
   // Initialize the debug object for Range printing
@@ -180,16 +162,10 @@ int main(int argc, char **argv) {
 
   // Output what is in root sets
   for (unsigned int k = 0; k < filenames.size(); k++) {
-    iBase_EntityHandle *rootEnts = NULL;
-    int rootEntsAlloc = 0;
-    int rootEntsSize = 0;
-    err = 0;
-  
-    iMesh_getEntities(iMeshInst, roots[k], iBase_ALL_TYPES, iMesh_ALL_TOPOLOGIES,
-                      &rootEnts, &rootEntsAlloc, &rootEntsSize, &err);
+
     Range rootRg;
-    for (int j = 0; j < rootEntsSize; j++)
-      rootRg.insert((EntityHandle) rootEnts[j]);
+    result = mbi->get_entities_by_handle(roots[k], rootRg);
+    MB_CHK_SET_ERR(result, "can't get entities");
     debugOut.print(2, "Root set entities: ", rootRg);
     rootRg.clear();
 
@@ -211,13 +187,13 @@ int main(int argc, char **argv) {
   // Get tag handles for passed in tags
   std::cout << "Getting tag handles..." << std::endl;
   int numTagNames = tagNames.size();
-  err = iBase_SUCCESS;
-  std::vector<iBase_TagHandle> tagHandles(numTagNames);
+
+  std::vector<Tag> tagHandles(numTagNames);
   int iTags = 0;
   while (iTags < numTagNames) {
     std::cout << "Getting handle for " << tagNames[iTags] << std::endl;
-    iMesh_getTagHandle(iMeshInst, tagNames[iTags], &tagHandles[iTags], &err, strlen(tagNames[iTags]));
-    CHKERR(err, "Retrieving tag handles failed");
+    result = mbi->tag_get_handle( tagNames[iTags],tagHandles[iTags]);
+    MB_CHK_SET_ERR(result, "Retrieving tag handles failed");
     iTags++;
   }
 
@@ -225,44 +201,30 @@ int main(int argc, char **argv) {
   std::cout << "********** Test create_tuples **********" << std::endl;
   // First get some EntitySets for Mesh 1 and Mesh 2
   {
-    iBase_EntitySetHandle *m1EntSets = NULL;
-    iBase_EntitySetHandle *m2EntSets = NULL;
-    int m1EntSetsSize=0;
-    int m2EntSetsSize=0;
-    int m1EntSetsAlloc=0;
-    int m2EntSetsAlloc=0;
-    Range entsets1, entsets2;
-    iMesh_getEntSetsByTagsRec(iMeshInst, roots[0], &tagHandles[0], 
-                              &tagValues[0], tagHandles.size(), 0,
-                              &m1EntSets, &m1EntSetsAlloc, &m1EntSetsSize, &err);
-    CHKERR(err, "iMesh_getEntSetsByTagsRec failed on Mesh 1.");
 
-    for (int ix=0; ix<m1EntSetsSize; ix++)
-      entsets1.insert((EntityHandle)m1EntSets[ix]);
+    Range entsets1, entsets2;
+    result = mbi->get_entities_by_type_and_tag(roots[0], MBENTITYSET, &tagHandles[0],
+        (const void* const*)&tagValues[0], tagHandles.size(), entsets1, Interface::INTERSECT); // recursive is false
+    MB_CHK_SET_ERR(result, "sets: get_entities_by_type_and_tag failed on Mesh 1.");
 
     // Create tuple_list for each mesh's
     std::cout << "Creating tuples for mesh 1..." << std::endl;
     TupleList *m1TagTuples = NULL;
-    err = mbc.create_tuples(entsets1, m1EntSetsSize, 
-                            (Tag*)(&tagHandles[0]), tagHandles.size(), &m1TagTuples);
-    CHKERR(err, "create_tuples failed");
+    err = mbc.create_tuples(entsets1, &tagHandles[0], tagHandles.size(), &m1TagTuples);
+    MB_CHK_SET_ERR((ErrorCode)err, "create_tuples failed");
 
     std::cout << "   create_tuples returned" << std::endl;
     print_tuples(m1TagTuples);
 
-    iMesh_getEntSetsByTagsRec(iMeshInst, roots[1], &tagHandles[0], 
-                              &tagValues[0], tagHandles.size(), 0,
-                              &m2EntSets, &m2EntSetsAlloc, &m2EntSetsSize, &err);
-    CHKERR(err, "iMesh_getEntSetsByTagsRec failed on Mesh 2.");
-
-    for (int ix=0; ix<m2EntSetsSize; ix++)
-      entsets2.insert((EntityHandle)m2EntSets[ix]);
+    result = mbi->get_entities_by_type_and_tag(roots[1], MBENTITYSET, &tagHandles[0],
+            (const void* const*)&tagValues[0], tagHandles.size(), entsets2, Interface::INTERSECT); // recursive is false
+    MB_CHK_SET_ERR(result, "sets: get_entities_by_type_and_tag failed on Mesh 2.");
 
     std::cout << "Creating tuples for mesh 2..." << std::endl;
     TupleList *m2TagTuples = NULL;
-    err = mbc.create_tuples(entsets2, m2EntSetsSize, 
+    err = mbc.create_tuples(entsets2,
                             (Tag*)(&tagHandles[0]), tagHandles.size(), &m2TagTuples);
-    CHKERR(err, "create_tuples failed");
+    MB_CHK_SET_ERR((ErrorCode)err, "create_tuples failed");
 
     std::cout << "   create_tuples returned" << std::endl;
     print_tuples(m2TagTuples);
@@ -278,7 +240,7 @@ int main(int argc, char **argv) {
     tplp_arr[1] = m2TagTuples;
 
     err = mbc.consolidate_tuples(tplp_arr, 2, &unique_tpl);
-    CHKERR(err, "consolidate_tuples failed");
+    MB_CHK_SET_ERR((ErrorCode)err,"consolidate_tuples failed");
     std::cout << "    consolidate_tuples returned" << std::endl;
     print_tuples(unique_tpl);
 
@@ -293,9 +255,9 @@ int main(int argc, char **argv) {
 
   // Get matching entities for Mesh 1
   std::cout << "Get matching entities for mesh 1..." << std::endl;
-  err = mbc.get_matching_entities((EntityHandle)roots[0], (Tag*)&tagHandles[0], &tagValues[0], tagHandles.size(), 
+  err = mbc.get_matching_entities( roots[0], &tagHandles[0], &tagValues[0], tagHandles.size(),
                                     &m1EntitySets, &m1EntityGroups);
-  CHKERR(err, "get_matching_entities failed");
+  MB_CHK_SET_ERR((ErrorCode)err, "get_matching_entities failed");
 
   std::cout << "    get_matching_entities returned " << m1EntityGroups.size() << " entity groups" << std::endl;
   
@@ -328,9 +290,9 @@ int main(int argc, char **argv) {
 
   // Get matching entities for Mesh 2
   std::cout << "Get matching entities for mesh 2..." << std::endl;
-  err = mbc.get_matching_entities((EntityHandle)roots[1], (Tag*)&tagHandles[0], &tagValues[0], tagHandles.size(),
+  err = mbc.get_matching_entities(roots[1], &tagHandles[0], &tagValues[0], tagHandles.size(),
                                   &m2EntitySets, &m2EntityGroups);
-  CHKERR(err, "get_matching_entities failed");
+  MB_CHK_SET_ERR((ErrorCode)err, "get_matching_entities failed");
 
   std::cout << "    get_matching_entities returned " << m2EntityGroups.size() << " entity groups" << std::endl;
   for (iter_egi = m2EntityGroups.begin(), iter_esi = m2EntitySets.begin(), icnt = 1; 
@@ -434,7 +396,7 @@ int main(int argc, char **argv) {
   }
 
   err = integrate_scalar_field_test();
-  CHKERR(err, "Failure in integrating a scalar_field");
+  MB_CHK_SET_ERR((ErrorCode)err, "Failure in integrating a scalar_field");
 
   // ******************************
   std::cout << "********** Test get_group_integ_vals **********" << std::endl;
@@ -442,18 +404,18 @@ int main(int argc, char **argv) {
 
   // print the field values at the vertices before change.
   std::cout << "    print vertex field values first:" << std::endl;
-  iBase_TagHandle norm_hdl;
-  iMesh_getTagHandle(iMeshInst, normTag.c_str(), &norm_hdl, &err, strlen(normTag.c_str()));
-  CHKERR(err, "Failed to get tag handle.");
+  Tag norm_hdl;
+  result = mbi->tag_get_handle( normTag.c_str(),norm_hdl);
+  MB_CHK_SET_ERR((ErrorCode)err, "Failed to get tag handle.");
 
   Coupler::IntegType integ_type = Coupler::VOLUME;
   // Mesh 1 field values
   std::cout << "  Original entity vertex field values (mesh 1): " << std::endl;
-  print_vertex_fields(mbi, iMeshInst, m1EntityGroups, norm_hdl, integ_type);
+  print_vertex_fields(mbi, m1EntityGroups, norm_hdl, integ_type);
 
   // Mesh 2 field values
   std::cout << "  Original entity vertex field values (mesh 2): " << std::endl;
-  print_vertex_fields(mbi, iMeshInst, m2EntityGroups, norm_hdl, integ_type);
+  print_vertex_fields(mbi, m2EntityGroups, norm_hdl, integ_type);
 
   // Get the field values
   std::vector<double>::iterator iter_ivals;
@@ -461,7 +423,7 @@ int main(int argc, char **argv) {
   std::cout << "Get group integrated field values for mesh 1..." << std::endl;
   std::vector<double> m1IntegVals(m1EntityGroups.size());
   err = mbc.get_group_integ_vals(m1EntityGroups, m1IntegVals, normTag.c_str(), 4, integ_type);
-  CHKERR(err, "Failed to get the Mesh 1 group integration values.");
+  MB_CHK_SET_ERR((ErrorCode)err, "Failed to get the Mesh 1 group integration values.");
   std::cout << "Mesh 1 integrated field values(" << m1IntegVals.size() << "): ";
   for (iter_ivals = m1IntegVals.begin(); iter_ivals != m1IntegVals.end(); iter_ivals++) {
     std::cout << (*iter_ivals) << " ";
@@ -471,7 +433,7 @@ int main(int argc, char **argv) {
   std::cout << "Get group integrated field values for mesh 2..." << std::endl;
   std::vector<double> m2IntegVals(m2EntityGroups.size());
   err = mbc.get_group_integ_vals(m2EntityGroups, m2IntegVals, normTag.c_str(), 4, integ_type);
-  CHKERR(err, "Failed to get the Mesh 2 group integration values.");
+  MB_CHK_SET_ERR((ErrorCode)err, "Failed to get the Mesh 2 group integration values.");
   std::cout << "Mesh 2 integrated field values(" << m2IntegVals.size() << "): ";
   for (iter_ivals = m2IntegVals.begin(); iter_ivals != m2IntegVals.end(); iter_ivals++) {
     std::cout << (*iter_ivals) << " ";
@@ -506,25 +468,26 @@ int main(int argc, char **argv) {
 
   // Apply the factors and reprint the vertices
   err = mbc.apply_group_norm_factor(m1EntitySets, m1IntegVals, normTag.c_str(), integ_type);
-  CHKERR(err, "Failed to apply norm factors to Mesh 1.");
+  MB_CHK_SET_ERR((ErrorCode)err, "Failed to apply norm factors to Mesh 1.");
 
   err = mbc.apply_group_norm_factor(m2EntitySets, m2IntegVals, normTag.c_str(), integ_type);
-  CHKERR(err, "Failed to apply norm factors to Mesh 2.");
+  MB_CHK_SET_ERR((ErrorCode)err, "Failed to apply norm factors to Mesh 2.");
 
   // Get the norm_tag_factor on the EntitySets
   // Get the handle for the norm factor tag
-  iBase_TagHandle norm_factor_hdl;
+  Tag norm_factor_hdl;
   std::string normFactor = normTag + "_normf";
-  iMesh_getTagHandle(iMeshInst, normFactor.c_str(), &norm_factor_hdl, &err, strlen(normFactor.c_str()));
-  CHKERR(err, "Failed to get norm factor tag handle.");
+  result = mbi->tag_get_handle( normFactor.c_str(), norm_factor_hdl);
+  MB_CHK_SET_ERR( result, "Failed to get norm factor tag handle.");
   
   // Mesh 1 values
   std::cout << "Mesh 1 norm factors per EntitySet...";
   for (iter_esi = m1EntitySets.begin(); iter_esi != m1EntitySets.end(); iter_esi++) {
     for (iter_esj = (*iter_esi).begin(); iter_esj != (*iter_esi).end(); iter_esj++) {
       double data = 0;
-      iMesh_getEntSetDblData(iMeshInst, (iBase_EntitySetHandle) *iter_esj, norm_factor_hdl, &data, &err);
-      CHKERR(err, "Failed to get tag data.");
+      EntityHandle eh=* iter_esj;
+      result = mbi->tag_get_data(norm_factor_hdl, &eh, 1, &data);
+      MB_CHK_SET_ERR( result, "Failed to get tag data.");
       std::cout << data << ", ";
     }
   }
@@ -535,8 +498,9 @@ int main(int argc, char **argv) {
   for (iter_esi = m2EntitySets.begin(); iter_esi != m2EntitySets.end(); iter_esi++) {
     for (iter_esj = (*iter_esi).begin(); iter_esj != (*iter_esi).end(); iter_esj++) {
       double data = 0;
-      iMesh_getEntSetDblData(iMeshInst, (iBase_EntitySetHandle) *iter_esj, norm_factor_hdl, &data, &err);
-      CHKERR(err, "Failed to get tag data.");
+      EntityHandle eh = *iter_esj;
+      result = mbi->tag_get_data(norm_factor_hdl, &eh, 1, &data);
+      MB_CHK_SET_ERR( result, "Failed to get tag data.");
       std::cout << data << ", ";
     }
   }
@@ -553,7 +517,7 @@ int main(int argc, char **argv) {
                              &tagValues[0], 
                              Coupler::VOLUME, 
                              4);
-  CHKERR(err, "Failure in call to Coupler::normalize_subset() on mesh 1");
+  MB_CHK_SET_ERR((ErrorCode)err, "Failure in call to Coupler::normalize_subset() on mesh 1");
 
   // Print the normFactor on each EntitySet after the above call.
   // Mesh 1 values
@@ -561,8 +525,9 @@ int main(int argc, char **argv) {
   for (iter_esi = m1EntitySets.begin(); iter_esi != m1EntitySets.end(); iter_esi++) {
     for (iter_esj = (*iter_esi).begin(); iter_esj != (*iter_esi).end(); iter_esj++) {
       double data = 0;
-      iMesh_getEntSetDblData(iMeshInst, (iBase_EntitySetHandle) *iter_esj, norm_factor_hdl, &data, &err);
-      CHKERR(err, "Failed to get tag data.");
+      EntityHandle eh = *iter_esj;
+      result = mbi->tag_get_data(norm_factor_hdl, &eh, 1, &data);
+      MB_CHK_SET_ERR( result, "Failed to get tag data.");
       std::cout << data << ", ";
     }
   }
@@ -576,15 +541,17 @@ int main(int argc, char **argv) {
                              &tagValues[0], 
                              Coupler::VOLUME, 
                              4);
-  CHKERR(err, "Failure in call to Coupler::normalize_subset() on mesh 2");
+  MB_CHK_SET_ERR((ErrorCode)err, "Failure in call to Coupler::normalize_subset() on mesh 2");
 
   // Mesh 2 values
   std::cout << "Mesh 2 norm factors per EntitySet...";
   for (iter_esi = m2EntitySets.begin(); iter_esi != m2EntitySets.end(); iter_esi++) {
     for (iter_esj = (*iter_esi).begin(); iter_esj != (*iter_esi).end(); iter_esj++) {
       double data = 0;
-      iMesh_getEntSetDblData(iMeshInst, (iBase_EntitySetHandle) *iter_esj, norm_factor_hdl, &data, &err);
-      CHKERR(err, "Failed to get tag data.");
+      EntityHandle eh = *iter_esj;
+      result = mbi->tag_get_data(norm_factor_hdl, &eh, 1, &data);
+      MB_CHK_SET_ERR( result, "Failed to get tag data.");
+
       std::cout << data << ", ";
     }
   }
@@ -668,10 +635,10 @@ ErrorCode integrate_scalar_field_test()
     std::cout << "    zerobase_cube, field_3(num_pts=" << ipoints << "): field_val=" << field_cubic2 << std::endl;
   }
   catch (moab::Element::Map::ArgError) {
-    CHKERR(MB_FAILURE, "Failed to set vertices on Element::Map.");
+    MB_CHK_SET_ERR(MB_FAILURE, "Failed to set vertices on Element::Map.");
   }
   catch (moab::Element::Map::EvaluationError) {
-    CHKERR(MB_FAILURE, "Failed to get inverse evaluation of coordinate on Element::Map.");
+    MB_CHK_SET_ERR(MB_FAILURE, "Failed to get inverse evaluation of coordinate on Element::Map.");
   }
   return MB_SUCCESS;
 }
@@ -699,7 +666,7 @@ void get_file_options(int argc, char **argv,
     normTag = argv[npos++];
   else {
     std::cerr << "Insufficient parameters:  norm_tag missing" << std::endl;
-    *err = iBase_FAILURE;
+    *err = 1;
     return;
   }
 
@@ -729,7 +696,7 @@ void get_file_options(int argc, char **argv,
         if (end_vals_seen) {
           // ERROR we should not have a value after none are seen
           std::cerr << "Incorrect parameters:  new value seen after end of values" << std::endl;
-          *err = iBase_FAILURE;
+          *err = 1;
           return;
         }
         // Otherwise get the value string from e and convert it to an int
@@ -746,7 +713,7 @@ void get_file_options(int argc, char **argv,
   }
   else {
     std::cerr << "Insufficient parameters:  tag_select_opts missing" << std::endl;
-    *err = iBase_FAILURE;
+    *err = 1;
     return;
   }
 
@@ -755,7 +722,7 @@ void get_file_options(int argc, char **argv,
     fileOpts = argv[npos++];
   else {
     std::cerr << "Insufficient parameters:  file_opts missing" << std::endl;
-    *err = iBase_FAILURE;
+    *err = 1;
     return;
   }
 }
@@ -823,39 +790,36 @@ void print_tuples(TupleList *tlp)
 }
 
 // Function to print vertex field values
-int print_vertex_fields(Interface* /*mbi*/,
-                        iMesh_Instance iMeshInst,
+int print_vertex_fields(Interface* mbi,
                         std::vector< std::vector<EntityHandle> > &groups,
-                        iBase_TagHandle                                &norm_hdl,
+                        Tag                           &norm_hdl,
                         Coupler::IntegType                             integ_type)
 {
-  int err = iBase_SUCCESS;
+  int err = 0;
+  ErrorCode result;
   std::vector<EntityHandle>::iterator iter_j;
 
   for (unsigned int i = 0; i < groups.size(); i++) {
     std::cout << "    Group - " << std::endl << "        ";
     for (iter_j = groups[i].begin(); iter_j != groups[i].end(); iter_j++) {
-      iBase_EntityHandle ehandle = (iBase_EntityHandle)(*iter_j);
+      EntityHandle ehandle = (*iter_j);
       // Check that the entity in iter_j is of the same dimension as the 
       // integ_type we are performing
-      int j_type;
-      iMesh_getEntType(iMeshInst, ehandle, &j_type, &err);
-      CHKERR(err, "Failed to get entity type.");
-      if ((integ_type == Coupler::VOLUME) && (j_type != iBase_REGION))
+      int j_type = mbi->dimension_from_handle(ehandle);
+
+      if ((integ_type == Coupler::VOLUME) && (j_type != 3))
         continue;
 
       // Retrieve the vertices from the element
-      iBase_EntityHandle *verts = NULL;
-      int vertsAlloc = 0;
-      int vertsSize = 0;
-
-      iMesh_getEntAdj(iMeshInst, ehandle, iBase_VERTEX, &verts, &vertsAlloc, &vertsSize, &err);
-      CHKERR(err, "Failed to get vertices from entity.");
+      const EntityHandle * conn = NULL;
+      int num_verts=0;
+      result = mbi->get_connectivity(ehandle, conn, num_verts );
+      if (MB_SUCCESS!=result) return 1;
       std::cout << std::fixed;
-      for (int iv = 0; iv < vertsSize; iv++) {
+      for (int iv = 0; iv < num_verts; iv++) {
         double data = 0;
-        iMesh_getDblData(iMeshInst, verts[iv], norm_hdl, &data, &err);
-        CHKERR(err, "Failed to get tag data.");
+        result = mbi->tag_get_data(norm_hdl, &conn[iv], 1, &data);
+        if (MB_SUCCESS!=result) return 1;
         std::cout << std::setprecision(8) << data << ", ";
       }
       std::cout << std::endl << "        ";

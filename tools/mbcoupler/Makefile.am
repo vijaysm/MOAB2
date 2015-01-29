@@ -11,16 +11,12 @@ AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
                -I$(top_srcdir)/src/parallel \
                -I$(top_srcdir)/src/LocalDiscretization \
                -I$(top_srcdir)/src/moab/point_locater/lotte \
-               -I$(top_srcdir)/test \
-               -I$(top_srcdir)/itaps \
-               -I$(top_srcdir)/itaps/imesh \
-               -I$(top_builddir)/itaps \
-               -I$(top_builddir)/itaps/imesh 
+               -I$(top_srcdir)/test 
 
 lib_LTLIBRARIES = libmbcoupler.la
-libmbcoupler_la_LIBADD = $(top_builddir)/src/libMOAB.la $(top_builddir)/itaps/imesh/libiMesh.la
+libmbcoupler_la_LIBADD = $(top_builddir)/src/libMOAB.la 
 
-LDADD = libmbcoupler.la $(top_builddir)/src/libMOAB.la $(top_builddir)/itaps/imesh/libiMesh.la
+LDADD = libmbcoupler.la $(top_builddir)/src/libMOAB.la
 
 libmbcoupler_la_SOURCES = \
    Coupler.cpp \
