@@ -673,23 +673,23 @@ void get_file_options(int argc, char **argv,
   // get tag selection options
   if (npos < argc) {
     char* opts = argv[npos++];
-    char sep1[1] = {';'};
-    char sep2[1] = {'='};
+    //char sep1[1] = {';'};
+    //char sep2[1] = {'='};
     bool end_vals_seen = false;
     std::vector<char *> tmpTagOpts;
 
     // first get the options
-    for (char* i = strtok(opts, sep1); i; i = strtok(0, sep1)) {
+    for (char* i = strtok(opts, ";"); i; i = strtok(0, ";")) {
       if (debug) std::cout << "get_file_options:  i=" << i << std::endl;
       tmpTagOpts.push_back(i);
     }
 
     // parse out the name and val or just name.
     for (unsigned int j = 0; j < tmpTagOpts.size(); j++) {
-      char* e = strtok(tmpTagOpts[j], sep2);
+      char* e = strtok(tmpTagOpts[j], "=");
       if (debug) std::cout << "get_file_options:    name=" << e << std::endl;
       tagNames.push_back(e);
-      e = strtok(0, sep2);
+      e = strtok(0, "=");
       if (e != NULL) {
         if (debug) std::cout << "get_file_options:     val=" << e << std::endl;
         // We have a value
