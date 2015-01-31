@@ -305,7 +305,7 @@ reported error messages get overwritten and they will no longer be available to 
 
  \subsection dgfivetwo 5.2. Enhanced Error Handling Model
 
-The error handling model of PETSc (http://www.mcs.anl.gov/petsc/) has nice support of stack trace, and our design has
+The error handling model of PETSc (http://www.mcs.anl.gov/petsc/) has nice support for stack trace, and our design has
 borrowed many ideas from that. The new features of the enhanced model include:
 - Lightweight and easy to use with a macro-based interface
 - Generate a stack trace starting from the first non-success error
@@ -325,7 +325,9 @@ handling is in src/ErrorHandler.cpp.
 \subsection dgfivethree 5.3. Error Handler
 
 The error handling function MBError() only calls one default error handler, MBTraceBackErrorHandler(), which tries to print
-out a stack trace. Other kind of error handlers (e.g. attach debugger handler) might be supported in the future.
+out a stack trace. In the future, we need to provide a callback function to user routine before a complete abort. Something
+like a UserTeardown that is a function pointer with a context so that the user can destroy and free essential handles before
+an MPI abort.
 
 The arguments to MBTraceBackErrorHandler() are the line number where the error occurred, the function where error was detected,
 the file in which the error was detected, the source directory, the error message, and the error type indicating whether the

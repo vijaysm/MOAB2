@@ -1173,7 +1173,7 @@ ErrorCode Coupler::get_matching_entities(EntityHandle                           
   ERRORR("Core::get_entities_by_type_and_tag failed.", err);
 
   TupleList *tag_list = NULL;
-  err = create_tuples(ent_sets, ent_sets.size(), tag_handles, num_tags, &tag_list);
+  err = create_tuples(ent_sets, tag_handles, num_tags, &tag_list);
   ERRORR("Failed to create tuples from entity sets.", err);
 
   // Free up range
@@ -1343,7 +1343,6 @@ ErrorCode Coupler::get_matching_entities(EntityHandle                           
 // The tuple_list will have a column for each tag and a row for each
 // Entity Set. It is assumed all of the tags are integer tags.
 ErrorCode Coupler::create_tuples(Range        &ent_sets,
-                                 unsigned int num_sets, 
                                  const char   **tag_names,
                                  unsigned int num_tags,
                                  TupleList    **tuple_list)
@@ -1359,14 +1358,13 @@ ErrorCode Coupler::create_tuples(Range        &ent_sets,
     tag_handles.push_back(th);
   }
 
-  return create_tuples(ent_sets, num_sets, &tag_handles[0], num_tags, tuple_list);
+  return create_tuples(ent_sets, &tag_handles[0], num_tags, tuple_list);
 }
 
 // Return a tuple_list containing  tag values for each Entity Set
 // The tuple_list will have a column for each tag and a row for each
 // Entity Set.  It is assumed all of the tags are integer tags.
 ErrorCode Coupler::create_tuples(Range        &ent_sets,
-                                 unsigned int num_sets, 
                                  Tag          *tag_handles,
                                  unsigned int num_tags,
                                  TupleList    **tuples)
@@ -1375,7 +1373,7 @@ ErrorCode Coupler::create_tuples(Range        &ent_sets,
   ErrorCode err;
 
   // Allocate a tuple_list for the number of entity sets passed in
-  TupleList *tag_tuples = new TupleList(num_tags, 0, 0, 0, num_sets);
+  TupleList *tag_tuples = new TupleList(num_tags, 0, 0, 0, (int)ent_sets.size());
   //tag_tuples->initialize(num_tags, 0, 0, 0, num_sets);
   uint mi, ml, mul, mr;
   tag_tuples->getTupleSize(mi, ml, mul, mr);
@@ -1386,7 +1384,7 @@ ErrorCode Coupler::create_tuples(Range        &ent_sets,
 
   // Loop over the filtered entity sets retrieving each matching tag value one by one.
   int val;
-  for (unsigned int i = 0; i < num_sets; i++) {
+  for (unsigned int i = 0; i < ent_sets.size(); i++) {
     for (unsigned int j = 0; j < num_tags; j++) {
       EntityHandle set_handle = ent_sets[i];
       err = mbImpl->tag_get_data(tag_handles[j], &set_handle, 1, &val);

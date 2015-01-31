@@ -2,8 +2,6 @@
 #include "moab/CpuTimer.hpp"
 #include "DataCoupler.hpp"
 #include "ElemUtil.hpp"
-#include "iMesh.h"
-#include "MBiMesh.hpp"
 
 #include <iostream>
 #include <iomanip>
@@ -27,16 +25,6 @@ std::string TestDir(STRINGIFY(MESHDIR));
 
 #define PRINT_LAST_ERROR \
   if (MB_SUCCESS != result) { \
-    std::string tmp_str; \
-    std::cout << "Failure; message:" << std::endl; \
-    mbImpl->get_last_error(tmp_str); \
-    std::cout << tmp_str << std::endl; \
-    MPI_Abort(MPI_COMM_WORLD, result); \
-    return result; \
-  }
-
-#define PRINT_LAST_ERR \
-  if (iBase_SUCCESS != err) { \
     std::string tmp_str; \
     std::cout << "Failure; message:" << std::endl; \
     mbImpl->get_last_error(tmp_str); \
@@ -110,7 +98,6 @@ ErrorCode test_interpolation(Interface *mbImpl,
                              std::string &ssNormTag,
                              std::vector<const char*> &ssTagNames,
                              std::vector<const char*> &ssTagValues,
-                             iBase_EntitySetHandle *roots,
                              std::vector<ParallelComm*> &pcs,
                              double &instant_time,
                              double &pointloc_time,
@@ -181,13 +168,10 @@ int main(int argc, char **argv)
   if (NULL == mbImpl)
     return 1;
 
-  iMesh_Instance iMeshInst = reinterpret_cast<iMesh_Instance>(new MBiMesh(mbImpl));
-
   // Read in mesh(es)
 
-  // Create root sets for each mesh using the iMesh API. Then pass these
-  // to the load_file functions to be populated.
-  iBase_EntitySetHandle *roots = (iBase_EntitySetHandle*)malloc(sizeof(iBase_EntitySetHandle) * meshFiles.size());
+  // Create root sets for each mesh using moab
+  std::vector<EntityHandle> roots( meshFiles.size());
 
   for (unsigned int i = 0; i < meshFiles.size(); i++) {
     std::string newReadopts;
@@ -199,8 +183,9 @@ int main(int argc, char **argv)
     newReadopts = readOpts+extraOpt.str();
 #endif
 
-    iMesh_createEntSet(iMeshInst, 0, &(roots[i]), &err);
-    result = mbImpl->load_file(meshFiles[i].c_str(), (EntityHandle*)&roots[i], newReadopts.c_str());
+    result = mbImpl->create_meshset(MESHSET_SET, roots[i]);
+    PRINT_LAST_ERROR;
+    result = mbImpl->load_file(meshFiles[i].c_str(), &roots[i], newReadopts.c_str());
     PRINT_LAST_ERROR;
   }
 
@@ -213,7 +198,7 @@ int main(int argc, char **argv)
   // Test interpolation and global normalization and subset normalization
 
   result = test_interpolation(mbImpl, method, interpTag, gNormTag, ssNormTag,
-                              ssTagNames, ssTagValues, roots, pcs,
+                              ssTagNames, ssTagValues, pcs,
                               instant_time, pointloc_time, interp_time,
                               gnorm_time, ssnorm_time, toler);
   PRINT_LAST_ERROR;
@@ -549,7 +534,6 @@ ErrorCode test_interpolation(Interface *mbImpl,
                              std::string &/* ssNormTag */,
                              std::vector<const char*> &/* ssTagNames */,
                              std::vector<const char*> &/* ssTagValues */,
-                             iBase_EntitySetHandle */* roots */,
                              std::vector<ParallelComm*> &pcs,
                              double &instant_time,
                              double &pointloc_time,
@@ -583,8 +567,6 @@ ErrorCode test_interpolation(Interface *mbImpl,
   int numPointsOfInterest = 0;
 #ifdef USE_MPI
   result = pcs[1]->get_part_entities(targ_elems, 3);
-#else
-  result = mbImpl->get_entities_by_dimension((EntityHandle)roots[1], 3);
 #endif
   PRINT_LAST_ERROR;
 
@@ -627,48 +609,6 @@ ErrorCode test_interpolation(Interface *mbImpl,
 
   interp_time = timer.time_elapsed();
 
-/*
-  // Do global normalization if specified
-  if (!gNormTag.empty()) {
-    int err;
-
-    // Normalize the source mesh
-    err = dc.normalize_mesh(roots[0], gNormTag.c_str(), DataCoupler::VOLUME, 4);
-    PRINT_LAST_ERR;
-
-    // Normalize the target mesh
-    err = dc.normalize_mesh(roots[1], gNormTag.c_str(), DataCoupler::VOLUME, 4);
-    PRINT_LAST_ERR;
-  }
-
-  gnorm_time = timer.time_elapsed();
-
-  // Do subset normalization if specified
-
-  if (!ssNormTag.empty()) {
-    int err;
-
-    err = dc.normalize_subset(roots[0],
-                              ssNormTag.c_str(),
-                              &ssTagNames[0],
-                              ssTagNames.size(),
-                              &ssTagValues[0],
-                              DataCoupler::VOLUME,
-                              4);
-    PRINT_LAST_ERR;
-
-    err = dc.normalize_subset(roots[1],
-                              ssNormTag.c_str(),
-                              &ssTagNames[0],
-                              ssTagNames.size(),
-                              &ssTagValues[0],
-                              DataCoupler::VOLUME,
-                              4);
-    PRINT_LAST_ERR;
-  }
-
-  ssnorm_time = timer.time_elapsed();
-*/
   // Set field values as tag on target vertices
   // Use original tag
   Tag tag;

@@ -338,7 +338,6 @@ public:
      * \param tuples The returned tuple_list structure
      */
   ErrorCode create_tuples( Range         &ent_sets,
-                           unsigned int  num_sets, 
                            const char    **tag_names, 
                            unsigned int  num_tags,
                            TupleList     **tuples);
@@ -355,7 +354,6 @@ public:
      * \param tuples The returned tuple_list structure
      */
   ErrorCode create_tuples( Range         &ent_sets,
-                           unsigned int  num_sets, 
                            Tag           *tag_handles,
                            unsigned int  num_tags,
                            TupleList     **tuples);
