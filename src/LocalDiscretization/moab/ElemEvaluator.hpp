@@ -371,7 +371,7 @@ namespace moab {
         int sz;
         rval = mbImpl->tag_get_bytes(tag, sz);
         if (MB_SUCCESS != rval) return rval;
-        tagSpace.reserve(CN::MAX_NODES_PER_ELEMENT*sz);
+        tagSpace.resize(CN::MAX_NODES_PER_ELEMENT*sz);
         tagCoords = false;
       }
 

@@ -3,7 +3,7 @@
  * storing and accessing finite element mesh data.
  * 
  * Copyright 2004 Sandia Corporation.  Under the terms of Contract
- * DE-AC04-94AL85000 with Sandia Coroporation, the U.S. Government
+ * DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government
  * retains certain rights in this software.
  * 
  * This library is free software; you can redistribute it and/or
@@ -539,7 +539,7 @@ ErrorCode AEntityFactory::get_adjacencies(EntityHandle entity,
   }
   
   num_entities = vec_ptr->size();
-  adjacent_entities = &((*vec_ptr)[0]);
+  adjacent_entities = (vec_ptr->empty())?NULL:&((*vec_ptr)[0]);
   return MB_SUCCESS;
 }
 

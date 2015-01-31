@@ -1,13 +1,11 @@
 /** @example HelloParMOAB.cpp \n
  * \brief Read mesh into MOAB and resolve/exchange/report shared and ghosted entities \n
- * <b>To run</b>: mpiexec -np 4 HelloMoabPar [filename]\n
+ * <b>To run</b>: mpiexec -np 4 HelloParMOAB [filename]\n
  *
  *  It shows how to load the mesh independently, on multiple
  *  communicators (with second argument, the number of comms)
  *
- *
- *
- *  mpiexec -np 8 HelloMoabPar [filename] [nbComms]
+ *  mpiexec -np 8 HelloParMOAB [filename] [nbComms]
  */
 
 #include "moab/ParallelComm.hpp"
@@ -27,8 +25,8 @@ int main(int argc, char **argv)
   string options;
 
   // Need option handling here for input filename
-  if (argc > 1){
-    // user has input a mesh file
+  if (argc > 1) {
+    // User has input a mesh file
     test_file_name = argv[1];
   }  
 
@@ -38,65 +36,52 @@ int main(int argc, char **argv)
 
   options = "PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS";
 
-  // Get MOAB instance and read the file with the specified options
-  Interface* mb = new Core;
+  // Get MOAB instance
+  Interface* mb = new (std::nothrow) Core;
   if (NULL == mb)
     return 1;
 
-  MPI_Comm comm ;
+  MPI_Comm comm;
   int global_rank, global_size;
-  MPI_Comm_rank( MPI_COMM_WORLD, &global_rank );
-  MPI_Comm_rank( MPI_COMM_WORLD, &global_size );
+  MPI_Comm_rank(MPI_COMM_WORLD, &global_rank);
+  MPI_Comm_rank(MPI_COMM_WORLD, &global_size);
 
-  int color = global_rank%nbComms; // for each angle group a different color
-  if (nbComms>1)
-  {
-    // split the communicator, into ngroups = nbComms
-    MPI_Comm_split( MPI_COMM_WORLD, color, global_rank, &comm );
+  int color = global_rank % nbComms; // For each angle group a different color
+  if (nbComms > 1) {
+    // Split the communicator, into ngroups = nbComms
+    MPI_Comm_split(MPI_COMM_WORLD, color, global_rank, &comm);
   }
   else
-  {
     comm = MPI_COMM_WORLD;
-  }
+
   // Get the ParallelComm instance
   ParallelComm* pcomm = new ParallelComm(mb, comm);
   int nprocs = pcomm->proc_config().proc_size();
   int rank = pcomm->proc_config().proc_rank();
   MPI_Comm rcomm = pcomm->proc_config().proc_comm();
-  assert(rcomm==comm);
-  if (global_rank == 0)
-    cout<< " global rank:" <<global_rank << " color:" << color << " rank:" << rank << " of " << nprocs << " processors\n";
+  assert(rcomm == comm);
+  if (0 == global_rank)
+    cout << " global rank:" << global_rank << " color:" << color << " rank:" << rank << " of " << nprocs << " processors\n";
 
-  if (global_rank == 1)
-    cout<< " global rank:" <<global_rank << " color:" << color << " rank:" << rank << " of " << nprocs << " processors\n";
+  if (1 == global_rank)
+    cout << " global rank:" << global_rank << " color:" << color << " rank:" << rank << " of " << nprocs << " processors\n";
 
   MPI_Barrier(MPI_COMM_WORLD);
 
-  if (global_rank == 0)
-    cout << "Reading file " << test_file_name << "\n  with options: " << options << endl
-         << " on " << nprocs << " processors on " << nbComms << " communicator(s) \n";
+  if (0 == global_rank)
+    cout << "Reading file " << test_file_name << "\n with options: " << options <<
+         "\n on " << nprocs << " processors on " << nbComms << " communicator(s)\n";
 
-  ErrorCode rval = mb->load_file(test_file_name.c_str(), 0, options.c_str());
-  if (rval != MB_SUCCESS) {
-    delete mb;
-    return 1;
-  }
+  // Read the file with the specified options
+  ErrorCode rval = mb->load_file(test_file_name.c_str(), 0, options.c_str());MB_CHK_ERR(rval);
 
   Range shared_ents;
   // Get entities shared with all other processors
-  rval = pcomm->get_shared_entities(-1, shared_ents);
-  if (rval != MB_SUCCESS) {
-    delete mb;
-    return 1;
-  }
+  rval = pcomm->get_shared_entities(-1, shared_ents);MB_CHK_ERR(rval);
 
   // Filter shared entities with not not_owned, which means owned
   Range owned_entities;
-  rval = pcomm->filter_pstatus(shared_ents, PSTATUS_NOT_OWNED, PSTATUS_NOT, -1, &owned_entities);
-  if (rval != MB_SUCCESS) {
-    delete mb;
-    return 1;
-  }
+  rval = pcomm->filter_pstatus(shared_ents, PSTATUS_NOT_OWNED, PSTATUS_NOT, -1, &owned_entities);MB_CHK_ERR(rval);
 
   unsigned int nums[4] = {0}; // to store the owned entities per dimension
   for (int i = 0; i < 4; i++)
@@ -104,7 +89,7 @@ int main(int argc, char **argv)
   vector<int> rbuf(nprocs*4, 0);
   MPI_Gather(nums, 4, MPI_INT, &rbuf[0], 4, MPI_INT, 0, comm);
   // Print the stats gathered:
-  if (global_rank == 0) {
+  if (0 == global_rank) {
     for (int i = 0; i < nprocs; i++)
       cout << " Shared, owned entities on proc " << i << ": " << rbuf[4*i] << " verts, " <<
           rbuf[4*i + 1] << " edges, " << rbuf[4*i + 2] << " faces, " << rbuf[4*i + 3] << " elements" << endl;
@@ -112,37 +97,25 @@ int main(int argc, char **argv)
 
   // Now exchange 1 layer of ghost elements, using vertices as bridge
   // (we could have done this as part of reading process, using the PARALLEL_GHOSTS read option)
-  rval = pcomm->exchange_ghost_cells(3, // int ghost_dim,
-                                     0, // int bridge_dim,
-                                     1, //int num_layers,
-                                     0, //int addl_ents,
-                                     true); // bool store_remote_handles);
-  if (rval != MB_SUCCESS) {
-    delete mb;
-    return 1;
-  }
+  rval = pcomm->exchange_ghost_cells(3, // int ghost_dim
+                                     0, // int bridge_dim
+                                     1, // int num_layers
+                                     0, // int addl_ents
+                                     true);MB_CHK_ERR(rval); // bool store_remote_handles
 
   // Repeat the reports, after ghost exchange
   shared_ents.clear();
   owned_entities.clear();
-  rval = pcomm->get_shared_entities(-1, shared_ents);
-  if (rval != MB_SUCCESS) {
-    delete mb;
-    return 1;
-  }
-  rval = pcomm->filter_pstatus(shared_ents, PSTATUS_NOT_OWNED, PSTATUS_NOT, -1, &owned_entities);
-  if (rval != MB_SUCCESS) {
-    delete mb;
-    return 1;
-  }
+  rval = pcomm->get_shared_entities(-1, shared_ents);MB_CHK_ERR(rval);
+  rval = pcomm->filter_pstatus(shared_ents, PSTATUS_NOT_OWNED, PSTATUS_NOT, -1, &owned_entities);MB_CHK_ERR(rval);
 
-  // find out how many shared entities of each dimension are owned on this processor
+  // Find out how many shared entities of each dimension are owned on this processor
   for (int i = 0; i < 4; i++)
     nums[i] = (int)owned_entities.num_of_dimension(i);
 
-  // gather the statistics on processor 0
+  // Gather the statistics on processor 0
   MPI_Gather(nums, 4, MPI_INT, &rbuf[0], 4, MPI_INT, 0, comm);
-  if (global_rank == 0) {
+  if (0 == global_rank) {
     cout << " \n\n After exchanging one ghost layer: \n";
     for (int i = 0; i < nprocs; i++) {
       cout << " Shared, owned entities on proc " << i << ": " << rbuf[4*i] << " verts, " <<

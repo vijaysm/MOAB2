@@ -3,7 +3,7 @@
  * storing and accessing finite element mesh data.
  * 
  * Copyright 2004 Sandia Corporation.  Under the terms of Contract
- * DE-AC04-94AL85000 with Sandia Coroporation, the U.S. Government
+ * DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government
  * retains certain rights in this software.
  * 
  * This library is free software; you can redistribute it and/or
@@ -19,6 +19,8 @@
 // Different platforms follow different conventions for usage
 #if !defined(_MSC_VER) && !defined(__MINGW32__)
 #include <sys/resource.h>
+#else
+#include <time.h>
 #endif
 #ifdef SOLARIS
 extern "C" int getrusage(int, struct rusage *);

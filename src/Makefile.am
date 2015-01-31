@@ -1,16 +1,21 @@
+# Don't require GNU-standard files (Changelog, README, etc.)
+AUTOMAKE_OPTIONS = foreign subdir-objects
+
 # Things to build
 lib_LTLIBRARIES = libMOAB.la 
 
 # Subdirectories to build
-SUBDIRS = 
-libMOAB_la_LIBADD = 
+SUBDIRS =
+libMOAB_la_LIBADD =
 if PARALLEL
   SUBDIRS += parallel
   libMOAB_la_LIBADD += parallel/libMOABpar.la
   AM_CPPFLAGS += -I$(srcdir)/parallel
 endif
-SUBDIRS += io LocalDiscretization .
-libMOAB_la_LIBADD += io/libmoabio.la LocalDiscretization/libLocalDiscretization.la
+
+SUBDIRS += io LocalDiscretization verdict RefineMesh .
+libMOAB_la_LIBADD += io/libmoabio.la LocalDiscretization/libLocalDiscretization.la verdict/libmoabverdict.la RefineMesh/libRefineMesh.la
+
 if OLD_HEADERS
   SUBDIRS += oldinc
 endif
@@ -19,11 +24,14 @@ BUILT_SOURCES = MBCN_protos.h
 
 # Some variables
 AM_CPPFLAGS += -DIS_BUILDING_MB \
+               -DLOCDIR=src/ \
                -I. \
                -I$(srcdir)/io \
                -I$(srcdir)/io/mhdf/include \
                -I$(srcdir)/parallel \
-               -I$(srcdir)/LocalDiscretization
+               -I$(srcdir)/LocalDiscretization \
+               -I$(srcdir)/verdict \
+               -I$(srcdir)/RefineMesh
 
 # The directory in which to install headers
 libMOAB_la_includedir = $(includedir)
@@ -56,6 +64,9 @@ libMOAB_la_SOURCES = \
   ElementSequence.hpp \
   EntitySequence.cpp \
   EntitySequence.hpp \
+  ErrorHandler.cpp \
+  ErrorOutput.cpp \
+  ErrorOutput.hpp \
   Factory.cpp \
   FBEngine.cpp \
   FileOptions.cpp \
@@ -163,6 +174,7 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/HomXform.hpp \
   moab/EntityType.hpp \
   moab/EntityHandle.hpp \
+  moab/ErrorHandler.hpp \
   moab/FBEngine.hpp \
   moab/FileOptions.hpp \
   moab/FindPtFuncs.h \
@@ -212,13 +224,13 @@ nobase_libMOAB_la_include_HEADERS = \
   MBCN_protos.h \
   MBTagConventions.hpp
 
-if ENABLE_mbzoltan
-  libMOAB_la_SOURCES += $(srcdir)/../tools/mbzoltan/MBZoltan.cpp
-  nobase_libMOAB_la_include_HEADERS += $(srcdir)/../tools/mbzoltan/MBZoltan.hpp
+if ENABLE_mbpart
+  libMOAB_la_SOURCES += ZoltanPartitioner.cpp
+  nobase_libMOAB_la_include_HEADERS += moab/ZoltanPartitioner.hpp
   AM_CPPFLAGS += $(ZOLTAN_INC_FLAGS)
   # not sure yet if this is needed; will see when linking io reader (MPAS so far)
-  # the tool mbpart needed it, and it just includes MBZoltan.hpp; so it needs ways to find 
-  # the libraries zoltan depends on
+  # the tool mbpart needed it, and it just includes ZoltanPartitioner.hpp; 
+  # so it needs ways to find the libraries zoltan depends on
   libMOAB_la_LIBADD += $(ZOLTAN_LIBS) $(ZOLTAN_LIB_FLAGS)
 endif
 

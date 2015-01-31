@@ -15,6 +15,7 @@ EXTRA_DIST  = 125hex.g \
               cell2.gen.gz \
               mb_big_test.g.gz \
               mbtest1.g \
+              mbtest1.vtk \
               mbtest2.g \
               mbtest3.g \
               test.g \
@@ -37,5 +38,11 @@ EXTRA_DIST  = 125hex.g \
               Homme_2pt.h5m \
               surfrandomtris-4part.h5m \
 	      hexes_mixed.vtk \
-	      32hex_ef.h5m 
+	      32hex_ef.h5m \
+              brick1.vtk \
+	      brick2.vtk \
+	      hex_2048.h5m \
+	      hex_2048.vtk \
+	      quad_1000.h5m \
+	      quad_1000.vtk
 

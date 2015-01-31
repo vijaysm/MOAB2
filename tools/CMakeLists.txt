@@ -1,20 +1,20 @@
 # Documentation
 # Optional tools
-option ( MOAB_BUILD_MBCONVERT    "Build the MOAB mesh converter tool?"  ON )
-option ( MOAB_BUILD_HEXMODOPS    "Build the hexahedral modops tool?"    ON )
-option ( MOAB_BUILD_MBCHACO      "Build MOAB Chaco interface?"          OFF )
-option ( MOAB_BUILD_QVDUAL       "Build the qvdual application?"        OFF )
-option ( MOAB_BUILD_MBSIZE       "Build the mbsize tool?"               ON )
-option ( MOAB_BUILD_MBMEM        "Build the mbmem tool?"                ON )
-option ( MOAB_BUILD_MBSKIN       "Build the mbskin tool?"               ON )
-option ( MOAB_BUILD_MBDEPTH      "Build the mbdepth tool?"              ON )
-option ( MOAB_BUILD_MBTAGPROP    "Build the mbtagprop tool?"            ON )
-option ( MOAB_BUILD_MBGSETS      "Build the mbgsets tool?"              ON )
-option ( MOAB_BUILD_SPHEREDECOMP "Build the sphere decomposition tool?" ON )
-option ( MOAB_BUILD_MBSURFPLOT   "Build the mbsurfplot application?"    ON )
-option ( MOAB_BUILD_MBZOLTAN     "Build the mbzoltan partitioner?"      OFF )
-option ( MOAB_BUILD_DAGMC        "Build the dagmc tool?"                ON )
-option ( MOAB_BUILD_MBCOUPLER    "Build the mesh coupler tool?"         ON )
+option ( MOAB_BUILD_MBCONVERT    "Build the MOAB mesh converter tool?"           ON )
+option ( MOAB_BUILD_HEXMODOPS    "Build the hexahedral modops tool?"             ON )
+option ( MOAB_BUILD_MBCHACO      "Build MOAB Chaco interface?"                  OFF )
+option ( MOAB_BUILD_QVDUAL       "Build the qvdual application?"                OFF )
+option ( MOAB_BUILD_MBSIZE       "Build the mbsize tool?"                        ON )
+option ( MOAB_BUILD_MBMEM        "Build the mbmem tool?"                         ON )
+option ( MOAB_BUILD_MBSKIN       "Build the mbskin tool?"                        ON )
+option ( MOAB_BUILD_MBDEPTH      "Build the mbdepth tool?"                       ON )
+option ( MOAB_BUILD_MBTAGPROP    "Build the mbtagprop tool?"                     ON )
+option ( MOAB_BUILD_MBGSETS      "Build the mbgsets tool?"                       ON )
+option ( MOAB_BUILD_SPHEREDECOMP "Build the sphere decomposition tool?"          ON )
+option ( MOAB_BUILD_MBSURFPLOT   "Build the mbsurfplot application?"             ON )
+option ( MOAB_BUILD_MBPART       "Build the mbpart (Zoltan-based) partitioner?" OFF )
+option ( MOAB_BUILD_DAGMC        "Build the dagmc tool?"                         ON )
+option ( MOAB_BUILD_MBCOUPLER    "Build the mesh coupler tool?"                  ON )
 
 if ( MOAB_USE_MPI AND MPI_FOUND )
   add_subdirectory( refiner )
@@ -109,17 +109,21 @@ if ( MOAB_BUILD_MBGSETS )
                           ARCHIVE DESTINATION lib )
 endif( )
 
-# CGM
+# CGM + DagMC
 if ( MOAB_BUILD_DAGMC )
   add_subdirectory( dagmc )
 endif( )
 
 # Zoltan
-if ( MOAB_BUILD_MBZOLTAN )
-  add_subdirectory( mbzoltan )
-endif( )
-
-# Chaco
+if ( MOAB_BUILD_MBPART AND MOAB_USE_ZOLTAN )
+  # Build the mbpart executable
+  add_executable( mbpart mbpart.cc )
+  set_source_files_properties( mbpart.cc COMPILE_FLAGS "${MOAB_DEFINES}" )
+  target_link_libraries( mbpart MOAB ${Zoltan_LIBRARIES} )
+  install(TARGETS mbpart  RUNTIME DESTINATION bin
+                          LIBRARY DESTINATION lib
+                          ARCHIVE DESTINATION lib )
+endif( MOAB_BUILD_MBPART AND MOAB_USE_ZOLTAN )
 
 # QVDual
 if ( MOAB_BUILD_QVDUAL )

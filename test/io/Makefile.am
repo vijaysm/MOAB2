@@ -1,6 +1,9 @@
+# Don't require GNU-standard files (Changelog, README, etc.)
+AUTOMAKE_OPTIONS = foreign no-dependencies
+
 LDADD = $(top_builddir)/src/libMOAB.la
 
-MESHDIR = $(top_srcdir)/MeshFiles/unittest
+MESHDIR = $(abs_top_srcdir)/MeshFiles/unittest
 
 AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
                -DMESHDIR=$(MESHDIR) \
@@ -54,8 +57,7 @@ TESTS = readutil_test \
 
 check_PROGRAMS = $(TESTS)
 
-tqdcfr_SOURCES = $(top_srcdir)/src/io/Tqdcfr.cpp
-tqdcfr_CXXFLAGS = -DTEST_TQDCFR $(CXXFLAGS)
+tqdcfr_SOURCES = tqdcfr_test.cpp
 
 #test_rms_SOURCES = test_rms.cpp
 #test_exo_SOURCES = test_exo.cpp

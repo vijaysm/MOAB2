@@ -67,6 +67,8 @@
 
     \ref fourseven
 
+    \ref foureight
+
   \ref parallel      
 
     \ref fiveone    
@@ -92,6 +94,8 @@
     \ref ninethree      
 
   \ref performance   
+
+  \ref error-handling
 
   \ref conclusions    
 
@@ -641,6 +645,119 @@ TODO:: Other features to be added
   - obtain ring neighborhoods with support for half-rings
   - efficient extraction of boundaries
 
+  \ref contents
+
+  \subsection foureight 4.8. Uniform Mesh Refinement
+  Many applications require a hierarchy of successively refined meshes for a number of purposes such as convergence studies, to use multilevel methods like multigrid, generate large meshes in parallel computing to support increasing mesh sizes with increase in number of processors, etc. Uniform mesh refinement provides a simple and efficient way to generate such hierarchies via successive refinement of the mesh at a previous level. It also provides a natural hierarchy via parent and child type of relationship between entities of meshes at different levels. Generally, the standard nested refinement patterns used are the subdivision schemes from 1 to 4 for 2D (triangles, quads) and 1 to 8 for 3D (tets, hexes) entity types. However, many applications might require degree 3 or more for p-refinements.
+
+ MOAB supports generation of a mesh hierarchy i.e., a sequence of meshes with user specified degrees for each level of refinement, from an initial unstructured mesh with support for higher degrees of refinement (supported degrees are listed later).  Thus MOAB supports multi-degree and multi-level mesh generation via uniform refinement. The following figure shows the initial and most refined mesh for four simple meshes to illustrate the multi-degree capability.
+
+  \image html uref_allEtype.png "Uniform Refinement of 2D and 3D meshes"
+
+  Applications using mesh hierarchies require two types of mesh access: intralevel and interlevel. The intralevel access involves working with the mesh at a particular level whereas interlevel access involves querying across different levels. In order to achieve data locality with reduced cache misses for efficient intralevel mesh access, old vertices in the previous i.e. immediate parent mesh are duplicated in the current level. All the entities thus created for the current level use the new entityhandles of old vertices along with the handles of the new vertices. This design makes mesh at each level of the hierarchy independent of those at previous levels. For each mesh in the hierarchy, a MESHSET is created and all entities of the mesh are added to this MESHSET. Thus the meshes of the hierarchy are accessible via these level-wise MESHSET handles.
+
+ For interlevel queries, separate interface functions are defined to allow queries across different levels. These queries mainly allow obtaining the parent at some specified parent level for a child from later levels and vice versa. The child-parent queries are not restricted to a level difference of one as the internal array-based layout of the memory allows traversing between different levels via index relations.
+
+ The hierarchy generation capability is implemented in NestedRefine class. In Table 4, the user interface functions are briefly described. The main hierarchy generating function takes as input a sequence of refinement degrees to be used for generating mesh at each level from the previous level, the total number of levels in the hierarchy. It returns EntityHandles for the meshsets created for the mesh at each level. The number of levels in the hierarchy is prefixed (by the user) and cannot change during hierarchy generation. An example of how to generate a hierarchy can be found  under examples/UniformRefinement.cpp.
+
+ The next three functions for getting the coordinates, connectivity and adjacencies are standard operations to access and query a mesh. The coordinates and connectivity functions, which are similar to their counterparts in MOAB Interface class, allows one to query the mesh at a specific level via its level index. The reason to provide such similar functions is to increase computational efficiency by utilizing the direct access to memory pointers to EntitySequences created during hierarchy generation under the NestedRefine class instead of calling the standard interfaces where a series of calls have to made before the EntitySequence of the requested entity is located. It is important to note that any calls to the standard interfaces available under Interface class should work.
+
+ The underlying mesh data structure used for uniform refinement is the AHF datastructure implemented in HalfFacetRep class. This direct dependence on HalfFacetRep class removes the necessity to configure MOAB with --enable-ahf flag in order to use the uniform refinement capability. During the creation of an object of the NestedRefine class, it will internally initialize all the relevant AHF maps for the mesh in memory. During mesh hierarchy generation, after the creation of mesh at each level all the relevant AHF maps are updated to allow query over it.
+
+ For interlevel queries, currently three kinds of queries are supported. The child to parent function allows querying for a parent in any of the previous levels (including the initial mesh). The parent to child, on the other hand, returns all its children from a requested child level. These two types of queries are only supported for entities, not vertices. A separate vertex to entities function is provided which returns entities from the previous level that are either incident or contain this vertex.
+
+  \subsection tablefour Table 4: User interface functions NestedRefine class.
+
+<table border="1">
+<tr>
+<th>Function group</th>
+<th>Function</th>
+<th>Description</th>
+</tr>
+<tr>
+<td>Hierarchy generation</td>
+<td>generate_mesh_hierarchy</td>
+<td>Generate a mesh hierarchy with a given sequence of refinement degree for each level. </td>
+</tr>
+<tr>
+<td>Vertex coordinates</td>
+<td>get_coordinates</td>
+<td>Get vertex coordinates</td>
+</tr>
+<tr>
+<td>Connectivity</td>
+<td>get_connectivity</td>
+<td>Get connectivity of non-vertex entities</td>
+</tr>
+<tr>
+<td>Adjacencies</td>
+<td>get_adjacencies</td>
+<td>Get topologically adjacent entities</td>
+</tr>
+<tr>
+<td>Interlevel Queries</td>
+<td>child_to_parent</td>
+<td>Get the parent entity of a child from a specified parent level</td>
+</tr>
+<tr>
+<td>Interlevel Queries</td>
+<td>parent_to_child</td>
+<td>Get all children of the parent from a specified child level</td>
+</tr>
+<tr>
+<td>Interlevel Queries</td>
+<td>vertex_to_entities</td>
+<td>Get all the entities in the previous level incident on or containing the vertex</td>
+</tr>
+</table>
+
+  \subsection tablefive Table 5: The refinement degrees currently supported.
+
+<table border="1">
+<tr>
+<th>Mesh Dimension</th>
+<th>EntityTypes</th>
+<th>Degree</th>
+<th>Number of children</th>
+</tr>
+<tr>
+<td>1</td>
+<td>MBEDGE</td>
+<td>2, 3, 5</td>
+<td>2, 3, 5 </td>
+</tr>
+<tr>
+<td>2</td>
+<td>MBTRI, MBQUAD</td>
+<td>2, 3, 5</td>
+<td>4, 9, 25 </td>
+</tr>
+<tr>
+<td>3</td>
+<td>MBTET, MBHEX</td>
+<td>2, 3</td>
+<td>8, 27 </td>
+</tr>
+</table>
+
+
+In Table 5, the currently supported degrees of refinement for each dimension is listed along with the number of children created for each such degree for a single entity. The following figure shows the cpu times(serial run) for generating hierarchies with various degrees of refinement for each dimension and can be used by the user to guide in choosing the degrees of refinement for the hierarchy. For example, if a multilevel hierarchy is required, a degree 2 refinement per level would give a gradually increasing mesh with more number of levels. If a very refined mesh is desired quickly, then a small hierarchy with high-order refinement should be generated.
+
+\image html uref_timeEtype.png "Mesh sizes Vs. Time"
+
+
+  Current support:
+  - Single dimension(i.e, no curves in surface meshes or curves/surfaces in volume meshes)
+  - Linear point projection
+  - Serial
+
+  TODO:
+   - Mixed-dimensional meshes
+   - Mixed-entity types
+   - High-Order point projection
+   - Parallel
+
+
  \ref contents
 
   \section parallel 5.Parallel Mesh Representation and Query
@@ -667,9 +784,9 @@ Before discussing how to access parallel aspects of a mesh, several terms need t
 
 <B>Ghost entity:</B> A shared, non-interface, non-owned entity.
 
-<B>Parallel status:</B> A characteristic of entities and sets represented in parallel. The parallel status, or “pstatus”, is represented by a bit field stored in an unsigned character, with bit values as described in Table 4.
+<B>Parallel status:</B> A characteristic of entities and sets represented in parallel. The parallel status, or “pstatus”, is represented by a bit field stored in an unsigned character, with bit values as described in Table 6.
 
-  \subsection tablefour Table 4: Bits representing various parallel characteristics of a mesh.  Also listed are enumerated values that can be used in bitmask expressions; these enumerated variables are declared in MBParallelConventions.h.
+  \subsection tablesix Table 6: Bits representing various parallel characteristics of a mesh.  Also listed are enumerated values that can be used in bitmask expressions; these enumerated variables are declared in MBParallelConventions.h.
 
 <table border="1">
 <tr>
@@ -737,8 +854,8 @@ The READ_DELETE and BCAST_DELETE methods are supported for all file types MOAB i
 
 Various other options control the selection of part sets or other details of the parallel read process.  For example, the application can specify the tags, and optionally tag values, which identify parts, and whether those parts should be distributed according to tag value or using round-robin assignment.
 
-The options used to specify loading method, the data used to identify parts, and other parameters controlling the parallel read process, are shown in Table 5.  
-  \subsection tablefive Table 5: Options passed to MOAB’s load_file function identifying the partition and other parameters controlling the parallel read of mesh data.  Options and values should appear in option string as “option=val”, with a delimiter (usually “;”) between options.
+The options used to specify loading method, the data used to identify parts, and other parameters controlling the parallel read process, are shown in Table 7.
+  \subsection tableseven Table 7: Options passed to MOAB’s load_file function identifying the partition and other parameters controlling the parallel read of mesh data.  Options and values should appear in option string as “option=val”, with a delimiter (usually “;”) between options.
 
 <table border="1">
 <tr>
@@ -1005,7 +1122,48 @@ This test can be run on your system to determine the runtime and memory performa
 
   \ref contents
 
-  \section conclusions 11.Conclusions and Future Plans
+  \section error-handling 11.Error Handling
+
+Errors are handled through the routine MBError(). This routine calls MBTraceBackErrorHandler(), the default error handler which tries to print a traceback.
+
+The arguments to MBTraceBackErrorHandler() are the line number where the error occurred, the function where error was detected, the file in which
+the error was detected, the corresponding directory, the error message, and the error type.
+
+A small set of macros is used to make the error handling lightweight. These macros are used throughout
+the MOAB libraries and can be employed by the application programmer as well. When an error is first
+detected, one should set it by calling\n
+\code
+MB_SET_ERR(err_code, err_msg);
+\endcode
+Note, err_msg can be a string literal, or a C++ style output stream with << operators, such that the error message string is formated, like\n
+\code
+MB_SET_ERR(MB_FAILURE, "Failed " << n << " times");
+\endcode
+
+The user should check the return codes for all MOAB routines (and possibly user-defined routines as well) with\n
+\code
+ErrorCode rval = MOABRoutine(...);MB_CHK_ERR(rval);
+\endcode
+To pass back a new error message (if rval is not MB_SUCCESS), use\n
+\code
+ErrorCode rval = MOABRoutine(...);MB_CHK_SET_ERR(rval, "User specified error message string (or stream)");
+\endcode
+If this procedure is followed throughout all of the user’s libraries and codes, any error will by default generate
+a clean traceback of the location of the error.
+
+In addition to the basic macros mentioned above, there are some variations, such as (for more information, refer to src/moab/ErrorHandler.hpp):
+- MB_SET_GLB_ERR() to set a globally fatal error (for all processors)
+- MB_SET_ERR_RET() for functions that return void type
+- MB_SET_ERR_RET_VAL() for functions that return any data type
+- MB_SET_ERR_CONT() to continue execution instead of returning from current function
+
+The error control mechanism are enabled by default if a MOAB Core instance is created. Otherwise, the user needs to call
+MBErrorHandler_Init() and MBErrorHandler_Finalize() at the application level in the main function.
+For example code on error handling, please refer to examples/TestErrorHandling.cpp, examples/TestErrorHandlingPar.cpp and examples/ErrorHandlingSimulation.cpp.
+
+  \ref contents
+
+  \section conclusions 12.Conclusions and Future Plans
 
 MOAB, a Mesh-Oriented datABase, provides a simple but powerful data abstraction to structured and unstructured mesh, and makes that abstraction available through a function API.  MOAB provides the mesh representation for the VERDE mesh verification tool, which demonstrates some of the powerful mesh metadata representation capabilities in MOAB.  MOAB includes modules that import mesh in the ExodusII, CUBIT .cub and Vtk file formats, as well as the capability to write mesh to ExodusII, all without licensing restrictions normally found in ExodusII-based applications.  MOAB also has the capability to represent and query structured mesh in a way that optimizes storage space using the parametric space of a structured mesh; see Ref. [17] for details.
 
@@ -1013,7 +1171,7 @@ Initial results have demonstrated that the data abstraction provided by MOAB is 
 
   \ref contents
 
-  \section references 12.References
+  \section references 13.References
 
 [1]	M. Fatenejad and G.A. Moses, “Cooper radiation hydrodynamics code..”
 
@@ -1092,6 +1250,10 @@ Initial results have demonstrated that the data abstraction provided by MOAB is 
      \ref tablefour
 
      \ref tablefive
+
+     \ref tablesix
+
+     \ref tableseven
  
   \page building Building & Installing
  

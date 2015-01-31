@@ -33,6 +33,10 @@
 #include <stdio.h>
 #define MIN(a,b) (a < b ? a : b)
 
+#ifdef _MSC_VER
+# define snprintf(A,B,C,D) _snprintf((A),(B),(C),(D))
+#endif
+
 static ErrorCode create_int_ents(MBiMesh * mbimesh,
 				 Range &from_ents,
 				 const EntityHandle* in_set = 0);

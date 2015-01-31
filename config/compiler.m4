@@ -65,7 +65,8 @@ AC_DEFUN([FATHOM_SET_MPI_COMPILER], [
 #  FC       - The Fortran compiler
 #  CFLAGS   - C compiler flags
 #  CXXFLAGS - C++ compiler flags
-#  WITH_MPI - 'yes' if parallel support, 'no' otherwise
+#  enablempi- 'yes' if parallel support, 'no' otherwise
+#  WITH_MPI - if enablempi=yes, then path to MPI installation
 #
 # Arguments:  three strings that msut be either "yes" or "no".
 #             - test for C compiler
@@ -95,56 +96,50 @@ USER_CFLAGS="$CFLAGS"
 USER_FCFLAGS="$FCFLAGS"
 USER_FFLAGS="$FFLAGS"
 
-  # Check for Parallel
-  # Need to check this early so we can look for the correct compiler
-AC_ARG_WITH( [mpi], AC_HELP_STRING([[--with-mpi@<:@=DIR@:>@]], [Enable parallel support]),
-             [WITH_MPI=$withval],[WITH_MPI=no] )
-if test "xno" != "x$WITH_MPI"; then
+# Check for Parallel
+# Need to check this early so we can look for the correct compiler
+AC_ARG_WITH( [mpi], AS_HELP_STRING([[--with-mpi@<:@=DIR@:>@]], [Enable parallel support]),
+             [WITH_MPI=$withval; enablempi=yes],[enablempi=no;WITH_MPI=$MPI_DIR] )
+
+if test "xno" != "x$enablempi"; then
 
   CC_LIST="mpixlc mpicc mpcc"
-  CXX_LIST="mpixlcxx mpiCC mpCC mpicxx"
+  CXX_LIST="mpixlcxx mpicxx mpiCC mpCC"
   FC_LIST="mpixlf95 mpixlf90 mpif90"
   F77_LIST="mpixlf77 mpif77"
-  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-mpi=\"${withval}\""
+  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-mpi=\"${WITH_MPI}\""
+
+else
   
-  if test "xyes" == "x$WITH_MPI"; then
-    if test "xno" != "x$CHECK_CC"; then  
-    FATHOM_SET_MPI_COMPILER([CC],  [$CC_LIST])
-    fi
-    if test "xno" != "x$CHECK_CXX"; then  
-    FATHOM_SET_MPI_COMPILER([CXX],[$CXX_LIST])
-    fi
-    if test "xno" != "x$CHECK_FC"; then  
-      FATHOM_SET_MPI_COMPILER([FC],  [$FC_LIST])
-      FATHOM_SET_MPI_COMPILER([F77],[$F77_LIST])
-    fi
-  else
-    if test "xno" != "x$CHECK_CC"; then  
-    FATHOM_SET_MPI_COMPILER([CC],  [$CC_LIST],[${WITH_MPI}/bin])
-    fi
-    if test "xno" != "x$CHECK_CXX"; then  
-    FATHOM_SET_MPI_COMPILER([CXX],[$CXX_LIST],[${WITH_MPI}/bin])
-    fi
-    if test "xno" != "x$CHECK_FC"; then
-      FATHOM_SET_MPI_COMPILER([FC],  [$FC_LIST],[${WITH_MPI}/bin])
-      FATHOM_SET_MPI_COMPILER([F77],[$F77_LIST],[${WITH_MPI}/bin])
-    fi
-    WITH_MPI=yes
-  fi
+  CC_LIST="$CC gcc icc clang"
+  CXX_LIST="$CXX g++ icpc clang++"
+  FC_LIST="$FC gfortran ifort g77 f77 nag xlf"
+  F77_LIST="$F77 $FC_LIST"
+
 fi
 
-if test "xno" != "x$CHECK_CC"; then
-  AC_PROG_CC
+COMPILERPATHS=""
+if test "xno" != "x$enablempi"; then
+  COMPILERPATHS="${WITH_MPI}/bin"
 fi
-AC_PROG_CPP
-if test "xno" != "x$CHECK_CXX"; then
+
+  # C support
+  FATHOM_SET_MPI_COMPILER([CC],  [$CC_LIST], [$COMPILERPATHS])
+  AC_PROG_CC
+  AC_PROG_CPP
+
+  # C++ support
+  FATHOM_SET_MPI_COMPILER([CXX],[$CXX_LIST],[$COMPILERPATHS])
   AC_PROG_CXX
   AC_PROG_CXXCPP
-fi
-if test "xno" != "x$CHECK_FC"; then
-  AC_PROG_FC
-  AC_PROG_F77
-fi
+
+  # Fortran support
+  #if (test "x$CHECK_FC" != "xno"); then
+    FATHOM_SET_MPI_COMPILER([FC],  [$FC_LIST],[$COMPILERPATHS])
+    FATHOM_SET_MPI_COMPILER([F77],[$F77_LIST],[$COMPILERPATHS])
+    AC_PROG_FC
+    AC_PROG_F77
+  #fi
 
 ]) # FATHOM_CHECK_COMPILERS
 
@@ -160,14 +155,22 @@ fi
 #######################################################################################
 AC_DEFUN([FATHOM_COMPILER_FLAGS], [
 
+CHECK_CC="$1"
+CHECK_CXX="$2"
+CHECK_FC="$3"
 
+# If not specified or invalid value, change to yes.
+test "xno" = "x$CHECK_CC" || CHECK_CC=yes 
+test "xno" = "x$CHECK_CXX" || CHECK_CXX=yes 
+test "xno" = "x$CHECK_FC" || CHECK_FC=yes 
+
+# this is just a test comment
 if test "xno" != "x$CHECK_CC"; then
   FATHOM_CC_FLAGS
 fi
 if test "xno" != "x$CHECK_CXX"; then
   FATHOM_CXX_FLAGS
 fi
-
 
 # Try to determine compiler-specific flags.  This must be done
 # before setting up libtool so that it can override libtool settings.
@@ -183,17 +186,12 @@ FCFLAGS="$USER_FCFLAGS $FATHOM_FC_SPECIAL"
 #fi
 
   # Check for debug flags
-AC_ARG_ENABLE( debug, AC_HELP_STRING([--enable-debug],[Debug symbols (-g)]),
-               [enable_debug=$enableval], [enable_debug=] )  
-AC_ARG_ENABLE( optimize, AC_HELP_STRING([--enable-optimize],[Compile optimized (-O2)]),
-               [enable_cxx_optimize=$enableval
-                enable_cc_optimize=$enableval
-		enable_fc_optimize=$enableval
-		], 
-               [enable_cxx_optimize=
-                enable_cc_optimize=
-		enable_fc_optimize=
-		] )
+AC_ARG_ENABLE( debug, AS_HELP_STRING([--enable-debug],[Debug symbols (-g)]),
+               [enable_debug=$enableval], [enable_debug=] )
+AC_ARG_ENABLE( optimize, AS_HELP_STRING([--enable-optimize],[Compile optimized (-O2)]),
+               [enable_cxx_optimize=$enableval; enable_cc_optimize=$enableval; enable_fc_optimize=$enableval;],
+               [enable_cxx_optimize=""; enable_cc_optimize=""; enable_fc_optimize="";	]
+             )
 
 # Do enable_optimize by default, unless user has specified
 # custom CXXFLAGS or CFLAGS
@@ -203,69 +201,135 @@ if test "x$enable_debug" = "x"; then
     enable_cxx_optimize=yes
     enable_cc_optimize=yes
     enable_fc_optimize=yes
-    enable_f77_optimize=yes
   fi
 fi
+enable_f77_optimize=$enable_fc_optimize
 
 # Choose compiler flags from CLI args
 if test "xyes" = "x$enable_debug"; then
   DEBUG=yes
   CXXFLAGS="$CXXFLAGS -g"
   CFLAGS="$CFLAGS -g"
-  FCFLAGS="$FCFLAGS -g"
-  FFLAGS="$FFLAGS -g"
+  if (test "x$ENABLE_FORTRAN" != "xno"); then
+    FCFLAGS="$FCFLAGS -g"
+    FFLAGS="$FFLAGS -g"
+  fi
   # Add -fstack-protector-all option for g++ in debug mode
-  if test "x$cxx_compiler" = "xGNU"; then
+  if test "x$GXX" = "xyes"; then
     CXXFLAGS="$CXXFLAGS -fstack-protector-all"
   fi
   # Add -fstack-protector-all option for gcc in debug mode
-  if test "x$cc_compiler" = "xGNU"; then
+  if test "x$GXX" = "xyes"; then
     CFLAGS="$CFLAGS -fstack-protector-all"
   fi
+  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-debug=yes"
+else
+  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-debug=no"
 fi
 if test "xyes" = "x$enable_cxx_optimize"; then
   CXXFLAGS="$CXXFLAGS -O2 -DNDEBUG"
+  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-optimize=yes"
+else
+  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-optimize=no"
 fi
 if test "xyes" = "x$enable_cc_optimize"; then
   CFLAGS="$CFLAGS -O2 -DNDEBUG"
 fi
-if test "xyes" = "x$enable_fc_optimize"; then
-  FCFLAGS="$FCFLAGS -O2"
-fi
-if test "xyes" = "x$enable_f77_optimize"; then
-  FFLAGS="$FFLAGS -O2"
+if (test "x$ENABLE_FORTRAN" != "xno"); then
+  if test "xyes" = "x$enable_fc_optimize"; then
+    FCFLAGS="$FCFLAGS -O2"
+  fi
+  if test "xyes" = "x$enable_f77_optimize"; then
+    FFLAGS="$FFLAGS -O2"
+  fi
 fi
 
   # Check for 32/64 bit.
   # This requires FATHOM_CXX_FLAGS and FATHOM_CC_FLAGS to have been called first
-AC_ARG_ENABLE( 32bit, AC_HELP_STRING([--enable-32bit],[Force 32-bit objects]),
+AC_ARG_ENABLE(32bit, AS_HELP_STRING([--enable-32bit],[Force 32-bit objects]),
 [
-  if test "xyes" != "x$enableval"; then
+  if (test "xyes" != "x$enableval" && test "xno" != "x$enableval"); then
     AC_MSG_ERROR([Unknown argument --enable-32bit=$enableval])
-  elif test "x" = "x$FATHOM_CXX_32BIT"; then
-    AC_MSG_ERROR([Don't know how to force 32-bit C++ on this platform.  Try setting CXXFLAGS manually])
-  elif test "x" = "x$FATHOM_CC_32BIT"; then
-    AC_MSG_ERROR([Don't know how to force 32-bit C on this platform.  Try setting CFLAGS manually])
   fi
+  if (test "xno" != "x$enableval"); then
+    if test "x" = "x$FATHOM_CXX_32BIT"; then
+      AC_MSG_ERROR([Don't know how to force 32-bit C++ on this platform.  Try setting CXXFLAGS manually])
+    elif test "x" = "x$FATHOM_CC_32BIT"; then
+      AC_MSG_ERROR([Don't know how to force 32-bit C on this platform.  Try setting CFLAGS manually])
+    fi
+  fi
+  enable_32bit=$enableval
+], [enable_32bit=no])
+
+# This requires FATHOM_CXX_FLAGS and FATHOM_CC_FLAGS to have been called first
+AC_ARG_ENABLE(64bit, AS_HELP_STRING([--enable-64bit],[Force 64-bit objects]),
+[
+  if (test "xyes" != "x$enableval" && test "xno" != "x$enableval"); then
+    AC_MSG_ERROR([Unknown argument --enable-64bit=$enableval])
+  fi
+  if (test "xno" != "x$enableval"); then
+    if test "x" = "x$FATHOM_CXX_64BIT"; then
+      AC_MSG_ERROR([Don't know how to force 64-bit C++ on this platform.  Try setting CXXFLAGS manually])
+    elif test "x" = "x$FATHOM_CC_64BIT"; then
+      AC_MSG_ERROR([Don't know how to force 64-bit C on this platform.  Try setting CFLAGS manually])
+    elif test "xyes" = "x$enable_32bit"; then
+      AC_MSG_ERROR([Cannot do both --enable-32bit and --enable-64bit])
+    fi
+  fi
+  enable_64bit=$enableval
+], [enable_64bit=no])
+
+if (test "xno" != "x$enable_32bit"); then
   CXXFLAGS="$CXXFLAGS $FATHOM_CXX_32BIT"
   CFLAGS="$CFLAGS $FATHOM_CC_32BIT"
-  enable_32bit=yes
-])
-# This requires FATHOM_CXX_FLAGS and FATHOM_CC_FLAGS to have been called first
-AC_ARG_ENABLE( 64bit, AC_HELP_STRING([--enable-64bit],[Force 64-bit objects]),
-[
-  if test "xyes" != "x$enableval"; then
-    AC_MSG_ERROR([Unknown argument --enable-64bit=$enableval])
-  elif test "x" = "x$FATHOM_CXX_64BIT"; then
-    AC_MSG_ERROR([Don't know how to force 64-bit C++ on this platform.  Try setting CXXFLAGS manually])
-  elif test "x" = "x$FATHOM_CC_64BIT"; then
-    AC_MSG_ERROR([Don't know how to force 64-bit C on this platform.  Try setting CFLAGS manually])
-  elif test "xyes" = "x$enable_32bit"; then
-    AC_MSG_ERROR([Cannot do both --enable-32bit and --enable-64bit])
-  fi
+fi
+if (test "xno" != "x$enable_64bit"); then
   CXXFLAGS="$CXXFLAGS $FATHOM_CXX_64BIT"
   CFLAGS="$CFLAGS $FATHOM_CC_64BIT"
-])
+fi
+# Distcheck flags for 32-bit and 64-bit builds
+DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-32bit=$enable_32bit --enable-64bit=$enable_64bit"
+
+# Check if we are using new Darwin kernels with Clang -- needs libc++ instead of libstdc++
+if (test "x$ENABLE_FORTRAN" != "xno" && test "x$CHECK_FC" != "xno"); then
+  AC_F77_WRAPPERS
+  #AC_F77_LIBRARY_LDFLAGS
+  AC_FC_WRAPPERS
+  #AC_FC_LIBRARY_LDFLAGS
+
+  # check how to link against C++ runtime for fortran programs correctly
+  AC_LANG_PUSH([Fortran])
+
+  fcxxlinkage=no
+  if (test "$cc_compiler" == "Intel"); then
+    my_save_ldflags="$LDFLAGS"
+    LDFLAGS="$LDFLAGS -cxxlib"
+    AC_MSG_CHECKING([whether $FC supports -cxxlib])
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([])],
+        [AC_MSG_RESULT([yes])]
+        [fcxxlinkage=yes; FFLAGS="$FFLAGS -cxxlib"; FCFLAGS="$FCFLAGS -cxxlib"; FLIBS="$FLIBS -cxxlib"; FCLIBS="$FCLIBS -cxxlib"],
+        [AC_MSG_RESULT([no])]
+    )
+    LDFLAGS="$my_save_ldflags"
+  else
+
+    if (test "$fcxxlinkage" != "yes"); then
+      my_save_ldflags="$LDFLAGS"
+      LDFLAGS="$LDFLAGS -lstdc++"
+      AC_MSG_CHECKING([whether $FC supports -stdlib=libstdc++])
+      AC_LINK_IFELSE([AC_LANG_PROGRAM([])],
+          [AC_MSG_RESULT([yes])]
+          [FFLAGS="$FFLAGS -lstdc++"; FCFLAGS="$FCFLAGS -lstdc++"; FLIBS="$FLIBS -lstdc++"; FCLIBS="$FCLIBS -lstdc++"],
+          [AC_MSG_RESULT([no])]
+      )
+      LDFLAGS="$my_save_ldflags"
+    fi
+
+  fi
+
+  AC_LANG_POP([Fortran])
+
+fi
 
 ]) # FATHOM_COMPILER_FLAGS
 
@@ -323,8 +387,9 @@ AC_MSG_CHECKING([for known c++ compilers])
 # Autoconf does G++ for us
 if test x$GXX = xyes; then
   cxx_compiler=GNU
-  # Intel claims to be GCC, check for it here
+  # Intel and Clang claims to be GCC, check for it here
   FATHOM_TRY_COMPILER_DEFINE([__INTEL_COMPILER],[cxx_compiler=Intel])
+  FATHOM_TRY_COMPILER_DEFINE([__clang__],[cxx_compiler=Clang])
 # Search for other compiler types
 # For efficiency, limit checks to relevant OSs
 else
@@ -336,6 +401,9 @@ else
       ;;
     solaris*|sunos*)
       FATHOM_TRY_COMPILER_DEFINE([__SUNPRO_CC],[cxx_compiler=SunWorkshop])
+      ;;
+    darwin*)
+      FATHOM_TRY_COMPILER_DEFINE([__clang__],[cxx_compiler=Clang])
       ;;
     irix*)
       FATHOM_TRY_COMPILER_DEFINE([__sgi],[cxx_compiler=MIPSpro])
@@ -372,7 +440,7 @@ if test "x$cxx_compiler" = "xunknown"; then
 fi
 
 # Now decide special compiler flags using compiler/cpu combination
-AC_MSG_CHECKING([for known compiler/OS combinations])
+AC_MSG_CHECKING([for known compiler/CPU/OS combinations])
 case "$cxx_compiler:$host_cpu" in
   GNU:sparc*)
     FATHOM_CXX_32BIT=-m32
@@ -426,6 +494,11 @@ case "$cxx_compiler:$host_cpu" in
     FATHOM_CXX_32BIT=-xarch=generic
     FATHOM_CXX_64BIT=-xarch=generic64
     ;;
+  Clang:*)
+    FATHOM_CXX_SPECIAL="$EXTRA_GNU_FLAGS -stdlib=libstdc++"
+    FATHOM_CXX_32BIT=-m32
+    FATHOM_CXX_64BIT=-m64
+    ;;
   SunWorkshop:i?86|SunWorkshop:x86_64)
     FATHOM_CXX_32BIT=-m32
     FATHOM_CXX_64BIT=-m64
@@ -433,7 +506,16 @@ case "$cxx_compiler:$host_cpu" in
   *)
     ;;
 esac
-AC_MSG_RESULT([$cxx_compiler:$host_cpu])
+AC_MSG_RESULT([$cxx_compiler:$host_os:$host_cpu])
+
+# Check for specific overrides
+CXX_LDFLAGS=""
+if (test "$cxx_compiler:${host_os:0:6}" == "Clang:darwin"); then
+  CXX_LDFLAGS="$CXX_LDFLAGS -stdlib=libstdc++"
+  LIBS="$LIBS -lc++"
+fi
+AC_SUBST(CXX_LDFLAGS)
+
 ]) # end FATHOM_CXX_FLAGS
 
 #######################################################################################
@@ -454,6 +536,7 @@ if test x$GCC = xyes; then
   cc_compiler=GNU
   # Intel claims to be GCC, check for it here
   FATHOM_TRY_COMPILER_DEFINE([__INTEL_COMPILER],[cc_compiler=Intel])
+  FATHOM_TRY_COMPILER_DEFINE([__clang__],[cc_compiler=Clang])
 # Search for other compiler types
 # For efficiency, limit checks to relevant OSs
 else
@@ -464,6 +547,9 @@ else
       ;;
     solaris*|sunos*)
       FATHOM_TRY_COMPILER_DEFINE([__SUNPRO_C],[cc_compiler=SunWorkshop])
+      ;;
+    darwin*)
+      FATHOM_TRY_COMPILER_DEFINE([__clang__],[cc_compiler=Clang])
       ;;
     irix*)
       FATHOM_TRY_COMPILER_DEFINE([__sgi],[cc_compiler=MIPSpro])
@@ -561,6 +647,11 @@ case "$cc_compiler:$host_cpu" in
   MIPSpro:*)
     FATHOM_CC_SPECIAL=-LANG:std
     ;;
+  Clang:*)
+    FATHOM_CC_SPECIAL="$EXTRA_GNU_FLAGS"
+    FATHOM_CC_32BIT=-m32
+    FATHOM_CC_64BIT=-m64
+    ;;
   SunWorkshop:sparc*)
     FATHOM_CC_32BIT=-xarch=generic
     FATHOM_CC_64BIT=-xarch=generic64
@@ -618,6 +709,7 @@ dnl remove conftest after ac_lang_conftest
 rm -f conftest.$ac_ext
 AC_LANG_POP([Fortran 77])
 ])
+
 if test "$pac_cv_prog_f77_has_pointer" = "yes" ; then
     AC_MSG_CHECKING([for Fortran 77 compiler flag for Cray-style pointer])
     if test "X$CRAYPTR_FFLAGS" != "X" ; then
@@ -663,12 +755,14 @@ for ptrflag in '' '-fcray-pointer' ; do
         break
     ])
 done
+
 dnl Restore FCFLAGS first, since user may not want to modify FCFLAGS
 FCFLAGS="$saved_FCFLAGS"
 dnl remove conftest after ac_lang_conftest
 rm -f conftest.$ac_ext
 AC_LANG_POP([Fortran])
 ])
+
 if test "$pac_cv_prog_fc_has_pointer" = "yes" ; then
     AC_MSG_CHECKING([for Fortran 90 compiler flag for Cray-style pointer])
     if test "X$CRAYPTR_FCFLAGS" != "X" ; then

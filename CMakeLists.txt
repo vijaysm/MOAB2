@@ -1,20 +1,51 @@
 cmake_minimum_required( VERSION 2.8.12 )
-cmake_policy( SET CMP0003 NEW )
-cmake_policy(SET CMP0020 NEW)
+SET(PACKAGE_NAME "MOAB")
+SET(PACKAGE_VERSION "4.7.1pre")
+
+if (NOT WIN32)
+  #This all breaks on windows.
+  if ( MPI_DIR )
+    message ("Checking for MPI compilers in ${MPI_DIR}/bin")
+    SET(CMAKE_USER_CXX_COMPILER_PATH ${MPI_DIR}/bin ${MPI_DIR})
+    SET(CMAKE_GENERATOR_CC ${CC} mpicc mpixlc_r mpixlc hcc mpxlc_r mpxlc sxmpicc mpifcc mpgcc mpcc cmpicc)
+    SET(CMAKE_GENERATOR_CXX ${CXX} mpicxx mpic++ mpiCC sxmpic++ hcp mpxlC_r mpxlC mpixlcxx_r mpixlcxx mpg++ mpc++ mpCC cmpic++ mpiFCC)
+    SET(CMAKE_GENERATOR_FC ${FC} ${F90} mpif95 mpxlf95_r mpxlf95 ftn mpif90 mpxlf90_r mpxlf90 mpf90 cmpif90c sxmpif90)
+  else ( MPI_DIR )
+    message ("Checking for non-MPI native compilers")
+    SET(CMAKE_GENERATOR_CC ${CC} gcc icc pgcc cc)
+    SET(CMAKE_GENERATOR_CXX ${CXX} CCicpc pgCC pathCC sxc++ xlC_r xlC bgxlC_r bgxlC openCC sunCC crayCC icpc g++ c++ gpp aCC CC cxx cc++ cl.exe FCC KCC RCC)
+    SET(CMAKE_GENERATOR_FC ${FC} ${F90} pathf95 ifort gfortran g95 f95 fort ifc efc openf95 sunf95 crayftn lf95 ftn xlf90 f90 pgf90 pghpf pathf90 epcf90 sxf90 openf90 sunf90)
+  endif ( MPI_DIR )
+  SET(CMAKE_Fortran_COMPILER_INIT ${CMAKE_GENERATOR_FC})
+  SET(CMAKE_CXX_FLAGS_INIT "-fPIC -DPIC")
+  SET(CMAKE_CXX_FLAGS_DEBUG_INIT "-O0 -g")
+  SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO_INIT "-O2 -g")
+  SET(CMAKE_CXX_FLAGS_RELEASE_INIT "-O2 -DNDEBUG")
+  SET(CMAKE_C_FLAGS_INIT "-fPIC -DPIC")
+  SET(CMAKE_C_FLAGS_DEBUG_INIT "-O0 -g")
+  SET(CMAKE_C_FLAGS_RELWITHDEBINFO_INIT "-O2 -g")
+  SET(CMAKE_C_FLAGS_RELEASE_INIT "-O2 -DNDEBUG")
+  SET(CMAKE_Fortran_FLAGS_INIT "-fPIC")
+  SET(CMAKE_Fortran_FLAGS_DEBUG_INIT "-O0 -g")
+  SET(CMAKE_Fortran_FLAGS_RELWITHDEBINFO_INIT "-O2 -g")
+  SET(CMAKE_Fortran_FLAGS_RELEASE_INIT "-O2")
+  SET(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS_INIT "")
+  SET(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS_INIT "")
+endif()
+
 project( MOAB )
 
 #Add our Cmake directory to the module search path
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/config ${CMAKE_MODULE_PATH})
-
 ################################################################################
 # Set up version info
 ################################################################################
 include (config/GetAcInitVersion.cmake)
 get_ac_init_version()
-set ( MOAB_VERSION_MAJOR  "${MAJOR_VERSION}"  )
-set ( MOAB_VERSION_MINOR  "${MINOR_VERSION}"  )
+set ( MOAB_VERSION_STRING "${PACKAGE_NAME} ${VERSION_STRING}" )
 set ( MOAB_VERSION        "${VERSION_STRING}" )
-set ( MOAB_VERSION_STRING "${VERSION_STRING}" )
+set ( MOAB_VERSION_MAJOR  ${MAJOR_VERSION}  )
+set ( MOAB_VERSION_MINOR  ${MINOR_VERSION}  )
 if ( DEFINED PATCH_VERSION )
   set ( MOAB_VERSION_PATCH "${PATCH_VERSION}" )
 else ( DEFINED PATCH_VERSION )
@@ -25,9 +56,25 @@ else ( DEFINED PATCH_VERSION )
   endif ( MOAB_VERSION_MINOR EQUAL 99 )
 endif ( DEFINED PATCH_VERSION )
 
+IF(CMAKE_VERSION VERSION_EQUAL "3.0.0" OR CMAKE_VERSION VERSION_GREATER "3.0.0")
+  cmake_policy(SET CMP0003 NEW)
+  cmake_policy(SET CMP0020 NEW)
+  cmake_policy(SET CMP0042 OLD)
+ENDIF ()
+
+set ( abs_srcdir   ${CMAKE_SOURCE_DIR} )
+set ( abs_builddir ${PROJECT_BINARY_DIR} )
+
 ################################################################################
 # Install Related Settings
 ################################################################################
+
+get_filename_component( MOAB_ABSSRC_DIR2 moab.make.in REALPATH )
+execute_process( COMMAND dirname ${MOAB_ABSSRC_DIR2}
+  WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+  OUTPUT_VARIABLE MOAB_ABSSRC_DIR
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
 
 ## Set the directory where the binaries will be stored
 set( EXECUTABLE_OUTPUT_PATH
@@ -43,6 +90,7 @@ set( LIBRARY_OUTPUT_PATH
   "Directory where all the libraries will be stored"
 )
 mark_as_advanced(
+  MOAB_ABSSRC_DIR
   EXECUTABLE_OUTPUT_PATH
   LIBRARY_OUTPUT_PATH)
 
@@ -62,7 +110,11 @@ option ( BUILD_SHARED_LIBS   "Should shared or static libraries be created?"   O
 option ( MOAB_USE_SZIP       "Should build with szip support?"                 OFF )
 option ( MOAB_USE_CGM        "Should build with CGM support?"                  OFF )
 option ( MOAB_USE_CGNS       "Should build with CGNS support?"                 OFF )
-option ( MOAB_USE_MPI        "Should MOAB be compiled with MPI support?"       OFF )
+if ( MPI_DIR )
+  option ( MOAB_USE_MPI        "Should MOAB be compiled with MPI support?"       ON )
+else ( MPI_DIR )
+  option ( MOAB_USE_MPI        "Should MOAB be compiled with MPI support?"       OFF )
+endif ( MPI_DIR )
 option ( MOAB_USE_HDF        "Include HDF I/O in the build?"                   OFF )
 option ( MOAB_USE_NETCDF     "Include NetCDF support (ExodusII) in the build?" OFF )
 option ( MOAB_USE_PNETCDF    "Include parallel NetCDF support (ExodusII) in the build?" OFF )
@@ -79,6 +131,10 @@ mark_as_advanced(
     MOAB_FORCE_32_BIT_HANDLES
   )
 
+if ( ENABLE_IMESH OR ENABLE_IGEOM )
+  include (${CMAKE_ROOT}/Modules/CMakeDetermineFortranCompiler.cmake)
+endif ()
+include (config/CheckCompilerFlags.cmake)
 
 ################################################################################
 # Check for system include files
@@ -126,9 +182,18 @@ endif ( NOT MOAB_FORCE_64_BIT_HANDLES AND NOT MOAB_FORCE_32_BIT_HANDLES )
 ################################################################################
 # Find packages
 ################################################################################
+
+if ( BUILD_SHARED_LIBS EQUAL OFF )
+#Static start
+set_target_properties(MOAB PROPERTIES LINK_SEARCH_START_STATIC 1)
+set_target_properties(MOAB PROPERTIES LINK_SEARCH_END_STATIC 1)
+set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+endif ( BUILD_SHARED_LIBS EQUAL OFF )
+
 find_package( verdict REQUIRED )
 
 # check for MPI package
+set(MOAB_HAS_MPI FALSE)
 if ( MOAB_USE_MPI )
   find_package( MPI REQUIRED )
   # CMake FindMPI script is sorely lacking:
@@ -138,8 +203,27 @@ if ( MOAB_USE_MPI )
 
   if ( MPI_FOUND )
     set ( MOAB_DEFINES "${MOAB_DEFINES} -DUSE_MPI" )
+    set(CMAKE_CXX_COMPILE_FLAGS ${CMAKE_CXX_COMPILE_FLAGS} ${MPI_COMPILE_FLAGS})
+    set(CMAKE_CXX_LINK_FLAGS ${CMAKE_CXX_LINK_FLAGS} ${MPI_LINK_FLAGS})
+    include_directories(${MPI_INCLUDE_PATH})
+    set( MOAB_HAS_MPI TRUE )
   endif ( MPI_FOUND )
 endif ( MOAB_USE_MPI )
+
+if ( MOAB_USE_ZLIB )
+  find_package( ZLIB REQUIRED )
+endif ( )
+
+if ( MOAB_USE_HDF )
+  find_package( HDF5 REQUIRED )
+  set( MOAB_DEFINES "-DHDF5_FILE ${MOAB_DEFINES}" )
+  if ( HDF5_IS_PARALLEL AND MOAB_USE_MPI )
+    set( MOAB_DEFINES "-DHDF5_PARALLEL ${MOAB_DEFINES}" )
+    set (MOAB_HDF_HAVE_PARALLEL TRUE)
+  endif ( HDF5_IS_PARALLEL AND MOAB_USE_MPI )
+  set( MOAB_LIBS ${MOAB_LIBS} ${HDF5_LIBRARIES} )
+  include_directories( ${HDF5_INCLUDE_DIR} src/io/mhdf/include )
+endif ( MOAB_USE_HDF )
 
 if ( MOAB_USE_NETCDF )
   find_package( NetCDF REQUIRED )
@@ -147,17 +231,6 @@ if ( MOAB_USE_NETCDF )
   include_directories( ${NetCDF_INCLUDES} ${PNetCDF_INCLUDES} )
   set( MOAB_LIBS ${MOAB_LIBS} ${NetCDF_LIBRARIES} ${PNetCDF_LIBRARIES} )
 endif ( MOAB_USE_NETCDF )
-
-if ( MOAB_USE_HDF )
-  find_package( HDF5 REQUIRED )
-  set( MOAB_DEFINES "-DHDF5_FILE ${MOAB_DEFINES}" )
-  set( MOAB_LIBS ${MOAB_LIBS} ${HDF5_LIBRARIES} )
-  include_directories( ${HDF5_INCLUDE_DIR} src/io/mhdf/include )
-endif ( MOAB_USE_HDF )
-
-if ( MOAB_USE_ZLIB )
-  find_package( ZLIB REQUIRED )
-endif ( )
 
 if ( MOAB_USE_ZOLTAN )
   find_package( Zoltan REQUIRED )
@@ -195,20 +268,53 @@ export(TARGETS ${MOAB_INSTALL_TARGETS}
               FILE "${PROJECT_BINARY_DIR}/MOABTargets.cmake")
 install(EXPORT MOABTargets DESTINATION lib)
 
+# Create some custom command
+
+# For consistency with autoconf, create a "make check" equivalent to "ctest"
+ADD_CUSTOM_TARGET( check COMMAND ctest )
+
+# For consistency with autoconf, create "make dist" and "make distcheck" targets
+INCLUDE( CMakeDistCheck )
+DEFINE_DISTCHECK ( )
+
 ################################################################################
 # Generate the MOABConfig.cmake file
 ################################################################################
 set(CXX ${CMAKE_CXX_COMPILER})
 set(CC ${CMAKE_C_COMPILER})
-set(F77 "" )
-set(FC "")
-set(CXXFLAGS ${MOAB_DEFINES})
-set(AM_CXXFLAGS)
-set(CFLAGS ${MOAB_DEFINES})
-set(AM_CFLAGS)
-set(MOAB_FFLAGS)
-set(AM_FFLAGS)
+set(F77 ${CMAKE_Fortran_COMPILER} )
+set(FC ${CMAKE_Fortran_COMPILER})
+set(CPPFLAGS "${CMAKE_CXX_FLAGS} ${MOAB_DEFINES}")
+IF (CMAKE_BUILD_TYPE MATCHES "Debug")
+  set(CXXFLAGS ${CMAKE_CXX_FLAGS_DEBUG})
+  set(CFLAGS ${CMAKE_C_FLAGS_DEBUG})
+  set(FFLAGS ${CMAKE_Fortran_FLAGS_DEBUG})
+ELSE (CMAKE_BUILD_TYPE MATCHES "Debug")
+  set(CXXFLAGS ${CMAKE_CXX_FLAGS_RELEASE})
+  set(CFLAGS ${CMAKE_C_FLAGS_RELEASE})
+  set(FFLAGS ${CMAKE_Fortran_FLAGS_RELEASE})
+ENDIF (CMAKE_BUILD_TYPE MATCHES "Debug")
 
-configure_file(MOABConfig.new.cmake.in
-  "${PROJECT_BINARY_DIR}/MOABConfig.cmake" @ONLY)
-install( FILES "${PROJECT_BINARY_DIR}/MOABConfig.cmake" DESTINATION lib )
+# CMake does not define uninstall target. Look at install manifest and remove
+# all the files recursively.
+CONFIGURE_FILE(
+    "${CMAKE_CURRENT_SOURCE_DIR}/config/cmake_uninstall.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
+    IMMEDIATE @ONLY)
+CONFIGURE_FILE(MOABConfig.new.cmake.in "${PROJECT_BINARY_DIR}/MOABConfig.cmake" @ONLY)
+CONFIGURE_FILE(moab.make.in "${PROJECT_BINARY_DIR}/lib/moab.make" @ONLY)
+if ( ENABLE_IGEOM )
+  CONFIGURE_FILE(itaps/igeom/iGeom-Defs.inc.in "${PROJECT_BINARY_DIR}/lib/iGeom-Defs.inc" @ONLY)
+  install( FILES "${PROJECT_BINARY_DIR}/lib/iGeom-Defs.inc" DESTINATION lib )
+endif ( ENABLE_IGEOM )
+
+if ( ENABLE_IMESH )
+  CONFIGURE_FILE(itaps/imesh/iMesh-Defs.inc.in "${PROJECT_BINARY_DIR}/lib/iMesh-Defs.inc" @ONLY)
+  INSTALL( FILES "${PROJECT_BINARY_DIR}/lib/iMesh-Defs.inc" DESTINATION lib )
+endif ( ENABLE_IMESH )
+INSTALL( FILES "${PROJECT_BINARY_DIR}/MOABConfig.cmake" "${PROJECT_BINARY_DIR}/lib/moab.make" DESTINATION lib )
+
+ADD_CUSTOM_TARGET(uninstall
+    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
+
+# All done.
