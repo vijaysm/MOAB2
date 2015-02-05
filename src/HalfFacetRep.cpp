@@ -151,17 +151,11 @@ namespace moab {
 
     ErrorCode error;
 
-    error = mb->get_entities_by_dimension( 0, 0, _verts);
-    if (MB_SUCCESS != error) return error;
-
-    error = mb->get_entities_by_dimension( 0, 1, _edges);
-    if (MB_SUCCESS != error) return error;
-
-    error = mb->get_entities_by_dimension( 0, 2, _faces);
-    if (MB_SUCCESS != error) return error;
-    
-    error = mb->get_entities_by_dimension( 0, 3, _cells);
-    if (MB_SUCCESS != error) return error;
+    /* Get all entities by dimension on the rootset with recursion turned on */
+    error = mb->get_entities_by_dimension( 0, 0, _verts, true);MB_CHK_ERR(error);
+    error = mb->get_entities_by_dimension( 0, 1, _edges, true);MB_CHK_ERR(error);
+    error = mb->get_entities_by_dimension( 0, 2, _faces, true);MB_CHK_ERR(error);
+    error = mb->get_entities_by_dimension( 0, 3, _cells, true);MB_CHK_ERR(error);
     
     int nverts = _verts.size();
     int nedges = _edges.size();
@@ -2854,6 +2848,7 @@ namespace moab {
     edges = _edges;
     faces = _faces;
     cells = _cells;
+
     return MB_SUCCESS;
   }
 

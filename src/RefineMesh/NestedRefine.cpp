@@ -40,37 +40,30 @@ namespace moab{
 
     //Check for mixed entity type
     bool chk_mixed = ahf->check_mixed_entity_type();
-    if (chk_mixed)
-      MB_SET_ERR(  MB_NOT_IMPLEMENTED, "Encountered a mesh with mixed entity types");
+    if (chk_mixed) MB_SET_ERR( MB_NOT_IMPLEMENTED, "Encountered a mesh with mixed entity types");
 
-    error = ahf->initialize(); MB_CHK_ERR(error);
-    error = ahf->get_entity_ranges(_inverts, _inedges, _infaces, _incells);  MB_CHK_ERR(error);
-
-    // Check for mixed dimensional mesh
-    if ((!_inedges.empty() && !_infaces.empty()) ||(!_inedges.empty() &&  !_incells.empty()) || (!_infaces.empty() && !_incells.empty()))
-      MB_SET_ERR(MB_NOT_IMPLEMENTED, "Encountered a mixed-dimensional mesh");
+    error = ahf->initialize();MB_CHK_ERR(error);
+    error = ahf->get_entity_ranges(_inverts, _inedges, _infaces, _incells);MB_CHK_ERR(error);
 
     //Check for supported entity type
-    if (!_inedges.empty())
-      {
-        meshdim = 1;
-      }
-    else if (!_infaces.empty())
-      {
-        EntityType type = mbImpl->type_from_handle(_infaces[0]);
-        if(type == MBPOLYGON)
-          MB_SET_ERR(MB_FAILURE, "Not supported 2D entity type: POLYGON");
+    if (!_incells.empty()) {
+      EntityType type = mbImpl->type_from_handle(_incells[0]);
+      if(type != MBTET && type != MBHEX)
+        MB_SET_ERR(MB_FAILURE, "Not supported 3D entity types: MBPRISM, MBPYRAMID, MBKNIFE, MBPOLYHEDRON");
 
-        meshdim = 2;
-      }
-    else if (!_incells.empty())
-      {
-        EntityType type = mbImpl->type_from_handle(_incells[0]);
-        if(type != MBTET && type != MBHEX)
-          MB_SET_ERR(MB_FAILURE, "Not supported 3D entity types: MBPRISM, MBPYRAMID, MBKNIFE, MBPOLYHEDRON");
+      meshdim = 3;
+    }
+    else if (!_infaces.empty()) {
+      EntityType type = mbImpl->type_from_handle(_infaces[0]);
+      if(type == MBPOLYGON)
+        MB_SET_ERR(MB_FAILURE, "Not supported 2D entity type: POLYGON");
 
-        meshdim = 3;
-      }
+      meshdim = 2;
+    }
+    else if (!_inedges.empty()) {
+      meshdim = 1;
+    }
+    else MB_SET_ERR(MB_NOT_IMPLEMENTED, "Encountered a mixed-dimensional or invalid mesh");
 
     //Initialize std::map to get indices of degrees.
     deg_index[2] = 0;
@@ -105,7 +98,7 @@ namespace moab{
       }
 
     ErrorCode error;
-    error = generate_hm(level_degrees, num_level, hm_set); MB_CHK_ERR(error);
+    error = generate_hm(level_degrees, num_level, hm_set);MB_CHK_ERR(error);
 
     return MB_SUCCESS;
   }
@@ -147,7 +140,7 @@ namespace moab{
       }
       else
       {
-        error = mbImpl->get_connectivity(&ent, 1, conn); MB_CHK_ERR(error);
+        error = mbImpl->get_connectivity(&ent, 1, conn);MB_CHK_ERR(error);
       }
 
     return MB_SUCCESS;
@@ -168,7 +161,7 @@ namespace moab{
     else
       {
         ErrorCode error;
-        error = mbImpl->get_coords(verts, num_verts, coords); MB_CHK_ERR(error);
+        error = mbImpl->get_coords(verts, num_verts, coords);MB_CHK_ERR(error);
       }
 
     return MB_SUCCESS;
@@ -180,7 +173,7 @@ namespace moab{
 
   {
     ErrorCode error;
-    error = ahf->get_adjacencies(source_entity, target_dimension, target_entities); MB_CHK_ERR(error);
+    error = ahf->get_adjacencies(source_entity, target_dimension, target_entities);MB_CHK_ERR(error);
 
     return MB_SUCCESS;
   }
@@ -308,15 +301,15 @@ namespace moab{
     std::vector<EntityHandle> inents;
     if (meshdim == 1)
       {
-        error = ahf->get_up_adjacencies_1d(vertex, inents); MB_CHK_ERR(error);
+        error = ahf->get_up_adjacencies_1d(vertex, inents);MB_CHK_ERR(error);
       }
     else if (meshdim == 2)
       {
-        error = ahf->get_up_adjacencies_vert_2d(vertex, inents); MB_CHK_ERR(error);
+        error = ahf->get_up_adjacencies_vert_2d(vertex, inents);MB_CHK_ERR(error);
       }
     else if (meshdim == 3)
       {
-        error = ahf->get_up_adjacencies_vert_3d(vertex, inents); MB_CHK_ERR(error);
+        error = ahf->get_up_adjacencies_vert_3d(vertex, inents);MB_CHK_ERR(error);
       }
 
     //Step 2: Loop over all the incident entities at the current level and gather their parents
@@ -324,7 +317,7 @@ namespace moab{
       {
         EntityHandle ent = inents[i];
         EntityHandle parent;
-        error = child_to_parent(ent, level, level-1, &parent); MB_CHK_ERR(error);
+        error = child_to_parent(ent, level, level-1, &parent);MB_CHK_ERR(error);
         incident_entities.push_back(parent);
       }
 
@@ -364,7 +357,7 @@ namespace moab{
 
     //Estimate mesh size of current level mesh.
     int nedges=0, nfaces=0;
-    error = count_subentities(set, cur_level-1, &nedges, &nfaces); MB_CHK_ERR(error);
+    error = count_subentities(set, cur_level-1, &nedges, &nfaces);MB_CHK_ERR(error);
 
     int d = get_index_from_degree(level_degree);
     int nverts = refTemplates[MBEDGE-1][d].nv_edge*nedges;
@@ -399,23 +392,23 @@ namespace moab{
     *set = set_handle;
 
     ReadUtilIface *read_iface;
-    error = mbImpl->query_interface(read_iface); MB_CHK_ERR(error);
+    error = mbImpl->query_interface(read_iface);MB_CHK_ERR(error);
 
     //Vertices
-    error = read_iface->get_node_coords(3, estL[0], 0,  level_mesh[cur_level].start_vertex , level_mesh[cur_level].coordinates); MB_CHK_ERR(error);
+    error = read_iface->get_node_coords(3, estL[0], 0,  level_mesh[cur_level].start_vertex , level_mesh[cur_level].coordinates);MB_CHK_ERR(error);
     level_mesh[cur_level].num_verts = estL[0];
 
     Range newverts(level_mesh[cur_level].start_vertex, level_mesh[cur_level].start_vertex+estL[0] - 1);
-    error = mbImpl->add_entities(*set, newverts); MB_CHK_ERR(error);
+    error = mbImpl->add_entities(*set, newverts);MB_CHK_ERR(error);
 
     // Edges
     if (estL[1])
       {
-        error = read_iface->get_element_connect(estL[1], 2, MBEDGE, 0, level_mesh[cur_level].start_edge, level_mesh[cur_level].edge_conn); MB_CHK_ERR(error);
+        error = read_iface->get_element_connect(estL[1], 2, MBEDGE, 0, level_mesh[cur_level].start_edge, level_mesh[cur_level].edge_conn);MB_CHK_ERR(error);
         level_mesh[cur_level].num_edges = estL[1];
 
         Range newedges(level_mesh[cur_level].start_edge, level_mesh[cur_level].start_edge+estL[1] - 1);
-        error = mbImpl->add_entities(*set, newedges); MB_CHK_ERR(error);
+        error = mbImpl->add_entities(*set, newedges);MB_CHK_ERR(error);
       }
     else
       level_mesh[cur_level].num_edges = 0;
@@ -425,11 +418,11 @@ namespace moab{
       {
         EntityType type = mbImpl->type_from_handle(*(_infaces.begin()));
         int nvpf = ahf->local_maps_2d(*(_infaces.begin()));
-        error = read_iface->get_element_connect(estL[2], nvpf, type, 0, level_mesh[cur_level].start_face, level_mesh[cur_level].face_conn); MB_CHK_ERR(error);
+        error = read_iface->get_element_connect(estL[2], nvpf, type, 0, level_mesh[cur_level].start_face, level_mesh[cur_level].face_conn);MB_CHK_ERR(error);
         level_mesh[cur_level].num_faces = estL[2];
 
         Range newfaces(level_mesh[cur_level].start_face, level_mesh[cur_level].start_face+estL[2] - 1);
-        error = mbImpl->add_entities(*set, newfaces); MB_CHK_ERR(error);
+        error = mbImpl->add_entities(*set, newfaces);MB_CHK_ERR(error);
       }
     else
       level_mesh[cur_level].num_faces = 0;
@@ -440,11 +433,11 @@ namespace moab{
         EntityType type = mbImpl->type_from_handle(*(_incells.begin()));
         int index = ahf->get_index_from_type(*_incells.begin());
         int nvpc = ahf->lConnMap3D[index].num_verts_in_cell;
-        error = read_iface->get_element_connect(estL[3], nvpc, type, 0, level_mesh[cur_level].start_cell, level_mesh[cur_level].cell_conn); MB_CHK_ERR(error);
+        error = read_iface->get_element_connect(estL[3], nvpc, type, 0, level_mesh[cur_level].start_cell, level_mesh[cur_level].cell_conn);MB_CHK_ERR(error);
         level_mesh[cur_level].num_cells = estL[3];
 
         Range newcells(level_mesh[cur_level].start_cell, level_mesh[cur_level].start_cell+estL[3] - 1);
-        error = mbImpl->add_entities(*set, newcells); MB_CHK_ERR(error);
+        error = mbImpl->add_entities(*set, newcells);MB_CHK_ERR(error);
       }
     else
       level_mesh[cur_level].num_cells = 0;
@@ -471,16 +464,16 @@ namespace moab{
           set = hm_set[l-1];
         else
           set = 0;
-        error = estimate_hm_storage(set, level_degrees[l], l, hmest); MB_CHK_ERR(error);
+        error = estimate_hm_storage(set, level_degrees[l], l, hmest);MB_CHK_ERR(error);
 
         //Create arrays for storing the current level
-        error = create_hm_storage_single_level(&hm_set[l], l, hmest); MB_CHK_ERR(error);
+        error = create_hm_storage_single_level(&hm_set[l], l, hmest);MB_CHK_ERR(error);
 
         //Copy the old vertices along with their coordinates
-        error = copy_vertices_from_prev_level(l); MB_CHK_ERR(error);
+        error = copy_vertices_from_prev_level(l);MB_CHK_ERR(error);
 
         //Create the new entities and new vertices
-        error = construct_hm_entities(l, level_degrees[l]); MB_CHK_ERR(error);
+        error = construct_hm_entities(l, level_degrees[l]);MB_CHK_ERR(error);
       }
     return MB_SUCCESS;
   }
@@ -493,15 +486,15 @@ namespace moab{
     //Generate mesh for current level by refining previous level.
     if (ahf->thismeshtype == CURVE)
       {
-        error = construct_hm_1D(cur_level, deg); MB_CHK_ERR(error);
+        error = construct_hm_1D(cur_level, deg);MB_CHK_ERR(error);
       }
      else if(ahf->thismeshtype == SURFACE || ahf->thismeshtype == SURFACE_MIXED)
       {
-        error = construct_hm_2D(cur_level, deg); MB_CHK_ERR(error);
+        error = construct_hm_2D(cur_level, deg);MB_CHK_ERR(error);
       }
     else
       {
-        error = construct_hm_3D(cur_level, deg); MB_CHK_ERR(error);
+        error = construct_hm_3D(cur_level, deg);MB_CHK_ERR(error);
       }
 
     return MB_SUCCESS;
@@ -542,7 +535,7 @@ namespace moab{
         else
           edge = _inedges[eid]; // Makes the assumption initial mesh is contiguous in memory
 
-        error = get_connectivity(edge, cur_level, conn); MB_CHK_ERR(error);
+        error = get_connectivity(edge, cur_level, conn);MB_CHK_ERR(error);
 
         //Add the vertex handles to vbuffer for the current level for the working edge
 
@@ -586,7 +579,7 @@ namespace moab{
             count_nents += 1;
           };
 
-        error = update_local_ahf(deg, MBEDGE,  vbuffer, ent_buffer, etotal); MB_CHK_ERR(error);
+        error = update_local_ahf(deg, MBEDGE,  vbuffer, ent_buffer, etotal);MB_CHK_ERR(error);
 
         // Compute the coordinates of the new vertices: Linear interpolation
         int idx;
@@ -613,7 +606,7 @@ namespace moab{
         delete [] ent_buffer;
       }
 
-    error = update_global_ahf(MBEDGE, cur_level, deg); MB_CHK_ERR(error);
+    error = update_global_ahf(MBEDGE, cur_level, deg);MB_CHK_ERR(error);
 
     delete [] vbuffer;
 
@@ -673,7 +666,7 @@ namespace moab{
         else
           face = _infaces[fid];
 
-        error = get_connectivity(face, cur_level, conn); MB_CHK_ERR(error);
+        error = get_connectivity(face, cur_level, conn);MB_CHK_ERR(error);
 
         //Step 1: Add vertices from the current level for the working face that will be used for subdivision.
         // Add the corners to vbuffer
@@ -720,7 +713,7 @@ namespace moab{
           }
 
         // Step 3: Update the local AHF maps
-        error = update_local_ahf(deg, type, vbuffer, ent_buffer, etotal); MB_CHK_ERR(error);
+        error = update_local_ahf(deg, type, vbuffer, ent_buffer, etotal);MB_CHK_ERR(error);
 
         //Step 4: Add the new vertices to the tracking array
         int id;
@@ -739,7 +732,7 @@ namespace moab{
             std::vector<int> siborient;
 
             //Add the vertices to trackvertsF for siblings of fid, if any.
-            error = ahf->get_up_adjacencies_2d(face, i, false, sibfids, &sibleids, &siborient); MB_CHK_ERR(error);
+            error = ahf->get_up_adjacencies_2d(face, i, false, sibfids, &sibleids, &siborient);MB_CHK_ERR(error);
 
             if (!sibfids.size())
               continue;
@@ -773,16 +766,16 @@ namespace moab{
 
         //Step 5: Compute the coordinates of the new vertices, avoids computing more than once via the flag_verts array.
         double *corner_coords = new double[nepf*3];
-        error = get_coordinates(&cur_conn[0], nepf, cur_level+1, corner_coords);  MB_CHK_ERR(error);
+        error = get_coordinates(&cur_conn[0], nepf, cur_level+1, corner_coords);MB_CHK_ERR(error);
 
-        error = compute_coordinates(cur_level, deg, type, vbuffer, vtotal, corner_coords, flag_verts, nverts_prev);  MB_CHK_ERR(error);
+        error = compute_coordinates(cur_level, deg, type, vbuffer, vtotal, corner_coords, flag_verts, nverts_prev);MB_CHK_ERR(error);
 
         delete [] corner_coords;
 
       }
 
     // Step 6: Update the global maps
-    error = update_global_ahf(type, cur_level, deg);  MB_CHK_ERR(error);
+    error = update_global_ahf(type, cur_level, deg);MB_CHK_ERR(error);
 
     delete [] vbuffer;
     delete [] ent_buffer;
@@ -796,11 +789,11 @@ namespace moab{
     EntityType type = mbImpl->type_from_handle(*(_incells.begin()));
     if (type == MBTET)
       {
-        error = subdivide_tets(cur_level, deg);  MB_CHK_ERR(error);
+        error = subdivide_tets(cur_level, deg);MB_CHK_ERR(error);
       }
     else
       {
-        error = subdivide_cells(type, cur_level, deg);  MB_CHK_ERR(error);
+        error = subdivide_cells(type, cur_level, deg);MB_CHK_ERR(error);
       }
 
     return MB_SUCCESS;
@@ -861,7 +854,7 @@ namespace moab{
         else
           cell = _incells[cid];
 
-        error = get_connectivity(cell, cur_level, conn);  MB_CHK_ERR(error);
+        error = get_connectivity(cell, cur_level, conn);MB_CHK_ERR(error);
 
         //Step 1: Add vertices from the current level for the working face that will be used for subdivision.
         // Add the corners to vbuffer
@@ -918,23 +911,23 @@ namespace moab{
           }
 
         //Step 3: Update local ahf maps
-        error = update_local_ahf(deg, type, vbuffer, ent_buffer, etotal);  MB_CHK_ERR(error);
+        error = update_local_ahf(deg, type, vbuffer, ent_buffer, etotal);MB_CHK_ERR(error);
 
         //Step 4: Update tracking information
-        error = update_tracking_verts(cell, cur_level, deg, trackvertsC_edg, trackvertsC_face, vbuffer);  MB_CHK_ERR(error);
+        error = update_tracking_verts(cell, cur_level, deg, trackvertsC_edg, trackvertsC_face, vbuffer);MB_CHK_ERR(error);
 
         //Step 5: Coordinates of the new vertices
         double *corner_coords = new double[nvpc*3];
-        error = get_coordinates(&cur_conn[0], nvpc, cur_level+1, corner_coords); MB_CHK_ERR(error);
+        error = get_coordinates(&cur_conn[0], nvpc, cur_level+1, corner_coords);MB_CHK_ERR(error);
 
-        error = compute_coordinates(cur_level, deg, type, vbuffer, vtotal, corner_coords, flag_verts, nverts_prev);  MB_CHK_ERR(error);
+        error = compute_coordinates(cur_level, deg, type, vbuffer, vtotal, corner_coords, flag_verts, nverts_prev);MB_CHK_ERR(error);
 
         delete [] ent_buffer;
         delete [] corner_coords;
       }
 
     //Step 6: Update the global maps
-    error = update_global_ahf(type, cur_level, deg); MB_CHK_ERR(error);
+    error = update_global_ahf(type, cur_level, deg);MB_CHK_ERR(error);
 
     delete [] vbuffer;
 
@@ -999,7 +992,7 @@ namespace moab{
         else
           cell = _incells[cid];
 
-        error = get_connectivity(cell, cur_level, conn);  MB_CHK_ERR(error);
+        error = get_connectivity(cell, cur_level, conn);MB_CHK_ERR(error);
 
         //Step 1: Add vertices from the current level for the working face that will be used for subdivision.
         // Add the corners to vbuffer
@@ -1041,9 +1034,9 @@ namespace moab{
 
         //Step 2: Coordinates of the new vertices
         double *corner_coords = new double[nvpc*3];
-        error = get_coordinates(&cur_conn[0], nvpc, cur_level+1, corner_coords);  MB_CHK_ERR(error);
+        error = get_coordinates(&cur_conn[0], nvpc, cur_level+1, corner_coords);MB_CHK_ERR(error);
 
-        error = compute_coordinates(cur_level, deg, type, vbuffer, vtotal, corner_coords, flag_verts, nverts_prev);  MB_CHK_ERR(error);
+        error = compute_coordinates(cur_level, deg, type, vbuffer, vtotal, corner_coords, flag_verts, nverts_prev);MB_CHK_ERR(error);
 
         //Step 3: Choose the tet refine pattern to be used for this tet
         int diag = find_shortest_diagonal_octahedron(cur_level, deg, vbuffer);
@@ -1067,17 +1060,17 @@ namespace moab{
           }
 
         //Step 5: Update local ahf maps
-        error = update_local_ahf(deg, MBTET, pat_id, vbuffer, ent_buffer, etotal); MB_CHK_ERR(error);
+        error = update_local_ahf(deg, MBTET, pat_id, vbuffer, ent_buffer, etotal);MB_CHK_ERR(error);
 
         //Step 6: Update tracking information
-        error = update_tracking_verts(cell, cur_level, deg, trackvertsC_edg, trackvertsC_face, vbuffer);  MB_CHK_ERR(error);
+        error = update_tracking_verts(cell, cur_level, deg, trackvertsC_edg, trackvertsC_face, vbuffer);MB_CHK_ERR(error);
 
         delete [] ent_buffer;
         delete [] corner_coords;
       }
 
     //Step 7: Update the global maps
-    error = update_global_ahf(cur_level, deg, cell_patterns); MB_CHK_ERR(error);
+    error = update_global_ahf(cur_level, deg, cell_patterns);MB_CHK_ERR(error);
 
     delete [] vbuffer;
 
@@ -1287,7 +1280,7 @@ ErrorCode NestedRefine::update_local_ahf(int deg, EntityType type, int pat_id, E
       int lid;
 
       EntityHandle vid = vbuffer[i+nv];
-      error = ahf->get_incident_tag(type, vid, &ent, &lid);  MB_CHK_ERR(error);
+      error = ahf->get_incident_tag(type, vid, &ent, &lid);MB_CHK_ERR(error);
 
       if (ent)
         continue;
@@ -1296,7 +1289,7 @@ ErrorCode NestedRefine::update_local_ahf(int deg, EntityType type, int pat_id, E
       ent = ent_buffer[id];
       lid = refTemplates[pat_id][d].v2hf[i+nv][1];
 
-      error = ahf->set_incident_tag(type, vid, &ent, &lid);  MB_CHK_ERR(error);
+      error = ahf->set_incident_tag(type, vid, &ent, &lid);MB_CHK_ERR(error);
     }
 
   //Update the sibling half-facet map
@@ -1305,7 +1298,7 @@ ErrorCode NestedRefine::update_local_ahf(int deg, EntityType type, int pat_id, E
       EntityHandle  *sib_entids = new EntityHandle[nhf];
       int *sib_lids = new int[nhf];
 
-      error = ahf->get_sibling_tag(type, ent_buffer[i], &sib_entids[0], &sib_lids[0]);  MB_CHK_ERR(error);
+      error = ahf->get_sibling_tag(type, ent_buffer[i], &sib_entids[0], &sib_lids[0]);MB_CHK_ERR(error);
 
       for (int l=0; l< nhf; l++)
         {
@@ -1326,7 +1319,7 @@ ErrorCode NestedRefine::update_local_ahf(int deg, EntityType type, int pat_id, E
             }
         }
 
-      error = ahf->set_sibling_tag(type, ent_buffer[i], &sib_entids[0], &sib_lids[0]); MB_CHK_ERR(error);
+      error = ahf->set_sibling_tag(type, ent_buffer[i], &sib_entids[0], &sib_lids[0]);MB_CHK_ERR(error);
 
       for (int l=0; l< nhf; l++)
         {
@@ -1334,12 +1327,12 @@ ErrorCode NestedRefine::update_local_ahf(int deg, EntityType type, int pat_id, E
               EntityHandle *set_entids = new EntityHandle[nhf];
               int *set_lids = new int[nhf];
 
-              error = ahf->get_sibling_tag(type, sib_entids[l], &set_entids[0], &set_lids[0]); MB_CHK_ERR(error);
+              error = ahf->get_sibling_tag(type, sib_entids[l], &set_entids[0], &set_lids[0]);MB_CHK_ERR(error);
 
               set_entids[sib_lids[l]] = ent_buffer[i];
               set_lids[sib_lids[l]] = l;
 
-              error = ahf->set_sibling_tag(type, sib_entids[l], set_entids, set_lids);  MB_CHK_ERR(error);
+              error = ahf->set_sibling_tag(type, sib_entids[l], set_entids, set_lids);MB_CHK_ERR(error);
 
               delete [] set_entids;
               delete [] set_lids;
@@ -1358,7 +1351,7 @@ ErrorCode NestedRefine::update_local_ahf(int deg, EntityType type, EntityHandle 
 {
   ErrorCode error;
   assert(type != MBTET);
-  error = update_local_ahf(deg, type, type-1, vbuffer, ent_buffer, etotal); MB_CHK_ERR(error);
+  error = update_local_ahf(deg, type, type-1, vbuffer, ent_buffer, etotal);MB_CHK_ERR(error);
 
   return MB_SUCCESS;
 }
@@ -1371,15 +1364,15 @@ ErrorCode NestedRefine::update_global_ahf(EntityType type, int cur_level, int de
   //Get the number of half-facets and number of children of each type
   if (type == MBEDGE)
     {
-      error = update_global_ahf_1D(cur_level, deg); MB_CHK_ERR(error);
+      error = update_global_ahf_1D(cur_level, deg);MB_CHK_ERR(error);
     }
   else if (type == MBTRI || type == MBQUAD)
     {
-      error = update_global_ahf_2D(cur_level, deg); MB_CHK_ERR(error);
+      error = update_global_ahf_2D(cur_level, deg);MB_CHK_ERR(error);
     }
   else if (type == MBHEX)
     {
-      error = update_global_ahf_3D(cur_level, deg); MB_CHK_ERR(error);
+      error = update_global_ahf_3D(cur_level, deg);MB_CHK_ERR(error);
     }
 
   return MB_SUCCESS;
@@ -1388,7 +1381,7 @@ ErrorCode NestedRefine::update_global_ahf(EntityType type, int cur_level, int de
 ErrorCode NestedRefine::update_global_ahf(int cur_level, int deg, std::vector<int> &pattern_ids)
 {
   ErrorCode error;
-  error = update_global_ahf_3D(cur_level, deg, pattern_ids); MB_CHK_ERR(error);
+  error = update_global_ahf_3D(cur_level, deg, pattern_ids);MB_CHK_ERR(error);
 
   return MB_SUCCESS;
 }
@@ -1425,7 +1418,7 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
        EntityHandle inci_ent=0;
        int inci_lid=0;
 
-       error = ahf->get_incident_tag(MBEDGE, vid, &inci_ent, &inci_lid);  MB_CHK_ERR(error);
+       error = ahf->get_incident_tag(MBEDGE, vid, &inci_ent, &inci_lid);MB_CHK_ERR(error);
 
        // Obtain the corresponding incident child in the current mesh
        int lvid = get_local_vid(vid, inci_ent, cur_level-1);
@@ -1443,7 +1436,7 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
        int child_lid = refTemplates[0][d].v2hf[lvid][1];
 
        EntityHandle cur_vid = level_mesh[cur_level].start_vertex + i;
-       error = ahf->set_incident_tag(MBEDGE, cur_vid, &child_ent, &child_lid);  MB_CHK_ERR(error);
+       error = ahf->set_incident_tag(MBEDGE, cur_vid, &child_ent, &child_lid);MB_CHK_ERR(error);
      }
 
    //Update the sibling half-facet maps across entities
@@ -1458,7 +1451,7 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
        EntityHandle *sib_entids = new EntityHandle[nhf];
        int *sib_lids = new int[nhf];
 
-       error = ahf->get_sibling_tag(MBEDGE, ent, &sib_entids[0], &sib_lids[0]);  MB_CHK_ERR(error);
+       error = ahf->get_sibling_tag(MBEDGE, ent, &sib_entids[0], &sib_lids[0]);MB_CHK_ERR(error);
 
        int id, idx;
 
@@ -1477,7 +1470,7 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
            EntityHandle *sib_childs = new EntityHandle[nhf];
            int *sib_chlids = new int[nhf];
 
-           error = ahf->get_sibling_tag(MBEDGE, child_ent, &sib_childs[0], &sib_chlids[0]);  MB_CHK_ERR(error);
+           error = ahf->get_sibling_tag(MBEDGE, child_ent, &sib_childs[0], &sib_chlids[0]);MB_CHK_ERR(error);
 
            //If the sibling already exists, dont do anything
            if (sib_childs[ch_lid])
@@ -1502,7 +1495,7 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
            sib_childs[ch_lid] = psib_child;
            sib_chlids[ch_lid] = psib_chlid;
 
-           error = ahf->set_sibling_tag(MBEDGE, child_ent, &sib_childs[0], &sib_chlids[0]);  MB_CHK_ERR(error);
+           error = ahf->set_sibling_tag(MBEDGE, child_ent, &sib_childs[0], &sib_chlids[0]);MB_CHK_ERR(error);
 
            delete [] sib_childs;
            delete [] sib_chlids;
@@ -1550,7 +1543,7 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
        EntityHandle inci_ent=0;
        int inci_lid=0;
 
-       error = ahf->get_incident_tag(type, vid, &inci_ent, &inci_lid); MB_CHK_ERR(error);
+       error = ahf->get_incident_tag(type, vid, &inci_ent, &inci_lid);MB_CHK_ERR(error);
 
        // Obtain the corresponding incident child in the current mesh
        int lvid = get_local_vid(vid, inci_ent, cur_level-1);
@@ -1569,14 +1562,14 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
 
        EntityHandle cur_vid = level_mesh[cur_level].start_vertex + i;
 
-       error = ahf->set_incident_tag(type, cur_vid, &child_ent, &child_lid);  MB_CHK_ERR(error);
+       error = ahf->set_incident_tag(type, cur_vid, &child_ent, &child_lid);MB_CHK_ERR(error);
      }
 
 
    EntityHandle fedge[2];
    int * next = new int[nhf];
    int  * prev = new int[nhf];
-   error = ahf->local_maps_2d(nhf, next, prev); MB_CHK_ERR(error);
+   error = ahf->local_maps_2d(nhf, next, prev);MB_CHK_ERR(error);
 
    //Update the sibling half-facet maps across entities
    for (int i=0; i< nents_prev; i++)
@@ -1594,7 +1587,7 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
        EntityHandle *sib_entids = new EntityHandle[nhf];
        int *sib_lids = new int[nhf];
 
-       error = ahf->get_sibling_tag(type, ent, &sib_entids[0], &sib_lids[0]);  MB_CHK_ERR(error);
+       error = ahf->get_sibling_tag(type, ent, &sib_entids[0], &sib_lids[0]);MB_CHK_ERR(error);
 
        int id, idx;
 
@@ -1635,7 +1628,7 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
                EntityHandle *sib_childs = new EntityHandle[nhf];
                int *sib_chlids = new int[nhf];
 
-               error = ahf->get_sibling_tag(type, child_ent, &sib_childs[0], &sib_chlids[0]);   MB_CHK_ERR(error);
+               error = ahf->get_sibling_tag(type, child_ent, &sib_childs[0], &sib_chlids[0]);MB_CHK_ERR(error);
 
                //If the sibling already exists, dont do anything
                if (sib_childs[ch_lid])
@@ -1664,7 +1657,7 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
                sib_childs[ch_lid] = psib_child;
                sib_chlids[ch_lid] = psib_chlid;
 
-               error = ahf->set_sibling_tag(type, child_ent, &sib_childs[0], &sib_chlids[0]);  MB_CHK_ERR(error);
+               error = ahf->set_sibling_tag(type, child_ent, &sib_childs[0], &sib_chlids[0]);MB_CHK_ERR(error);
 
                delete [] sib_childs;
                delete [] sib_chlids;
@@ -1718,7 +1711,7 @@ ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg)
       EntityHandle inci_ent=0;
       int inci_lid=0;
 
-      error = ahf->get_incident_tag(type, vid, &inci_ent, &inci_lid);  MB_CHK_ERR(error);
+      error = ahf->get_incident_tag(type, vid, &inci_ent, &inci_lid);MB_CHK_ERR(error);
 
       // Obtain the corresponding incident child in the current mesh
       int lvid = get_local_vid(vid, inci_ent, cur_level-1);
@@ -1737,7 +1730,7 @@ ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg)
 
       EntityHandle cur_vid = level_mesh[cur_level].start_vertex + i;
 
-      error = ahf->set_incident_tag(type, cur_vid, &child_ent, &child_lid);  MB_CHK_ERR(error);
+      error = ahf->set_incident_tag(type, cur_vid, &child_ent, &child_lid);MB_CHK_ERR(error);
     }
 
   //Step 2: Update SIBHFS maps
@@ -1752,7 +1745,7 @@ ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg)
       EntityHandle *sib_entids = new EntityHandle[nhf];
       int *sib_lids = new int[nhf];
 
-      error = ahf->get_sibling_tag(type, ent, &sib_entids[0], &sib_lids[0]);  MB_CHK_ERR(error);
+      error = ahf->get_sibling_tag(type, ent, &sib_entids[0], &sib_lids[0]);MB_CHK_ERR(error);
 
       int id, idx;
 
@@ -1770,7 +1763,7 @@ ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg)
           for (int k=0; k<nch; k++)
             id_sib[k] = 0;
 
-          error = reorder_indices(cur_level, deg, ent, l, sib_entids[l], sib_lids[l], 1, id_sib);  MB_CHK_ERR(error);
+          error = reorder_indices(cur_level, deg, ent, l, sib_entids[l], sib_lids[l], 1, id_sib);MB_CHK_ERR(error);
 
           //Get the parent index of the sibling cell
           int psib;
@@ -1795,7 +1788,7 @@ ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg)
               EntityHandle *child_sibents= new EntityHandle[nhf];
               int *child_siblids = new int[nhf];
 
-              error = ahf->get_sibling_tag(type, child_ent, &child_sibents[0], &child_siblids[0]);   MB_CHK_ERR(error);
+              error = ahf->get_sibling_tag(type, child_ent, &child_sibents[0], &child_siblids[0]);MB_CHK_ERR(error);
 
               //If the sibling already exists, dont do anything
               if (child_sibents[child_lid])
@@ -1816,18 +1809,18 @@ ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg)
               child_sibents[child_lid] = psib_child;
               child_siblids[child_lid] = psib_chlid;
 
-              error = ahf->set_sibling_tag(type, child_ent, child_sibents, child_siblids);  MB_CHK_ERR(error);
+              error = ahf->set_sibling_tag(type, child_ent, child_sibents, child_siblids);MB_CHK_ERR(error);
 
               //Set the sibling of the sibling of the children to the children
               EntityHandle *sibch_ents= new EntityHandle[nhf];
               int *sibch_lids = new int[nhf];
 
-              error = ahf->get_sibling_tag(type, psib_child, &sibch_ents[0], &sibch_lids[0]);  MB_CHK_ERR(error);
+              error = ahf->get_sibling_tag(type, psib_child, &sibch_ents[0], &sibch_lids[0]);MB_CHK_ERR(error);
 
               sibch_ents[psib_chlid] = child_ent;
               sibch_lids[psib_chlid]  = child_lid;
 
-              error = ahf->set_sibling_tag(type, psib_child, sibch_ents, sibch_lids); MB_CHK_ERR(error);
+              error = ahf->set_sibling_tag(type, psib_child, sibch_ents, sibch_lids);MB_CHK_ERR(error);
 
               delete [] child_sibents;
               delete [] child_siblids;
@@ -1883,7 +1876,7 @@ ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg, std::vector
       EntityHandle inci_ent=0;
       int inci_lid=0;
 
-      error = ahf->get_incident_tag(type, vid, &inci_ent, &inci_lid);  MB_CHK_ERR(error);
+      error = ahf->get_incident_tag(type, vid, &inci_ent, &inci_lid);MB_CHK_ERR(error);
 
       // Obtain the corresponding incident child in the current mesh
       int lvid = get_local_vid(vid, inci_ent, cur_level-1);
@@ -1902,7 +1895,7 @@ ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg, std::vector
 
       EntityHandle cur_vid = level_mesh[cur_level].start_vertex + i;
 
-      error = ahf->set_incident_tag(type, cur_vid, &child_ent, &child_lid);  MB_CHK_ERR(error);
+      error = ahf->set_incident_tag(type, cur_vid, &child_ent, &child_lid);MB_CHK_ERR(error);
     }
 
   //Step 2: Update SIBHFS maps
@@ -1917,7 +1910,7 @@ ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg, std::vector
       EntityHandle *sib_entids = new EntityHandle[nhf];
       int *sib_lids = new int[nhf];
 
-      error = ahf->get_sibling_tag(type, ent, &sib_entids[0], &sib_lids[0]);  MB_CHK_ERR(error);
+      error = ahf->get_sibling_tag(type, ent, &sib_entids[0], &sib_lids[0]);MB_CHK_ERR(error);
 
       int id, idx;
 
@@ -1935,7 +1928,7 @@ ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg, std::vector
           for (int k=0; k<nch; k++)
             id_sib[k] = 0;
 
-          error = reorder_indices(cur_level, deg, ent, l, sib_entids[l], sib_lids[l], 1, id_sib);  MB_CHK_ERR(error);
+          error = reorder_indices(cur_level, deg, ent, l, sib_entids[l], sib_lids[l], 1, id_sib);MB_CHK_ERR(error);
 
           //Get the parent index of the sibling cell
           int psib;
@@ -1961,7 +1954,7 @@ ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg, std::vector
               EntityHandle *child_sibents= new EntityHandle[nhf];
               int *child_siblids = new int[nhf];
 
-              error = ahf->get_sibling_tag(type, child_ent, &child_sibents[0], &child_siblids[0]);   MB_CHK_ERR(error);
+              error = ahf->get_sibling_tag(type, child_ent, &child_sibents[0], &child_siblids[0]);MB_CHK_ERR(error);
 
               //If the sibling already exists, dont do anything
               if (child_sibents[child_lid])
@@ -1982,18 +1975,18 @@ ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg, std::vector
               child_sibents[child_lid] = psib_child;
               child_siblids[child_lid] = psib_chlid;
 
-              error = ahf->set_sibling_tag(type, child_ent, child_sibents, child_siblids);  MB_CHK_ERR(error);
+              error = ahf->set_sibling_tag(type, child_ent, child_sibents, child_siblids);MB_CHK_ERR(error);
 
               //Set the sibling of the sibling of the children to the children
               EntityHandle *sibch_ents= new EntityHandle[nhf];
               int *sibch_lids = new int[nhf];
 
-              error = ahf->get_sibling_tag(type, psib_child, &sibch_ents[0], &sibch_lids[0]);  MB_CHK_ERR(error);
+              error = ahf->get_sibling_tag(type, psib_child, &sibch_ents[0], &sibch_lids[0]);MB_CHK_ERR(error);
 
               sibch_ents[psib_chlid] = child_ent;
               sibch_lids[psib_chlid]  = child_lid;
 
-              error = ahf->set_sibling_tag(type, psib_child, sibch_ents, sibch_lids); MB_CHK_ERR(error);
+              error = ahf->set_sibling_tag(type, psib_child, sibch_ents, sibch_lids);MB_CHK_ERR(error);
 
               delete [] child_sibents;
               delete [] child_siblids;
@@ -2034,7 +2027,7 @@ ErrorCode NestedRefine::copy_vertices_from_prev_level(int cur_level)
     {
       int nverts_in = _inverts.size();
       double *vcoords = new double[3*nverts_in];
-      error = mbImpl->get_coords(_inverts, vcoords); MB_CHK_ERR(error);
+      error = mbImpl->get_coords(_inverts, vcoords);MB_CHK_ERR(error);
 
       for (int i = 0; i < nverts_in; i++)
         {
@@ -2090,7 +2083,7 @@ ErrorCode NestedRefine::update_tracking_verts(EntityHandle cid, int cur_level, i
       std::vector<EntityHandle> inc_cids;
       std::vector<int> inc_leids, inc_orient;
 
-      error = ahf->get_up_adjacencies_edg_3d(cid, i, inc_cids,  &inc_leids, &inc_orient);   MB_CHK_ERR(error);
+      error = ahf->get_up_adjacencies_edg_3d(cid, i, inc_cids,  &inc_leids, &inc_orient);MB_CHK_ERR(error);
 
       if (inc_cids.size() ==1)
         continue;
@@ -2147,7 +2140,7 @@ ErrorCode NestedRefine::update_tracking_verts(EntityHandle cid, int cur_level, i
           //Obtain all the incident cells
           std::vector<EntityHandle> sib_cids;
           std::vector<int>  sib_lfids;
-          error = ahf->get_up_adjacencies_face_3d(cid, i, sib_cids, &sib_lfids);   MB_CHK_ERR(error);
+          error = ahf->get_up_adjacencies_face_3d(cid, i, sib_cids, &sib_lfids);MB_CHK_ERR(error);
 
           if (sib_cids.size()==1)
             continue;
@@ -2157,7 +2150,7 @@ ErrorCode NestedRefine::update_tracking_verts(EntityHandle cid, int cur_level, i
           for (int k=0; k<nvf; k++)
             id_sib[k] = 0;
 
-          error = reorder_indices(cur_level, deg, sib_cids[1], sib_lfids[1], cid, i, 0, id_sib);  MB_CHK_ERR(error);
+          error = reorder_indices(cur_level, deg, sib_cids[1], sib_lfids[1], cid, i, 0, id_sib);MB_CHK_ERR(error);
 
           //Add vertices to the tracking array of vertices on faces for the sibling cell of the current cell
           for (int j=0; j< nvf; j++)
@@ -2197,9 +2190,9 @@ ErrorCode NestedRefine::reorder_indices(int cur_level, int deg, EntityHandle cel
     {
       //Get connectivity of the cell and its sibling cell
       std::vector<EntityHandle> conn, sib_conn;
-      error = get_connectivity(cell, cur_level, conn);   MB_CHK_ERR(error);
+      error = get_connectivity(cell, cur_level, conn);MB_CHK_ERR(error);
 
-      error = get_connectivity(sib_cell, cur_level, sib_conn);   MB_CHK_ERR(error);
+      error = get_connectivity(sib_cell, cur_level, sib_conn);MB_CHK_ERR(error);
 
       //Get the connectivity of the local face in the cell and its sibling
       EntityHandle *lface = new EntityHandle[nvF];
@@ -2261,17 +2254,17 @@ ErrorCode NestedRefine::count_subentities(EntityHandle set, int cur_level, int *
   if (cur_level>=0){
       Range edges, faces, cells;
 
-      error = mbImpl->get_entities_by_dimension( set, 1, edges); MB_CHK_ERR(error);
+      error = mbImpl->get_entities_by_dimension( set, 1, edges);MB_CHK_ERR(error);
 
-      error = mbImpl->get_entities_by_dimension( set, 2, faces); MB_CHK_ERR(error);
+      error = mbImpl->get_entities_by_dimension( set, 2, faces);MB_CHK_ERR(error);
 
-      error = mbImpl->get_entities_by_dimension( set, 3, cells); MB_CHK_ERR(error);
+      error = mbImpl->get_entities_by_dimension( set, 3, cells);MB_CHK_ERR(error);
 
-      error = ahf->count_subentities(edges, faces, cells, nedges, nfaces); MB_CHK_ERR(error);
+      error = ahf->count_subentities(edges, faces, cells, nedges, nfaces);MB_CHK_ERR(error);
     }
   else
     {
-      error = ahf->count_subentities(_inedges, _infaces, _incells, nedges, nfaces); MB_CHK_ERR(error);
+      error = ahf->count_subentities(_inedges, _infaces, _incells, nedges, nfaces);MB_CHK_ERR(error);
     }
 
   return MB_SUCCESS;
@@ -2382,7 +2375,7 @@ ErrorCode NestedRefine::print_tags_1D(int level)
       EntityHandle eid=0;
       int lvid=0;
       EntityHandle vid = level_mesh[level].start_vertex+i;
-      error = ahf->get_incident_tag(MBEDGE, vid, &eid, &lvid); MB_CHK_ERR(error);
+      error = ahf->get_incident_tag(MBEDGE, vid, &eid, &lvid);MB_CHK_ERR(error);
 
       std::cout<<"For vertex = "<<vid<<"::Incident halfvertex "<<eid<<"  "<<lvid<<std::endl;
     }
@@ -2395,7 +2388,7 @@ ErrorCode NestedRefine::print_tags_1D(int level)
       EntityHandle ent = start_edge+i;
 
       EntityHandle eid[2];  int lvid[2];
-      error = ahf->get_sibling_tag(MBEDGE, ent, &eid[0], &lvid[0]); MB_CHK_ERR(error);
+      error = ahf->get_sibling_tag(MBEDGE, ent, &eid[0], &lvid[0]);MB_CHK_ERR(error);
       std::cout<<"<"<<eid[0]<<","<<lvid[0]<<">"<<"      "<<"<"<<eid[1]<<","<<lvid[1]<<">"<<std::endl;
     }
 
@@ -2418,7 +2411,7 @@ ErrorCode NestedRefine::print_tags_2D(int level, EntityType type)
       EntityHandle fid=0;
       int leid=0;
       EntityHandle vid = level_mesh[level].start_vertex+i;
-      error = ahf->get_incident_tag(type, vid, &fid, &leid); MB_CHK_ERR(error);
+      error = ahf->get_incident_tag(type, vid, &fid, &leid);MB_CHK_ERR(error);
 
       std::cout<<"For vertex = "<<vid<<"::Incident halfedge "<<fid<<"  "<<leid<<std::endl;
     }
@@ -2436,7 +2429,7 @@ ErrorCode NestedRefine::print_tags_2D(int level, EntityType type)
       leid.clear();
 
       EntityHandle ent = start_face+i;
-      error = ahf->get_sibling_tag(type, ent, &fid[0], &leid[0]); MB_CHK_ERR(error);
+      error = ahf->get_sibling_tag(type, ent, &fid[0], &leid[0]);MB_CHK_ERR(error);
 
       for (int j=0; j<nepf; j++){
           std::cout<<"<"<<fid[j]<<","<<leid[j]<<">"<<"      ";
@@ -2462,7 +2455,7 @@ ErrorCode NestedRefine::print_tags_3D(int level, EntityType type)
       EntityHandle cid=0;
       int lfid=0;
       EntityHandle vid = level_mesh[level].start_vertex+i;
-      error = ahf->get_incident_tag(type, vid, &cid, &lfid); MB_CHK_ERR(error);
+      error = ahf->get_incident_tag(type, vid, &cid, &lfid);MB_CHK_ERR(error);
 
       std::cout<<"For vertex = "<<vid<<"::Incident halfface "<<cid<<"  "<<lfid<<std::endl;
     }
@@ -2481,7 +2474,7 @@ ErrorCode NestedRefine::print_tags_3D(int level, EntityType type)
       lfid.clear();
 
       EntityHandle ent = start_cell+i;
-      error = ahf->get_sibling_tag(type, ent, &cid[0], &lfid[0]); MB_CHK_ERR(error);
+      error = ahf->get_sibling_tag(type, ent, &cid[0], &lfid[0]);MB_CHK_ERR(error);
 
       for (int j=0; j<nfpc; j++){
           std::cout<<"<"<<cid[j]<<","<<lfid[j]<<">"<<"      ";
