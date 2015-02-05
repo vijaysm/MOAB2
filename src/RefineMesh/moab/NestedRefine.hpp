@@ -31,7 +31,8 @@ namespace moab
     
   public:
 
-    NestedRefine(Core *impl);
+    //NestedRefine(Core *impl);
+    NestedRefine(Interface *thisMB);
     
     ~NestedRefine();
     
