@@ -12,10 +12,10 @@
 
 namespace moab{
 
-  NestedRefine::NestedRefine(Core *impl)
+  NestedRefine::NestedRefine(Core *impl, EntityHandle rset)
+    : mbImpl(impl), _rset(rset)
   {
     assert(NULL != impl);
-    mbImpl = impl;
 
     ErrorCode error;
     error = initialize();
@@ -34,7 +34,7 @@ namespace moab{
   ErrorCode NestedRefine::initialize()
   {
     ErrorCode error;
-    ahf = new HalfFacetRep(mbImpl);
+    ahf = new HalfFacetRep(mbImpl, this->_rset);
     if (!ahf)
       return MB_MEMORY_ALLOCATION_FAILED;
 

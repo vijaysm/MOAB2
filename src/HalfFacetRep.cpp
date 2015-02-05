@@ -25,10 +25,11 @@
 namespace moab
 {
 
-HalfFacetRep::HalfFacetRep(Core *impl)
+HalfFacetRep::HalfFacetRep(Core *impl, moab::EntityHandle rset)
 {
   assert(NULL != impl);
   mb = impl;
+  _rset = rset;
   mInitAHFmaps = false;
   chk_mixed = false;
   is_mixed = false;
@@ -151,12 +152,11 @@ bool HalfFacetRep::check_mixed_entity_type()
  * initialize                                          *
  ******************************************************/
 
-ErrorCode HalfFacetRep::initialize(moab::EntityHandle rset)
+ErrorCode HalfFacetRep::initialize()
 {
   ErrorCode error;
 
   mInitAHFmaps = true;
-  this->_rset = rset;
 
   /* Get all entities by dimension on the rootset with recursion turned on */
   error = mb->get_entities_by_dimension( this->_rset, 0, _verts, true);MB_CHK_ERR(error);

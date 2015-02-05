@@ -77,7 +77,7 @@ class HalfFacetRep
 
 public:
 
-  HalfFacetRep(Core *impl);
+  HalfFacetRep(Core *impl, moab::EntityHandle rset=0);
 
   ~HalfFacetRep();
 
@@ -87,7 +87,7 @@ public:
 
   //! Creates all the necessary tags to store the maps. Constructs the sibling-half-facet and vertex-to-incident-half-facet maps for each dimension present in the input.
 
-  ErrorCode initialize(moab::EntityHandle rset=0);
+  ErrorCode initialize();
 
   //! Deletes all the created tags.
 

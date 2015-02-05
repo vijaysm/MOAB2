@@ -31,7 +31,7 @@ namespace moab
     
   public:
 
-    NestedRefine(Core *impl);
+    NestedRefine(Core *impl, EntityHandle rset=0);
     
     ~NestedRefine();
     
@@ -117,6 +117,7 @@ namespace moab
     Core *mbImpl;
     HalfFacetRep *ahf;
 
+    EntityHandle _rset;
     Range _inverts, _inedges, _infaces, _incells;
     int meshdim;
     int level_dsequence[MAX_LEVELS];
