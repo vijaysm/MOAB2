@@ -1008,6 +1008,13 @@ ErrorCode test_mesh(const char* filename, int *level_degrees, int num_levels)
     }
 #endif
 
+    Range verts, edges,faces,cells;
+    error = mbImpl->get_entities_by_dimension(0, 0, verts); CHECK_ERR(error);
+    error = mbImpl->get_entities_by_dimension(0, 1, edges); CHECK_ERR(error);
+    error = mbImpl->get_entities_by_dimension(0, 2, faces); CHECK_ERR(error);
+    error = mbImpl->get_entities_by_dimension(0, 3, cells); CHECK_ERR(error);
+    std::cout<<"verts = "<<verts.size()<<", edges = "<<edges.size()<<", faces = "<<faces.size()<<", cells = "<<cells.size()<<std::endl;
+
     //Generate hierarchy
     error = refine_entities(&moab, level_degrees, num_levels, false);  CHECK_ERR(error);
 

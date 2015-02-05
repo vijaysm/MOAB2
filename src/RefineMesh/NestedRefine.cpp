@@ -12,7 +12,7 @@
 
 namespace moab{
 
-  NestedRefine::NestedRefine(Core *impl)
+ /* NestedRefine::NestedRefine(Core *impl)
   {
     assert(NULL != impl);
     mbImpl = impl;
@@ -24,6 +24,20 @@ namespace moab{
       std::cout<<"Error initializing NestedRefine\n"<<std::endl;
       exit(1);
     }
+  }*/
+
+  NestedRefine::NestedRefine(Interface *thisMB)
+  {
+    Core* this_core = dynamic_cast<Core*>(thisMB);
+    mbImpl = this_core;
+
+    ErrorCode error;
+    error = initialize();
+    if (error != MB_SUCCESS)
+      {
+        std::cout<<"Error initializing NestedRefine\n"<<std::endl;
+        exit(1);
+      }
   }
 
   NestedRefine::~NestedRefine()
@@ -45,6 +59,8 @@ namespace moab{
 
     error = ahf->initialize(); MB_CHK_ERR(error);
     error = ahf->get_entity_ranges(_inverts, _inedges, _infaces, _incells);  MB_CHK_ERR(error);
+
+    std::cout<<"_inverts = "<<_inverts.size()<<", _inedges = "<<_inedges.size()<<", _infaces = "<<_infaces.size()<<", _incells = "<<_incells.size()<<std::endl;
 
     // Check for mixed dimensional mesh
     if ((!_inedges.empty() && !_infaces.empty()) ||(!_inedges.empty() &&  !_incells.empty()) || (!_infaces.empty() && !_incells.empty()))
