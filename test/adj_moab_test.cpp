@@ -85,7 +85,7 @@ ErrorCode ahf_test(const char* filename)
     //std::cout<<"[nv, ne, nf, nc] = ["<<verts.size()<<", "<<edges.size()<<", "<<faces.size()<<", "<<cells.size()<<"]"<<std::endl;
 
     // Create an ahf instance
-    HalfFacetRep ahf(&moab);
+    HalfFacetRep ahf(mbImpl);
 
     // Call the initialize function which creates the maps for each dimension
     ahf.initialize();

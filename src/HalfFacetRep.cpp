@@ -24,7 +24,7 @@
 
 namespace moab {
 
-  HalfFacetRep::HalfFacetRep(Core *impl)
+  HalfFacetRep::HalfFacetRep(Interface *impl)
   {
     assert(NULL != impl);
     mb = impl;
