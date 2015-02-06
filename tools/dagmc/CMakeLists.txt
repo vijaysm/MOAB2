@@ -1,16 +1,9 @@
-# Find CGM directory
-find_package( CGM )
-
 include_directories(
   ${CMAKE_CURRENT_BINARY_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
   ${CMAKE_SOURCE_DIR}/src
   ${CMAKE_BINARY_DIR}/src )
-
-if ( CGM_FOUND )
-  include_directories( ${CGM_INCLUDE_DIRS} )
-endif( )
 
 add_library(dagmc DagMC.hpp DagMC.cpp)
 include(GenerateExportHeader)
@@ -58,6 +51,13 @@ if ( MOAB_ENABLE_TESTING )
 endif()
 
 if ( MOAB_HAVE_CGM )
+  # Find CGM directory
+  find_package( CGM )
+
+  if ( CGM_FOUND )
+    include_directories( ${CGM_INCLUDE_DIRS} )
+  endif( )
+
   target_link_libraries( dagmc ${CGM_LIBRARIES} )
   if ( MOAB_ENABLE_TESTING )
     target_link_libraries( test_geom ${CGM_LIBRARIES} )
