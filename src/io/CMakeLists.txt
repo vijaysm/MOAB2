@@ -109,6 +109,7 @@ add_library( moabio OBJECT ${MOABIO_LIB_SRCS} ${MOAB_NETCDF_SRCS}
                            ${MOAB_CGNS_SRCS}  ${MOAB_HDF5_SRCS}
                            ${MOAB_CCMIO_SRCS} ${MOAB_DAMSEL_SRCS}
                            ${MOAB_CGM_SRCS}   ${MOABIO_INSTALL_HEADERS} )
+set(MOABIO_LIBS "${MOABIO_LIBS}" PARENT_SCOPE)
 if (BUILD_SHARED_LIBS)
   set( shared_define "-DIS_BUILDING_MB_SHARED" )
 endif ()
