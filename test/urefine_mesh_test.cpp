@@ -49,9 +49,8 @@ void handle_error_code(ErrorCode rv, int &number_failed, int &number_successful)
   }
 }
 
-ErrorCode test_adjacencies(Core *mb, NestedRefine *nr, int dim, Range verts, Range ents)
+ErrorCode test_adjacencies(Interface *mbImpl, NestedRefine *nr, int dim, Range verts, Range ents)
 {
-  Interface* mbImpl = mb;
   MeshTopoUtil mtu(mbImpl);
   ErrorCode error;
 
@@ -154,7 +153,7 @@ ErrorCode test_adjacencies(Core *mb, NestedRefine *nr, int dim, Range verts, Ran
 }
 
 
-ErrorCode refine_entities(Core *mb, int *level_degrees, const int num_levels, bool output)
+ErrorCode refine_entities(Interface *mb, int *level_degrees, const int num_levels, bool output)
 {
   ErrorCode error;
 
@@ -290,10 +289,9 @@ ErrorCode refine_entities(Core *mb, int *level_degrees, const int num_levels, bo
   return MB_SUCCESS;
 }
 
-ErrorCode create_single_entity(Core *mb, EntityType type)
+ErrorCode create_single_entity(Interface *mbImpl, EntityType type)
 {
   ErrorCode error;
-  Interface* mbImpl = mb;
   if (type == MBEDGE)
     {
       const double coords[] = {0.0,0.0,0.0,
@@ -437,10 +435,9 @@ ErrorCode create_single_entity(Core *mb, EntityType type)
   return MB_SUCCESS;
 }
 
-ErrorCode create_mesh(Core *mb, EntityType type)
+ErrorCode create_mesh(Interface *mbImpl, EntityType type)
 {
   ErrorCode error;
-  Interface* mbImpl = mb;
   if (type == MBEDGE)
     {
       const double coords[] = {0,0,0,
@@ -629,10 +626,9 @@ ErrorCode create_mesh(Core *mb, EntityType type)
   return MB_SUCCESS;
 }
 
-ErrorCode create_simple_mesh(Core *mb, EntityType type)
+ErrorCode create_simple_mesh(Interface *mbImpl, EntityType type)
 {
   ErrorCode error;
-  Interface* mbImpl = mb;
   if (type == MBEDGE)
     {
       const double coords[] = {0,0,0,
@@ -854,28 +850,29 @@ ErrorCode test_entities(int mesh_type, EntityType type, int *level_degrees, int 
 {
   ErrorCode error;
   Core mb;
+  Interface* mbimpl = &mb;
 
   //Create entities
   if (mesh_type == 1){
-      error = create_single_entity(&mb, type);
+      error = create_single_entity(mbimpl, type);
       if (error != MB_SUCCESS) return error;
       std::cout<<"Entity created successfully"<<std::endl;
     }
   else if (mesh_type == 2)
     {
-      error = create_mesh(&mb, type);
+      error = create_mesh(mbimpl, type);
       if (error != MB_SUCCESS) return error;
       std::cout<<"Small mesh created successfully"<<std::endl;
     }
   else if (mesh_type == 3)
     {
-      error = create_simple_mesh(&mb, type);
+      error = create_simple_mesh(mbimpl, type);
       if (error != MB_SUCCESS) return error;
       std::cout<<"Small simple mesh created successfully"<<std::endl;
     }
 
   //Generate hierarchy
-  error = refine_entities(&mb, level_degrees, num_levels, output);
+  error = refine_entities(mbimpl, level_degrees, num_levels, output);
   if (error != MB_SUCCESS) return error;
 
   return MB_SUCCESS;
@@ -1016,7 +1013,7 @@ ErrorCode test_mesh(const char* filename, int *level_degrees, int num_levels)
     std::cout<<"verts = "<<verts.size()<<", edges = "<<edges.size()<<", faces = "<<faces.size()<<", cells = "<<cells.size()<<std::endl;
 
     //Generate hierarchy
-    error = refine_entities(&moab, level_degrees, num_levels, false);  CHECK_ERR(error);
+    error = refine_entities(mbImpl, level_degrees, num_levels, false);  CHECK_ERR(error);
 
     return MB_SUCCESS;
 }
@@ -1048,7 +1045,7 @@ int main(int argc, char *argv[])
     else if (argc == 2)
       {
         const char* filename = argv[1];
-        int deg[3] = {2,3,2};
+        int deg[2] = {2,2};
         int len = sizeof(deg) / sizeof(int);
         result = test_mesh(filename, deg, len);
         handle_error_code(result, number_tests_failed, number_tests_successful);

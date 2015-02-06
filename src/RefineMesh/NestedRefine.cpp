@@ -12,7 +12,7 @@
 
 namespace moab{
 
- /* NestedRefine::NestedRefine(Core *impl)
+  NestedRefine::NestedRefine(Interface *impl)
   {
     assert(NULL != impl);
     mbImpl = impl;
@@ -24,20 +24,6 @@ namespace moab{
       std::cout<<"Error initializing NestedRefine\n"<<std::endl;
       exit(1);
     }
-  }*/
-
-  NestedRefine::NestedRefine(Interface *thisMB)
-  {
-    Core* this_core = dynamic_cast<Core*>(thisMB);
-    mbImpl = this_core;
-
-    ErrorCode error;
-    error = initialize();
-    if (error != MB_SUCCESS)
-      {
-        std::cout<<"Error initializing NestedRefine\n"<<std::endl;
-        exit(1);
-      }
   }
 
   NestedRefine::~NestedRefine()
