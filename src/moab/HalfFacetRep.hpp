@@ -73,7 +73,8 @@ class HalfFacetRep{
 
 public:
 
-  HalfFacetRep(Core *impl);
+  //HalfFacetRep(Core *impl);
+  HalfFacetRep(Interface *impl);
     
   ~HalfFacetRep();
 
@@ -479,7 +480,7 @@ public:
 
 protected:
 
-  Core * mb;
+  Interface *mb;
 
   HalfFacetRep();
 

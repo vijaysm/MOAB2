@@ -115,7 +115,7 @@ namespace moab
     ErrorCode vertex_to_entities(EntityHandle vertex, int level, std::vector<EntityHandle> &incident_entities);
 
   protected:
-    Core *mbImpl;
+    Interface *mbImpl;
     HalfFacetRep *ahf;
 
     Range _inverts, _inedges, _infaces, _incells;
