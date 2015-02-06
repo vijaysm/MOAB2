@@ -103,6 +103,7 @@ endif()
 
 if( MOAB_HAVE_CGM )
   set( MOAB_CGM_SRCS ReadCGM.hpp ReadCGM.cpp )
+  list(APPEND MOABIO_LIBS cubit_geom_compat)
   include_directories(${CGM_INCLUDE_DIRS})
 endif()
 
