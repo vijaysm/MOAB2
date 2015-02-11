@@ -49,19 +49,25 @@ void handle_error_code(ErrorCode rv, int &number_failed, int &number_successful)
   }
 }
 
-ErrorCode test_adjacencies(Interface *mbImpl, NestedRefine *nr, int dim, Range verts, Range ents)
+ErrorCode test_adjacencies(Interface *mbImpl, NestedRefine *nr, Range all_ents)
 {
   MeshTopoUtil mtu(mbImpl);
   ErrorCode error;
+  Range verts, edges, faces, cells;
+  verts = all_ents.subset_by_dimension(0);
+  edges = all_ents.subset_by_dimension(1);
+  faces = all_ents.subset_by_dimension(2);
+  cells = all_ents.subset_by_dimension(3);
 
-  if (dim == 1)
+  std::vector<EntityHandle> adjents;
+  Range mbents, ahfents;
+
+  if (!edges.empty())
     {
       //1D Queries //
       //IQ1: For every vertex, obtain incident edges
       for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
-          std::vector<EntityHandle> adjents;
-          Range mbents, ahfents;
-
+          adjents.clear(); mbents.clear(); ahfents.clear();
           error = nr->get_adjacencies( *i, 1, adjents);  CHECK_ERR(error);
           error = mbImpl->get_adjacencies( &*i, 1, 1, false, mbents ); CHECK_ERR(error);
           CHECK_EQUAL(adjents.size(),mbents.size());
@@ -72,10 +78,8 @@ ErrorCode test_adjacencies(Interface *mbImpl, NestedRefine *nr, int dim, Range v
       }
 
       //NQ1:  For every edge, obtain neighbor edges
-      for (Range::iterator i = ents.begin(); i != ents.end(); ++i) {
-          std::vector<EntityHandle> adjents;
-          Range mbents, ahfents;
-
+      for (Range::iterator i = edges.begin(); i != edges.end(); ++i) {
+          adjents.clear(); mbents.clear(); ahfents.clear();
           error = nr->get_adjacencies( *i, 1, adjents); CHECK_ERR(error);
           error = mtu.get_bridge_adjacencies( *i, 0, 1, mbents); CHECK_ERR(error);
           CHECK_EQUAL(adjents.size(), mbents.size());
@@ -84,15 +88,13 @@ ErrorCode test_adjacencies(Interface *mbImpl, NestedRefine *nr, int dim, Range v
           mbents = subtract(mbents, ahfents);
           CHECK(!mbents.size());
       }
-
     }
-  else if (dim == 2)
+
+  if (!faces.empty())
     {
       // IQ21: For every vertex, obtain incident faces
       for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
-          std::vector<EntityHandle> adjents;
-          Range mbents, ahfents;
-
+          adjents.clear(); mbents.clear(); ahfents.clear();
           error = nr->get_adjacencies( *i, 2, adjents); CHECK_ERR(error);
           error = mbImpl->get_adjacencies( &*i, 1, 2, false, mbents); CHECK_ERR(error);
           CHECK_EQUAL(adjents.size(), mbents.size());
@@ -102,11 +104,25 @@ ErrorCode test_adjacencies(Interface *mbImpl, NestedRefine *nr, int dim, Range v
           CHECK(!mbents.size());
         }
 
-      //NQ2: For every face, obtain neighbor faces
-      for (Range::iterator i = ents.begin(); i != ents.end(); ++i) {
-          std::vector<EntityHandle> adjents;
-          Range mbents, ahfents;
+      //IQ22: For every edge, obtain incident faces
+      if (!edges.empty()){
+          for (Range::iterator i = edges.begin(); i != edges.end(); ++i) {
+              adjents.clear(); mbents.clear(); ahfents.clear();
+              error = nr->get_adjacencies( *i, 2, adjents);
+              CHECK_ERR(error);
+              error = mbImpl->get_adjacencies( &*i, 1, 2, false, mbents);
+              CHECK_ERR(error);
+              CHECK_EQUAL(adjents.size(), mbents.size());
+              std::sort(adjents.begin(), adjents.end());
+              std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
+              mbents = subtract(mbents, ahfents);
+              CHECK(!mbents.size());
+            }
+        }
 
+      //NQ2: For every face, obtain neighbor faces
+      for (Range::iterator i = faces.begin(); i != faces.end(); ++i) {
+          adjents.clear(); mbents.clear(); ahfents.clear();
           error = nr->get_adjacencies( *i, 2, adjents); CHECK_ERR(error);
           error = mtu.get_bridge_adjacencies( *i, 1, 2, mbents); CHECK_ERR(error);
           CHECK_EQUAL(adjents.size(), mbents.size());
@@ -116,15 +132,27 @@ ErrorCode test_adjacencies(Interface *mbImpl, NestedRefine *nr, int dim, Range v
           CHECK(!mbents.size());
       }
 
+      if (!edges.empty()){
+          for (Range::iterator i = faces.begin(); i != faces.end(); ++i) {
+              adjents.clear(); mbents.clear(); ahfents.clear();
+              error = nr->get_adjacencies( *i, 1, adjents);
+              CHECK_ERR(error);
+              error = mbImpl->get_adjacencies( &*i, 1, 1, false, mbents);
+              CHECK_ERR(error);
+              CHECK_EQUAL(adjents.size(), mbents.size());
+              std::sort(adjents.begin(), adjents.end());
+              std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
+              mbents = subtract(mbents, ahfents);
+              CHECK(!mbents.size());
+            }
+        }
     }
-  else
-    {
 
+  if (!cells.empty())
+    {
       //IQ 31: For every vertex, obtain incident cells
       for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
-          std::vector<EntityHandle> adjents;
-          Range mbents, ahfents;
-
+          adjents.clear(); mbents.clear(); ahfents.clear();
           error = nr->get_adjacencies( *i, 3, adjents); CHECK_ERR(error);
           error = mbImpl->get_adjacencies(&*i, 1, 3, false, mbents); CHECK_ERR(error);
           CHECK_EQUAL(adjents.size(), mbents.size());
@@ -134,11 +162,41 @@ ErrorCode test_adjacencies(Interface *mbImpl, NestedRefine *nr, int dim, Range v
           CHECK(!mbents.size());
         }
 
-      //NQ3: For every cell, obtain neighbor cells
-      for (Range::iterator i = ents.begin(); i != ents.end(); ++i) {
-          std::vector<EntityHandle> adjents;
-          Range mbents, ahfents;
+      if (!edges.empty())
+        {
+          for (Range::iterator i = edges.begin(); i != edges.end(); ++i) {
+              adjents.clear(); mbents.clear(); ahfents.clear();
+              error = nr->get_adjacencies( *i, 3, adjents);
+              CHECK_ERR(error);
+              error = mbImpl->get_adjacencies(&*i, 1, 3, false, mbents);
+              CHECK_ERR(error);
+              CHECK_EQUAL(adjents.size(), mbents.size());
+              std::sort(adjents.begin(), adjents.end());
+              std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
+              mbents = subtract(mbents, ahfents);
+              CHECK(!mbents.size());
+            }
+        }
 
+      if (!faces.empty())
+        {
+          for (Range::iterator i = faces.begin(); i != faces.end(); ++i) {
+              adjents.clear(); mbents.clear(); ahfents.clear();
+              error = nr->get_adjacencies( *i, 3, adjents);
+              CHECK_ERR(error);
+              error = mbImpl->get_adjacencies(&*i, 1, 3, false, mbents);
+              CHECK_ERR(error);
+              CHECK_EQUAL(adjents.size(), mbents.size());
+              std::sort(adjents.begin(), adjents.end());
+              std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
+              mbents = subtract(mbents, ahfents);
+              CHECK(!mbents.size());
+            }
+        }
+
+      //NQ3: For every cell, obtain neighbor cells
+      for (Range::iterator i = cells.begin(); i != cells.end(); ++i) {
+          adjents.clear(); mbents.clear(); ahfents.clear();
           error = nr->get_adjacencies( *i, 3, adjents); CHECK_ERR(error);
           error = mtu.get_bridge_adjacencies( *i, 2, 3, mbents); CHECK_ERR(error);
           CHECK_EQUAL(adjents.size(), mbents.size());
@@ -147,6 +205,38 @@ ErrorCode test_adjacencies(Interface *mbImpl, NestedRefine *nr, int dim, Range v
           mbents = subtract(mbents, ahfents);
           CHECK(!mbents.size());
       }
+
+      if (!edges.empty())
+        {
+          for (Range::iterator i = cells.begin(); i != cells.end(); ++i) {
+              adjents.clear(); mbents.clear(); ahfents.clear();
+              error = nr->get_adjacencies( *i, 1, adjents);
+              CHECK_ERR(error);
+              error = mbImpl->get_adjacencies( &*i, 1, 1, false, mbents);
+              CHECK_ERR(error);
+              CHECK_EQUAL(adjents.size(), mbents.size());
+              std::sort(adjents.begin(), adjents.end());
+              std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
+              mbents = subtract(mbents, ahfents);
+              CHECK(!mbents.size());
+            }
+        }
+
+      if (!faces.empty())
+        {
+          for (Range::iterator i = cells.begin(); i != cells.end(); ++i) {
+              adjents.clear(); mbents.clear(); ahfents.clear();
+              error = nr->get_adjacencies( *i, 2, adjents);
+              CHECK_ERR(error);
+              error = mbImpl->get_adjacencies( &*i, 1, 2, false, mbents);
+              CHECK_ERR(error);
+              CHECK_EQUAL(adjents.size(), mbents.size());
+              std::sort(adjents.begin(), adjents.end());
+              std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
+              mbents = subtract(mbents, ahfents);
+              CHECK(!mbents.size());
+            }
+        }
     }
 
   return MB_SUCCESS;
@@ -164,32 +254,31 @@ ErrorCode refine_entities(Interface *mb, int *level_degrees, const int num_level
   error = mb->get_entities_by_dimension(0, 2, faces); CHECK_ERR(error);
   error = mb->get_entities_by_dimension(0, 3, cells);  CHECK_ERR(error);
 
-  Range init_ents;
-  int dim=0;
+ Range init_ents;
+ int dim=0;
 
-  if (!edges.empty() && faces.empty() && cells.empty())
+  if (!edges.empty())
     {
       dim = 1;
       init_ents = edges;
     }
-  else if (!faces.empty() && edges.empty() && cells.empty())
+  else if (!faces.empty())
     {
       dim = 2;
-      init_ents = faces;
+     init_ents = faces;
     }
-  else if (!cells.empty() && edges.empty() && faces.empty())
+  else if (!cells.empty())
     {
       dim = 3;
-      init_ents = cells;
+     init_ents = cells;
     }
 
 
   if (output)
     {
       int inents = init_ents.size();
-      EntityType type = mb->type_from_handle(*init_ents.begin());
       std::stringstream file;
-      file <<  "INIT_"<<type<<"_"<<inents<<"_dim_"<<dim<<"_ML_" <<1<<".vtk";
+      file <<  "INIT_"<<dim<<"_"<<inents<<"_ML_" <<1<<".vtk";
       std::string str = file.str();
       const char* output_file = str.c_str();
       error = mb->write_file(output_file); CHECK_ERR(error);
@@ -201,20 +290,25 @@ ErrorCode refine_entities(Interface *mb, int *level_degrees, const int num_level
   EntityHandle *set = new EntityHandle[num_levels];
 
   std::cout<<"Starting hierarchy generation"<<std::endl;
-  error = uref.generate_mesh_hierarchy(level_degrees, num_levels, set); CHECK_ERR(error);
+  error = uref.generate_mesh_hierarchy( num_levels,level_degrees, set); CHECK_ERR(error);
   std::cout<<"Finished hierarchy generation"<<std::endl;
 
   int factor=1;
-   Range prev_verts, prev_ents;
-   prev_verts = init_verts;
-   prev_ents = init_ents;
+  Range prev_verts, prev_ents;
+  prev_verts = init_verts;
+  prev_ents = init_ents;
 
   //Loop over each mesh level and check its topological properties
   for (int l=0; l<num_levels; l++)
     {
+      Range all_ents;
+      error = mb->get_entities_by_handle(set[l], all_ents); CHECK_ERR(error);
+
       Range verts, ents;
-      error = mb->get_entities_by_type(set[l], MBVERTEX, verts); CHECK_ERR(error);
-      error = mb->get_entities_by_dimension(set[l], dim, ents); CHECK_ERR(error);
+      verts = all_ents.subset_by_dimension(0);
+      ents = all_ents.subset_by_dimension(dim);
+     // error = mb->get_entities_by_type(set[l], MBVERTEX, verts); CHECK_ERR(error);
+   //   error = mb->get_entities_by_dimension(set[l], dim, ents); CHECK_ERR(error);
 
       if (verts.empty() || ents.empty())
         std::cout<<"Something is not right"<<std::endl;
@@ -229,7 +323,7 @@ ErrorCode refine_entities(Interface *mb, int *level_degrees, const int num_level
       CHECK_EQUAL(expected_nents, (int)ents.size());
 
       //Check adjacencies
-      error = test_adjacencies(mb, &uref, dim, verts, ents); CHECK_ERR(error);
+      error = test_adjacencies(mb, &uref, all_ents); CHECK_ERR(error);
 
       //Check interlevel child-parent query between previous and current level
       for (Range::iterator e = prev_ents.begin(); e != prev_ents.end(); e++)
@@ -1013,7 +1107,7 @@ ErrorCode test_mesh(const char* filename, int *level_degrees, int num_levels)
     std::cout<<"verts = "<<verts.size()<<", edges = "<<edges.size()<<", faces = "<<faces.size()<<", cells = "<<cells.size()<<std::endl;
 
     //Generate hierarchy
-    error = refine_entities(mbImpl, level_degrees, num_levels, false);  CHECK_ERR(error);
+    error = refine_entities(mbImpl, level_degrees, num_levels, true);  CHECK_ERR(error);
 
     return MB_SUCCESS;
 }
