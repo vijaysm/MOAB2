@@ -106,7 +106,7 @@ ErrorCode ReadCGNS::load_file(const char* filename,
   }
 
   // Read number of verts, elements, sets
-  long num_verts = 0, num_elems = 0, num_sets = 0;
+  long num_verts = 0, num_sets = 0;
   int num_bases = 0, num_zones = 0, num_sections = 0;
 
   char zoneName[128];
@@ -137,11 +137,10 @@ ErrorCode ReadCGNS::load_file(const char* filename,
       cg_nsections(filePtr, indexBase, indexZone, &num_sections);
 
       num_verts = size[0];
-      num_elems = size[1];
+
       num_sets = num_sections;
 
       std::cout << "\nnumber of nodes = " << num_verts;
-      std::cout << "\nnumber of elems = " << num_elems;
       std::cout << "\nnumber of parts = " << num_sets << std::endl;
 
       // //////////////////////////////////
