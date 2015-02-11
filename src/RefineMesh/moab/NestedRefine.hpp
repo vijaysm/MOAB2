@@ -201,7 +201,7 @@ namespace moab
     // Book-keeping functions
     ErrorCode update_tracking_verts(EntityHandle cid, int cur_level, int deg, std::vector<EntityHandle> &trackvertsC_edg, std::vector<EntityHandle> &trackvertsC_face, EntityHandle *vbuffer);
     ErrorCode reorder_indices(int cur_level, int deg, EntityHandle cell, int lfid, EntityHandle sib_cell, int sib_lfid, int index, int *id_sib);
-    ErrorCode reorder_indices(int deg, EntityHandle *face1_conn, EntityHandle *face2_conn, int nvF, std::vector<int> &lemap, int *leorient, std::vector<int> &vidx);
+    ErrorCode reorder_indices(int deg, EntityHandle *face1_conn, EntityHandle *face2_conn, int nvF, std::vector<int> &lemap, std::vector<int> &vidx, int *leorient=NULL);
 
     //Permutation matrices
     struct pmat{

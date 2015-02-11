@@ -46,27 +46,13 @@ namespace moab{
     error = ahf->initialize(); MB_CHK_ERR(error);
     error = ahf->get_entity_ranges(_inverts, _inedges, _infaces, _incells);  MB_CHK_ERR(error);
 
-    std::cout<<"_inverts = "<<_inverts.size()<<", _inedges = "<<_inedges.size()<<", _infaces = "<<_infaces.size()<<", _incells = "<<_incells.size()<<std::endl;
+   // std::cout<<"_inverts = "<<_inverts.size()<<", _inedges = "<<_inedges.size()<<", _infaces = "<<_infaces.size()<<", _incells = "<<_incells.size()<<std::endl;
 
     // Check for mixed dimensional mesh
    // if ((!_inedges.empty() && !_infaces.empty()) ||(!_inedges.empty() &&  !_incells.empty()) || (!_infaces.empty() && !_incells.empty()))
    //   MB_SET_ERR(MB_NOT_IMPLEMENTED, "Encountered a mixed-dimensional mesh");
 
     //Check for supported entity type
-    if (!_inedges.empty())
-      {
-        meshdim = 1;
-      }
-
-    if (!_infaces.empty())
-      {
-        EntityType type = mbImpl->type_from_handle(_infaces[0]);
-        if(type == MBPOLYGON)
-          MB_SET_ERR(MB_FAILURE, "Not supported 2D entity type: POLYGON");
-
-        meshdim = 2;
-      }
-
     if (!_incells.empty())
       {
         EntityType type = mbImpl->type_from_handle(_incells[0]);
@@ -75,8 +61,20 @@ namespace moab{
 
         meshdim = 3;
       }
+   else  if (!_infaces.empty())
+      {
+        EntityType type = mbImpl->type_from_handle(_infaces[0]);
+        if(type == MBPOLYGON)
+          MB_SET_ERR(MB_FAILURE, "Not supported 2D entity type: POLYGON");
+
+        meshdim = 2;
+      }
+    else if (!_inedges.empty())
+      {
+        meshdim = 1;
+      }
     else
-      MB_SET_ERR(MB_NOT_IMPLEMENTED, "Encountered a mixed-dimensional mesh");
+      MB_SET_ERR(MB_FAILURE, "Encountered invalid mesh");
 
     //Initialize std::map to get indices of degrees.
     deg_index[2] = 0;
@@ -978,7 +976,6 @@ namespace moab{
 
     int d = get_index_from_degree(deg);
     int findex = ftype-1;
-    int cindex = type -1;
     int cidx = ahf->get_index_in_lmap(*(_incells.begin()));
 
     int nepf = ahf->lConnMap2D[ftype-2].num_verts_in_face;
@@ -1049,9 +1046,8 @@ namespace moab{
           }
 
         std::vector<int> le_idx, indices;
-        int orient;
 
-        error = reorder_indices(deg, fac_conn, lfac_conn, nepf, le_idx, &orient, indices); MB_CHK_ERR(error);
+        error = reorder_indices(deg, fac_conn, lfac_conn, nepf, le_idx, indices); MB_CHK_ERR(error);
 
         delete [] fac_conn;
         delete [] lfac_conn;
@@ -1061,7 +1057,16 @@ namespace moab{
           {
             int id = le_idx[j]; //Corresponding local edge
             int idx = ahf->lConnMap3D[cidx].f2leid[lid][id]; //Local edge in the cell
-            if (orient){
+
+            //Get the orientation of the local edge of the face wrt the corresponding local edge in the cell
+            bool eorient = false;
+            int fnext = ahf->lConnMap2D[ftype-2].next[j];
+            int idx1 = ahf->lConnMap3D[cidx].e2v[idx][0];
+            int idx2 = ahf->lConnMap3D[cidx].e2v[idx][1];
+            if ((fconn[j] == cconn[idx1] ) && (fconn[fnext] == cconn[idx2]))
+              eorient = true;
+
+            if (eorient){
                 for (int k=0; k<nve; k++ )
                   {
                     int ind = refTemplates[findex][d].vert_on_edges[j][k];
@@ -1083,8 +1088,10 @@ namespace moab{
           {
             for (int k=0; k<nvf; k++)
               {
-                int ind = refTemplates[findex][d].vert_on_faces[0][indices[k]-1];
-                vbuffer[ind] = trackvertsF[fid*nfpc*nvf+nvf*lid+k];
+               // int ind = refTemplates[findex][d].vert_on_faces[0][indices[k]-1];
+                //vbuffer[ind] = trackvertsF[fid*nfpc*nvf+nvf*lid+k];
+                int ind = refTemplates[findex][d].vert_on_faces[0][k];
+                vbuffer[ind] = trackvertsF[fid*nfpc*nvf+nvf*lid+indices[k]-1];
               }
           }
 
@@ -1101,7 +1108,10 @@ namespace moab{
           }
 
         error = update_local_ahf(deg, ftype, vbuffer, ent_buffer, etotal); MB_CHK_ERR(error);
+
       }
+
+//    error = mbImpl->write_file("test.vtk"); MB_CHK_ERR(error);
 
     // Step 6: Update the global maps
     error = update_global_ahf_2D_sub(cur_level, deg);  MB_CHK_ERR(error);
@@ -1254,11 +1264,13 @@ namespace moab{
 
         delete [] ent_buffer;
         delete [] corner_coords;
+
+        //error = mbImpl->write_file("volume_only.vtk"); MB_CHK_ERR(error);
       }
 
     //Step 6: Update the global maps
     error = update_global_ahf(type, cur_level, deg); MB_CHK_ERR(error);
-    error = print_maps_3D(cur_level, type); MB_CHK_ERR(error);
+   // error = print_maps_3D(cur_level, type); MB_CHK_ERR(error);
 
     //Step 7: If edges exists, refine them as well.
     if (!_inedges.empty())
@@ -1271,7 +1283,7 @@ namespace moab{
     if (!_infaces.empty())
       {
         error = construct_hm_2D(cur_level, deg, type, trackvertsC_edg, trackvertsC_face); MB_CHK_ERR(error);
-        error = print_maps_2D(cur_level,MBQUAD);
+        //error = print_maps_2D(cur_level,MBQUAD);
       }
 
     delete [] vbuffer;
@@ -1417,7 +1429,7 @@ namespace moab{
     //Step 7: Update the global maps
     error = update_global_ahf(cur_level, deg, cell_patterns); MB_CHK_ERR(error);
 
-    error = print_maps_3D(cur_level, type); MB_CHK_ERR(error);
+  //  error = print_maps_3D(cur_level, type); MB_CHK_ERR(error);
 
     //Step 8: If edges exists, refine them as well.
     if (!_inedges.empty())
@@ -1430,7 +1442,7 @@ namespace moab{
     if (!_infaces.empty())
       {
         error = construct_hm_2D(cur_level, deg, type, trackvertsC_edg, trackvertsC_face); MB_CHK_ERR(error);
-        error = print_maps_2D(cur_level,MBTRI);
+        //error = print_maps_2D(cur_level,MBTRI);
       }
 
 
@@ -2822,7 +2834,7 @@ ErrorCode NestedRefine::reorder_indices(int cur_level, int deg, EntityHandle cel
   return MB_SUCCESS;
 }
 
-ErrorCode NestedRefine::reorder_indices(int deg, EntityHandle *face1_conn, EntityHandle *face2_conn, int nvF, std::vector<int> &lemap, int *leorient, std::vector<int> &vidx)
+ErrorCode NestedRefine::reorder_indices(int deg, EntityHandle *face1_conn, EntityHandle *face2_conn, int nvF, std::vector<int> &lemap, std::vector<int> &vidx, int *leorient)
 {
   //Given the connectivities of two faces, get the permuted indices w.r.t first face.
   //Step 1: First find the orientation
@@ -2854,7 +2866,8 @@ ErrorCode NestedRefine::reorder_indices(int deg, EntityHandle *face1_conn, Entit
     {
       lemap.push_back(permutation[nvF-3].lemap[c][i]);
     }
-  leorient[0] = permutation[nvF-3].orient[c];
+  if (leorient)
+    leorient[0] = permutation[nvF-3].orient[c];
 
   if (nvF==3&&deg==2)
     return MB_SUCCESS;
