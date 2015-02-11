@@ -47,7 +47,7 @@ namespace moab
        * \param hm_set EntityHandle array that returns the handles of the sets created for each mesh level.
       */
 
-    ErrorCode generate_mesh_hierarchy(int *level_degrees, int num_level, EntityHandle *hm_set);
+    ErrorCode generate_mesh_hierarchy(int *level_degrees, int num_level, EntityHandle **hm_set);
 
     //! Given an entity and its level, return its connectivity.
     /** Given an entity at a certain level, it finds the connectivity via direct access to a stored internal pointer to the memory to connectivity sequence for the given level.

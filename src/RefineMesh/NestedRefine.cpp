@@ -83,9 +83,14 @@ namespace moab{
    *     Interface Functions                                  *
    ************************************************************/
 
-  ErrorCode NestedRefine::generate_mesh_hierarchy(int *level_degrees, int num_level, EntityHandle *hm_set)
-  { 
-    assert(num_level<=MAX_LEVELS);
+  ErrorCode NestedRefine::generate_mesh_hierarchy(int *level_degrees, int num_level, EntityHandle **p_hm_set)
+  {
+    assert(num_level>0);
+
+    ErrorCode error;
+    EntityHandle *uhm_set = new EntityHandle[num_level+1];
+    uhm_set[0] = _rset;
+
     if (meshdim <=2)
       {
         for (int i=0; i<num_level; i++)
@@ -103,9 +108,9 @@ namespace moab{
           }
       }
 
-    ErrorCode error;
-    error = generate_hm(level_degrees, num_level, hm_set);MB_CHK_ERR(error);
+    error = generate_hm(level_degrees, num_level, &uhm_set[1]);MB_CHK_ERR(error);
 
+    *p_hm_set = uhm_set;
     return MB_SUCCESS;
   }
 
@@ -511,7 +516,12 @@ namespace moab{
   ErrorCode NestedRefine::generate_hm(int *level_degrees, int num_level, EntityHandle *hm_set)
   {
     ErrorCode error;
+
+    // Get the Parallel Comm instance to prepare all new sets to work in parallel
     ParallelComm *pcomm = moab::ParallelComm::get_pcomm(mbImpl, 0);
+
+    Tag gidtag;
+    error = mbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, gidtag);MB_CHK_ERR(error);
     for (int l = 0; l<num_level; l++)
       {
         // Estimate storage
@@ -535,8 +545,6 @@ namespace moab{
 
     if(pcomm) {
       moab::Range ents;
-      Tag gidtag;
-      error = mbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, gidtag);MB_CHK_ERR(error);
 
       // get all entities on the rootset
       error = mbImpl->get_entities_by_dimension(0, meshdim, ents, true);MB_CHK_ERR(error);
