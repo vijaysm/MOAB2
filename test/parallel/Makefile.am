@@ -16,11 +16,7 @@ AM_CPPFLAGS += -DIS_BUILDING_MB \
                -I$(top_srcdir)/src/io/mhdf/include
 
 if ENABLE_mbcoupler
-  AM_CPPFLAGS += -I$(top_srcdir)/tools/mbcoupler \
-                 -I$(top_srcdir)/itaps \
-                 -I$(top_srcdir)/itaps/imesh \
-                 -I$(top_builddir)/itaps \
-                 -I$(top_builddir)/itaps/imesh 
+  AM_CPPFLAGS += -I$(top_srcdir)/tools/mbcoupler
 endif
 
 if ENABLE_mbcslam
@@ -39,7 +35,6 @@ TESTS = pcomm_unit \
 	par_spatial_locator_test \
         $(NETCDF_TESTS) \
         $(HDF5_TESTS) \
-        $(COUPLER_TESTS) \
         $(MBCSLAM_TESTS) $(IMESH_TESTS)
 
 if PARALLEL_HDF5
@@ -64,16 +59,6 @@ else
 endif
 endif
 
-
-if ENABLE_mbcoupler
-if PARALLEL_HDF5
-  COUPLER_TESTS = par_coupler_test
-else
-  COUPLER_TESTS = 
-endif 
-else
-  COUPLER_TESTS = 
-endif
 
 if ENABLE_mbcslam
 if PARALLEL_HDF5
@@ -137,15 +122,9 @@ endif
 endif
 
 
-if ENABLE_mbcoupler
-  par_coupler_test_SOURCES = par_coupler_test.cpp
-  par_coupler_test_LDADD = $(LDADD) $(top_builddir)/tools/mbcoupler/libmbcoupler.la \
-          $(top_builddir)/itaps/imesh/libiMesh.la
-endif
-
 if ENABLE_mbcslam
   par_intx_sph_SOURCES = par_intx_sph.cpp
-  par_intx_sph_LDADD = $(LDADD) ../../tools/mbcoupler/libmbcoupler.la ../../tools/mbcslam/libmbcslam.la  
+  par_intx_sph_LDADD = $(LDADD) ../../tools/mbcslam/libmbcslam.la  
 endif
 # Other files to clean up (e.g. output from tests)
 MOSTLYCLEANFILES = mhdf_ll.h5m tmp0.h5m tmp1.h5m tmp2.h5m tmp3.h5m \

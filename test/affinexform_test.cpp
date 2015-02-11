@@ -3,7 +3,7 @@
  * storing and accessing finite element mesh data.
  * 
  * Copyright 2004 Sandia Corporation.  Under the terms of Contract
- * DE-AC04-94AL85000 with Sandia Coroporation, the U.S. Government
+ * DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government
  * retains certain rights in this software.
  * 
  * This library is free software; you can redistribute it and/or
@@ -19,6 +19,10 @@
  * \author Jason Kraftcheck (kraftche@cae.wisc.edu)
  * \date August, 2006
  */
+
+#ifdef _WIN32
+#define _USE_MATH_DEFINES
+#endif
 
 #include "AffineXform.hpp"
 #include "moab/Interface.hpp"

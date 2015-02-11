@@ -10,8 +10,7 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/itaps/imesh
     ${CMAKE_BINARY_DIR}/itaps/imesh
     ${CMAKE_SOURCE_DIR}/src/parallel
-    ${CMAKE_BINARY_DIR}/src/parallel
-    ${MPI_INCLUDE_PATH} )
+    ${CMAKE_BINARY_DIR}/src/parallel )
 
 add_subdirectory(io)
 add_subdirectory(dual)

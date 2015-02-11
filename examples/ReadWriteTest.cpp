@@ -20,7 +20,6 @@
 using namespace moab;
 using namespace std;
 
-
 int main(int argc, char **argv)
 {
   MPI_Init(&argc, &argv);
@@ -28,35 +27,27 @@ int main(int argc, char **argv)
   string options;
 
   // Need option handling here for input filename
-  if (argc < 3 ){
+  if (argc < 3)
    return 1;
-  }
 
-  char * input_file = argv[1];
-  char * output_file = argv[2];
-  char * read_opts = NULL;
-  char * write_opts = NULL; // tags to write, separated by commas; it is the name of the tag
+  char* input_file = argv[1];
+  char* output_file = argv[2];
+  char* read_opts = NULL;
+  char* write_opts = NULL; // Tags to write, separated by commas; it is the name of the tag
 
-  if (argc>3)
-  {
-    int index=3;
-    while (index<argc)
-    {
-      if (!strcmp( argv[index], "-O")) // this is for reading options, optional
-      {
-        read_opts=argv[++index];
-      }
-      if (!strcmp( argv[index], "-o"))
-      {
-        write_opts=argv[++index];
-      }
+  if (argc > 3) {
+    int index = 3;
+    while (index < argc) {
+      if (!strcmp(argv[index], "-O")) // This is for reading options, optional
+        read_opts = argv[++index];
+      if (!strcmp(argv[index], "-o"))
+        write_opts = argv[++index];
       index++;
     }
   }
 
-
-  // Get MOAB instance and read the file with the specified options
-  Interface* mb = new Core;
+  // Get MOAB instance
+  Interface* mb = new (std::nothrow) Core;
   if (NULL == mb)
     return 1;
 
@@ -65,44 +56,31 @@ int main(int argc, char **argv)
   int nprocs = pcomm->proc_config().proc_size();
   int rank = pcomm->proc_config().proc_rank();
 
-
   EntityHandle set;
-  ErrorCode rval = mb->create_meshset(MESHSET_SET, set);
+  ErrorCode rval = mb->create_meshset(MESHSET_SET, set);MB_CHK_ERR(rval);
 
   clock_t tt = clock();
 
-  if (rank == 0)
-    cout << "Reading file " << input_file << "\n  with options: " << read_opts << endl
-         << " on " << nprocs << " processors\n";
-
-  rval = mb->load_file(input_file, &set, read_opts);
-  if (rval != MB_SUCCESS) {
-    delete mb;
-    return 1;
-  }
-
-  if (0==rank)
-  {
-      std::cout << "Time:  "
-            << (clock() - tt) / (double) CLOCKS_PER_SEC << " seconds" << std::endl;
-      tt = clock();
-  }
-
-  rval = mb->write_file(output_file, 0, write_opts, &set, 1);
-  if (rval != MB_SUCCESS)
-  {
-    delete mb;
-    return 1;
-  }
-
   if (0 == rank)
-  {
-    cout << "Writing file " << output_file << "\n  with options: " << write_opts << endl;
-    cout << "Time:  " << (clock() - tt) / (double) CLOCKS_PER_SEC
-        << " seconds" << std::endl;
+    cout << "Reading file " << input_file << "\n with options: " << read_opts
+         << "\n on " << nprocs << " processors\n";
+
+  // Read the file with the specified options
+  rval = mb->load_file(input_file, &set, read_opts);MB_CHK_ERR(rval);
+
+  if (0 == rank) {
+    cout << "Time: " << (clock() - tt) / (double) CLOCKS_PER_SEC << " seconds" << endl;
     tt = clock();
   }
 
+  // Write back the file with the specified options
+  rval = mb->write_file(output_file, 0, write_opts, &set, 1);MB_CHK_ERR(rval);
+
+  if (0 == rank) {
+    cout << "Writing file " << output_file << "\n with options: " << write_opts << endl;
+    cout << "Time:  " << (clock() - tt) / (double) CLOCKS_PER_SEC << " seconds" << endl;
+    tt = clock();
+  }
 
   delete mb;
 

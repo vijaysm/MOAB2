@@ -20,7 +20,6 @@
 namespace moab {
 
 class ParallelComm;
-class Error;
 
 class LloydSmoother
 {
@@ -139,9 +138,6 @@ private:
   
     //- tolerances
   double absTol, relTol;
-
-    //- error handler for this class
-  Error *errorHandler;
 
     //- number of iterations between reporting
   int reportIts;

@@ -3,7 +3,7 @@
  * storing and accessing finite element mesh data.
  * 
  * Copyright 2004 Sandia Corporation.  Under the terms of Contract
- * DE-AC04-94AL85000 with Sandia Coroporation, the U.S. Government
+ * DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government
  * retains certain rights in this software.
  * 
  * This library is free software; you can redistribute it and/or
@@ -584,6 +584,8 @@ public:
                                     const int num_entities) const;
 
   virtual ErrorCode list_entity(const EntityHandle entity) const;
+
+  typedef unsigned long long type_memstorage;
 
       //! function object for recieving events from MB of higher order nodes
       //! added to entities
@@ -1356,6 +1358,7 @@ private:
   Error* mError;
   bool mpiFinalize;
   int writeMPELog;
+  bool initErrorHandlerInCore;
 
     //! list of iterators 
   std::vector<SetIterator*> setIterators;

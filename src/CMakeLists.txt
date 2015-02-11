@@ -8,8 +8,8 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}
 if(MOAB_USE_MPI AND MPI_FOUND)
   add_subdirectory(parallel)
   set( MOAB_MPI moabpar )
+  set( MOABPAR_OBJECTS $<TARGET_OBJECTS:moabpar> )
   set( MPI_LIBRARIES ${MPI_LIBRARY} ${MPI_EXTRA_LIBRARY} )
-  include_directories(${MPI_INCLUDE_PATH})
 endif()
 
 #create the FCDefs.h and src/MOAB_FCDefs.h files
@@ -75,6 +75,8 @@ set(MOAB_LIB_SOURCES
         DualTool.cpp
         ElementSequence.hpp
         EntitySequence.hpp  EntitySequence.cpp
+        ErrorHandler.cpp
+        ErrorOutput.hpp  ErrorOutput.cpp
         Factory.cpp
         FBEngine.cpp
         FileOptions.cpp
@@ -151,6 +153,7 @@ set( MOAB_INSTALL_HEADERS
         moab/HigherOrderFactory.hpp
         moab/HomXform.hpp
         moab/EntityType.hpp
+        moab/ErrorHandler.hpp
         moab/FBEngine.hpp
         moab/FileOptions.hpp
         moab/FindPtFuncs.h
@@ -211,18 +214,11 @@ if (MOAB_USE_ZOLTAN)
   include_directories( ${Zoltan_INCLUDES} )
   list(APPEND MOAB_DEP_LIBRARIES ${Zoltan_LIBRARIES})
 endif()
-if(MOAB_USE_MPI AND MPI_FOUND)
-  add_library( MOAB ${MOAB_LIB_SOURCES} ${MOAB_INSTALL_HEADERS} ${MOAB_GENERATED_INSTALL_HEADERS}
-                    $<TARGET_OBJECTS:moabio>
-                    $<TARGET_OBJECTS:moab_loc_discr>
-                    $<TARGET_OBJECTS:moabpar>
-                    ${MDHF_OBJ} )
-else(MOAB_USE_MPI AND MPI_FOUND)
-  add_library( MOAB ${MOAB_LIB_SOURCES} ${MOAB_INSTALL_HEADERS} ${MOAB_GENERATED_INSTALL_HEADERS}
-                    $<TARGET_OBJECTS:moabio>
-                    $<TARGET_OBJECTS:moab_loc_discr>
-                    ${MDHF_OBJ} )
-endif(MOAB_USE_MPI AND MPI_FOUND)
+add_library( MOAB ${MOAB_LIB_SOURCES} ${MOAB_INSTALL_HEADERS} ${MOAB_GENERATED_INSTALL_HEADERS}
+                  $<TARGET_OBJECTS:moabio>
+                  $<TARGET_OBJECTS:moab_loc_discr>
+                  ${MOABPAR_OBJECTS}
+                  ${MDHF_OBJ} )
 
 target_link_libraries( MOAB ${MOAB_DEP_LIBRARIES} ${MOAB_LIBS} ${MOAB_CGM_LIBS} ${MPI_LIBRARIES} )
 set_target_properties( MOAB PROPERTIES COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}")

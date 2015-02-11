@@ -16,10 +16,6 @@ option ( MOAB_BUILD_MBPART       "Build the mbpart (Zoltan-based) partitioner?" 
 option ( MOAB_BUILD_DAGMC        "Build the dagmc tool?"                         ON )
 option ( MOAB_BUILD_MBCOUPLER    "Build the mesh coupler tool?"                  ON )
 
-include_directories(
-  ${MPI_INCLUDE_PATH}
-)
-
 if ( MOAB_USE_MPI AND MPI_FOUND )
   add_subdirectory( refiner )
 endif ( )

@@ -2,8 +2,6 @@
 #include "moab/CpuTimer.hpp"
 #include "DataCoupler.hpp"
 #include "ElemUtil.hpp"
-#include "iMesh.h"
-#include "MBiMesh.hpp"
 
 #include <iostream>
 #include <iomanip>
@@ -20,39 +18,24 @@ using namespace moab;
 #define STRINGIFY_(A) #A
 #define STRINGIFY(A) STRINGIFY_(A)
 #ifdef MESHDIR
-std::string TestDir( STRINGIFY(MESHDIR) );
+std::string TestDir(STRINGIFY(MESHDIR));
 #else
 #error Specify MESHDIR to run unit tests
 #endif
 
-#define RRA(a) if (MB_SUCCESS != result) {\
-      std::string tmp_str; mbImpl->get_last_error(tmp_str);\
-      tmp_str.append("\n"); tmp_str.append(a);\
-      dynamic_cast<Core*>(mbImpl)->get_error_handler()->set_last_error(tmp_str.c_str()); \
-      return result;}
-
 #define PRINT_LAST_ERROR \
-    if (MB_SUCCESS != result) {\
-      std::string tmp_str;\
-      std::cout << "Failure; message:" << std::endl;\
-      mbImpl->get_last_error(tmp_str);\
-      std::cout << tmp_str << std::endl;\
-      MPI_Abort(MPI_COMM_WORLD, result);        \
-      return result;\
-    }
-
-#define PRINT_LAST_ERR \
-    if (iBase_SUCCESS != err) {\
-      std::string tmp_str;\
-      std::cout << "Failure; message:" << std::endl;\
-      mbImpl->get_last_error(tmp_str);\
-      std::cout << tmp_str << std::endl;\
-      MPI_Abort(MPI_COMM_WORLD, result);        \
-      return result;\
-    }
+  if (MB_SUCCESS != result) { \
+    std::string tmp_str; \
+    std::cout << "Failure; message:" << std::endl; \
+    mbImpl->get_last_error(tmp_str); \
+    std::cout << tmp_str << std::endl; \
+    MPI_Abort(MPI_COMM_WORLD, result); \
+    return result; \
+  }
 
 // Print usage
-void print_usage(char **argv) {
+void print_usage(char **argv)
+{
   std::cerr << "Usage: ";
   std::cerr << argv[0] << " -meshes <source_mesh> <target_mesh> -itag <interp_tag> [-gnorm <gnorm_tag>] [-ssnorm <ssnorm_tag> <ssnorm_selection>] [-ropts <roptions>] [-outfile <out_file> [-wopts <woptions>]] [-dbgout [<dbg_file>]]" << std::endl;
   std::cerr << "    -meshes" << std::endl;
@@ -81,70 +64,68 @@ void print_usage(char **argv) {
 
 #ifdef HDF5_FILE
 
-ErrorCode get_file_options(int argc, char **argv, 
+ErrorCode get_file_options(int argc, char **argv,
                            std::vector<std::string> &meshFiles,
                            DataCoupler::Method &method,
                            std::string &interpTag,
                            std::string &gNormTag,
                            std::string &ssNormTag,
-                           std::vector<const char *> &ssTagNames,
-                           std::vector<const char *> &ssTagValues,
+                           std::vector<const char*> &ssTagNames,
+                           std::vector<const char*> &ssTagValues,
                            std::string &readOpts,
                            std::string &outFile,
                            std::string &writeOpts,
                            std::string &dbgFile,
                            bool &help,
-                           double & epsilon);
+                           double &epsilon);
 
-// ErrorCode get_file_options(int argc, char **argv, 
-//                              std::vector<const char *> &filenames,
-//                              std::string &tag_name,
-//                              std::string &out_fname,
-//                              std::string &opts);
+//ErrorCode get_file_options(int argc, char **argv,
+//                           std::vector<const char*> &filenames,
+//                           std::string &tag_name,
+//                           std::string &out_fname,
+//                           std::string &opts);
 
 #ifdef USE_MPI
 ErrorCode report_iface_ents(Interface *mbImpl,
-                              std::vector<ParallelComm *> &pcs,
-                              bool print_results);
+                            std::vector<ParallelComm*> &pcs,
+                            bool print_results);
 #endif
 
-ErrorCode test_interpolation(Interface *mbImpl, 
+ErrorCode test_interpolation(Interface *mbImpl,
                              DataCoupler::Method method,
                              std::string &interpTag,
                              std::string &gNormTag,
                              std::string &ssNormTag,
-                             std::vector<const char *> &ssTagNames,
-                             std::vector<const char *> &ssTagValues,
-                             iBase_EntitySetHandle *roots,
-                             std::vector<ParallelComm *> &pcs,
+                             std::vector<const char*> &ssTagNames,
+                             std::vector<const char*> &ssTagValues,
+                             std::vector<ParallelComm*> &pcs,
                              double &instant_time,
                              double &pointloc_time,
                              double &interp_time,
                              double &gnorm_time,
                              double &ssnorm_time,
-                             double & toler);
+                             double &toler);
 
-void reduceMax(double &v){
+void reduceMax(double &v)
+{
   double buf;
 
   MPI_Barrier(MPI_COMM_WORLD);
-  MPI_Allreduce( &v, &buf, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+  MPI_Allreduce(&v, &buf, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 
-  v=buf;
+  v = buf;
 }
 
-
-int main(int argc, char **argv) 
+int main(int argc, char **argv)
 {
-
   int err;
-  
+
 #ifdef USE_MPI
-    // need to init MPI first, to tell how many procs and rank
+  // Need to init MPI first, to tell how many procs and rank
   err = MPI_Init(&argc, &argv);
 #endif
 
-  std::vector<const char *> ssTagNames, ssTagValues;
+  std::vector<const char*> ssTagNames, ssTagValues;
   std::vector<std::string> meshFiles;
   std::string interpTag, gNormTag, ssNormTag, readOpts, outFile, writeOpts, dbgFile;
   DataCoupler::Method method = DataCoupler::CONSTANT;
@@ -169,28 +150,28 @@ int main(int argc, char **argv)
 #ifdef USE_MPI  
   err = MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   err = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  std::vector<ParallelComm *> pcs(meshFiles.size()); 
+  std::vector<ParallelComm*> pcs(meshFiles.size());
 #endif
 
-    // redirect stdout and stderr if dbgFile is not null
+  // Redirect stdout and stderr if dbgFile is not null
   if (!dbgFile.empty()) {
     std::stringstream dfname;
     dfname << dbgFile << rank << ".txt";
-    if (!std::freopen(dfname.str().c_str(), "a", stdout)) return false;
-    if (!std::freopen(dfname.str().c_str(), "a", stderr)) return false;
+    if (!std::freopen(dfname.str().c_str(), "a", stdout))
+      return false;
+    if (!std::freopen(dfname.str().c_str(), "a", stderr))
+      return false;
   }
 
-  // create MOAB instance based on that
-  Interface *mbImpl = new Core();
-  if (NULL == mbImpl) return 1;
+  // Create MOAB instance based on that
+  Interface *mbImpl = new (std::nothrow) Core();
+  if (NULL == mbImpl)
+    return 1;
 
-  iMesh_Instance iMeshInst = reinterpret_cast<iMesh_Instance>( new MBiMesh(mbImpl) );
-  
-    // read in mesh(es)
+  // Read in mesh(es)
 
-    // Create root sets for each mesh using the iMesh API.  Then pass these
-    // to the load_file functions to be populated.
-  iBase_EntitySetHandle *roots = (iBase_EntitySetHandle *) malloc(sizeof(iBase_EntitySetHandle) * meshFiles.size());
+  // Create root sets for each mesh using moab
+  std::vector<EntityHandle> roots( meshFiles.size());
 
   for (unsigned int i = 0; i < meshFiles.size(); i++) {
     std::string newReadopts;
@@ -198,12 +179,13 @@ int main(int argc, char **argv)
 #ifdef USE_MPI
     pcs[i] = new ParallelComm(mbImpl, MPI_COMM_WORLD);
     int index = pcs[i]->get_id();
-    extraOpt  << ";PARALLEL_COMM=" << index;
+    extraOpt << ";PARALLEL_COMM=" << index;
     newReadopts = readOpts+extraOpt.str();
 #endif
-    
-    iMesh_createEntSet(iMeshInst, 0, &(roots[i]), &err);
-    result = mbImpl->load_file( meshFiles[i].c_str(), (EntityHandle *)&roots[i], newReadopts.c_str() );
+
+    result = mbImpl->create_meshset(MESHSET_SET, roots[i]);
+    PRINT_LAST_ERROR;
+    result = mbImpl->load_file(meshFiles[i].c_str(), &roots[i], newReadopts.c_str());
     PRINT_LAST_ERROR;
   }
 
@@ -212,33 +194,32 @@ int main(int argc, char **argv)
   PRINT_LAST_ERROR;
 #endif
 
-  double instant_time=0.0, pointloc_time=0.0, interp_time=0.0, gnorm_time=0.0, ssnorm_time=0.0;
-    // test interpolation and global normalization and subset normalization
+  double instant_time = 0.0, pointloc_time = 0.0, interp_time = 0.0, gnorm_time = 0.0, ssnorm_time = 0.0;
+  // Test interpolation and global normalization and subset normalization
 
-  result = test_interpolation(mbImpl, method, interpTag, gNormTag, ssNormTag, 
-                              ssTagNames, ssTagValues, roots, pcs, 
-                              instant_time, pointloc_time, interp_time, 
+  result = test_interpolation(mbImpl, method, interpTag, gNormTag, ssNormTag,
+                              ssTagNames, ssTagValues, pcs,
+                              instant_time, pointloc_time, interp_time,
                               gnorm_time, ssnorm_time, toler);
   PRINT_LAST_ERROR;
 
-  
-  reduceMax(instant_time);  
+  reduceMax(instant_time);
   reduceMax(pointloc_time);
   reduceMax(interp_time);
 
-  if(0==rank)
-    printf("\nMax time : %g %g %g (inst loc interp -- %d procs )\n", instant_time, 
-	   pointloc_time, interp_time, nprocs);
+  if (0 == rank)
+    printf("\nMax time : %g %g %g (inst loc interp -- %d procs)\n", instant_time,
+           pointloc_time, interp_time, nprocs);
 
-    // output mesh
+  // Output mesh
   if (!outFile.empty()) {
     Range partSets;
-      // only save the target mesh
+    // Only save the target mesh
     partSets.insert((EntityHandle)roots[1]);
     std::string newwriteOpts = writeOpts;
     std::ostringstream extraOpt;
 #ifdef USE_MPI
-    extraOpt  << ";PARALLEL_COMM=" << 1;
+    extraOpt << ";PARALLEL_COMM=" << 1;
     newwriteOpts += extraOpt.str();
 #endif
     result = mbImpl->write_file(outFile.c_str(), NULL, newwriteOpts.c_str(), partSets);
@@ -248,15 +229,14 @@ int main(int argc, char **argv)
   }
 
 #ifdef USE_MPI
-  for (unsigned int i = 0; i < meshFiles.size(); i++) {
+  for (unsigned int i = 0; i < meshFiles.size(); i++)
     delete pcs[i];
-  }
 #endif
 
   delete mbImpl;
-  //may be leaking iMeshInst, don't care since it's end of program. Remove above deletes?
+  // May be leaking iMeshInst, don't care since it's end of program. Remove above deletes?
 
-#ifdef USE_MPI  
+#ifdef USE_MPI
   err = MPI_Finalize();
 #endif
 
@@ -265,32 +245,35 @@ int main(int argc, char **argv)
 
 #ifdef USE_MPI
 ErrorCode report_iface_ents(Interface *mbImpl,
-                              std::vector<ParallelComm *> &pcs,
-                              const bool print_results) 
+                            std::vector<ParallelComm*> &pcs,
+                            const bool print_results)
 {
   Range iface_ents[6];
   ErrorCode result = MB_SUCCESS, tmp_result;
-  
-    // now figure out which vertices are shared
+
+  // Now figure out which vertices are shared
   for (unsigned int p = 0; p < pcs.size(); p++) {
     for (int i = 0; i < 4; i++) {
       tmp_result = pcs[p]->get_iface_entities(-1, i, iface_ents[i]);
-      
+
       if (MB_SUCCESS != tmp_result) {
-        std::cerr << "get_iface_entities returned error on proc " 
+        std::cerr << "get_iface_entities returned error on proc "
                   << pcs[p]->proc_config().proc_rank() << "; message: " << std::endl;
         std::string last_error;
         result = mbImpl->get_last_error(last_error);
-        if (last_error.empty()) std::cerr << "(none)" << std::endl;
-        else std::cerr << last_error << std::endl;
+        if (last_error.empty())
+          std::cerr << "(none)" << std::endl;
+        else
+          std::cerr << last_error << std::endl;
         result = tmp_result;
       }
-      if (0 != i) iface_ents[4].merge(iface_ents[i]);
+      if (0 != i)
+        iface_ents[4].merge(iface_ents[i]);
     }
   }
 
-    // report # iface entities
-  result = mbImpl->get_adjacencies(iface_ents[4], 0, false, iface_ents[5], 
+  // Report # iface entities
+  result = mbImpl->get_adjacencies(iface_ents[4], 0, false, iface_ents[5],
                                    Interface::UNION);
 
   int rank;
@@ -301,38 +284,38 @@ ErrorCode report_iface_ents(Interface *mbImpl,
     for (int i = 0; i < 4; i++)
       std::cerr << "    " << iface_ents[i].size() << " "
                 << i << "d iface entities." << std::endl;
-    std::cerr << "    (" << iface_ents[5].size() 
+    std::cerr << "    (" << iface_ents[5].size()
               << " verts adj to other iface ents)" << std::endl;
   }
-  
+
   return result;
 }
 #endif
 
 // Check first character for a '-'.
-// Return true if one is found.  False otherwise.
+// Return true if one is found. False otherwise.
 bool check_for_flag(const char *str) {
-  if (str[0] == '-')
+  if ('-' == str[0])
     return true;
   else
     return false;
 }
 
 // New get_file_options() function with added possibilities for mbcoupler_test.
-ErrorCode get_file_options(int argc, char **argv, 
+ErrorCode get_file_options(int argc, char **argv,
                            std::vector<std::string> &meshFiles,
                            DataCoupler::Method &method,
                            std::string &interpTag,
                            std::string &gNormTag,
                            std::string &ssNormTag,
-                           std::vector<const char *> &ssTagNames,
-                           std::vector<const char *> &ssTagValues,
+                           std::vector<const char*> &ssTagNames,
+                           std::vector<const char*> &ssTagValues,
                            std::string &readOpts,
                            std::string &outFile,
                            std::string &writeOpts,
                            std::string &dbgFile,
                            bool &help,
-                           double & epsilon)
+                           double &epsilon)
 {
   // Initialize some of the outputs to null values indicating not present
   // in the argument list.
@@ -342,7 +325,7 @@ ErrorCode get_file_options(int argc, char **argv,
   outFile = "";
   writeOpts = "PARALLEL=WRITE_PART;CPUTIME";
   dbgFile = "";
-  std::string defaultDbgFile = argv[0];  // The executable name will be the default debug output file.
+  std::string defaultDbgFile = argv[0]; // The executable name will be the default debug output file.
 
   // These will indicate if we've gotten our required parameters at the end of parsing.
   bool haveMeshes = false;
@@ -388,10 +371,14 @@ ErrorCode get_file_options(int argc, char **argv,
     else if (argv[npos] == std::string("-meth")) {
       // Parse out the interpolation tag
       npos++;
-      if (argv[npos][0] == '0') method = DataCoupler::CONSTANT;
-      else if (argv[npos][0] == '1') method = DataCoupler::LINEAR_FE;
-      else if (argv[npos][0] == '2') method = DataCoupler::QUADRATIC_FE;
-      else if (argv[npos][0] == '3') method = DataCoupler::SPECTRAL;
+      if (argv[npos][0] == '0')
+        method = DataCoupler::CONSTANT;
+      else if (argv[npos][0] == '1')
+        method = DataCoupler::LINEAR_FE;
+      else if (argv[npos][0] == '2')
+        method = DataCoupler::QUADRATIC_FE;
+      else if (argv[npos][0] == '3')
+        method = DataCoupler::SPECTRAL;
       else {
         std::cerr << "    ERROR - unrecognized method number " << method << std::endl;
         return MB_FAILURE;
@@ -433,14 +420,13 @@ ErrorCode get_file_options(int argc, char **argv,
         char sep1[1] = {';'};
         char sep2[1] = {'='};
         bool end_vals_seen = false;
-        std::vector<char *> tmpTagOpts;
+        std::vector<char*> tmpTagOpts;
 
-        // first get the options
-        for (char* i = strtok(opts, sep1); i; i = strtok(0, sep1)) {
+        // First get the options
+        for (char* i = strtok(opts, sep1); i; i = strtok(0, sep1))
           tmpTagOpts.push_back(i);
-        }
 
-        // parse out the name and val or just name.
+        // Parse out the name and val or just name.
         for (unsigned int j = 0; j < tmpTagOpts.size(); j++) {
           char* e = strtok(tmpTagOpts[j], sep2);
           ssTagNames.push_back(e);
@@ -455,12 +441,12 @@ ErrorCode get_file_options(int argc, char **argv,
             // Otherwise get the value string from e and convert it to an int
             int *valp = new int;
             *valp = atoi(e);
-            ssTagValues.push_back((const char *) valp);
+            ssTagValues.push_back((const char*)valp);
           }
           else {
             // Otherwise there is no '=' so push a null on the list
             end_vals_seen = true;
-            ssTagValues.push_back((const char *) 0);
+            ssTagValues.push_back((const char*)0);
           }
         }
       }
@@ -520,10 +506,10 @@ ErrorCode get_file_options(int argc, char **argv,
     meshFiles.resize(2);
     meshFiles[0] = std::string(TestDir + "/64bricks_1khex.h5m");
     meshFiles[1] = std::string(TestDir + "/64bricks_12ktet.h5m");
-    std::cout << "Mesh files not entered; using default files " 
+    std::cout << "Mesh files not entered; using default files "
               << meshFiles[0] << " and " << meshFiles[1] << std::endl;
   }
-  
+
   if (!haveInterpTag) {
     interpTag = "vertex_field";
     std::cout << "Interpolation field name not given, using default of " << interpTag << std::endl;
@@ -535,62 +521,57 @@ ErrorCode get_file_options(int argc, char **argv,
     outFile = "dum.h5m";
   }
 #endif
-    
+
   return MB_SUCCESS;
 }
 
-
 // End new get_file_options()
 
-
-ErrorCode test_interpolation(Interface *mbImpl, 
+ErrorCode test_interpolation(Interface *mbImpl,
                              DataCoupler::Method method,
                              std::string &interpTag,
-                             std::string &/*gNormTag*/,
-                             std::string &/*ssNormTag*/,
-                             std::vector<const char *> &/*ssTagNames*/,
-                             std::vector<const char *> &/*ssTagValues*/,
-                             iBase_EntitySetHandle */*roots*/,
-                             std::vector<ParallelComm *> &pcs,
+                             std::string &/* gNormTag */,
+                             std::string &/* ssNormTag */,
+                             std::vector<const char*> &/* ssTagNames */,
+                             std::vector<const char*> &/* ssTagValues */,
+                             std::vector<ParallelComm*> &pcs,
                              double &instant_time,
                              double &pointloc_time,
                              double &interp_time,
-                             double &/*gnorm_time*/,
-                             double &/*ssnorm_time*/,
-                             double & toler)
+                             double &/* gnorm_time */,
+                             double &/* ssnorm_time */,
+                             double &toler)
 {
   assert(method >= DataCoupler::CONSTANT && method <= DataCoupler::SPECTRAL);
 
-    // source is 1st mesh, target is 2nd
+  // Source is 1st mesh, target is 2nd
   Range src_elems, targ_elems, targ_verts;
   ErrorCode result = pcs[0]->get_part_entities(src_elems, 3);
   PRINT_LAST_ERROR;
 
   CpuTimer timer;
 
-    // instantiate a coupler, which also initializes the tree
+  // Instantiate a coupler, which also initializes the tree
   DataCoupler dc(mbImpl, src_elems, 0, pcs[0]);
 
-  // initialize spectral elements, if they exist
-  // bool specSou=false, specTar = false;
-//  result =  mbc.initialize_spectral_elements((EntityHandle)roots[0], (EntityHandle)roots[1], specSou, specTar);
+  // Initialize spectral elements, if they exist
+  //bool specSou = false, specTar = false;
+  //result = mbc.initialize_spectral_elements((EntityHandle)roots[0], (EntityHandle)roots[1], specSou, specTar);
 
   instant_time = timer.time_since_birth();
 
-    // get points from the target mesh to interpolate
-  // we have to treat differently the case when the target is a spectral mesh
-  // in that case, the points of interest are the GL points, not the vertex nodes
-  std::vector<double> vpos; // this will have the positions we are interested in
+  // Get points from the target mesh to interpolate
+  // We have to treat differently the case when the target is a spectral mesh
+  // In that case, the points of interest are the GL points, not the vertex nodes
+  std::vector<double> vpos; // This will have the positions we are interested in
   int numPointsOfInterest = 0;
-#ifdef USE_MPI    
+#ifdef USE_MPI
   result = pcs[1]->get_part_entities(targ_elems, 3);
-#else
-  result = mbImpl->get_entities_by_dimension((EntityHandle)roots[1], 3);
 #endif
   PRINT_LAST_ERROR;
 
-    // first get all vertices adj to partition entities in target mesh
-  if (DataCoupler::CONSTANT == method) 
+  // First get all vertices adj to partition entities in target mesh
+  if (DataCoupler::CONSTANT == method)
     targ_verts = targ_elems;
   else
     result = mbImpl->get_adjacencies(targ_elems, 0, false, targ_verts,
@@ -598,21 +579,21 @@ ErrorCode test_interpolation(Interface *mbImpl,
   PRINT_LAST_ERROR;
 
 #ifdef USE_MPI  
-    // then get non-owned verts and subtract
+  // Then get non-owned verts and subtract
   Range tmp_verts;
   result = pcs[1]->get_pstatus_entities(0, PSTATUS_NOT_OWNED, tmp_verts);
   PRINT_LAST_ERROR;
-  targ_verts = subtract( targ_verts, tmp_verts);
+  targ_verts = subtract(targ_verts, tmp_verts);
 #endif
-    // get position of these entities; these are the target points
+  // Get position of these entities; these are the target points
   numPointsOfInterest = (int)targ_verts.size();
   vpos.resize(3*targ_verts.size());
   result = mbImpl->get_coords(targ_verts, &vpos[0]);
   PRINT_LAST_ERROR;
 
-    // locate those points in the source mesh
+  // Locate those points in the source mesh
 #ifdef USE_MPI
-  std::cout << "rank "<< pcs[0]->proc_config().proc_rank();
+  std::cout << "rank " << pcs[0]->proc_config().proc_rank();
 #endif
   std::cout << " points of interest: " << numPointsOfInterest << "\n";
   result = dc.locate_points(&vpos[0], numPointsOfInterest, toler);
@@ -620,64 +601,23 @@ ErrorCode test_interpolation(Interface *mbImpl,
 
   pointloc_time = timer.time_elapsed();
 
-    // now interpolate tag onto target points
+  // Now interpolate tag onto target points
   std::vector<double> field(numPointsOfInterest);
 
   result = dc.interpolate(method, interpTag, &field[0]);
   PRINT_LAST_ERROR;
-  
+
   interp_time = timer.time_elapsed();
 
-/*
-    // do global normalization if specified
-  if (!gNormTag.empty()) {
-    int err;
-
-    // Normalize the source mesh
-    err = dc.normalize_mesh(roots[0], gNormTag.c_str(), DataCoupler::VOLUME, 4);
-    PRINT_LAST_ERR;
-
-    // Normalize the target mesh
-    err = dc.normalize_mesh(roots[1], gNormTag.c_str(), DataCoupler::VOLUME, 4);
-    PRINT_LAST_ERR;
-  }
-
-  gnorm_time = timer.time_elapsed();
-
-    // do subset normalization if specified
-
-  if (!ssNormTag.empty()) {
-    int err;
-
-    err = dc.normalize_subset(roots[0], 
-                               ssNormTag.c_str(), 
-                               &ssTagNames[0], 
-                               ssTagNames.size(), 
-                               &ssTagValues[0], 
-                              DataCoupler::VOLUME, 
-                               4);
-    PRINT_LAST_ERR;
-
-    err = dc.normalize_subset(roots[1], 
-                               ssNormTag.c_str(), 
-                               &ssTagNames[0], 
-                               ssTagNames.size(), 
-                               &ssTagValues[0], 
-                               DataCoupler::VOLUME, 
-                               4);
-    PRINT_LAST_ERR;
-  }
-
-  ssnorm_time = timer.time_elapsed();
-*/
-    // set field values as tag on target vertices
-    // use original tag
+  // Set field values as tag on target vertices
+  // Use original tag
   Tag tag;
-  result = mbImpl->tag_get_handle(interpTag.c_str(), 1, MB_TYPE_DOUBLE, tag); PRINT_LAST_ERROR;
+  result = mbImpl->tag_get_handle(interpTag.c_str(), 1, MB_TYPE_DOUBLE, tag);
+  PRINT_LAST_ERROR;
   result = mbImpl->tag_set_data(tag, targ_verts, &field[0]);
   PRINT_LAST_ERROR;
 
-    // done
+  // Done
   return MB_SUCCESS;
 }
 

@@ -1,0 +1,26 @@
+# MOAB_DIR points to top-level install dir, below which MOAB's lib/ and include/ are located
+MOAB_DIR := @prefix@
+include ${MOAB_DIR}/lib/moab.make
+include ${MOAB_DIR}/lib/iMesh-Defs.inc
+
+.SUFFIXES: .o .cpp .F90
+
+# MESH_DIR is the directory containing mesh files that come with MOAB source
+MESH_DIR="@abs_top_srcdir@/MeshFiles/unittest"
+
+EXAMPLES = DeformMeshRemap 
+
+default: ${EXAMPLES}
+
+DeformMeshRemap: DeformMeshRemap.o ${MOAB_LIBDIR}/libMOAB.la
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} -lmbcoupler ${MOAB_LIBS_LINK}
+
+clean:
+	rm -rf *.o *.mod *.h5m ${EXAMPLES}
+
+.cpp.o:
+	${MOAB_CXX} ${CXXFLAGS} ${MOAB_CXXFLAGS} ${MOAB_CPPFLAGS} ${MOAB_INCLUDES} -DMESH_DIR=\"${MESH_DIR}\" -c $<
+
+.F90.o:
+	${IMESH_FC} ${FCFLAGS} ${IMESH_FCFLAGS} ${MOAB_CPPFLAGS} ${IMESH_INCLUDES} ${IMESH_FCDEFS} -DMESH_DIR=\"${MESH_DIR}\" -c $<
+

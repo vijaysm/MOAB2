@@ -16,143 +16,138 @@ Intx2MeshInPlane::~Intx2MeshInPlane() {
   // TODO Auto-generated destructor stub
 }
 
-int Intx2MeshInPlane::computeIntersectionBetweenRedAndBlue(EntityHandle red, EntityHandle blue,
-    double * P, int & nP, double & area, int markb[MAXEDGES], int markr[MAXEDGES],
-    int & nsBlue, int & nsRed, bool check_boxes_first)
+double Intx2MeshInPlane::setup_red_cell(EntityHandle red, int & nsRed)
 {
+  // the points will be at most ?; they will describe a convex patch, after the points will be ordered and
+  // collapsed (eliminate doubles)
+  // the area is not really required
+  // get coordinates of the red quad
+  double cellArea =0;
+  int num_nodes;
+  ErrorCode rval = mb->get_connectivity(red, redConn, num_nodes);
 
-   // the points will be at most ?; they will describe a convex patch, after the points will be ordered and
-   // collapsed (eliminate doubles)
-   // the area is not really required
+  nsRed = num_nodes;
 
-   int num_nodes;
-   ErrorCode rval = mb->get_connectivity(red, redConn, num_nodes);
+  rval = mb->get_coords(redConn, num_nodes, &(redCoords[0][0]));
+  if (MB_SUCCESS != rval)
+    return 1.; // it should be an error
 
-   nsRed = num_nodes;
+  for (int j = 0; j < nsRed; j++) {
+    // populate coords in the plane for intersection
+    // they should be oriented correctly, positively
+    redCoords2D[2 * j] = redCoords[j][0]; // x coordinate,
+    redCoords2D[2 * j + 1] = redCoords[j][1]; // y coordinate
+  }
+  for (int j=1; j<nsRed-1; j++)
+    cellArea += area2D(&redCoords2D[0], &redCoords2D[2*j], &redCoords2D[2*j+2]);
 
-   //CartVect coords[4];
-   rval = mb->get_coords(redConn, num_nodes, &(redCoords[0][0]));
-   if (MB_SUCCESS != rval)
-     return 1;
+  return cellArea;
+}
+int Intx2MeshInPlane::computeIntersectionBetweenRedAndBlue(EntityHandle red,
+    EntityHandle blue, double * P, int & nP, double & area, int markb[MAXEDGES],
+    int markr[MAXEDGES], int & nsBlue, int & nsRed, bool check_boxes_first) {
 
+  int num_nodes = 0;
+  ErrorCode rval = mb->get_connectivity(blue, blueConn, num_nodes);
+  if (MB_SUCCESS != rval)
+    return 1;
+  nsBlue = num_nodes;
+  rval = mb->get_coords(blueConn, num_nodes, &(blueCoords[0][0]));
+  if (MB_SUCCESS != rval)
+    return 1;
 
-   rval = mb->get_connectivity(blue, blueConn, num_nodes);
-   if (MB_SUCCESS != rval)
-     return 1;
-   nsBlue = num_nodes;
-   rval = mb->get_coords(blueConn, num_nodes, &(blueCoords[0][0]));
-   if (MB_SUCCESS != rval)
-     return 1;
+  area = 0.;
+  nP = 0; // number of intersection points we are marking the boundary of blue!
+  if (check_boxes_first) {
+    setup_red_cell(red, nsRed); // we do not need area here
+    // look at the boxes formed with vertices; if they are far away, return false early
+    if (!GeomUtil::bounding_boxes_overlap(redCoords, nsRed, blueCoords, nsBlue,
+        box_error))
+      return 0; // no error, but no intersection, decide early to get out
+  }
+  if (dbg_1) {
+    std::cout << "red " << mb->id_from_handle(red) << "\n";
+    for (int j = 0; j < nsRed; j++) {
+      std::cout << redCoords[j] << "\n";
+    }
+    std::cout << "blue " << mb->id_from_handle(blue) << "\n";
+    for (int j = 0; j < nsBlue; j++) {
+      std::cout << blueCoords[j] << "\n";
+    }
+    mb->list_entities(&red, 1);
+    mb->list_entities(&blue, 1);
+  }
 
-   if (dbg_1)
-   {
-     std::cout << "red " << mb->id_from_handle(red) << "\n";
-     for (int j = 0; j < nsRed; j++)
-     {
-       std::cout << redCoords[j] << "\n";
-     }
-     std::cout << "blue " << mb->id_from_handle(blue) << "\n";
-     for (int j = 0; j < nsBlue; j++)
-     {
-       std::cout << blueCoords[j] << "\n";
-     }
-     mb->list_entities(&red, 1);
-     mb->list_entities(&blue, 1);
-   }
-   area = 0.;
-   nP = 0; // number of intersection points we are marking the boundary of blue!
-   if (check_boxes_first)
-   {
-     // look at the boxes formed with vertices; if they are far away, return false early
-     if (!GeomUtil::bounding_boxes_overlap(redCoords, nsRed, blueCoords, nsBlue, box_error))
-       return 0; // no error, but no intersection, decide early to get out
-   }
-   for (int j = 0; j < nsRed; j++)
-   {
-     // populate coords in the plane for intersection
-     // they should be oriented correctly, positively
-     redCoords2D[2 * j]=redCoords[j][0]; // x coordinate,
-     redCoords2D[2 * j + 1] = redCoords[j][1]; // y coordinate
-   }
-   for (int j=0; j<nsBlue; j++)
-   {
-     blueCoords2D[2 * j]=blueCoords[j][0]; // x coordinate,
-     blueCoords2D[2 * j + 1] = blueCoords[j][1]; // y coordinate
-   }
-  if (dbg_1)
-  {
+  for (int j = 0; j < nsBlue; j++) {
+    blueCoords2D[2 * j] = blueCoords[j][0]; // x coordinate,
+    blueCoords2D[2 * j + 1] = blueCoords[j][1]; // y coordinate
+  }
+  if (dbg_1) {
     //std::cout << "gnomonic plane: " << plane << "\n";
     std::cout << " red \n";
-    for (int j = 0; j < nsRed; j++)
-    {
+    for (int j = 0; j < nsRed; j++) {
       std::cout << redCoords2D[2 * j] << " " << redCoords2D[2 * j + 1] << "\n ";
     }
     std::cout << " blue\n";
-    for (int j = 0; j < nsBlue; j++)
-    {
-      std::cout <<  blueCoords2D[2 * j] << " " << blueCoords2D[2 * j + 1] << "\n";
+    for (int j = 0; j < nsBlue; j++) {
+      std::cout << blueCoords2D[2 * j] << " " << blueCoords2D[2 * j + 1]
+          << "\n";
     }
   }
 
-  int ret = EdgeIntersections2(blueCoords2D, nsBlue, redCoords2D, nsRed, markb, markr, P, nP);
+  int ret = EdgeIntersections2(blueCoords2D, nsBlue, redCoords2D, nsRed, markb,
+      markr, P, nP);
   if (ret != 0)
     return 1; // some unforeseen error
-  if (dbg_1)
-  {
-    for (int k=0; k<3; k++)
-    {
-      std::cout << " markb, markr: " << k << " " << markb[k] << " " << markr[k] << "\n";
+  if (dbg_1) {
+    for (int k = 0; k < 3; k++) {
+      std::cout << " markb, markr: " << k << " " << markb[k] << " " << markr[k]
+          << "\n";
     }
   }
 
-  int side[MAXEDGES] = { 0 };// this refers to what side? blue or red?
-  int extraPoints = borderPointsOfXinY2(blueCoords2D, nsBlue, redCoords2D, nsRed, &(P[2 * nP]), side, epsilon_area);
-  if (extraPoints >= 1)
-  {
-    for (int k = 0; k < nsBlue; k++)
-    {
-      if (side[k])
-      {
+  int side[MAXEDGES] = { 0 }; // this refers to what side? blue or red?
+  int extraPoints = borderPointsOfXinY2(blueCoords2D, nsBlue, redCoords2D,
+      nsRed, &(P[2 * nP]), side, epsilon_area);
+  if (extraPoints >= 1) {
+    for (int k = 0; k < nsBlue; k++) {
+      if (side[k]) {
         // this means that vertex k of blue is inside convex red; mark edges k-1 and k in blue,
         //   as being "intersected" by red; (even though they might not be intersected by other edges,
         //   the fact that their apex is inside, is good enough)
         markb[k] = 1;
-        markb[(k + nsBlue-1) % nsBlue] = 1; // it is the previous edge, actually, but instead of doing -1, it is
+        markb[(k + nsBlue - 1) % nsBlue] = 1; // it is the previous edge, actually, but instead of doing -1, it is
         // better to do modulo +3 (modulo 4)
         // null side b for next call
-        side[k]=0;
+        side[k] = 0;
       }
     }
   }
-  if (dbg_1)
-  {
-    for (int k=0; k<3; k++)
-    {
-      std::cout << " markb, markr: " << k << " " << markb[k] << " " << markr[k] << "\n";
+  if (dbg_1) {
+    for (int k = 0; k < 3; k++) {
+      std::cout << " markb, markr: " << k << " " << markb[k] << " " << markr[k]
+          << "\n";
     }
   }
   nP += extraPoints;
 
-  extraPoints = borderPointsOfXinY2(redCoords2D, nsRed, blueCoords2D, nsBlue, &(P[2 * nP]), side, epsilon_area);
-  if (extraPoints >= 1)
-  {
-    for (int k = 0; k < nsRed; k++)
-    {
-      if (side[k])
-      {
+  extraPoints = borderPointsOfXinY2(redCoords2D, nsRed, blueCoords2D, nsBlue,
+      &(P[2 * nP]), side, epsilon_area);
+  if (extraPoints >= 1) {
+    for (int k = 0; k < nsRed; k++) {
+      if (side[k]) {
         // this is to mark that red edges k-1 and k are intersecting blue
         markr[k] = 1;
-        markr[(k + nsRed-1) % nsRed] = 1; // it is the previous edge, actually, but instead of doing -1, it is
+        markr[(k + nsRed - 1) % nsRed] = 1; // it is the previous edge, actually, but instead of doing -1, it is
         // better to do modulo +3 (modulo 4)
         // null side b for next call
       }
     }
   }
-  if (dbg_1)
-  {
-    for (int k=0; k<3; k++)
-    {
-      std::cout << " markb, markr: " << k << " " << markb[k] << " " << markr[k] << "\n";
+  if (dbg_1) {
+    for (int k = 0; k < 3; k++) {
+      std::cout << " markb, markr: " << k << " " << markb[k] << " " << markr[k]
+          << "\n";
     }
   }
   nP += extraPoints;
@@ -163,8 +158,7 @@ int Intx2MeshInPlane::computeIntersectionBetweenRedAndBlue(EntityHandle red, Ent
   SortAndRemoveDoubles2(P, nP, epsilon_1); // nP should be at most 8 in the end ?
   // if there are more than 3 points, some area will be positive
 
-  if (nP >= 3)
-  {
+  if (nP >= 3) {
     for (int k = 1; k < nP - 1; k++)
       area += area2D(P, &P[2 * k], &P[2 * k + 2]);
   }
@@ -276,21 +270,26 @@ int Intx2MeshInPlane::findNodes(EntityHandle red, int nsRed, EntityHandle blue, 
           // if not, create a new point, (check the id)
           // get the coordinates of the extra points so far
           int nbExtraNodesSoFar = expts->size();
-          CartVect * coords1 = new CartVect[nbExtraNodesSoFar];
-          mb->get_coords(&(*expts)[0], nbExtraNodesSoFar, &(coords1[0][0]));
-          //std::list<int>::iterator it;
-          for (int k = 0; k < nbExtraNodesSoFar && !found; k++)
+          if (nbExtraNodesSoFar>0)
           {
-            //int pnt = *it;
-            double d2 = (pos - coords1[k]).length_squared();
-            if (d2 < epsilon_1)
+            CartVect * coords1 = new CartVect[nbExtraNodesSoFar];
+            mb->get_coords(&(*expts)[0], nbExtraNodesSoFar, &(coords1[0][0]));
+            //std::list<int>::iterator it;
+            for (int k = 0; k < nbExtraNodesSoFar && !found; k++)
             {
-              found = 1;
-              foundIds[i] = (*expts)[k];
-              if (dbg_1)
-                std::cout << " found node:" << foundIds[i] << std::endl;
+              //int pnt = *it;
+              double d2 = (pos - coords1[k]).length_squared();
+              if (d2 < epsilon_1)
+              {
+                found = 1;
+                foundIds[i] = (*expts)[k];
+                if (dbg_1)
+                  std::cout << " found node:" << foundIds[i] << std::endl;
+              }
             }
+            delete[] coords1;
           }
+
           if (!found)
           {
             // create a new point in 2d (at the intersection)
@@ -305,7 +304,7 @@ int Intx2MeshInPlane::findNodes(EntityHandle red, int nsRed, EntityHandle blue, 
             if (dbg_1)
               std::cout << " new node: " << outNode << std::endl;
           }
-          delete[] coords1;
+
         }
       }
     }
@@ -347,14 +346,13 @@ int Intx2MeshInPlane::findNodes(EntityHandle red, int nsRed, EntityHandle blue, 
     id = rs2.index(red);
     mb->tag_set_data(redParentTag, &polyNew, 1, &id);
 
-    static int count=0;
-    count++;
-    mb->tag_set_data(countTag, &polyNew, 1, &count);
+    counting++;
+    mb->tag_set_data(countTag, &polyNew, 1, &counting);
 
     if (dbg_1)
     {
 
-      std::cout << "Count: " << count+1 << "\n";
+      std::cout << "Count: " << counting+1 << "\n";
       std::cout << " polygon " << mb->id_from_handle(polyNew) << "  nodes: " << nP << " :";
       for (int i1 = 0; i1 < nP; i1++)
         std::cout << " " << mb->id_from_handle(foundIds[i1]);
@@ -365,7 +363,7 @@ int Intx2MeshInPlane::findNodes(EntityHandle red, int nsRed, EntityHandle blue, 
         std::cout << iP[2 * i1] << " " << iP[2 * i1 + 1] << " " << posi[i1] << "\n";
 
       std::stringstream fff;
-      fff << "file0" <<  count<< ".vtk";
+      fff << "file0" <<  counting<< ".vtk";
           mb->write_mesh(fff.str().c_str(), &outSet, 1);
     }
 

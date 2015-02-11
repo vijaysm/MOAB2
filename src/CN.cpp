@@ -3,7 +3,7 @@
  * storing and accessing finite element mesh data.
  * 
  * Copyright 2004 Sandia Corporation.  Under the terms of Contract
- * DE-AC04-94AL85000 with Sandia Coroporation, the U.S. Government
+ * DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government
  * retains certain rights in this software.
  * 
  * This library is free software; you can redistribute it and/or
@@ -39,6 +39,9 @@ const char *CN::entityTypeNames[] = {
 };
 
 short int CN::numberBasis = 0;
+
+short int CN::permuteVec[MBMAXTYPE][3][MAX_SUB_ENTITIES + 1];
+short int CN::revPermuteVec[MBMAXTYPE][3][MAX_SUB_ENTITIES + 1];
 
 const DimensionPair CN::TypeDimensionMap[] = 
 {
