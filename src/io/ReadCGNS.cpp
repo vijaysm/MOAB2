@@ -521,11 +521,12 @@ ErrorCode ReadCGNS::create_sets(char *sectionName,
   result = MB_SUCCESS;
   EntityHandle set_handle;
 
-  Tag tag_handle;
+  Tag name_tag;
 
-  const char* setName = sectionName;
+  result = mbImpl->tag_get_handle(NAME_TAG_NAME, NAME_TAG_SIZE, MB_TYPE_OPAQUE,
+                                   name_tag, MB_TAG_SPARSE | MB_TAG_CREAT); MB_CHK_ERR(result);
 
-  mbImpl->tag_get_handle(setName, 1, MB_TYPE_INTEGER, tag_handle, MB_TAG_SPARSE | MB_TAG_CREAT);
+ // mbImpl->tag_get_handle(setName, 1, MB_TYPE_INTEGER, tag_handle, MB_TAG_SPARSE | MB_TAG_CREAT);
 
   // Create set
   result = mbImpl->create_meshset(MESHSET_SET, set_handle);MB_CHK_SET_ERR(result, fileName << ": Trouble creating set");
@@ -538,6 +539,8 @@ ErrorCode ReadCGNS::create_sets(char *sectionName,
   // Add them to the set
   result = mbImpl->add_entities(set_handle, elements);MB_CHK_SET_ERR(result, fileName << ": Trouble putting entities in set");
 
+  // name the set with the name (at most 32 chars)
+  result = mbImpl->tag_set_data(name_tag, &set_handle, 1, sectionName);
   return MB_SUCCESS;
 }
 
