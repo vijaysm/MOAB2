@@ -248,37 +248,19 @@ ErrorCode refine_entities(Interface *mb, int *level_degrees, const int num_level
   ErrorCode error;
 
   //Get the range of entities in the initial mesh
-  Range init_verts, edges, faces, cells;
-  error = mb->get_entities_by_dimension(0, 0, init_verts); CHECK_ERR(error);
-  error = mb->get_entities_by_dimension(0, 1, edges); CHECK_ERR(error);
-  error = mb->get_entities_by_dimension(0, 2, faces); CHECK_ERR(error);
-  error = mb->get_entities_by_dimension(0, 3, cells);  CHECK_ERR(error);
+  Range init_ents[4];
+  error = mb->get_entities_by_dimension(0, 0, init_ents[0]); CHECK_ERR(error);
+  error = mb->get_entities_by_dimension(0, 1, init_ents[1]); CHECK_ERR(error);
+  error = mb->get_entities_by_dimension(0, 2, init_ents[2]); CHECK_ERR(error);
+  error = mb->get_entities_by_dimension(0, 3, init_ents[3]);  CHECK_ERR(error);
 
- Range init_ents;
- int dim=0;
-
-  if (!edges.empty())
-    {
-      dim = 1;
-      init_ents = edges;
-    }
-  else if (!faces.empty())
-    {
-      dim = 2;
-     init_ents = faces;
-    }
-  else if (!cells.empty())
-    {
-      dim = 3;
-     init_ents = cells;
-    }
-
+ int dim[3] = {1,2,3};
 
   if (output)
     {
-      int inents = init_ents.size();
+    //  int inents = init_ents.size();
       std::stringstream file;
-      file <<  "INIT_"<<dim<<"_"<<inents<<"_ML_" <<1<<".vtk";
+      file <<  "MESH_LEVEL_0.vtk";
       std::string str = file.str();
       const char* output_file = str.c_str();
       error = mb->write_file(output_file); CHECK_ERR(error);
@@ -293,10 +275,13 @@ ErrorCode refine_entities(Interface *mb, int *level_degrees, const int num_level
   error = uref.generate_mesh_hierarchy( num_levels,level_degrees, set); CHECK_ERR(error);
   std::cout<<"Finished hierarchy generation"<<std::endl;
 
-  int factor=1;
-  Range prev_verts, prev_ents;
-  prev_verts = init_verts;
-  prev_ents = init_ents;
+  std::cout<<std::endl;
+  std::cout<<"Mesh size for level 0  :: inverts = "<<init_ents[0].size()<<", inedges = "<<init_ents[1].size()<<", infaces = "<<init_ents[2].size()<<", incells = "<<init_ents[3].size()<<std::endl;
+
+  Range prev_ents[4];
+  for (int i=0; i<4; i++)
+    prev_ents[i] = init_ents[i];
+
 
   //Loop over each mesh level and check its topological properties
   for (int l=0; l<num_levels; l++)
@@ -304,49 +289,62 @@ ErrorCode refine_entities(Interface *mb, int *level_degrees, const int num_level
       Range all_ents;
       error = mb->get_entities_by_handle(set[l], all_ents); CHECK_ERR(error);
 
-      Range verts, ents;
-      verts = all_ents.subset_by_dimension(0);
-      ents = all_ents.subset_by_dimension(dim);
-     // error = mb->get_entities_by_type(set[l], MBVERTEX, verts); CHECK_ERR(error);
-   //   error = mb->get_entities_by_dimension(set[l], dim, ents); CHECK_ERR(error);
+      Range ents[4];
+      for (int k=0; k<4; k++)
+        ents[k] = all_ents.subset_by_dimension(k);
 
-      if (verts.empty() || ents.empty())
+      if (ents[0].empty() || all_ents.empty())
         std::cout<<"Something is not right"<<std::endl;
 
       std::cout<<std::endl;
-      std::cout<<"Mesh size for level "<<l<<"  :: nverts = "<<verts.size()<<", nents = "<<ents.size()<<std::endl;
+      std::cout<<"Mesh size for level "<<l+1<<"  :: nverts = "<<ents[0].size()<<", nedges = "<<ents[1].size()<<", nfaces = "<<ents[2].size()<<", ncells = "<<ents[3].size()<<std::endl;
 
-      for (int d=0; d<dim; d++)
-        factor *= level_degrees[l];
+      //Check if the number of new entities created are correct.
 
-      int  expected_nents = factor*init_ents.size();
-      CHECK_EQUAL(expected_nents, (int)ents.size());
+      for (int type =0; type <3; type++)
+        {
+          int factor = 1;
+          if (!ents[type+1].empty()){
+
+              for (int p=0; p<=l; p++){
+                  for (int d=0; d<dim[type]; d++)
+                    factor *= level_degrees[p];
+                }
+              int  expected_nents = factor*init_ents[type+1].size();
+              CHECK_EQUAL(expected_nents, (int)ents[type+1].size());
+            }
+        }
 
       //Check adjacencies
       error = test_adjacencies(mb, &uref, all_ents); CHECK_ERR(error);
 
       //Check interlevel child-parent query between previous and current level
-      for (Range::iterator e = prev_ents.begin(); e != prev_ents.end(); e++)
+      for (int type = 0; type < 3; type++)
         {
-          std::vector<EntityHandle> children;
-          error = uref.parent_to_child(*e, l, l+1, children); CHECK_ERR(error);
-          for (int i=0; i<(int)children.size(); i++)
+          if (!prev_ents[type+1].empty())
             {
-              EntityHandle parent;
-              error = uref.child_to_parent(children[i], l+1, l, &parent); CHECK_ERR(error);
-              assert(parent == *e);
+              for (Range::iterator e = prev_ents[type+1].begin(); e != prev_ents[type+1].end(); e++)
+                {
+                  std::vector<EntityHandle> children;
+                  error = uref.parent_to_child(*e, l, l+1, children); CHECK_ERR(error);
+                  for (int i=0; i<(int)children.size(); i++)
+                    {
+                      EntityHandle parent;
+                      error = uref.child_to_parent(children[i], l+1, l, &parent); CHECK_ERR(error);
+                      assert(parent == *e);
+                    }
+                }
             }
         }
-      prev_verts = verts;
-      prev_ents = ents;
+
+      for (int i=0; i<4; i++)
+        prev_ents[i] = ents[i];
 
       //Print out the mesh
       if (output)
         {
-          int inents = init_ents.size();
-          EntityType type = mb->type_from_handle(*init_ents.begin());
           std::stringstream file;
-          file <<  "INIT_"<<type<<"_"<<inents<<"_dim_"<<dim<<"_ML_" <<l+2<<".vtk";
+          file <<  "MESH_LEVEL_" <<l+1<<".vtk";
           std::string str = file.str();
           const char* output_file = str.c_str();
           char * write_opts = NULL;
@@ -355,25 +353,29 @@ ErrorCode refine_entities(Interface *mb, int *level_degrees, const int num_level
     }
 
   //Check interlevel child-parent query between initial and most refined mesh
-  for (Range::iterator e= init_ents.begin(); e != init_ents.end(); e++)
+  for (int type = 0; type < 3; type++)
     {
-      std::vector<EntityHandle> children;
-      error = uref.parent_to_child(*e, 0, num_levels, children); CHECK_ERR(error);
-      for (int i=0; i<(int)children.size(); i++)
+      if (!init_ents[type+1].empty())
         {
-          EntityHandle parent;
-          error = uref.child_to_parent(children[i], num_levels, 0, &parent); CHECK_ERR(error);
-          assert(parent == *e);
+          for (Range::iterator e= init_ents[type+1].begin(); e != init_ents[type+1].end(); e++)
+            {
+              std::vector<EntityHandle> children;
+              error = uref.parent_to_child(*e, 0, num_levels, children); CHECK_ERR(error);
+              for (int i=0; i<(int)children.size(); i++)
+                {
+                  EntityHandle parent;
+                  error = uref.child_to_parent(children[i], num_levels, 0, &parent); CHECK_ERR(error);
+                  assert(parent == *e);
+                }
+            }
         }
     }
 
   //Print out the whole hierarchy into a single file
   if (output)
     {
-      int inents = init_ents.size();
-      EntityType type = mb->type_from_handle(*init_ents.begin());
       std::stringstream file;
-      file <<  "INIT_"<<type<<"_"<<inents<<"_dim_"<<dim<<".vtk";
+      file <<  "MESH_HIERARCHY.vtk";
       std::string str = file.str();
       const char* output_file = str.c_str();
       error = mb->write_file(output_file); CHECK_ERR(error);
@@ -1104,10 +1106,9 @@ ErrorCode test_mesh(const char* filename, int *level_degrees, int num_levels)
     error = mbImpl->get_entities_by_dimension(0, 1, edges); CHECK_ERR(error);
     error = mbImpl->get_entities_by_dimension(0, 2, faces); CHECK_ERR(error);
     error = mbImpl->get_entities_by_dimension(0, 3, cells); CHECK_ERR(error);
-    std::cout<<"verts = "<<verts.size()<<", edges = "<<edges.size()<<", faces = "<<faces.size()<<", cells = "<<cells.size()<<std::endl;
 
     //Generate hierarchy
-    error = refine_entities(mbImpl, level_degrees, num_levels, true);  CHECK_ERR(error);
+    error = refine_entities(mbImpl, level_degrees, num_levels, false);  CHECK_ERR(error);
 
     return MB_SUCCESS;
 }
@@ -1139,7 +1140,7 @@ int main(int argc, char *argv[])
     else if (argc == 2)
       {
         const char* filename = argv[1];
-        int deg[2] = {2,2};
+        int deg[4] = {2,3,3,2};
         int len = sizeof(deg) / sizeof(int);
         result = test_mesh(filename, deg, len);
         handle_error_code(result, number_tests_failed, number_tests_successful);
