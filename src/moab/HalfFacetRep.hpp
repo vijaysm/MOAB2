@@ -500,11 +500,6 @@ protected:
   std::vector<EntityHandle> sibhfs_cid, v2hf_cid;
   std::vector<int> sibhfs_lfid, v2hf_lfid;
 
-  //Tag sibhvs_eid, sibhvs_lvid, v2hv_eid, v2hv_lvid;
-//  Tag sibhes_fid, sibhes_leid, v2he_fid, v2he_leid;
-//  Tag sibhfs_cid, sibhfs_lfid, v2hf_cid, v2hf_lfid;
-
-
   EntityHandle queue_fid[MAXSIZE], Stkcells[MAXSIZE], cellq[MAXSIZE];
   EntityHandle trackfaces[MAXSIZE], trackcells[MAXSIZE];
   int queue_lid[MAXSIZE];
@@ -525,11 +520,6 @@ protected:
   ErrorCode init_curve();
   ErrorCode init_surface();
   ErrorCode init_volume();
-
-//  ErrorCode deinit_curve();
-//  ErrorCode deinit_surface();
-//  ErrorCode deinit_volume();
-
 
   //! Contains the local information for 2D entities
   /** Given a face, find the face type specific information
