@@ -2,7 +2,10 @@
 #include "moab/NestedRefine.hpp"
 #include "moab/HalfFacetRep.hpp"
 #include "moab/ReadUtilIface.hpp"
+#include "moab/ParallelComm.hpp"
 #include "moab/Templates.hpp"
+#include "Internals.hpp"
+#include "MBTagConventions.hpp"
 #include <iostream>
 #include <assert.h>
 #include <vector>
@@ -114,16 +117,18 @@ namespace moab{
           {
             conn.reserve(2);
             start_ent = level_mesh[level-1].start_edge;
-            conn.push_back( level_mesh[level-1].edge_conn[2*(ent-start_ent)]);
-            conn.push_back( level_mesh[level-1].edge_conn[2*(ent-start_ent)+1]);
+            EntityID offset=ID_FROM_HANDLE(ent)-ID_FROM_HANDLE(start_ent);
+            conn.push_back( level_mesh[level-1].edge_conn[2*offset]);
+            conn.push_back( level_mesh[level-1].edge_conn[2*offset+1]);
           }
         else if (type == MBTRI || type == MBQUAD)
           {
             int num_corners = ahf->local_maps_2d(ent);
             conn.reserve(num_corners);
             start_ent = level_mesh[level-1].start_face;
+            EntityID offset=ID_FROM_HANDLE(ent)-ID_FROM_HANDLE(start_ent);
             for (int i=0; i<num_corners; i++)
-              conn.push_back(level_mesh[level-1].face_conn[num_corners*(ent-start_ent)+i]);
+              conn.push_back(level_mesh[level-1].face_conn[num_corners*offset+i]);
           }
         else if (type == MBTET || type == MBHEX)
           {
@@ -131,8 +136,9 @@ namespace moab{
             int num_corners = ahf->lConnMap3D[index].num_verts_in_cell;
             conn.reserve(num_corners);
             start_ent = level_mesh[level-1].start_cell;
+            EntityID offset=ID_FROM_HANDLE(ent)-ID_FROM_HANDLE(start_ent);
             for (int i=0; i<num_corners; i++)
-              conn.push_back(level_mesh[level-1].cell_conn[num_corners*(ent-start_ent)+i]);
+              conn.push_back(level_mesh[level-1].cell_conn[num_corners*offset+i]);
           }
         else
           MB_SET_ERR(MB_FAILURE, "Requesting connectivity for an unsupported entity type");
@@ -148,21 +154,22 @@ namespace moab{
 
   ErrorCode NestedRefine::get_coordinates(EntityHandle *verts, int num_verts, int level, double *coords)
   {
+    ErrorCode error;
     if (level >0){
-    const EntityHandle& vstart = level_mesh[level-1].start_vertex;
-    for (int i=0; i< num_verts; i++)
-      {
-        const EntityHandle& vid = verts[i];
-        coords[3*i] = level_mesh[level-1].coordinates[0][vid-vstart];
-        coords[3*i+1] =  level_mesh[level-1].coordinates[1][vid-vstart];
-        coords[3*i+2] =  level_mesh[level-1].coordinates[2][vid-vstart];
-      }
-      }
+      EntityID vstart = ID_FROM_HANDLE(level_mesh[level-1].start_vertex);
+      for (int i=0; i< num_verts; i++)
+        {
+          const EntityHandle& vid = verts[i];
+          EntityID offset=ID_FROM_HANDLE(vid)-vstart;
+          coords[3*i]   = level_mesh[level-1].coordinates[0][offset];
+          coords[3*i+1] = level_mesh[level-1].coordinates[1][offset];
+          coords[3*i+2] = level_mesh[level-1].coordinates[2][offset];
+        }
+    }
     else
-      {
-        ErrorCode error;
-        error = mbImpl->get_coords(verts, num_verts, coords);MB_CHK_ERR(error);
-      }
+    {
+      error = mbImpl->get_coords(verts, num_verts, coords);MB_CHK_ERR(error);
+    }
 
     return MB_SUCCESS;
   }
@@ -193,7 +200,6 @@ namespace moab{
       child_index = child - level_mesh[child_level-1].start_cell;
     else
       MB_SET_ERR(MB_FAILURE, "Requesting parent for unsupported entity type");
-
 
     int parent_index;
     int l = child_level - parent_level;
@@ -395,11 +401,15 @@ namespace moab{
     error = mbImpl->query_interface(read_iface);MB_CHK_ERR(error);
 
     //Vertices
-    error = read_iface->get_node_coords(3, estL[0], 0,  level_mesh[cur_level].start_vertex , level_mesh[cur_level].coordinates);MB_CHK_ERR(error);
+    error = read_iface->get_node_coords(3, estL[0], 0, level_mesh[cur_level].start_vertex, level_mesh[cur_level].coordinates);MB_CHK_ERR(error);
     level_mesh[cur_level].num_verts = estL[0];
 
     Range newverts(level_mesh[cur_level].start_vertex, level_mesh[cur_level].start_vertex+estL[0] - 1);
     error = mbImpl->add_entities(*set, newverts);MB_CHK_ERR(error);
+
+    Tag gidtag;
+    error = mbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, gidtag);MB_CHK_ERR(error);
+    error = read_iface->assign_ids(gidtag, newverts, level_mesh[cur_level].start_vertex);MB_CHK_ERR(error);
 
     // Edges
     if (estL[1])
@@ -409,6 +419,7 @@ namespace moab{
 
         Range newedges(level_mesh[cur_level].start_edge, level_mesh[cur_level].start_edge+estL[1] - 1);
         error = mbImpl->add_entities(*set, newedges);MB_CHK_ERR(error);
+        error = read_iface->assign_ids(gidtag, newedges, level_mesh[cur_level].start_edge);MB_CHK_ERR(error);
       }
     else
       level_mesh[cur_level].num_edges = 0;
@@ -423,6 +434,7 @@ namespace moab{
 
         Range newfaces(level_mesh[cur_level].start_face, level_mesh[cur_level].start_face+estL[2] - 1);
         error = mbImpl->add_entities(*set, newfaces);MB_CHK_ERR(error);
+        error = read_iface->assign_ids(gidtag, newfaces, level_mesh[cur_level].start_face);MB_CHK_ERR(error);
       }
     else
       level_mesh[cur_level].num_faces = 0;
@@ -438,6 +450,7 @@ namespace moab{
 
         Range newcells(level_mesh[cur_level].start_cell, level_mesh[cur_level].start_cell+estL[3] - 1);
         error = mbImpl->add_entities(*set, newcells);MB_CHK_ERR(error);
+        error = read_iface->assign_ids(gidtag, newcells, level_mesh[cur_level].start_cell);MB_CHK_ERR(error);
       }
     else
       level_mesh[cur_level].num_cells = 0;
@@ -454,7 +467,7 @@ namespace moab{
   ErrorCode NestedRefine::generate_hm(int *level_degrees, int num_level, EntityHandle *hm_set)
   {
     ErrorCode error;
-
+    ParallelComm *pcomm = moab::ParallelComm::get_pcomm(mbImpl, 0);
     for (int l = 0; l<num_level; l++)
       {
         // Estimate storage
@@ -463,7 +476,7 @@ namespace moab{
         if (l)
           set = hm_set[l-1];
         else
-          set = 0;
+          set = _rset;
         error = estimate_hm_storage(set, level_degrees[l], l, hmest);MB_CHK_ERR(error);
 
         //Create arrays for storing the current level
@@ -475,6 +488,18 @@ namespace moab{
         //Create the new entities and new vertices
         error = construct_hm_entities(l, level_degrees[l]);MB_CHK_ERR(error);
       }
+
+    if(pcomm) {
+      moab::Range ents;
+      Tag gidtag;
+      error = mbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, gidtag);MB_CHK_ERR(error);
+
+      // get all entities on the rootset
+      error = mbImpl->get_entities_by_dimension(0, meshdim, ents, true);MB_CHK_ERR(error);
+
+      // resolve shared entities in parallel based on meshdim entities
+      error = pcomm->resolve_shared_ents(0, ents, meshdim, meshdim-1, NULL, &gidtag);MB_CHK_ERR(error);
+    }
     return MB_SUCCESS;
   }
 
@@ -550,7 +575,7 @@ namespace moab{
         for (int i=0; i<(int)conn.size(); i++)
           {
             if (cur_level)
-              vbuffer[i] = level_mesh[cur_level].start_vertex+ (conn[i] - level_mesh[cur_level-1].start_vertex);
+              vbuffer[i] = level_mesh[cur_level].start_vertex + (conn[i] - level_mesh[cur_level-1].start_vertex);
             else
               vbuffer[i] = level_mesh[cur_level].start_vertex + (conn[i] - *_inverts.begin());
           }

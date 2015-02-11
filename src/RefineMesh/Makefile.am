@@ -6,7 +6,7 @@ noinst_LTLIBRARIES = libRefineMesh.la
          
 # Some variables
 AM_CPPFLAGS += -DIS_BUILDING_MB -DSRCDIR=$(srcdir) \
-               -I$(srcdir)/.. -I.. -I$(srcdir)/../moab -I$(srcdir)/moab
+               -I$(srcdir)/..  -I$(srcdir)/../parallel
 
 # The directory in which to install headers
 libRefineMesh_la_includedir = $(includedir)
