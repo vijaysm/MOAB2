@@ -3,7 +3,7 @@
 
 #include "moab/ReaderIface.hpp"
 #include "moab/Range.hpp"
-
+#include <map>
 #include "cgnslib.h"
 
 namespace moab
@@ -51,7 +51,8 @@ private:
                               const int& verts_per_elem,
                               long& section_offset,
                               int elems_count,
-                              const std::vector<cgsize_t>& elemsConn);
+                              const std::vector<cgsize_t>& elemsConn,
+                              std::map<cgsize_t, EntityHandle> & node_id_map);
 
     ErrorCode create_sets(char* sectionName,
                           const Tag* file_id_tag,
@@ -59,8 +60,6 @@ private:
                           const Range& elements,
                           const std::vector<int>& set_ids,
                           int set_type);
-
-    ErrorCode create_geometric_topology();
 
     /** \brief Process options passed into the reader
      * \param opts Options passed into this read

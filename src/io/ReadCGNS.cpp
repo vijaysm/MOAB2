@@ -17,7 +17,6 @@
 #include <cstdio>
 #include <assert.h>
 #include <errno.h>
-#include <map>
 #include <set>
 
 #include <iostream>
@@ -87,7 +86,7 @@ ErrorCode ReadCGNS::load_file(const char* filename,
     blocks.insert(*material_set_list);
 
   // Map of ID->handle for nodes
-  std::map<long, EntityHandle> node_id_map;
+  std::map<cgsize_t, EntityHandle> node_id_map;
 
   // Save filename to member variable so we don't need to pass as an argument
   // to called functions
@@ -173,11 +172,11 @@ ErrorCode ReadCGNS::load_file(const char* filename,
       double sumZcoord = 0.0;
       double eps = 1.0e-12;
       for (long i = 0; i < num_verts; ++i, ++handle) {
-        int index = i + 1;
+        cgsize_t index = i + 1;
 
-        node_id_map.insert(std::pair<long, EntityHandle>(index, handle)).second;
+        node_id_map[index]= handle;
 
-        sumZcoord += *(coord_arrays[2] + i);
+        sumZcoord += fabs(*(coord_arrays[2] + i));
       }
       if (std::abs(sumZcoord) <= eps) mesh_dim = 2;
 
@@ -188,7 +187,7 @@ ErrorCode ReadCGNS::load_file(const char* filename,
       std::vector<EntityHandle>::iterator h_iter = handles.begin();
       for (std::map<long, EntityHandle>::iterator i = node_id_map.begin();
           i != node_id_map.end(); ++i, ++id_iter, ++h_iter) {
-        *id_iter = i->first;
+        *id_iter = (int)i->first;
         * h_iter = i->second;
       }
       // Store IDs in tags
@@ -294,7 +293,7 @@ ErrorCode ReadCGNS::load_file(const char* filename,
           // Create elements, sets and tags
 
           create_elements(sectionName, file_id_tag,
-                          ent_type, verts_per_elem, section_offset, section_size , elemNodes);
+                          ent_type, verts_per_elem, section_offset, section_size , elemNodes, node_id_map);
         } // Homogeneous mesh type
         else if (elemsType == MIXED) {
           // We must first sort all elements connectivities into continuous vectors
@@ -424,25 +423,25 @@ ErrorCode ReadCGNS::load_file(const char* filename,
           // Create elements, sets and tags
 
           if (count_EDGE > 0)
-            create_elements(sectionName, file_id_tag, MBEDGE, 2, section_offset, count_EDGE, elemsConn_EDGE);
+            create_elements(sectionName, file_id_tag, MBEDGE, 2, section_offset, count_EDGE, elemsConn_EDGE, node_id_map);
 
           if (count_TRI > 0)
-            create_elements(sectionName, file_id_tag, MBTRI, 3, section_offset, count_TRI, elemsConn_TRI);
+            create_elements(sectionName, file_id_tag, MBTRI, 3, section_offset, count_TRI, elemsConn_TRI, node_id_map);
 
           if (count_QUAD > 0)
-            create_elements(sectionName, file_id_tag, MBQUAD, 4, section_offset, count_QUAD, elemsConn_QUAD);
+            create_elements(sectionName, file_id_tag, MBQUAD, 4, section_offset, count_QUAD, elemsConn_QUAD, node_id_map);
 
           if (count_TET > 0)
-            create_elements(sectionName, file_id_tag, MBTET, 4, section_offset, count_TET, elemsConn_TET);
+            create_elements(sectionName, file_id_tag, MBTET, 4, section_offset, count_TET, elemsConn_TET, node_id_map);
 
           if (count_PYRA > 0)
-            create_elements(sectionName, file_id_tag, MBPYRAMID, 5, section_offset, count_PYRA, elemsConn_PYRA);
+            create_elements(sectionName, file_id_tag, MBPYRAMID, 5, section_offset, count_PYRA, elemsConn_PYRA, node_id_map);
 
           if (count_PRISM > 0)
-            create_elements(sectionName, file_id_tag, MBPRISM, 6, section_offset, count_PRISM, elemsConn_PRISM);
+            create_elements(sectionName, file_id_tag, MBPRISM, 6, section_offset, count_PRISM, elemsConn_PRISM, node_id_map);
 
           if (count_HEX > 0)
-            create_elements(sectionName, file_id_tag, MBHEX, 8, section_offset, count_HEX, elemsConn_HEX);
+            create_elements(sectionName, file_id_tag, MBHEX, 8, section_offset, count_HEX, elemsConn_HEX, node_id_map);
         } // Mixed mesh type
       } // num_sections
 
@@ -461,7 +460,8 @@ ErrorCode ReadCGNS::create_elements(char *sectionName,
                                     const int& verts_per_elem,
                                     long &section_offset,
                                     int elems_count,
-                                    const std::vector<cgsize_t>& elemsConn)
+                                    const std::vector<cgsize_t>& elemsConn,
+                                    std::map<cgsize_t, EntityHandle> & node_id_map)
 {
   ErrorCode result;
 
@@ -471,9 +471,12 @@ ErrorCode ReadCGNS::create_elements(char *sectionName,
   EntityHandle handle = 0;
 
   result = readMeshIface->get_element_connect(elems_count, verts_per_elem, ent_type, 1, handle,
-                                              conn_array);MB_CHK_SET_ERR(result, fileName << ": Trouble reading elements");
+                                              conn_array);MB_CHK_SET_ERR(result, fileName << ": Trouble creating elements");
 
-  memcpy(conn_array, &elemsConn[0], elemsConn.size() * sizeof(EntityHandle));
+  //memcpy(conn_array, &elemsConn[0], elemsConn.size() * sizeof(EntityHandle));
+  // fill up information
+  for (size_t j=0; j<elemsConn.size(); j++)
+    conn_array[j] = node_id_map[elemsConn[j]];
 
   // Notify MOAB of the new elements
   result = readMeshIface->update_adjacencies(handle, elems_count, verts_per_elem, conn_array);
