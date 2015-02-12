@@ -113,6 +113,12 @@ namespace moab
 
     ErrorCode vertex_to_entities(EntityHandle vertex, int level, std::vector<EntityHandle> &incident_entities);
 
+    /** Given a vertex from a certain level, it returns a boolean indicating a boundary vertex.
+     * \param vertex
+      */
+
+    bool boundary_vertex(EntityHandle vertex);
+
   protected:
     Core *mbImpl;
     HalfFacetRep *ahf;
@@ -120,6 +126,7 @@ namespace moab
     EntityHandle _rset;
     Range _inverts, _inedges, _infaces, _incells;
     int meshdim;
+    EntityType elementype;
     int level_dsequence[MAX_LEVELS];
     std::map<int,int> deg_index;
 

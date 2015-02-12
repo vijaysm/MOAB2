@@ -55,6 +55,7 @@ namespace moab{
         MB_SET_ERR(MB_FAILURE, "Not supported 3D entity types: MBPRISM, MBPYRAMID, MBKNIFE, MBPOLYHEDRON");
 
       meshdim = 3;
+      elementype = type;
     }
     else if (!_infaces.empty()) {
       EntityType type = mbImpl->type_from_handle(_infaces[0]);
@@ -62,9 +63,11 @@ namespace moab{
         MB_SET_ERR(MB_FAILURE, "Not supported 2D entity type: POLYGON");
 
       meshdim = 2;
+      elementype = type;
     }
     else if (!_inedges.empty()) {
       meshdim = 1;
+      elementype = MBEDGE;
     }
     else MB_SET_ERR(MB_NOT_IMPLEMENTED, "Encountered a mixed-dimensional or invalid mesh");
 
@@ -334,7 +337,24 @@ namespace moab{
     return MB_SUCCESS;
   }
 
+  bool NestedRefine::boundary_vertex(EntityHandle vertex)
+    {
+      bool is_border = false;
 
+      EntityHandle ent;
+      int lid;
+      ErrorCode error;
+      error = ahf->get_incident_tag(elementype, vertex, &ent, &lid); MB_CHK_ERR(error);
+
+      std::vector<EntityHandle> sibents;
+      std::vector<int> siblids;
+      error = ahf->get_sibling_tag(elementype, ent, &sibents[0], &siblids[0]); MB_CHK_ERR(error);
+
+      if (sibents[lid] == 0)
+        is_border = true;
+
+      return is_border;
+    }
 
   /***********************************************
    *  Basic functionalities: generate HM         *
