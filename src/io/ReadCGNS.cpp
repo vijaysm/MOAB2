@@ -542,7 +542,7 @@ ErrorCode ReadCGNS::create_sets(char *sectionName,
   result = mbImpl->add_entities(set_handle, elements);MB_CHK_SET_ERR(result, fileName << ": Trouble putting entities in set");
 
   // name the set with the name (at most 32 chars)
-  result = mbImpl->tag_set_data(name_tag, &set_handle, 1, sectionName);
+  result = mbImpl->tag_set_data(name_tag, &set_handle, 1, sectionName); MB_CHK_ERR(result);
   return MB_SUCCESS;
 }
 
