@@ -118,6 +118,8 @@ namespace moab
       */
 
     bool is_entity_on_boundary(EntityHandle &entity);
+    
+    bool is_boundary_vertex(EntityHandle vertex);
 
   protected:
     Core *mbImpl;

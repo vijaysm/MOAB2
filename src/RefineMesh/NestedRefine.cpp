@@ -343,7 +343,7 @@ namespace moab{
   }
 
   bool NestedRefine::is_entity_on_boundary(EntityHandle &entity)
-    {
+  {
     ErrorCode error;
     bool is_border = false;
     EntityType type = mbImpl->type_from_handle(entity);
@@ -383,6 +383,18 @@ namespace moab{
       }
 
     return is_border;
+  }
+  
+  bool NestedRefine::is_boundary_vertex(EntityHandle vertex)
+  {
+    ErrorCode error;
+    EntityHandle ent, sibents[27];
+    int lid, siblids[27];
+
+    error = ahf->get_incident_tag(elementype, vertex, &ent, &lid);MB_CHK_ERR(error);
+    error = ahf->get_sibling_tag(elementype, ent, &sibents[0], &siblids[0]);MB_CHK_ERR(error);
+
+    return (sibents[lid] == 0);
   }
 
   /***********************************************
@@ -657,6 +669,8 @@ namespace moab{
           };
 
         error = update_local_ahf(deg, MBEDGE,  vbuffer, ent_buffer, etotal);MB_CHK_ERR(error);
+        // VSM: Test
+        //error = mbImpl(deg, MBEDGE,  vbuffer, ent_buffer, etotal);MB_CHK_ERR(error);
 
         // Compute the coordinates of the new vertices: Linear interpolation
         int idx;
