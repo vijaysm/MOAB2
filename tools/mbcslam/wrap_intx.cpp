@@ -57,6 +57,12 @@ Tag rhoBoundsTag = 0;
 Tag weightsTag = 0;
 Tag gid = 0;
 ParallelComm *pcomm = NULL;
+// for printing, debug style
+int num_update_calls=0;
+int nlev = 26;
+int level_to_print =24; // + 1
+bool dprint = false;
+// end printing
 // should get rid of this; instead of using array[NC+1][NC+1], use  row based indexing (C-style):
 // parray =  new int[ (NC+1)*(NC+1) ] , and instead of array[i][j], use parray[ i*(NC+1) + j ]
 #define  NC  3
@@ -214,8 +220,39 @@ void update_tracer_test(iMesh_Instance instance,
   {
     // if 7 == transport_type
     rval = mb->tag_set_data(rhoTag, eulQuads, &density_vals[0]); MB_CHK_ERR_RET(rval);
+
     std::vector<Tag> tags;
     tags.push_back(rhoTag); tags.push_back(tauTag);
+    if (dprint)
+    {
+      num_update_calls++;
+      if (num_update_calls%nlev==level_to_print)
+      {
+        std::vector<Tag> wtags;
+        wtags.push_back(rhoTag);
+        for (int k=1; k<=numTracers; k++)
+        {
+          std::stringstream tagName;
+          tagName << "Tracer" << k ;
+          Tag tracTag;
+          rval = mb->tag_get_handle(tagName.str().c_str(), 1, moab::MB_TYPE_DOUBLE,
+                    tracTag, moab::MB_TAG_CREAT | moab::MB_TAG_DENSE); MB_CHK_ERR_RET(rval);
+          wtags.push_back(tracTag);
+          std::vector<double> pickVals(eulQuads.size());
+          for (size_t i=0; i<eulQuads.size(); i++)
+          {
+            pickVals[i] = tracer_vals[(k-1)+i*numTracers];
+          }
+          rval = mb->tag_set_data(tracTag, eulQuads, &pickVals[0]);MB_CHK_ERR_RET(rval);
+        }
+
+        int nstep=num_update_calls/nlev;
+        std::stringstream fff;
+        fff << "before0" << nstep << ".h5m";
+
+        rval = mb->write_file(fff.str().c_str(), 0, "PARALLEL=WRITE_PART", &eul_set, 1, &wtags[0], wtags.size()); MB_CHK_ERR_RET(rval);
+      }
+    }
     rval = pcomm->exchange_tags(tags, tags, allCells);
 
     // start copy
@@ -262,6 +299,37 @@ void update_tracer_test(iMesh_Instance instance,
 
   rval = mb->tag_get_data(tauTag, eulQuads, &tracer_vals[0]);
   ERRORV(rval, "can't get tracer data");
+
+  if (dprint && 7==transport_type)
+  {
+
+    if (num_update_calls%nlev==level_to_print)
+    {
+      std::vector<Tag> wtags;
+      wtags.push_back(rhoTag);
+      for (int k=1; k<=numTracers; k++)
+      {
+        std::stringstream tagName;
+        tagName << "Tracer" << k ;
+        Tag tracTag;
+        rval = mb->tag_get_handle(tagName.str().c_str(), 1, moab::MB_TYPE_DOUBLE,
+                  tracTag, moab::MB_TAG_CREAT | moab::MB_TAG_DENSE); MB_CHK_ERR_RET(rval);
+        wtags.push_back(tracTag);
+        std::vector<double> pickVals(eulQuads.size());
+        for (size_t i=0; i<eulQuads.size(); i++)
+        {
+          pickVals[i] = tracer_vals[(k-1)+i*numTracers];
+        }
+        rval = mb->tag_set_data(tracTag, eulQuads, &pickVals[0]);MB_CHK_ERR_RET(rval);
+      }
+
+      int nstep=num_update_calls/nlev;
+      std::stringstream fff;
+      fff << "after0" << nstep << ".h5m";
+
+      rval = mb->write_file(fff.str().c_str(), 0, "PARALLEL=WRITE_PART", &eul_set, 1, &wtags[0], wtags.size()); MB_CHK_ERR_RET(rval);
+    }
+  }
 
   *ierr = 0;
   return;
@@ -1006,6 +1074,17 @@ void intersection_at_level(iMesh_Instance instance,
   // set the departure tag on the fine mesh vertices
   ErrorCode rval = set_departure_points_position(mb, lagrMeshSet, dep_coords,
       radius2);
+  if (dprint)
+  {
+    if (num_update_calls%nlev==level_to_print-1)
+    {
+      int nstep=num_update_calls/nlev;
+      std::stringstream fff;
+      fff << "depMesh0" << nstep << ".h5m";
+
+      rval = mb->write_file(fff.str().c_str(), 0, "PARALLEL=WRITE_PART", &lagrMeshSet, 1); MB_CHK_ERR_RET(rval);
+    }
+  }
   ERRORV(rval, "can't set departure tag");
   if (debug) {
     std::stringstream fff;
