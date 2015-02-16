@@ -80,7 +80,16 @@ generate_export_header(iMesh)
 list(APPEND MOAB_IMESH_LIB_INCLUDES
   ${CMAKE_CURRENT_BINARY_DIR}/imesh_export.h)
 
-target_link_libraries( iMesh MOAB )
+if (MOAB_USE_MPI)
+  target_include_directories(iMesh
+    PUBLIC
+      ${MPI_INCLUDE_PATH})
+  target_link_libraries(iMesh
+    PUBLIC
+      ${MPI_LIBRARIES})
+endif ()
+
+target_link_libraries( iMesh PUBLIC MOAB )
 
 install(TARGETS iMesh EXPORT MOABTargets
                       RUNTIME DESTINATION bin
