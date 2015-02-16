@@ -44,10 +44,10 @@ namespace moab
        *  These handles can be used to work with a specific mesh level.
        * \param level_degrees Integer array storing the degrees used in each level.
        * \param num_level The total number of levels in the hierarchy.
-       * \param hm_set EntityHandle array that returns the handles of the sets created for each mesh level.
+       * \param hm_set EntityHandle STL vector that returns the handles of the sets created for each mesh level.
       */
 
-    ErrorCode generate_mesh_hierarchy(int *level_degrees, int num_level, EntityHandle **hm_set);
+    ErrorCode generate_mesh_hierarchy(int *level_degrees, int num_level, std::vector<EntityHandle>& hm_set);
 
     //! Given an entity and its level, return its connectivity.
     /** Given an entity at a certain level, it finds the connectivity via direct access to a stored internal pointer to the memory to connectivity sequence for the given level.

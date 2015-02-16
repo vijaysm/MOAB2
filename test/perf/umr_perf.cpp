@@ -187,11 +187,11 @@ ErrorCode umr_perf_test(Core *mb, int *level_degrees, int num_levels, OUTTYPE ou
   //Create an hm object and generate the hierarchy
   std::cout<<"Creating a hm object"<<std::endl;
   NestedRefine uref(mb);
-  EntityHandle *set;
+  std::vector<EntityHandle> set;
 
   std::cout<<"Starting hierarchy generation"<<std::endl;
   time_start = wtime();
-  error = uref.generate_mesh_hierarchy(level_degrees, num_levels, &set);CHECK_ERR(error);
+  error = uref.generate_mesh_hierarchy(level_degrees, num_levels, set);CHECK_ERR(error);
 
   time_total = wtime() - time_start;
   std::cout<<"Finished hierarchy generation"<<std::endl;
@@ -342,6 +342,7 @@ ErrorCode umr_perf_test(Core *mb, int *level_degrees, int num_levels, OUTTYPE ou
       std::cout<<std::endl;
     }*/
 
+    set.clear();
     return MB_SUCCESS;
 }
 

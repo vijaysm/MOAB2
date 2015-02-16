@@ -199,10 +199,10 @@ ErrorCode refine_entities(Core *mb, int *level_degrees, const int num_levels, bo
   //Create an hm object and generate the hierarchy
   std::cout<<"Creating a hm object"<<std::endl;
   NestedRefine uref(mb);
-  EntityHandle *set;
+  std::vector<EntityHandle> set;
 
   std::cout<<"Starting hierarchy generation"<<std::endl;
-  error = uref.generate_mesh_hierarchy(level_degrees, num_levels, &set); CHECK_ERR(error);
+  error = uref.generate_mesh_hierarchy(level_degrees, num_levels, set); CHECK_ERR(error);
   std::cout<<"Finished hierarchy generation"<<std::endl;
 
   int factor=1;
@@ -286,7 +286,7 @@ ErrorCode refine_entities(Core *mb, int *level_degrees, const int num_levels, bo
       error = mb->write_file(output_file); CHECK_ERR(error);
     }
 
-  delete [] set;
+  set.clear();
   return MB_SUCCESS;
 }
 

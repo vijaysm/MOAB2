@@ -83,13 +83,13 @@ namespace moab{
    *     Interface Functions                                  *
    ************************************************************/
 
-  ErrorCode NestedRefine::generate_mesh_hierarchy(int *level_degrees, int num_level, EntityHandle **p_hm_set)
+  ErrorCode NestedRefine::generate_mesh_hierarchy(int *level_degrees, int num_level, std::vector<EntityHandle>& p_hm_set)
   {
     assert(num_level>0);
 
     ErrorCode error;
-    EntityHandle *uhm_set = new EntityHandle[num_level+1];
-    uhm_set[0] = _rset;
+    p_hm_set.resize(num_level+1);
+    p_hm_set[0] = _rset;
 
     if (meshdim <=2)
       {
@@ -108,9 +108,7 @@ namespace moab{
           }
       }
 
-    error = generate_hm(level_degrees, num_level, &uhm_set[1]);MB_CHK_ERR(error);
-
-    *p_hm_set = uhm_set;
+    error = generate_hm(level_degrees, num_level, &p_hm_set[1]);MB_CHK_ERR(error);
     return MB_SUCCESS;
   }
 
