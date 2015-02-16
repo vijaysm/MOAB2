@@ -113,11 +113,11 @@ namespace moab
 
     ErrorCode vertex_to_entities(EntityHandle vertex, int level, std::vector<EntityHandle> &incident_entities);
 
-    /** Given a vertex from a certain level, it returns a boolean indicating a boundary vertex.
-     * \param vertex
+    /** Given an entity from a certain level, it returns a boolean value true if it lies on the domain boundary.
+     * \param entity
       */
 
-    bool boundary_vertex(EntityHandle vertex);
+    bool is_entity_on_boundary(EntityHandle &entity);
 
   protected:
     Core *mbImpl;
