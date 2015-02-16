@@ -54,6 +54,7 @@ if ( MOAB_HAVE_MPI )
                       iMeshP_MOAB.cpp)
   set(MOAB_IMESH_LIB_INCLUDES
           ${MOAB_IMESH_LIB_INCLUDES}
+          iMeshP.h
           ${CMAKE_CURRENT_BINARY_DIR}/iMeshP_protos.h
           ${CMAKE_CURRENT_BINARY_DIR}/iMeshP_extensions_protos.h )
 endif()
