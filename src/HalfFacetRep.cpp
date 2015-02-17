@@ -24,7 +24,7 @@
 
 namespace moab {
 
-  HalfFacetRep::HalfFacetRep(Interface *impl)
+  HalfFacetRep::HalfFacetRep(Core *impl)
   {
     assert(NULL != impl);
     mb = impl;
@@ -2577,6 +2577,36 @@ namespace moab {
    _cells = cells;
 
    return MB_SUCCESS;
+  }
+
+  void HalfFacetRep::get_memory_use(unsigned long long &entity_total, unsigned long long &memory_total)
+  {
+    entity_total = memory_total = 0;
+    int ne = _edges.size();
+    int nf = _faces.size();
+    int nc = _cells.size();
+
+    //1D
+    if ( ne != 0)
+      {
+        entity_total += v2hv_eid.capacity()*sizeof(EntityHandle) + v2hv_lvid.capacity()*sizeof(int) + sizeof(v2hv_eid) + sizeof(v2hv_lvid);
+        entity_total += sibhvs_eid.capacity()*sizeof(EntityHandle) + sibhvs_lvid.capacity()*sizeof(int) + sizeof(sibhvs_eid) + sizeof(sibhvs_lvid);
+      }
+
+    //2D
+    if (nf != 0)
+      {
+        entity_total += v2he_fid.capacity()*sizeof(EntityHandle) + v2he_leid.capacity()*sizeof(int) + sizeof(v2he_fid) + sizeof(v2he_leid);
+        entity_total += sibhes_fid.capacity()*sizeof(EntityHandle) + sibhes_leid.capacity()*sizeof(int) + sizeof(sibhes_fid) + sizeof(sibhes_leid);
+      }
+
+    //3D
+    if (nc != 0)
+      {
+        entity_total += v2hf_cid.capacity()*sizeof(EntityHandle) + v2hf_lfid.capacity()*sizeof(int) + sizeof(v2hf_cid) + sizeof(v2hf_lfid);
+        entity_total += sibhfs_cid.capacity()*sizeof(EntityHandle) + sibhfs_lfid.capacity()*sizeof(int) + sizeof(sibhfs_cid) + sizeof(sibhfs_lfid);
+      }
+    memory_total = entity_total;
   }
 
 

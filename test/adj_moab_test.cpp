@@ -81,7 +81,7 @@ ErrorCode ahf_test(const char* filename)
     error = mbImpl->get_entities_by_dimension( 0, 3, cells);
 
     // Create an ahf instance
-    HalfFacetRep ahf(mbImpl);
+    HalfFacetRep ahf(&moab);
 
     // Call the initialize function which creates the maps for each dimension
     ahf.initialize();

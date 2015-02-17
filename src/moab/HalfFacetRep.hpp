@@ -73,8 +73,8 @@ class HalfFacetRep{
 
 public:
 
-  //HalfFacetRep(Core *impl);
-  HalfFacetRep(Interface *impl);
+  HalfFacetRep(Core *impl);
+ // HalfFacetRep(Interface *impl);
     
   ~HalfFacetRep();
 
@@ -413,6 +413,7 @@ public:
 
   ErrorCode count_subentities(Range &edges, Range &faces, Range &cells, int *nedges, int *nfaces);
 
+  void get_memory_use(unsigned long long& entity_total, unsigned long long& memory_total);
 
   /**************************
      *  Interface to AHF tags   *
@@ -480,7 +481,7 @@ public:
 
 protected:
 
-  Interface *mb;
+  Core *mb;
 
   HalfFacetRep();
 

@@ -31,7 +31,7 @@ namespace moab
     
   public:
 
-    NestedRefine(Interface *thisMB);
+    NestedRefine(Core *thisMB);
     
     ~NestedRefine();
     
@@ -114,7 +114,7 @@ namespace moab
     ErrorCode vertex_to_entities(EntityHandle vertex, int level, std::vector<EntityHandle> &incident_entities);
 
   protected:
-    Interface *mbImpl;
+    Core *mbImpl;
     HalfFacetRep *ahf;
 
     Range _inverts, _inedges, _infaces, _incells;
