@@ -268,7 +268,7 @@ ErrorCode refine_entities(Interface *mb, int *level_degrees, const int num_level
 
   //Create an hm object and generate the hierarchy
   std::cout<<"Creating a hm object"<<std::endl;
-  NestedRefine uref(mb);
+  NestedRefine uref(dynamic_cast<Core*>(mb));
   EntityHandle *set = new EntityHandle[num_levels];
 
   std::cout<<"Starting hierarchy generation"<<std::endl;
