@@ -316,10 +316,10 @@ ErrorCode refine_entities(Interface *mb, int *level_degrees, const int num_level
         }
 
       //Check adjacencies
-      error = test_adjacencies(mb, &uref, all_ents); CHECK_ERR(error);
+      //error = test_adjacencies(mb, &uref, all_ents); CHECK_ERR(error);
 
       //Check interlevel child-parent query between previous and current level
-      for (int type = 0; type < 3; type++)
+     /* for (int type = 0; type < 3; type++)
         {
           if (!prev_ents[type+1].empty())
             {
@@ -338,7 +338,7 @@ ErrorCode refine_entities(Interface *mb, int *level_degrees, const int num_level
         }
 
       for (int i=0; i<4; i++)
-        prev_ents[i] = ents[i];
+        prev_ents[i] = ents[i];*/
 
       //Print out the mesh
       if (output)
@@ -353,7 +353,7 @@ ErrorCode refine_entities(Interface *mb, int *level_degrees, const int num_level
     }
 
   //Check interlevel child-parent query between initial and most refined mesh
-  for (int type = 0; type < 3; type++)
+/*  for (int type = 0; type < 3; type++)
     {
       if (!init_ents[type+1].empty())
         {
@@ -369,17 +369,17 @@ ErrorCode refine_entities(Interface *mb, int *level_degrees, const int num_level
                 }
             }
         }
-    }
+    }*/
 
   //Print out the whole hierarchy into a single file
-  if (output)
+ /* if (output)
     {
       std::stringstream file;
       file <<  "MESH_HIERARCHY.vtk";
       std::string str = file.str();
       const char* output_file = str.c_str();
       error = mb->write_file(output_file); CHECK_ERR(error);
-    }
+    }*/
 
   delete [] set;
   return MB_SUCCESS;
@@ -1108,7 +1108,7 @@ ErrorCode test_mesh(const char* filename, int *level_degrees, int num_levels)
     error = mbImpl->get_entities_by_dimension(0, 3, cells); CHECK_ERR(error);
 
     //Generate hierarchy
-    error = refine_entities(mbImpl, level_degrees, num_levels, false);  CHECK_ERR(error);
+    error = refine_entities(mbImpl, level_degrees, num_levels, true);  CHECK_ERR(error);
 
     return MB_SUCCESS;
 }
@@ -1140,7 +1140,7 @@ int main(int argc, char *argv[])
     else if (argc == 2)
       {
         const char* filename = argv[1];
-        int deg[4] = {2,3,3,2};
+        int deg[3] = {2,2,2};
         int len = sizeof(deg) / sizeof(int);
         result = test_mesh(filename, deg, len);
         handle_error_code(result, number_tests_failed, number_tests_successful);

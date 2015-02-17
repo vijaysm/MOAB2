@@ -2359,11 +2359,12 @@ namespace moab {
 
   }
 
-  ErrorCode HalfFacetRep::get_sibling_map(EntityType type, EntityHandle ent,  EntityHandle *sib_entids, int *sib_lids)
+  ErrorCode HalfFacetRep::get_sibling_map(EntityType type, EntityHandle ent, EntityHandle *sib_entids, int *sib_lids,  int num_halffacets)
   {
 
     if (type == MBEDGE)
       {
+        assert(num_halffacets == 2);
         int eidx = _edges.index(ent);
         for (int i=0; i<2; i++)
           {
@@ -2374,6 +2375,7 @@ namespace moab {
     else if (type == MBTRI || type == MBQUAD)
       {
        int nepf = lConnMap2D[type-2].num_verts_in_face;
+       assert(num_halffacets == nepf);
        int fidx = _faces.index(ent);
 
         for (int i=0; i<nepf; i++)
@@ -2386,6 +2388,7 @@ namespace moab {
       {
         int idx = get_index_in_lmap(*_cells.begin());
         int nfpc = lConnMap3D[idx].num_faces_in_cell;
+        assert(num_halffacets == nfpc);
         int cidx = _cells.index(ent);
 
         for (int i=0; i<nfpc; i++)
@@ -2398,22 +2401,22 @@ namespace moab {
     return MB_SUCCESS;
   }
 
-  ErrorCode HalfFacetRep::get_sibling_map(EntityType type, EntityHandle ent, int lid,  EntityHandle *sib_entid, int *sib_lid)
+  ErrorCode HalfFacetRep::get_sibling_map(EntityType type, EntityHandle ent, int lid,  EntityHandle &sib_entid, int &sib_lid)
   {
 
     if (type == MBEDGE)
       {
         int eidx = _edges.index(ent);
-        sib_entid[0] = sibhvs_eid[2*eidx+lid];
-        sib_lid[0] = sibhvs_lvid[2*eidx+lid];
+        sib_entid = sibhvs_eid[2*eidx+lid];
+        sib_lid = sibhvs_lvid[2*eidx+lid];
       }
     else if (type == MBTRI || type == MBQUAD)
       {
        int nepf = lConnMap2D[type-2].num_verts_in_face;
        int fidx = _faces.index(ent);
 
-       sib_entid[0] = sibhes_fid[nepf*fidx+lid];
-       sib_lid[0] = sibhes_leid[nepf*fidx+lid];
+       sib_entid = sibhes_fid[nepf*fidx+lid];
+       sib_lid = sibhes_leid[nepf*fidx+lid];
       }
     else
       {
@@ -2421,17 +2424,18 @@ namespace moab {
         int nfpc = lConnMap3D[idx].num_faces_in_cell;
         int cidx = _cells.index(ent);
 
-        sib_entid[0] = sibhfs_cid[nfpc*cidx+lid];
-        sib_lid[0] = sibhfs_lfid[nfpc*cidx+lid];
+        sib_entid = sibhfs_cid[nfpc*cidx+lid];
+        sib_lid = sibhfs_lfid[nfpc*cidx+lid];
       }
     return MB_SUCCESS;
   }
 
-  ErrorCode HalfFacetRep::set_sibling_map(EntityType type, EntityHandle ent, EntityHandle *set_entids, int *set_lids)
+  ErrorCode HalfFacetRep::set_sibling_map(EntityType type, EntityHandle ent, EntityHandle *set_entids, int *set_lids, int num_halffacets)
   {
 
     if (type == MBEDGE)
       {
+        assert(num_halffacets == 2);
         int eidx = _edges.index(ent);
         for (int i=0; i<2; i++)
           {
@@ -2442,6 +2446,7 @@ namespace moab {
     else if (type == MBTRI || type == MBQUAD)
       {
         int nepf = lConnMap2D[type-2].num_verts_in_face;
+        assert(num_halffacets == nepf);
         int fidx = _faces.index(ent);
 
          for (int i=0; i<nepf; i++)
@@ -2454,6 +2459,7 @@ namespace moab {
       {
         int idx = get_index_in_lmap(*_cells.begin());
         int nfpc = lConnMap3D[idx].num_faces_in_cell;
+        assert(num_halffacets == nfpc);
         int cidx = _cells.index(ent);
 
         for (int i=0; i<nfpc; i++)
@@ -2466,23 +2472,23 @@ namespace moab {
     return MB_SUCCESS;
   }
 
-  ErrorCode HalfFacetRep::set_sibling_map(EntityType type, EntityHandle ent, int lid, EntityHandle *set_entid, int *set_lid)
+  ErrorCode HalfFacetRep::set_sibling_map(EntityType type, EntityHandle ent, int lid, EntityHandle &set_entid, int &set_lid)
   {
 
     if (type == MBEDGE)
       {
         int eidx = _edges.index(ent);
 
-        sibhvs_eid[2*eidx+lid] =  set_entid[0] ;
-        sibhvs_lvid[2*eidx+lid] = set_lid[0] ;
+        sibhvs_eid[2*eidx+lid] =  set_entid;
+        sibhvs_lvid[2*eidx+lid] = set_lid;
       }
     else if (type == MBTRI || type == MBQUAD)
       {
         int nepf = lConnMap2D[type-2].num_verts_in_face;
         int fidx = _faces.index(ent);
 
-        sibhes_fid[nepf*fidx+lid] = set_entid[0] ;
-        sibhes_leid[nepf*fidx+lid] = set_lid[0] ;
+        sibhes_fid[nepf*fidx+lid] = set_entid;
+        sibhes_leid[nepf*fidx+lid] = set_lid;
       }
     else
       {
@@ -2490,54 +2496,54 @@ namespace moab {
         int nfpc = lConnMap3D[idx].num_faces_in_cell;
         int cidx = _cells.index(ent);
 
-        sibhfs_cid[nfpc*cidx+lid] = set_entid[0];
-        sibhfs_lfid[nfpc*cidx+lid] = set_lid[0];
+        sibhfs_cid[nfpc*cidx+lid] = set_entid;
+        sibhfs_lfid[nfpc*cidx+lid] = set_lid;
       }
 
     return MB_SUCCESS;
   }
 
-  ErrorCode HalfFacetRep::get_incident_map(EntityType type, EntityHandle vid, EntityHandle *inci_entid, int  *inci_lid)
+  ErrorCode HalfFacetRep::get_incident_map(EntityType type, EntityHandle vid, EntityHandle &inci_entid, int  &inci_lid)
   {
     int vidx = _verts.index(vid);
 
     if (type == MBEDGE)
       {   
-        inci_entid[0] = v2hv_eid[vidx];
-        inci_lid[0] = v2hv_lvid[vidx];
+        inci_entid = v2hv_eid[vidx];
+        inci_lid = v2hv_lvid[vidx];
       }
     else if (type == MBTRI || type == MBQUAD)
       {
-        inci_entid[0] = v2he_fid[vidx];
-        inci_lid[0] = v2he_leid[vidx];
+        inci_entid = v2he_fid[vidx];
+        inci_lid = v2he_leid[vidx];
       }
     else
       {
-        inci_entid[0] = v2hf_cid[vidx];
-        inci_lid[0] = v2hf_lfid[vidx];
+        inci_entid = v2hf_cid[vidx];
+        inci_lid = v2hf_lfid[vidx];
       }
 
     return MB_SUCCESS;
   }
 
-  ErrorCode HalfFacetRep::set_incident_map(EntityType type, EntityHandle vid, EntityHandle *set_entid, int *set_lid)
+  ErrorCode HalfFacetRep::set_incident_map(EntityType type, EntityHandle vid, EntityHandle &set_entid, int &set_lid)
   {
     int vidx = _verts.index(vid);
 
     if (type == MBEDGE)
       {
-        v2hv_eid[vidx] = set_entid[0];
-        v2hv_lvid[vidx] = set_lid[0];
+        v2hv_eid[vidx] = set_entid;
+        v2hv_lvid[vidx] = set_lid;
       }
     else if (type == MBTRI || type == MBQUAD)
       {
-        v2he_fid[vidx] = set_entid[0];
-        v2he_leid[vidx] = set_lid[0];
+        v2he_fid[vidx] = set_entid;
+        v2he_leid[vidx] = set_lid;
       }
     else
       {
-        v2hf_cid[vidx] = set_entid[0];
-        v2hf_lfid[vidx] = set_lid[0];
+        v2hf_cid[vidx] = set_entid;
+        v2hf_lfid[vidx] = set_lid;
       }
 
     return MB_SUCCESS;

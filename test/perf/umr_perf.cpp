@@ -191,7 +191,7 @@ ErrorCode umr_perf_test(Core *mb, int *level_degrees, int num_levels, OUTTYPE ou
 
   std::cout<<"Starting hierarchy generation"<<std::endl;
   time_start = wtime();
-  error = uref.generate_mesh_hierarchy(level_degrees, num_levels, set);
+  error = uref.generate_mesh_hierarchy(num_levels, level_degrees, set);
   CHECK_ERR(error);
 
   time_total = wtime() - time_start;
