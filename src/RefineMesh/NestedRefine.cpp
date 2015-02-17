@@ -12,7 +12,7 @@
 
 namespace moab{
 
-  NestedRefine::NestedRefine(Interface *impl)
+  NestedRefine::NestedRefine(Core *impl)
   {
     assert(NULL != impl);
     mbImpl = impl;

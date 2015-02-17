@@ -3998,7 +3998,11 @@ void Core::estimated_memory_use_internal( const Range* ents,
     if (ents)
       aEntityFactory->get_memory_use( *ents, *adjacency_storage, *amortized_adjacency_storage );
     else
+#ifdef USE_AHF
+      ahfRep->get_memory_use(*adjacency_storage, *amortized_adjacency_storage);
+#else
       aEntityFactory->get_memory_use( *adjacency_storage, *amortized_adjacency_storage );
+#endif
   }
 
     // get storage for requested list of tags
