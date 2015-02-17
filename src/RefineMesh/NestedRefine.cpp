@@ -1655,7 +1655,7 @@ ErrorCode NestedRefine::update_local_ahf(int deg, EntityType type, int pat_id, E
       int lid;
 
       EntityHandle vid = vbuffer[i+nv];
-      error = ahf->get_incident_map(type, vid, &ent, &lid);  MB_CHK_ERR(error);
+      error = ahf->get_incident_map(type, vid, ent, lid);  MB_CHK_ERR(error);
 
       if (ent)
         continue;
@@ -1664,7 +1664,7 @@ ErrorCode NestedRefine::update_local_ahf(int deg, EntityType type, int pat_id, E
       ent = ent_buffer[id];
       lid = refTemplates[pat_id][d].v2hf[i+nv][1];
 
-      error = ahf->set_incident_map(type, vid, &ent, &lid);  MB_CHK_ERR(error);
+      error = ahf->set_incident_map(type, vid, ent, lid);  MB_CHK_ERR(error);
     }
 
   //Update the sibling half-facet map
@@ -1673,7 +1673,7 @@ ErrorCode NestedRefine::update_local_ahf(int deg, EntityType type, int pat_id, E
       EntityHandle  *sib_entids = new EntityHandle[nhf];
       int *sib_lids = new int[nhf];
 
-      error = ahf->get_sibling_map(type, ent_buffer[i], &sib_entids[0], &sib_lids[0]);  MB_CHK_ERR(error);
+      error = ahf->get_sibling_map(type, ent_buffer[i], &sib_entids[0], &sib_lids[0], nhf);  MB_CHK_ERR(error);
 
       for (int l=0; l< nhf; l++)
         {
@@ -1694,7 +1694,7 @@ ErrorCode NestedRefine::update_local_ahf(int deg, EntityType type, int pat_id, E
             }
         }
 
-      error = ahf->set_sibling_map(type, ent_buffer[i], &sib_entids[0], &sib_lids[0]); MB_CHK_ERR(error);
+      error = ahf->set_sibling_map(type, ent_buffer[i], &sib_entids[0], &sib_lids[0], nhf); MB_CHK_ERR(error);
 
       for (int l=0; l< nhf; l++)
         {
@@ -1703,7 +1703,7 @@ ErrorCode NestedRefine::update_local_ahf(int deg, EntityType type, int pat_id, E
               EntityHandle set_entid = ent_buffer[i];
               int set_lid = l;
 
-              error = ahf->set_sibling_map(type, sib_entids[l], sib_lids[l], &set_entid, &set_lid);  MB_CHK_ERR(error);
+              error = ahf->set_sibling_map(type, sib_entids[l], sib_lids[l], set_entid, set_lid);  MB_CHK_ERR(error);
             }
         }
 
@@ -1785,7 +1785,7 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
        EntityHandle inci_ent=0;
        int inci_lid=0;
 
-       error = ahf->get_incident_map(MBEDGE, vid, &inci_ent, &inci_lid);  MB_CHK_ERR(error);
+       error = ahf->get_incident_map(MBEDGE, vid, inci_ent, inci_lid);  MB_CHK_ERR(error);
 
        // Obtain the corresponding incident child in the current mesh
        int lvid = get_local_vid(vid, inci_ent, cur_level-1);
@@ -1803,7 +1803,7 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
        int child_lid = refTemplates[0][d].v2hf[lvid][1];
 
        EntityHandle cur_vid = level_mesh[cur_level].start_vertex + i;
-       error = ahf->set_incident_map(MBEDGE, cur_vid, &child_ent, &child_lid);  MB_CHK_ERR(error);
+       error = ahf->set_incident_map(MBEDGE, cur_vid, child_ent, child_lid);  MB_CHK_ERR(error);
      }
 
    //Update the sibling half-facet maps across entities
@@ -1818,7 +1818,7 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
        EntityHandle *sib_entids = new EntityHandle[nhf];
        int *sib_lids = new int[nhf];
 
-       error = ahf->get_sibling_map(MBEDGE, ent, &sib_entids[0], &sib_lids[0]);  MB_CHK_ERR(error);
+       error = ahf->get_sibling_map(MBEDGE, ent, &sib_entids[0], &sib_lids[0], nhf);  MB_CHK_ERR(error);
 
        int id, idx;
 
@@ -1837,7 +1837,7 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
            EntityHandle *sib_childs = new EntityHandle[nhf];
            int *sib_chlids = new int[nhf];
 
-           error = ahf->get_sibling_map(MBEDGE, child_ent, &sib_childs[0], &sib_chlids[0]);  MB_CHK_ERR(error);
+           error = ahf->get_sibling_map(MBEDGE, child_ent, &sib_childs[0], &sib_chlids[0], nhf);  MB_CHK_ERR(error);
 
            //If the sibling already exists, dont do anything
            if (sib_childs[ch_lid])
@@ -1862,7 +1862,7 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
            sib_childs[ch_lid] = psib_child;
            sib_chlids[ch_lid] = psib_chlid;
 
-           error = ahf->set_sibling_map(MBEDGE, child_ent, &sib_childs[0], &sib_chlids[0]);  MB_CHK_ERR(error);
+           error = ahf->set_sibling_map(MBEDGE, child_ent,  &sib_childs[0], &sib_chlids[0], nhf);  MB_CHK_ERR(error);
 
            delete [] sib_childs;
            delete [] sib_chlids;
@@ -1916,12 +1916,12 @@ ErrorCode NestedRefine::update_global_ahf_1D_sub(int cur_level, int deg)
             cur_vid = level_mesh[cur_level].start_vertex + (conn[j] - *_inverts.begin());
 
           //Obtain the incident half-facet. If exists, then no need to assign another
-          error = ahf->get_incident_map(MBEDGE, cur_vid, &inci_ent, &inci_lid);  MB_CHK_ERR(error);
+          error = ahf->get_incident_map(MBEDGE, cur_vid, inci_ent, inci_lid);  MB_CHK_ERR(error);
           if (inci_ent != 0)
             continue;
 
           //Get the incident half-facet on the old vertex
-          error = ahf->get_incident_map(MBEDGE, conn[j], &inci_ent, &inci_lid);  MB_CHK_ERR(error);
+          error = ahf->get_incident_map(MBEDGE, conn[j], inci_ent, inci_lid);  MB_CHK_ERR(error);
 
           // Obtain the corresponding incident child in the current mesh
           int lvid = get_local_vid(conn[j], inci_ent, cur_level-1);
@@ -1938,13 +1938,13 @@ ErrorCode NestedRefine::update_global_ahf_1D_sub(int cur_level, int deg)
           EntityHandle child_ent = level_mesh[cur_level].start_edge + ind+chid ;
           int child_lid = refTemplates[0][d].v2hf[lvid][1];
 
-          error = ahf->set_incident_map(MBEDGE, cur_vid, &child_ent, &child_lid);  MB_CHK_ERR(error);
+          error = ahf->set_incident_map(MBEDGE, cur_vid, child_ent, child_lid);  MB_CHK_ERR(error);
         }
 
       EntityHandle *sib_entids = new EntityHandle[nhf];
       int *sib_lids = new int[nhf];
 
-      error = ahf->get_sibling_map(MBEDGE, ent, &sib_entids[0], &sib_lids[0]);  MB_CHK_ERR(error);
+      error = ahf->get_sibling_map(MBEDGE, ent, &sib_entids[0], &sib_lids[0], nhf);  MB_CHK_ERR(error);
 
       int id, idx;
 
@@ -1963,7 +1963,7 @@ ErrorCode NestedRefine::update_global_ahf_1D_sub(int cur_level, int deg)
           EntityHandle *sib_childs = new EntityHandle[nhf];
           int *sib_chlids = new int[nhf];
 
-          error = ahf->get_sibling_map(MBEDGE, child_ent, &sib_childs[0], &sib_chlids[0]);  MB_CHK_ERR(error);
+          error = ahf->get_sibling_map(MBEDGE, child_ent, &sib_childs[0], &sib_chlids[0], nhf);  MB_CHK_ERR(error);
 
           //If the sibling already exists, dont do anything
           if (sib_childs[ch_lid])
@@ -1988,7 +1988,7 @@ ErrorCode NestedRefine::update_global_ahf_1D_sub(int cur_level, int deg)
           sib_childs[ch_lid] = psib_child;
           sib_chlids[ch_lid] = psib_chlid;
 
-          error = ahf->set_sibling_map(MBEDGE, child_ent, &sib_childs[0], &sib_chlids[0]);  MB_CHK_ERR(error);
+          error = ahf->set_sibling_map(MBEDGE, child_ent, &sib_childs[0], &sib_chlids[0], nhf);  MB_CHK_ERR(error);
 
           delete [] sib_childs;
           delete [] sib_chlids;
@@ -2036,7 +2036,7 @@ ErrorCode NestedRefine::update_global_ahf_1D_sub(int cur_level, int deg)
        EntityHandle inci_ent=0;
        int inci_lid=0;
 
-       error = ahf->get_incident_map(type, vid, &inci_ent, &inci_lid); MB_CHK_ERR(error);
+       error = ahf->get_incident_map(type, vid, inci_ent, inci_lid); MB_CHK_ERR(error);
 
        // Obtain the corresponding incident child in the current mesh
        int lvid = get_local_vid(vid, inci_ent, cur_level-1);
@@ -2055,7 +2055,7 @@ ErrorCode NestedRefine::update_global_ahf_1D_sub(int cur_level, int deg)
 
        EntityHandle cur_vid = level_mesh[cur_level].start_vertex + i;
 
-       error = ahf->set_incident_map(type, cur_vid, &child_ent, &child_lid);  MB_CHK_ERR(error);
+       error = ahf->set_incident_map(type, cur_vid, child_ent, child_lid);  MB_CHK_ERR(error);
      }
 
 
@@ -2077,7 +2077,7 @@ ErrorCode NestedRefine::update_global_ahf_1D_sub(int cur_level, int deg)
        EntityHandle *sib_entids = new EntityHandle[nhf];
        int *sib_lids = new int[nhf];
 
-       error = ahf->get_sibling_map(type, ent, &sib_entids[0], &sib_lids[0]);  MB_CHK_ERR(error);
+       error = ahf->get_sibling_map(type, ent, &sib_entids[0], &sib_lids[0], nhf);  MB_CHK_ERR(error);
 
        int id, idx;
 
@@ -2119,7 +2119,7 @@ ErrorCode NestedRefine::update_global_ahf_1D_sub(int cur_level, int deg)
                //Find the sibling of the child
                EntityHandle child_sibent;
                int child_siblid;
-               error = ahf->get_sibling_map(type, child_ent, child_lid, &child_sibent, &child_siblid); MB_CHK_ERR(error);
+               error = ahf->get_sibling_map(type, child_ent, child_lid, child_sibent, child_siblid); MB_CHK_ERR(error);
 
                if (child_sibent != 0)
                  continue;
@@ -2144,7 +2144,7 @@ ErrorCode NestedRefine::update_global_ahf_1D_sub(int cur_level, int deg)
                int psib_chlid = plid;
 
                //Set the siblings
-               error = ahf->set_sibling_map(type, child_ent, child_lid, &psib_child, &psib_chlid); MB_CHK_ERR(error);
+               error = ahf->set_sibling_map(type, child_ent, child_lid, psib_child, psib_chlid); MB_CHK_ERR(error);
              }
          }
 
@@ -2197,12 +2197,12 @@ ErrorCode NestedRefine::update_global_ahf_1D_sub(int cur_level, int deg)
            int inci_lid=0;
 
            //Obtain the incident half-facet. If exists, then no need to assign another
-           error = ahf->get_incident_map(type, cur_vid, &inci_ent, &inci_lid);  MB_CHK_ERR(error);
+           error = ahf->get_incident_map(type, cur_vid, inci_ent, inci_lid);  MB_CHK_ERR(error);
            if (inci_ent != 0)
              continue;
 
            //Get the incident half-facet on the old vertex
-           error = ahf->get_incident_map(type, fid_conn[j], &inci_ent, &inci_lid); MB_CHK_ERR(error);
+           error = ahf->get_incident_map(type, fid_conn[j], inci_ent, inci_lid); MB_CHK_ERR(error);
 
            // Obtain the corresponding incident child in the current mesh
            int lvid = get_local_vid(fid_conn[j], inci_ent, cur_level-1);
@@ -2219,14 +2219,14 @@ ErrorCode NestedRefine::update_global_ahf_1D_sub(int cur_level, int deg)
            EntityHandle child_ent = level_mesh[cur_level].start_face + ind+chid ;
            int child_lid = refTemplates[type-1][d].v2hf[lvid][1];
 
-           error = ahf->set_incident_map(type, cur_vid, &child_ent, &child_lid);  MB_CHK_ERR(error);
+           error = ahf->set_incident_map(type, cur_vid, child_ent, child_lid);  MB_CHK_ERR(error);
          }
 
        //Set sibling half-edges
        EntityHandle *sib_entids = new EntityHandle[nhf];
        int *sib_lids = new int[nhf];
 
-       error = ahf->get_sibling_map(type, ent, &sib_entids[0], &sib_lids[0]);  MB_CHK_ERR(error);
+       error = ahf->get_sibling_map(type, ent, &sib_entids[0], &sib_lids[0], nhf);  MB_CHK_ERR(error);
 
        int id, idx;
 
@@ -2268,7 +2268,7 @@ ErrorCode NestedRefine::update_global_ahf_1D_sub(int cur_level, int deg)
                //Find the sibling of the child
                EntityHandle child_sibent;
                int child_siblid;
-               error = ahf->get_sibling_map(type, child_ent, child_lid, &child_sibent, &child_siblid); MB_CHK_ERR(error);
+               error = ahf->get_sibling_map(type, child_ent, child_lid, child_sibent, child_siblid); MB_CHK_ERR(error);
 
                if (child_sibent != 0)
                  continue;
@@ -2293,7 +2293,7 @@ ErrorCode NestedRefine::update_global_ahf_1D_sub(int cur_level, int deg)
                int psib_chlid = plid;
 
                //Set the siblings
-               error = ahf->set_sibling_map(type, child_ent, child_lid, &psib_child, &psib_chlid); MB_CHK_ERR(error);
+               error = ahf->set_sibling_map(type, child_ent, child_lid, psib_child, psib_chlid); MB_CHK_ERR(error);
              }
          }
 
@@ -2343,7 +2343,7 @@ ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg)
       EntityHandle inci_ent=0;
       int inci_lid=0;
 
-      error = ahf->get_incident_map(type, vid, &inci_ent, &inci_lid);  MB_CHK_ERR(error);
+      error = ahf->get_incident_map(type, vid, inci_ent, inci_lid);  MB_CHK_ERR(error);
 
       // Obtain the corresponding incident child in the current mesh
       int lvid = get_local_vid(vid, inci_ent, cur_level-1);
@@ -2362,7 +2362,7 @@ ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg)
 
       EntityHandle cur_vid = level_mesh[cur_level].start_vertex + i;
 
-      error = ahf->set_incident_map(type, cur_vid, &child_ent, &child_lid);  MB_CHK_ERR(error);
+      error = ahf->set_incident_map(type, cur_vid, child_ent, child_lid);  MB_CHK_ERR(error);
     }
 
   //Step 2: Update SIBHFS maps
@@ -2377,7 +2377,7 @@ ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg)
       EntityHandle *sib_entids = new EntityHandle[nhf];
       int *sib_lids = new int[nhf];
 
-      error = ahf->get_sibling_map(type, ent, &sib_entids[0], &sib_lids[0]);  MB_CHK_ERR(error);
+      error = ahf->get_sibling_map(type, ent, &sib_entids[0], &sib_lids[0], nhf);  MB_CHK_ERR(error);
 
       int id, idx;
 
@@ -2419,7 +2419,7 @@ ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg)
               //Find the sibling of the working child
               EntityHandle child_sibent;
               int child_siblid;
-              error = ahf->get_sibling_map(type, child_ent, child_lid, &child_sibent, &child_siblid); MB_CHK_ERR(error);
+              error = ahf->get_sibling_map(type, child_ent, child_lid, child_sibent, child_siblid); MB_CHK_ERR(error);
 
               if (child_sibent != 0)
                 continue;
@@ -2432,10 +2432,10 @@ ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg)
               int psib_chlid = plid;
 
               //Set the siblings of children incident on current half-face
-              error = ahf->set_sibling_map(type, child_ent, child_lid, &psib_child, &psib_chlid);  MB_CHK_ERR(error);
+              error = ahf->set_sibling_map(type, child_ent, child_lid, psib_child, psib_chlid);  MB_CHK_ERR(error);
 
               //Set the sibling of the sibling of the children to the children
-              error = ahf->set_sibling_map(type, psib_child, psib_chlid, &child_ent, &child_lid); MB_CHK_ERR(error);
+              error = ahf->set_sibling_map(type, psib_child, psib_chlid, child_ent, child_lid); MB_CHK_ERR(error);
             }
 
           delete [] id_sib;
@@ -2486,7 +2486,7 @@ ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg, std::vector
       EntityHandle inci_ent=0;
       int inci_lid=0;
 
-      error = ahf->get_incident_map(type, vid, &inci_ent, &inci_lid);  MB_CHK_ERR(error);
+      error = ahf->get_incident_map(type, vid, inci_ent, inci_lid);  MB_CHK_ERR(error);
 
       // Obtain the corresponding incident child in the current mesh
       int lvid = get_local_vid(vid, inci_ent, cur_level-1);
@@ -2505,7 +2505,7 @@ ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg, std::vector
 
       EntityHandle cur_vid = level_mesh[cur_level].start_vertex + i;
 
-      error = ahf->set_incident_map(type, cur_vid, &child_ent, &child_lid);  MB_CHK_ERR(error);
+      error = ahf->set_incident_map(type, cur_vid, child_ent, child_lid);  MB_CHK_ERR(error);
     }
 
   //Step 2: Update SIBHFS maps
@@ -2520,7 +2520,7 @@ ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg, std::vector
       EntityHandle *sib_entids = new EntityHandle[nhf];
       int *sib_lids = new int[nhf];
 
-      error = ahf->get_sibling_map(type, ent, &sib_entids[0], &sib_lids[0]);  MB_CHK_ERR(error);
+      error = ahf->get_sibling_map(type, ent, &sib_entids[0], &sib_lids[0], nhf);  MB_CHK_ERR(error);
 
       int id, idx;
 
@@ -2562,7 +2562,7 @@ ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg, std::vector
 
               EntityHandle child_sibent;
               int child_siblid;
-              error = ahf->get_sibling_map(type, child_ent, child_lid, &child_sibent, &child_siblid); MB_CHK_ERR(error);
+              error = ahf->get_sibling_map(type, child_ent, child_lid, child_sibent, child_siblid); MB_CHK_ERR(error);
 
               if (child_sibent != 0)
                 continue;
@@ -2575,10 +2575,10 @@ ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg, std::vector
               int psib_chlid = plid;
 
               //Set the siblings of children incident on current half-face
-              error = ahf->set_sibling_map(type, child_ent, child_lid, &psib_child, &psib_chlid);  MB_CHK_ERR(error);
+              error = ahf->set_sibling_map(type, child_ent, child_lid, psib_child, psib_chlid);  MB_CHK_ERR(error);
 
               //Set the sibling of the sibling of the children to the children
-              error = ahf->set_sibling_map(type, psib_child, psib_chlid, &child_ent, &child_lid); MB_CHK_ERR(error);
+              error = ahf->set_sibling_map(type, psib_child, psib_chlid, child_ent, child_lid); MB_CHK_ERR(error);
             }
 
           delete [] id_sib;
@@ -3013,7 +3013,7 @@ ErrorCode NestedRefine::print_maps_1D(int level)
       EntityHandle eid=0;
       int lvid=0;
       EntityHandle vid = level_mesh[level].start_vertex+i;
-      error = ahf->get_incident_map(MBEDGE, vid, &eid, &lvid); MB_CHK_ERR(error);
+      error = ahf->get_incident_map(MBEDGE, vid, eid, lvid); MB_CHK_ERR(error);
 
       std::cout<<"For vertex = "<<vid<<"::Incident halfvertex "<<eid<<"  "<<lvid<<std::endl;
     }
@@ -3026,7 +3026,7 @@ ErrorCode NestedRefine::print_maps_1D(int level)
       EntityHandle ent = start_edge+i;
 
       EntityHandle eid[2];  int lvid[2];
-      error = ahf->get_sibling_map(MBEDGE, ent, &eid[0], &lvid[0]); MB_CHK_ERR(error);
+      error = ahf->get_sibling_map(MBEDGE, ent, &eid[0], &lvid[0], 2); MB_CHK_ERR(error);
       std::cout<<"<"<<eid[0]<<","<<lvid[0]<<">"<<"      "<<"<"<<eid[1]<<","<<lvid[1]<<">"<<std::endl;
     }
 
@@ -3049,7 +3049,7 @@ ErrorCode NestedRefine::print_maps_2D(int level, EntityType type)
       EntityHandle fid=0;
       int leid=0;
       EntityHandle vid = level_mesh[level].start_vertex+i;
-      error = ahf->get_incident_map(type, vid, &fid, &leid); MB_CHK_ERR(error);
+      error = ahf->get_incident_map(type, vid, fid, leid); MB_CHK_ERR(error);
 
       std::cout<<"For vertex = "<<vid<<"::Incident halfedge "<<fid<<"  "<<leid<<std::endl;
     }
@@ -3072,7 +3072,7 @@ ErrorCode NestedRefine::print_maps_2D(int level, EntityType type)
         }
 
       EntityHandle ent = start_face+i;
-      error = ahf->get_sibling_map(type, ent, fid, leid); MB_CHK_ERR(error);
+      error = ahf->get_sibling_map(type, ent, fid, leid, nepf); MB_CHK_ERR(error);
 
       for (int j=0; j<nepf; j++){
           std::cout<<"<"<<fid[j]<<","<<leid[j]<<">"<<"      ";
@@ -3101,7 +3101,7 @@ ErrorCode NestedRefine::print_maps_3D(int level, EntityType type)
       EntityHandle cid=0;
       int lfid=0;
       EntityHandle vid = level_mesh[level].start_vertex+i;
-      error = ahf->get_incident_map(type, vid, &cid, &lfid); MB_CHK_ERR(error);
+      error = ahf->get_incident_map(type, vid, cid, lfid); MB_CHK_ERR(error);
 
       std::cout<<"For vertex = "<<vid<<"::Incident halfface "<<cid<<"  "<<lfid<<std::endl;
     }
@@ -3123,7 +3123,7 @@ ErrorCode NestedRefine::print_maps_3D(int level, EntityType type)
         }
 
       EntityHandle ent = start_cell+i;
-      error = ahf->get_sibling_map(type, ent, cid, lfid); MB_CHK_ERR(error);
+      error = ahf->get_sibling_map(type, ent, cid, lfid, nfpc); MB_CHK_ERR(error);
 
       for (int j=0; j<nfpc; j++){
           std::cout<<"<"<<cid[j]<<","<<lfid[j]<<">"<<"      ";
