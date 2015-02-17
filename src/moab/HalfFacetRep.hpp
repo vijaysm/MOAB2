@@ -422,17 +422,17 @@ public:
 
   ErrorCode resize_hf_maps(int nverts, int nedges, int nfaces, int ncells);
 
-  ErrorCode get_sibling_map(EntityType type, EntityHandle ent, EntityHandle *sib_entids, int *sib_lids);
+  ErrorCode get_sibling_map(EntityType type, EntityHandle ent, EntityHandle *sib_entids, int *sib_lids, int num_halffacets);
 
-  ErrorCode get_sibling_map(EntityType type, EntityHandle ent, int lid, EntityHandle *sib_entid, int *sib_lid);
+  ErrorCode get_sibling_map(EntityType type, EntityHandle ent, int lid, EntityHandle &sib_entid, int &sib_lid);
 
-  ErrorCode set_sibling_map(EntityType type, EntityHandle ent, EntityHandle *set_entids, int *set_lids);
+  ErrorCode set_sibling_map(EntityType type, EntityHandle ent,  EntityHandle *set_entids, int *set_lids, int num_halffacets);
 
-  ErrorCode set_sibling_map(EntityType type, EntityHandle ent, int lid, EntityHandle *set_entid, int *set_lid);
+  ErrorCode set_sibling_map(EntityType type, EntityHandle ent, int lid, EntityHandle &set_entid, int &set_lid);
 
-  ErrorCode get_incident_map(EntityType type, EntityHandle vid, EntityHandle *inci_entid, int *inci_lid);
+  ErrorCode get_incident_map(EntityType type, EntityHandle vid, EntityHandle &inci_entid, int &inci_lid);
 
-  ErrorCode set_incident_map(EntityType type, EntityHandle vid, EntityHandle *set_entid, int *set_lid);
+  ErrorCode set_incident_map(EntityType type, EntityHandle vid, EntityHandle &set_entid, int &set_lid);
 
   //! 2D local maps
   struct LocalMaps2D{
