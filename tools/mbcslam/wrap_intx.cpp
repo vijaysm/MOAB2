@@ -59,8 +59,8 @@ Tag gid = 0;
 ParallelComm *pcomm = NULL;
 // for printing, debug style
 int num_update_calls=0;
-int nlev = 26;
-int level_to_print =24; // + 1
+int nlev = 4;
+int level_to_print =1; // + 1
 bool dprint = false;
 // end printing
 // should get rid of this; instead of using array[NC+1][NC+1], use  row based indexing (C-style):
@@ -321,6 +321,42 @@ void update_tracer_test(iMesh_Instance instance,
           pickVals[i] = tracer_vals[(k-1)+i*numTracers];
         }
         rval = mb->tag_set_data(tracTag, eulQuads, &pickVals[0]);MB_CHK_ERR_RET(rval);
+      }
+      std::vector<double> tcvals(3*numTracers*eulQuads.size());
+      rval = mb->tag_get_data(tauBoundsTag, eulQuads, &tcvals[0]);MB_CHK_ERR_RET(rval);
+      for (int k=1; k<=numTracers; k++)
+      {
+        std::stringstream tagName;
+        tagName << "Bounds" << k ;
+        Tag bTag;
+        rval = mb->tag_get_handle(tagName.str().c_str(), 2, moab::MB_TYPE_DOUBLE,
+                  bTag, moab::MB_TAG_CREAT | moab::MB_TAG_DENSE); MB_CHK_ERR_RET(rval);
+        wtags.push_back(bTag);
+        std::vector<double> pickVals(2*eulQuads.size());
+        for (size_t i=0; i<eulQuads.size(); i++)
+        {
+          pickVals[2*i] = tcvals[2*(k-1)+i*numTracers*2];
+          pickVals[2*i+1] = tcvals[2*(k-1)+1+i*numTracers*2];
+        }
+        rval = mb->tag_set_data(bTag, eulQuads, &pickVals[0]);MB_CHK_ERR_RET(rval);
+      }
+      rval = mb->tag_get_data(tauCoefTag, eulQuads, &tcvals[0]);MB_CHK_ERR_RET(rval);
+      for (int k=1; k<=numTracers; k++)
+      {
+        std::stringstream tagName;
+        tagName << "TagCoef" << k ;
+        Tag coTag;
+        rval = mb->tag_get_handle(tagName.str().c_str(), 3, moab::MB_TYPE_DOUBLE,
+                  coTag, moab::MB_TAG_CREAT | moab::MB_TAG_DENSE); MB_CHK_ERR_RET(rval);
+        wtags.push_back(coTag);
+        std::vector<double> pickVals(3*eulQuads.size());
+        for (size_t i=0; i<eulQuads.size(); i++)
+        {
+          pickVals[3*i] = tcvals[3*(k-1)+i*numTracers*3];
+          pickVals[3*i+1] = tcvals[3*(k-1)+1+i*numTracers*3];
+          pickVals[3*i+2] = tcvals[3*(k-1)+2+i*numTracers*3];
+        }
+        rval = mb->tag_set_data(coTag, eulQuads, &pickVals[0]);MB_CHK_ERR_RET(rval);
       }
 
       int nstep=num_update_calls/nlev;

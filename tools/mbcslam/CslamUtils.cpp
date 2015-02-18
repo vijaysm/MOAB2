@@ -2479,7 +2479,8 @@ void get_linear_reconstruction(moab::Interface * mb, moab::EntityHandle set, moa
             {
               dr[jind*numTracers+k] = adjCellVals[i*numTracers+k] - cellVals[k];
             }
-
+            // dr will have size N * 4 (4 neighbors for each cell), for N tracers
+            // (tr1, tr2, ..., trN)_neigh1, (tr1, ..,trN)_neigh2, ... (tr1, .., trN)_neigh4
             jind++;
          }
      }
@@ -2497,10 +2498,14 @@ void get_linear_reconstruction(moab::Interface * mb, moab::EntityHandle set, moa
         for (int k=0; k<numTracers; k++)
         {
        // rhs
-          int ix=k*3;
-          double Rx = dx[0]*dr[ix+0] + dx[1]*dr[ix+1] + dx[2]*dr[ix+2] + dx[3]*dr[ix+3];
-          double Ry = dy[0]*dr[ix+0] + dy[1]*dr[ix+1] + dy[2]*dr[ix+2] + dy[3]*dr[ix+3];
-
+          // the tags will be on each cell, 3 values for each tracer (3*N values)
+          // tauCoefTag: (A, B, C)_tracer1, (A, B, C)_tracer2, ... (A, B, C)_tracerN
+          int ix=k*3; // where the tracer (k+1) will start in the tag values
+          // for tracer k, will need 4 values: dr[k], dr[N+k], dr[2*N+k], dr[3*N+k]
+          double Rx = dx[0]*dr[k+0*numTracers] + dx[1]*dr[k+1*numTracers]
+                    + dx[2]*dr[k+2*numTracers] + dx[3]*dr[k+3*numTracers];
+          double Ry = dy[0]*dr[k+0*numTracers] + dy[1]*dr[k+1*numTracers]
+                    + dy[2]*dr[k+2*numTracers] + dy[3]*dr[k+3*numTracers];
           linearCoef[ix+1] = (Rx*N22 - Ry*N12)/Det;
           linearCoef[ix+2] = (Ry*N11 - Rx*N12)/Det;
           linearCoef[ix+0] = cellVals[k] - linearCoef[ix+1]*cellx - linearCoef[ix+2]*celly;
