@@ -18,6 +18,7 @@
 #define MOAB_HALF_FACET_REP_HPP
 
 #include "moab/Core.hpp"
+#include "moab/ParallelComm.hpp"
 #include "moab/Range.hpp"
 #include "moab/CN.hpp"
 
@@ -77,7 +78,7 @@ class HalfFacetRep
 
 public:
 
-  HalfFacetRep(Core *impl, moab::EntityHandle rset=0);
+  HalfFacetRep(Core *impl, ParallelComm *comm, moab::EntityHandle rset=0);
 
   ~HalfFacetRep();
 
@@ -458,6 +459,7 @@ public:
 protected:
 
   Core *mb;
+  ParallelComm *pcomm;
 
   HalfFacetRep();
 
