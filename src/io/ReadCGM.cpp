@@ -12,7 +12,7 @@
  * version 2.1 of the License, or (at your option) any later version.
  *
  */
-#ifdef WIN32
+#ifdef _MSC_VER
 #pragma warning(disable:4786)
 #endif
 
