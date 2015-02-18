@@ -10,7 +10,7 @@
 #define NCWRITEHELPER_HPP_
 #include "WriteNC.hpp"
 
-#ifdef WIN32
+#ifdef _WIN32
 #ifdef size_t
 #undef size_t
 #endif

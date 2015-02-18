@@ -13,13 +13,6 @@
  * 
  */
 
-// If Microsoft compiler, then WIN32
-#if defined(_MSC_VER) || defined(__MINGW32__)
-#  ifndef WIN32
-#    define WIN32
-#  endif
-#endif
-
 #include "moab/Core.hpp"
 #include "moab/Range.hpp"
 #include "MBTagConventions.hpp"
@@ -31,7 +24,7 @@
 #include <list>
 #include <cstdlib>
 #include <algorithm>
-#ifndef WIN32
+#ifndef _WIN32
 #  include <sys/times.h>
 #  include <limits.h>
 #  include <unistd.h>
@@ -632,7 +625,7 @@ static void print_time( int clk_per_sec, const char* prefix, clock_t ticks, std:
 
 clock_t usr_time, sys_time, abs_time;
 
-#ifdef WIN32
+#ifdef _WIN32
 
 void reset_times() 
 {

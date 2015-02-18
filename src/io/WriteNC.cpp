@@ -15,7 +15,7 @@
 #include <iostream>
 #include <sstream>
 
-#ifdef WIN32
+#ifdef _WIN32
 #ifdef size_t
 #undef size_t
 #endif

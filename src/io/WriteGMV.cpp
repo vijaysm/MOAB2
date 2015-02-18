@@ -14,7 +14,7 @@
  */
 
 
-#ifdef WIN32
+#ifdef _MSC_VER
 #ifdef _DEBUG
 // turn off warnings that say they debugging identifier has been truncated
 // this warning comes up when using some STL containers
