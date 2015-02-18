@@ -20,6 +20,7 @@
 #include "moab/Core.hpp"
 #include "moab/Range.hpp"
 #include "moab/CN.hpp"
+#include "Internals.hpp"
 
 namespace moab {
 
@@ -45,6 +46,22 @@ namespace moab {
  *  \        3. Modified meshes
  *  \
  */ 
+
+ typedef EntityHandle HFacet;
+
+  inline EntityHandle CREATE_HALFFACET(const unsigned lid, const EntityID id)
+  {
+    assert(id <= MB_END_ID && lid < 6);
+    return (((HFacet)lid) << MB_ID_WIDTH)|id;
+  }
+  inline EntityID FID_FROM_HALFFACET(HFacet handle)
+  {
+    return (handle & MB_ID_MASK);
+  }
+  inline int LID_FROM_HALFFACET(HFacet handle)
+  {
+    return static_cast<int> (handle >> MB_ID_WIDTH);
+  }
 
 const int MAXSIZE = 150;
 
@@ -416,8 +433,13 @@ public:
   void get_memory_use(unsigned long long& entity_total, unsigned long long& memory_total);
 
   /**************************
-     *  Interface to AHF tags   *
+     *  Interface to AHF maps   *
      **************************/
+  HFacet create_halffacet(EntityHandle handle, int lid);
+
+  EntityHandle fid_from_halfacet(const HFacet facet, EntityType type);
+
+  int lid_from_halffacet(const HFacet facet);
 
   ErrorCode update_entity_ranges();
 
@@ -435,6 +457,9 @@ public:
 
   ErrorCode set_incident_map(EntityType type, EntityHandle vid, EntityHandle &set_entid, int &set_lid);
 
+  /**********************
+   *         Local Maps
+   * ********************/
   //! 2D local maps
   struct LocalMaps2D{
     //! Number of vertices in a face
@@ -490,16 +515,17 @@ protected:
   Range _verts, _edges, _faces, _cells;
 
   //AHF map storage containers for 1D
-  std::vector<EntityHandle> sibhvs_eid, v2hv_eid;
-  std::vector<int> sibhvs_lvid, v2hv_lvid;
+  std::vector<HFacet> sibhvs, v2hv;
 
   //AHF map storage containers for 2D
-  std::vector<EntityHandle> sibhes_fid, v2he_fid;
-  std::vector<int> sibhes_leid, v2he_leid;
+  std::vector<HFacet> sibhes, v2he;
+  //std::vector<EntityHandle> sibhes_fid, v2he_fid;
+  //std::vector<int> sibhes_leid, v2he_leid;
 
   //AHF map storage containers for 3D
-  std::vector<EntityHandle> sibhfs_cid, v2hf_cid;
-  std::vector<int> sibhfs_lfid, v2hf_lfid;
+  std::vector<HFacet> sibhfs, v2hf;
+  //std::vector<EntityHandle> sibhfs_cid, v2hf_cid;
+  //std::vector<int> sibhfs_lfid, v2hf_lfid;
 
   EntityHandle queue_fid[MAXSIZE], Stkcells[MAXSIZE], cellq[MAXSIZE];
   EntityHandle trackfaces[MAXSIZE], trackcells[MAXSIZE];
