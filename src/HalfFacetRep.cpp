@@ -18,18 +18,15 @@
 #include <iostream>
 #include <assert.h>
 #include <vector>
-#include "moab/Core.hpp"
-#include "moab/Range.hpp"
-#include "moab/CN.hpp"
+#include "MBTagConventions.hpp"
 
 namespace moab
 {
 
-HalfFacetRep::HalfFacetRep(Core *impl, moab::EntityHandle rset)
+HalfFacetRep::HalfFacetRep(Core *impl, ParallelComm *comm, moab::EntityHandle rset)
+    : mb(impl), pcomm(comm), _rset(rset)
 {
   assert(NULL != impl);
-  mb = impl;
-  _rset = rset;
   mInitAHFmaps = false;
   chk_mixed = false;
   is_mixed = false;
@@ -158,16 +155,46 @@ ErrorCode HalfFacetRep::initialize()
 
   mInitAHFmaps = true;
 
-  /* Get all entities by dimension on the rootset with recursion turned on */
-  error = mb->get_entities_by_dimension( this->_rset, 0, _verts, true);MB_CHK_ERR(error);
-  error = mb->get_entities_by_dimension( this->_rset, 1, _edges, true);MB_CHK_ERR(error);
-  error = mb->get_entities_by_dimension( this->_rset, 2, _faces, true);MB_CHK_ERR(error);
-  error = mb->get_entities_by_dimension( this->_rset, 3, _cells, true);MB_CHK_ERR(error);
+  /* Get all entities by dimension on the meshset with recursion turned on */
+  if (pcomm) {
+    moab::Range _averts,_aedgs,_afacs,_acels;
+
+    error = mb->get_entities_by_dimension(this->_rset, 0, _averts, true);MB_CHK_ERR(error);
+    error = mb->get_entities_by_dimension(this->_rset, 1, _aedgs, true);MB_CHK_ERR(error);
+    error = mb->get_entities_by_dimension(this->_rset, 2, _afacs, true);MB_CHK_ERR(error);
+    error = mb->get_entities_by_dimension(this->_rset, 3, _acels, true);MB_CHK_ERR(error);
+
+    if (!pcomm->rank())
+      std::cout << "[0] HalfFacetRep::initialize: Obtained all verts " << _averts.size() << " entities in parallel\n" ;
+    else
+      std::cout << "[1] HalfFacetRep::initialize: Obtained all verts " << _averts.size() << " entities in parallel\n" ;
+    MPI_Barrier(pcomm->comm());
+
+    /* filter based on parallel status */
+    error = pcomm->filter_pstatus(_averts,PSTATUS_NOT_OWNED,PSTATUS_NOT,-1,&_verts);MB_CHK_ERR(error);
+    error = pcomm->filter_pstatus(_aedgs,PSTATUS_NOT_OWNED,PSTATUS_NOT,-1,&_edges);MB_CHK_ERR(error);
+    error = pcomm->filter_pstatus(_afacs,PSTATUS_NOT_OWNED,PSTATUS_NOT,-1,&_faces);MB_CHK_ERR(error);
+    error = pcomm->filter_pstatus(_acels,PSTATUS_NOT_OWNED,PSTATUS_NOT,-1,&_cells);MB_CHK_ERR(error);
+    error = mb->get_entities_by_dimension( this->_rset, 0, _verts, true);MB_CHK_ERR(error);
+  }
+  else {
+    error = mb->get_entities_by_dimension( this->_rset, 0, _verts, true);MB_CHK_ERR(error);
+    error = mb->get_entities_by_dimension( this->_rset, 1, _edges, true);MB_CHK_ERR(error);
+    error = mb->get_entities_by_dimension( this->_rset, 2, _faces, true);MB_CHK_ERR(error);
+    error = mb->get_entities_by_dimension( this->_rset, 3, _cells, true);MB_CHK_ERR(error);
+  }
 
   int nverts = _verts.size();
   int nedges = _edges.size();
   int nfaces = _faces.size();
   int ncells = _cells.size();
+
+  MPI_Barrier(pcomm->comm());
+  if (!pcomm->rank())
+    std::cout << "[0] HalfFacetRep::initialize: Post-filter: [" << nverts << ", " << nedges << ", " << nfaces << ", " << ncells << "]\n" ;
+  else
+    std::cout << "[1] HalfFacetRep::initialize: Post-filter: [" << nverts << ", " << nedges << ", " << nfaces << ", " << ncells << "]\n" ;
+  MPI_Barrier(pcomm->comm());
 
   MESHTYPE mesh_type = get_mesh_type(nverts, nedges, nfaces, ncells);
   thismeshtype = mesh_type;
@@ -207,6 +234,12 @@ ErrorCode HalfFacetRep::initialize()
     error = init_volume();MB_CHK_ERR(error);
   }
 
+  MPI_Barrier(pcomm->comm());
+  if (!pcomm->rank())
+    std::cout << "[0] HalfFacetRep::initialize: Done.\n" ;
+  else
+    std::cout << "[1] HalfFacetRep::initialize: Done.\n" ;
+  MPI_Barrier(pcomm->comm());
   return MB_SUCCESS;
 }
 
@@ -217,6 +250,12 @@ ErrorCode HalfFacetRep::init_curve()
   EntityHandle sdefval[2] = {0, 0};  int sval[2] = {0, 0};
   EntityHandle idefval = 0; int ival = 0;
 
+  MPI_Barrier(pcomm->comm());
+  if (!pcomm->rank())
+    std::cout << "[0] HalfFacetRep::init_curve: Start.\n" ;
+  else
+    std::cout << "[1] HalfFacetRep::init_curve: Start.\n" ;
+  MPI_Barrier(pcomm->comm());
   error = mb->tag_get_handle("__SIBHVS_EID", 2, MB_TYPE_HANDLE, sibhvs_eid, MB_TAG_DENSE | MB_TAG_CREAT, sdefval);MB_CHK_ERR(error);
   error = mb->tag_get_handle("__SIBHVS_LVID", 2, MB_TYPE_INTEGER, sibhvs_lvid, MB_TAG_DENSE | MB_TAG_CREAT, sval);MB_CHK_ERR(error);
   error = mb->tag_get_handle("__V2HV_EID", 1, MB_TYPE_HANDLE, v2hv_eid, MB_TAG_DENSE | MB_TAG_CREAT, &idefval);MB_CHK_ERR(error);
@@ -225,6 +264,21 @@ ErrorCode HalfFacetRep::init_curve()
   error = determine_sibling_halfverts(_edges);MB_CHK_ERR(error);
   error = determine_incident_halfverts(_edges);MB_CHK_ERR(error);
 
+  // If running in parallel, exchange tag information to update shared entity data
+  if (pcomm) {
+    moab::Range emptyR;
+    error = pcomm->exchange_tags(sibhvs_eid, emptyR);MB_CHK_ERR(error);
+    error = pcomm->exchange_tags(sibhvs_lvid, emptyR);MB_CHK_ERR(error);
+    error = pcomm->exchange_tags(v2hv_eid, emptyR);MB_CHK_ERR(error);
+    error = pcomm->exchange_tags(v2hv_lvid, emptyR);MB_CHK_ERR(error);
+  }
+
+  MPI_Barrier(pcomm->comm());
+  if (!pcomm->rank())
+    std::cout << "[0] HalfFacetRep::init_curve: Done.\n" ;
+  else
+    std::cout << "[1] HalfFacetRep::init_curve: Done.\n" ;
+  MPI_Barrier(pcomm->comm());
   return MB_SUCCESS;
 }
 
@@ -250,6 +304,12 @@ ErrorCode HalfFacetRep::init_surface()
   error = mb->tag_get_handle("__V2HE_FID", 1, MB_TYPE_HANDLE, v2he_fid, MB_TAG_DENSE | MB_TAG_CREAT, &idefval);MB_CHK_ERR(error);
   error = mb->tag_get_handle("__V2HE_LEID", 1, MB_TYPE_INTEGER, v2he_leid, MB_TAG_DENSE | MB_TAG_CREAT, &ival);MB_CHK_ERR(error);
 
+  MPI_Barrier(pcomm->comm());
+  if (!pcomm->rank())
+    std::cout << "[0] HalfFacetRep::init_surface: Start. " << nepf << "\n" ;
+  else
+    std::cout << "[1] HalfFacetRep::init_surface: Start. " << nepf << "\n" ;
+  MPI_Barrier(pcomm->comm());
   // Construct ahf maps
   error = determine_sibling_halfedges(_faces);MB_CHK_ERR(error);
   error = determine_incident_halfedges(_faces);MB_CHK_ERR(error);
@@ -262,6 +322,21 @@ ErrorCode HalfFacetRep::init_surface()
     trackfaces[i] = 0;
   }
 
+  // If running in parallel, exchange tag information to update shared entity data
+  if (pcomm) {
+    moab::Range emptyR;
+    error = pcomm->exchange_tags(sibhes_fid, emptyR);MB_CHK_ERR(error);
+    error = pcomm->exchange_tags(sibhes_leid, emptyR);MB_CHK_ERR(error);
+    error = pcomm->exchange_tags(v2he_fid, emptyR);MB_CHK_ERR(error);
+    error = pcomm->exchange_tags(v2he_leid, emptyR);MB_CHK_ERR(error);
+  }
+
+  MPI_Barrier(pcomm->comm());
+  if (!pcomm->rank())
+    std::cout << "[0] HalfFacetRep::init_surface: Done.\n" ;
+  else
+    std::cout << "[1] HalfFacetRep::init_surface: Done.\n" ;
+  MPI_Barrier(pcomm->comm());
   delete [] sdefval;
   delete [] sval;
   return MB_SUCCESS;
@@ -273,6 +348,12 @@ ErrorCode HalfFacetRep::init_volume()
   EntityHandle idefval = 0;
   int ival = 0;
 
+  MPI_Barrier(pcomm->comm());
+  if (!pcomm->rank())
+    std::cout << "[0] HalfFacetRep::init_volume: Start.\n" ;
+  else
+    std::cout << "[1] HalfFacetRep::init_volume: Start.\n" ;
+  MPI_Barrier(pcomm->comm());
   int index = get_index_from_type(*_cells.begin());
   int nfpc = lConnMap3D[index].num_faces_in_cell;
   EntityHandle *sdefval = new EntityHandle[nfpc];
@@ -302,6 +383,21 @@ ErrorCode HalfFacetRep::init_volume()
     trackcells[i] = 0;
   }
 
+  // If running in parallel, exchange tag information to update shared entity data
+  if (pcomm) {
+    moab::Range emptyR;
+    error = pcomm->exchange_tags(sibhfs_cid, emptyR);MB_CHK_ERR(error);
+    error = pcomm->exchange_tags(sibhfs_lfid, emptyR);MB_CHK_ERR(error);
+    error = pcomm->exchange_tags(v2hf_cid, emptyR);MB_CHK_ERR(error);
+    error = pcomm->exchange_tags(v2hf_lfid, emptyR);MB_CHK_ERR(error);
+  }
+
+  MPI_Barrier(pcomm->comm());
+  if (!pcomm->rank())
+    std::cout << "[0] HalfFacetRep::init_volume: Done.\n" ;
+  else
+    std::cout << "[1] HalfFacetRep::init_volume: Done.\n" ;
+  MPI_Barrier(pcomm->comm());
   delete [] sdefval;
   delete [] sval;
   return MB_SUCCESS;

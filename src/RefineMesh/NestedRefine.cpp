@@ -15,8 +15,8 @@
 
 namespace moab{
 
-  NestedRefine::NestedRefine(Core *impl, EntityHandle rset)
-    : mbImpl(impl), _rset(rset)
+  NestedRefine::NestedRefine(Core *impl, ParallelComm *comm, EntityHandle rset)
+    : mbImpl(impl), pcomm(comm), _rset(rset)
   {
     assert(NULL != impl);
 
@@ -27,6 +27,10 @@ namespace moab{
       std::cout<<"Error initializing NestedRefine\n"<<std::endl;
       exit(1);
     }
+
+    // Get the Parallel Comm instance to prepare all new sets to work in parallel
+    // in case the user did not provide any arguments
+    pcomm = moab::ParallelComm::get_pcomm(mbImpl, 0);
   }
 
   NestedRefine::~NestedRefine()
@@ -37,7 +41,7 @@ namespace moab{
   ErrorCode NestedRefine::initialize()
   {
     ErrorCode error;
-    ahf = new HalfFacetRep(mbImpl, this->_rset);
+    ahf = new HalfFacetRep(mbImpl, pcomm, _rset);
     if (!ahf)
       return MB_MEMORY_ALLOCATION_FAILED;
 
@@ -526,9 +530,7 @@ namespace moab{
   ErrorCode NestedRefine::generate_hm(int *level_degrees, int num_level, EntityHandle *hm_set)
   {
     ErrorCode error;
-
-    // Get the Parallel Comm instance to prepare all new sets to work in parallel
-    ParallelComm *pcomm = moab::ParallelComm::get_pcomm(mbImpl, 0);
+    moab::Tag part_tag;
 
     Tag gidtag;
     error = mbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, gidtag);MB_CHK_ERR(error);
@@ -551,13 +553,72 @@ namespace moab{
 
         //Create the new entities and new vertices
         error = construct_hm_entities(l, level_degrees[l]);MB_CHK_ERR(error);
+
+        if (pcomm)
+        {
+          moab::Range vtxs, edgs, facs, elms;
+          moab::Range adjs, vowned, vghost, vlocal, ents;
+          int nloc, nghost, n;
+
+          // get all entities on the rootset
+          error = mbImpl->get_entities_by_dimension(hm_set[l], 0, vtxs, false);MB_CHK_ERR(error);
+          error = mbImpl->get_entities_by_dimension(hm_set[l], 1, edgs, false);MB_CHK_ERR(error);
+          error = mbImpl->get_entities_by_dimension(hm_set[l], 2, facs, false);MB_CHK_ERR(error);
+          error = mbImpl->get_entities_by_dimension(hm_set[l], 3, elms, false);MB_CHK_ERR(error);
+
+          Range pents[4] = {vtxs, edgs, facs, elms};
+          error = pcomm->assign_global_ids(pents, 3, 1, true, true);MB_CHK_ERR(error);
+
+          error = mbImpl->get_entities_by_dimension(hm_set[l], meshdim, ents, false);MB_CHK_ERR(error);
+
+          std::cout << "ParallelComm in generate_hm: Obtained " << ents.size() << " entities in parallel\n" ;
+
+          // resolve shared entities in parallel based on meshdim entities
+          error = pcomm->resolve_shared_ents(hm_set[l], ents, meshdim, meshdim-1, NULL, &gidtag);MB_CHK_ERR(error);
+
+          error = mbImpl->get_entities_by_type(hm_set[l],moab::MBVERTEX,vlocal,false);MB_CHK_ERR(error);
+
+          /* filter based on parallel status */
+          error = pcomm->filter_pstatus(vlocal,PSTATUS_NOT_OWNED,PSTATUS_NOT,-1,&vowned);MB_CHK_ERR(error);
+
+          /* filter all the non-owned and shared entities out of the list */
+          adjs = moab::subtract(vlocal, vowned);
+          error = pcomm->filter_pstatus(adjs,PSTATUS_INTERFACE,PSTATUS_OR,-1,&vghost);MB_CHK_ERR(error);
+          adjs = moab::subtract(adjs, vghost);
+          vlocal = moab::subtract(vlocal, adjs);
+
+          int partid=pcomm->rank(), dum_id=-1;
+          error = mbImpl->tag_get_handle("PARALLEL_PARTITION", 1, moab::MB_TYPE_INTEGER,
+                             part_tag, moab::MB_TAG_CREAT | moab::MB_TAG_SPARSE, &dum_id);MB_CHK_ERR(error);
+
+          /* set the parallel partition tag data */
+          moab::EntityHandle part_set;
+          error = mbImpl->create_meshset(moab::MESHSET_SET, part_set);MB_CHK_ERR(error);
+          error = mbImpl->add_entities(part_set, vowned);MB_CHK_ERR(error);
+          error = mbImpl->add_entities(part_set, edgs);MB_CHK_ERR(error);
+          error = mbImpl->add_entities(part_set, facs);MB_CHK_ERR(error);
+          error = mbImpl->add_entities(part_set, elms);MB_CHK_ERR(error);
+          error = mbImpl->tag_set_data(part_tag, &part_set, 1, &partid);MB_CHK_ERR(error);
+
+          /* compute and cache the sizes of local and ghosted entities */
+          nloc = vowned.size();
+          nghost = vghost.size();
+          MPI_Allreduce(&nloc, &n, 1, MPI_INTEGER, MPI_SUM, pcomm->comm());
+
+          if (!pcomm->rank())
+            std::cout << "Filset ID: " << hm_set[l] << ", Total - " << n << ", Local vowned - " << nloc << ", Local vghost - " << nghost << ".\n " ;
+        }
       }
 
-    if(pcomm) {
+      mbImpl->write_file("test.h5m", 0, ";;PARALLEL=WRITE_PART");
+
+    if(pcomm && false) {
       moab::Range ents;
 
       // get all entities on the rootset
       error = mbImpl->get_entities_by_dimension(0, meshdim, ents, true);MB_CHK_ERR(error);
+
+      std::cout << "ParallelComm in generate_hm: Obtained " << ents.size() << " entities in parallel\n" ;
 
       // resolve shared entities in parallel based on meshdim entities
       error = pcomm->resolve_shared_ents(0, ents, meshdim, meshdim-1, NULL, &gidtag);MB_CHK_ERR(error);
