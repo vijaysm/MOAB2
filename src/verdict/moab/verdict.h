@@ -39,7 +39,7 @@
 #define VERDICT_PI 3.1415926535897932384626
 
 #ifdef __cplusplus
-# if defined(WIN32) && defined(VERDICT_SHARED_LIB)
+# if defined(_WIN32) && defined(VERDICT_SHARED_LIB)
 #  ifdef verdict_EXPORTS
 #   define C_FUNC_DEF extern "C" __declspec(dllexport)
 #  else
@@ -49,7 +49,7 @@
 #  define C_FUNC_DEF extern "C"
 # endif
 #else
-# if defined(WIN32) && defined(VERDICT_SHARED_LIB)
+# if defined(_WIN32) && defined(VERDICT_SHARED_LIB)
 #  ifdef verdict_EXPORTS
 #   define C_FUNC_DEF __declspec(dllexport)
 #  else

@@ -13,7 +13,7 @@
  *
  */
 
-#ifdef WIN32
+#ifdef _MSC_VER
 // turn off warnings that say they debugging identifier has been truncated
 // this warning comes up when using some STL containers
 #pragma warning(disable : 4786)
@@ -565,7 +565,7 @@ ErrorCode Core::serial_load_file( const char* file_name,
                                   const Tag* id_tag  )
 {
   int status;
-#if defined(WIN32) || defined(WIN64) || defined(MSC_VER)
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
   struct _stat stat_data;
   status = _stat(file_name, &stat_data);
 #else
@@ -575,7 +575,7 @@ ErrorCode Core::serial_load_file( const char* file_name,
   if (status) {
     MB_SET_GLB_ERR(MB_FILE_DOES_NOT_EXIST, file_name << ": " << strerror(errno));
   }
-#if defined(WIN32) || defined(WIN64) || defined(MSC_VER)
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
   else if (stat_data.st_mode & _S_IFDIR) {
 #else
   else if (S_ISDIR(stat_data.st_mode)) {

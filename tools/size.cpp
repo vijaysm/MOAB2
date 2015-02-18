@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <iomanip>
 #include "moab/MOABConfig.h"
-#ifndef WIN32
+#ifndef _WIN32
 #  include <sys/times.h>
 #  include <limits.h>
 #  include <unistd.h>
@@ -590,7 +590,7 @@ static void print_time( int clk_per_sec, const char* prefix, clock_t ticks, std:
 
 clock_t usr_time, sys_time, abs_time;
 
-#ifdef WIN32
+#ifdef _WIN32
 
 void reset_times() 
 {

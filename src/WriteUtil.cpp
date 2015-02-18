@@ -13,7 +13,7 @@
  * 
  */
 
-#ifdef WIN32
+#ifdef _MSC_VER
 #pragma warning(disable : 4786)
 #endif
 
@@ -34,7 +34,7 @@
 #include <assert.h>
 #include <iostream>
 
-#ifdef WIN32
+#ifdef _WIN32
   #define stat _stat
 #else
   #include <unistd.h>

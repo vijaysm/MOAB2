@@ -1,5 +1,5 @@
 #include "moab/MOABConfig.h"
-#ifdef WIN32  /* windows */
+#ifdef _WIN32  /* windows */
 #  define _USE_MATH_DEFINES //For M_PI
 #endif
 
@@ -9,7 +9,7 @@
 #include <cmath>
 #include <sstream>
 
-#ifdef WIN32
+#ifdef _WIN32
 #ifdef size_t
 #undef size_t
 #endif

@@ -2298,7 +2298,7 @@ ErrorCode WriteHDF5::write_qa(const std::vector<std::string>& list)
   if (list.size() == 0) {
     time_t t = time(NULL);
     tm* lt = localtime(&t);
-#ifdef WIN32
+#ifdef _WIN32
     strftime(date_str, sizeof(date_str), "%m/%d/%y", lt); //VS 2008 does not support %D
     strftime(time_str, sizeof(time_str), "%H:%M:%S", lt); //VS 2008 does not support %T
 #else
