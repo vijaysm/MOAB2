@@ -531,9 +531,12 @@ namespace moab{
   {
     ErrorCode error;
     moab::Tag part_tag;
+    std::stringstream sstr;
 
     Tag gidtag;
     error = mbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, gidtag);MB_CHK_ERR(error);
+
+    mbImpl->write_file("test_0.h5m", 0, ";;PARALLEL=WRITE_PART", &_rset, 1);
     for (int l = 0; l<num_level; l++)
       {
         // Estimate storage
@@ -557,7 +560,7 @@ namespace moab{
         if (pcomm)
         {
           moab::Range vtxs, edgs, facs, elms;
-          moab::Range adjs, vowned, vghost, vlocal, ents;
+          moab::Range adjs, vowned, vghost, vlocal;
           int nloc, nghost, n;
 
           // get all entities on the rootset
@@ -566,20 +569,26 @@ namespace moab{
           error = mbImpl->get_entities_by_dimension(hm_set[l], 2, facs, false);MB_CHK_ERR(error);
           error = mbImpl->get_entities_by_dimension(hm_set[l], 3, elms, false);MB_CHK_ERR(error);
 
+          // Use MergeMesh
+          // After the mesh is generated on each proc, merge the vertices
+          //error = mm.merge_entities((meshdim == 1 ? edgs : (meshdim == 2 ? facs : elms)), 0.0001);MB_CHK_SET_ERR(error, "Can't merge");
+
           Range pents[4] = {vtxs, edgs, facs, elms};
-          error = pcomm->assign_global_ids(pents, 3, 1, true, true);MB_CHK_ERR(error);
+          error = pcomm->assign_global_ids(pents, meshdim, 1, true, false);MB_CHK_ERR(error);
 
-          error = mbImpl->get_entities_by_dimension(hm_set[l], meshdim, ents, false);MB_CHK_ERR(error);
+          //error = mbImpl->get_entities_by_dimension(hm_set[l], meshdim, ents, false);MB_CHK_ERR(error);
 
-          std::cout << "ParallelComm in generate_hm: Obtained " << ents.size() << " entities in parallel\n" ;
+          std::cout << "ParallelComm in generate_hm: Obtained " << vtxs.size() << " entities in parallel\n" ;
 
           // resolve shared entities in parallel based on meshdim entities
-          error = pcomm->resolve_shared_ents(hm_set[l], ents, meshdim, meshdim-1, NULL, &gidtag);MB_CHK_ERR(error);
+          //error = pcomm->resolve_shared_ents(hm_set[l], (meshdim == 1 ? edgs : (meshdim == 2 ? facs : elms)), meshdim, meshdim-1, NULL, &gidtag);MB_CHK_SET_ERR(error, "Can't resolve shared ents");
+
+          // error = pcomm->exchange_ghost_cells(meshdim,0,1,meshdim,true,false,&hm_set[l]);MB_CHK_ERR(error);
 
           error = mbImpl->get_entities_by_type(hm_set[l],moab::MBVERTEX,vlocal,false);MB_CHK_ERR(error);
 
           /* filter based on parallel status */
-          error = pcomm->filter_pstatus(vlocal,PSTATUS_NOT_OWNED,PSTATUS_NOT,-1,&vowned);MB_CHK_ERR(error);
+          error = pcomm->filter_pstatus(vlocal,PSTATUS_GHOST,PSTATUS_NOT,-1,&vowned);MB_CHK_ERR(error);
 
           /* filter all the non-owned and shared entities out of the list */
           adjs = moab::subtract(vlocal, vowned);
@@ -592,13 +601,7 @@ namespace moab{
                              part_tag, moab::MB_TAG_CREAT | moab::MB_TAG_SPARSE, &dum_id);MB_CHK_ERR(error);
 
           /* set the parallel partition tag data */
-          moab::EntityHandle part_set;
-          error = mbImpl->create_meshset(moab::MESHSET_SET, part_set);MB_CHK_ERR(error);
-          error = mbImpl->add_entities(part_set, vowned);MB_CHK_ERR(error);
-          error = mbImpl->add_entities(part_set, edgs);MB_CHK_ERR(error);
-          error = mbImpl->add_entities(part_set, facs);MB_CHK_ERR(error);
-          error = mbImpl->add_entities(part_set, elms);MB_CHK_ERR(error);
-          error = mbImpl->tag_set_data(part_tag, &part_set, 1, &partid);MB_CHK_ERR(error);
+          error = mbImpl->tag_set_data(part_tag, &hm_set[l], 1, &partid);MB_CHK_ERR(error);
 
           /* compute and cache the sizes of local and ghosted entities */
           nloc = vowned.size();
@@ -607,10 +610,13 @@ namespace moab{
 
           if (!pcomm->rank())
             std::cout << "Filset ID: " << hm_set[l] << ", Total - " << n << ", Local vowned - " << nloc << ", Local vghost - " << nghost << ".\n " ;
+
+          sstr.str("");
+          sstr << "test_" << l+1 << ".h5m";
+          mbImpl->write_file(sstr.str().c_str(), 0, ";;PARALLEL=WRITE_PART", &hm_set[l], 1);
         }
       }
 
-      mbImpl->write_file("test.h5m", 0, ";;PARALLEL=WRITE_PART");
 
     if(pcomm && false) {
       moab::Range ents;
