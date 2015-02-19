@@ -224,7 +224,7 @@ ErrorCode adj_perf(const char* filename)
     error = mbImpl->get_adjacencies( &*i, 1, 2, false, adjents);
   }
   time_total = wtime()-time_start;
-  time_avg = time_total/(double)edges.size();
+  time_avg = time_total/(double)verts.size();
 
   qtime.vertex_to_faces_total = time_total;
   qtime.vertex_to_faces_avg = time_avg;
@@ -289,7 +289,7 @@ ErrorCode adj_perf(const char* filename)
       error = mbImpl->get_adjacencies(&*i, 1, 3, false, adjents);
   }
   time_total = wtime()-time_start;
-  time_avg = time_total/(double)edges.size();
+  time_avg = time_total/(double)verts.size();
 
   qtime.vertex_to_cells_total = time_total;
   qtime.vertex_to_cells_avg = time_avg;
