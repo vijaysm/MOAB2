@@ -31,7 +31,7 @@ namespace moab
     
   public:
 
-    NestedRefine(Core *impl, EntityHandle rset=0);
+    NestedRefine(Core *impl, ParallelComm *comm, EntityHandle rset=0);
     
     ~NestedRefine();
     
@@ -113,16 +113,22 @@ namespace moab
 
     ErrorCode vertex_to_entities(EntityHandle vertex, int level, std::vector<EntityHandle> &incident_entities);
 
-    /** Given an entity from a certain level, it returns a boolean value true if it lies on the domain boundary.
-     * \param entity
-      */
+    /** Given an entity at a certain level, it returns a boolean value true if it lies on the domain boundary.
+      * \param entity
+    */
 
     bool is_entity_on_boundary(EntityHandle &entity);
-    
-    bool is_boundary_vertex(EntityHandle vertex);
+
+    /** Given a vertex at a certain level, it returns a boolean value true if it lies on the domain boundary.
+      * Note: This is a specialization of the NestedRefine::is_entity_on_boundary function and applies only to vertex queries.
+      * \param entity
+    */
+
+    bool is_boundary_vertex(EntityHandle entity);
 
   protected:
     Core *mbImpl;
+    ParallelComm *pcomm;
     HalfFacetRep *ahf;
 
     EntityHandle _rset;

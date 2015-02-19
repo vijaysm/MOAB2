@@ -18,18 +18,15 @@
 #include <iostream>
 #include <assert.h>
 #include <vector>
-#include "moab/Core.hpp"
-#include "moab/Range.hpp"
-#include "moab/CN.hpp"
+#include "MBTagConventions.hpp"
 
 namespace moab
 {
 
-HalfFacetRep::HalfFacetRep(Core *impl, moab::EntityHandle rset)
+HalfFacetRep::HalfFacetRep(Core *impl, ParallelComm *comm, moab::EntityHandle rset)
+    : mb(impl), pcomm(comm), _rset(rset)
 {
   assert(NULL != impl);
-  mb = impl;
-  _rset = rset;
   mInitAHFmaps = false;
   chk_mixed = false;
   is_mixed = false;
@@ -156,57 +153,74 @@ ErrorCode HalfFacetRep::initialize()
 {
   ErrorCode error;
 
-  mInitAHFmaps = true;
+  if (!mInitAHFmaps) {
+    mInitAHFmaps = true;
 
-  /* Get all entities by dimension on the rootset with recursion turned on */
-  error = mb->get_entities_by_dimension( this->_rset, 0, _verts, true);MB_CHK_ERR(error);
-  error = mb->get_entities_by_dimension( this->_rset, 1, _edges, true);MB_CHK_ERR(error);
-  error = mb->get_entities_by_dimension( this->_rset, 2, _faces, true);MB_CHK_ERR(error);
-  error = mb->get_entities_by_dimension( this->_rset, 3, _cells, true);MB_CHK_ERR(error);
+    /* Get all entities by dimension on the meshset with recursion turned on */
+    if (pcomm) {
+      moab::Range _averts,_aedgs,_afacs,_acels;
 
-  int nverts = _verts.size();
-  int nedges = _edges.size();
-  int nfaces = _faces.size();
-  int ncells = _cells.size();
+      error = mb->get_entities_by_dimension(this->_rset, 0, _averts, true);MB_CHK_ERR(error);
+      error = mb->get_entities_by_dimension(this->_rset, 1, _aedgs, true);MB_CHK_ERR(error);
+      error = mb->get_entities_by_dimension(this->_rset, 2, _afacs, true);MB_CHK_ERR(error);
+      error = mb->get_entities_by_dimension(this->_rset, 3, _acels, true);MB_CHK_ERR(error);
 
-  MESHTYPE mesh_type = get_mesh_type(nverts, nedges, nfaces, ncells);
-  thismeshtype = mesh_type;
+      /* filter based on parallel status */
+      error = pcomm->filter_pstatus(_averts,PSTATUS_GHOST,PSTATUS_NOT,-1,&_verts);MB_CHK_ERR(error);
+      error = pcomm->filter_pstatus(_aedgs,PSTATUS_GHOST,PSTATUS_NOT,-1,&_edges);MB_CHK_ERR(error);
+      error = pcomm->filter_pstatus(_afacs,PSTATUS_GHOST,PSTATUS_NOT,-1,&_faces);MB_CHK_ERR(error);
+      error = pcomm->filter_pstatus(_acels,PSTATUS_GHOST,PSTATUS_NOT,-1,&_cells);MB_CHK_ERR(error);
+    }
+    else {
+      error = mb->get_entities_by_dimension( this->_rset, 0, _verts, true);MB_CHK_ERR(error);
+      error = mb->get_entities_by_dimension( this->_rset, 1, _edges, true);MB_CHK_ERR(error);
+      error = mb->get_entities_by_dimension( this->_rset, 2, _faces, true);MB_CHK_ERR(error);
+      error = mb->get_entities_by_dimension( this->_rset, 3, _cells, true);MB_CHK_ERR(error);
+    }
 
-  //Initialize mesh type specific maps
-  if (thismeshtype == CURVE)
-  {
-    error = init_curve();MB_CHK_ERR(error);
-  }
-  else if (thismeshtype == SURFACE)
-  {
-    error = init_surface();MB_CHK_ERR(error);
-  }
-  else if (thismeshtype == SURFACE_MIXED)
-  {
-    error = init_curve();MB_CHK_ERR(error);
-    error = init_surface();MB_CHK_ERR(error);
-  }
-  else if (thismeshtype == VOLUME)
-  {
-    error = init_volume();MB_CHK_ERR(error);
-  }
-  else if (thismeshtype == VOLUME_MIXED_1)
-  {
-    error = init_curve();MB_CHK_ERR(error);
-    error = init_volume();MB_CHK_ERR(error);
-  }
-  else if (thismeshtype == VOLUME_MIXED_2)
-  {
-    error = init_surface();MB_CHK_ERR(error);
-    error = init_volume();MB_CHK_ERR(error);
-  }
-  else if (thismeshtype == VOLUME_MIXED)
-  {
-    error = init_curve();MB_CHK_ERR(error);
-    error = init_surface();MB_CHK_ERR(error);
-    error = init_volume();MB_CHK_ERR(error);
-  }
+    int nverts = _verts.size();
+    int nedges = _edges.size();
+    int nfaces = _faces.size();
+    int ncells = _cells.size();
 
+    MESHTYPE mesh_type = get_mesh_type(nverts, nedges, nfaces, ncells);
+    thismeshtype = mesh_type;
+
+    //Initialize mesh type specific maps
+    if (thismeshtype == CURVE)
+    {
+      error = init_curve();MB_CHK_ERR(error);
+    }
+    else if (thismeshtype == SURFACE)
+    {
+      error = init_surface();MB_CHK_ERR(error);
+    }
+    else if (thismeshtype == SURFACE_MIXED)
+    {
+      error = init_curve();MB_CHK_ERR(error);
+      error = init_surface();MB_CHK_ERR(error);
+    }
+    else if (thismeshtype == VOLUME)
+    {
+      error = init_volume();MB_CHK_ERR(error);
+    }
+    else if (thismeshtype == VOLUME_MIXED_1)
+    {
+      error = init_curve();MB_CHK_ERR(error);
+      error = init_volume();MB_CHK_ERR(error);
+    }
+    else if (thismeshtype == VOLUME_MIXED_2)
+    {
+      error = init_surface();MB_CHK_ERR(error);
+      error = init_volume();MB_CHK_ERR(error);
+    }
+    else if (thismeshtype == VOLUME_MIXED)
+    {
+      error = init_curve();MB_CHK_ERR(error);
+      error = init_surface();MB_CHK_ERR(error);
+      error = init_volume();MB_CHK_ERR(error);
+    }
+  }
   return MB_SUCCESS;
 }
 
@@ -224,6 +238,15 @@ ErrorCode HalfFacetRep::init_curve()
 
   error = determine_sibling_halfverts(_edges);MB_CHK_ERR(error);
   error = determine_incident_halfverts(_edges);MB_CHK_ERR(error);
+
+  // If running in parallel, exchange tag information to update shared entity data
+  if (pcomm) {
+    moab::Range emptyR;
+    error = pcomm->exchange_tags(sibhvs_eid, emptyR);MB_CHK_ERR(error);
+    error = pcomm->exchange_tags(sibhvs_lvid, emptyR);MB_CHK_ERR(error);
+    error = pcomm->exchange_tags(v2hv_eid, emptyR);MB_CHK_ERR(error);
+    error = pcomm->exchange_tags(v2hv_lvid, emptyR);MB_CHK_ERR(error);
+  }
 
   return MB_SUCCESS;
 }
@@ -260,6 +283,15 @@ ErrorCode HalfFacetRep::init_surface()
     queue_fid[i] = 0;
     queue_lid[i] = 0;
     trackfaces[i] = 0;
+  }
+
+  // If running in parallel, exchange tag information to update shared entity data
+  if (pcomm) {
+    moab::Range emptyR;
+    error = pcomm->exchange_tags(sibhes_fid, emptyR);MB_CHK_ERR(error);
+    error = pcomm->exchange_tags(sibhes_leid, emptyR);MB_CHK_ERR(error);
+    error = pcomm->exchange_tags(v2he_fid, emptyR);MB_CHK_ERR(error);
+    error = pcomm->exchange_tags(v2he_leid, emptyR);MB_CHK_ERR(error);
   }
 
   delete [] sdefval;
@@ -300,6 +332,15 @@ ErrorCode HalfFacetRep::init_volume()
     Stkcells[i] = 0;
     cellq[i] = 0;
     trackcells[i] = 0;
+  }
+
+  // If running in parallel, exchange tag information to update shared entity data
+  if (pcomm) {
+    moab::Range emptyR;
+    error = pcomm->exchange_tags(sibhfs_cid, emptyR);MB_CHK_ERR(error);
+    error = pcomm->exchange_tags(sibhfs_lfid, emptyR);MB_CHK_ERR(error);
+    error = pcomm->exchange_tags(v2hf_cid, emptyR);MB_CHK_ERR(error);
+    error = pcomm->exchange_tags(v2hf_lfid, emptyR);MB_CHK_ERR(error);
   }
 
   delete [] sdefval;
@@ -969,6 +1010,7 @@ ErrorCode HalfFacetRep::determine_sibling_halfedges( Range &faces)
     for (int j = 0; j < nepf; j++)
     {
       int v = _verts.index(conn[j]);
+      if (v < 0) MB_CHK_SET_ERR(MB_FAILURE, "Invalid face connectivity in AHF map\n");
       v2nv[is_index[v]] = conn[next[j]];
       v2he_map_fid[is_index[v]] = *fid;
       v2he_map_leid[is_index[v]] = j;
@@ -999,6 +1041,8 @@ ErrorCode HalfFacetRep::determine_sibling_halfedges( Range &faces)
 
       int v = _verts.index(conn[k]);
       int vn = _verts.index(conn[next[k]]);
+
+      if (v < 0 || vn < 0 ) MB_CHK_SET_ERR(MB_FAILURE, "Invalid face connectivity in AHF map\n");
 
       EntityHandle first_fid = *fid;
       int first_leid = k;
