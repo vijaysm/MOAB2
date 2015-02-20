@@ -53,6 +53,8 @@ public:
         else return false;
       }
   
+  /** \brief Evaluate the normal at a facet (edge/face for 2D/3D) of the physical entity*/
+  ErrorCode get_normal(EntityHandle entity, int facet, double *normal);
 protected:
       
   static const double corner[3][2];

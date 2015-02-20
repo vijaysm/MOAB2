@@ -142,4 +142,10 @@ namespace moab
       return MB_SUCCESS;
     }// Map::evaluate_reverse()
 
+
+    ErrorCode LinearTri::get_normal(EntityHandle entity, int facet, double *normal)
+    {
+      ErrorCode error;
+
+    }
 } // namespace moab
