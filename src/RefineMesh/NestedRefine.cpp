@@ -12,6 +12,7 @@
 #include <limits>
 #include <cmath>
 
+// #define PETSC_DEBUG_ONLY
 
 namespace moab{
 
@@ -577,9 +578,9 @@ namespace moab{
           error = pcomm->assign_global_ids(pents, meshdim, 1, true, false);MB_CHK_ERR(error);
 
           //error = mbImpl->get_entities_by_dimension(hm_set[l], meshdim, ents, false);MB_CHK_ERR(error);
-
+#ifdef PETSC_DEBUG_ONLY
           std::cout << "ParallelComm in generate_hm: Obtained " << vtxs.size() << " entities in parallel\n" ;
-
+#endif
           // resolve shared entities in parallel based on meshdim entities
           //error = pcomm->resolve_shared_ents(hm_set[l], (meshdim == 1 ? edgs : (meshdim == 2 ? facs : elms)), meshdim, meshdim-1, NULL, &gidtag);MB_CHK_SET_ERR(error, "Can't resolve shared ents");
 
@@ -608,13 +609,16 @@ namespace moab{
           nghost = vghost.size();
           MPI_Allreduce(&nloc, &n, 1, MPI_INTEGER, MPI_SUM, pcomm->comm());
 
+#ifdef PETSC_DEBUG_ONLY
           if (!pcomm->rank())
             std::cout << "Filset ID: " << hm_set[l] << ", Total - " << n << ", Local vowned - " << nloc << ", Local vghost - " << nghost << ".\n " ;
 
           sstr.str("");
           sstr << "test_" << l+1 << ".h5m";
           mbImpl->write_file(sstr.str().c_str(), 0, ";;PARALLEL=WRITE_PART", &hm_set[l], 1);
+#endif
         }
+
       }
 
 
