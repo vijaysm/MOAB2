@@ -842,6 +842,7 @@ ErrorCode Intx2MeshOnSphere::update_density_and_tracers(Tag & rhoTag, Tag & area
   rval = mb->tag_set_data(rhoTag, rs2, &newMass[0]); MB_CHK_ERR(rval);
   rval = mb->tag_set_data(tauTag, rs2, &newValues[0]); MB_CHK_ERR(rval);// will have numTracers
 
+#ifndef NDEBUG
 
 #ifdef USE_MPI
   std::vector<double> total_tracer(numTracers,0.);
@@ -867,6 +868,8 @@ ErrorCode Intx2MeshOnSphere::update_density_and_tracers(Tag & rhoTag, Tag & area
   for (int k=0; k<numTracers; k++)
         std::cout <<"total mass now tracer k=" << k+1<<" "  << total_mass_local[k] << "\n";
   std::cout <<"check: total intersection area: (4 * M_PI * R^2): " << 4 * M_PI * R*R << " " << check_intx_area << "\n";
+#endif
+
 #endif
 
   // end copy

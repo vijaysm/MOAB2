@@ -106,8 +106,9 @@ void initialize_area_and_tracer(iMesh_Instance instance,
   rval = mb->tag_get_handle(tag_name4.c_str(), 1, MB_TYPE_DOUBLE, areaTag,
       MB_TAG_DENSE | MB_TAG_CREAT);
   ERRORV(rval, "can't get area tag");
-
+#ifndef NDEBUG
   std::cout << " num quads = " << eulQuads.size() << "\n";
+#endif
   ERRORV(rval, "can't set area for each quad");
 
   rval = mb->tag_set_data(areaTag, eulQuads, &area_vals[0]); MB_CHK_ERR_RET(rval);
@@ -206,8 +207,9 @@ void update_tracer_test(iMesh_Instance instance,
 
   // area of the euler element is fixed, store it; it is used to recompute the averages at each
   // time step
+#ifndef NDEBUG
   std::cout << " num quads = " << eulQuads.size() << "\n";
-
+#endif
   rval = mb->tag_set_data(tauTag, eulQuads, &tracer_vals[0]);
   ERRORV(rval, "can't set tracer data");
 
@@ -562,8 +564,10 @@ ErrorCode create_coarse_mesh(Interface * mb, ParallelComm * pcomm1,
   mb->add_entities(coarseSet, coarseEdges);
 
   // see how much we overestimated the number e_max
+#ifndef NDEBUG
   std::cout << " on rank " << rank << " e_max is " << e_max
       << " actual number of edges: " << coarseEdges.size() << "\n";
+#endif
   rval = pcomm1->resolve_shared_ents(coarseSet, 2, 1); // resolve vertices and edges
   ERRORR(rval, "can't resolve shared vertices and edges ");
 

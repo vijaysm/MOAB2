@@ -2970,8 +2970,9 @@ void get_intersection_weights3(moab::Interface * mb, moab::EntityHandle euler_se
      rval = mb->tag_set_data(weightsTag, &poly, 1, &weights[0]);
 
   }
-
-      std::cout << "polygon area = " << total_area << "\n";
+#ifndef NDEBUG
+  std::cout << "polygon area = " << total_area << "\n";
+#endif
   return;
 }
 void get_intersection_weights(moab::Interface * mb, moab::EntityHandle euler_set,
@@ -3083,8 +3084,9 @@ void get_intersection_weights(moab::Interface * mb, moab::EntityHandle euler_set
      rval = mb->tag_set_data(weightsTag, &poly, 1, &weights[0]);
 
   }
-
-      std::cout << "polygon area = " << total_area << "\n";
+#ifndef NDEBUG
+  std::cout << "polygon area = " << total_area << "\n";
+#endif
   return;
 }
 

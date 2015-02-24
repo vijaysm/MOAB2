@@ -8471,7 +8471,9 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
               }
             }
             if (!found) {
+#ifndef  NDEBUG
               std::cout << " pk:" << pk[0] << " " << pk[1] << " " << pk[2] << " not found \n";
+#endif
               result = MB_FAILURE;
             }
           }

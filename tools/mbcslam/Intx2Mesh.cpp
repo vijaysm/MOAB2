@@ -357,11 +357,13 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
               << mb->id_from_handle(blueT) << "\n";
         }
       } // end while (!localBlue.empty())
+#ifndef NDEBUG
       double redRecovery=fabs((recoveredArea-areaRedCell)/areaRedCell); // 0 means everything got recovered
       if ( redRecovery > epsilon_1)
       {
         std::cout << " red area: " << areaRedCell << " recovered :" <<recoveredArea << " redID: " << mb->id_from_handle(currentRed) << " countingStart:" << countingStart <<  "\n";
       }
+#endif
       // here, we are finished with redCurrent, take it out of the rs22 range (red, arrival mesh)
       rs22.erase(currentRed);
       // also, look at its neighbors, and add to the seeds a next one
@@ -664,8 +666,9 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
   int sizeTuple = 2+max_edges; // determined earlier
   TLq.initialize(2+max_edges, 0, 1, 0, numq); // to proc, elem GLOBAL ID, connectivity[10] (global ID v), local eh
   TLq.enableWriteAccess();
+#ifndef NDEBUG
   std::cout << "from proc " << my_rank << " send " << numv << " vertices and " << numq << " elements\n";
-
+#endif
   for (int to_proc=0; to_proc<numprocs; to_proc++)
   {
     if (to_proc==(int)my_rank)
@@ -977,9 +980,10 @@ ErrorCode Intx2Mesh::create_departure_mesh_3rd_alg(EntityHandle & lagr_set,
   TLq.initialize(2+max_edges, 0, 1, 0, numq); // to proc, elem GLOBAL ID, connectivity[max_edges] (global ID v)
   // send also the corresponding red cell it will come to
   TLq.enableWriteAccess();
+#ifndef NDEBUG
   std::cout << "from proc " << my_rank << " send " << numv << " vertices and "
       << numq << " elements\n";
-
+#endif
   for (int to_proc = 0; to_proc < numprocs; to_proc++)
   {
     if (to_proc == (int) my_rank)
