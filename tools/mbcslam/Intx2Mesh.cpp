@@ -178,12 +178,14 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
                  // advance ; rs2 is needed for marking the polygon to the red parent
   while (!rs22.empty())
   {
+#ifndef NDEBUG
     if (rs22.size()<rs2.size())
     {
       std::stringstream fff;
-      fff << "file0" <<  counting<< ".vtk";
+      fff << "file0" << my_rank << "_0" <<  counting<< ".vtk";
       mb->write_mesh(fff.str().c_str(), &outputSet, 1);
     }
+#endif
     for (Range::iterator it = rs1.begin(); it != rs1.end(); it++)
     {
       startBlue = *it;

@@ -921,10 +921,11 @@ ErrorCode create_fine_mesh(Interface * mb, ParallelComm * pcomm1,
    const int start_id,
    const bool parallel,
    const bool owned_only) */
-
+#ifndef NDEBUG
   std::stringstream fff;
   fff << "fine0" << pcomm1->proc_config().proc_rank() << ".h5m";
   mb->write_mesh(fff.str().c_str(), &fine_set, 1);
+#endif
 
   rval = mb->write_file("fine.h5m", 0, "PARALLEL=WRITE_PART", &fine_set, 1);
   ERRORR(rval, "can't write set 3, fine ");
