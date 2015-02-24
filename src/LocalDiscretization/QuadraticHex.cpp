@@ -119,4 +119,9 @@ namespace moab
     {
       return EvalSet::inside_function(params, ndim, tol);
     }
+
+    ErrorCode QuadraticHex::normalFcn(const int facet, const int ientDim, const double *verts, const int nverts, double *normal)
+    {
+      return MB_SUCCESS;
+    }
 } // namespace moab

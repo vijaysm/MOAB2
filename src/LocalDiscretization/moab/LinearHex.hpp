@@ -3,6 +3,7 @@
   /**\brief Shape function space for trilinear hexahedron, obtained by a pushforward of the canonical linear (affine) functions. */
 
 #include "moab/ElemEvaluator.hpp"
+#include "moab/CN.hpp"
 
 namespace moab 
 {
@@ -19,6 +20,9 @@ public:
                                   const double *posn, const double *verts, const int nverts, const int ndim,
                                   const double iter_tol, const double inside_tol, double *work, 
                                   double *params, int *is_inside);
+
+  /** \brief Evaluate the normal at a specified facet*/
+ static ErrorCode normalFcn(const int facet, const int ientDim, const double *verts, const int nverts,  double *normal);
         
     /** \brief Evaluate the jacobian at a specified parametric position */
   static ErrorCode jacobianFcn(const double *params, const double *verts, const int nverts, const int ndim, 
@@ -33,7 +37,7 @@ public:
   
   static EvalSet eval_set() 
       {
-        return EvalSet(evalFcn, reverseEvalFcn, jacobianFcn, integrateFcn, (InitFcn)NULL, insideFcn);
+        return EvalSet(evalFcn, reverseEvalFcn, normalFcn, jacobianFcn, integrateFcn, (InitFcn)NULL, insideFcn);
       }
       
   static bool compatible(EntityType tp, int numv, EvalSet &eset) 
@@ -45,8 +49,6 @@ public:
         else return false;
       }
 
-  /** \brief Evaluate the normal at a facet (edge/face for 2D/3D) of the physical entity*/
-  ErrorCode get_normal(EntityHandle entity, int facet, double *normal);
   
 protected:
     /* Preimages of the vertices -- "canonical vertices" -- are known as "corners". */

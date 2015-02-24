@@ -1,6 +1,7 @@
 #include "moab/LinearHex.hpp"
 #include "moab/Matrix3.hpp"
 #include "moab/Forward.hpp"
+#include <math.h>
 
 namespace moab 
 {
@@ -108,5 +109,33 @@ namespace moab
     {
       return EvalSet::inside_function(params, ndim, tol);
     }
+
+    ErrorCode LinearHex::normalFcn(const int facet, const int ientDim, const double *verts, const int nverts, double *normal)
+    {
+      assert(facet < 6 && ientDim == 2 && nverts == 8);
+      int id0 = CN::mConnectivityMap[MBHEX][ientDim-1].conn[facet][0];
+      int id1 = CN::mConnectivityMap[MBHEX][ientDim-1].conn[facet][1];
+      int id2 = CN::mConnectivityMap[MBHEX][ientDim-1].conn[facet][3];
+
+      double x0[3], x1[3];
+
+      for (int i=0; i<3; i++)
+        {
+          x0[i] = verts[3*id1+i] - verts[3*id0+i];
+          x1[i] = verts[3*id2+i] - verts[3*id0+i];
+        }
+
+      double a = x0[1]*x1[2] - x1[1]*x0[2];
+      double b = x1[0]*x0[2] - x0[0]*x1[2];
+      double c = x0[0]*x1[1] - x1[0]*x0[1];
+      double nrm = sqrt(a*a+b*b+c*c);
+
+      normal[0] = a/nrm;
+      normal[1] = b/nrm;
+      normal[2] = c/nrm;
+
+      return MB_SUCCESS;
+    }
+
     
 } // namespace moab
