@@ -133,7 +133,7 @@ namespace moab{
           }
         else if (type == MBTRI || type == MBQUAD)
           {
-            int num_corners = ahf->local_maps_2d(ent);
+            int num_corners = ahf->lConnMap2D[type-2].num_verts_in_face;
             conn.reserve(num_corners);
             start_ent = level_mesh[level-1].start_face;
             EntityID offset=ID_FROM_HANDLE(ent)-ID_FROM_HANDLE(start_ent);
@@ -439,16 +439,26 @@ namespace moab{
     if (_infaces.size())
       {
         findex = mbImpl->type_from_handle(*(_infaces.begin()))-1;
-        hmest[0] += refTemplates[findex][d].nv_face*nfaces_prev;
         hmest[2] = nfaces_prev*refTemplates[findex][d].total_new_ents;
       }
     if (_incells.size())
       {
         cindex = mbImpl->type_from_handle(*(_incells.begin()))-1;
-        hmest[0] += refTemplates[cindex][d].nv_face*nfaces;
-        hmest[0] += refTemplates[cindex][d].nv_cell*ncells_prev;
         hmest[3] = ncells_prev*refTemplates[cindex][d].total_new_ents;
       }
+
+    if (meshdim == 2)
+      {
+        findex = mbImpl->type_from_handle(*(_infaces.begin()))-1;
+        hmest[0] += refTemplates[findex][d].nv_face*nfaces_prev;
+      }
+    else if (meshdim == 3)
+      {
+        cindex = mbImpl->type_from_handle(*(_incells.begin()))-1;
+        hmest[0] += refTemplates[cindex][d].nv_face*nfaces;
+        hmest[0] += refTemplates[cindex][d].nv_cell*ncells_prev;
+      }
+
 
     return MB_SUCCESS;
   }
@@ -491,7 +501,7 @@ namespace moab{
     if (estL[2])
       {
         EntityType type = mbImpl->type_from_handle(*(_infaces.begin()));
-        int nvpf = ahf->local_maps_2d(*(_infaces.begin()));
+        int nvpf = ahf->lConnMap2D[type-2].num_verts_in_face;
         error = read_iface->get_element_connect(estL[2], nvpf, type, 0, level_mesh[cur_level].start_face, level_mesh[cur_level].face_conn);MB_CHK_ERR(error);
         level_mesh[cur_level].num_faces = estL[2];
 
@@ -758,10 +768,144 @@ namespace moab{
 
     error = update_global_ahf(MBEDGE, cur_level, deg);MB_CHK_ERR(error);
 
+    error = print_tags_1D(cur_level); MB_CHK_ERR(error);
+
     delete [] vbuffer;
 
     return MB_SUCCESS;
   }
+
+  ErrorCode NestedRefine::construct_hm_1D(int cur_level, int deg, EntityType type, std::vector<EntityHandle> &trackverts)
+    {
+      ErrorCode error;
+
+      int  nedges_prev;
+      if (cur_level)
+        nedges_prev = level_mesh[cur_level-1].num_edges;
+      else
+        nedges_prev = _inedges.size();
+
+      int d = get_index_from_degree(deg);
+      int nve = refTemplates[0][d].nv_edge;
+      int vtotal =  2+ refTemplates[0][d].total_new_verts;
+      int etotal = refTemplates[0][d].total_new_ents;
+      int ne, dim, index;
+      if (type == MBTRI || type == MBQUAD)
+        {
+          index = type-2;
+          ne = ahf->lConnMap2D[index].num_verts_in_face;
+          dim = 2;
+        }
+      else if (type == MBTET || type == MBHEX)
+        {
+          index = ahf->get_index_from_type(*(_incells.begin()));
+          ne =  ahf->lConnMap3D[index].num_edges_in_cell;
+          dim = 3;
+        }
+
+      EntityHandle *vbuffer = new EntityHandle[vtotal];
+      EntityHandle *ent_buffer = new EntityHandle[etotal];
+
+      std::vector<EntityHandle> adjents, econn, fconn;
+      std::vector<int> leids;
+      int count_nents = 0;
+
+      //Loop over all the edges and gather the vertices to be used for refinement
+      for (int eid=0; eid< nedges_prev; eid++)
+        {
+          adjents.clear();
+          leids.clear();
+          econn.clear();
+          fconn.clear();
+          for (int i=0; i<vtotal; i++)
+            vbuffer[i] = 0;
+          for (int i=0; i<etotal; i++)
+            ent_buffer[i] = 0;
+
+          EntityHandle edge;
+          if (cur_level)
+            edge = level_mesh[cur_level-1].start_edge + eid;
+          else
+            edge = _inedges[eid];
+
+          error = get_connectivity(edge, cur_level, econn); MB_CHK_ERR(error);
+
+          for (int i=0; i<(int)econn.size(); i++)
+            {
+              if (cur_level)
+                vbuffer[i] = level_mesh[cur_level].start_vertex+ (econn[i] - level_mesh[cur_level-1].start_vertex);
+              else
+                vbuffer[i] = level_mesh[cur_level].start_vertex + (econn[i] - *_inverts.begin());
+            }
+
+          int fid, lid, idx1, idx2;
+
+          if (dim==2)
+            {
+              error = ahf->get_up_adjacencies_2d(edge, adjents, &leids); MB_CHK_ERR(error);
+              if (cur_level)
+                fid = adjents[0] - level_mesh[cur_level-1].start_face;
+              else
+                fid = _infaces.index(adjents[0]);
+
+              lid = leids[0];
+              idx1 = lid;
+              idx2 = ahf->lConnMap2D[index].next[lid];
+            }
+          else if (dim==3)
+            {
+              error = ahf->get_up_adjacencies_edg_3d(edge, adjents, &leids); MB_CHK_ERR(error);
+              if (cur_level)
+                fid = adjents[0] - level_mesh[cur_level-1].start_cell;
+              else
+                fid = _incells.index(adjents[0]);
+
+              lid = leids[0];
+              idx1 = ahf->lConnMap3D[index].e2v[lid][0];
+              idx2 = ahf->lConnMap3D[index].e2v[lid][1];
+            }
+
+          error = get_connectivity(adjents[0], cur_level, fconn); MB_CHK_ERR(error);
+
+          bool orient = false;
+          if ((fconn[idx1] == econn[0])&&(fconn[idx2] == econn[1]))
+            orient = true;
+
+             if (orient)
+               {
+                 for (int j=0; j<nve; j++)
+                   vbuffer[j+2] = trackverts[fid*ne*nve+nve*lid+j];
+               }
+             else
+               {
+                 for (int j=0; j<nve; j++)
+                   vbuffer[(nve-j-1)+2] = trackverts[fid*ne*nve+nve*lid+j];
+               }
+
+             //Use the template to obtain the subentities
+             int id1, id2;
+
+             for (int i = 0; i < etotal; i++)
+               {
+                 id1 = refTemplates[0][d].ents_conn[i][0];
+                 id2 = refTemplates[0][d].ents_conn[i][1];
+                 level_mesh[cur_level].edge_conn[2*(count_nents)] = vbuffer[id1];
+                 level_mesh[cur_level].edge_conn[2*(count_nents)+1] = vbuffer[id2];
+                 ent_buffer[i] = level_mesh[cur_level].start_edge+count_nents;
+                 count_nents += 1;
+               };
+
+             error = update_local_ahf(deg, MBEDGE,  vbuffer, ent_buffer, etotal); MB_CHK_ERR(error);
+        }
+
+      error = update_global_ahf_1D_sub(cur_level, deg); MB_CHK_ERR(error);
+
+      delete [] vbuffer;
+      delete [] ent_buffer;
+
+      return MB_SUCCESS;
+    }
+
 
   ErrorCode NestedRefine::construct_hm_2D(int cur_level, int deg)
   {
@@ -779,9 +923,9 @@ namespace moab{
       }
 
     //Create some book-keeping arrays over the old mesh to avoid introducing duplicate vertices and calculating vertices more than once.
-    int nepf = ahf->local_maps_2d(*_infaces.begin());
-    EntityType type = mbImpl->type_from_handle(*(_infaces.begin()));
-    int findex = type-1;
+    EntityType ftype = mbImpl->type_from_handle(*_infaces.begin());
+    int nepf = ahf->lConnMap2D[ftype-2].num_verts_in_face;
+    int findex = ftype-1;
 
     int d = get_index_from_degree(deg);
     int tnv = refTemplates[findex][d].total_new_verts;
@@ -863,7 +1007,7 @@ namespace moab{
           }
 
         // Step 3: Update the local AHF maps
-        error = update_local_ahf(deg, type, vbuffer, ent_buffer, etotal);MB_CHK_ERR(error);
+        error = update_local_ahf(deg, ftype, vbuffer, ent_buffer, etotal);MB_CHK_ERR(error);
 
         //Step 4: Add the new vertices to the tracking array
         int id;
@@ -918,20 +1062,193 @@ namespace moab{
         double *corner_coords = new double[nepf*3];
         error = get_coordinates(&cur_conn[0], nepf, cur_level+1, corner_coords);MB_CHK_ERR(error);
 
-        error = compute_coordinates(cur_level, deg, type, vbuffer, vtotal, corner_coords, flag_verts, nverts_prev);MB_CHK_ERR(error);
+        error = compute_coordinates(cur_level, deg, ftype, vbuffer, vtotal, corner_coords, flag_verts, nverts_prev);MB_CHK_ERR(error);
 
         delete [] corner_coords;
 
       }
 
     // Step 6: Update the global maps
-    error = update_global_ahf(type, cur_level, deg);MB_CHK_ERR(error);
+    error = update_global_ahf(ftype, cur_level, deg);MB_CHK_ERR(error);
+
+
+    //Step 7: If edges exists, refine them.
+    if (!_inedges.empty())
+      {
+        error = construct_hm_1D(cur_level, deg, ftype, trackvertsF); MB_CHK_ERR(error);
+      //  error = print_maps_1D(cur_level); MB_CHK_ERR(error);
+      }
 
     delete [] vbuffer;
     delete [] ent_buffer;
 
     return MB_SUCCESS;
   }
+
+  ErrorCode NestedRefine::construct_hm_2D(int cur_level, int deg, EntityType type, std::vector<EntityHandle> &trackvertsE, std::vector<EntityHandle> &trackvertsF)
+    {
+      ErrorCode error;
+      int nents_prev;
+      if (cur_level)
+        nents_prev = level_mesh[cur_level-1].num_faces;
+      else
+        nents_prev = _infaces.size();
+
+      EntityType ftype;
+      if (type == MBTET)
+        ftype = MBTRI;
+      else if (type == MBHEX)
+        ftype = MBQUAD;
+
+      int d = get_index_from_degree(deg);
+      int findex = ftype-1;
+      int cidx = ahf->get_index_from_type(*(_incells.begin()));
+
+      int nepf = ahf->lConnMap2D[ftype-2].num_verts_in_face;
+      int nepc = ahf->lConnMap3D[cidx].num_edges_in_cell;
+      int nfpc = ahf->lConnMap3D[cidx].num_faces_in_cell;
+
+      int tnv = refTemplates[findex][d].total_new_verts;
+      int nve = refTemplates[findex][d].nv_edge;
+      int nvf = refTemplates[findex][d].nv_face;
+      int vtotal = nepf + tnv;
+      int etotal = refTemplates[findex][d].total_new_ents;
+
+      EntityHandle *vbuffer = new EntityHandle[vtotal];
+      EntityHandle *ent_buffer = new EntityHandle[etotal];
+
+      std::vector<EntityHandle> adjents, fconn, cconn;
+      std::vector<int> leids;
+      int count_nents = 0;
+
+      //Step 1: Create the subentities via refinement of the previous mesh
+      for (int it = 0; it < nents_prev; it++)
+        {
+          fconn.clear(); cconn.clear(); adjents.clear(); leids.clear();
+          for (int i=0; i<vtotal; i++)
+            vbuffer[i] = 0;
+          for (int i=0; i<etotal; i++)
+            ent_buffer[i] = 0;
+
+          //EntityHandle of the working face
+          EntityHandle face;
+          if (cur_level)
+            face = level_mesh[cur_level-1].start_face + it;
+          else
+            face = _infaces[it];
+
+          error = get_connectivity(face, cur_level, fconn); MB_CHK_ERR(error);
+
+          // Add the new handles for old connectivity in the buffer
+          for (int i=0; i<(int)fconn.size(); i++)
+            {
+              if (cur_level)
+                vbuffer[i] = level_mesh[cur_level].start_vertex + (fconn[i]-level_mesh[cur_level-1].start_vertex);
+              else
+                vbuffer[i] = level_mesh[cur_level].start_vertex + (fconn[i] - *_inverts.begin());
+            }
+
+          // Add handles for vertices on edges and faces from the already refined cell
+          int fid, lid;
+          error = ahf->get_up_adjacencies_face_3d(face, adjents, &leids); MB_CHK_ERR(error);
+
+          if (cur_level)
+            fid = adjents[0] - level_mesh[cur_level-1].start_cell;
+          else
+            fid = _incells.index(adjents[0]);
+
+          lid = leids[0];
+
+          error = get_connectivity(adjents[0], cur_level, cconn); MB_CHK_ERR(error);
+
+          //Find the orientation w.r.t the half-face and then add vertices properly.
+          EntityHandle *fac_conn = new EntityHandle[nepf];
+          EntityHandle *lfac_conn = new EntityHandle[nepf];
+          for (int j=0; j<nepf; j++)
+            {
+              fac_conn[j] = fconn[j];
+              int id = ahf->lConnMap3D[cidx].hf2v[lid][j];
+              lfac_conn[j] = cconn[id];
+            }
+
+          std::vector<int> le_idx, indices;
+
+          error = reorder_indices(deg, fac_conn, lfac_conn, nepf, le_idx, indices); MB_CHK_ERR(error);
+
+          delete [] fac_conn;
+          delete [] lfac_conn;
+
+          //Add the existing vertices on edges of the already refined cell to the vbuffer
+          for (int j=0; j<nepf; j++)
+            {
+              int id = le_idx[j]; //Corresponding local edge
+              int idx = ahf->lConnMap3D[cidx].f2leid[lid][id]; //Local edge in the cell
+
+              //Get the orientation of the local edge of the face wrt the corresponding local edge in the cell
+              bool eorient = false;
+              int fnext = ahf->lConnMap2D[ftype-2].next[j];
+              int idx1 = ahf->lConnMap3D[cidx].e2v[idx][0];
+              int idx2 = ahf->lConnMap3D[cidx].e2v[idx][1];
+              if ((fconn[j] == cconn[idx1] ) && (fconn[fnext] == cconn[idx2]))
+                eorient = true;
+
+              if (eorient){
+                  for (int k=0; k<nve; k++ )
+                    {
+                      int ind = refTemplates[findex][d].vert_on_edges[j][k];
+                      vbuffer[ind] = trackvertsE[fid*nepc*nve+nve*idx+k];
+                    }
+                }
+              else
+                {
+                  for (int k=0; k<nve; k++ )
+                    {
+                      int ind = refTemplates[findex][d].vert_on_edges[j][nve-k-1];
+                      vbuffer[ind] = trackvertsE[fid*nepc*nve+nve*idx+k];
+                    }
+                }
+            }
+
+          //Add the existing vertices on the face of the refine cell to vbuffer
+          if (nvf)
+            {
+              for (int k=0; k<nvf; k++)
+                {
+                 // int ind = refTemplates[findex][d].vert_on_faces[0][indices[k]-1];
+                  //vbuffer[ind] = trackvertsF[fid*nfpc*nvf+nvf*lid+k];
+                  int ind = refTemplates[findex][d].vert_on_faces[0][k];
+                  vbuffer[ind] = trackvertsF[fid*nfpc*nvf+nvf*lid+indices[k]-1];
+                }
+            }
+
+          // Create the subentities using the template and the vbuffer
+          for (int i = 0; i < etotal; i++)
+            {
+              for (int k = 0; k < nepf; k++)
+                {
+                  int idx = refTemplates[findex][d].ents_conn[i][k];
+                  level_mesh[cur_level].face_conn[nepf*count_nents+k] = vbuffer[idx];
+                }
+              ent_buffer[i] = level_mesh[cur_level].start_face+count_nents;
+              count_nents += 1;
+            }
+
+          error = update_local_ahf(deg, ftype, vbuffer, ent_buffer, etotal); MB_CHK_ERR(error);
+
+        }
+
+  //    error = mbImpl->write_file("test.vtk"); MB_CHK_ERR(error);
+
+      // Step 6: Update the global maps
+      error = update_global_ahf_2D_sub(cur_level, deg);  MB_CHK_ERR(error);
+
+      delete [] vbuffer;
+      delete [] ent_buffer;
+
+      return MB_SUCCESS;
+
+    }
+
 
   ErrorCode NestedRefine::construct_hm_3D(int cur_level, int deg)
   {
@@ -1079,6 +1396,20 @@ namespace moab{
     //Step 6: Update the global maps
     error = update_global_ahf(type, cur_level, deg);MB_CHK_ERR(error);
 
+    //Step 7: If edges exists, refine them as well.
+      if (!_inedges.empty())
+        {
+          error = construct_hm_1D(cur_level,deg, type, trackvertsC_edg); MB_CHK_ERR(error);
+         // error = print_maps_1D(cur_level); MB_CHK_ERR(error);
+        }
+
+      //Step 8: If faces exists, refine them as well.
+      if (!_infaces.empty())
+        {
+          error = construct_hm_2D(cur_level, deg, type, trackvertsC_edg, trackvertsC_face); MB_CHK_ERR(error);
+          //error = print_maps_2D(cur_level,MBQUAD);
+
+        }
     delete [] vbuffer;
 
     return MB_SUCCESS;
@@ -1221,6 +1552,21 @@ namespace moab{
 
     //Step 7: Update the global maps
     error = update_global_ahf(cur_level, deg, cell_patterns);MB_CHK_ERR(error);
+
+    //Step 8: If edges exists, refine them as well.
+      if (!_inedges.empty())
+        {
+          error = construct_hm_1D(cur_level,deg, type, trackvertsC_edg); MB_CHK_ERR(error);
+          //error = print_maps_1D(cur_level); MB_CHK_ERR(error);
+        }
+
+      //Step 9: If faces exists, refine them as well.
+      if (!_infaces.empty())
+        {
+          error = construct_hm_2D(cur_level, deg, type, trackvertsC_edg, trackvertsC_face); MB_CHK_ERR(error);
+          //error = print_maps_2D(cur_level,MBTRI);
+        }
+
 
     delete [] vbuffer;
 
@@ -1411,7 +1757,7 @@ ErrorCode NestedRefine::update_local_ahf(int deg, EntityType type, int pat_id, E
     }
   else if (type == MBTRI || type == MBQUAD)
     {
-      nhf = ahf->local_maps_2d(*_infaces.begin());
+      nhf = ahf->lConnMap2D[type-2].num_verts_in_face;
       nv = nhf;
       total_new_verts = refTemplates[pat_id][d].total_new_verts;
     }
@@ -1657,6 +2003,133 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
    return MB_SUCCESS;
  }
 
+ErrorCode NestedRefine::update_global_ahf_1D_sub(int cur_level, int deg)
+{
+  ErrorCode error;
+  int d = get_index_from_degree(deg);
+  int nhf, nchilds, nents_prev;
+  nhf = 2;
+  nchilds = refTemplates[0][d].total_new_ents;
+  if (cur_level)
+    {
+      nents_prev = level_mesh[cur_level-1].num_edges;
+    }
+  else
+    {
+      nents_prev = _inedges.size();
+    }
+
+  //Update the sibling half-facet maps across entities
+
+  std::vector<EntityHandle> conn;
+  for (int i=0; i< nents_prev; i++)
+    {
+      EntityHandle ent;
+      if (cur_level)
+        ent = level_mesh[cur_level-1].start_edge + i;
+      else
+        ent = _inedges[i];
+
+      //Set incident hv maps
+      conn.clear();
+      error = get_connectivity(ent,cur_level,conn); MB_CHK_ERR(error);
+      for (int j=0; j<2; j++)
+        {
+          // Get the entityhandle of the vertex from previous level in the current level
+          EntityHandle cur_vid;
+          if (cur_level)
+            cur_vid = level_mesh[cur_level].start_vertex + (conn[j]-level_mesh[cur_level-1].start_vertex);
+          else
+            cur_vid = level_mesh[cur_level].start_vertex + (conn[j] - *_inverts.begin());
+
+          //Obtain the incident half-facet. If exists, then no need to assign another
+          EntityHandle inci_ent=0;
+          int inci_lid=0;
+          error = ahf->get_incident_tag(MBEDGE, cur_vid, &inci_ent, &inci_lid);  MB_CHK_ERR(error);
+          if (inci_ent != 0)
+            continue;
+
+          //Get the incident half-facet on the old vertex
+          error = ahf->get_incident_tag(MBEDGE, conn[j], &inci_ent, &inci_lid);  MB_CHK_ERR(error);
+
+          // Obtain the corresponding incident child in the current mesh
+          int lvid = get_local_vid(conn[j], inci_ent, cur_level-1);
+          int chid = refTemplates[0][d].v2hf[lvid][0]-1;
+
+          int pid;
+          if (cur_level)
+            pid = inci_ent - level_mesh[cur_level-1].start_edge;
+          else
+            pid = inci_ent - *_inedges.begin();
+
+          int ind = nchilds*pid;
+
+          EntityHandle child_ent = level_mesh[cur_level].start_edge + ind+chid ;
+          int child_lid = refTemplates[0][d].v2hf[lvid][1];
+
+          error = ahf->set_incident_tag(MBEDGE, cur_vid, &child_ent, &child_lid);  MB_CHK_ERR(error);
+        }
+
+      EntityHandle *sib_entids = new EntityHandle[nhf];
+      int *sib_lids = new int[nhf];
+
+      error = ahf->get_sibling_tag(MBEDGE, ent, &sib_entids[0], &sib_lids[0]);  MB_CHK_ERR(error);
+
+      int id, idx;
+
+      for (int l=0; l < nhf; l++)
+        {
+          if (!sib_entids[l])
+            continue;
+
+          //Find the child incident on the half-facet
+          id = refTemplates[0][d].ents_on_pent[l][1]-1;
+          idx = nchilds*i;
+          EntityHandle child_ent = level_mesh[cur_level].start_edge + idx+id ;
+          int ch_lid = l;
+
+          //Find the sibling of the child
+          EntityHandle *sib_childs = new EntityHandle[nhf];
+          int *sib_chlids = new int[nhf];
+
+          error = ahf->get_sibling_tag(MBEDGE, child_ent, &sib_childs[0], &sib_chlids[0]);  MB_CHK_ERR(error);
+
+          //If the sibling already exists, dont do anything
+          if (sib_childs[ch_lid])
+            continue;
+
+          //Get the correponding child of the sibling of the current parent
+          int psib;
+          if (cur_level)
+            psib = sib_entids[l] - level_mesh[cur_level-1].start_edge;
+          else
+            psib = sib_entids[l] - *_inedges.begin();
+
+          int plid = sib_lids[l];
+
+          id = refTemplates[0][d].ents_on_pent[plid][1]-1;
+          idx = nchilds*psib;
+
+          EntityHandle psib_child = level_mesh[cur_level].start_edge + idx+id ;
+          int psib_chlid = plid;
+
+          //Set the siblings
+          sib_childs[ch_lid] = psib_child;
+          sib_chlids[ch_lid] = psib_chlid;
+
+          error = ahf->set_sibling_tag(MBEDGE, child_ent, &sib_childs[0], &sib_chlids[0]);  MB_CHK_ERR(error);
+
+          delete [] sib_childs;
+          delete [] sib_chlids;
+        }
+      delete [] sib_entids;
+      delete [] sib_lids;
+    }
+
+  return MB_SUCCESS;
+}
+
+
  ErrorCode NestedRefine::update_global_ahf_2D(int cur_level, int deg)
  {
    ErrorCode error;
@@ -1664,7 +2137,7 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
    EntityType type = mbImpl->type_from_handle(*_infaces.begin());
    int nhf, nchilds, nverts_prev, nents_prev;
 
-   nhf = ahf->local_maps_2d(*_infaces.begin());
+   nhf = ahf->lConnMap2D[type-2].num_verts_in_face;
    int d = get_index_from_degree(deg);
    nchilds = refTemplates[type-1][d].total_new_ents;
 
@@ -1717,9 +2190,6 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
 
 
    EntityHandle fedge[2];
-   int * next = new int[nhf];
-   int  * prev = new int[nhf];
-   error = ahf->local_maps_2d(nhf, next, prev);MB_CHK_ERR(error);
 
    //Update the sibling half-facet maps across entities
    for (int i=0; i< nents_prev; i++)
@@ -1746,8 +2216,9 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
            if (!sib_entids[l])
              continue;
 
+           int nidx = ahf->lConnMap2D[type-2].next[l];
            fedge[0] = fid_conn[l];
-           fedge[1] = fid_conn[next[l]];
+           fedge[1] = fid_conn[nidx];
 
            EntityHandle sfid = sib_entids[l];
            int slid = sib_lids[l];
@@ -1757,11 +2228,12 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
            if (MB_SUCCESS != error) return error;
 
            bool orient = true;
-           if ((fedge[1] == conn[slid])&&(fedge[0] == conn[next[slid]]))
+           nidx = ahf->lConnMap2D[type-2].next[slid];
+           if ((fedge[1] == conn[slid])&&(fedge[0] == conn[nidx]))
              orient = false;
 
            if (orient)
-             assert((fedge[0] == conn[slid])&&(fedge[1] == conn[next[slid]]));
+             assert((fedge[0] == conn[slid])&&(fedge[1] == conn[nidx]));
 
            //Find the childrens incident on the half-facet
            int nch = refTemplates[type-1][d].ents_on_pent[l][0];
@@ -1817,12 +2289,166 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
        delete [] sib_lids;
      }
 
-   delete [] next;
-   delete [] prev;
-
    return MB_SUCCESS;
 
  }
+
+ ErrorCode NestedRefine::update_global_ahf_2D_sub(int cur_level, int deg)
+  {
+    ErrorCode error;
+    int d = get_index_from_degree(deg);
+    EntityType type = mbImpl->type_from_handle(*_infaces.begin());
+    int nhf, nchilds, nents_prev;
+    nhf = ahf->lConnMap2D[type-2].num_verts_in_face;
+    nchilds = refTemplates[type-1][d].total_new_ents;
+
+    if (cur_level)
+        nents_prev = level_mesh[cur_level-1].num_faces;
+    else
+        nents_prev = _infaces.size();
+
+    EntityHandle fedge[2];
+
+    //Update the sibling half-facet maps across entities
+    for (int i=0; i< nents_prev; i++)
+      {
+        EntityHandle ent;
+        if (cur_level)
+          ent = level_mesh[cur_level-1].start_face + i;
+        else
+          ent = _infaces[i];
+
+        std::vector<EntityHandle> fid_conn;
+        error = get_connectivity(ent, cur_level, fid_conn);
+        if (MB_SUCCESS != error) return error;
+        //Set incident half-edges
+        for (int j=0; j<nhf; j++)
+          {
+            EntityHandle cur_vid;
+            if (cur_level)
+              cur_vid = level_mesh[cur_level].start_vertex + (fid_conn[j]-level_mesh[cur_level-1].start_vertex);
+            else
+              cur_vid = level_mesh[cur_level].start_vertex + (fid_conn[j] - *_inverts.begin());
+
+            EntityHandle inci_ent=0;
+            int inci_lid=0;
+
+            //Obtain the incident half-facet. If exists, then no need to assign another
+            error = ahf->get_incident_tag(type, cur_vid, &inci_ent, &inci_lid);  MB_CHK_ERR(error);
+            if (inci_ent != 0)
+              continue;
+
+            //Get the incident half-facet on the old vertex
+            error = ahf->get_incident_tag(type, fid_conn[j], &inci_ent, &inci_lid); MB_CHK_ERR(error);
+
+            // Obtain the corresponding incident child in the current mesh
+            int lvid = get_local_vid(fid_conn[j], inci_ent, cur_level-1);
+            int chid = refTemplates[type-1][d].v2hf[lvid][0]-1;
+
+            int pid;
+            if (cur_level)
+              pid = inci_ent - level_mesh[cur_level-1].start_face;
+            else
+              pid = inci_ent - *_infaces.begin();
+
+            int ind = nchilds*pid;
+
+            EntityHandle child_ent = level_mesh[cur_level].start_face + ind+chid ;
+            int child_lid = refTemplates[type-1][d].v2hf[lvid][1];
+
+            error = ahf->set_incident_tag(type, cur_vid, &child_ent, &child_lid);  MB_CHK_ERR(error);
+          }
+
+        //Set sibling half-edges
+        EntityHandle *sib_entids = new EntityHandle[nhf];
+        int *sib_lids = new int[nhf];
+
+        error = ahf->get_sibling_tag(type, ent, &sib_entids[0], &sib_lids[0]);  MB_CHK_ERR(error);
+
+        int id, idx;
+
+        for (int l=0; l < nhf; l++)
+          {
+            if (!sib_entids[l])
+              continue;
+
+            int nidx = ahf->lConnMap2D[type-2].next[l];
+            fedge[0] = fid_conn[l];
+            fedge[1] = fid_conn[nidx];
+
+            EntityHandle sfid = sib_entids[l];
+            int slid = sib_lids[l];
+
+            std::vector<EntityHandle> conn;
+            error = get_connectivity(sfid, cur_level, conn);
+            if (MB_SUCCESS != error) return error;
+
+            bool orient = true;
+            nidx = ahf->lConnMap2D[type-2].next[slid];
+            if ((fedge[1] == conn[slid])&&(fedge[0] == conn[nidx]))
+              orient = false;
+
+            if (orient)
+              assert((fedge[0] == conn[slid])&&(fedge[1] == conn[nidx]));
+
+            //Find the childrens incident on the half-facet
+            int nch = refTemplates[type-1][d].ents_on_pent[l][0];
+            idx = nchilds*i;
+
+            //Loop over all the incident childrens
+            for (int k=0; k<nch; k++)
+              {
+                id = refTemplates[type-1][d].ents_on_pent[l][k+1]-1;
+                EntityHandle child_ent = level_mesh[cur_level].start_face + idx+id ;
+                int ch_lid = l;
+
+                //Find the sibling of the child
+                EntityHandle *sib_childs = new EntityHandle[nhf];
+                int *sib_chlids = new int[nhf];
+
+                error = ahf->get_sibling_tag(type, child_ent, &sib_childs[0], &sib_chlids[0]);MB_CHK_ERR(error);
+
+                if (sib_childs[ch_lid])
+                  continue;
+
+                //Get the correponding child of the sibling of the current parent
+                int psib;
+                if (cur_level)
+                  psib = sfid- level_mesh[cur_level-1].start_face;
+                else
+                  psib = sfid - *_infaces.begin();
+
+                int plid = slid;
+
+                if (orient)
+                  id = refTemplates[type-1][d].ents_on_pent[plid][k+1]-1;
+                else
+                  id = refTemplates[type-1][d].ents_on_pent[plid][nch-k]-1;
+
+               int sidx = nchilds*psib;
+
+                EntityHandle psib_child = level_mesh[cur_level].start_face + sidx+id ;
+                int psib_chlid = plid;
+
+                //Set the siblings
+                sib_childs[ch_lid] = psib_child;
+                sib_chlids[ch_lid] = psib_chlid;
+
+                error = ahf->set_sibling_tag(type, child_ent, &sib_childs[0], &sib_chlids[0]);MB_CHK_ERR(error);
+
+                delete [] sib_childs;
+                delete [] sib_chlids;
+              }
+          }
+
+        delete [] sib_entids;
+        delete [] sib_lids;
+      }
+
+    return MB_SUCCESS;
+
+  }
+
 
 ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg)
 {
@@ -2397,6 +3023,58 @@ ErrorCode NestedRefine::reorder_indices(int cur_level, int deg, EntityHandle cel
   return MB_SUCCESS;
 }
 
+ErrorCode NestedRefine::reorder_indices(int deg, EntityHandle *face1_conn, EntityHandle *face2_conn, int nvF, std::vector<int> &lemap, std::vector<int> &vidx, int *leorient)
+{
+  //Given the connectivities of two faces, get the permuted indices w.r.t first face.
+  //Step 1: First find the orientation
+  int nco = permutation[nvF-3].num_comb;
+  int c = 0;
+  for (int i=0; i<nco; i++)
+    {
+      int count = 0;
+      for (int j=0; j<nvF; j++)
+        {
+          int id = permutation[nvF-3].comb[i][j];
+          if (face1_conn[j] == face2_conn[id])
+            count += 1;
+        }
+
+      if (count == nvF)
+        {
+          c=i;
+          break;
+        }
+    }
+
+  if (c>nco)
+    MB_SET_ERR(MB_FAILURE, "Getting a combination number more than currently supported");
+
+  //Add the corresponding local edges
+  lemap.reserve(nvF);
+  for (int i=0; i<nvF; i++)
+    {
+      lemap.push_back(permutation[nvF-3].lemap[c][i]);
+    }
+  if (leorient)
+    leorient[0] = permutation[nvF-3].orient[c];
+
+  if (nvF==3&&deg==2)
+    return MB_SUCCESS;
+
+  if ((nvF==3 && deg==3)||(nvF==4 && deg==2))
+    {
+      vidx.push_back(1);
+    }
+  else if (nvF==4 && deg==3)
+    {
+      for (int i=0; i<4; i++)
+        vidx.push_back(permutation[nvF-3].porder2[c][i]);
+    }
+
+  return MB_SUCCESS;
+}
+
+
 ErrorCode NestedRefine::count_subentities(EntityHandle set, int cur_level, int *nedges, int *nfaces)
 {
   ErrorCode error;
@@ -2569,7 +3247,8 @@ ErrorCode NestedRefine::print_tags_2D(int level, EntityType type)
   //SIBHES
   std::cout<<"start_face = "<<start_face<<std::endl;
   std::cout<<"<SIBHES_FID,SIBHES_LEID>"<<std::endl;
-  int nepf = ahf->local_maps_2d(*_infaces.begin());
+  EntityType ftype = mbImpl->type_from_handle(*_infaces.begin());
+  int nepf = ahf->lConnMap2D[ftype-2].num_verts_in_face;
 
   std::vector<EntityHandle> fid;
   std::vector<int> leid;
