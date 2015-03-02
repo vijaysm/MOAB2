@@ -553,6 +553,14 @@ namespace moab{
           set = hm_set[l-1];
         else
           set = _rset;
+
+        //debug
+        Range ed;
+        error =mbImpl->get_entities_by_dimension(0,1,ed); MB_CHK_ERR(error);
+        std::cout<<ed.size()<<" Edges before generating the next level"<<std::endl;
+        for (int j=0; j<ed.size(); j++)
+          std::cout<<ed[j]<<std::endl;
+
         error = estimate_hm_storage(set, level_degrees[l], l, hmest);MB_CHK_ERR(error);
 
         //Create arrays for storing the current level
@@ -564,9 +572,39 @@ namespace moab{
         //Create the new entities and new vertices
         error = construct_hm_entities(l, level_degrees[l]);MB_CHK_ERR(error);
 
+        //debug
+        error =mbImpl->get_entities_by_dimension(0,1,ed); MB_CHK_ERR(error);
+        std::cout<<ed.size()<<" Edges after generating the next level"<<std::endl;
+        for (int j=0; j<ed.size(); j++)
+          std::cout<<ed[j]<<std::endl;
+
+        //Go into parallel communication
         if (pcomm)
         {
-          moab::Range vtxs, edgs, facs, elms;
+
+            //TEMP: Add the adjacencies for MOAB-native DS
+            ReadUtilIface *read_iface;
+            error = mbImpl->query_interface(read_iface);MB_CHK_ERR(error);
+            if (level_mesh[l].num_edges != 0)
+              {
+                error = read_iface->update_adjacencies(level_mesh[l].start_edge,level_mesh[l].num_edges, 2, level_mesh[l].edge_conn); MB_CHK_ERR(error);
+              }
+            if (level_mesh[l].num_faces != 0)
+              {
+                EntityType type = mbImpl->type_from_handle(*(_infaces.begin()));
+                int nvpf = ahf->lConnMap2D[type-2].num_verts_in_face;
+                error = read_iface->update_adjacencies(level_mesh[l].start_face,level_mesh[l].num_faces, nvpf, level_mesh[l].face_conn); MB_CHK_ERR(error);
+              }
+            if (level_mesh[l].num_cells != 0)
+              {
+                int index = ahf->get_index_from_type(*_incells.begin());
+                int nvpc = ahf->lConnMap3D[index].num_verts_in_cell;
+                error = read_iface->update_adjacencies(level_mesh[l].start_cell,level_mesh[l].num_cells, nvpc, level_mesh[l].cell_conn); MB_CHK_ERR(error);
+              }
+
+
+
+            moab::Range vtxs, edgs, facs, elms;
           moab::Range adjs, vowned, vghost, vlocal, ents;
           int nloc, nghost, n;
 
@@ -576,6 +614,8 @@ namespace moab{
           error = mbImpl->get_entities_by_dimension(hm_set[l], 2, facs, false);MB_CHK_ERR(error);
           error = mbImpl->get_entities_by_dimension(hm_set[l], 3, elms, false);MB_CHK_ERR(error);
 
+          std::cout<<"nedges ="<<edgs.size()<<std::endl;
+
           Range pents[4] = {vtxs, edgs, facs, elms};
           error = pcomm->assign_global_ids(pents, 3, 1, true, true);MB_CHK_ERR(error);
 
@@ -583,8 +623,20 @@ namespace moab{
 
           std::cout << "ParallelComm in generate_hm: Obtained " << ents.size() << " entities in parallel\n" ;
 
+          //debug
+          error =mbImpl->get_entities_by_dimension(0,1,ed); MB_CHK_ERR(error);
+          std::cout<<ed.size()<<" Edges before resolved shared "<<std::endl;
+          for (int j=0; j<ed.size(); j++)
+            std::cout<<ed[j]<<std::endl;
+
           // resolve shared entities in parallel based on meshdim entities
           error = pcomm->resolve_shared_ents(hm_set[l], ents, meshdim, meshdim-1, NULL, &gidtag);MB_CHK_ERR(error);
+
+          //debug
+          error =mbImpl->get_entities_by_dimension(0,1,ed); MB_CHK_ERR(error);
+          std::cout<<ed.size()<<" Edges after resolved shared "<<std::endl;
+          for (int j=0; j<ed.size(); j++)
+            std::cout<<ed[j]<<std::endl;
 
           error = mbImpl->get_entities_by_type(hm_set[l],moab::MBVERTEX,vlocal,false);MB_CHK_ERR(error);
 
@@ -1076,7 +1128,7 @@ namespace moab{
     if (!_inedges.empty())
       {
         error = construct_hm_1D(cur_level, deg, ftype, trackvertsF); MB_CHK_ERR(error);
-      //  error = print_maps_1D(cur_level); MB_CHK_ERR(error);
+        error = print_tags_1D(cur_level); MB_CHK_ERR(error);
       }
 
     delete [] vbuffer;
@@ -1400,14 +1452,14 @@ namespace moab{
       if (!_inedges.empty())
         {
           error = construct_hm_1D(cur_level,deg, type, trackvertsC_edg); MB_CHK_ERR(error);
-         // error = print_maps_1D(cur_level); MB_CHK_ERR(error);
+          error = print_tags_1D(cur_level); MB_CHK_ERR(error);
         }
 
       //Step 8: If faces exists, refine them as well.
       if (!_infaces.empty())
         {
           error = construct_hm_2D(cur_level, deg, type, trackvertsC_edg, trackvertsC_face); MB_CHK_ERR(error);
-          //error = print_maps_2D(cur_level,MBQUAD);
+          error = print_tags_2D(cur_level,MBQUAD);
 
         }
     delete [] vbuffer;
@@ -1557,14 +1609,14 @@ namespace moab{
       if (!_inedges.empty())
         {
           error = construct_hm_1D(cur_level,deg, type, trackvertsC_edg); MB_CHK_ERR(error);
-          //error = print_maps_1D(cur_level); MB_CHK_ERR(error);
+          error = print_tags_1D(cur_level); MB_CHK_ERR(error);
         }
 
       //Step 9: If faces exists, refine them as well.
       if (!_infaces.empty())
         {
           error = construct_hm_2D(cur_level, deg, type, trackvertsC_edg, trackvertsC_face); MB_CHK_ERR(error);
-          //error = print_maps_2D(cur_level,MBTRI);
+          error = print_tags_2D(cur_level,MBTRI);
         }
 
 
