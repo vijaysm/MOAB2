@@ -3,6 +3,8 @@
 #include "moab/HalfFacetRep.hpp"
 #include "moab/ReadUtilIface.hpp"
 #include "moab/ParallelComm.hpp"
+#include "moab/ParallelMergeMesh.hpp"
+#include "moab/Skinner.hpp"
 #include "moab/Templates.hpp"
 #include "Internals.hpp"
 #include "MBTagConventions.hpp"
@@ -436,12 +438,17 @@ namespace moab{
     hmest[3] = 0;
 
     int findex, cindex;
-    if (_infaces.size())
+    if (nfaces_prev != 0)
       {
-        findex = mbImpl->type_from_handle(*(_infaces.begin()))-1;
+        EntityHandle start_face;
+        if (cur_level)
+          start_face = level_mesh[cur_level-1].start_face;
+        else
+          start_face = *_infaces.begin();
+        findex = mbImpl->type_from_handle(start_face)-1;
         hmest[2] = nfaces_prev*refTemplates[findex][d].total_new_ents;
       }
-    if (_incells.size())
+    if (ncells_prev != 0)
       {
         cindex = mbImpl->type_from_handle(*(_incells.begin()))-1;
         hmest[3] = ncells_prev*refTemplates[cindex][d].total_new_ents;
@@ -449,7 +456,12 @@ namespace moab{
 
     if (meshdim == 2)
       {
-        findex = mbImpl->type_from_handle(*(_infaces.begin()))-1;
+        EntityHandle start_face;
+        if (cur_level)
+          start_face = level_mesh[cur_level-1].start_face;
+        else
+          start_face = *_infaces.begin();
+        findex = mbImpl->type_from_handle(start_face)-1;
         hmest[0] += refTemplates[findex][d].nv_face*nfaces_prev;
       }
     else if (meshdim == 3)
@@ -492,7 +504,7 @@ namespace moab{
 
         Range newedges(level_mesh[cur_level].start_edge, level_mesh[cur_level].start_edge+estL[1] - 1);
         error = mbImpl->add_entities(*set, newedges);MB_CHK_ERR(error);
-        error = read_iface->assign_ids(gidtag, newedges, level_mesh[cur_level].start_edge);MB_CHK_ERR(error);
+     //   error = read_iface->assign_ids(gidtag, newedges, level_mesh[cur_level].start_edge);MB_CHK_ERR(error);
       }
     else
       level_mesh[cur_level].num_edges = 0;
@@ -507,7 +519,7 @@ namespace moab{
 
         Range newfaces(level_mesh[cur_level].start_face, level_mesh[cur_level].start_face+estL[2] - 1);
         error = mbImpl->add_entities(*set, newfaces);MB_CHK_ERR(error);
-        error = read_iface->assign_ids(gidtag, newfaces, level_mesh[cur_level].start_face);MB_CHK_ERR(error);
+       // error = read_iface->assign_ids(gidtag, newfaces, level_mesh[cur_level].start_face);MB_CHK_ERR(error);
       }
     else
       level_mesh[cur_level].num_faces = 0;
@@ -523,10 +535,13 @@ namespace moab{
 
         Range newcells(level_mesh[cur_level].start_cell, level_mesh[cur_level].start_cell+estL[3] - 1);
         error = mbImpl->add_entities(*set, newcells);MB_CHK_ERR(error);
-        error = read_iface->assign_ids(gidtag, newcells, level_mesh[cur_level].start_cell);MB_CHK_ERR(error);
+        //error = read_iface->assign_ids(gidtag, newcells, level_mesh[cur_level].start_cell);MB_CHK_ERR(error);
       }
     else
       level_mesh[cur_level].num_cells = 0;
+
+    //update ranges
+    //error = ahf->update_entity_ranges(); MB_CHK_ERR(error);
 
     return MB_SUCCESS;
   }
@@ -580,8 +595,7 @@ namespace moab{
 
         //Go into parallel communication
         if (pcomm)
-        {
-
+        {              
             //TEMP: Add the adjacencies for MOAB-native DS
             ReadUtilIface *read_iface;
             error = mbImpl->query_interface(read_iface);MB_CHK_ERR(error);
@@ -602,79 +616,126 @@ namespace moab{
                 error = read_iface->update_adjacencies(level_mesh[l].start_cell,level_mesh[l].num_cells, nvpc, level_mesh[l].cell_conn); MB_CHK_ERR(error);
               }
 
+            std::cout<<"Updated the adj-list"<<std::endl;
+            //get entities of highest dimension from the current meshset
+            Range ents;
+            error = mbImpl->get_entities_by_dimension(hm_set[l], meshdim, ents, false);MB_CHK_ERR(error);
+
+         //create the skin entities
+         Skinner sk(mbImpl);
+         Range skinents;
+         for (int skin_dim = meshdim-1; skin_dim >=0; skin_dim--)
+           {
+             std::cout<<"skin_dim ="<<skin_dim<<std::endl;
+             error = sk.find_skin(hm_set[l], ents, skin_dim, skinents, true, true); MB_CHK_ERR(error);
+
+             std::cout<<"Created skin for dim ="<<skin_dim<<std::endl;
+             //Update HF adjacencies for skin edges
+             if ((meshdim==3)&&(skin_dim==1))
+               {
+                 error = ahf->determine_sibling_halfverts(skinents); MB_CHK_ERR(error);
+                 error = ahf->determine_incident_halfverts(skinents); MB_CHK_ERR(error);
+               }
+           }
 
 
             moab::Range vtxs, edgs, facs, elms;
-          moab::Range adjs, vowned, vghost, vlocal, ents;
-          int nloc, nghost, n;
+            moab::Range adjs, vowned, vghost, vlocal;
+            int nloc, nghost, n;
 
-          // get all entities on the rootset
-          error = mbImpl->get_entities_by_dimension(hm_set[l], 0, vtxs, false);MB_CHK_ERR(error);
-          error = mbImpl->get_entities_by_dimension(hm_set[l], 1, edgs, false);MB_CHK_ERR(error);
-          error = mbImpl->get_entities_by_dimension(hm_set[l], 2, facs, false);MB_CHK_ERR(error);
-          error = mbImpl->get_entities_by_dimension(hm_set[l], 3, elms, false);MB_CHK_ERR(error);
+            // get all entities on the rootset
+            error = mbImpl->get_entities_by_dimension(hm_set[l], 0, vtxs, false);MB_CHK_ERR(error);
+            error = mbImpl->get_entities_by_dimension(hm_set[l], 1, edgs, false);MB_CHK_ERR(error);
+            error = mbImpl->get_entities_by_dimension(hm_set[l], 2, facs, false);MB_CHK_ERR(error);
+            error = mbImpl->get_entities_by_dimension(hm_set[l], 3, elms, false);MB_CHK_ERR(error);
 
-          std::cout<<"nedges ="<<edgs.size()<<std::endl;
+            std::cout<<"nedges ="<<edgs.size()<<std::endl;
 
-          Range pents[4] = {vtxs, edgs, facs, elms};
-          error = pcomm->assign_global_ids(pents, 3, 1, true, true);MB_CHK_ERR(error);
+            //  Range pents[4] = {vtxs, edgs, facs, elms};
+            //   error = pcomm->assign_global_ids(pents, 3, 1, true, true);MB_CHK_ERR(error);
 
-          error = mbImpl->get_entities_by_dimension(hm_set[l], meshdim, ents, false);MB_CHK_ERR(error);
+          //  error = mbImpl->get_entities_by_dimension(hm_set[l], meshdim, ents, false);MB_CHK_ERR(error);
 
-          std::cout << "ParallelComm in generate_hm: Obtained " << ents.size() << " entities in parallel\n" ;
+            std::cout << "ParallelComm in generate_hm: Obtained " << ents.size() << " entities in parallel\n" ;
 
-          //debug
-          error =mbImpl->get_entities_by_dimension(0,1,ed); MB_CHK_ERR(error);
-          std::cout<<ed.size()<<" Edges before resolved shared "<<std::endl;
-          for (int j=0; j<ed.size(); j++)
-            std::cout<<ed[j]<<std::endl;
+            //debug
+            error =mbImpl->get_entities_by_dimension(0,1,ed); MB_CHK_ERR(error);
+            std::cout<<ed.size()<<" Edges before resolved shared "<<std::endl;
+            for (int j=0; j<ed.size(); j++)
+              {
+                const EntityHandle *conn;
+                int nconn;
+                error = mbImpl->get_connectivity(ed[j], conn, nconn); MB_CHK_ERR(error);
+                std::cout<<ed[j]<<"  "<<ID_FROM_HANDLE(ed[j])<<"  "<<conn[0]<<" "<<conn[1]<<std::endl;
+              }
 
-          // resolve shared entities in parallel based on meshdim entities
-          error = pcomm->resolve_shared_ents(hm_set[l], ents, meshdim, meshdim-1, NULL, &gidtag);MB_CHK_ERR(error);
+            //Call parallel merge instead of resolved_shared
+            ParallelMergeMesh pm(pcomm, 1e-08);
 
-          //debug
-          error =mbImpl->get_entities_by_dimension(0,1,ed); MB_CHK_ERR(error);
-          std::cout<<ed.size()<<" Edges after resolved shared "<<std::endl;
-          for (int j=0; j<ed.size(); j++)
-            std::cout<<ed[j]<<std::endl;
+            error = pm.merge(hm_set[l], true); MB_CHK_ERR(error);
+            // resolve shared entities in parallel based on meshdim entities
+            // error = pcomm->resolve_shared_ents(hm_set[l], ents, meshdim, meshdim-1, NULL, &gidtag);MB_CHK_ERR(error);
 
-          error = mbImpl->get_entities_by_type(hm_set[l],moab::MBVERTEX,vlocal,false);MB_CHK_ERR(error);
+            //debug
+            error =mbImpl->get_entities_by_dimension(0,1,ed); MB_CHK_ERR(error);
+            std::cout<<ed.size()<<" Edges after resolved shared "<<std::endl;
+            for (int j=0; j<ed.size(); j++)
+              {
+                const EntityHandle *conn;
+                int nconn;
+                error = mbImpl->get_connectivity(ed[j], conn, nconn); MB_CHK_ERR(error);
+                std::cout<<ed[j]<<"  "<<ID_FROM_HANDLE(ed[j])<<"  "<<conn[0]<<" "<<conn[1]<<std::endl;
+              }
 
-          /* filter based on parallel status */
-          error = pcomm->filter_pstatus(vlocal,PSTATUS_NOT_OWNED,PSTATUS_NOT,-1,&vowned);MB_CHK_ERR(error);
+            //Get the vertices on the partition
+            error = mbImpl->get_entities_by_type(hm_set[l],moab::MBVERTEX,vlocal,false);MB_CHK_ERR(error);
 
-          /* filter all the non-owned and shared entities out of the list */
-          adjs = moab::subtract(vlocal, vowned);
-          error = pcomm->filter_pstatus(adjs,PSTATUS_INTERFACE,PSTATUS_OR,-1,&vghost);MB_CHK_ERR(error);
-          adjs = moab::subtract(adjs, vghost);
-          vlocal = moab::subtract(vlocal, adjs);
+            /* filter based on parallel status */
+            error = pcomm->filter_pstatus(vlocal,PSTATUS_NOT_OWNED,PSTATUS_NOT,-1,&vowned);MB_CHK_ERR(error);
 
-          int partid=pcomm->rank(), dum_id=-1;
-          error = mbImpl->tag_get_handle("PARALLEL_PARTITION", 1, moab::MB_TYPE_INTEGER,
-                             part_tag, moab::MB_TAG_CREAT | moab::MB_TAG_SPARSE, &dum_id);MB_CHK_ERR(error);
+            /* filter all the non-owned and shared entities out of the list */
+            adjs = moab::subtract(vlocal, vowned);
+            error = pcomm->filter_pstatus(adjs,PSTATUS_INTERFACE,PSTATUS_OR,-1,&vghost);MB_CHK_ERR(error);
+            adjs = moab::subtract(adjs, vghost);
+            vlocal = moab::subtract(vlocal, adjs);
 
-          /* set the parallel partition tag data */
-          moab::EntityHandle part_set;
-          error = mbImpl->create_meshset(moab::MESHSET_SET, part_set);MB_CHK_ERR(error);
-          error = mbImpl->add_entities(part_set, vowned);MB_CHK_ERR(error);
-          error = mbImpl->add_entities(part_set, edgs);MB_CHK_ERR(error);
-          error = mbImpl->add_entities(part_set, facs);MB_CHK_ERR(error);
-          error = mbImpl->add_entities(part_set, elms);MB_CHK_ERR(error);
-          error = mbImpl->tag_set_data(part_tag, &part_set, 1, &partid);MB_CHK_ERR(error);
+            int partid=pcomm->rank(), dum_id=-1;
+            error = mbImpl->tag_get_handle("PARALLEL_PARTITION", 1, moab::MB_TYPE_INTEGER,
+                                           part_tag, moab::MB_TAG_CREAT | moab::MB_TAG_SPARSE, &dum_id);MB_CHK_ERR(error);
 
-          /* compute and cache the sizes of local and ghosted entities */
-          nloc = vowned.size();
-          nghost = vghost.size();
-          MPI_Allreduce(&nloc, &n, 1, MPI_INTEGER, MPI_SUM, pcomm->comm());
+            /* set the parallel partition tag data */
+            moab::EntityHandle part_set;
+            error = mbImpl->create_meshset(moab::MESHSET_SET, part_set);MB_CHK_ERR(error);
+            error = mbImpl->add_entities(part_set, vtxs);MB_CHK_ERR(error);
+            error = mbImpl->add_entities(part_set, edgs);MB_CHK_ERR(error);
+            error = mbImpl->add_entities(part_set, facs);MB_CHK_ERR(error);
+            error = mbImpl->add_entities(part_set, elms);MB_CHK_ERR(error);
+            error = mbImpl->tag_set_data(part_tag, &part_set, 1, &partid);MB_CHK_ERR(error);
 
-          if (!pcomm->rank())
+            /* compute and cache the sizes of local and ghosted entities */
+            nloc = vowned.size();
+            nghost = vghost.size();
+            MPI_Allreduce(&nloc, &n, 1, MPI_INTEGER, MPI_SUM, pcomm->comm());
+
+            if (!pcomm->rank())
             std::cout << "Filset ID: " << hm_set[l] << ", Total - " << n << ", Local vowned - " << nloc << ", Local vghost - " << nghost << ".\n " ;
-        }
+
+            Range pents[4] = {vtxs, edgs, facs, elms};
+            error = pcomm->assign_global_ids(pents, 3, 1, true, false);MB_CHK_ERR(error);
+
+            std::stringstream file;
+            file <<  "MESH_LEVEL_"<<l+1<<".h5m";
+            std::string str = file.str();
+            const char* output_file = str.c_str();
+            mbImpl->write_file(output_file, 0, ";;PARALLEL=WRITE_PART", &part_set, 1);
+          }
+
+
       }
 
-      mbImpl->write_file("test.h5m", 0, ";;PARALLEL=WRITE_PART");
+    mbImpl->write_file("test.h5m", 0, ";;PARALLEL=WRITE_PART");
 
-    if(pcomm && false) {
+    /*  if(pcomm && false) {
       moab::Range ents;
 
       // get all entities on the rootset
@@ -684,7 +745,7 @@ namespace moab{
 
       // resolve shared entities in parallel based on meshdim entities
       error = pcomm->resolve_shared_ents(0, ents, meshdim, meshdim-1, NULL, &gidtag);MB_CHK_ERR(error);
-    }
+    }*/
     return MB_SUCCESS;
   }
 
@@ -820,7 +881,7 @@ namespace moab{
 
     error = update_global_ahf(MBEDGE, cur_level, deg);MB_CHK_ERR(error);
 
-    error = print_tags_1D(cur_level); MB_CHK_ERR(error);
+    //error = print_tags_1D(cur_level); MB_CHK_ERR(error);
 
     delete [] vbuffer;
 
@@ -1128,7 +1189,7 @@ namespace moab{
     if (!_inedges.empty())
       {
         error = construct_hm_1D(cur_level, deg, ftype, trackvertsF); MB_CHK_ERR(error);
-        error = print_tags_1D(cur_level); MB_CHK_ERR(error);
+      //  error = print_tags_1D(cur_level); MB_CHK_ERR(error);
       }
 
     delete [] vbuffer;
@@ -1452,7 +1513,7 @@ namespace moab{
       if (!_inedges.empty())
         {
           error = construct_hm_1D(cur_level,deg, type, trackvertsC_edg); MB_CHK_ERR(error);
-          error = print_tags_1D(cur_level); MB_CHK_ERR(error);
+        //  error = print_tags_1D(cur_level); MB_CHK_ERR(error);
         }
 
       //Step 8: If faces exists, refine them as well.
@@ -1609,14 +1670,14 @@ namespace moab{
       if (!_inedges.empty())
         {
           error = construct_hm_1D(cur_level,deg, type, trackvertsC_edg); MB_CHK_ERR(error);
-          error = print_tags_1D(cur_level); MB_CHK_ERR(error);
+          //error = print_tags_1D(cur_level); MB_CHK_ERR(error);
         }
 
       //Step 9: If faces exists, refine them as well.
       if (!_infaces.empty())
         {
           error = construct_hm_2D(cur_level, deg, type, trackvertsC_edg, trackvertsC_face); MB_CHK_ERR(error);
-          error = print_tags_2D(cur_level,MBTRI);
+         // error = print_tags_2D(cur_level,MBTRI);
         }
 
 

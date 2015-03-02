@@ -27,15 +27,15 @@ namespace moab{
   
   //Have a wrapper function on the actual merge to avoid memory leaks
   //Merges elements within a proximity of epsilon
-  ErrorCode ParallelMergeMesh::merge() 
+  ErrorCode ParallelMergeMesh::merge(EntityHandle levelset, bool skip_local_merge)
   {
-    ErrorCode rval = PerformMerge();
+    ErrorCode rval = PerformMerge(levelset, skip_local_merge);
     CleanUp();
     return rval;
   }
 
   //Perform the merge
-  ErrorCode ParallelMergeMesh::PerformMerge()
+  ErrorCode ParallelMergeMesh::PerformMerge(EntityHandle levelset, bool skip_local_merge)
   {
     //Get the mesh dimension
     int dim;
@@ -45,7 +45,7 @@ namespace moab{
     }
     
     //Get the local skin elements
-    rval = PopulateMySkinEnts(0,dim);
+    rval = PopulateMySkinEnts(levelset,dim, skip_local_merge);
     //If there is only 1 proc, we can return now
     if(rval != MB_SUCCESS || myPcomm->size() == 1){
       return rval;
@@ -107,7 +107,7 @@ namespace moab{
   }
 
   //Sets mySkinEnts with all of the skin entities on the processor
-  ErrorCode ParallelMergeMesh::PopulateMySkinEnts(const EntityHandle meshset,int dim)
+  ErrorCode ParallelMergeMesh::PopulateMySkinEnts(const EntityHandle meshset,int dim, bool skip_local_merge)
   {
     /*Merge Mesh Locally*/
     //Get all dim dimensional entities
@@ -124,19 +124,22 @@ namespace moab{
     }
 
     //Merge Mesh Locally
-    MergeMesh merger(myMB, false);
-    merger.merge_entities(ents,myEps);
-    //We can return if there is only 1 proc
-    if(rval != MB_SUCCESS || myPcomm->size() == 1){
-      return rval;
-    }
+    if (!skip_local_merge)
+      {
+        MergeMesh merger(myMB, false);
+        merger.merge_entities(ents,myEps);
+        //We can return if there is only 1 proc
+        if(rval != MB_SUCCESS || myPcomm->size() == 1){
+            return rval;
+          }
 
-    //Rebuild the ents range
-    ents.clear();
-    rval = myMB->get_entities_by_dimension(0,dim,ents);
-    if(rval != MB_SUCCESS){
-      return rval;
-    }
+        //Rebuild the ents range
+        ents.clear();
+        rval = myMB->get_entities_by_dimension(0,dim,ents);
+        if(rval != MB_SUCCESS){
+            return rval;
+          }
+      }
 
     /*Get Skin
       -Get Range of all dimensional entities

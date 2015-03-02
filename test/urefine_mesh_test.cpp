@@ -66,7 +66,7 @@ ErrorCode test_adjacencies(Interface *mbImpl, NestedRefine *nr, Range all_ents)
     {
       //1D Queries //
       //IQ1: For every vertex, obtain incident edges
-   /*   for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
+      for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
           adjents.clear(); mbents.clear(); ahfents.clear();
           error = nr->get_adjacencies( *i, 1, adjents);  CHECK_ERR(error);
           error = mbImpl->get_adjacencies( &*i, 1, 1, false, mbents ); CHECK_ERR(error);
@@ -85,7 +85,7 @@ ErrorCode test_adjacencies(Interface *mbImpl, NestedRefine *nr, Range all_ents)
           std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
           mbents = subtract(mbents, ahfents);
           CHECK(!mbents.size());
-      }*/
+      }
 
       //NQ1:  For every edge, obtain neighbor edges
       for (Range::iterator i = edges.begin(); i != edges.end(); ++i) {

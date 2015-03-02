@@ -156,13 +156,15 @@ ErrorCode HalfFacetRep::initialize()
   mInitAHFmaps = true;
 
   /* Get all entities by dimension on the meshset with recursion turned on */
-  if (pcomm) {
-    moab::Range _averts,_aedgs,_afacs,_acels;
+//  if (pcomm) {
+/*    moab::Range _averts,_aedgs,_afacs,_acels;
 
     error = mb->get_entities_by_dimension(this->_rset, 0, _averts, true);MB_CHK_ERR(error);
     error = mb->get_entities_by_dimension(this->_rset, 1, _aedgs, true);MB_CHK_ERR(error);
     error = mb->get_entities_by_dimension(this->_rset, 2, _afacs, true);MB_CHK_ERR(error);
     error = mb->get_entities_by_dimension(this->_rset, 3, _acels, true);MB_CHK_ERR(error);
+
+    std::cout<<"nedges = "<<_aedgs.size()<<std::endl;
 
     if (!pcomm->rank())
       std::cout << "[0] HalfFacetRep::initialize: Obtained all verts " << _averts.size() << " entities in parallel\n" ;
@@ -170,7 +172,7 @@ ErrorCode HalfFacetRep::initialize()
       std::cout << "[1] HalfFacetRep::initialize: Obtained all verts " << _averts.size() << " entities in parallel\n" ;
     MPI_Barrier(pcomm->comm());
 
-    /* filter based on parallel status */
+    /* filter based on parallel status
     error = pcomm->filter_pstatus(_averts,PSTATUS_NOT_OWNED,PSTATUS_NOT,-1,&_verts);MB_CHK_ERR(error);
     error = pcomm->filter_pstatus(_aedgs,PSTATUS_NOT_OWNED,PSTATUS_NOT,-1,&_edges);MB_CHK_ERR(error);
     error = pcomm->filter_pstatus(_afacs,PSTATUS_NOT_OWNED,PSTATUS_NOT,-1,&_faces);MB_CHK_ERR(error);
@@ -182,7 +184,12 @@ ErrorCode HalfFacetRep::initialize()
     error = mb->get_entities_by_dimension( this->_rset, 1, _edges, true);MB_CHK_ERR(error);
     error = mb->get_entities_by_dimension( this->_rset, 2, _faces, true);MB_CHK_ERR(error);
     error = mb->get_entities_by_dimension( this->_rset, 3, _cells, true);MB_CHK_ERR(error);
-  }
+  }*/
+
+  error = mb->get_entities_by_dimension( this->_rset, 0, _verts, true);MB_CHK_ERR(error);
+  error = mb->get_entities_by_dimension( this->_rset, 1, _edges, true);MB_CHK_ERR(error);
+  error = mb->get_entities_by_dimension( this->_rset, 2, _faces, true);MB_CHK_ERR(error);
+  error = mb->get_entities_by_dimension( this->_rset, 3, _cells, true);MB_CHK_ERR(error);
 
   int nverts = _verts.size();
   int nedges = _edges.size();
@@ -2769,6 +2776,28 @@ ErrorCode HalfFacetRep::get_entity_ranges(Range &verts, Range &edges, Range &fac
 
   return MB_SUCCESS;
 }
+
+ErrorCode HalfFacetRep::update_entity_ranges()
+  {
+   ErrorCode error;
+   Range verts, edges, faces, cells;
+
+   error = mb->get_entities_by_dimension(this->_rset, 0, verts, true);MB_CHK_ERR(error);
+
+   error = mb->get_entities_by_dimension(this->_rset, 1, edges, true);MB_CHK_ERR(error);
+
+   error = mb->get_entities_by_dimension(this->_rset, 2, faces, true);MB_CHK_ERR(error);
+
+   error = mb->get_entities_by_dimension(this->_rset, 3, cells, true);MB_CHK_ERR(error);
+
+   _verts = verts;
+   _edges = edges;
+   _faces = faces;
+   _cells = cells;
+
+   return MB_SUCCESS;
+  }
+
 
 
 } // namespace moab
