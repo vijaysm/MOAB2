@@ -157,7 +157,7 @@ namespace moab
 
     }*/
 
-    ErrorCode LinearTri::normalFcn(const int facet, const int ientDim, const double *verts, const int nverts, double *normal)
+    ErrorCode LinearTri::normalFcn(const int ientDim, const int facet, const int nverts, const double *verts,  double normal[3])
     {
       assert(facet < 3 && ientDim == 1 && nverts==3);
 

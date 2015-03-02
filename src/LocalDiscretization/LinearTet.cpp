@@ -151,7 +151,7 @@ namespace moab
       return MB_SUCCESS;
     }// Map::evaluate_reverse()
 
-    ErrorCode LinearTet::normalFcn(const int facet, const int ientDim, const double *verts, const int nverts, double *normal)
+    ErrorCode LinearTet::normalFcn(const int ientDim, const int facet, const int nverts, const double *verts,  double normal[3])
     {
       assert(facet < 4 && ientDim == 2 && nverts == 4);
       int id0 = CN::mConnectivityMap[MBTET][ientDim-1].conn[facet][0];

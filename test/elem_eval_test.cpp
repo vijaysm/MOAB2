@@ -272,8 +272,8 @@ void test_normal_linear_tri()
   for (int i=0; i<4; i++)
     {
       ee.set_ent_handle(faces[i]);
-      ee.get_normal(0, 1, nrms[2*i]);
-      ee.get_normal(2, 1, nrms[2*i+1]);
+      ee.get_normal(1, 0, nrms[2*i]);
+      ee.get_normal(1, 2, nrms[2*i+1]);
     }
 
   for (int i=0; i<4; i++)
@@ -308,8 +308,8 @@ void test_normal_linear_quad()
   for (int i=0; i<4; i++)
     {
       ee.set_ent_handle(faces[i]);
-      ee.get_normal(0, 1, nrms[2*i]);
-      ee.get_normal(3, 1, nrms[2*i+1]);
+      ee.get_normal(1, 0, nrms[2*i]);
+      ee.get_normal(1, 3, nrms[2*i+1]);
     }
 
   for (int i=0; i<4; i++)
@@ -344,7 +344,7 @@ void test_normal_linear_tet()
   for (int i=0; i<4; i++)
     {
       ee.set_ent_handle(cells[i]);
-      ee.get_normal(0, 2, nrms[2*i]);
+      ee.get_normal(2, 0, nrms[2*i]);
       ee.get_normal(2, 2, nrms[2*i+1]);
     }
 
@@ -380,8 +380,8 @@ void test_normal_linear_hex()
   for (int i=0; i<4; i++)
     {
       ee.set_ent_handle(cells[i]);
-      ee.get_normal(0, 2, nrms[2*i]);
-      ee.get_normal(3, 2, nrms[2*i+1]);
+      ee.get_normal(2, 0, nrms[2*i]);
+      ee.get_normal(2, 3, nrms[2*i+1]);
     }
 
   for (int i=0; i<4; i++)

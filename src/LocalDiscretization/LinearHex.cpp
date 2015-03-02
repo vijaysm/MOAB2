@@ -110,7 +110,7 @@ namespace moab
       return EvalSet::inside_function(params, ndim, tol);
     }
 
-    ErrorCode LinearHex::normalFcn(const int facet, const int ientDim, const double *verts, const int nverts, double *normal)
+    ErrorCode LinearHex::normalFcn(const int ientDim, const int facet, const int nverts, const double *verts,  double normal[3])
     {
       assert(facet < 6 && ientDim == 2 && nverts == 8);
       int id0 = CN::mConnectivityMap[MBHEX][ientDim-1].conn[facet][0];

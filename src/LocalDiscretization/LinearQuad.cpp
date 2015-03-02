@@ -88,7 +88,7 @@ namespace moab
       return EvalSet::inside_function(params, ndim, tol);
     }
     
-    ErrorCode LinearQuad::normalFcn(const int facet, const int ientDim, const double *verts, const int nverts, double *normal)
+    ErrorCode LinearQuad::normalFcn(const int ientDim, const int facet, const int nverts, const double *verts,  double normal[3])
     {
       assert(facet <4 && ientDim == 1 && nverts==4);
 

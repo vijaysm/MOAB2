@@ -28,7 +28,7 @@ namespace moab {
                                         const double iter_tol, const double inside_tol, 
                                         double *work, double *params, int *is_inside);
         
-  typedef ErrorCode (*NormalFcn)(const int facet, const int  ientDim, const double *verts, const int nverts, double *normal);
+  typedef ErrorCode (*NormalFcn)(const int ientDim, const int facet, const int nverts, const double *verts,  double normal[3]);
 
     class EvalSet
     {
@@ -149,7 +149,13 @@ namespace moab {
       ErrorCode reverse_eval(const double *posn, double iter_tol, double inside_tol, double *params, 
                              int *is_inside = NULL) const;
 
-      ErrorCode get_normal(const int facet, const int ientDim, double *normal) const;
+      /**
+       * \brief Evaluate the normal to a facet of an entity
+       * \param ientDim Dimension of the facet. Should be (d-1) for d-dimensional entities
+       * \param facet Local id of the facet w.r.t the entity
+       * \param normal Returns the normal.
+       */
+      ErrorCode get_normal(const int ientDim, const int facet, double normal[3]) const;
         
         /** \brief Evaluate the jacobian of the cached entity at a given parametric location
          * \param params Parameters at which to evaluate jacobian
@@ -473,10 +479,10 @@ namespace moab {
     }
 
       /** \brief Evaluate the normal of the cached entity at a given facet */
-    inline ErrorCode ElemEvaluator::get_normal(const int facet, const int ientDim, double *normal) const
+    inline ErrorCode ElemEvaluator::get_normal(const int ientDim, const int facet, double normal[]) const
     {
       assert(entHandle && MBMAXTYPE != entType);
-      return (*evalSets[entType].normalFcn)(facet, ientDim, vertPos[0].array(), numVerts, normal);
+      return (*evalSets[entType].normalFcn)( ientDim, facet, numVerts, vertPos[0].array(), normal);
     }
         
       /** \brief Evaluate the jacobian of the cached entity at a given parametric location */
