@@ -78,7 +78,7 @@ class HalfFacetRep
 
 public:
 
-  HalfFacetRep(Core *impl, ParallelComm *comm, moab::EntityHandle rset=0);
+  HalfFacetRep(Core *impl, ParallelComm *comm=0, moab::EntityHandle rset=0);
 
   ~HalfFacetRep();
 

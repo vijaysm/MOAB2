@@ -31,7 +31,7 @@ namespace moab
     
   public:
 
-    NestedRefine(Core *impl, ParallelComm *comm, EntityHandle rset=0);
+    NestedRefine(Core *impl, ParallelComm *comm=0, EntityHandle rset=0);
     
     ~NestedRefine();
     

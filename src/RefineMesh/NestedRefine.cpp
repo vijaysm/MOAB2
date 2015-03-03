@@ -349,45 +349,23 @@ namespace moab{
 
   bool NestedRefine::is_entity_on_boundary(EntityHandle &entity)
   {
-    ErrorCode error;
-    bool is_border = false;
     EntityType type = mbImpl->type_from_handle(entity);
-    EntityHandle ent;
-    int lid;
 
     if (type == MBVERTEX)
-      {
-        error = ahf->get_incident_tag(elementype, entity, &ent, &lid); MB_CHK_ERR(error);
-      }
-    else if (type == MBEDGE || type == MBTRI || type == MBQUAD || type == MBTET || type == MBHEX)
-      {
-        ent = entity; lid = 0;
-      }
-    else
+    {
+      return is_boundary_vertex(entity);
+    }
+    else if (!(type == MBEDGE || type == MBTRI || type == MBQUAD || type == MBTET || type == MBHEX))
+    {
       MB_SET_ERR(MB_FAILURE, "Requesting boundary information for unsupported entity type");
+    }
+    else {
+      EntityHandle sibents;
+      int siblids;
+      ErrorCode error = ahf->get_sibling_tag(elementype, entity, &sibents, &siblids); MB_CHK_ERR(error);
 
-    std::vector<EntityHandle> sibents;
-    std::vector<int> siblids;
-    error = ahf->get_sibling_tag(elementype, ent, &sibents[0], &siblids[0]); MB_CHK_ERR(error);
-
-    if (type == MBVERTEX)
-      {
-        if (sibents[lid] == 0)
-          is_border = true;
-      }
-    else
-      {
-        for (int i=0; i<(int)sibents.size(); i++)
-          {
-            if (sibents[i] == 0)
-              {
-                is_border = true;
-                break;
-              }
-          }
-      }
-
-    return is_border;
+      return (sibents==0);
+    }
   }
   
   bool NestedRefine::is_boundary_vertex(EntityHandle vertex)

@@ -2612,7 +2612,7 @@ bool HalfFacetRep::find_match_in_array(EntityHandle ent, EntityHandle *ent_list,
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-ErrorCode HalfFacetRep::get_sibling_tag(EntityType type, EntityHandle ent,  EntityHandle *sib_entids, int *sib_lids)
+ErrorCode HalfFacetRep::get_sibling_tag(EntityType type, EntityHandle ent, EntityHandle *sib_entids, int *sib_lids)
 {
   ErrorCode error;
 
