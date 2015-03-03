@@ -431,8 +431,17 @@ public:
   ErrorCode set_incident_tag(EntityType type, EntityHandle vid, EntityHandle *set_entid, int *set_lid);
 
   // 2D and 3D local maps
-  int local_maps_2d(EntityHandle face);
-  ErrorCode local_maps_2d(int nepf, int *next, int *prev);
+  //! 2D local maps
+  struct LocalMaps2D{
+    //! Number of vertices in a face
+    short int num_verts_in_face;
+    //! Local ids of the next half-edge
+    int next[MAX_INCIDENT_HF];
+    //! Local ids of the previous half-edge
+    int prev[MAX_INCIDENT_HF];
+  };
+  static const LocalMaps2D lConnMap2D[2];
+
   struct LocalMaps3D
   {
     short int num_verts_in_cell; // Number of vertices per cell
@@ -455,6 +464,7 @@ public:
   MESHTYPE thismeshtype;
   int get_index_from_type(EntityHandle cid);
   ErrorCode get_entity_ranges(Range &verts, Range &edges, Range &faces, Range &cells);
+  ErrorCode update_entity_ranges();
 
 protected:
 

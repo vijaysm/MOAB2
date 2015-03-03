@@ -199,9 +199,12 @@ namespace moab
     ErrorCode generate_hm(int *level_degrees, int num_level, EntityHandle *hm_set);
     ErrorCode construct_hm_entities(int cur_level, int deg);
     ErrorCode construct_hm_1D(int cur_level, int deg);
-    ErrorCode construct_hm_2D(int cur_level, int deg);
-    ErrorCode construct_hm_3D(int cur_level, int deg);
+    ErrorCode construct_hm_1D(int cur_level, int deg, EntityType type, std::vector<EntityHandle> &trackverts);
 
+    ErrorCode construct_hm_2D(int cur_level, int deg);
+     ErrorCode construct_hm_2D(int cur_level, int deg, EntityType type, std::vector<EntityHandle> &trackvertsC_edg, std::vector<EntityHandle> &trackvertsF);
+
+    ErrorCode construct_hm_3D(int cur_level, int deg);
     ErrorCode subdivide_cells(EntityType type,int cur_level, int deg);
     ErrorCode subdivide_tets(int cur_level, int deg);
 
@@ -215,11 +218,14 @@ namespace moab
     // Book-keeping functions
     ErrorCode update_tracking_verts(EntityHandle cid, int cur_level, int deg, std::vector<EntityHandle> &trackvertsC_edg, std::vector<EntityHandle> &trackvertsC_face, EntityHandle *vbuffer);
     ErrorCode reorder_indices(int cur_level, int deg, EntityHandle cell, int lfid, EntityHandle sib_cell, int sib_lfid, int index, int *id_sib);
+     ErrorCode reorder_indices(int deg, EntityHandle *face1_conn, EntityHandle *face2_conn, int nvF, std::vector<int> &lemap, std::vector<int> &vidx, int *leorient=NULL);
 
     //Permutation matrices
     struct pmat{
       short int num_comb; // Number of combinations
       int comb[MAX_HE][MAX_HE]; //Combinations
+      int lemap[MAX_HE][MAX_HE]; //Local edge map
+      int orient[MAX_HE]; //Orientation
       int porder2[MAX_HE][MAX_HE]; // Permuted order degree 2
       int porder3[MAX_HE][MAX_HE]; // Permuted order degree 3
     };
@@ -245,8 +251,10 @@ namespace moab
     ErrorCode update_global_ahf(int cur_level, int deg, std::vector<int> &pattern_ids);
 
     ErrorCode update_global_ahf_1D(int cur_level, int deg);
+    ErrorCode update_global_ahf_1D_sub(int cur_level, int deg);
 
     ErrorCode update_global_ahf_2D(int cur_level, int deg);
+    ErrorCode update_global_ahf_2D_sub(int cur_level, int deg);
 
     ErrorCode update_global_ahf_3D(int cur_level, int deg);
 

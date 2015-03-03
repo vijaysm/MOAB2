@@ -81,7 +81,13 @@ ErrorCode ahf_test(const char* filename)
     error = mbImpl->get_entities_by_dimension( 0, 3, cells);
 
     // Create an ahf instance
+#ifdef USE_MPI
+    moab::ParallelComm *pc = new moab::ParallelComm(&moab, MPI_COMM_WORLD);
+    HalfFacetRep ahf(&moab, pc);
+#else
     HalfFacetRep ahf(&moab);
+#endif
+
 
     // Call the initialize function which creates the maps for each dimension
     ahf.initialize();
