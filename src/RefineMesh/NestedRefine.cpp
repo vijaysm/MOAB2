@@ -619,7 +619,6 @@ namespace moab{
                 error = read_iface->update_adjacencies(level_mesh[l].start_cell,level_mesh[l].num_cells, nvpc, level_mesh[l].cell_conn); MB_CHK_ERR(error);
               }
 
-            std::cout<<"Updated the adj-list"<<std::endl;
             //get entities of highest dimension from the current meshset
             Range ents;
             error = mbImpl->get_entities_by_dimension(hm_set[l], meshdim, ents, false);MB_CHK_ERR(error);
@@ -657,11 +656,9 @@ namespace moab{
             //   error = pcomm->assign_global_ids(pents, 3, 1, true, true);MB_CHK_ERR(error);
 
           //  error = mbImpl->get_entities_by_dimension(hm_set[l], meshdim, ents, false);MB_CHK_ERR(error);
-
 #ifdef PETSC_DEBUG_ONLY
             std::cout << "ParallelComm in generate_hm: Obtained " << ents.size() << " entities in parallel\n" ;
 #endif
-
             //debug
             error =mbImpl->get_entities_by_dimension(0,1,ed); MB_CHK_ERR(error);
             std::cout<<ed.size()<<" Edges before resolved shared "<<std::endl;
@@ -690,7 +687,6 @@ namespace moab{
                 error = mbImpl->get_connectivity(ed[j], conn, nconn); MB_CHK_ERR(error);
                 std::cout<<ed[j]<<"  "<<ID_FROM_HANDLE(ed[j])<<"  "<<conn[0]<<" "<<conn[1]<<std::endl;
               }
-
 
             //Get the vertices on the partition
             error = mbImpl->get_entities_by_type(hm_set[l],moab::MBVERTEX,vlocal,false);MB_CHK_ERR(error);
@@ -737,7 +733,6 @@ namespace moab{
 #endif
 
           }
-
       }
 
     mbImpl->write_file("test.h5m", 0, ";;PARALLEL=WRITE_PART");

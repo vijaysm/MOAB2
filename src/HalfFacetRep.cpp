@@ -165,14 +165,6 @@ ErrorCode HalfFacetRep::initialize()
       error = mb->get_entities_by_dimension(this->_rset, 2, _afacs, true);MB_CHK_ERR(error);
       error = mb->get_entities_by_dimension(this->_rset, 3, _acels, true);MB_CHK_ERR(error);
 
-      std::cout<<"nedges = "<<_aedgs.size()<<std::endl;
-
-      if (!pcomm->rank())
-        std::cout << "[0] HalfFacetRep::initialize: Obtained all verts " << _averts.size() << " entities in parallel\n" ;
-      else
-        std::cout << "[1] HalfFacetRep::initialize: Obtained all verts " << _averts.size() << " entities in parallel\n" ;
-      MPI_Barrier(pcomm->comm());
-
       // filter based on parallel status
       error = pcomm->filter_pstatus(_averts,PSTATUS_GHOST,PSTATUS_NOT,-1,&_verts);MB_CHK_ERR(error);
       error = pcomm->filter_pstatus(_aedgs,PSTATUS_GHOST,PSTATUS_NOT,-1,&_edges);MB_CHK_ERR(error);
@@ -1033,7 +1025,6 @@ ErrorCode HalfFacetRep::determine_sibling_halfedges( Range &faces)
       int nidx = lConnMap2D[ftype-2].next[k];
       int v = _verts.index(conn[k]);
       int vn = _verts.index(conn[nidx]);
-
       if (v < 0 || vn < 0 ) MB_CHK_SET_ERR(MB_FAILURE, "Invalid face connectivity in AHF map\n");
 
       EntityHandle first_fid = *fid;
