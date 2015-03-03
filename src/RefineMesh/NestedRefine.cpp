@@ -21,8 +21,13 @@ namespace moab{
     : mbImpl(impl), pcomm(comm), _rset(rset)
   {
     assert(NULL != impl);
-
     ErrorCode error;
+
+    // Get the Parallel Comm instance to prepare all new sets to work in parallel
+    // in case the user did not provide any arguments
+    if (!pcomm)
+      pcomm = moab::ParallelComm::get_pcomm(mbImpl, 0);
+
     error = initialize();
     if (error != MB_SUCCESS)
     {
@@ -30,9 +35,6 @@ namespace moab{
       exit(1);
     }
 
-    // Get the Parallel Comm instance to prepare all new sets to work in parallel
-    // in case the user did not provide any arguments
-    pcomm = moab::ParallelComm::get_pcomm(mbImpl, 0);
   }
 
   NestedRefine::~NestedRefine()
@@ -595,7 +597,7 @@ namespace moab{
 
         //Go into parallel communication
         if (pcomm)
-        {              
+        {
             //TEMP: Add the adjacencies for MOAB-native DS
             ReadUtilIface *read_iface;
             error = mbImpl->query_interface(read_iface);MB_CHK_ERR(error);
@@ -637,7 +639,6 @@ namespace moab{
                  error = ahf->determine_incident_halfverts(skinents); MB_CHK_ERR(error);
                }
            }
-
 
             moab::Range vtxs, edgs, facs, elms;
             moab::Range adjs, vowned, vghost, vlocal;
