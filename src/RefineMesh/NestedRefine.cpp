@@ -601,22 +601,23 @@ namespace moab{
             Range ents;
             error = mbImpl->get_entities_by_dimension(hm_set[l], meshdim, ents, false);MB_CHK_ERR(error);
 
-         //create the skin entities
-         Skinner sk(mbImpl);
-         Range skinents;
-         for (int skin_dim = meshdim-1; skin_dim >=0; skin_dim--)
-           {
-             std::cout<<"skin_dim ="<<skin_dim<<std::endl;
-             error = sk.find_skin(hm_set[l], ents, skin_dim, skinents, true, true); MB_CHK_ERR(error);
-
-             std::cout<<"Created skin for dim ="<<skin_dim<<std::endl;
-             //Update HF adjacencies for skin edges
-             if ((meshdim==3)&&(skin_dim==1))
+           if (pcomm->size() > 1) {
+             //create the skin entities
+             Skinner sk(mbImpl);
+             Range skinents;
+             for (int skin_dim = meshdim-1; skin_dim >=0; skin_dim--)
                {
-                 error = ahf->determine_sibling_halfverts(skinents); MB_CHK_ERR(error);
-                 error = ahf->determine_incident_halfverts(skinents); MB_CHK_ERR(error);
+                 std::cout<<"skin_dim ="<<skin_dim<<std::endl;
+                 error = sk.find_skin(hm_set[l], ents, skin_dim, skinents, true, true); MB_CHK_ERR(error);
+
+                 std::cout<<"Created skin for dim ="<<skin_dim<<std::endl;
+                 //Update HF adjacencies for skin edges
+                 if ((meshdim==3)&&(skin_dim==1))
+                   {
+                     error = ahf->determine_sibling_halfverts(skinents); MB_CHK_ERR(error);
+                     error = ahf->determine_incident_halfverts(skinents); MB_CHK_ERR(error);
+                   }
                }
-           }
 
             moab::Range vtxs, edgs, facs, elms;
             moab::Range adjs, vowned, vghost, vlocal;
@@ -701,7 +702,6 @@ namespace moab{
 
             Range pents[4] = {vtxs, edgs, facs, elms};
             error = pcomm->assign_global_ids(pents, 3, 1, true, false);MB_CHK_ERR(error);
-
 #ifdef PETSC_DEBUG_ONLY
             std::stringstream file;
             file <<  "MESH_LEVEL_"<<l+1<<".h5m";
@@ -709,7 +709,7 @@ namespace moab{
             const char* output_file = str.c_str();
             mbImpl->write_file(output_file, 0, ";;PARALLEL=WRITE_PART", &part_set, 1);
 #endif
-
+          }
           }
       }
 
