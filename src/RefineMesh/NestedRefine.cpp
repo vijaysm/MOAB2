@@ -554,8 +554,8 @@ namespace moab{
         Range ed;
         error =mbImpl->get_entities_by_dimension(0,1,ed); MB_CHK_ERR(error);
         std::cout<<ed.size()<<" Edges before generating the next level"<<std::endl;
-        for (unsigned j=0; j<ed.size(); j++)
-          std::cout<<ed[j]<<std::endl;
+        //for (unsigned j=0; j<ed.size(); j++)
+        //  std::cout<<ed[j]<<std::endl;
 
         error = estimate_hm_storage(set, level_degrees[l], l, hmest);MB_CHK_ERR(error);
 
@@ -571,12 +571,12 @@ namespace moab{
         //debug
         error =mbImpl->get_entities_by_dimension(0,1,ed); MB_CHK_ERR(error);
         std::cout<<ed.size()<<" Edges after generating the next level"<<std::endl;
-        for (unsigned j=0; j<ed.size(); j++)
-          std::cout<<ed[j]<<std::endl;
+        //for (unsigned j=0; j<ed.size(); j++)
+        //  std::cout<<ed[j]<<std::endl;
 
         //Go into parallel communication
         if (pcomm)
-        {              
+        {
             //TEMP: Add the adjacencies for MOAB-native DS
             ReadUtilIface *read_iface;
             error = mbImpl->query_interface(read_iface);MB_CHK_ERR(error);
@@ -1500,7 +1500,7 @@ namespace moab{
       if (!_infaces.empty())
         {
           error = construct_hm_2D(cur_level, deg, type, trackvertsC_edg, trackvertsC_face); MB_CHK_ERR(error);
-          error = print_tags_2D(cur_level,MBQUAD);
+          //error = print_tags_2D(cur_level,MBQUAD);
 
         }
     delete [] vbuffer;

@@ -183,12 +183,14 @@ ErrorCode HalfFacetRep::initialize()
     int nfaces = _faces.size();
     int ncells = _cells.size();
 
-    MPI_Barrier(pcomm->comm());
-    if (!pcomm->rank())
-      std::cout << "[0] HalfFacetRep::initialize: Post-filter: [" << nverts << ", " << nedges << ", " << nfaces << ", " << ncells << "]\n" ;
-    else
-      std::cout << "[1] HalfFacetRep::initialize: Post-filter: [" << nverts << ", " << nedges << ", " << nfaces << ", " << ncells << "]\n" ;
-    MPI_Barrier(pcomm->comm());
+    if (pcomm) {
+      MPI_Barrier(pcomm->comm());
+      if (!pcomm->rank())
+        std::cout << "[0] HalfFacetRep::initialize: Post-filter: [" << nverts << ", " << nedges << ", " << nfaces << ", " << ncells << "]\n" ;
+      else
+        std::cout << "[1] HalfFacetRep::initialize: Post-filter: [" << nverts << ", " << nedges << ", " << nfaces << ", " << ncells << "]\n" ;
+      MPI_Barrier(pcomm->comm());
+    }
 
     MESHTYPE mesh_type = get_mesh_type(nverts, nedges, nfaces, ncells);
     thismeshtype = mesh_type;
@@ -363,40 +365,43 @@ ErrorCode HalfFacetRep::deinitialize()
 {
   ErrorCode error;
 
-  if (thismeshtype == CURVE)
-  {
-    error = deinit_curve();MB_CHK_ERR(error);
+  if (mInitAHFmaps) {
+    if (thismeshtype == CURVE)
+    {
+      error = deinit_curve();MB_CHK_ERR(error);
+    }
+    else if (thismeshtype == SURFACE)
+    {
+      error = deinit_surface();MB_CHK_ERR(error);
+    }
+    else if (thismeshtype == SURFACE_MIXED)
+    {
+      error = deinit_curve();MB_CHK_ERR(error);
+      error = deinit_surface();MB_CHK_ERR(error);
+    }
+    else if (thismeshtype == VOLUME)
+    {
+      error = deinit_volume();MB_CHK_ERR(error);
+    }
+    else if (thismeshtype == VOLUME_MIXED_1)
+    {
+      error = deinit_curve();MB_CHK_ERR(error);
+      error = deinit_volume();MB_CHK_ERR(error);
+    }
+    else if (thismeshtype == VOLUME_MIXED_2)
+    {
+      error = deinit_surface();MB_CHK_ERR(error);
+      error = deinit_volume();MB_CHK_ERR(error);
+    }
+    else if (thismeshtype == VOLUME_MIXED)
+    {
+      error = deinit_curve();MB_CHK_ERR(error);
+      error = deinit_surface();MB_CHK_ERR(error);
+      error = deinit_volume();MB_CHK_ERR(error);
+    }
+    this->_rset=0;
+    mInitAHFmaps=false;
   }
-  else if (thismeshtype == SURFACE)
-  {
-    error = deinit_surface();MB_CHK_ERR(error);
-  }
-  else if (thismeshtype == SURFACE_MIXED)
-  {
-    error = deinit_curve();MB_CHK_ERR(error);
-    error = deinit_surface();MB_CHK_ERR(error);
-  }
-  else if (thismeshtype == VOLUME)
-  {
-    error = deinit_volume();MB_CHK_ERR(error);
-  }
-  else if (thismeshtype == VOLUME_MIXED_1)
-  {
-    error = deinit_curve();MB_CHK_ERR(error);
-    error = deinit_volume();MB_CHK_ERR(error);
-  }
-  else if (thismeshtype == VOLUME_MIXED_2)
-  {
-    error = deinit_surface();MB_CHK_ERR(error);
-    error = deinit_volume();MB_CHK_ERR(error);
-  }
-  else if (thismeshtype == VOLUME_MIXED)
-  {
-    error = deinit_curve();MB_CHK_ERR(error);
-    error = deinit_surface();MB_CHK_ERR(error);
-    error = deinit_volume();MB_CHK_ERR(error);
-  }
-  this->_rset=0;
 
   return MB_SUCCESS;
 }
@@ -745,6 +750,7 @@ ErrorCode HalfFacetRep::determine_sibling_halfverts( Range &edges)
     for (int j = 0; j < 2; j++)
     {
       int v = _verts.index(conn[j]);
+      assert(v >= 0);
       v2hv_map_eid[is_index[v]] = *eid;
       v2hv_map_lvid[is_index[v]] = j;
       is_index[v] += 1;
@@ -773,6 +779,7 @@ ErrorCode HalfFacetRep::determine_sibling_halfverts( Range &edges)
         continue;
 
       int v = _verts.index(conn[k]);
+      assert(v >= 0);
       int last = is_index[v + 1] - 1;
       if (last > is_index[v])
       {
@@ -826,16 +833,13 @@ ErrorCode HalfFacetRep::determine_incident_halfverts( Range &edges)
 
     for (int i = 0; i < 2; ++i)
     {
-      EntityHandle v = conn[i], eid = 0;
-      error = mb->tag_get_data(v2hv_eid, &v, 1, &eid);MB_CHK_ERR(error);
+      EntityHandle eid = 0;
+      error = mb->tag_get_data(v2hv_eid, &conn[i], 1, &eid);MB_CHK_ERR(error);
 
       if (eid == 0)
       {
-        EntityHandle edg = *e_it;
-        int lvid = i;
-
-        error = mb->tag_set_data(v2hv_eid, &v, 1, &edg);MB_CHK_ERR(error);
-        error = mb->tag_set_data(v2hv_lvid, &v, 1, &lvid);MB_CHK_ERR(error);
+        error = mb->tag_set_data(v2hv_eid, &conn[i], 1, &*e_it);MB_CHK_ERR(error);
+        error = mb->tag_set_data(v2hv_lvid, &conn[i], 1, &i);MB_CHK_ERR(error);
       }
     }
   }
