@@ -156,8 +156,8 @@ ErrorCode HalfFacetRep::initialize()
   mInitAHFmaps = true;
 
   /* Get all entities by dimension on the meshset with recursion turned on */
-//  if (pcomm) {
-/*    moab::Range _averts,_aedgs,_afacs,_acels;
+  if (pcomm) {
+    moab::Range _averts,_aedgs,_afacs,_acels;
 
     error = mb->get_entities_by_dimension(this->_rset, 0, _averts, true);MB_CHK_ERR(error);
     error = mb->get_entities_by_dimension(this->_rset, 1, _aedgs, true);MB_CHK_ERR(error);
@@ -172,24 +172,24 @@ ErrorCode HalfFacetRep::initialize()
       std::cout << "[1] HalfFacetRep::initialize: Obtained all verts " << _averts.size() << " entities in parallel\n" ;
     MPI_Barrier(pcomm->comm());
 
-    /* filter based on parallel status
-    error = pcomm->filter_pstatus(_averts,PSTATUS_NOT_OWNED,PSTATUS_NOT,-1,&_verts);MB_CHK_ERR(error);
-    error = pcomm->filter_pstatus(_aedgs,PSTATUS_NOT_OWNED,PSTATUS_NOT,-1,&_edges);MB_CHK_ERR(error);
-    error = pcomm->filter_pstatus(_afacs,PSTATUS_NOT_OWNED,PSTATUS_NOT,-1,&_faces);MB_CHK_ERR(error);
-    error = pcomm->filter_pstatus(_acels,PSTATUS_NOT_OWNED,PSTATUS_NOT,-1,&_cells);MB_CHK_ERR(error);
-    error = mb->get_entities_by_dimension( this->_rset, 0, _verts, true);MB_CHK_ERR(error);
+    /* filter based on parallel status */
+    error = pcomm->filter_pstatus(_averts,PSTATUS_GHOST,PSTATUS_NOT,-1,&_verts);MB_CHK_ERR(error);
+    error = pcomm->filter_pstatus(_aedgs,PSTATUS_GHOST,PSTATUS_NOT,-1,&_edges);MB_CHK_ERR(error);
+    error = pcomm->filter_pstatus(_afacs,PSTATUS_GHOST,PSTATUS_NOT,-1,&_faces);MB_CHK_ERR(error);
+    error = pcomm->filter_pstatus(_acels,PSTATUS_GHOST,PSTATUS_NOT,-1,&_cells);MB_CHK_ERR(error);
+
   }
   else {
     error = mb->get_entities_by_dimension( this->_rset, 0, _verts, true);MB_CHK_ERR(error);
     error = mb->get_entities_by_dimension( this->_rset, 1, _edges, true);MB_CHK_ERR(error);
     error = mb->get_entities_by_dimension( this->_rset, 2, _faces, true);MB_CHK_ERR(error);
     error = mb->get_entities_by_dimension( this->_rset, 3, _cells, true);MB_CHK_ERR(error);
-  }*/
+  }
 
-  error = mb->get_entities_by_dimension( this->_rset, 0, _verts, true);MB_CHK_ERR(error);
+ /* error = mb->get_entities_by_dimension( this->_rset, 0, _verts, true);MB_CHK_ERR(error);
   error = mb->get_entities_by_dimension( this->_rset, 1, _edges, true);MB_CHK_ERR(error);
   error = mb->get_entities_by_dimension( this->_rset, 2, _faces, true);MB_CHK_ERR(error);
-  error = mb->get_entities_by_dimension( this->_rset, 3, _cells, true);MB_CHK_ERR(error);
+  error = mb->get_entities_by_dimension( this->_rset, 3, _cells, true);MB_CHK_ERR(error);*/
 
   int nverts = _verts.size();
   int nedges = _edges.size();
@@ -1620,7 +1620,37 @@ ErrorCode HalfFacetRep::get_down_adjacencies_2d(EntityHandle fid, std::vector<En
   return MB_SUCCESS;
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////
+ErrorCode HalfFacetRep::obtain_1ring_surf(EntityHandle vid, std::vector<EntityHandle> &verts)
+{
+  ErrorCode error;
+  verts.clear();
+
+  std::vector<EntityHandle> temp;
+  error = get_up_adjacencies_vert_2d(vid, temp);MB_CHK_ERR(error);
+
+  for (int i=0; i<(int)temp.size(); i++)
+    {
+      const EntityHandle *conn;
+      int nepf;
+      error = mb->get_connectivity(temp[i],conn,nepf);MB_CHK_ERR(error);
+      for (int j=0; j<(int)nepf; j++)
+        {
+          if (conn[j] != vid)
+          verts.push_back(conn[j]);
+        }
+    }
+
+  //Sort the vertices and then remove duplicates
+  std::sort(verts.begin(), verts.end());
+  std::vector<EntityHandle>::iterator it;
+  it = std::unique(verts.begin(), verts.end());
+  verts.resize(std::distance(verts.begin(), it));
+
+  return MB_SUCCESS;
+}
+
+/////////////////////////////////////////////////////////
 int HalfFacetRep::find_total_edges_2d(Range &faces)
 {
   ErrorCode error;
@@ -2580,6 +2610,36 @@ ErrorCode HalfFacetRep::get_down_adjacencies_face_3d(EntityHandle cid, std::vect
 
   return MB_SUCCESS;
 }
+///////////////////////////////////////////////////////////////////
+ErrorCode HalfFacetRep::obtain_1ring_volume(EntityHandle vid, std::vector<EntityHandle> &verts)
+{
+  ErrorCode error;
+  verts.clear();
+
+  std::vector<EntityHandle> temp;
+  error = get_up_adjacencies_vert_3d(vid, temp);MB_CHK_ERR(error);
+
+  for (int i=0; i<(int)temp.size(); i++)
+    {
+      const EntityHandle *conn;
+      int nepf;
+      error = mb->get_connectivity(temp[i],conn,nepf);MB_CHK_ERR(error);
+      for (int j=0; j<(int)nepf; j++)
+        {
+          if (conn[j] != vid)
+          verts.push_back(conn[j]);
+        }
+    }
+
+  //Sort the vertices and then remove duplicates
+  std::sort(verts.begin(), verts.end());
+  std::vector<EntityHandle>::iterator it;
+  it = std::unique(verts.begin(), verts.end());
+  verts.resize(std::distance(verts.begin(), it));
+
+  return MB_SUCCESS;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////
 ErrorCode HalfFacetRep::find_total_edges_faces_3d(Range cells, int *nedges, int *nfaces)
 {
@@ -2662,7 +2722,6 @@ bool HalfFacetRep::find_match_in_array(EntityHandle ent, EntityHandle *ent_list,
 
   return found;
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 ErrorCode HalfFacetRep::get_sibling_tag(EntityType type, EntityHandle ent,  EntityHandle *sib_entids, int *sib_lids)
