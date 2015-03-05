@@ -330,6 +330,32 @@ ErrorCode ahf_test(const char* filename)
           }
       }
 
+
+    //Get 1ring vertices
+  /*  if (faces.size())
+      {
+        for (Range::iterator i = verts.begin(); i != verts.end(); i++)
+          {
+            std::cout<<"VID = "<<*i<<std::endl;
+            adjents.clear();
+            error = ahf.obtain_1ring_surf(*i,adjents);CHECK_ERR(error);
+            for (int j=0; j<(int)adjents.size(); j++)
+              std::cout<<"v_1ring["<<j<<"] = "<<adjents[j]<<std::endl;
+          }
+      }
+    if (cells.size())
+      {
+        for (Range::iterator i = verts.begin(); i != verts.end(); i++)
+          {
+            std::cout<<"VID = "<<*i<<std::endl;
+            adjents.clear();
+            error = ahf.obtain_1ring_volume(*i,adjents);CHECK_ERR(error);
+            for (int j=0; j<(int)adjents.size(); j++)
+              std::cout<<"v_1ring["<<j<<"] = "<<adjents[j]<<std::endl;
+          }
+      }*/
+
+
     ahf.deinitialize();
 
     return MB_SUCCESS;

@@ -1571,7 +1571,37 @@ ErrorCode HalfFacetRep::get_down_adjacencies_2d(EntityHandle fid, std::vector<En
   return MB_SUCCESS;
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////
+ErrorCode HalfFacetRep::obtain_1ring_surf(EntityHandle vid, std::vector<EntityHandle> &verts)
+{
+  ErrorCode error;
+  verts.clear();
+
+  std::vector<EntityHandle> temp;
+  error = get_up_adjacencies_vert_2d(vid, temp);MB_CHK_ERR(error);
+
+  for (int i=0; i<(int)temp.size(); i++)
+    {
+      const EntityHandle *conn;
+      int nepf;
+      error = mb->get_connectivity(temp[i],conn,nepf);MB_CHK_ERR(error);
+      for (int j=0; j<(int)nepf; j++)
+        {
+          if (conn[j] != vid)
+          verts.push_back(conn[j]);
+        }
+    }
+
+  //Sort the vertices and then remove duplicates
+  std::sort(verts.begin(), verts.end());
+  std::vector<EntityHandle>::iterator it;
+  it = std::unique(verts.begin(), verts.end());
+  verts.resize(std::distance(verts.begin(), it));
+
+  return MB_SUCCESS;
+}
+
+/////////////////////////////////////////////////////////
 int HalfFacetRep::find_total_edges_2d(Range &faces)
 {
   ErrorCode error;
@@ -2531,6 +2561,36 @@ ErrorCode HalfFacetRep::get_down_adjacencies_face_3d(EntityHandle cid, std::vect
 
   return MB_SUCCESS;
 }
+///////////////////////////////////////////////////////////////////
+ErrorCode HalfFacetRep::obtain_1ring_volume(EntityHandle vid, std::vector<EntityHandle> &verts)
+{
+  ErrorCode error;
+  verts.clear();
+
+  std::vector<EntityHandle> temp;
+  error = get_up_adjacencies_vert_3d(vid, temp);MB_CHK_ERR(error);
+
+  for (int i=0; i<(int)temp.size(); i++)
+    {
+      const EntityHandle *conn;
+      int nepf;
+      error = mb->get_connectivity(temp[i],conn,nepf);MB_CHK_ERR(error);
+      for (int j=0; j<(int)nepf; j++)
+        {
+          if (conn[j] != vid)
+          verts.push_back(conn[j]);
+        }
+    }
+
+  //Sort the vertices and then remove duplicates
+  std::sort(verts.begin(), verts.end());
+  std::vector<EntityHandle>::iterator it;
+  it = std::unique(verts.begin(), verts.end());
+  verts.resize(std::distance(verts.begin(), it));
+
+  return MB_SUCCESS;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////
 ErrorCode HalfFacetRep::find_total_edges_faces_3d(Range cells, int *nedges, int *nfaces)
 {
@@ -2613,7 +2673,6 @@ bool HalfFacetRep::find_match_in_array(EntityHandle ent, EntityHandle *ent_list,
 
   return found;
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 ErrorCode HalfFacetRep::get_sibling_tag(EntityType type, EntityHandle ent, EntityHandle *sib_entids, int *sib_lids)

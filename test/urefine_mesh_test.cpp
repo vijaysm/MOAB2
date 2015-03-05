@@ -269,12 +269,7 @@ ErrorCode refine_entities(Interface *mb, int *level_degrees, const int num_level
 
   //Get the range of entities in the initial mesh
   Range init_ents[4];
-  error = mb->get_entities_by_dimension(0, 0, init_ents[0]); CHECK_ERR(error);
-  error = mb->get_entities_by_dimension(0, 1, init_ents[1]); CHECK_ERR(error);
-  error = mb->get_entities_by_dimension(0, 2, init_ents[2]); CHECK_ERR(error);
-  error = mb->get_entities_by_dimension(0, 3, init_ents[3]);  CHECK_ERR(error);
-
- int dim[3] = {1,2,3};
+  int dim[3] = {1,2,3};
 
   if (output)
     {
@@ -291,8 +286,25 @@ ErrorCode refine_entities(Interface *mb, int *level_degrees, const int num_level
 #ifdef USE_MPI
   moab::ParallelComm *pc = new moab::ParallelComm(dynamic_cast<Core*>(mb), MPI_COMM_WORLD);
   NestedRefine uref(dynamic_cast<Core*>(mb), pc);
+
+  Range averts, aedges, afaces, acells;
+  error = mb->get_entities_by_dimension(0, 0, averts);MB_CHK_ERR(error);
+  error = mb->get_entities_by_dimension(0, 1, aedges);MB_CHK_ERR(error);
+  error = mb->get_entities_by_dimension(0, 2, afaces);MB_CHK_ERR(error);
+  error = mb->get_entities_by_dimension(0, 3, acells);MB_CHK_ERR(error);
+
+  /* filter based on parallel status */
+  error = pc->filter_pstatus(averts,PSTATUS_GHOST,PSTATUS_NOT,-1,&init_ents[0]);MB_CHK_ERR(error);
+  error = pc->filter_pstatus(aedges,PSTATUS_GHOST,PSTATUS_NOT,-1,&init_ents[1]);MB_CHK_ERR(error);
+  error = pc->filter_pstatus(afaces,PSTATUS_GHOST,PSTATUS_NOT,-1,&init_ents[2]);MB_CHK_ERR(error);
+  error = pc->filter_pstatus(acells,PSTATUS_GHOST,PSTATUS_NOT,-1,&init_ents[3]);MB_CHK_ERR(error);
+
 #else
   NestedRefine uref(dynamic_cast<Core*>(mb));
+  error = mb->get_entities_by_dimension(0, 0, init_ents[0]); CHECK_ERR(error);
+  error = mb->get_entities_by_dimension(0, 1, init_ents[1]); CHECK_ERR(error);
+  error = mb->get_entities_by_dimension(0, 2, init_ents[2]); CHECK_ERR(error);
+  error = mb->get_entities_by_dimension(0, 3, init_ents[3]);  CHECK_ERR(error);
 #endif
 
   std::vector<EntityHandle> set;
@@ -1150,7 +1162,7 @@ ErrorCode test_mesh(const char* filename, int *level_degrees, int num_levels)
     MPI_Comm_size(MPI_COMM_WORLD, &procs);
 
     if (procs > 1){
-    read_options = "PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;";
+    read_options = "PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;PARALLEL_GHOSTS=2.0.1;";
 
     error = mbImpl->load_file(filename, 0, read_options.c_str()); CHECK_ERR(error);
     }

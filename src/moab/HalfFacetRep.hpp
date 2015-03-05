@@ -411,6 +411,13 @@ public:
 
   ErrorCode get_down_adjacencies_face_3d(EntityHandle cid, std::vector<EntityHandle> &adjents);
 
+  /****************************
+     *  Other Functionalities   *
+     **************************/
+
+ErrorCode obtain_1ring_surf(EntityHandle vid, std::vector<EntityHandle> &verts);
+ErrorCode obtain_1ring_volume(EntityHandle vid, std::vector<EntityHandle> &verts);
+
   /* Find the number of edges and faces of given range of cells
      * */
   ErrorCode find_total_edges_faces_3d(Range cells, int *nedges, int *nfaces);
