@@ -83,7 +83,7 @@ ErrorCode ahf_test(const char* filename)
     // Create an ahf instance
 #ifdef USE_MPI
     moab::ParallelComm *pc = new moab::ParallelComm(&moab, MPI_COMM_WORLD);
-    HalfFacetRep ahf(&moab, pc);
+    HalfFacetRep ahf(&moab, pc, 0);
 #else
     HalfFacetRep ahf(&moab);
 #endif

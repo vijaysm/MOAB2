@@ -285,7 +285,8 @@ ErrorCode Core::initialize()
   globalId_tag();
 
 #ifdef USE_AHF
-  ahfRep = new HalfFacetRep(this);
+  //ahfRep = new HalfFacetRep(this, moab::ParallelComm::get_pcomm(this, 0), 0);
+  ahfRep = new HalfFacetRep(this, 0, 0);
   if (!ahfRep)
     return MB_MEMORY_ALLOCATION_FAILED;
   mesh_modified = false;
