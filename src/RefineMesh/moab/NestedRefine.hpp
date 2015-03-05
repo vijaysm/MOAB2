@@ -260,6 +260,10 @@ namespace moab
 
     ErrorCode update_global_ahf_3D(int cur_level, int deg, std::vector<int> &pattern_ids);
 
+    //Boundary extraction functions
+    bool is_edge_on_boundary(EntityHandle &entity);
+    bool is_face_on_boundary(EntityHandle &entity);
+    bool is_cell_on_boundary(EntityHandle &entity);
   };
 } //name space moab
 #endif

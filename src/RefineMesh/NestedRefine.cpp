@@ -348,43 +348,19 @@ namespace moab{
 
   bool NestedRefine::is_entity_on_boundary(EntityHandle &entity)
   {
-    ErrorCode error;
     bool is_border = false;
     EntityType type = mbImpl->type_from_handle(entity);
-    EntityHandle ent;
-    int lid;
 
     if (type == MBVERTEX)
-      {
-        error = ahf->get_incident_tag(elementype, entity, &ent, &lid); MB_CHK_ERR(error);
-      }
-    else if (type == MBEDGE || type == MBTRI || type == MBQUAD || type == MBTET || type == MBHEX)
-      {
-        ent = entity; lid = 0;
-      }
+      is_border = is_boundary_vertex(entity);
+    else if (type == MBEDGE )
+        is_border = is_edge_on_boundary(entity);
+    else if (type == MBTRI || type == MBQUAD )
+      is_border = is_face_on_boundary(entity);
+    else if (type == MBTET || type == MBHEX)
+      is_border = is_cell_on_boundary(entity);
     else
       MB_SET_ERR(MB_FAILURE, "Requesting boundary information for unsupported entity type");
-
-    std::vector<EntityHandle> sibents;
-    std::vector<int> siblids;
-    error = ahf->get_sibling_tag(elementype, ent, &sibents[0], &siblids[0]); MB_CHK_ERR(error);
-
-    if (type == MBVERTEX)
-      {
-        if (sibents[lid] == 0)
-          is_border = true;
-      }
-    else
-      {
-        for (int i=0; i<(int)sibents.size(); i++)
-          {
-            if (sibents[i] == 0)
-              {
-                is_border = true;
-                break;
-              }
-          }
-      }
 
     return is_border;
   }
@@ -573,7 +549,7 @@ namespace moab{
         Range ed;
         error =mbImpl->get_entities_by_dimension(0,1,ed); MB_CHK_ERR(error);
         std::cout<<ed.size()<<" Edges before generating the next level"<<std::endl;
-        for (int j=0; j<ed.size(); j++)
+        for (int j=0; j<(int)ed.size(); j++)
           std::cout<<ed[j]<<std::endl;
 
         error = estimate_hm_storage(set, level_degrees[l], l, hmest);MB_CHK_ERR(error);
@@ -590,7 +566,7 @@ namespace moab{
         //debug
         error =mbImpl->get_entities_by_dimension(0,1,ed); MB_CHK_ERR(error);
         std::cout<<ed.size()<<" Edges after generating the next level"<<std::endl;
-        for (int j=0; j<ed.size(); j++)
+        for (int j=0; j<(int)ed.size(); j++)
           std::cout<<ed[j]<<std::endl;
 
         //Go into parallel communication
@@ -661,7 +637,7 @@ namespace moab{
             //debug
             error =mbImpl->get_entities_by_dimension(0,1,ed); MB_CHK_ERR(error);
             std::cout<<ed.size()<<" Edges before resolved shared "<<std::endl;
-            for (int j=0; j<ed.size(); j++)
+            for (int j=0; j<(int)ed.size(); j++)
               {
                 const EntityHandle *conn;
                 int nconn;
@@ -679,7 +655,7 @@ namespace moab{
             //debug
             error =mbImpl->get_entities_by_dimension(0,1,ed); MB_CHK_ERR(error);
             std::cout<<ed.size()<<" Edges after resolved shared "<<std::endl;
-            for (int j=0; j<ed.size(); j++)
+            for (int j=0; j<(int)ed.size(); j++)
               {
                 const EntityHandle *conn;
                 int nconn;
@@ -2894,6 +2870,115 @@ ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg, std::vector
   return MB_SUCCESS;
 }
 
+/* **********************************
+ *          Boundary Functions           *
+************************************/
+bool NestedRefine::is_edge_on_boundary(EntityHandle &entity)
+{
+  ErrorCode error;
+  bool is_border = false;
+  if (meshdim == 1) //The edge has a vertex on the boundary in the curve mesh
+    {
+      EntityHandle sibents[2];
+      int siblids[2];
+      error = ahf->get_sibling_tag(MBEDGE, entity, &sibents[0], &siblids[0]); MB_CHK_ERR(error);
+      for (int i=0; i<2; i++)
+        {
+          if (sibents[i] == 0)
+            {
+              is_border = true;
+              break;
+            }
+        }
+    }
+  else if (meshdim == 2) //The edge is on the boundary of the 2d mesh
+    {
+      std::vector<EntityHandle> adjents;
+      error = ahf->get_up_adjacencies_2d(entity, adjents);MB_CHK_ERR(error);
+      if (adjents.size() == 1)
+        is_border = true;
+    }
+  else if (meshdim == 3) //The edge is part of a face on the boundary of the 3d mesh
+    {
+      std::vector<EntityHandle> adjents;
+      std::vector<int> leids;
+      error = ahf->get_up_adjacencies_edg_3d(entity, adjents, &leids);MB_CHK_ERR(error);
+      assert(!adjents.empty());
+
+      int index = ahf->get_index_from_type(adjents[0]);
+      for (int i=0; i<(int)adjents.size(); i++)
+        {
+          EntityHandle sibents[6];
+          int siblids[6];
+          error = ahf->get_sibling_tag(elementype, adjents[0], &sibents[0], &siblids[0]); MB_CHK_ERR(error);
+          for (int k=0; k<2; k++)
+            {
+              int hf = ahf->lConnMap3D[index].e2hf[leids[0]][k];
+              if (sibents[hf] == 0)
+                {
+                   is_border = true;
+                   break;
+                }
+            }
+        }
+    }
+  return is_border;
+}
+
+bool NestedRefine::is_face_on_boundary(EntityHandle &entity)
+{
+  ErrorCode error;
+  bool is_border = false;
+
+  if (meshdim == 1)
+    MB_SET_ERR(MB_FAILURE,"Requesting boundary information for a face entity type on a curve mesh");
+  else if (meshdim == 2) //The face has a local edge on the boundary of the 2d mesh
+    {
+      EntityHandle sibents[4];
+      int siblids[4];
+      error = ahf->get_sibling_tag(elementype, entity, &sibents[0], &siblids[0]); MB_CHK_ERR(error);
+      int nepf = ahf->lConnMap2D[elementype-2].num_verts_in_face;
+      for (int i=0; i<nepf; i++)
+        {
+          if (sibents[i] == 0)
+            {
+              is_border = true;
+              break;
+            }
+        }
+    }
+  else if (meshdim == 3)//The face lies on the boundary of the 3d mesh
+    {
+      std::vector<EntityHandle> adjents;
+      error = ahf->get_up_adjacencies_face_3d(entity, adjents);MB_CHK_ERR(error);
+      if (adjents.size() == 1)
+          is_border = true;
+    }
+  return is_border;
+}
+
+bool NestedRefine::is_cell_on_boundary(EntityHandle &entity)
+{
+  if (meshdim != 3)
+    MB_SET_ERR(MB_FAILURE, "Requesting boundary information for a cell entity type on a curve or surface mesh");
+  bool is_border = false;
+
+  EntityHandle sibents[6];
+  int siblids[6];
+  ErrorCode error = ahf->get_sibling_tag(elementype, entity, &sibents[0], &siblids[0]); MB_CHK_ERR(error);
+
+  int index = ahf->get_index_from_type(elementype);
+  int nfpc = ahf->lConnMap3D[index].num_faces_in_cell;
+  for (int i=0; i<nfpc; i++)
+    {
+      if (sibents[i] == 0)
+        {
+          is_border = true;
+          break;
+        }
+    }
+  return is_border;
+}
 
 /* **********************************
  *          Helper Functions              *
