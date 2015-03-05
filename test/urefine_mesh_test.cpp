@@ -366,6 +366,38 @@ ErrorCode refine_entities(Interface *mb, int *level_degrees, const int num_level
       for (int i=0; i<4; i++)
         prev_ents[i] = ents[i];
 
+      //Print out the boundary vertices
+      EntityHandle bnd_set;
+      error = mb->create_meshset(MESHSET_SET, bnd_set); MB_CHK_ERR(error);
+      std::vector<EntityHandle> vbnd;
+
+      for (int k=0; k<3; k++){
+          std::cout<<"Finding boundary of dimension "<<k<<" with size "<<ents[k].size()<<std::endl;
+          if (ents[k].size() != 0){
+              for (Range::iterator v = ents[k].begin(); v != ents[k].end(); v++)
+                {
+                  EntityHandle ent = *v;
+                  bool bnd = uref.is_entity_on_boundary(ent);
+                  if (bnd)
+                    vbnd.push_back(*v);
+
+                //  std::cout<<"entID = "<<*v<<" :: is_bnd = "<<bnd<<std::endl;
+                }
+            }
+        }
+
+      std::cout<<"vbnd.size = "<<vbnd.size()<<std::endl;
+      error = mb->add_entities(bnd_set, &vbnd[0], (int)vbnd.size()); MB_CHK_ERR(error);
+      if (output)
+        {
+          std::stringstream file;
+          file <<  "VBND_LEVEL_" <<l+1<<".vtk";
+          std::string str = file.str();
+          const char* output_file = str.c_str();
+          char * write_opts = NULL;
+          error = mb->write_file(output_file, 0, write_opts, &bnd_set, 1); CHECK_ERR(error);
+        }
+
       //Print out the mesh
       if (output)
         {
@@ -1130,7 +1162,7 @@ ErrorCode test_mesh(const char* filename, int *level_degrees, int num_levels)
 #endif
 
     //Generate hierarchy
-    error = refine_entities(&moab, level_degrees, num_levels, false);  CHECK_ERR(error);
+    error = refine_entities(&moab, level_degrees, num_levels, true);  CHECK_ERR(error);
 
     return MB_SUCCESS;
 }
@@ -1162,7 +1194,7 @@ int main(int argc, char *argv[])
     else if (argc == 2)
       {
         const char* filename = argv[1];
-        int deg[2] = {2,3};
+        int deg[3] = {2,3,2};
         int len = sizeof(deg) / sizeof(int);
         result = test_mesh(filename, deg, len);
         handle_error_code(result, number_tests_failed, number_tests_successful);

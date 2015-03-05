@@ -119,12 +119,6 @@ namespace moab
 
     bool is_entity_on_boundary(EntityHandle &entity);
 
-    /** Given a vertex at a certain level, it returns a boolean value true if it lies on the domain boundary.
-      * Note: This is a specialization of the NestedRefine::is_entity_on_boundary function and applies only to vertex queries.
-      * \param entity
-    */
-
-    bool is_boundary_vertex(EntityHandle entity);
 
   protected:
     Core *mbImpl;
@@ -260,6 +254,15 @@ namespace moab
 
     ErrorCode update_global_ahf_3D(int cur_level, int deg, std::vector<int> &pattern_ids);
 
+    /** Boundary extraction functions
+      * Given a vertex at a certain level, it returns a boolean value true if it lies on the domain boundary.
+      * Note: This is a specialization of the NestedRefine::is_entity_on_boundary function and applies only to vertex queries.
+      * \param entity
+    */
+    bool is_vertex_on_boundary(EntityHandle entity);
+    bool is_edge_on_boundary(EntityHandle &entity);
+    bool is_face_on_boundary(EntityHandle &entity);
+    bool is_cell_on_boundary(EntityHandle &entity);
   };
 } //name space moab
 #endif
