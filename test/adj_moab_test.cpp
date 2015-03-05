@@ -146,6 +146,15 @@ ErrorCode ahf_test(const char* filename)
             error = mbImpl->get_adjacencies( &*i, 1, 2, false, mbents);
             CHECK_ERR(error);
 
+            if (adjents.size() != mbents.size())
+              {
+                std::cout<<"VID = "<<*i<<std::endl;
+                for (int j=0; j<(int)adjents.size(); j++)
+                  std::cout<<"adjents["<<j<<"] = "<<adjents[j]<<std::endl;
+                std::cout<<std::endl;
+                for (int j=0; j<(int)mbents.size(); j++)
+                  std::cout<<"mbents["<<j<<"] = "<<mbents[j]<<std::endl;
+              }
             CHECK_EQUAL(adjents.size(), mbents.size());
 
             std::sort(adjents.begin(), adjents.end());
@@ -299,6 +308,16 @@ ErrorCode ahf_test(const char* filename)
             mbents.clear();
             error = mbImpl->get_adjacencies( &*i, 1, 1, false, mbents);
             CHECK_ERR(error);
+
+            if (adjents.size() != mbents.size())
+              {
+                std::cout<<"EDGE = "<<*i<<std::endl;
+                for (int j=0; j<(int)adjents.size(); j++)
+                  std::cout<<"adjents["<<j<<"] = "<<adjents[j]<<std::endl;
+                std::cout<<std::endl;
+                for (int j=0; j<(int)mbents.size(); j++)
+                  std::cout<<"mbents["<<j<<"] = "<<mbents[j]<<std::endl;
+              }
 
             CHECK_EQUAL(adjents.size(), mbents.size());
 
