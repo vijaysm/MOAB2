@@ -63,7 +63,7 @@ namespace moab {
     return static_cast<int> (handle >> MB_ID_WIDTH);
   }
 
-const int MAXSIZE = 150;
+const int MAXSIZE = 100;
 
 //! ENUM for the type of input mesh.
 enum MESHTYPE{
@@ -495,6 +495,10 @@ public:
     int f2leid[MAX_FACES][MAX_VERTS_HF];
     //! Map: local vertices to local edges
     int lookup_leids[MAX_VERTICES][MAX_VERTICES];
+    //! Search edge verts:
+    int search_everts[5];
+    int search_fverts[2];
+    int v2le[4][5];
   };
   static const LocalMaps3D lConnMap3D[4];
   MESHTYPE thismeshtype;

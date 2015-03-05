@@ -86,13 +86,36 @@ namespace moab {
   int HalfFacetRep::get_index_for_meshtype(MESHTYPE mesh_type)
   {
       int index = 0;
-      if (mesh_type == CURVE) index = 0;
+      switch (mesh_type) {
+        case CURVE:
+          index = 0;
+          break;
+        case SURFACE:
+          index = 1;
+          break;
+        case SURFACE_MIXED:
+          index = 2;
+          break;
+        case VOLUME:
+          index = 3;
+          break;
+        case VOLUME_MIXED_1:
+          index = 4;
+          break;
+        case VOLUME_MIXED_2:
+          index = 5;
+          break;
+        case VOLUME_MIXED:
+          index = 6;
+          break;
+        }
+     /* if (mesh_type == CURVE) index = 0;
       else if (mesh_type == SURFACE) index = 1;
       else if (mesh_type == SURFACE_MIXED) index = 2;
       else if (mesh_type == VOLUME)  index = 3;
       else if (mesh_type == VOLUME_MIXED_1) index = 4;
       else if (mesh_type == VOLUME_MIXED_2) index = 5;
-      else if (mesh_type == VOLUME_MIXED) index = 6;
+      else if (mesh_type == VOLUME_MIXED) index = 6;*/
       return index;
   }
 
@@ -665,28 +688,24 @@ namespace moab {
                                                   std::vector< EntityHandle > &adjents,
                                                   std::vector<int> * lvids)
   {
+   // adjents.clear();
     adjents.reserve(20);
 
-    bool local_id = false;
     if (lvids != NULL)
-      {
-        local_id = true;
-        lvids->reserve(20);
-      }
-
-    EntityHandle start_eid, eid;
-    int start_lid, lid;
+      lvids->reserve(20);
    
     int vidx = _verts.index(vid);
     HFacet hf = v2hv[vidx];
-    start_eid = fid_from_halfacet(hf, MBEDGE);
-    start_lid = lid_from_halffacet(hf);
 
-    eid = start_eid; lid = start_lid;
+    EntityHandle  start_eid = fid_from_halfacet(hf, MBEDGE);
+    int start_lid = lid_from_halffacet(hf);
+
+    EntityHandle eid = start_eid;
+    int lid = start_lid;
 
     if (eid != 0){
       adjents.push_back(eid);
-      if (local_id)
+      if (lvids != NULL)
         lvids->push_back(lid);
 
       while (eid !=0) {
@@ -698,8 +717,9 @@ namespace moab {
 
 	  if ((!eid)||(eid == start_eid))
 	    break;
+
 	  adjents.push_back(eid);
-	  if (local_id)
+	  if (lvids != NULL)
 	    lvids->push_back(lid);
       }
     }
@@ -932,6 +952,7 @@ namespace moab {
   {
     ErrorCode error;
     EntityType ftype = mb->type_from_handle(*_faces.begin());
+
     int vidx = _verts.index(vid);
     HFacet hf = v2he[vidx];
     EntityHandle fid = fid_from_halfacet(hf, ftype);
@@ -1409,17 +1430,16 @@ namespace moab {
    const HalfFacetRep::LocalMaps3D HalfFacetRep::lConnMap3D[4] =
     {
       // Tet
-      {4, 6, 4, {3,3,3,3}, {{0,1,3},{1,2,3},{2,0,3},{0,2,1}},   {3,3,3,3},   {{0,2,3},{0,1,3},{1,2,3},{0,1,2}},   {{0,1},{1,2},{2,0},{0,3},{1,3},{2,3}},   {{3,0},{3,1},{3,2},{0,2},{0,1},{1,2}},   {{0,4,3},{1,5,4},{2,3,5},{2,1,0}},     {{-1,0,2,3},{0,-1,1,4},{2,1,-1,5},{3,4,5,-1}}},
+      {4, 6, 4, {3,3,3,3}, {{0,1,3},{1,2,3},{2,0,3},{0,2,1}},   {3,3,3,3},   {{0,2,3},{0,1,3},{1,2,3},{0,1,2}},   {{0,1},{1,2},{2,0},{0,3},{1,3},{2,3}},   {{3,0},{3,1},{3,2},{0,2},{0,1},{1,2}},   {{0,4,3},{1,5,4},{2,3,5},{2,1,0}},     {{-1,0,2,3},{0,-1,1,4},{2,1,-1,5},{3,4,5,-1}}, {3,0,1,2}, {0,1}, {{3,1,2,3},{2,2,3},{1,3}}},
 
       // Pyramid: Note: In MOAB pyramid follows the CGNS convention. Look up src/MBCNArrays.hpp
-      {5, 8, 5, {4,3,3,3,3}, {{0,3,2,1},{0,1,4},{1,2,4},{2,3,4},{3,0,4}},  {3,3,3,3,4},   {{0,1,4},{0,1,2},{0,2,3},{0,3,4},{1,2,3,4}},   {{0,1},{1,2},{2,3},{3,0},{0,4},{1,4},{2,4},{3,4}},   {{0,1},{0,2},{0,3},{0,4},{1,4},{1,2},{2,3},{3,4}},    {{3,2,1,0},{0,5,4},{1,6,5},{2,7,6},{3,4,7}},    {{-1,0,-1,3,4},{0,-1,1,-1,5},{-1,1,-1,2,6},{3,-1,2,-1,7},{4,5,6,7,-1}}},
+      {5, 8, 5, {4,3,3,3,3}, {{0,3,2,1},{0,1,4},{1,2,4},{2,3,4},{3,0,4}},  {3,3,3,3,4},   {{0,1,4},{0,1,2},{0,2,3},{0,3,4},{1,2,3,4}},   {{0,1},{1,2},{2,3},{3,0},{0,4},{1,4},{2,4},{3,4}},   {{0,1},{0,2},{0,3},{0,4},{1,4},{1,2},{2,3},{3,4}},    {{3,2,1,0},{0,5,4},{1,6,5},{2,7,6},{3,4,7}},    {{-1,0,-1,3,4},{0,-1,1,-1,5},{-1,1,-1,2,6},{3,-1,2,-1,7},{4,5,6,7,-1}}, {3,4,2,0}, {0,4}, {{4,0,1,2,3},{2,1,3},{2,1,3}}},
 
       // Prism
-      {6, 9, 5, {4,4,4,3,3}, {{0,1,4,3},{1,2,5,4},{0,3,5,2},{0,2,1},{3,4,5}},  {3,3,3,3,3,3}, {{0,2,3},{0,1,3},{1,2,3},{0,2,4},{0,1,4},{1,4,2}},    {{0,1},{1,2},{2,0},{0,3},{1,4},{2,5},{3,4},{4,5},{5,3}},    {{0,3},{1,3},{2,3},{0,2},{0,1},{1,2},{0,4},{1,4},{2,4}},     {{0,4,6,3},{1,5,7,4},{2,3,8,5},{2,1,0},{6,7,8}},    {{-1,0,2,3,-1,-1},{0,-1,1,-1,4,-1},{2,1,-1,-1,-1,5},{3,-1,-1,-1,6,8},{-1,4,-1,6,-1,7},{-1,-1,5,8,7,-1}}},
+      {6, 9, 5, {4,4,4,3,3}, {{0,1,4,3},{1,2,5,4},{0,3,5,2},{0,2,1},{3,4,5}},  {3,3,3,3,3,3}, {{0,2,3},{0,1,3},{1,2,3},{0,2,4},{0,1,4},{1,4,2}},    {{0,1},{1,2},{2,0},{0,3},{1,4},{2,5},{3,4},{4,5},{5,3}},    {{0,3},{1,3},{2,3},{0,2},{0,1},{1,2},{0,4},{1,4},{2,4}},     {{0,4,6,3},{1,5,7,4},{2,3,8,5},{2,1,0},{6,7,8}},    {{-1,0,2,3,-1,-1},{0,-1,1,-1,4,-1},{2,1,-1,-1,-1,5},{3,-1,-1,-1,6,8},{-1,4,-1,6,-1,7},{-1,-1,5,8,7,-1}}, {4,0,5,4,1}, {0,5}, {{3,1,2,3},{3,2,4,3},{2,3,1},{1,2}}},
 
       // Hex
-      {8, 12, 6, {4,4,4,4,4,4}, {{0,1,5,4},{1,2,6,5},{2,3,7,6},{3,0,4,7},{0,3,2,1},{4,5,6,7}},   {3,3,3,3,3,3,3,3},   {{0,3,4},{0,1,4},{1,2,4},{2,3,4},{0,3,5},{0,1,5},{1,2,5},{2,3,5}},    {{0,1},{1,2},{2,3},{3,0},{0,4},{1,5},{2,6},{3,7},{4,5},{5,6},{6,7},{7,4}},     {{0,4},{1,4},{2,4},{3,4},{0,3},{0,1},{1,2},{2,3},{0,5},{1,5},{2,5},{3,5}},     {{0,5,8,4},{1,6,9,5},{2,7,10,6},{3,4,11,7},{3,2,1,0},{8,9,10,11}},     {{-1,0,-1,3,4,-1,-1,-1},{0,-1,1,-1,-1,5,-1,-1},{-1,1,-1,2,-1,-1,6,-1},{3,-1,2,-1,-1,-1,-1,7},{4,-1,-1,-1,-1,8,-1,11},{-1,5,-1,-1,8,-1,9,-1},{-1,-1,6,-1,-1,9,-1,10},{-1,-1,-1,7,11,-1,10,-1}}}
-      
+      {8, 12, 6, {4,4,4,4,4,4}, {{0,1,5,4},{1,2,6,5},{2,3,7,6},{3,0,4,7},{0,3,2,1},{4,5,6,7}},   {3,3,3,3,3,3,3,3},   {{0,3,4},{0,1,4},{1,2,4},{2,3,4},{0,3,5},{0,1,5},{1,2,5},{2,3,5}},    {{0,1},{1,2},{2,3},{3,0},{0,4},{1,5},{2,6},{3,7},{4,5},{5,6},{6,7},{7,4}},     {{0,4},{1,4},{2,4},{3,4},{0,3},{0,1},{1,2},{2,3},{0,5},{1,5},{2,5},{3,5}},     {{0,5,8,4},{1,6,9,5},{2,7,10,6},{3,4,11,7},{3,2,1,0},{8,9,10,11}},     {{-1,0,-1,3,4,-1,-1,-1},{0,-1,1,-1,-1,5,-1,-1},{-1,1,-1,2,-1,-1,6,-1},{3,-1,2,-1,-1,-1,-1,7},{4,-1,-1,-1,-1,8,-1,11},{-1,5,-1,-1,8,-1,9,-1},{-1,-1,6,-1,-1,9,-1,10},{-1,-1,-1,7,11,-1,10,-1}}, {4,0,2,5,7}, {0,6}, {{3,1,3,4},{3,1,3,6},{3,1,4,6},{3,3,6,4}}}
     };
 
   
@@ -2162,21 +2182,48 @@ namespace moab {
       adjents.reserve(20);
       int index = get_index_in_lmap(cid);
       int nvpc = lConnMap3D[index].num_verts_in_cell;
-      int nepc = lConnMap3D[index].num_edges_in_cell;
+     // int nepc = lConnMap3D[index].num_edges_in_cell;
 
       const EntityHandle* conn;
       error = mb->get_connectivity(cid, conn, nvpc);MB_CHK_ERR(error);
 
       //Gather all the incident edges on each vertex of the face
-      std::vector< std::vector<EntityHandle> > temp(nvpc);
-      for (int i=0; i<nvpc; i++)
+      int ns = lConnMap3D[index].search_everts[0];
+      //std::vector< std::vector<EntityHandle> > temp(ns);
+      std::vector<EntityHandle> temp;
+      for (int i=0; i<ns; i++)
       {
-          error = get_up_adjacencies_1d(conn[i], temp[i]);MB_CHK_ERR(error);
-          std::sort(temp[i].begin(), temp[i].end());
+          temp.clear();
+          int lv0 = lConnMap3D[index].search_everts[i+1];
+          error = get_up_adjacencies_1d(conn[lv0], temp);MB_CHK_ERR(error);
+
+          int nle = lConnMap3D[index].v2le[i][0];
+          int count =0;
+          for (int j=0; j<(int)temp.size(); j++)
+            {
+              const EntityHandle* econn;
+              int nvpe = 0;
+              error = mb->get_connectivity(temp[j], econn, nvpe);MB_CHK_ERR(error);
+
+              for (int k=0; k<nle; k++)
+                {
+                  int lv1 = lConnMap3D[index].v2le[i][k+1];
+                  if (((econn[0] == conn[lv0]) && (econn[1] == conn[lv1]))||((econn[1] == conn[lv0]) && (econn[0] == conn[lv1])))
+                    {
+                      adjents.push_back(temp[j]);
+                      count += 1;
+                    }
+                }
+              if (count == nle)
+                break;
+            }
+
+
+       //   std::sort(temp[i].begin(), temp[i].end());
       }
 
       //Loop over all the local edges and find the intersection.
-      for (int i = 0; i < nepc; ++i)
+  /*    for (int i = 0; i < nepc; ++i)
       {
           std::vector<EntityHandle> common(10);
 
@@ -2188,7 +2235,7 @@ namespace moab {
               continue;
 
           adjents.push_back(*common.begin());
-      }
+      }*/
       return MB_SUCCESS;
   }
 
@@ -2219,15 +2266,17 @@ namespace moab {
         }
 
       //Add two vertices for which the upward adjacencies are computed
-      int search_verts[2] = {0,0};
-      if (index==0)
+      int search_verts[2];
+      search_verts[0] = lConnMap3D[index].search_fverts[0];
+      search_verts[1] = lConnMap3D[index].search_fverts[1];
+    /*  if (index==0)
         search_verts[1] = 1;
       else if (index ==1)
         search_verts[1] = 4;
       else if (index == 2)
         search_verts[1] = 5;
       else
-        search_verts[1] =6;
+        search_verts[1] =6;*/
 
       std::vector<EntityHandle> temp;
       temp.reserve(20);
