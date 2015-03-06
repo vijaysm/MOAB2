@@ -625,11 +625,13 @@ ErrorCode NestedRefine::generate_hm(int *level_degrees, int num_level, EntityHan
 
           std::cout << "Created skin for dim =" << skin_dim << std::endl;
           //Update AHF adjacencies for skin edges
+          /*
           if ((meshdim == 3) && (skin_dim == 1))
           {
             error = ahf->determine_sibling_halfverts(skinents); MB_CHK_ERR(error);
             error = ahf->determine_incident_halfverts(skinents); MB_CHK_ERR(error);
           }
+          */
         }
 
 #ifdef PETSC_DEBUG_ONLY
