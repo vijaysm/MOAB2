@@ -250,15 +250,10 @@ int main(int argc, char *argv[]) {
 
     if (ts == 1)  // output initial condition
     {
-      std::stringstream newTracer;
-      newTracer << "Tracer" << rank << "_" << ts - 1 << ".vtk";
-      rval = mb.write_file(newTracer.str().c_str(), 0, 0, &euler_set, 1);
-      MB_CHK_ERR(rval);
       std::stringstream newTracer2;
       newTracer2 << "Tracer_00" << ".h5m";
       rval = mb.write_file(newTracer2.str().c_str(), 0, "PARALLEL=WRITE_PART",
-          &euler_set, 1);
-      MB_CHK_ERR(rval);
+          &euler_set, 1);MB_CHK_ERR(rval);
     }
 
     // get density bounds
@@ -300,8 +295,11 @@ int main(int argc, char *argv[]) {
     rval = pworker->intersect_meshes(covering_set, euler_set, out_set);
     MB_CHK_ERR(rval);
 
-    /*if (writeFiles) // so if write
+    if (writeFiles && rank < 10 && ts<2) // so if write
     {
+      std::stringstream lagrFile;
+      lagrFile << "lagr" << rank << "_" << ts << ".vtk";
+      rval = mb.write_file(lagrFile.str().c_str(), 0, 0, &lagrange_set, 1); MB_CHK_ERR(rval);
       std::stringstream coverFile;
       coverFile << "cover" << rank << "_" << ts << ".vtk";
       rval = mb.write_file(coverFile.str().c_str(), 0, 0, &covering_set, 1);
@@ -310,8 +308,7 @@ int main(int argc, char *argv[]) {
       intxFile << "intx" << rank << "_" << ts << ".vtk";
       rval = mb.write_file(intxFile.str().c_str(), 0, 0, &out_set, 1);
       MB_CHK_ERR(rval);
-
-    }*/
+    }
 
     // intersection weights (i.e. area, x integral, and y integral over cell intersections)
     get_intersection_weights(&mb, euler_set, out_set, planeTag, weightsTag);
