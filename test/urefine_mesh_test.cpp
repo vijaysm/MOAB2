@@ -418,7 +418,7 @@ ErrorCode refine_entities(Interface *mb, int *level_degrees, const int num_level
           std::string str = file.str();
           const char* output_file = str.c_str();
           char * write_opts = NULL;
-          error = mb->write_file(output_file, 0, write_opts, &set[l], 1); CHECK_ERR(error);
+          error = mb->write_file(output_file, 0, write_opts, &set[l+1], 1); CHECK_ERR(error);
         }
     }
 

@@ -609,8 +609,8 @@ namespace moab{
              //Update HF adjacencies for skin edges
              if ((meshdim==3)&&(skin_dim==1))
                {
-                 error = ahf->determine_sibling_halfverts(skinents); MB_CHK_ERR(error);
-                 error = ahf->determine_incident_halfverts(skinents); MB_CHK_ERR(error);
+                // error = ahf->determine_sibling_halfverts(skinents); MB_CHK_ERR(error);
+                // error = ahf->determine_incident_halfverts(skinents); MB_CHK_ERR(error);
                }
            }
 
