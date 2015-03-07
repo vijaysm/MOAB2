@@ -355,7 +355,7 @@ ErrorCode NestedRefine::vertex_to_entities(EntityHandle vertex, int level, std::
   return MB_SUCCESS;
 }
 
-bool NestedRefine::is_entity_on_boundary(EntityHandle &entity)
+bool NestedRefine::is_entity_on_boundary(const EntityHandle &entity)
 {
   bool is_border = false;
   EntityType type = mbImpl->type_from_handle(entity);
@@ -413,37 +413,30 @@ ErrorCode NestedRefine::estimate_hm_storage(EntityHandle set, int level_degree, 
 
   int findex, cindex;
   if (nfaces_prev != 0)
-  {
-    EntityHandle start_face;
-    if (cur_level)
-      start_face = level_mesh[cur_level - 1].start_face;
-    else
-      start_face = *_infaces.begin();
-    findex = mbImpl->type_from_handle(start_face) - 1;
-    hmest[2] = nfaces_prev * refTemplates[findex][d].total_new_ents;
-  }
-  if (ncells_prev != 0)
-  {
-    cindex = mbImpl->type_from_handle(*(_incells.begin())) - 1;
-    hmest[3] = ncells_prev * refTemplates[cindex][d].total_new_ents;
-  }
+    {
+      EntityHandle start_face;
+      if (cur_level)
+        start_face = level_mesh[cur_level-1].start_face;
+      else
+        start_face = *_infaces.begin();
+      findex = mbImpl->type_from_handle(start_face)-1;
+      hmest[2] = nfaces_prev*refTemplates[findex][d].total_new_ents;
 
-  if (meshdim == 2)
-  {
-    EntityHandle start_face;
-    if (cur_level)
-      start_face = level_mesh[cur_level - 1].start_face;
-    else
-      start_face = *_infaces.begin();
-    findex = mbImpl->type_from_handle(start_face) - 1;
-    hmest[0] += refTemplates[findex][d].nv_face * nfaces_prev;
-  }
-  else if (meshdim == 3)
-  {
-    cindex = mbImpl->type_from_handle(*(_incells.begin())) - 1;
-    hmest[0] += refTemplates[cindex][d].nv_face * nfaces;
-    hmest[0] += refTemplates[cindex][d].nv_cell * ncells_prev;
-  }
+      if (meshdim==2)
+        hmest[0] += refTemplates[findex][d].nv_face*nfaces_prev;
+
+      if (meshdim==3)
+        hmest[1] += nfaces_prev*intFacEdg[findex-1][d].nie;
+    }
+
+  if (ncells_prev != 0)
+    {
+      cindex = mbImpl->type_from_handle(*(_incells.begin()))-1;
+      hmest[3] = ncells_prev*refTemplates[cindex][d].total_new_ents;
+
+      hmest[0] += refTemplates[cindex][d].nv_face*nfaces;
+      hmest[0] += refTemplates[cindex][d].nv_cell*ncells_prev;
+    }
 
   return MB_SUCCESS;
 }
@@ -464,6 +457,7 @@ ErrorCode NestedRefine::create_hm_storage_single_level(EntityHandle *set, int cu
 
   Range newverts(level_mesh[cur_level].start_vertex, level_mesh[cur_level].start_vertex + estL[0] - 1);
   error = mbImpl->add_entities(*set, newverts); MB_CHK_ERR(error);
+  level_mesh[cur_level].verts = newverts;
 
   Tag gidtag;
   error = mbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, gidtag); MB_CHK_ERR(error);
@@ -477,6 +471,7 @@ ErrorCode NestedRefine::create_hm_storage_single_level(EntityHandle *set, int cu
 
     Range newedges(level_mesh[cur_level].start_edge, level_mesh[cur_level].start_edge + estL[1] - 1);
     error = mbImpl->add_entities(*set, newedges); MB_CHK_ERR(error);
+    level_mesh[cur_level].edges = newedges;
     //   error = read_iface->assign_ids(gidtag, newedges, level_mesh[cur_level].start_edge);MB_CHK_ERR(error);
   }
   else
@@ -492,6 +487,7 @@ ErrorCode NestedRefine::create_hm_storage_single_level(EntityHandle *set, int cu
 
     Range newfaces(level_mesh[cur_level].start_face, level_mesh[cur_level].start_face + estL[2] - 1);
     error = mbImpl->add_entities(*set, newfaces); MB_CHK_ERR(error);
+    level_mesh[cur_level].faces = newfaces;
     // error = read_iface->assign_ids(gidtag, newfaces, level_mesh[cur_level].start_face);MB_CHK_ERR(error);
   }
   else
@@ -508,6 +504,7 @@ ErrorCode NestedRefine::create_hm_storage_single_level(EntityHandle *set, int cu
 
     Range newcells(level_mesh[cur_level].start_cell, level_mesh[cur_level].start_cell + estL[3] - 1);
     error = mbImpl->add_entities(*set, newcells); MB_CHK_ERR(error);
+    level_mesh[cur_level].cells = newcells;
     //error = read_iface->assign_ids(gidtag, newcells, level_mesh[cur_level].start_cell);MB_CHK_ERR(error);
   }
   else
@@ -518,7 +515,6 @@ ErrorCode NestedRefine::create_hm_storage_single_level(EntityHandle *set, int cu
 
   return MB_SUCCESS;
 }
-
 
 
 /**********************************
@@ -536,7 +532,6 @@ ErrorCode NestedRefine::generate_hm(int *level_degrees, int num_level, EntityHan
   mbImpl->write_file("test_0.h5m", 0, ";;PARALLEL=WRITE_PART", &_rset, 1);
   for (int l = 0; l < num_level; l++)
   {
-    // Estimate storage
     int hmest[4] = {0, 0, 0, 0};
     EntityHandle set;
     if (l)
@@ -548,12 +543,13 @@ ErrorCode NestedRefine::generate_hm(int *level_degrees, int num_level, EntityHan
     {
       Range ed;
       error = mbImpl->get_entities_by_dimension(set, 1, ed); MB_CHK_ERR(error);
-      std::cout << ed.size() << " Edges before generating the next level" << std::endl;
+      std::cout << ed.size() << " Edges before generating the hierarchy" << std::endl;
       //for (unsigned j=0; j<ed.size(); j++)
       //  std::cout<<ed[j]<<std::endl;
     }
 #endif
 
+    // Estimate storage
     error = estimate_hm_storage(set, level_degrees[l], l, hmest); MB_CHK_ERR(error);
 
     //Create arrays for storing the current level
@@ -569,7 +565,7 @@ ErrorCode NestedRefine::generate_hm(int *level_degrees, int num_level, EntityHan
     {
       Range ed;
       error = mbImpl->get_entities_by_dimension(hm_set[l], 1, ed); MB_CHK_ERR(error);
-      std::cout << ed.size() << " [1] Edges after generating the next level" << std::endl;
+      std::cout << ed.size() << " [1] Edges after generating the hierarchy" << std::endl;
       //mbImpl->list_entities(ed);
       //for (unsigned j=0; j<ed.size(); j++)
       //  std::cout<<ed[j]<<std::endl;
@@ -615,6 +611,7 @@ ErrorCode NestedRefine::generate_hm(int *level_degrees, int num_level, EntityHan
         Range ents;
         error = mbImpl->get_entities_by_dimension(hm_set[l], meshdim, ents, false); MB_CHK_ERR(error);
 
+        /*
         //create the skin entities
         Skinner sk(mbImpl);
         Range skinents;
@@ -625,20 +622,19 @@ ErrorCode NestedRefine::generate_hm(int *level_degrees, int num_level, EntityHan
 
           std::cout << "Created skin for dim =" << skin_dim << std::endl;
           //Update AHF adjacencies for skin edges
-          /*
           if ((meshdim == 3) && (skin_dim == 1))
           {
             error = ahf->determine_sibling_halfverts(skinents); MB_CHK_ERR(error);
             error = ahf->determine_incident_halfverts(skinents); MB_CHK_ERR(error);
           }
-          */
         }
-
+        */
 #ifdef PETSC_DEBUG_ONLY
         {
           Range ed;
           error = mbImpl->get_entities_by_dimension(hm_set[l], 1, ed); MB_CHK_ERR(error);
           std::cout << ed.size() << " Edges before resolved shared " << std::endl;
+          /*
           for (unsigned j = 0; j < ed.size(); j++)
           {
             const EntityHandle *conn;
@@ -646,6 +642,7 @@ ErrorCode NestedRefine::generate_hm(int *level_degrees, int num_level, EntityHan
             error = mbImpl->get_connectivity(ed[j], conn, nconn); MB_CHK_ERR(error);
             std::cout << ed[j] << "  " << ID_FROM_HANDLE(ed[j]) << "  " << conn[0] << " " << conn[1] << std::endl;
           }
+          */
         }
 #endif
 
@@ -661,6 +658,7 @@ ErrorCode NestedRefine::generate_hm(int *level_degrees, int num_level, EntityHan
           Range ed;
           error = mbImpl->get_entities_by_dimension(hm_set[l], 1, ed); MB_CHK_ERR(error);
           std::cout << ed.size() << " Edges after resolved shared " << std::endl;
+          /*
           for (unsigned j = 0; j < ed.size(); j++)
           {
             const EntityHandle *conn;
@@ -668,11 +666,11 @@ ErrorCode NestedRefine::generate_hm(int *level_degrees, int num_level, EntityHan
             error = mbImpl->get_connectivity(ed[j], conn, nconn); MB_CHK_ERR(error);
             std::cout << ed[j] << "  " << ID_FROM_HANDLE(ed[j]) << "  " << conn[0] << " " << conn[1] << std::endl;
           }
+          */
         }
 #endif
 
         {
-
           // get all entities on the rootset
           /*
           moab::Range vtxs, edgs, facs, elms;
@@ -1100,7 +1098,8 @@ ErrorCode NestedRefine::construct_hm_2D(int cur_level, int deg)
 
     //Gather vertices already added to tracking array due to refinement of the sibling faces
 
-    for (int i = 0; i < nepf; i++) {
+    for (int i = 0; i < nepf; i++)
+    {
       for (int j = 0; j < nve; j++)
       {
         int id = refTemplates[findex][d].vert_on_edges[i][j];
@@ -1111,7 +1110,8 @@ ErrorCode NestedRefine::construct_hm_2D(int cur_level, int deg)
     //Add the remaining vertex handles to vbuffer for the current level for the working face
     for (int i = 0; i < tnv; i++)
     {
-      if (!vbuffer[i + nepf]) {
+      if (!vbuffer[i + nepf])
+      {
         vbuffer[i + nepf] = level_mesh[cur_level].start_vertex + count_nverts;
         count_nverts += 1;
       }
@@ -1212,17 +1212,15 @@ ErrorCode NestedRefine::construct_hm_2D(int cur_level, int deg)
 ErrorCode NestedRefine::construct_hm_2D(int cur_level, int deg, EntityType type, std::vector<EntityHandle> &trackvertsE, std::vector<EntityHandle> &trackvertsF)
 {
   ErrorCode error;
-  int nents_prev;
-  if (cur_level)
-    nents_prev = level_mesh[cur_level - 1].num_faces;
-  else
-    nents_prev = _infaces.size();
-
   EntityType ftype;
   if (type == MBTET)
+  {
     ftype = MBTRI;
+  }
   else if (type == MBHEX)
+  {
     ftype = MBQUAD;
+  }
 
   int d = get_index_from_degree(deg);
   int findex = ftype - 1;
@@ -1244,6 +1242,18 @@ ErrorCode NestedRefine::construct_hm_2D(int cur_level, int deg, EntityType type,
   std::vector<EntityHandle> adjents, fconn, cconn;
   std::vector<int> leids;
   int count_nents = 0;
+
+  int nents_prev, ecount;
+  if (cur_level)
+  {
+    nents_prev = level_mesh[cur_level - 1].num_faces;
+    ecount = level_mesh[cur_level - 1].num_edges * refTemplates[MBEDGE - 1][d].total_new_ents;;
+  }
+  else
+  {
+    nents_prev = _infaces.size();
+    ecount  = _inedges.size() * refTemplates[MBEDGE - 1][d].total_new_ents;;
+  }
 
   //Step 1: Create the subentities via refinement of the previous mesh
   for (int it = 0; it < nents_prev; it++)
@@ -1316,7 +1326,8 @@ ErrorCode NestedRefine::construct_hm_2D(int cur_level, int deg, EntityType type,
       if ((fconn[j] == cconn[idx1] ) && (fconn[fnext] == cconn[idx2]))
         eorient = true;
 
-      if (eorient) {
+      if (eorient)
+      {
         for (int k = 0; k < nve; k++ )
         {
           int ind = refTemplates[findex][d].vert_on_edges[j][k];
@@ -1359,12 +1370,27 @@ ErrorCode NestedRefine::construct_hm_2D(int cur_level, int deg, EntityType type,
 
     error = update_local_ahf(deg, ftype, vbuffer, ent_buffer, etotal); MB_CHK_ERR(error);
 
+    //Create the interior edges
+    int id1, id2;
+
+    int ne = intFacEdg[ftype - 2][d].nie;
+    for (int i = 0; i < ne; i++)
+    {
+      id1 = intFacEdg[ftype - 2][d].ieconn[i][0];
+      id2 = intFacEdg[ftype - 2][d].ieconn[i][1];
+      level_mesh[cur_level].edge_conn[2 * (ecount)] = vbuffer[id1];
+      level_mesh[cur_level].edge_conn[2 * (ecount) + 1] = vbuffer[id2];
+      ecount += 1;
+    }
   }
 
   //    error = mbImpl->write_file("test.vtk"); MB_CHK_ERR(error);
 
   // Step 6: Update the global maps
   error = update_global_ahf_2D_sub(cur_level, deg);  MB_CHK_ERR(error);
+
+  //Step 7: Update the hf-maps for the edges
+  error = update_ahf_1D(cur_level);
 
   delete [] vbuffer;
   delete [] ent_buffer;
@@ -1389,6 +1415,7 @@ ErrorCode NestedRefine::construct_hm_3D(int cur_level, int deg)
 
   return MB_SUCCESS;
 }
+
 
 ErrorCode NestedRefine::subdivide_cells(EntityType type, int cur_level, int deg)
 {
@@ -1460,7 +1487,8 @@ ErrorCode NestedRefine::subdivide_cells(EntityType type, int cur_level, int deg)
     }
 
     //Gather vertices already added to tracking array due to refinement of the sibling cells
-    for (int i = 0; i < nepc; i++) {
+    for (int i = 0; i < nepc; i++)
+    {
       for (int j = 0; j < ne; j++)
       {
         int idx = refTemplates[cindex][d].vert_on_edges[i][j];
@@ -1469,7 +1497,8 @@ ErrorCode NestedRefine::subdivide_cells(EntityType type, int cur_level, int deg)
     }
 
     //Add remaining new vertex handles
-    for (int i = 0; i < nfpc; i++) {
+    for (int i = 0; i < nfpc; i++)
+    {
       for (int j = 0; j < nvf; j++)
       {
         int idx = refTemplates[cindex][d].vert_on_faces[i][j];
@@ -1478,8 +1507,10 @@ ErrorCode NestedRefine::subdivide_cells(EntityType type, int cur_level, int deg)
     }
 
     //Add the remaining vertex handles to vbuffer for the current level for the working cell
-    for (int i = 0; i < nvtotal; i++) {
-      if (!vbuffer[i + nvpc]) {
+    for (int i = 0; i < nvtotal; i++)
+    {
+      if (!vbuffer[i + nvpc])
+      {
         vbuffer[i + nvpc] = level_mesh[cur_level].start_vertex + count_nverts;
         count_nverts += 1;
       }
@@ -1531,13 +1562,14 @@ ErrorCode NestedRefine::subdivide_cells(EntityType type, int cur_level, int deg)
   if (!_infaces.empty())
   {
     error = construct_hm_2D(cur_level, deg, type, trackvertsC_edg, trackvertsC_face); MB_CHK_ERR(error);
-    //error = print_tags_2D(cur_level,MBQUAD);
+    // error = print_tags_2D(cur_level, MBQUAD);
 
   }
   delete [] vbuffer;
 
   return MB_SUCCESS;
 }
+
 
 ErrorCode NestedRefine::subdivide_tets(int cur_level, int deg)
 {
@@ -1691,14 +1723,12 @@ ErrorCode NestedRefine::subdivide_tets(int cur_level, int deg)
     // error = print_tags_2D(cur_level,MBTRI);
   }
 
-
   delete [] vbuffer;
-
   return MB_SUCCESS;
 }
 
 
-ErrorCode NestedRefine::compute_coordinates(int cur_level, int deg, EntityType type, EntityHandle *vbuffer, int vtotal, double *corner_coords, std::vector<int> &vflag, int nverts_prev)
+ErrorCode NestedRefine::compute_coordinates(int cur_level, int deg, EntityType type, EntityHandle * vbuffer, int vtotal, double * corner_coords, std::vector<int> &vflag, int nverts_prev)
 {
   EntityHandle vstart = level_mesh[cur_level].start_vertex;
   int d = get_index_from_degree(deg);
@@ -1861,6 +1891,7 @@ ErrorCode NestedRefine::compute_coordinates(int cur_level, int deg, EntityType t
   }
   return MB_SUCCESS;
 }
+
 
 /**********************************
  *          Update AHF maps           *
@@ -2253,6 +2284,15 @@ ErrorCode NestedRefine::update_global_ahf_1D_sub(int cur_level, int deg)
   return MB_SUCCESS;
 }
 
+ErrorCode NestedRefine::update_ahf_1D(int cur_level)
+{
+  ErrorCode error;
+  error = ahf->determine_sibling_halfverts(level_mesh[cur_level].verts, level_mesh[cur_level].edges);MB_CHK_ERR(error);
+
+  error = ahf->determine_incident_halfverts(level_mesh[cur_level].edges);MB_CHK_ERR(error);
+
+  return MB_SUCCESS;
+}
 
 ErrorCode NestedRefine::update_global_ahf_2D(int cur_level, int deg)
 {
@@ -2909,7 +2949,7 @@ ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg, std::vector
  *          Boundary Functions      *
  ************************************/
 
-bool NestedRefine::is_vertex_on_boundary(EntityHandle vertex)
+bool NestedRefine::is_vertex_on_boundary(const EntityHandle& vertex)
 {
   ErrorCode error;
   EntityHandle ent, sibents[27];
@@ -2921,7 +2961,7 @@ bool NestedRefine::is_vertex_on_boundary(EntityHandle vertex)
   return (sibents[lid] == 0);
 }
 
-bool NestedRefine::is_edge_on_boundary(EntityHandle &entity)
+bool NestedRefine::is_edge_on_boundary(const EntityHandle& entity)
 {
   ErrorCode error;
   bool is_border = false;
@@ -2973,7 +3013,7 @@ bool NestedRefine::is_edge_on_boundary(EntityHandle &entity)
   return is_border;
 }
 
-bool NestedRefine::is_face_on_boundary(EntityHandle &entity)
+bool NestedRefine::is_face_on_boundary(const EntityHandle& entity)
 {
   ErrorCode error;
   bool is_border = false;
@@ -3005,7 +3045,7 @@ bool NestedRefine::is_face_on_boundary(EntityHandle &entity)
   return is_border;
 }
 
-bool NestedRefine::is_cell_on_boundary(EntityHandle &entity)
+bool NestedRefine::is_cell_on_boundary(const EntityHandle& entity)
 {
   if (meshdim != 3)
     MB_SET_ERR(MB_FAILURE, "Requesting boundary information for a cell entity type on a curve or surface mesh");

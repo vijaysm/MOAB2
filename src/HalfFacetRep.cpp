@@ -245,7 +245,7 @@ ErrorCode HalfFacetRep::init_curve()
   error = mb->tag_get_handle("__V2HV_EID", 1, MB_TYPE_HANDLE, v2hv_eid, MB_TAG_DENSE | MB_TAG_CREAT, &idefval);MB_CHK_ERR(error);
   error = mb->tag_get_handle("__V2HV_LVID", 1, MB_TYPE_INTEGER, v2hv_lvid, MB_TAG_DENSE | MB_TAG_CREAT, &ival);MB_CHK_ERR(error);
 
-  error = determine_sibling_halfverts(_edges);MB_CHK_ERR(error);
+  error = determine_sibling_halfverts(_verts, _edges);MB_CHK_ERR(error);
   error = determine_incident_halfverts(_edges);MB_CHK_ERR(error);
 
   // If running in parallel, exchange tag information to update shared entity data
@@ -712,12 +712,12 @@ ErrorCode HalfFacetRep::count_subentities(Range &edges, Range &faces, Range &cel
 /********************************************************
 * 1D: sibhvs, v2hv, incident and neighborhood queries   *
 *********************************************************/
-ErrorCode HalfFacetRep::determine_sibling_halfverts( Range &edges)
+ErrorCode HalfFacetRep::determine_sibling_halfverts( Range verts, Range &edges)
 {
   ErrorCode error;
 
   //Step 1: Create an index list storing the starting position for each vertex
-  int nv = _verts.size();
+  int nv = verts.size();
   int *is_index = new int[nv + 1];
   for (int i = 0; i < nv + 1; i++)
     is_index[i] = 0;
@@ -728,9 +728,9 @@ ErrorCode HalfFacetRep::determine_sibling_halfverts( Range &edges)
     conn.clear();
     error = mb->get_connectivity(&*eid, 1, conn);MB_CHK_ERR(error);
 
-    int index = _verts.index(conn[0]);
+    int index = verts.index(conn[0]);
     is_index[index + 1] += 1;
-    index = _verts.index(conn[1]);
+    index = verts.index(conn[1]);
     is_index[index + 1] += 1;
   }
   is_index[0] = 0;
@@ -749,7 +749,7 @@ ErrorCode HalfFacetRep::determine_sibling_halfverts( Range &edges)
 
     for (int j = 0; j < 2; j++)
     {
-      int v = _verts.index(conn[j]);
+      int v = verts.index(conn[j]);
       assert(v >= 0);
       v2hv_map_eid[is_index[v]] = *eid;
       v2hv_map_lvid[is_index[v]] = j;
@@ -778,7 +778,7 @@ ErrorCode HalfFacetRep::determine_sibling_halfverts( Range &edges)
       if (sibeid[k] != 0)
         continue;
 
-      int v = _verts.index(conn[k]);
+      int v = verts.index(conn[k]);
       assert(v >= 0);
       int last = is_index[v + 1] - 1;
       if (last > is_index[v])
@@ -996,7 +996,7 @@ ErrorCode HalfFacetRep::determine_sibling_halfedges( Range &faces)
     for (int j = 0; j < nepf; j++)
     {
       int v = _verts.index(conn[j]);
-      if (v < 0) MB_CHK_SET_ERR(MB_FAILURE, "Invalid face connectivity in AHF map\n");
+      assert(v >= 0);
       int nidx = lConnMap2D[ftype-2].next[j];
       v2nv[is_index[v]] = conn[nidx];
       v2he_map_fid[is_index[v]] = *fid;
@@ -1029,7 +1029,7 @@ ErrorCode HalfFacetRep::determine_sibling_halfedges( Range &faces)
       int nidx = lConnMap2D[ftype-2].next[k];
       int v = _verts.index(conn[k]);
       int vn = _verts.index(conn[nidx]);
-      if (v < 0 || vn < 0 ) MB_CHK_SET_ERR(MB_FAILURE, "Invalid face connectivity in AHF map\n");
+      assert(v >= 0 && vn >= 0);
 
       EntityHandle first_fid = *fid;
       int first_leid = k;
@@ -1751,6 +1751,7 @@ ErrorCode HalfFacetRep::determine_sibling_halffaces( Range &cells)
       int pidx = lConnMap2D[nvF-3].prev[lv];
 
       int v = _verts.index(vmax);
+      assert(v >= 0);
       v2oe_v1[is_index[v]] = vs[nidx];
       v2oe_v2[is_index[v]] = vs[pidx];
       v2hf_map_cid[is_index[v]] = *cid;
@@ -1802,6 +1803,7 @@ ErrorCode HalfFacetRep::determine_sibling_halffaces( Range &cells)
       int pidx = lConnMap2D[nvF-3].prev[lv];
 
       int v = _verts.index(vmax);
+      assert(v >= 0);
       EntityHandle v1 = vs[pidx];
       EntityHandle v2 = vs[nidx];
 

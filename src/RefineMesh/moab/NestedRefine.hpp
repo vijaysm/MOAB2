@@ -117,7 +117,7 @@ namespace moab
       * \param entity
     */
 
-    bool is_entity_on_boundary(EntityHandle &entity);
+    bool is_entity_on_boundary(const EntityHandle &entity);
 
 
   protected:
@@ -169,6 +169,15 @@ namespace moab
     //! refPatterns
 
     static const refPatterns refTemplates[9][MAX_DEGREE];
+
+    //! Helper
+    struct intFEdge{
+      //! Number of edges interior to a face
+      short int nie;
+      //! Local connectivity of the interior edges
+      int ieconn[12][2];
+    };
+    static const intFEdge intFacEdg[2][2];
 
     int get_index_from_degree(int degree);
 
@@ -246,6 +255,7 @@ namespace moab
 
     ErrorCode update_global_ahf_1D(int cur_level, int deg);
     ErrorCode update_global_ahf_1D_sub(int cur_level, int deg);
+    ErrorCode update_ahf_1D(int cur_level);
 
     ErrorCode update_global_ahf_2D(int cur_level, int deg);
     ErrorCode update_global_ahf_2D_sub(int cur_level, int deg);
@@ -259,10 +269,12 @@ namespace moab
       * Note: This is a specialization of the NestedRefine::is_entity_on_boundary function and applies only to vertex queries.
       * \param entity
     */
-    bool is_vertex_on_boundary(EntityHandle entity);
-    bool is_edge_on_boundary(EntityHandle &entity);
-    bool is_face_on_boundary(EntityHandle &entity);
-    bool is_cell_on_boundary(EntityHandle &entity);
+    bool is_vertex_on_boundary(const EntityHandle& entity);
+    bool is_edge_on_boundary(const EntityHandle& entity);
+    bool is_face_on_boundary(const EntityHandle& entity);
+    bool is_cell_on_boundary(const EntityHandle& entity);
+
+    //ErrorCode find_skin_faces(EntityHandle set, int level, int nskinF);
   };
 } //name space moab
 #endif
