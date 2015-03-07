@@ -61,7 +61,7 @@ ParallelComm *pcomm = NULL;
 int num_update_calls=0;
 int nlev = 4;
 int level_to_print =1; // + 1
-bool dprint = false;
+bool dprint = true;
 // end printing
 // should get rid of this; instead of using array[NC+1][NC+1], use  row based indexing (C-style):
 // parray =  new int[ (NC+1)*(NC+1) ] , and instead of array[i][j], use parray[ i*(NC+1) + j ]
@@ -921,11 +921,12 @@ ErrorCode create_fine_mesh(Interface * mb, ParallelComm * pcomm1,
    const int start_id,
    const bool parallel,
    const bool owned_only) */
-#ifndef NDEBUG
-  std::stringstream fff;
-  fff << "fine0" << pcomm1->proc_config().proc_rank() << ".h5m";
-  mb->write_mesh(fff.str().c_str(), &fine_set, 1);
-#endif
+  if (dprint && rank<10)
+  {
+    std::stringstream fff;
+    fff << "fine0" << pcomm1->proc_config().proc_rank() << ".h5m";
+    mb->write_mesh(fff.str().c_str(), &fine_set, 1);
+  }
 
   rval = mb->write_file("fine.h5m", 0, "PARALLEL=WRITE_PART", &fine_set, 1);
   ERRORR(rval, "can't write set 3, fine ");
@@ -942,17 +943,21 @@ ErrorCode create_fine_mesh(Interface * mb, ParallelComm * pcomm1,
         true); MB_CHK_ERR(rval);
     // these should be used only for ghosting
     rval = mb->get_entities_by_dimension(0, 2, allCells); MB_CHK_ERR(rval);
+    // more debugging stuff
+    if (dprint && rank<10)
+    {
+      std::stringstream fff;
+      fff << "fine_gh_" <<  rank << ".h5m";
+      EntityHandle ghSet;
+      mb->create_meshset(MESHSET_SET, ghSet);
+      mb->add_entities(ghSet, allCells);
+      mb->write_mesh(fff.str().c_str(), &ghSet, 1);
+    }
+
   }
 
-   // more debugging stuff
-#if 0
-   fff.clear();
-   fff << "fine_gh_" <<  pcomm1->proc_config().proc_rank() << ".h5m";
-   EntityHandle ghSet;
-   mb->create_meshset(MESHSET_SET, ghSet);
-   mb->add_entities(ghSet, allCells);
-   mb->write_mesh(fff.str().c_str(), &ghSet, 1);
-#endif
+
+
 
   // we need to keep a mapping index, from the coords array to the vertex handles
   // so, for a given vertex entity handle, at what index in the coords array the vertex
@@ -1115,15 +1120,15 @@ void intersection_at_level(iMesh_Instance instance,
   // set the departure tag on the fine mesh vertices
   ErrorCode rval = set_departure_points_position(mb, lagrMeshSet, dep_coords,
       radius2);
-  if (dprint)
+  if (dprint && pcomm->proc_config().proc_rank() < 10)
   {
     if (num_update_calls%nlev==level_to_print-1)
     {
       int nstep=num_update_calls/nlev;
       std::stringstream fff;
-      fff << "depMesh0" << nstep << ".h5m";
+      fff << "depMesh0" << nstep << "_" <<  pcomm->proc_config().proc_rank() << ".vtk";
 
-      rval = mb->write_file(fff.str().c_str(), 0, "PARALLEL=WRITE_PART", &lagrMeshSet, 1); MB_CHK_ERR_RET(rval);
+      rval = mb->write_file(fff.str().c_str(), 0, 0, &lagrMeshSet, 1); MB_CHK_ERR_RET(rval);
     }
   }
   ERRORV(rval, "can't set departure tag");
@@ -1141,7 +1146,7 @@ void intersection_at_level(iMesh_Instance instance,
   rval = pworker->create_departure_mesh_3rd_alg(lagrMeshSet, covering_set);
   ERRORV(rval, "can't compute covering set ");
 
-  if (debug) {
+  if (dprint && pcomm->proc_config().proc_rank() < 10) {
     std::stringstream fff;
     fff << "cover" << pcomm->proc_config().proc_rank() << ".vtk";
     rval = mb->write_mesh(fff.str().c_str(), &covering_set, 1);
@@ -1153,7 +1158,7 @@ void intersection_at_level(iMesh_Instance instance,
       intxSet);
   ERRORV(rval, "can't intersect ");
 
-  if (debug) {
+  if (dprint && pcomm->proc_config().proc_rank() < 10) {
     std::stringstream fff;
     fff << "intx0" << pcomm->proc_config().proc_rank() << ".vtk";
     rval = mb->write_mesh(fff.str().c_str(), &intxSet, 1);
@@ -1203,6 +1208,11 @@ void cleanup_after_intersection(iMesh_Instance instance,
   rval = mb->delete_entities(todeleteVerts);
   ERRORV(rval, "failed to delete intx vertices");
 
+  if (dprint )
+  {
+    MPI_Finalize();
+    return;
+  }
   *ierr = 0;
   return;
 }
