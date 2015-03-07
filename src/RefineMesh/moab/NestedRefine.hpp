@@ -176,6 +176,15 @@ namespace moab
 
     static const refPatterns refTemplates[9][MAX_DEGREE];
 
+    //! Helper
+    struct intFEdge{
+      //! Number of edges interior to a face
+      short int nie;
+      //! Local connectivity of the interior edges
+      int ieconn[12][2];
+    };
+    static const intFEdge intFacEdg[2][2];
+
     int get_index_from_degree(int degree);
 
     // HM Storage Helper
@@ -252,6 +261,7 @@ namespace moab
 
     ErrorCode update_global_ahf_1D(int cur_level, int deg);
     ErrorCode update_global_ahf_1D_sub(int cur_level, int deg);
+    ErrorCode update_ahf_1D(int cur_level);
 
     ErrorCode update_global_ahf_2D(int cur_level, int deg);
     ErrorCode update_global_ahf_2D_sub(int cur_level, int deg);
@@ -264,6 +274,8 @@ namespace moab
     bool is_edge_on_boundary(EntityHandle &entity);
     bool is_face_on_boundary(EntityHandle &entity);
     bool is_cell_on_boundary(EntityHandle &entity);
+
+    //ErrorCode find_skin_faces(EntityHandle set, int level, int nskinF);
   };
 } //name space moab
 #endif

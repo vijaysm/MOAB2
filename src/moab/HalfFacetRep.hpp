@@ -157,7 +157,7 @@ public:
      * \param edges Range of edges.
     */
 
-  ErrorCode determine_sibling_halfverts(Range &edges);
+  ErrorCode determine_sibling_halfverts(Range verts, Range &edges);
 
   //! Given a range of edges, determines the map for incident half-verts and stores them into V2HV_EID, V2HV_LVID tags.
   /** Compute a map between a vertex and an incident half-vertex. This map is not always required, but is

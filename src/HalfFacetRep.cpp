@@ -268,7 +268,7 @@ ErrorCode HalfFacetRep::init_curve()
   error = mb->tag_get_handle("__V2HV_EID", 1, MB_TYPE_HANDLE, v2hv_eid, MB_TAG_DENSE | MB_TAG_CREAT, &idefval);MB_CHK_ERR(error);
   error = mb->tag_get_handle("__V2HV_LVID", 1, MB_TYPE_INTEGER, v2hv_lvid, MB_TAG_DENSE | MB_TAG_CREAT, &ival);MB_CHK_ERR(error);
 
-  error = determine_sibling_halfverts(_edges);MB_CHK_ERR(error);
+  error = determine_sibling_halfverts(_verts, _edges);MB_CHK_ERR(error);
   error = determine_incident_halfverts(_edges);MB_CHK_ERR(error);
 
   // If running in parallel, exchange tag information to update shared entity data
@@ -762,12 +762,12 @@ ErrorCode HalfFacetRep::count_subentities(Range &edges, Range &faces, Range &cel
 /********************************************************
 * 1D: sibhvs, v2hv, incident and neighborhood queries   *
 *********************************************************/
-ErrorCode HalfFacetRep::determine_sibling_halfverts( Range &edges)
+ErrorCode HalfFacetRep::determine_sibling_halfverts( Range verts, Range &edges)
 {
   ErrorCode error;
 
   //Step 1: Create an index list storing the starting position for each vertex
-  int nv = _verts.size();
+  int nv = verts.size();
   int *is_index = new int[nv + 1];
   for (int i = 0; i < nv + 1; i++)
     is_index[i] = 0;
@@ -778,9 +778,9 @@ ErrorCode HalfFacetRep::determine_sibling_halfverts( Range &edges)
     conn.clear();
     error = mb->get_connectivity(&*eid, 1, conn);MB_CHK_ERR(error);
 
-    int index = _verts.index(conn[0]);
+    int index = verts.index(conn[0]);
     is_index[index + 1] += 1;
-    index = _verts.index(conn[1]);
+    index = verts.index(conn[1]);
     is_index[index + 1] += 1;
   }
   is_index[0] = 0;
@@ -799,7 +799,7 @@ ErrorCode HalfFacetRep::determine_sibling_halfverts( Range &edges)
 
     for (int j = 0; j < 2; j++)
     {
-      int v = _verts.index(conn[j]);
+      int v = verts.index(conn[j]);
       v2hv_map_eid[is_index[v]] = *eid;
       v2hv_map_lvid[is_index[v]] = j;
       is_index[v] += 1;
@@ -827,7 +827,7 @@ ErrorCode HalfFacetRep::determine_sibling_halfverts( Range &edges)
       if (sibeid[k] != 0)
         continue;
 
-      int v = _verts.index(conn[k]);
+      int v = verts.index(conn[k]);
       int last = is_index[v + 1] - 1;
       if (last > is_index[v])
       {
