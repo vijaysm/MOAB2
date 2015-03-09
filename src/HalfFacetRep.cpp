@@ -24,7 +24,7 @@ namespace moab
 {
 
 HalfFacetRep::HalfFacetRep(Core *impl, ParallelComm *comm, moab::EntityHandle rset)
-    : mb(impl), pcomm(comm), _rset(rset)
+  : mb(impl), pcomm(comm), _rset(rset)
 {
   assert(NULL != impl);
   mInitAHFmaps = false;
@@ -153,25 +153,35 @@ ErrorCode HalfFacetRep::initialize()
 {
   ErrorCode error;
 
-  if (!mInitAHFmaps) {
+  if (!mInitAHFmaps)
+  {
     mInitAHFmaps = true;
 
     /* Get all entities by dimension on the meshset with recursion turned on */
-    if (pcomm) {
-      moab::Range _averts,_aedgs,_afacs,_acels;
+    if (pcomm)
+    {
+      moab::Range _averts, _aedgs, _afacs, _acels;
 
       error = mb->get_entities_by_dimension(this->_rset, 0, _averts, true);MB_CHK_ERR(error);
       error = mb->get_entities_by_dimension(this->_rset, 1, _aedgs, true);MB_CHK_ERR(error);
       error = mb->get_entities_by_dimension(this->_rset, 2, _afacs, true);MB_CHK_ERR(error);
       error = mb->get_entities_by_dimension(this->_rset, 3, _acels, true);MB_CHK_ERR(error);
 
+      MPI_Barrier(pcomm->comm());
+      if (!pcomm->rank())
+        std::cout << "[0] HalfFacetRep::initialize: Pre-filter: [" << _averts.size() << ", " << _aedgs.size() << ", " << _afacs.size() << ", " << _acels.size() << "]\n" ;
+      else
+        std::cout << "[1] HalfFacetRep::initialize: Pre-filter: [" << _averts.size() << ", " << _aedgs.size() << ", " << _afacs.size() << ", " << _acels.size() << "]\n" ;
+      MPI_Barrier(pcomm->comm());
+
       // filter based on parallel status
-      error = pcomm->filter_pstatus(_averts,PSTATUS_GHOST,PSTATUS_NOT,-1,&_verts);MB_CHK_ERR(error);
-      error = pcomm->filter_pstatus(_aedgs,PSTATUS_GHOST,PSTATUS_NOT,-1,&_edges);MB_CHK_ERR(error);
-      error = pcomm->filter_pstatus(_afacs,PSTATUS_GHOST,PSTATUS_NOT,-1,&_faces);MB_CHK_ERR(error);
-      error = pcomm->filter_pstatus(_acels,PSTATUS_GHOST,PSTATUS_NOT,-1,&_cells);MB_CHK_ERR(error);
+      error = pcomm->filter_pstatus(_averts, PSTATUS_GHOST, PSTATUS_NOT, -1, &_verts);MB_CHK_ERR(error);
+      error = pcomm->filter_pstatus(_aedgs, PSTATUS_GHOST, PSTATUS_NOT, -1, &_edges);MB_CHK_ERR(error);
+      error = pcomm->filter_pstatus(_afacs, PSTATUS_GHOST, PSTATUS_NOT, -1, &_faces);MB_CHK_ERR(error);
+      error = pcomm->filter_pstatus(_acels, PSTATUS_GHOST, PSTATUS_NOT, -1, &_cells);MB_CHK_ERR(error);
     }
-    else {
+    else
+    {
       error = mb->get_entities_by_dimension( this->_rset, 0, _verts, true);MB_CHK_ERR(error);
       error = mb->get_entities_by_dimension( this->_rset, 1, _edges, true);MB_CHK_ERR(error);
       error = mb->get_entities_by_dimension( this->_rset, 2, _faces, true);MB_CHK_ERR(error);
@@ -183,7 +193,8 @@ ErrorCode HalfFacetRep::initialize()
     int nfaces = _faces.size();
     int ncells = _cells.size();
 
-    if (pcomm) {
+    if (pcomm)
+    {
       MPI_Barrier(pcomm->comm());
       if (!pcomm->rank())
         std::cout << "[0] HalfFacetRep::initialize: Post-filter: [" << nverts << ", " << nedges << ", " << nfaces << ", " << ncells << "]\n" ;
@@ -249,7 +260,8 @@ ErrorCode HalfFacetRep::init_curve()
   error = determine_incident_halfverts(_edges);MB_CHK_ERR(error);
 
   // If running in parallel, exchange tag information to update shared entity data
-  if (pcomm) {
+  if (pcomm)
+  {
     moab::Range emptyR;
     error = pcomm->exchange_tags(sibhvs_eid, emptyR);MB_CHK_ERR(error);
     error = pcomm->exchange_tags(sibhvs_lvid, emptyR);MB_CHK_ERR(error);
@@ -267,7 +279,7 @@ ErrorCode HalfFacetRep::init_surface()
   EntityHandle idefval = 0;
 
   EntityType ftype = mb->type_from_handle(*_faces.begin());
-  int nepf = lConnMap2D[ftype-2].num_verts_in_face;
+  int nepf = lConnMap2D[ftype - 2].num_verts_in_face;
   EntityHandle *sdefval = new EntityHandle[nepf];
   int *sval = new int[nepf];
 
@@ -296,7 +308,8 @@ ErrorCode HalfFacetRep::init_surface()
   }
 
   // If running in parallel, exchange tag information to update shared entity data
-  if (pcomm) {
+  if (pcomm)
+  {
     moab::Range emptyR;
     error = pcomm->exchange_tags(sibhes_fid, emptyR);MB_CHK_ERR(error);
     error = pcomm->exchange_tags(sibhes_leid, emptyR);MB_CHK_ERR(error);
@@ -345,7 +358,8 @@ ErrorCode HalfFacetRep::init_volume()
   }
 
   // If running in parallel, exchange tag information to update shared entity data
-  if (pcomm) {
+  if (pcomm)
+  {
     moab::Range emptyR;
     error = pcomm->exchange_tags(sibhfs_cid, emptyR);MB_CHK_ERR(error);
     error = pcomm->exchange_tags(sibhfs_lfid, emptyR);MB_CHK_ERR(error);
@@ -365,43 +379,40 @@ ErrorCode HalfFacetRep::deinitialize()
 {
   ErrorCode error;
 
-  if (mInitAHFmaps) {
-    if (thismeshtype == CURVE)
-    {
-      error = deinit_curve();MB_CHK_ERR(error);
-    }
-    else if (thismeshtype == SURFACE)
-    {
-      error = deinit_surface();MB_CHK_ERR(error);
-    }
-    else if (thismeshtype == SURFACE_MIXED)
-    {
-      error = deinit_curve();MB_CHK_ERR(error);
-      error = deinit_surface();MB_CHK_ERR(error);
-    }
-    else if (thismeshtype == VOLUME)
-    {
-      error = deinit_volume();MB_CHK_ERR(error);
-    }
-    else if (thismeshtype == VOLUME_MIXED_1)
-    {
-      error = deinit_curve();MB_CHK_ERR(error);
-      error = deinit_volume();MB_CHK_ERR(error);
-    }
-    else if (thismeshtype == VOLUME_MIXED_2)
-    {
-      error = deinit_surface();MB_CHK_ERR(error);
-      error = deinit_volume();MB_CHK_ERR(error);
-    }
-    else if (thismeshtype == VOLUME_MIXED)
-    {
-      error = deinit_curve();MB_CHK_ERR(error);
-      error = deinit_surface();MB_CHK_ERR(error);
-      error = deinit_volume();MB_CHK_ERR(error);
-    }
-    this->_rset=0;
-    mInitAHFmaps=false;
+  if (thismeshtype == CURVE)
+  {
+    error = deinit_curve();MB_CHK_ERR(error);
   }
+  else if (thismeshtype == SURFACE)
+  {
+    error = deinit_surface();MB_CHK_ERR(error);
+  }
+  else if (thismeshtype == SURFACE_MIXED)
+  {
+    error = deinit_curve();MB_CHK_ERR(error);
+    error = deinit_surface();MB_CHK_ERR(error);
+  }
+  else if (thismeshtype == VOLUME)
+  {
+    error = deinit_volume();MB_CHK_ERR(error);
+  }
+  else if (thismeshtype == VOLUME_MIXED_1)
+  {
+    error = deinit_curve();MB_CHK_ERR(error);
+    error = deinit_volume();MB_CHK_ERR(error);
+  }
+  else if (thismeshtype == VOLUME_MIXED_2)
+  {
+    error = deinit_surface();MB_CHK_ERR(error);
+    error = deinit_volume();MB_CHK_ERR(error);
+  }
+  else if (thismeshtype == VOLUME_MIXED)
+  {
+    error = deinit_curve();MB_CHK_ERR(error);
+    error = deinit_surface();MB_CHK_ERR(error);
+    error = deinit_volume();MB_CHK_ERR(error);
+  }
+  this->_rset = 0;
 
   return MB_SUCCESS;
 }
@@ -448,7 +459,7 @@ ErrorCode HalfFacetRep::print_tags()
   ErrorCode error;
 
   EntityType ftype = mb->type_from_handle(*_faces.begin());
-  int nepf = lConnMap2D[ftype-2].num_verts_in_face;
+  int nepf = lConnMap2D[ftype - 2].num_verts_in_face;
   int index = get_index_from_type(*_cells.begin());
   int nfpc = lConnMap3D[index].num_faces_in_cell;
 
@@ -750,7 +761,6 @@ ErrorCode HalfFacetRep::determine_sibling_halfverts( Range verts, Range &edges)
     for (int j = 0; j < 2; j++)
     {
       int v = verts.index(conn[j]);
-      assert(v >= 0);
       v2hv_map_eid[is_index[v]] = *eid;
       v2hv_map_lvid[is_index[v]] = j;
       is_index[v] += 1;
@@ -779,7 +789,6 @@ ErrorCode HalfFacetRep::determine_sibling_halfverts( Range verts, Range &edges)
         continue;
 
       int v = verts.index(conn[k]);
-      assert(v >= 0);
       int last = is_index[v + 1] - 1;
       if (last > is_index[v])
       {
@@ -833,13 +842,16 @@ ErrorCode HalfFacetRep::determine_incident_halfverts( Range &edges)
 
     for (int i = 0; i < 2; ++i)
     {
-      EntityHandle eid = 0;
-      error = mb->tag_get_data(v2hv_eid, &conn[i], 1, &eid);MB_CHK_ERR(error);
+      EntityHandle v = conn[i], eid = 0;
+      error = mb->tag_get_data(v2hv_eid, &v, 1, &eid);MB_CHK_ERR(error);
 
       if (eid == 0)
       {
-        error = mb->tag_set_data(v2hv_eid, &conn[i], 1, &*e_it);MB_CHK_ERR(error);
-        error = mb->tag_set_data(v2hv_lvid, &conn[i], 1, &i);MB_CHK_ERR(error);
+        EntityHandle edg = *e_it;
+        int lvid = i;
+
+        error = mb->tag_set_data(v2hv_eid, &v, 1, &edg);MB_CHK_ERR(error);
+        error = mb->tag_set_data(v2hv_lvid, &v, 1, &lvid);MB_CHK_ERR(error);
       }
     }
   }
@@ -944,12 +956,13 @@ ErrorCode  HalfFacetRep::get_neighbor_adjacencies_1d( EntityHandle eid,
 /*******************************************************
 * 2D: sibhes, v2he, incident and neighborhood queries  *
 ********************************************************/
-const HalfFacetRep::LocalMaps2D HalfFacetRep::lConnMap2D[2] = {
-   //Triangle
-   {3, {1,2,0}, {2,0,1}},
-   //Quad
-   {4,{1,2,3,0},{3,0,1,2}}
- };
+const HalfFacetRep::LocalMaps2D HalfFacetRep::lConnMap2D[2] =
+{
+  //Triangle
+  {3, {1, 2, 0}, {2, 0, 1}},
+  //Quad
+  {4, {1, 2, 3, 0}, {3, 0, 1, 2}}
+};
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 ErrorCode HalfFacetRep::determine_sibling_halfedges( Range &faces)
@@ -957,7 +970,7 @@ ErrorCode HalfFacetRep::determine_sibling_halfedges( Range &faces)
   ErrorCode error;
   EntityHandle start_face = *faces.begin();
   EntityType ftype = mb->type_from_handle(start_face);
-  int nepf = lConnMap2D[ftype-2].num_verts_in_face;
+  int nepf = lConnMap2D[ftype - 2].num_verts_in_face;
 
   //Step 1: Create an index list storing the starting position for each vertex
   int nv = _verts.size();
@@ -996,8 +1009,7 @@ ErrorCode HalfFacetRep::determine_sibling_halfedges( Range &faces)
     for (int j = 0; j < nepf; j++)
     {
       int v = _verts.index(conn[j]);
-      assert(v >= 0);
-      int nidx = lConnMap2D[ftype-2].next[j];
+      int nidx = lConnMap2D[ftype - 2].next[j];
       v2nv[is_index[v]] = conn[nidx];
       v2he_map_fid[is_index[v]] = *fid;
       v2he_map_leid[is_index[v]] = j;
@@ -1026,10 +1038,9 @@ ErrorCode HalfFacetRep::determine_sibling_halfedges( Range &faces)
       if (sibfid[k] != 0)
         continue;
 
-      int nidx = lConnMap2D[ftype-2].next[k];
+      int nidx = lConnMap2D[ftype - 2].next[k];
       int v = _verts.index(conn[k]);
       int vn = _verts.index(conn[nidx]);
-      assert(v >= 0 && vn >= 0);
 
       EntityHandle first_fid = *fid;
       int first_leid = k;
@@ -1117,7 +1128,7 @@ ErrorCode HalfFacetRep::determine_incident_halfedges(Range &faces)
 {
   ErrorCode error;
   EntityType ftype = mb->type_from_handle(*faces.begin());
-  int nepf = lConnMap2D[ftype-2].num_verts_in_face;
+  int nepf = lConnMap2D[ftype - 2].num_verts_in_face;
 
   std::vector<EntityHandle> conn(nepf);
   std::vector<EntityHandle> sibfid(nepf);
@@ -1232,7 +1243,7 @@ ErrorCode HalfFacetRep::get_up_adjacencies_2d( EntityHandle fid,
   // Given an implicit half-edge <fid, leid>, find the incident half-edges.
   ErrorCode error;
   EntityType ftype = mb->type_from_handle(fid);
-  int nepf = lConnMap2D[ftype-2].num_verts_in_face;
+  int nepf = lConnMap2D[ftype - 2].num_verts_in_face;
 
   if (!fid) return MB_FAILURE;
 
@@ -1255,7 +1266,7 @@ ErrorCode HalfFacetRep::get_up_adjacencies_2d( EntityHandle fid,
     //get connectivity and match their directions
     std::vector<EntityHandle> fid_conn(nepf);
     error = mb->get_connectivity(&fid, 1, fid_conn);MB_CHK_ERR(error);
-    int nidx = lConnMap2D[ftype-2].next[leid];
+    int nidx = lConnMap2D[ftype - 2].next[leid];
     fedge[0] = fid_conn[leid];
     fedge[1] = fid_conn[nidx];
   }
@@ -1280,7 +1291,7 @@ ErrorCode HalfFacetRep::get_up_adjacencies_2d( EntityHandle fid,
       //get connectivity and match their directions
       std::vector<EntityHandle> conn(nepf);
       error = mb->get_connectivity(&curfid, 1, conn);MB_CHK_ERR(error);
-      int nidx = lConnMap2D[ftype-2].next[curlid];
+      int nidx = lConnMap2D[ftype - 2].next[curlid];
 
       if ((fedge[0] == conn[curlid]) && (fedge[1] == conn[nidx]))
         adj_orients->push_back(1);
@@ -1311,7 +1322,7 @@ ErrorCode HalfFacetRep::get_up_adjacencies_2d( EntityHandle fid,
 {
   ErrorCode error;
   EntityType ftype = mb->type_from_handle(fid);
-  int nepf = lConnMap2D[ftype-2].num_verts_in_face;
+  int nepf = lConnMap2D[ftype - 2].num_verts_in_face;
 
   std::vector<EntityHandle> sib_fids(nepf);
   std::vector<int> sib_lids(nepf);
@@ -1438,16 +1449,16 @@ ErrorCode HalfFacetRep::another_halfedge( EntityHandle vid,
 {
   ErrorCode error;
   EntityType ftype = mb->type_from_handle(he_fid);
-  int nepf = lConnMap2D[ftype-2].num_verts_in_face;
+  int nepf = lConnMap2D[ftype - 2].num_verts_in_face;
 
   std::vector<EntityHandle> conn(nepf);
   error = mb->get_connectivity(&he_fid, 1, conn);MB_CHK_ERR(error);
 
   *he2_fid = he_fid;
   if (conn[he_lid] == vid)
-    *he2_lid = lConnMap2D[ftype-2].prev[he_lid];
+    *he2_lid = lConnMap2D[ftype - 2].prev[he_lid];
   else
-    *he2_lid = lConnMap2D[ftype-2].next[he_lid];
+    *he2_lid = lConnMap2D[ftype - 2].next[he_lid];
 
 
   return MB_SUCCESS;
@@ -1462,7 +1473,7 @@ bool HalfFacetRep::collect_and_compare(std::vector<EntityHandle> &edg_vert,
 {
   ErrorCode error;
   EntityType ftype = mb->type_from_handle(*_faces.begin());
-  int nepf = lConnMap2D[ftype-2].num_verts_in_face;
+  int nepf = lConnMap2D[ftype - 2].num_verts_in_face;
 
   bool found = false;
   int num_qvals = 0, counter = 0;
@@ -1476,7 +1487,7 @@ bool HalfFacetRep::collect_and_compare(std::vector<EntityHandle> &edg_vert,
     std::vector<EntityHandle> conn(nepf);
     error = mb->get_connectivity(&curfid, 1, conn);MB_CHK_ERR(error);
 
-    int id = lConnMap2D[ftype-2].next[curlid];
+    int id = lConnMap2D[ftype - 2].next[curlid];
     if (((conn[curlid] == edg_vert[0]) && (conn[id] == edg_vert[1])) || ((conn[curlid] == edg_vert[1]) && (conn[id] == edg_vert[0])))
     {
       *he_fid = curfid;
@@ -1511,15 +1522,15 @@ ErrorCode  HalfFacetRep::get_neighbor_adjacencies_2d( EntityHandle fid,
   ErrorCode error;
 
   if (fid != 0)
-    {
-      EntityType ftype = mb->type_from_handle(fid);
-      int nepf = lConnMap2D[ftype-2].num_verts_in_face;
+  {
+    EntityType ftype = mb->type_from_handle(fid);
+    int nepf = lConnMap2D[ftype - 2].num_verts_in_face;
 
-      for (int lid = 0; lid < nepf; ++lid)
-        {
-          error = get_up_adjacencies_2d(fid, lid, false, adjents);MB_CHK_ERR(error);
-        }
+    for (int lid = 0; lid < nepf; ++lid)
+    {
+      error = get_up_adjacencies_2d(fid, lid, false, adjents);MB_CHK_ERR(error);
     }
+  }
 
   return MB_SUCCESS;
 }
@@ -1531,7 +1542,7 @@ ErrorCode HalfFacetRep::get_down_adjacencies_2d(EntityHandle fid, std::vector<En
   //Returns explicit edges, if any, of the face
   ErrorCode error;
   EntityType ftype = mb->type_from_handle(fid);
-  int nepf = lConnMap2D[ftype-2].num_verts_in_face;
+  int nepf = lConnMap2D[ftype - 2].num_verts_in_face;
 
   std::vector<EntityHandle> conn(nepf);
   error = mb->get_connectivity(&fid, 1, conn);MB_CHK_ERR(error);
@@ -1580,17 +1591,17 @@ ErrorCode HalfFacetRep::obtain_1ring_surf(EntityHandle vid, std::vector<EntityHa
   std::vector<EntityHandle> temp;
   error = get_up_adjacencies_vert_2d(vid, temp);MB_CHK_ERR(error);
 
-  for (int i=0; i<(int)temp.size(); i++)
+  for (int i = 0; i < (int)temp.size(); i++)
+  {
+    const EntityHandle *conn;
+    int nepf;
+    error = mb->get_connectivity(temp[i], conn, nepf);MB_CHK_ERR(error);
+    for (int j = 0; j < (int)nepf; j++)
     {
-      const EntityHandle *conn;
-      int nepf;
-      error = mb->get_connectivity(temp[i],conn,nepf);MB_CHK_ERR(error);
-      for (int j=0; j<(int)nepf; j++)
-        {
-          if (conn[j] != vid)
-          verts.push_back(conn[j]);
-        }
+      if (conn[j] != vid)
+        verts.push_back(conn[j]);
     }
+  }
 
   //Sort the vertices and then remove duplicates
   std::sort(verts.begin(), verts.end());
@@ -1606,7 +1617,7 @@ int HalfFacetRep::find_total_edges_2d(Range &faces)
 {
   ErrorCode error;
   EntityType ftype = mb->type_from_handle(*faces.begin());
-  int nepf = lConnMap2D[ftype-2].num_verts_in_face;
+  int nepf = lConnMap2D[ftype - 2].num_verts_in_face;
   int nfaces = faces.size();
 
   int total_edges = nepf * nfaces;
@@ -1747,11 +1758,10 @@ ErrorCode HalfFacetRep::determine_sibling_halffaces( Range &cells)
         }
       }
 
-      int nidx = lConnMap2D[nvF-3].next[lv];
-      int pidx = lConnMap2D[nvF-3].prev[lv];
+      int nidx = lConnMap2D[nvF - 3].next[lv];
+      int pidx = lConnMap2D[nvF - 3].prev[lv];
 
       int v = _verts.index(vmax);
-      assert(v >= 0);
       v2oe_v1[is_index[v]] = vs[nidx];
       v2oe_v2[is_index[v]] = vs[pidx];
       v2hf_map_cid[is_index[v]] = *cid;
@@ -1799,11 +1809,10 @@ ErrorCode HalfFacetRep::determine_sibling_halffaces( Range &cells)
         }
       }
 
-      int nidx = lConnMap2D[nvF-3].next[lv];
-      int pidx = lConnMap2D[nvF-3].prev[lv];
+      int nidx = lConnMap2D[nvF - 3].next[lv];
+      int pidx = lConnMap2D[nvF - 3].prev[lv];
 
       int v = _verts.index(vmax);
-      assert(v >= 0);
       EntityHandle v1 = vs[pidx];
       EntityHandle v2 = vs[nidx];
 
@@ -2335,7 +2344,7 @@ bool HalfFacetRep::find_matching_halfface(EntityHandle fid, EntityHandle *cid, i
   int nvpc = lConnMap3D[index].num_verts_in_cell;
   int nfpc = lConnMap3D[index].num_faces_in_cell;
   EntityType ftype = mb->type_from_handle(fid);
-  int nvF = lConnMap2D[ftype-2].num_verts_in_face;
+  int nvF = lConnMap2D[ftype - 2].num_verts_in_face;
 
   std::vector<EntityHandle> fid_verts;
   error = mb->get_connectivity(&fid, 1, fid_verts);MB_CHK_ERR(error);
@@ -2572,17 +2581,17 @@ ErrorCode HalfFacetRep::obtain_1ring_volume(EntityHandle vid, std::vector<Entity
   std::vector<EntityHandle> temp;
   error = get_up_adjacencies_vert_3d(vid, temp);MB_CHK_ERR(error);
 
-  for (int i=0; i<(int)temp.size(); i++)
+  for (int i = 0; i < (int)temp.size(); i++)
+  {
+    const EntityHandle *conn;
+    int nepf;
+    error = mb->get_connectivity(temp[i], conn, nepf);MB_CHK_ERR(error);
+    for (int j = 0; j < (int)nepf; j++)
     {
-      const EntityHandle *conn;
-      int nepf;
-      error = mb->get_connectivity(temp[i],conn,nepf);MB_CHK_ERR(error);
-      for (int j=0; j<(int)nepf; j++)
-        {
-          if (conn[j] != vid)
-          verts.push_back(conn[j]);
-        }
+      if (conn[j] != vid)
+        verts.push_back(conn[j]);
     }
+  }
 
   //Sort the vertices and then remove duplicates
   std::sort(verts.begin(), verts.end());
@@ -2677,7 +2686,7 @@ bool HalfFacetRep::find_match_in_array(EntityHandle ent, EntityHandle *ent_list,
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-ErrorCode HalfFacetRep::get_sibling_tag(EntityType type, EntityHandle ent, EntityHandle *sib_entids, int *sib_lids)
+ErrorCode HalfFacetRep::get_sibling_tag(EntityType type, EntityHandle ent,  EntityHandle *sib_entids, int *sib_lids)
 {
   ErrorCode error;
 
@@ -2790,26 +2799,25 @@ ErrorCode HalfFacetRep::get_entity_ranges(Range &verts, Range &edges, Range &fac
 }
 
 ErrorCode HalfFacetRep::update_entity_ranges()
-  {
-   ErrorCode error;
-   Range verts, edges, faces, cells;
+{
+  ErrorCode error;
+  Range verts, edges, faces, cells;
 
-   error = mb->get_entities_by_dimension(this->_rset, 0, verts, true);MB_CHK_ERR(error);
+  error = mb->get_entities_by_dimension(this->_rset, 0, verts, true);MB_CHK_ERR(error);
 
-   error = mb->get_entities_by_dimension(this->_rset, 1, edges, true);MB_CHK_ERR(error);
+  error = mb->get_entities_by_dimension(this->_rset, 1, edges, true);MB_CHK_ERR(error);
 
-   error = mb->get_entities_by_dimension(this->_rset, 2, faces, true);MB_CHK_ERR(error);
+  error = mb->get_entities_by_dimension(this->_rset, 2, faces, true);MB_CHK_ERR(error);
 
-   error = mb->get_entities_by_dimension(this->_rset, 3, cells, true);MB_CHK_ERR(error);
+  error = mb->get_entities_by_dimension(this->_rset, 3, cells, true);MB_CHK_ERR(error);
 
-   _verts = verts;
-   _edges = edges;
-   _faces = faces;
-   _cells = cells;
+  _verts = verts;
+  _edges = edges;
+  _faces = faces;
+  _cells = cells;
 
-   return MB_SUCCESS;
-  }
-
+  return MB_SUCCESS;
+}
 
 
 } // namespace moab
