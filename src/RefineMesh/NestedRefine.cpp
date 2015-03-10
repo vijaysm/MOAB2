@@ -662,7 +662,7 @@ ErrorCode NestedRefine::generate_hm(int *level_degrees, int num_level, EntityHan
         // error = pcomm->resolve_shared_ents(hm_set[l], ents, meshdim, meshdim-1, NULL, &gidtag);MB_CHK_ERR(error);
 
         // Exchange ghost cells by layer
-        error = pcomm->exchange_ghost_cells(meshdim, 0, 1/*dmmoab->nghostrings*/, meshdim, true, false, &hm_set[l]);MB_CHK_ERR(error);
+        //error = pcomm->exchange_ghost_cells(meshdim, 0, 1/*dmmoab->nghostrings*/, meshdim, true, false, &hm_set[l]);MB_CHK_ERR(error);
 
 #ifdef PETSC_DEBUG_ONLY
         {
