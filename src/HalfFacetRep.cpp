@@ -241,6 +241,7 @@ ErrorCode HalfFacetRep::initialize()
       error = init_volume();MB_CHK_ERR(error);
     }
   }
+
   return MB_SUCCESS;
 }
 
@@ -260,14 +261,14 @@ ErrorCode HalfFacetRep::init_curve()
   error = determine_incident_halfverts(_edges);MB_CHK_ERR(error);
 
   // If running in parallel, exchange tag information to update shared entity data
-  if (pcomm)
+  /*if (pcomm)
   {
     moab::Range emptyR;
     error = pcomm->exchange_tags(sibhvs_eid, emptyR);MB_CHK_ERR(error);
     error = pcomm->exchange_tags(sibhvs_lvid, emptyR);MB_CHK_ERR(error);
     error = pcomm->exchange_tags(v2hv_eid, emptyR);MB_CHK_ERR(error);
     error = pcomm->exchange_tags(v2hv_lvid, emptyR);MB_CHK_ERR(error);
-  }
+  }*/
 
   return MB_SUCCESS;
 }
@@ -308,14 +309,14 @@ ErrorCode HalfFacetRep::init_surface()
   }
 
   // If running in parallel, exchange tag information to update shared entity data
-  if (pcomm)
+  /*if (pcomm)
   {
     moab::Range emptyR;
     error = pcomm->exchange_tags(sibhes_fid, emptyR);MB_CHK_ERR(error);
     error = pcomm->exchange_tags(sibhes_leid, emptyR);MB_CHK_ERR(error);
     error = pcomm->exchange_tags(v2he_fid, emptyR);MB_CHK_ERR(error);
     error = pcomm->exchange_tags(v2he_leid, emptyR);MB_CHK_ERR(error);
-  }
+  }*/
 
   delete [] sdefval;
   delete [] sval;
@@ -358,14 +359,14 @@ ErrorCode HalfFacetRep::init_volume()
   }
 
   // If running in parallel, exchange tag information to update shared entity data
-  if (pcomm)
+  /*if (pcomm)
   {
     moab::Range emptyR;
     error = pcomm->exchange_tags(sibhfs_cid, emptyR);MB_CHK_ERR(error);
     error = pcomm->exchange_tags(sibhfs_lfid, emptyR);MB_CHK_ERR(error);
     error = pcomm->exchange_tags(v2hf_cid, emptyR);MB_CHK_ERR(error);
     error = pcomm->exchange_tags(v2hf_lfid, emptyR);MB_CHK_ERR(error);
-  }
+  }*/
 
   delete [] sdefval;
   delete [] sval;
