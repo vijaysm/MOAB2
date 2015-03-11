@@ -263,7 +263,7 @@ ErrorCode test_adjacencies(Interface *mbImpl, NestedRefine *nr, Range all_ents)
 }
 
 
-ErrorCode refine_entities(Interface *mb, int *level_degrees, const int num_levels, bool output)
+ErrorCode refine_entities(Interface *mb, ParallelComm* pc, EntityHandle fset, int *level_degrees, const int num_levels, bool output)
 {
   ErrorCode error;
 
@@ -284,21 +284,46 @@ ErrorCode refine_entities(Interface *mb, int *level_degrees, const int num_level
   //Create an hm object and generate the hierarchy
   std::cout<<"Creating a hm object"<<std::endl;
 #ifdef USE_MPI
-  moab::ParallelComm *pc = new moab::ParallelComm(dynamic_cast<Core*>(mb), MPI_COMM_WORLD);
-  NestedRefine uref(dynamic_cast<Core*>(mb), pc);
+  //moab::ParallelComm *pc = moab::ParallelComm::get_pcomm(mb, 0);
+
+  //pc = new moab::ParallelComm(dynamic_cast<Core*>(mb), MPI_COMM_WORLD);
+
+/*
+  MPI_Comm comm = MPI_COMM_WORLD;
+  int rank, nprocs;
+  EntityHandle partnset, fset;
+  MPI_Comm_rank(comm, &rank);
+  MPI_Comm_size(comm, &nprocs);
+
+  error = mb->create_meshset(moab::MESHSET_SET, partnset);MB_CHK_ERR(error);
+  error = mb->create_meshset(moab::MESHSET_SET, fset);MB_CHK_ERR(error);
+
+  pc = moab::ParallelComm::get_pcomm(mb, partnset, &comm);
+*/
+  NestedRefine uref(dynamic_cast<Core*>(mb), pc, fset);
 
   Range averts, aedges, afaces, acells;
-  error = mb->get_entities_by_dimension(0, 0, averts);MB_CHK_ERR(error);
-  error = mb->get_entities_by_dimension(0, 1, aedges);MB_CHK_ERR(error);
-  error = mb->get_entities_by_dimension(0, 2, afaces);MB_CHK_ERR(error);
-  error = mb->get_entities_by_dimension(0, 3, acells);MB_CHK_ERR(error);
+  error = mb->get_entities_by_dimension(fset, 0, averts);MB_CHK_ERR(error);
+  error = mb->get_entities_by_dimension(fset, 1, aedges);MB_CHK_ERR(error);
+  error = mb->get_entities_by_dimension(fset, 2, afaces);MB_CHK_ERR(error);
+  error = mb->get_entities_by_dimension(fset, 3, acells);MB_CHK_ERR(error);
 
   /* filter based on parallel status */
-  error = pc->filter_pstatus(averts,PSTATUS_GHOST,PSTATUS_NOT,-1,&init_ents[0]);MB_CHK_ERR(error);
-  error = pc->filter_pstatus(aedges,PSTATUS_GHOST,PSTATUS_NOT,-1,&init_ents[1]);MB_CHK_ERR(error);
-  error = pc->filter_pstatus(afaces,PSTATUS_GHOST,PSTATUS_NOT,-1,&init_ents[2]);MB_CHK_ERR(error);
-  error = pc->filter_pstatus(acells,PSTATUS_GHOST,PSTATUS_NOT,-1,&init_ents[3]);MB_CHK_ERR(error);
+  if (pc)
+  {
+    error = pc->filter_pstatus(averts,PSTATUS_GHOST,PSTATUS_NOT,-1,&init_ents[0]);MB_CHK_ERR(error);
+    error = pc->filter_pstatus(aedges,PSTATUS_GHOST,PSTATUS_NOT,-1,&init_ents[1]);MB_CHK_ERR(error);
+    error = pc->filter_pstatus(afaces,PSTATUS_GHOST,PSTATUS_NOT,-1,&init_ents[2]);MB_CHK_ERR(error);
+    error = pc->filter_pstatus(acells,PSTATUS_GHOST,PSTATUS_NOT,-1,&init_ents[3]);MB_CHK_ERR(error);
+  }
+  else
+  {
+    init_ents[0]=averts;
+    init_ents[1]=aedges;
+    init_ents[2]=afaces;
+    init_ents[3]=acells;
 
+  }
 #else
   NestedRefine uref(dynamic_cast<Core*>(mb));
   error = mb->get_entities_by_dimension(0, 0, init_ents[0]); CHECK_ERR(error);
@@ -1040,7 +1065,7 @@ ErrorCode test_entities(int mesh_type, EntityType type, int *level_degrees, int 
     }
 
   //Generate hierarchy
-  error = refine_entities(&mb, level_degrees, num_levels, output);
+  error = refine_entities(&mb, 0, 0, level_degrees, num_levels, output);
   if (error != MB_SUCCESS) return error;
 
   return MB_SUCCESS;
@@ -1155,26 +1180,36 @@ ErrorCode test_mesh(const char* filename, int *level_degrees, int num_levels)
 {
   Core moab;
   Interface* mbImpl = &moab;
+  ParallelComm *pc ;
+  EntityHandle fileset;
   ErrorCode error;
 
+  error = mbImpl->create_meshset(moab::MESHSET_SET, fileset); CHECK_ERR(error);
 #ifdef USE_MPI
+
+    MPI_Comm comm = MPI_COMM_WORLD;
+    EntityHandle partnset;
+    error = mbImpl->create_meshset(moab::MESHSET_SET, partnset);MB_CHK_ERR(error);
+    pc = moab::ParallelComm::get_pcomm(mbImpl, partnset, &comm);
+
     int procs = 1;
     MPI_Comm_size(MPI_COMM_WORLD, &procs);
 
     if (procs > 1){
-    read_options = "PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;PARALLEL_GHOSTS=2.0.1;";
+    //read_options = "PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;PARALLEL_GHOSTS=2.0.1;";
+    read_options = "PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;";
 
-    error = mbImpl->load_file(filename, 0, read_options.c_str()); CHECK_ERR(error);
+    error = mbImpl->load_file(filename, &fileset, read_options.c_str()); CHECK_ERR(error);
     }
     else if (procs == 1) {
 #endif
-    error = mbImpl->load_file(filename);  CHECK_ERR(error);
+    error = mbImpl->load_file(filename, &fileset);  CHECK_ERR(error);
 #ifdef USE_MPI
     }
 #endif
 
     //Generate hierarchy
-    error = refine_entities(&moab, level_degrees, num_levels, true);  CHECK_ERR(error);
+    error = refine_entities(&moab, pc, fileset, level_degrees, num_levels, true);  CHECK_ERR(error);
 
     return MB_SUCCESS;
 }
