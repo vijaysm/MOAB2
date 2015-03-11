@@ -107,8 +107,7 @@ ErrorCode NestedRefine::generate_mesh_hierarchy(int *level_degrees, int num_leve
   assert(num_level > 0);
 
   ErrorCode error;
-  p_hm_set.resize(num_level + 1);
-  p_hm_set[0] = _rset;
+  moab::EntityHandle *hmsets = new moab::EntityHandle[num_level];
 
   if (meshdim <= 2)
   {
@@ -127,7 +126,14 @@ ErrorCode NestedRefine::generate_mesh_hierarchy(int *level_degrees, int num_leve
     }
   }
 
-  error = generate_hm(level_degrees, num_level, &p_hm_set[1]);MB_CHK_ERR(error);
+  error = generate_hm(level_degrees, num_level, hmsets);MB_CHK_ERR(error);
+
+  // copy the entity handles
+  p_hm_set.resize(num_level + 1);
+  p_hm_set[0] = _rset;
+  for (int i=0; i<num_level; i++)
+    p_hm_set[i+1]=hmsets[i];
+  delete [] hmsets;
   return MB_SUCCESS;
 }
 
@@ -523,8 +529,8 @@ ErrorCode NestedRefine::create_hm_storage_single_level(EntityHandle *set, int cu
 
 
 /**********************************
- *   Hierarchical Mesh Generation  *
- * *********************************/
+ *   Hierarchical Mesh Generation *
+ **********************************/
 
 ErrorCode NestedRefine::generate_hm(int *level_degrees, int num_level, EntityHandle *hm_set)
 {
@@ -544,43 +550,25 @@ ErrorCode NestedRefine::generate_hm(int *level_degrees, int num_level, EntityHan
     else
       set = _rset;
 
-#ifdef PETSC_DEBUG_ONLY
-    {
-      Range ed;
-      error = mbImpl->get_entities_by_dimension(set, 1, ed);MB_CHK_ERR(error);
-      std::cout << ed.size() << " Edges before generating the hierarchy" << std::endl;
-      //for (unsigned j=0; j<ed.size(); j++)
-      //  std::cout<<ed[j]<<std::endl;
-    }
-#endif
-
     // Estimate storage
     error = estimate_hm_storage(set, level_degrees[l], l, hmest);MB_CHK_ERR(error);
 
-    //Create arrays for storing the current level
+    // Create arrays for storing the current level
     error = create_hm_storage_single_level(&hm_set[l], l, hmest);MB_CHK_ERR(error);
 
-    //Copy the old vertices along with their coordinates
+    // Copy the old vertices along with their coordinates
     error = copy_vertices_from_prev_level(l);MB_CHK_ERR(error);
 
-    //Create the new entities and new vertices
+    // Create the new entities and new vertices
     error = construct_hm_entities(l, level_degrees[l]);MB_CHK_ERR(error);
 
-#ifdef PETSC_DEBUG_ONLY
-    {
-      Range ed;
-      error = mbImpl->get_entities_by_dimension(hm_set[l], 1, ed);MB_CHK_ERR(error);
-      std::cout << ed.size() << " [1] Edges after generating the hierarchy" << std::endl;
-      //mbImpl->list_entities(ed);
-      //for (unsigned j=0; j<ed.size(); j++)
-      //  std::cout<<ed[j]<<std::endl;
-    }
-#endif
-
-    //Go into parallel communication
+    // Go into parallel communication
     if (pcomm)
     {
-      //TEMP: Add the adjacencies for MOAB-native DS
+      // TEMP: Add the adjacencies for MOAB-native DS
+      // NOTE (VSM): This is expensive since it creates a doubly 
+      // redundant copy of the adjacency data in both MOAB-native 
+      // and AHF. Need to fix this with AHF optimized branch.
       ReadUtilIface *read_iface;
       error = mbImpl->query_interface(read_iface);MB_CHK_ERR(error);
       if (level_mesh[l].num_edges != 0)
@@ -602,46 +590,25 @@ ErrorCode NestedRefine::generate_hm(int *level_degrees, int num_level, EntityHan
 
 #ifdef PETSC_DEBUG_ONLY
       {
+        /*
         Range ed;
         error = mbImpl->get_entities_by_dimension(hm_set[l], 1, ed);MB_CHK_ERR(error);
         std::cout << ed.size() << " [2] Edges after generating the next level + update_adjacencies" << std::endl;
         //mbImpl->list_entities(ed);
         //for (unsigned j=0; j<ed.size(); j++)
         //  std::cout<<ed[j]<<std::endl;
+        */
       }
 #endif
 
       if (pcomm->size() > 1)
       {
-
-        /*
-        //get entities of highest dimension from the current meshset
-        Range ents;
-        error = mbImpl->get_entities_by_dimension(hm_set[l], meshdim, ents, false);MB_CHK_ERR(error);
-
-        //create the skin entities
-        Skinner sk(mbImpl);
-        Range skinents;
-        for (int skin_dim = meshdim - 1; skin_dim >= 0; skin_dim--)
-        {
-          std::cout << "skin_dim =" << skin_dim << std::endl;
-          error = sk.find_skin(hm_set[l], ents, skin_dim, skinents, true, true);MB_CHK_ERR(error);
-
-          std::cout << "Created skin for dim =" << skin_dim << std::endl;
-          //Update AHF adjacencies for skin edges
-          if ((meshdim == 3) && (skin_dim == 1))
-          {
-            error = ahf->determine_sibling_halfverts(skinents);MB_CHK_ERR(error);
-            error = ahf->determine_incident_halfverts(skinents);MB_CHK_ERR(error);
-          }
-        }
-        */
 #ifdef PETSC_DEBUG_ONLY
         {
+          /*
           Range ed;
           error = mbImpl->get_entities_by_dimension(hm_set[l], 1, ed);MB_CHK_ERR(error);
           std::cout << ed.size() << " Edges before resolved shared " << std::endl;
-          /*
           for (unsigned j = 0; j < ed.size(); j++)
           {
             const EntityHandle *conn;
@@ -653,16 +620,58 @@ ErrorCode NestedRefine::generate_hm(int *level_degrees, int num_level, EntityHan
         }
 #endif
 
-        //Call parallel merge instead of resolved_shared
+        // get all entities on the rootset
+        moab::Range vtxs, edgs, facs, elms;
+        int nloc, nghost, n;
+        error = mbImpl->get_entities_by_dimension(hm_set[l], 0, vtxs, false);MB_CHK_ERR(error);
+        error = mbImpl->get_entities_by_dimension(hm_set[l], 1, edgs, false);MB_CHK_ERR(error);
+        error = mbImpl->get_entities_by_dimension(hm_set[l], 2, facs, false);MB_CHK_ERR(error);
+        error = mbImpl->get_entities_by_dimension(hm_set[l], 3, elms, false);MB_CHK_ERR(error);
+
+        // set the parallel partition tag data
+        moab::EntityHandle part_set;
+        int partid = pcomm->rank(), dum_id = -1;
+        error = mbImpl->tag_get_handle("PARALLEL_PARTITION", 1, moab::MB_TYPE_INTEGER,
+                                       part_tag, moab::MB_TAG_CREAT | moab::MB_TAG_SPARSE, &dum_id);MB_CHK_ERR(error);
+        error = mbImpl->create_meshset(moab::MESHSET_SET, part_set);MB_CHK_ERR(error);
+        error = mbImpl->add_entities(part_set, vtxs);MB_CHK_ERR(error);
+        error = mbImpl->add_entities(part_set, edgs);MB_CHK_ERR(error);
+        error = mbImpl->add_entities(part_set, facs);MB_CHK_ERR(error);
+        error = mbImpl->add_entities(part_set, elms);MB_CHK_ERR(error);
+        error = mbImpl->add_entities(hm_set[l],&part_set,1);MB_CHK_ERR(error);
+        error = mbImpl->tag_set_data(part_tag, &part_set, 1, &partid);MB_CHK_ERR(error);
+
+        //
+        // Now that we have the local piece of the mesh refined consistently,
+        // call parallel merge instead of resolved_shared to stitch together the meshes
+        // and to handle parallel communication of remote proc/entity-handle pairs for
+        // shared + non-owned interfaces entities.
+        //
+        // TODO: This needs to be replaced by the following scheme in the future as 
+        // an optimization step.
+        //   > Assign global IDs consistently for shared entities so that parallel 
+        //   > resolve shared ents can happen out of the box. This is the fastest option.
         ParallelMergeMesh pm(pcomm, 1e-08);
 
         error = pm.merge(hm_set[l], true);MB_CHK_ERR(error);
+        //
+        // Parallel Communication complete - all entities resolved
+        //
 
-        // resolve shared entities in parallel based on meshdim entities
-        // error = pcomm->resolve_shared_ents(hm_set[l], ents, meshdim, meshdim-1, NULL, &gidtag);MB_CHK_ERR(error);
+        {
+          // Assign new global IDs for all the entities we just generated to maintain contiguity
+          // Range pents[4] = {vtxs, edgs, facs, elms};
+          // error = pcomm->assign_global_ids(pents, 3, 1, true, true);MB_CHK_ERR(error);
+          // error = pcomm->assign_global_ids(hm_set[l], 0, 1, false, true, false);MB_CHK_ERR(error);
 
-        // Exchange ghost cells by layer
-        //error = pcomm->exchange_ghost_cells(meshdim, 0, 1/*dmmoab->nghostrings*/, meshdim, true, false, &hm_set[l]);MB_CHK_ERR(error);
+          // Now that we have resolved all shared entities in parallel, 
+          // exchange GLOBAL_ID data for all local entities so that we are
+          // up to date on remote changes.
+          error = pcomm->exchange_tags(gidtag,vtxs);MB_CHK_ERR(error);
+          error = pcomm->exchange_tags(gidtag,edgs);MB_CHK_ERR(error);
+          error = pcomm->exchange_tags(gidtag,facs);MB_CHK_ERR(error);
+          error = pcomm->exchange_tags(gidtag,elms);MB_CHK_ERR(error);
+        }
 
 #ifdef PETSC_DEBUG_ONLY
         {
@@ -681,19 +690,9 @@ ErrorCode NestedRefine::generate_hm(int *level_degrees, int num_level, EntityHan
         }
 #endif
 
+#ifdef PETSC_DEBUG_ONLY
         {
-          // get all entities on the rootset
-          moab::Range vtxs, edgs, facs, elms;
           moab::Range adjs, vowned, vghost, vlocal;
-          int nloc, nghost, n;
-          error = mbImpl->get_entities_by_dimension(hm_set[l], 0, vtxs, false);MB_CHK_ERR(error);
-          error = mbImpl->get_entities_by_dimension(hm_set[l], 1, edgs, false);MB_CHK_ERR(error);
-          error = mbImpl->get_entities_by_dimension(hm_set[l], 2, facs, false);MB_CHK_ERR(error);
-          error = mbImpl->get_entities_by_dimension(hm_set[l], 3, elms, false);MB_CHK_ERR(error);
-
-          //  Range pents[4] = {vtxs, edgs, facs, elms};
-          //   error = pcomm->assign_global_ids(pents, 3, 1, true, true);MB_CHK_ERR(error);
-
           //  error = mbImpl->get_entities_by_dimension(hm_set[l], meshdim, ents, false);MB_CHK_ERR(error);
 
           //Get the vertices on the partition
@@ -708,60 +707,30 @@ ErrorCode NestedRefine::generate_hm(int *level_degrees, int num_level, EntityHan
           adjs = moab::subtract(adjs, vghost);
           vlocal = moab::subtract(vlocal, adjs);
 
-          int partid = pcomm->rank(), dum_id = -1;
-          error = mbImpl->tag_get_handle("PARALLEL_PARTITION", 1, moab::MB_TYPE_INTEGER,
-                                         part_tag, moab::MB_TAG_CREAT | moab::MB_TAG_SPARSE, &dum_id);MB_CHK_ERR(error);
-
-          /* set the parallel partition tag data */
-          moab::EntityHandle part_set;
-          error = mbImpl->create_meshset(moab::MESHSET_SET, part_set);MB_CHK_ERR(error);
-          error = mbImpl->add_entities(part_set, vtxs);MB_CHK_ERR(error);
-          error = mbImpl->add_entities(part_set, edgs);MB_CHK_ERR(error);
-          error = mbImpl->add_entities(part_set, facs);MB_CHK_ERR(error);
-          error = mbImpl->add_entities(part_set, elms);MB_CHK_ERR(error);
-          error = mbImpl->unite_meshset(hm_set[l], part_set);MB_CHK_ERR(error);
-          error = mbImpl->tag_set_data(part_tag, &part_set, 1, &partid);MB_CHK_ERR(error);
-
-          // error = mbImpl->tag_set_data(part_tag, &hm_set[l], 1, &partid);MB_CHK_ERR(error);
-
           /* compute and cache the sizes of local and ghosted entities */
 
           nloc = vowned.size();
           nghost = vghost.size();
           MPI_Allreduce(&nloc, &n, 1, MPI_INTEGER, MPI_SUM, pcomm->comm());
 
-          if (!pcomm->rank())
+          //if (!pcomm->rank())
             std::cout << "Filset ID: " << hm_set[l] << ", Total - " << n << ", Local vowned - " << nloc << ", Local vghost - " << nghost << ".\n " ;
 
-          //Range pents[4] = {vtxs, edgs, facs, elms};
-          //error = pcomm->assign_global_ids(pents, 3, 1, true, false);MB_CHK_ERR(error);
-
         }
-
-#ifdef PETSC_DEBUG_ONLY
-        std::stringstream file;
-        file <<  "MESH_LEVEL_" << l + 1 << ".h5m";
-        std::string str = file.str();
-        const char *output_file = str.c_str();
-        mbImpl->write_file(output_file, 0, ";;PARALLEL=WRITE_PART", &hm_set[l], 1);
+        {
+          std::stringstream file;
+          file <<  "MESH_LEVEL_" << l + 1 << ".h5m";
+          std::string tmpstr = file.str();
+          const char *output_file = tmpstr.c_str();
+          mbImpl->write_file(output_file, 0, ";;PARALLEL=WRITE_PART", &hm_set[l], 1);
+        }
 #endif
+
       }
     }
   }
 
   mbImpl->write_file("test.h5m", 0, ";;PARALLEL=WRITE_PART");
-
-  /*  if(pcomm && false) {
-    moab::Range ents;
-
-    // get all entities on the rootset
-    error = mbImpl->get_entities_by_dimension(0, meshdim, ents, true);MB_CHK_ERR(error);
-
-    std::cout << "ParallelComm in generate_hm: Obtained " << ents.size() << " entities in parallel\n" ;
-
-    // resolve shared entities in parallel based on meshdim entities
-    error = pcomm->resolve_shared_ents(0, ents, meshdim, meshdim-1, NULL, &gidtag);MB_CHK_ERR(error);
-  }*/
   return MB_SUCCESS;
 }
 
@@ -2485,6 +2454,7 @@ ErrorCode NestedRefine::update_global_ahf_2D_sub(int cur_level, int deg)
 
   EntityHandle fedge[2];
 
+//    mbImpl->print_database();
   //Update the sibling half-facet maps across entities
   for (int i = 0; i < nents_prev; i++)
   {
@@ -2548,22 +2518,29 @@ ErrorCode NestedRefine::update_global_ahf_2D_sub(int cur_level, int deg)
       if (!sib_entids[l])
         continue;
 
-      int nidx = ahf->lConnMap2D[type - 2].next[l];
+      unsigned nidx = ahf->lConnMap2D[type - 2].next[l];
       fedge[0] = fid_conn[l];
       fedge[1] = fid_conn[nidx];
 
       EntityHandle sfid = sib_entids[l];
-      int slid = sib_lids[l];
+      unsigned slid = sib_lids[l];
 
       std::vector<EntityHandle> conn;
-      error = get_connectivity(sfid, cur_level, conn);
-      if (MB_SUCCESS != error) return error;
+      error = get_connectivity(sfid, cur_level, conn);MB_CHK_ERR(error);
+
+      assert(conn.size() > nidx && conn.size() > slid);
 
       bool orient = true;
       nidx = ahf->lConnMap2D[type - 2].next[slid];
       if ((fedge[1] == conn[slid]) && (fedge[0] == conn[nidx]))
         orient = false;
 
+      if (orient && !((fedge[0] == conn[slid]) && (fedge[1] == conn[nidx]))) {
+        std::cout << "{slid, nidx}: " << slid << ", " << nidx << std::endl;
+        std::cout << "Conn: {slid, nidx}: " << conn[slid] << ", " << conn[nidx] << std::endl;
+        std::cout << "Fedges: {0, 1}: " << fedge[0] << ", " << fedge[1] << std::endl;
+        std::cout.flush();
+      }
       if (orient)
         assert((fedge[0] == conn[slid]) && (fedge[1] == conn[nidx]));
 
