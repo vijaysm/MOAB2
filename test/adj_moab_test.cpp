@@ -60,7 +60,7 @@ ErrorCode ahf_test(const char* filename)
     MPI_Comm_size(MPI_COMM_WORLD, &procs);
 
     if (procs > 1){
-    read_options = "PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;PARALLEL_GHOSTS=3.0.1.3";
+    read_options = "PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;";
 
     error = mbImpl->load_file(filename, 0, read_options.c_str());
     CHECK_ERR(error);
