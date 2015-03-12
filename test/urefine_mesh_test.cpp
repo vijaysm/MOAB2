@@ -338,6 +338,8 @@ ErrorCode refine_entities(Interface *mb, ParallelComm* pc, EntityHandle fset, in
   error = uref.generate_mesh_hierarchy( level_degrees, num_levels, set); CHECK_ERR(error);
   std::cout<<"Finished hierarchy generation"<<std::endl;
 
+ // error = uref.exchange_ghosts(set, 1); CHECK_ERR(error);
+
   std::cout<<std::endl;
   std::cout<<"Mesh size for level 0  :: inverts = "<<init_ents[0].size()<<", inedges = "<<init_ents[1].size()<<", infaces = "<<init_ents[2].size()<<", incells = "<<init_ents[3].size()<<std::endl;
 
@@ -364,7 +366,7 @@ ErrorCode refine_entities(Interface *mb, ParallelComm* pc, EntityHandle fset, in
 
       //Check if the number of new entities created are correct.
 
-     /* for (int type =0; type <3; type++)
+      for (int type =1; type <3; type++)
         {
           int factor = 1;
           if (!ents[type+1].empty()){
@@ -376,13 +378,13 @@ ErrorCode refine_entities(Interface *mb, ParallelComm* pc, EntityHandle fset, in
               int  expected_nents = factor*init_ents[type+1].size();
               CHECK_EQUAL(expected_nents, (int)ents[type+1].size());
             }
-        }*/
+        }
 
       //Check adjacencies
       error = test_adjacencies(mb, &uref, all_ents); CHECK_ERR(error);
 
       //Check interlevel child-parent query between previous and current level
-     /* for (int type = 0; type < 3; type++)
+      for (int type = 1; type < 3; type++)
         {
           if (!prev_ents[type+1].empty())
             {
@@ -398,7 +400,7 @@ ErrorCode refine_entities(Interface *mb, ParallelComm* pc, EntityHandle fset, in
                     }
                 }
             }
-        }*/
+        }
 
       for (int i=0; i<4; i++)
         prev_ents[i] = ents[i];
@@ -448,7 +450,7 @@ ErrorCode refine_entities(Interface *mb, ParallelComm* pc, EntityHandle fset, in
     }
 
   //Check interlevel child-parent query between initial and most refined mesh
-  /*for (int type = 0; type < 3; type++)
+  for (int type = 1; type < 3; type++)
     {
       if (!init_ents[type+1].empty())
         {
@@ -464,7 +466,7 @@ ErrorCode refine_entities(Interface *mb, ParallelComm* pc, EntityHandle fset, in
                 }
             }
         }
-    }*/
+    }
 
   //Print out the whole hierarchy into a single file
  /* if (output)
@@ -1241,7 +1243,7 @@ int main(int argc, char *argv[])
     else if (argc == 2)
       {
         const char* filename = argv[1];
-        int deg[3] = {2,3,2};
+        int deg[2] = {2, 2};
         int len = sizeof(deg) / sizeof(int);
         result = test_mesh(filename, deg, len);
         handle_error_code(result, number_tests_failed, number_tests_successful);

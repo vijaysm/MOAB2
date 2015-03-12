@@ -120,6 +120,8 @@ namespace moab
     bool is_entity_on_boundary(const EntityHandle &entity);
 
 
+    ErrorCode exchange_ghosts(std::vector<EntityHandle> &lsets, int num_glayers);
+
   protected:
     Core *mbImpl;
     ParallelComm *pcomm;
@@ -131,6 +133,7 @@ namespace moab
     EntityType elementype;
     int level_dsequence[MAX_LEVELS];
     std::map<int,int> deg_index;
+    bool hasghost;
 
     /*! \struct refPatterns
      * Refinement patterns w.r.t the reference element. It consists of a locally indexed vertex list along with their natural coordinates, the connectivity of the subdivided entities with local indices, their local AHF maps along with other helper fields to aid in general book keeping such as avoiding vertex duplication during refinement. The entity and degree specific values are stored in the Templates.hpp.

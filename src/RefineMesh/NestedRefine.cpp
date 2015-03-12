@@ -95,6 +95,10 @@ ErrorCode NestedRefine::initialize()
   deg_index[2] = 0;
   deg_index[3] = 1;
   deg_index[5] = 2;
+
+  //Set ghost flag to false
+  hasghost = false;
+
   return MB_SUCCESS;
 }
 
@@ -385,6 +389,56 @@ bool NestedRefine::is_entity_on_boundary(const EntityHandle &entity)
   return is_border;
 }
 
+ErrorCode NestedRefine::exchange_ghosts(std::vector<EntityHandle> &lsets, int num_glayers)
+{
+  ErrorCode error;
+
+  if (hasghost)
+    return MB_SUCCESS;
+
+  hasghost = true;
+  error = pcomm->exchange_ghost_cells(meshdim, 0, num_glayers, 0, true, false);MB_CHK_ERR(error);
+/*  Range shared_ents, ghost_ents;
+
+  error = pcomm->get_shared_entities(-1, shared_ents);MB_CHK_ERR(error);
+  error = pcomm->filter_pstatus(shared_ents, PSTATUS_GHOST, PSTATUS_AND, -1, &ghost_ents);MB_CHK_ERR(error);
+
+  error = mbImpl->list_entities(ghost_ents);MB_CHK_ERR(error);*/
+
+  Range  * lverts = new Range[lsets.size()];
+  Range *  lents   = new Range[lsets.size()];
+  for (size_t i=0; i<lsets.size(); i++)
+  {
+    error = mbImpl->get_entities_by_dimension(lsets[i], meshdim, lents[i]);MB_CHK_ERR(error);
+    error = mbImpl->get_connectivity(lents[i], lverts[i]);MB_CHK_ERR(error);
+
+    for (int gl =0; gl< num_glayers; gl++)
+    {
+      error = mbImpl->get_adjacencies(lverts[i],meshdim,false,lents[i],Interface::UNION);MB_CHK_ERR(error);
+      error = mbImpl->get_connectivity(lents[i], lverts[i]);MB_CHK_ERR(error);
+    }
+  }
+  for (size_t i=0; i<lsets.size(); i++)
+  {
+    error = mbImpl->add_entities(lsets[i], lverts[i]);MB_CHK_ERR(error);
+    error = mbImpl->add_entities(lsets[i], lents[i]);MB_CHK_ERR(error);
+   /* std::stringstream file;
+    file <<  "MESH_LEVEL_" << i <<"_" <<pcomm->proc_config().proc_rank() <<  ".vtk";
+    std::string tmpstr = file.str();
+    const char *output_file = tmpstr.c_str();
+    error = mbImpl->write_file(output_file, 0,0 , &lsets[i], 1); MB_CHK_ERR(error);*/
+  }
+
+  /*std::stringstream file;
+  file <<  "full_" <<pcomm->proc_config().proc_rank() <<  ".vtk";
+  std::string tmpstr = file.str();
+  const char *output_file = tmpstr.c_str();
+  error = mbImpl->write_file(output_file); MB_CHK_ERR(error);*/
+
+  delete [] lverts;
+  delete [] lents;
+  return MB_SUCCESS;
+}
 
 /***********************************************
  *  Basic functionalities: generate HM         *
