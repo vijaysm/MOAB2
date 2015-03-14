@@ -532,8 +532,10 @@ ErrorCode adj_perf(const char* filename)
       std::cout<<std::endl;
     }
 
+  double total_time = qtime.vertex_to_edges_total+qtime.edge_to_edges_total+qtime.vertex_to_faces_total+qtime.edge_to_faces_total+qtime.face_to_faces_total+qtime.face_to_edges_total+qtime.vertex_to_cells_total+qtime.edge_to_cells_total+qtime.face_to_cells_total+qtime.cell_to_cells_total+qtime.cell_to_edges_total+qtime.cell_to_faces_total;
+
   //Print values in a line to aid data copying later
-  std::cout<<qtime.ds_construction<<"  "<<qtime.vertex_to_edges_avg<<"  "<<qtime.edge_to_edges_avg<<"  "<<qtime.vertex_to_faces_avg<<"  "<<qtime.edge_to_faces_avg<<"  "<<qtime.face_to_faces_avg<<"  "<<qtime.face_to_edges_avg<<"  "<<qtime.vertex_to_cells_avg<<"  "<<qtime.edge_to_cells_avg<<"  "<<qtime.face_to_cells_avg<<"  "<<qtime.cell_to_cells_avg<<"  "<<qtime.cell_to_edges_avg<<"  "<<qtime.cell_to_faces_avg<<"  "<<qmem.entity_storage[1]<<"  "<<qmem.adjacency_storage[1]<<std::endl;
+  std::cout<<qtime.ds_construction<<"  "<<total_time<<"  "<<qmem.entity_storage[1]<<"  "<<qmem.adjacency_storage[1]<<"  "<<qtime.vertex_to_edges_avg<<"  "<<qtime.edge_to_edges_avg<<"  "<<qtime.vertex_to_faces_avg<<"  "<<qtime.edge_to_faces_avg<<"  "<<qtime.face_to_faces_avg<<"  "<<qtime.face_to_edges_avg<<"  "<<qtime.vertex_to_cells_avg<<"  "<<qtime.edge_to_cells_avg<<"  "<<qtime.face_to_cells_avg<<"  "<<qtime.cell_to_cells_avg<<"  "<<qtime.cell_to_edges_avg<<"  "<<qtime.cell_to_faces_avg<<std::endl;
 
 
   return MB_SUCCESS;
