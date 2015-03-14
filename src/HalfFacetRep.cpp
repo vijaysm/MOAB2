@@ -2070,74 +2070,63 @@ namespace moab {
             const EntityHandle* conn;
             error = mb->get_connectivity(cur_cid, conn, nvpc);MB_CHK_ERR(error);
 
-            // Local id of fid_verts[0] in the cell
-            int lv0 = -1;
-            for (int i = 0; i< nvpc; ++i){
-                if (conn[i] == fid_verts[0])
-                {
-                    lv0 = i;
-                    break;
-                }
-            };
-
-            int nhf_thisv = lConnMap3D[index].v2hf_num[lv0];
-
-            // Search each half-face to match input face
-            for(int i = 0; i < nhf_thisv; ++i){
-                int lfid = lConnMap3D[index].v2hf[lv0][i];
-                int nv_curF = lConnMap3D[index].hf2v_num[lfid];
-                if (nv_curF != nvF)
-                    continue;
-
-                // Connectivity of the current half-face
-
-                std::vector<EntityHandle> vthisface(nvF);
-                for(int l = 0; l < nvF; ++l){
-                    int ind = lConnMap3D[index].hf2v[lfid][l];
-                    vthisface[l] = conn[ind];
-                };
-
-
-                // Match this half-face with input fid
-                int direct,offset;
-                bool they_match = CN::ConnectivityMatch(&vthisface[0],&fid_verts[0],nvF,direct,offset);
-
-                if (they_match){
-                    found = true;
-                    cid[0] = cur_cid;
-                    lid[0] = lfid;
-
-                    break;
-                }
-            }
-
-            //If a matching local face is found, return from this code.
-            if (found)
+            int lv[4] = {-1,-1,-1,-1};
+            int cnt = 0;
+            for (int i=0; i<nvpc; i++)
               {
-                return found;
+                for (int j=0; j<nvF; j++)
+                  if (conn[i] == fid_verts[j])
+                    {
+                      lv[j] = i;
+                      cnt += 1;
+                    }
+              }
+            if (cnt == nvF) //All face verts are part of the cell
+              {
+                found = true;
+                int nhf_thisv = lConnMap3D[index].v2hf_num[lv[0]];
+                int lfid;
+                for(int i = 0; i < nhf_thisv; ++i){
+                    lfid = lConnMap3D[index].v2hf[lv[0]][i];
+                    int lcnt = 0;
+                    for(int j = 0; j < nvF; ++j){
+                        for(int k = 0; k < nvF; ++k){
+                            if ( lv[k] == lConnMap3D[index].hf2v[lfid][j])
+                              lcnt += 1;
+                          }
+                      }
+                    if (lcnt == nvF)
+                      break;
+                  }
+                cid[0] = cur_cid;
+                lid[0] = lfid;
+
                 break;
               }
+            else
+              {
+                // Add other cells that are incident on fid_verts[0]
+                int nhf_thisv = lConnMap3D[index].v2hf_num[lv[0]];
+                int cidx = _cells.index(cur_cid);
 
-            // Add other cells that are incident on fid_verts[0]
-            int cidx = _cells.index(cur_cid);
+                // Add new cells into the stack
+                EntityHandle ngb;
+                for (int i = 0; i < nhf_thisv; ++i){
+                    int ind = lConnMap3D[index].v2hf[lv[0]][i];
+                    hf = sibhfs[nfpc*cidx+ind];
+                    ngb = fid_from_halfacet(hf, ctype);
 
-            // Add new cells into the stack
-            EntityHandle ngb;
-            for (int i = 0; i < nhf_thisv; ++i){
-                int ind = lConnMap3D[index].v2hf[lv0][i];
-                hf = sibhfs[nfpc*cidx+ind];
-                ngb = fid_from_halfacet(hf, ctype);
+                    if (ngb) {
 
-                if (ngb) {
+                        bool found_ent = find_match_in_array(ngb, trackcells, count);
 
-                    bool found_ent = find_match_in_array(ngb, trackcells, count);
-
-                    if (!found_ent){
-                        Stksize += 1;
-                        Stkcells[Stksize] = ngb;
-                    }
-                }
-            }
+                        if (!found_ent){
+                            Stksize += 1;
+                            Stkcells[Stksize] = ngb;
+                        }
+                      }
+                  }
+              }
         }
 
         //Change the visited faces to false
