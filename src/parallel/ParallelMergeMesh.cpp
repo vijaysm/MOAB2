@@ -27,25 +27,23 @@ namespace moab{
   
   //Have a wrapper function on the actual merge to avoid memory leaks
   //Merges elements within a proximity of epsilon
-  ErrorCode ParallelMergeMesh::merge() 
+  ErrorCode ParallelMergeMesh::merge(EntityHandle levelset, bool skip_local_merge)
   {
-    ErrorCode rval = PerformMerge();
+    ErrorCode rval = PerformMerge(levelset, skip_local_merge);MB_CHK_ERR(rval);
     CleanUp();
     return rval;
   }
 
   //Perform the merge
-  ErrorCode ParallelMergeMesh::PerformMerge()
+  ErrorCode ParallelMergeMesh::PerformMerge(EntityHandle levelset, bool skip_local_merge)
   {
     //Get the mesh dimension
     int dim;
-    ErrorCode rval = myMB->get_dimension(dim);
-    if(rval != MB_SUCCESS){
-      return rval;
-    }
+    ErrorCode rval = myMB->get_dimension(dim);MB_CHK_ERR(rval);
+
     
     //Get the local skin elements
-    rval = PopulateMySkinEnts(0,dim);
+    rval = PopulateMySkinEnts(levelset,dim, skip_local_merge);
     //If there is only 1 proc, we can return now
     if(rval != MB_SUCCESS || myPcomm->size() == 1){
       return rval;
@@ -53,18 +51,12 @@ namespace moab{
 
     //Determine the global bounding box
     double gbox[6];
-    rval = GetGlobalBox(gbox);
-    if(rval != MB_SUCCESS){
-      return rval;
-    }
+    rval = GetGlobalBox(gbox);MB_CHK_ERR(rval);
 
     /* Assemble The Destination Tuples */
     //Get a list of tuples which contain (toProc, handle, x,y,z)
     myTup.initialize(1,0,1,3,mySkinEnts[0].size());
-    rval = PopulateMyTup(gbox);
-    if(rval != MB_SUCCESS){
-      return rval;
-    }    
+    rval = PopulateMyTup(gbox);MB_CHK_ERR(rval);
 
     /* Gather-Scatter Tuple
        -tup comes out as (remoteProc,handle,x,y,z) */
@@ -81,10 +73,7 @@ namespace moab{
     myMatches.initialize(2,0,2,0,mySkinEnts[0].size());
 
     //ID the matching tuples
-    rval = PopulateMyMatches();
-    if(rval != MB_SUCCESS){
-      return rval;
-    }
+    rval = PopulateMyMatches();MB_CHK_ERR(rval);
 
     //We can free up the tuple myTup now
     myTup.reset();
@@ -99,7 +88,7 @@ namespace moab{
     SortMyMatches();
 
     //Tag the shared elements
-    rval = TagSharedElements(dim);
+    rval = TagSharedElements(dim);MB_CHK_ERR(rval);
 
     //Free up the matches tuples
     myMatches.reset();
@@ -107,46 +96,40 @@ namespace moab{
   }
 
   //Sets mySkinEnts with all of the skin entities on the processor
-  ErrorCode ParallelMergeMesh::PopulateMySkinEnts(const EntityHandle meshset,int dim)
+  ErrorCode ParallelMergeMesh::PopulateMySkinEnts(const EntityHandle meshset, int dim, bool skip_local_merge)
   {
     /*Merge Mesh Locally*/
     //Get all dim dimensional entities
     Range ents;
-    ErrorCode rval = myMB->get_entities_by_dimension(meshset,dim,ents);
-    if(rval != MB_SUCCESS){
-      return rval;
-    }
+    ErrorCode rval = myMB->get_entities_by_dimension(meshset,dim,ents);MB_CHK_ERR(rval);
 
     if (ents.empty() && dim==3)
     {
       dim--;
-      myMB->get_entities_by_dimension(meshset,dim,ents);// maybe dimension 2
+      rval =  myMB->get_entities_by_dimension(meshset,dim,ents);MB_CHK_ERR(rval);// maybe dimension 2
     }
 
     //Merge Mesh Locally
-    MergeMesh merger(myMB, false);
-    merger.merge_entities(ents,myEps);
-    //We can return if there is only 1 proc
-    if(rval != MB_SUCCESS || myPcomm->size() == 1){
-      return rval;
-    }
+    if (!skip_local_merge)
+      {
+        MergeMesh merger(myMB, false);
+        merger.merge_entities(ents,myEps);
+        //We can return if there is only 1 proc
+        if(rval != MB_SUCCESS || myPcomm->size() == 1){
+            return rval;
+          }
 
-    //Rebuild the ents range
-    ents.clear();
-    rval = myMB->get_entities_by_dimension(0,dim,ents);
-    if(rval != MB_SUCCESS){
-      return rval;
-    }
+        //Rebuild the ents range
+        ents.clear();
+        rval = myMB->get_entities_by_dimension(meshset,dim,ents);MB_CHK_ERR(rval);
+      }
 
     /*Get Skin
       -Get Range of all dimensional entities
       -skinEnts[i] is the skin entities of dimension i*/  
     Skinner skinner(myMB);
     for(int skin_dim = dim; skin_dim >= 0; skin_dim--){
-      rval = skinner.find_skin(meshset,ents,skin_dim,mySkinEnts[skin_dim]);
-      if(rval != MB_SUCCESS){
-	return rval;
-      }
+      rval = skinner.find_skin(meshset,ents,skin_dim,mySkinEnts[skin_dim]);MB_CHK_ERR(rval);
     }
     return MB_SUCCESS;
   }
@@ -159,9 +142,7 @@ namespace moab{
     /*Get Bounding Box*/
     BoundBox box;
     if(mySkinEnts[0].size() != 0){
-      rval = box.update(*myMB, mySkinEnts[0]);
-      if(rval != MB_SUCCESS)
-        return rval;
+      rval = box.update(*myMB, mySkinEnts[0]);MB_CHK_ERR(rval);
     }
 
     //Invert the max
@@ -184,10 +165,7 @@ namespace moab{
     /*Figure out how do partition the global box*/
     double lengths[3];
     int parts[3];
-    ErrorCode rval = PartitionGlobalBox(gbox, lengths, parts);
-    if(rval != MB_SUCCESS){
-      return rval;
-    }
+    ErrorCode rval = PartitionGlobalBox(gbox, lengths, parts);MB_CHK_ERR(rval);
 
     /* Get Skin Coordinates, Vertices */
     double *x = new double[mySkinEnts[0].size()]; 

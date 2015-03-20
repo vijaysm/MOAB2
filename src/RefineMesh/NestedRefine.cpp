@@ -639,72 +639,72 @@ namespace moab{
           }
           if (level_mesh[l].num_faces != 0)
           {
-            EntityType type = mbImpl->type_from_handle(*(_infaces.begin()));
-            int nvpf = ahf->lConnMap2D[type - 2].num_verts_in_face;
-            error = read_iface->update_adjacencies(level_mesh[l].start_face, level_mesh[l].num_faces, nvpf, level_mesh[l].face_conn);MB_CHK_ERR(error);
+              EntityType type = mbImpl->type_from_handle(*(_infaces.begin()));
+              int nvpf = ahf->lConnMap2D[type - 2].num_verts_in_face;
+              error = read_iface->update_adjacencies(level_mesh[l].start_face, level_mesh[l].num_faces, nvpf, level_mesh[l].face_conn);MB_CHK_ERR(error);
           }
           if (level_mesh[l].num_cells != 0)
           {
-            int index = ahf->get_index_from_type(*_incells.begin());
-            int nvpc = ahf->lConnMap3D[index].num_verts_in_cell;
-            error = read_iface->update_adjacencies(level_mesh[l].start_cell, level_mesh[l].num_cells, nvpc, level_mesh[l].cell_conn);MB_CHK_ERR(error);
+              int index = ahf->get_index_in_lmap(*_incells.begin());
+              int nvpc = ahf->lConnMap3D[index].num_verts_in_cell;
+              error = read_iface->update_adjacencies(level_mesh[l].start_cell, level_mesh[l].num_cells, nvpc, level_mesh[l].cell_conn);MB_CHK_ERR(error);
           }
 
           if (pcomm->size() > 1)
-          {
-            // get all entities on the rootset
-            moab::Range vtxs, edgs, facs, elms;
-            error = mbImpl->get_entities_by_dimension(hm_set[l], 0, vtxs, false);MB_CHK_ERR(error);
-            error = mbImpl->get_entities_by_dimension(hm_set[l], 1, edgs, false);MB_CHK_ERR(error);
-            error = mbImpl->get_entities_by_dimension(hm_set[l], 2, facs, false);MB_CHK_ERR(error);
-            error = mbImpl->get_entities_by_dimension(hm_set[l], 3, elms, false);MB_CHK_ERR(error);
-
-            // set the parallel partition tag data
-            moab::EntityHandle part_set;
-            int partid = pcomm->rank(), dum_id = -1;
-            error = mbImpl->tag_get_handle("PARALLEL_PARTITION", 1, moab::MB_TYPE_INTEGER,
-                                           part_tag, moab::MB_TAG_CREAT | moab::MB_TAG_SPARSE, &dum_id);MB_CHK_ERR(error);
-            error = mbImpl->create_meshset(moab::MESHSET_SET, part_set);MB_CHK_ERR(error);
-            error = mbImpl->add_entities(part_set, vtxs);MB_CHK_ERR(error);
-            error = mbImpl->add_entities(part_set, edgs);MB_CHK_ERR(error);
-            error = mbImpl->add_entities(part_set, facs);MB_CHK_ERR(error);
-            error = mbImpl->add_entities(part_set, elms);MB_CHK_ERR(error);
-            error = mbImpl->add_entities(hm_set[l],&part_set,1);MB_CHK_ERR(error);
-            error = mbImpl->tag_set_data(part_tag, &part_set, 1, &partid);MB_CHK_ERR(error);
-
-            //
-            // Now that we have the local piece of the mesh refined consistently,
-            // call parallel merge instead of resolved_shared to stitch together the meshes
-            // and to handle parallel communication of remote proc/entity-handle pairs for
-            // shared + non-owned interfaces entities.
-            //
-            // TODO: This needs to be replaced by the following scheme in the future as
-            // an optimization step.
-            //   > Assign global IDs consistently for shared entities so that parallel
-            //   > resolve shared ents can happen out of the box. This is the fastest option.
-            ParallelMergeMesh pm(pcomm, 1e-08);
-
-            error = pm.merge(hm_set[l], true);MB_CHK_ERR(error);
-            //
-            // Parallel Communication complete - all entities resolved
-            //
-
             {
-              // Assign new global IDs for all the entities we just generated to maintain contiguity
-              // Range pents[4] = {vtxs, edgs, facs, elms};
-              // error = pcomm->assign_global_ids(pents, 3, 1, true, true);MB_CHK_ERR(error);
-              // error = pcomm->assign_global_ids(hm_set[l], 0, 1, false, true, false);MB_CHK_ERR(error);
+              // get all entities on the rootset
+              moab::Range vtxs, edgs, facs, elms;
+              error = mbImpl->get_entities_by_dimension(hm_set[l], 0, vtxs, false);MB_CHK_ERR(error);
+              error = mbImpl->get_entities_by_dimension(hm_set[l], 1, edgs, false);MB_CHK_ERR(error);
+              error = mbImpl->get_entities_by_dimension(hm_set[l], 2, facs, false);MB_CHK_ERR(error);
+              error = mbImpl->get_entities_by_dimension(hm_set[l], 3, elms, false);MB_CHK_ERR(error);
 
-              // Now that we have resolved all shared entities in parallel,
-              // exchange GLOBAL_ID data for all local entities so that we are
-              // up to date on remote changes.
-              error = pcomm->exchange_tags(gidtag,vtxs);MB_CHK_ERR(error);
-              error = pcomm->exchange_tags(gidtag,edgs);MB_CHK_ERR(error);
-              error = pcomm->exchange_tags(gidtag,facs);MB_CHK_ERR(error);
-              error = pcomm->exchange_tags(gidtag,elms);MB_CHK_ERR(error);
+              // set the parallel partition tag data
+              moab::EntityHandle part_set;
+              int partid = pcomm->rank(), dum_id = -1;
+              error = mbImpl->tag_get_handle("PARALLEL_PARTITION", 1, moab::MB_TYPE_INTEGER,
+                                             part_tag, moab::MB_TAG_CREAT | moab::MB_TAG_SPARSE, &dum_id);MB_CHK_ERR(error);
+              error = mbImpl->create_meshset(moab::MESHSET_SET, part_set);MB_CHK_ERR(error);
+              error = mbImpl->add_entities(part_set, vtxs);MB_CHK_ERR(error);
+              error = mbImpl->add_entities(part_set, edgs);MB_CHK_ERR(error);
+              error = mbImpl->add_entities(part_set, facs);MB_CHK_ERR(error);
+              error = mbImpl->add_entities(part_set, elms);MB_CHK_ERR(error);
+              error = mbImpl->add_entities(hm_set[l],&part_set,1);MB_CHK_ERR(error);
+              error = mbImpl->tag_set_data(part_tag, &part_set, 1, &partid);MB_CHK_ERR(error);
+
+              //
+              // Now that we have the local piece of the mesh refined consistently,
+              // call parallel merge instead of resolved_shared to stitch together the meshes
+              // and to handle parallel communication of remote proc/entity-handle pairs for
+              // shared + non-owned interfaces entities.
+              //
+              // TODO: This needs to be replaced by the following scheme in the future as
+              // an optimization step.
+              //   > Assign global IDs consistently for shared entities so that parallel
+              //   > resolve shared ents can happen out of the box. This is the fastest option.
+              ParallelMergeMesh pm(pcomm, 1e-08);
+
+              error = pm.merge(hm_set[l], true);MB_CHK_ERR(error);
+              //
+              // Parallel Communication complete - all entities resolved
+              //
+
+              {
+                // Assign new global IDs for all the entities we just generated to maintain contiguity
+                // Range pents[4] = {vtxs, edgs, facs, elms};
+                // error = pcomm->assign_global_ids(pents, 3, 1, true, true);MB_CHK_ERR(error);
+                // error = pcomm->assign_global_ids(hm_set[l], 0, 1, false, true, false);MB_CHK_ERR(error);
+
+                // Now that we have resolved all shared entities in parallel,
+                // exchange GLOBAL_ID data for all local entities so that we are
+                // up to date on remote changes.
+                error = pcomm->exchange_tags(gidtag,vtxs);MB_CHK_ERR(error);
+                error = pcomm->exchange_tags(gidtag,edgs);MB_CHK_ERR(error);
+                error = pcomm->exchange_tags(gidtag,facs);MB_CHK_ERR(error);
+                error = pcomm->exchange_tags(gidtag,elms);MB_CHK_ERR(error);
+              }
             }
           }
-        }
       }
 
     mbImpl->write_file("test.h5m", 0, ";;PARALLEL=WRITE_PART");
@@ -1336,10 +1336,11 @@ namespace moab{
 //    error = mbImpl->write_file("test.vtk"); MB_CHK_ERR(error);
 
     // Step 6: Update the global maps
-    error = update_global_ahf_2D_sub(cur_level, deg);  MB_CHK_ERR(error);
+    error = update_global_ahf_2D_sub(cur_level, deg); MB_CHK_ERR(error);
 
     //Step 7: Update the hf-maps for the edges
-    error = update_ahf_1D(cur_level);
+    error = update_ahf_1D(cur_level);MB_CHK_ERR(error);
+    error = print_maps_1D(cur_level);MB_CHK_ERR(error);
 
     delete [] vbuffer;
     delete [] ent_buffer;
@@ -2230,7 +2231,7 @@ ErrorCode NestedRefine::update_ahf_1D(int cur_level)
   ErrorCode error;
   error = ahf->determine_sibling_halfverts(level_mesh[cur_level].verts, level_mesh[cur_level].edges);MB_CHK_ERR(error);
 
-  error = ahf->determine_incident_halfverts(level_mesh[cur_level].edges);MB_CHK_ERR(error);
+  error = ahf->determine_incident_halfverts(level_mesh[cur_level].verts, level_mesh[cur_level].edges);MB_CHK_ERR(error);
 
   return MB_SUCCESS;
 }
@@ -2480,7 +2481,7 @@ ErrorCode NestedRefine::update_ahf_1D(int cur_level)
            std::vector<EntityHandle> conn;
            error = get_connectivity(sfid, cur_level, conn);MB_CHK_ERR(error);
 
-           assert(conn.size() > nidx && conn.size() > slid);
+           assert((int)conn.size() > nidx && (int)conn.size() > slid);
 
 
            bool orient = true;
@@ -2840,8 +2841,21 @@ bool NestedRefine::is_vertex_on_boundary(const EntityHandle &vertex)
   EntityHandle ent, sibents[27];
   int lid, siblids[27];
 
-  error = ahf->get_incident_tag(elementype, vertex, &ent, &lid);MB_CHK_ERR(error);
-  error = ahf->get_sibling_tag(elementype, ent, &sibents[0], &siblids[0]);MB_CHK_ERR(error);
+  int nhf;
+  if (elementype == MBEDGE)
+    nhf = 2;
+  else if ((elementype == MBTRI)||(elementype == MBQUAD))
+    nhf = ahf->lConnMap2D[elementype-2].num_verts_in_face;
+  else if ((elementype == MBTET) || (elementype == MBHEX))
+    {
+      int idx = ahf->get_index_in_lmap(*_incells.begin());
+      nhf = ahf->lConnMap3D[idx].num_faces_in_cell;
+    }
+  else
+     MB_SET_ERR(MB_FAILURE, "Requesting vertex boundary information for an unsupported entity type");
+
+  error = ahf->get_incident_map(elementype, vertex, ent, lid);MB_CHK_ERR(error);
+  error = ahf->get_sibling_map(elementype, ent, &sibents[0], &siblids[0], nhf);MB_CHK_ERR(error);
 
   return (sibents[lid] == 0);
 }
@@ -2854,7 +2868,7 @@ bool NestedRefine::is_edge_on_boundary(const EntityHandle &entity)
   {
     EntityHandle sibents[2];
     int siblids[2];
-    error = ahf->get_sibling_tag(MBEDGE, entity, &sibents[0], &siblids[0]);MB_CHK_ERR(error);
+    error = ahf->get_sibling_map(MBEDGE, entity, &sibents[0], &siblids[0], 2);MB_CHK_ERR(error);
     for (int i = 0; i < 2; i++)
     {
       if (sibents[i] == 0)
@@ -2878,12 +2892,14 @@ bool NestedRefine::is_edge_on_boundary(const EntityHandle &entity)
     error = ahf->get_up_adjacencies_edg_3d(entity, adjents, &leids);MB_CHK_ERR(error);
     assert(!adjents.empty());
 
-    int index = ahf->get_index_from_type(adjents[0]);
+    int index = ahf->get_index_in_lmap(adjents[0]);
+    int nhf = ahf->lConnMap3D[index].num_faces_in_cell;
+
     for (int i = 0; i < (int)adjents.size(); i++)
     {
       EntityHandle sibents[6];
       int siblids[6];
-      error = ahf->get_sibling_tag(elementype, adjents[0], &sibents[0], &siblids[0]);MB_CHK_ERR(error);
+      error = ahf->get_sibling_map(elementype, adjents[0], &sibents[0], &siblids[0], nhf);MB_CHK_ERR(error);
       for (int k = 0; k < 2; k++)
       {
         int hf = ahf->lConnMap3D[index].e2hf[leids[0]][k];
@@ -2909,8 +2925,9 @@ bool NestedRefine::is_face_on_boundary(const EntityHandle &entity)
   {
     EntityHandle sibents[4];
     int siblids[4];
-    error = ahf->get_sibling_tag(elementype, entity, &sibents[0], &siblids[0]);MB_CHK_ERR(error);
     int nepf = ahf->lConnMap2D[elementype - 2].num_verts_in_face;
+    error = ahf->get_sibling_map(elementype, entity, &sibents[0], &siblids[0], nepf);MB_CHK_ERR(error);
+
     for (int i = 0; i < nepf; i++)
     {
       if (sibents[i] == 0)
@@ -2934,14 +2951,15 @@ bool NestedRefine::is_cell_on_boundary(const EntityHandle &entity)
 {
   if (meshdim != 3)
     MB_SET_ERR(MB_FAILURE, "Requesting boundary information for a cell entity type on a curve or surface mesh");
-  bool is_border = false;
 
+  bool is_border = false;
+  int index = ahf->get_index_in_lmap(*_incells.begin());
+  int nfpc = ahf->lConnMap3D[index].num_faces_in_cell;
   EntityHandle sibents[6];
   int siblids[6];
-  ErrorCode error = ahf->get_sibling_tag(elementype, entity, &sibents[0], &siblids[0]);MB_CHK_ERR(error);
 
-  int index = ahf->get_index_from_type(elementype);
-  int nfpc = ahf->lConnMap3D[index].num_faces_in_cell;
+  ErrorCode error = ahf->get_sibling_map(elementype, entity, &sibents[0], &siblids[0], nfpc);MB_CHK_ERR(error);
+
   for (int i = 0; i < nfpc; i++)
   {
     if (sibents[i] == 0)

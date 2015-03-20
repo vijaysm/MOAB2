@@ -134,7 +134,7 @@ namespace moab {
               if (is_mixed) return is_mixed;
           }
 
-          error = mb->get_entities_by_dimension( 0, 3, celems);   MB_CHK_ERR(error);
+          error = mb->get_entities_by_dimension( this->_rset, 3, celems);   MB_CHK_ERR(error);
           if (celems.size()){
               Range tet, pyr, prism, hex, polyhed;
               tet = celems.subset_by_type(MBTET);
@@ -264,8 +264,8 @@ namespace moab {
     for (int i=0; i<nv; i++)
       v2hv.push_back(0);
 
-    error = determine_sibling_halfverts(_edges);MB_CHK_ERR(error);
-    error = determine_incident_halfverts(_edges);MB_CHK_ERR(error);
+    error = determine_sibling_halfverts(_verts, _edges);MB_CHK_ERR(error);
+    error = determine_incident_halfverts(_verts, _edges);MB_CHK_ERR(error);
 
     return MB_SUCCESS;
   }
@@ -688,7 +688,7 @@ namespace moab {
   }
 
   ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  ErrorCode HalfFacetRep::determine_incident_halfverts( Range &edges){
+  ErrorCode HalfFacetRep::determine_incident_halfverts( Range verts, Range &edges){
     ErrorCode error;
 
     for (Range::iterator e_it = edges.begin(); e_it != edges.end(); ++e_it){
@@ -699,7 +699,7 @@ namespace moab {
 
         for(int i=0; i<2; ++i){
             EntityHandle v = conn[i];
-            int vidx = _verts.index(v);
+            int vidx = verts.index(v);
             HFacet hf = v2hv[vidx];
             EntityHandle eid = fid_from_halfacet(hf, MBEDGE);
             if (eid==0){
