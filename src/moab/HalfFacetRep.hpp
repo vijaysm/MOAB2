@@ -18,11 +18,12 @@
 #define MOAB_HALF_FACET_REP_HPP
 
 #include "moab/Core.hpp"
+#include "moab/ParallelComm.hpp"
 #include "moab/Range.hpp"
 #include "moab/CN.hpp"
-#include "Internals.hpp"
 
-namespace moab {
+namespace moab
+{
 
 /*! 
  *  \brief   HalfFacetRep class implements the Array-Based Half-Facet(AHF) Mesh data structure on top of MOAB.
@@ -90,8 +91,7 @@ class HalfFacetRep{
 
 public:
 
-  HalfFacetRep(Core *impl);
- // HalfFacetRep(Interface *impl);
+  HalfFacetRep(Core *impl,  ParallelComm *comm=0, moab::EntityHandle rset=0);
     
   ~HalfFacetRep();
 
@@ -170,7 +170,7 @@ public:
      * \param edges Range of edges.
     */
 
-  ErrorCode determine_sibling_halfverts(Range &edges);
+  ErrorCode determine_sibling_halfverts(Range verts, Range &edges);
 
   //! Given a range of edges, determines the map for incident half-verts and stores them into V2HV_EID, V2HV_LVID tags.
   /** Compute a map between a vertex and an incident half-vertex. This map is not always required, but is
@@ -510,27 +510,20 @@ public:
 
 protected:
 
-  Core *mb;
-
   HalfFacetRep();
 
+  Core *mb;
+  ParallelComm *pcomm;
   bool mInitAHFmaps;
-
+  EntityHandle _rset;
   Range _verts, _edges, _faces, _cells;
 
-  //AHF map storage containers for 1D
+  //AHF map storage containers for 1D, 2D, 3D
   std::vector<HFacet> sibhvs, v2hv;
-
-  //AHF map storage containers for 2D
   std::vector<HFacet> sibhes, v2he;
-  //std::vector<EntityHandle> sibhes_fid, v2he_fid;
-  //std::vector<int> sibhes_leid, v2he_leid;
-
-  //AHF map storage containers for 3D
   std::vector<HFacet> sibhfs, v2hf;
-  //std::vector<EntityHandle> sibhfs_cid, v2hf_cid;
-  //std::vector<int> sibhfs_lfid, v2hf_lfid;
 
+  //Auxiliary storage for local searches.
   EntityHandle queue_fid[MAXSIZE], Stkcells[MAXSIZE], cellq[MAXSIZE];
   EntityHandle trackfaces[MAXSIZE], trackcells[MAXSIZE];
   int queue_lid[MAXSIZE];

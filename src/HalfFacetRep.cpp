@@ -18,16 +18,14 @@
 #include <iostream>
 #include <assert.h>
 #include <vector>
-#include "moab/Core.hpp"
-#include "moab/Range.hpp"
-#include "moab/CN.hpp"
+#include "MBTagConventions.hpp"
 
 namespace moab {
 
-  HalfFacetRep::HalfFacetRep(Core *impl)
+  HalfFacetRep::HalfFacetRep(Core *impl,   ParallelComm *comm, moab::EntityHandle rset)
+    : mb(impl), pcomm(comm), _rset(rset)
   {
     assert(NULL != impl);
-    mb = impl;
     mInitAHFmaps = false;
     chk_mixed = false;
     is_mixed = false;
@@ -109,13 +107,6 @@ namespace moab {
           index = 6;
           break;
         }
-     /* if (mesh_type == CURVE) index = 0;
-      else if (mesh_type == SURFACE) index = 1;
-      else if (mesh_type == SURFACE_MIXED) index = 2;
-      else if (mesh_type == VOLUME)  index = 3;
-      else if (mesh_type == VOLUME_MIXED_1) index = 4;
-      else if (mesh_type == VOLUME_MIXED_2) index = 5;
-      else if (mesh_type == VOLUME_MIXED) index = 6;*/
       return index;
   }
 
@@ -128,7 +119,7 @@ namespace moab {
           ErrorCode error;
           Range felems, celems;
 
-          error = mb->get_entities_by_dimension( 0, 2, felems ); MB_CHK_ERR(error);
+          error = mb->get_entities_by_dimension( this->_rset, 2, felems ); MB_CHK_ERR(error);
 
           if (felems.size()){
               Range tris, quad, poly;
@@ -151,7 +142,11 @@ namespace moab {
               prism = celems.subset_by_type(MBPRISM);
               hex = celems.subset_by_type(MBHEX);
               polyhed = celems.subset_by_type(MBPOLYHEDRON);
-              if ((tet.size() && pyr.size())||(tet.size() && prism.size())||(tet.size() && hex.size())||(tet.size()&&polyhed.size())||(pyr.size() && prism.size())||(pyr.size() && hex.size()) ||(pyr.size()&&polyhed.size())|| (prism.size() && hex.size())||(prism.size()&&polyhed.size())||(hex.size()&&polyhed.size()))
+              if ((tet.size() && pyr.size())||(tet.size() && prism.size())||
+                  (tet.size() && hex.size())||(tet.size()&&polyhed.size())||
+                  (pyr.size() && prism.size())||(pyr.size() && hex.size()) ||
+                  (pyr.size()&&polyhed.size())|| (prism.size() && hex.size())||
+                  (prism.size()&&polyhed.size())||(hex.size()&&polyhed.size()))
                   is_mixed = true;
 
               if (polyhed.size())
@@ -168,54 +163,88 @@ namespace moab {
 
   ErrorCode HalfFacetRep::initialize()
   {
-    mInitAHFmaps = true;
-
     ErrorCode error;
 
-    error = mb->get_entities_by_dimension( 0, 0, _verts); MB_CHK_ERR(error);
+    if (!mInitAHFmaps){
+        mInitAHFmaps = true;
 
-    error = mb->get_entities_by_dimension( 0, 1, _edges); MB_CHK_ERR(error);
+        if (pcomm)
+          {
+            moab::Range _averts, _aedgs, _afacs, _acels;
 
-    error = mb->get_entities_by_dimension( 0, 2, _faces); MB_CHK_ERR(error);
-    
-    error = mb->get_entities_by_dimension( 0, 3, _cells); MB_CHK_ERR(error);
-    
-    int nverts = _verts.size();
-    int nedges = _edges.size();
-    int nfaces = _faces.size();
-    int ncells = _cells.size();
+            error = mb->get_entities_by_dimension(this->_rset, 0, _averts, true);MB_CHK_ERR(error);
+            error = mb->get_entities_by_dimension(this->_rset, 1, _aedgs, true);MB_CHK_ERR(error);
+            error = mb->get_entities_by_dimension(this->_rset, 2, _afacs, true);MB_CHK_ERR(error);
+            error = mb->get_entities_by_dimension(this->_rset, 3, _acels, true);MB_CHK_ERR(error);
 
-    MESHTYPE mesh_type = get_mesh_type(nverts, nedges, nfaces, ncells);
-    thismeshtype = mesh_type;
-  
-    //Initialize mesh type specific maps
-    if (thismeshtype == CURVE){
-        error = init_curve(); MB_CHK_ERR(error);
-      }   
-    else if (thismeshtype == SURFACE){
-      error = init_surface();MB_CHK_ERR(error);
-      }
-    else if (thismeshtype == SURFACE_MIXED){
-        error = init_curve();MB_CHK_ERR(error);
-        error = init_surface();MB_CHK_ERR(error);
-      }
-    else if (thismeshtype == VOLUME){
-        error = init_volume();MB_CHK_ERR(error);
-      }
-    else if (thismeshtype == VOLUME_MIXED_1){
-        error = init_curve();MB_CHK_ERR(error);
-        error = init_volume();MB_CHK_ERR(error);
-    }
-    else if (thismeshtype == VOLUME_MIXED_2){
-        error = init_surface();MB_CHK_ERR(error);
-        error = init_volume();MB_CHK_ERR(error);
-      }
-    else if (thismeshtype == VOLUME_MIXED){
-        error = init_curve();MB_CHK_ERR(error);
-        error = init_surface();MB_CHK_ERR(error);
-        error = init_volume();MB_CHK_ERR(error);
-      }
+            MPI_Barrier(pcomm->comm());
+            if (!pcomm->rank())
+              std::cout << "[0] HalfFacetRep::initialize: Pre-filter: [" << _averts.size() << ", " << _aedgs.size() << ", " << _afacs.size() << ", " << _acels.size() << "]\n" ;
+            else
+              std::cout << "[1] HalfFacetRep::initialize: Pre-filter: [" << _averts.size() << ", " << _aedgs.size() << ", " << _afacs.size() << ", " << _acels.size() << "]\n" ;
+            MPI_Barrier(pcomm->comm());
 
+            // filter based on parallel status
+            error = pcomm->filter_pstatus(_averts, PSTATUS_GHOST, PSTATUS_NOT, -1, &_verts);MB_CHK_ERR(error);
+            error = pcomm->filter_pstatus(_aedgs, PSTATUS_GHOST, PSTATUS_NOT, -1, &_edges);MB_CHK_ERR(error);
+            error = pcomm->filter_pstatus(_afacs, PSTATUS_GHOST, PSTATUS_NOT, -1, &_faces);MB_CHK_ERR(error);
+            error = pcomm->filter_pstatus(_acels, PSTATUS_GHOST, PSTATUS_NOT, -1, &_cells);MB_CHK_ERR(error);
+          }
+        else
+          {
+            error = mb->get_entities_by_dimension( this->_rset, 0, _verts, true);MB_CHK_ERR(error);
+            error = mb->get_entities_by_dimension( this->_rset, 1, _edges, true);MB_CHK_ERR(error);
+            error = mb->get_entities_by_dimension( this->_rset, 2, _faces, true);MB_CHK_ERR(error);
+            error = mb->get_entities_by_dimension( this->_rset, 3, _cells, true);MB_CHK_ERR(error);
+          }
+
+        int nverts = _verts.size();
+        int nedges = _edges.size();
+        int nfaces = _faces.size();
+        int ncells = _cells.size();
+
+        if (pcomm)
+          {
+            MPI_Barrier(pcomm->comm());
+            if (!pcomm->rank())
+              std::cout << "[0] HalfFacetRep::initialize: Post-filter: [" << nverts << ", " << nedges << ", " << nfaces << ", " << ncells << "]\n" ;
+            else
+              std::cout << "[1] HalfFacetRep::initialize: Post-filter: [" << nverts << ", " << nedges << ", " << nfaces << ", " << ncells << "]\n" ;
+            MPI_Barrier(pcomm->comm());
+          }
+
+
+        MESHTYPE mesh_type = get_mesh_type(nverts, nedges, nfaces, ncells);
+        thismeshtype = mesh_type;
+
+        //Initialize mesh type specific maps
+        if (thismeshtype == CURVE){
+            error = init_curve(); MB_CHK_ERR(error);
+          }
+        else if (thismeshtype == SURFACE){
+            error = init_surface();MB_CHK_ERR(error);
+          }
+        else if (thismeshtype == SURFACE_MIXED){
+            error = init_curve();MB_CHK_ERR(error);
+            error = init_surface();MB_CHK_ERR(error);
+          }
+        else if (thismeshtype == VOLUME){
+            error = init_volume();MB_CHK_ERR(error);
+          }
+        else if (thismeshtype == VOLUME_MIXED_1){
+            error = init_curve();MB_CHK_ERR(error);
+            error = init_volume();MB_CHK_ERR(error);
+          }
+        else if (thismeshtype == VOLUME_MIXED_2){
+            error = init_surface();MB_CHK_ERR(error);
+            error = init_volume();MB_CHK_ERR(error);
+          }
+        else if (thismeshtype == VOLUME_MIXED){
+            error = init_curve();MB_CHK_ERR(error);
+            error = init_surface();MB_CHK_ERR(error);
+            error = init_volume();MB_CHK_ERR(error);
+          }
+      }
     return MB_SUCCESS;
   }
 
@@ -575,12 +604,12 @@ namespace moab {
   /******************************************************** 
   * 1D: sibhvs, v2hv, incident and neighborhood queries   *
   *********************************************************/
-  ErrorCode HalfFacetRep::determine_sibling_halfverts( Range &edges)
+  ErrorCode HalfFacetRep::determine_sibling_halfverts( Range verts, Range &edges)
   {
     ErrorCode error;
 
     //Step 1: Create an index list storing the starting position for each vertex
-    int nv = _verts.size();
+    int nv = verts.size();
     int *is_index = new int[nv+1];
     for (int i =0; i<nv+1; i++)
       is_index[i] = 0;
@@ -592,9 +621,9 @@ namespace moab {
         int num_conn = 0;
         error = mb->get_connectivity(*eid, conn, num_conn);MB_CHK_ERR(error);
 
-        int index = _verts.index(conn[0]);
+        int index = verts.index(conn[0]);
         is_index[index+1] += 1;
-        index = _verts.index(conn[1]);
+        index = verts.index(conn[1]);
         is_index[index+1] += 1;
       }
     is_index[0] = 0;
@@ -614,7 +643,7 @@ namespace moab {
 
         for (int j = 0; j< 2; j++)
           {
-            int v = _verts.index(conn[j]);
+            int v = verts.index(conn[j]);
             v2hv_map_eid[is_index[v]] = *eid;
             v2hv_map_lvid[is_index[v]] = j;
             is_index[v] += 1;
@@ -626,9 +655,9 @@ namespace moab {
     is_index[0] = 0;
 
     //Step 3: Fill up sibling half-verts map
-    for (Range::iterator vid = _verts.begin(); vid != _verts.end(); ++vid)
+    for (Range::iterator vid = verts.begin(); vid != verts.end(); ++vid)
       {
-        int v = _verts.index(*vid);
+        int v = verts.index(*vid);
         int last = is_index[v+1] - 1;
         if (last > is_index[v])
           {
