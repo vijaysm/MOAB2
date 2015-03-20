@@ -21,6 +21,7 @@
 #include "moab/ParallelComm.hpp"
 #include "moab/Range.hpp"
 #include "moab/CN.hpp"
+#include "Internals.hpp"
 
 namespace moab
 {
@@ -179,7 +180,7 @@ public:
      * \param edges Range of edges
     */
 
-  ErrorCode determine_incident_halfverts(Range &edges);
+  ErrorCode determine_incident_halfverts(Range verts, Range &edges);
 
   //! Given a vertex, finds the edges incident on it.
   /** Given a vertex handle, it starts by first finding an incident half-vert by using the incident

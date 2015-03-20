@@ -274,12 +274,12 @@ namespace moab
         * Note: This is a specialization of the NestedRefine::is_entity_on_boundary function and applies only to vertex queries.
         * \param entity
       */
-      bool is_vertex_on_boundary(const EntityHandle& entity);
-      bool is_edge_on_boundary(const EntityHandle& entity);
-      bool is_face_on_boundary(const EntityHandle& entity);
-      bool is_cell_on_boundary(const EntityHandle& entity);
+    bool is_vertex_on_boundary(const EntityHandle& entity);
+    bool is_edge_on_boundary(const EntityHandle& entity);
+    bool is_face_on_boundary(const EntityHandle& entity);
+    bool is_cell_on_boundary(const EntityHandle& entity);
 
-      //ErrorCode find_skin_faces(EntityHandle set, int level, int nskinF);
+    //ErrorCode find_skin_faces(EntityHandle set, int level, int nskinF);
 
   };
 } //name space moab
