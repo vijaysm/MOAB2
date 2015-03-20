@@ -243,18 +243,14 @@ ErrorCode test_adjacencies(Interface *mbImpl, NestedRefine *nr, Range all_ents)
 }
 
 
-ErrorCode refine_entities(Interface *mb, int *level_degrees, const int num_levels, bool output)
+ErrorCode refine_entities(Interface *mb,  ParallelComm* pc, EntityHandle fset, int *level_degrees, const int num_levels, bool output)
 {
   ErrorCode error;
 
   //Get the range of entities in the initial mesh
   Range init_ents[4];
-  error = mb->get_entities_by_dimension(0, 0, init_ents[0]); CHECK_ERR(error);
-  error = mb->get_entities_by_dimension(0, 1, init_ents[1]); CHECK_ERR(error);
-  error = mb->get_entities_by_dimension(0, 2, init_ents[2]); CHECK_ERR(error);
-  error = mb->get_entities_by_dimension(0, 3, init_ents[3]);  CHECK_ERR(error);
 
- int dim[3] = {1,2,3};
+  int dim[3] = {1,2,3};
 
   if (output)
     {
@@ -268,12 +264,47 @@ ErrorCode refine_entities(Interface *mb, int *level_degrees, const int num_level
 
   //Create an hm object and generate the hierarchy
   std::cout<<"Creating a hm object"<<std::endl;
+
+#ifdef MOAB_HAVE_MPI
+  NestedRefine uref(dynamic_cast<Core*>(mb), pc, fset);
+
+  Range averts, aedges, afaces, acells;
+  error = mb->get_entities_by_dimension(fset, 0, averts);MB_CHK_ERR(error);
+  error = mb->get_entities_by_dimension(fset, 1, aedges);MB_CHK_ERR(error);
+  error = mb->get_entities_by_dimension(fset, 2, afaces);MB_CHK_ERR(error);
+  error = mb->get_entities_by_dimension(fset, 3, acells);MB_CHK_ERR(error);
+
+  /* filter based on parallel status */
+  if (pc)
+  {
+    error = pc->filter_pstatus(averts,PSTATUS_GHOST,PSTATUS_NOT,-1,&init_ents[0]);MB_CHK_ERR(error);
+    error = pc->filter_pstatus(aedges,PSTATUS_GHOST,PSTATUS_NOT,-1,&init_ents[1]);MB_CHK_ERR(error);
+    error = pc->filter_pstatus(afaces,PSTATUS_GHOST,PSTATUS_NOT,-1,&init_ents[2]);MB_CHK_ERR(error);
+    error = pc->filter_pstatus(acells,PSTATUS_GHOST,PSTATUS_NOT,-1,&init_ents[3]);MB_CHK_ERR(error);
+  }
+  else
+  {
+    init_ents[0]=averts;
+    init_ents[1]=aedges;
+    init_ents[2]=afaces;
+    init_ents[3]=acells;
+
+  }
+#else
   NestedRefine uref(dynamic_cast<Core*>(mb));
-  EntityHandle *set = new EntityHandle[num_levels];
+  error = mb->get_entities_by_dimension(0, 0, init_ents[0]); CHECK_ERR(error);
+  error = mb->get_entities_by_dimension(0, 1, init_ents[1]); CHECK_ERR(error);
+  error = mb->get_entities_by_dimension(0, 2, init_ents[2]); CHECK_ERR(error);
+  error = mb->get_entities_by_dimension(0, 3, init_ents[3]);  CHECK_ERR(error);
+#endif
+
+  std::vector<EntityHandle> set;
 
   std::cout<<"Starting hierarchy generation"<<std::endl;
   error = uref.generate_mesh_hierarchy( num_levels,level_degrees, set); CHECK_ERR(error);
   std::cout<<"Finished hierarchy generation"<<std::endl;
+
+  // error = uref.exchange_ghosts(set, 1); CHECK_ERR(error);
 
   std::cout<<std::endl;
   std::cout<<"Mesh size for level 0  :: inverts = "<<init_ents[0].size()<<", inedges = "<<init_ents[1].size()<<", infaces = "<<init_ents[2].size()<<", incells = "<<init_ents[3].size()<<std::endl;
@@ -287,7 +318,7 @@ ErrorCode refine_entities(Interface *mb, int *level_degrees, const int num_level
   for (int l=0; l<num_levels; l++)
     {
       Range all_ents;
-      error = mb->get_entities_by_handle(set[l], all_ents); CHECK_ERR(error);
+      error = mb->get_entities_by_handle(set[l+1], all_ents); CHECK_ERR(error);
 
       Range ents[4];
       for (int k=0; k<4; k++)
@@ -301,7 +332,7 @@ ErrorCode refine_entities(Interface *mb, int *level_degrees, const int num_level
 
       //Check if the number of new entities created are correct.
 
-      for (int type =0; type <3; type++)
+      for (int type =1; type <3; type++)
         {
           int factor = 1;
           if (!ents[type+1].empty()){
@@ -319,7 +350,7 @@ ErrorCode refine_entities(Interface *mb, int *level_degrees, const int num_level
       error = test_adjacencies(mb, &uref, all_ents); CHECK_ERR(error);
 
       //Check interlevel child-parent query between previous and current level
-      for (int type = 0; type < 3; type++)
+      for (int type = 1; type < 3; type++)
         {
           if (!prev_ents[type+1].empty())
             {
@@ -340,6 +371,39 @@ ErrorCode refine_entities(Interface *mb, int *level_degrees, const int num_level
       for (int i=0; i<4; i++)
         prev_ents[i] = ents[i];
 
+      //Print out the boundary vertices
+      EntityHandle bnd_set;
+      error = mb->create_meshset(MESHSET_SET, bnd_set); MB_CHK_ERR(error);
+      std::vector<EntityHandle> vbnd;
+
+      for (int k=0; k<3; k++){
+          std::cout<<"Finding boundary of dimension "<<k<<" with size "<<ents[k].size()<<std::endl;
+          if (ents[k].size() != 0){
+              for (Range::iterator v = ents[k].begin(); v != ents[k].end(); v++)
+                {
+                  EntityHandle ent = *v;
+                  bool bnd = uref.is_entity_on_boundary(ent);
+                  if (bnd)
+                    vbnd.push_back(*v);
+
+                  //  std::cout<<"entID = "<<*v<<" :: is_bnd = "<<bnd<<std::endl;
+                }
+            }
+        }
+
+      std::cout<<"vbnd.size = "<<vbnd.size()<<std::endl;
+      error = mb->add_entities(bnd_set, &vbnd[0], (int)vbnd.size()); MB_CHK_ERR(error);
+      if (output)
+        {
+          std::stringstream file;
+          file <<  "VBND_LEVEL_" <<l+1<<".vtk";
+          std::string str = file.str();
+          const char* output_file = str.c_str();
+          char * write_opts = NULL;
+          error = mb->write_file(output_file, 0, write_opts, &bnd_set, 1); CHECK_ERR(error);
+        }
+
+
       //Print out the mesh
       if (output)
         {
@@ -348,12 +412,12 @@ ErrorCode refine_entities(Interface *mb, int *level_degrees, const int num_level
           std::string str = file.str();
           const char* output_file = str.c_str();
           char * write_opts = NULL;
-          error = mb->write_file(output_file, 0, write_opts, &set[l], 1); CHECK_ERR(error);
+          error = mb->write_file(output_file, 0, write_opts, &set[l+1], 1); CHECK_ERR(error);
         }
     }
 
   //Check interlevel child-parent query between initial and most refined mesh
-  for (int type = 0; type < 3; type++)
+  for (int type = 1; type < 3; type++)
     {
       if (!init_ents[type+1].empty())
         {
@@ -381,7 +445,6 @@ ErrorCode refine_entities(Interface *mb, int *level_degrees, const int num_level
       error = mb->write_file(output_file); CHECK_ERR(error);
     }
 
-  delete [] set;
   return MB_SUCCESS;
 }
 
@@ -968,7 +1031,7 @@ ErrorCode test_entities(int mesh_type, EntityType type, int *level_degrees, int 
     }
 
   //Generate hierarchy
-  error = refine_entities(mbimpl, level_degrees, num_levels, output);
+  error = refine_entities(mbimpl, 0, 0, level_degrees, num_levels, output);
   if (error != MB_SUCCESS) return error;
 
   return MB_SUCCESS;
@@ -1083,16 +1146,25 @@ ErrorCode test_mesh(const char* filename, int *level_degrees, int num_levels)
 {
   Core moab;
   Interface* mbImpl = &moab;
+  ParallelComm *pc ;
+  EntityHandle fileset;
+
   ErrorCode error;
+  error = mbImpl->create_meshset(moab::MESHSET_SET, fileset); CHECK_ERR(error);
 
 #ifdef MOAB_HAVE_MPI
+  MPI_Comm comm = MPI_COMM_WORLD;
+  EntityHandle partnset;
+  error = mbImpl->create_meshset(moab::MESHSET_SET, partnset);MB_CHK_ERR(error);
+  pc = moab::ParallelComm::get_pcomm(mbImpl, partnset, &comm);
+
     int procs = 1;
     MPI_Comm_size(MPI_COMM_WORLD, &procs);
 
     if (procs > 1){
     read_options = "PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;";
 
-    error = mbImpl->load_file(filename, 0, read_options.c_str()); CHECK_ERR(error);
+    error = mbImpl->load_file(filename,  &fileset, read_options.c_str()); CHECK_ERR(error);
     }
     else if (procs == 1) {
 #endif
@@ -1101,14 +1173,8 @@ ErrorCode test_mesh(const char* filename, int *level_degrees, int num_levels)
     }
 #endif
 
-    Range verts, edges,faces,cells;
-    error = mbImpl->get_entities_by_dimension(0, 0, verts); CHECK_ERR(error);
-    error = mbImpl->get_entities_by_dimension(0, 1, edges); CHECK_ERR(error);
-    error = mbImpl->get_entities_by_dimension(0, 2, faces); CHECK_ERR(error);
-    error = mbImpl->get_entities_by_dimension(0, 3, cells); CHECK_ERR(error);
-
     //Generate hierarchy
-    error = refine_entities(mbImpl, level_degrees, num_levels, true);  CHECK_ERR(error);
+    error = refine_entities(&moab, pc, fileset, level_degrees, num_levels, true);  CHECK_ERR(error);
 
     return MB_SUCCESS;
 }
@@ -1145,16 +1211,6 @@ int main(int argc, char *argv[])
         result = test_mesh(filename, deg, len);
         handle_error_code(result, number_tests_failed, number_tests_successful);
         std::cout<<"\n";
-
-     /*   deg[0] = 3; deg[1] = 3;
-        result = test_mesh(filename, deg, len);
-        handle_error_code(result, number_tests_failed, number_tests_successful);
-        std::cout<<"\n";*/
-
-    /*    deg = 5;
-        result = test_mesh(filename, &deg, len);
-        handle_error_code(result, number_tests_failed, number_tests_successful);
-        std::cout<<"\n";*/
       }
 
 #ifdef MOAB_HAVE_MPI

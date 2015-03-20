@@ -62,7 +62,7 @@ ErrorCode ahf_test(const char* filename)
     MPI_Comm_size(MPI_COMM_WORLD, &procs);
 
     if (procs > 1){
-    read_options = "PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;PARALLEL_GHOSTS=3.0.1.3";
+    read_options = "PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;";
 
     error = mbImpl->load_file(filename,  &fileset, read_options.c_str());
     CHECK_ERR(error);
@@ -85,7 +85,12 @@ ErrorCode ahf_test(const char* filename)
     //std::cout<<"[nv, ne, nf, nc] = ["<<verts.size()<<", "<<edges.size()<<", "<<faces.size()<<", "<<cells.size()<<"]"<<std::endl;
 
     // Create an ahf instance
+#ifdef USE_MPI
+    moab::ParallelComm *pc = new moab::ParallelComm(&moab, MPI_COMM_WORLD);
+    HalfFacetRep ahf(&moab, pc);
+#else
     HalfFacetRep ahf(&moab);
+#endif
 
     // Call the initialize function which creates the maps for each dimension
     ahf.initialize();
