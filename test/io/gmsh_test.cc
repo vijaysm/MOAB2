@@ -14,9 +14,11 @@ using namespace moab;
 #ifdef MESHDIR
 static const char example[] = STRINGIFY(MESHDIR) "/io/gmsh2.msh";
 static const char example2[] = STRINGIFY(MESHDIR) "/io/airfoil_exterior.msh";
+static const char example3[] = STRINGIFY(MESHDIR) "/io/t1.msh";
 #else
 static const char example[] = "gmsh2.msh";
-static const char example[] = "airfoil_exterior.msh";
+static const char example2[] = "airfoil_exterior.msh";
+static const char example3[] = "t1.msh";
 #endif
 
 void test_read_nodes();
@@ -24,6 +26,7 @@ void test_read_quads();
 void test_read_material_set();
 void test_read_geom_set();
 void test_read_airfoil();
+void test_read_t1();
 
 void read_file( Interface& moab, const char* input_file );
 
@@ -37,6 +40,7 @@ int main()
   result += RUN_TEST(test_read_geom_set);
   
   result += RUN_TEST(test_read_airfoil);
+  result += RUN_TEST(test_read_t1);
   return result;
 }
 
@@ -246,6 +250,12 @@ void test_read_airfoil()
 {
   Core moab;
   read_file( moab, example2 );
+}
+
+void test_read_t1()
+{
+  Core moab;
+  read_file( moab, example3 );
 }
 
 
