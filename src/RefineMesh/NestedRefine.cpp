@@ -422,11 +422,13 @@ ErrorCode NestedRefine::exchange_ghosts(std::vector<EntityHandle> &lsets, int nu
   {
     error = mbImpl->add_entities(lsets[i], lverts[i]);MB_CHK_ERR(error);
     error = mbImpl->add_entities(lsets[i], lents[i]);MB_CHK_ERR(error);
-   /* std::stringstream file;
-    file <<  "MESH_LEVEL_" << i <<"_" <<pcomm->proc_config().proc_rank() <<  ".vtk";
+#ifdef PETSC_DEBUG_ONLY
+    std::stringstream file;
+    file <<  "MESH_LEVEL_EXC_" << i <<"_" <<pcomm->proc_config().proc_rank() <<  ".vtk";
     std::string tmpstr = file.str();
     const char *output_file = tmpstr.c_str();
-    error = mbImpl->write_file(output_file, 0,0 , &lsets[i], 1); MB_CHK_ERR(error);*/
+    error = mbImpl->write_file(output_file, 0,0 , &lsets[i], 1); MB_CHK_ERR(error);
+#endif
   }
 
   /*std::stringstream file;
