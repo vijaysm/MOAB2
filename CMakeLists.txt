@@ -335,15 +335,7 @@ CONFIGURE_FILE(config/MOABConfig.cmake.h.in "${PROJECT_BINARY_DIR}/src/moab/MOAB
 
 CONFIGURE_FILE(MOABConfig.new.cmake.in "${PROJECT_BINARY_DIR}/MOABConfig.cmake" @ONLY)
 CONFIGURE_FILE(moab.make.in "${PROJECT_BINARY_DIR}/lib/moab.make" @ONLY)
-if ( MOAB_HAVE_IGEOM )
-  CONFIGURE_FILE(itaps/igeom/iGeom-Defs.inc.in "${PROJECT_BINARY_DIR}/lib/iGeom-Defs.inc" @ONLY)
-  install( FILES "${PROJECT_BINARY_DIR}/lib/iGeom-Defs.inc" DESTINATION lib )
-endif ( MOAB_HAVE_IGEOM )
 
-if ( MOAB_HAVE_IMESH )
-  CONFIGURE_FILE(itaps/imesh/iMesh-Defs.inc.in "${PROJECT_BINARY_DIR}/lib/iMesh-Defs.inc" @ONLY)
-  INSTALL( FILES "${PROJECT_BINARY_DIR}/lib/iMesh-Defs.inc" DESTINATION lib )
-endif ( MOAB_HAVE_IMESH )
 INSTALL( FILES "${PROJECT_BINARY_DIR}/lib/moab.make" DESTINATION lib )
 INSTALL( FILES "${PROJECT_BINARY_DIR}/MOABConfig.cmake" DESTINATION lib/cmake/MOAB )
 
