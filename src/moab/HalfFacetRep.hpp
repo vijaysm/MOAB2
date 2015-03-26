@@ -109,7 +109,7 @@ public:
   //ErrorCode deinitialize();
 
   //! Prints the tag values.
-  ErrorCode print_tags();
+  ErrorCode print_tags(int dim);
 
   //! Get the adjacencies associated with an entity.
   /** Given an entity of dimension <em>d</em>, gather all the adjacent <em>D</em> dimensional entities where <em>D >, = , < d </em>.
@@ -180,7 +180,7 @@ public:
      * \param edges Range of edges
     */
 
-  ErrorCode determine_incident_halfverts(Range verts, Range &edges);
+  ErrorCode determine_incident_halfverts(Range &edges);
 
   //! Given a vertex, finds the edges incident on it.
   /** Given a vertex handle, it starts by first finding an incident half-vert by using the incident
@@ -508,6 +508,9 @@ public:
 
   int get_index_in_lmap(EntityHandle cid);
   ErrorCode get_entity_ranges(Range &verts, Range &edges, Range &faces, Range &cells);
+  MESHTYPE get_mesh_type(int nverts, int nedges, int nfaces, int ncells);
+
+  EntityHandle *get_rset() { return &_rset; }
 
 protected:
 
@@ -529,7 +532,7 @@ protected:
   EntityHandle trackfaces[MAXSIZE], trackcells[MAXSIZE];
   int queue_lid[MAXSIZE];
 
-  MESHTYPE get_mesh_type(int nverts, int nedges, int nfaces, int ncells);
+ // MESHTYPE get_mesh_type(int nverts, int nedges, int nfaces, int ncells);
 
   struct adj_matrix{
     int val[4][4];

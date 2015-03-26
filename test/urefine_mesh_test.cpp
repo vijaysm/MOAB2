@@ -62,21 +62,32 @@ ErrorCode test_adjacencies(Interface *mbImpl, NestedRefine *nr, Range all_ents)
   std::vector<EntityHandle> adjents;
   Range mbents, ahfents;
 
+  error = mbImpl->get_adjacencies( &*verts.begin(), 1, 1, false, mbents );
+
   if (!edges.empty())
     {
       //1D Queries //
       //IQ1: For every vertex, obtain incident edges
-    /*  for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
+      for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
           adjents.clear(); mbents.clear(); ahfents.clear();
           error = nr->get_adjacencies( *i, 1, adjents);  CHECK_ERR(error);
           error = mbImpl->get_adjacencies( &*i, 1, 1, false, mbents ); CHECK_ERR(error);
+
+          if (adjents.size() != mbents.size())
+            {
+              std::cout<<"VID = "<<*i<<std::endl;
+              for (int j=0; j<(int)adjents.size(); j++)
+                std::cout<<"hfents["<<j<<"] = "<<adjents[j]<<std::endl;
+              for (int j=0; j<(int)mbents.size(); j++)
+                std::cout<<"mbents["<<j<<"] = "<<mbents[j]<<std::endl;
+            }
 
           CHECK_EQUAL(adjents.size(),mbents.size());
           std::sort(adjents.begin(), adjents.end());
           std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
           mbents = subtract(mbents, ahfents);
           CHECK(!mbents.size());
-      }*/
+      }
 
       //NQ1:  For every edge, obtain neighbor edges
       for (Range::iterator i = edges.begin(); i != edges.end(); ++i) {
@@ -1217,7 +1228,7 @@ int main(int argc, char *argv[])
     else if (argc == 2)
       {
         const char* filename = argv[1];
-        int deg[1] = {2};
+        int deg[3] = {2,2,2};
         int len = sizeof(deg) / sizeof(int);
         result = test_mesh(filename, deg, len);
         handle_error_code(result, number_tests_failed, number_tests_successful);

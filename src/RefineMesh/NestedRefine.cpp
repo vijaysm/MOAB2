@@ -509,6 +509,8 @@ namespace moab{
         hmest[0] += refTemplates[cindex][d].nv_cell * ncells_prev;
       }
 
+     // std::cout<<"nv = "<<hmest[0]<<", ne = "<<hmest[1]<<", nf = "<<hmest[2]<<", nc = "<<hmest[3]<<std::endl;
+
     return MB_SUCCESS;
   }
 
@@ -578,11 +580,21 @@ namespace moab{
     else
       level_mesh[cur_level].num_cells = 0;
 
+    //Add this level meshset to the fileset
+    error = mbImpl->add_child_meshset( *ahf->get_rset(), *set);MB_CHK_ERR(error);
+    error = mbImpl->add_parent_meshset(*set, *ahf->get_rset());MB_CHK_ERR(error);
+
     //Update the entity ranges
     error = ahf->update_entity_ranges(); MB_CHK_ERR(error);
 
     //Resize the ahf maps
+ //   std::cout<<"\n nv = "<<level_mesh[cur_level].num_verts<<std::endl;
     error = ahf->resize_hf_maps(level_mesh[cur_level].num_verts, level_mesh[cur_level].num_edges, level_mesh[cur_level].num_faces,level_mesh[cur_level].num_cells); MB_CHK_ERR(error);
+
+    //If the mesh type changes, then update the member variable in ahf to use the applicable adjacency matrix
+    MESHTYPE nwmesh = ahf->get_mesh_type(level_mesh[cur_level].num_verts, level_mesh[cur_level].num_edges, level_mesh[cur_level].num_faces,level_mesh[cur_level].num_cells);MB_CHK_ERR(error);
+    if (ahf->thismeshtype != nwmesh)
+      ahf->thismeshtype = nwmesh;
 
     return MB_SUCCESS;
   }
@@ -964,6 +976,9 @@ namespace moab{
                level_mesh[cur_level].edge_conn[2*(count_nents)] = vbuffer[id1];
                level_mesh[cur_level].edge_conn[2*(count_nents)+1] = vbuffer[id2];
                ent_buffer[i] = level_mesh[cur_level].start_edge+count_nents;
+
+            //   std::cout<<"Edge ="<<ent_buffer[i]<<" :: conn =  "<<level_mesh[cur_level].edge_conn[2 * (count_nents)]<<"  "<<level_mesh[cur_level].edge_conn[2 * (count_nents)+1]<<std::endl;
+
                count_nents += 1;
              };
 
@@ -1143,7 +1158,6 @@ namespace moab{
     // Step 6: Update the global maps
     error = update_global_ahf(ftype, cur_level, deg);  MB_CHK_ERR(error);
 
-
     //Step 7: If edges exists, refine them.
     if (!_inedges.empty())
       {
@@ -1160,11 +1174,6 @@ namespace moab{
   ErrorCode NestedRefine::construct_hm_2D(int cur_level, int deg, EntityType type, std::vector<EntityHandle> &trackvertsE, std::vector<EntityHandle> &trackvertsF)
   {
     ErrorCode error;
-   /* int nents_prev;
-    if (cur_level)
-      nents_prev = level_mesh[cur_level-1].num_faces;
-    else
-      nents_prev = _infaces.size();*/
 
     EntityType ftype;
     if (type == MBTET)
@@ -1298,8 +1307,6 @@ namespace moab{
           {
             for (int k=0; k<nvf; k++)
               {
-               // int ind = refTemplates[findex][d].vert_on_faces[0][indices[k]-1];
-                //vbuffer[ind] = trackvertsF[fid*nfpc*nvf+nvf*lid+k];
                 int ind = refTemplates[findex][d].vert_on_faces[0][k];
                 vbuffer[ind] = trackvertsF[fid*nfpc*nvf+nvf*lid+indices[k]-1];
               }
@@ -1329,18 +1336,19 @@ namespace moab{
             id2 = intFacEdg[ftype - 2][d].ieconn[i][1];
             level_mesh[cur_level].edge_conn[2 * (ecount)] = vbuffer[id1];
             level_mesh[cur_level].edge_conn[2 * (ecount) + 1] = vbuffer[id2];
+         //   std::cout<<"Edge ="<<level_mesh[cur_level].start_edge+ecount<<" :: conn =  "<<level_mesh[cur_level].edge_conn[2 * (ecount)]<<"  "<<level_mesh[cur_level].edge_conn[2 * (ecount)+1]<<std::endl;
+
             ecount += 1;
+
           }
       }
 
-//    error = mbImpl->write_file("test.vtk"); MB_CHK_ERR(error);
 
     // Step 6: Update the global maps
     error = update_global_ahf_2D_sub(cur_level, deg); MB_CHK_ERR(error);
 
     //Step 7: Update the hf-maps for the edges
     error = update_ahf_1D(cur_level);MB_CHK_ERR(error);
-    error = print_maps_1D(cur_level);MB_CHK_ERR(error);
 
     delete [] vbuffer;
     delete [] ent_buffer;
@@ -1499,7 +1507,8 @@ namespace moab{
    // error = print_maps_3D(cur_level, type); MB_CHK_ERR(error);
 
     //Step 7: If edges exists, refine them as well.
-    if (!_inedges.empty())
+    //if (!_inedges.empty())
+    if (level_mesh[cur_level].num_edges != 0)
       {
         error = construct_hm_1D(cur_level,deg, type, trackvertsC_edg); MB_CHK_ERR(error);
        // error = print_maps_1D(cur_level); MB_CHK_ERR(error);
@@ -1508,9 +1517,14 @@ namespace moab{
     //Step 8: If faces exists, refine them as well.
     if (!_infaces.empty())
       {
+        std::cout<<"\n Refining faces "<<std::endl;
         error = construct_hm_2D(cur_level, deg, type, trackvertsC_edg, trackvertsC_face); MB_CHK_ERR(error);
         //error = print_maps_2D(cur_level,MBQUAD);
       }
+
+/*    if (!_inedges.empty()){
+        error = print_maps_1D(cur_level); MB_CHK_ERR(error);
+      }*/
 
     delete [] vbuffer;
 
@@ -1658,7 +1672,8 @@ namespace moab{
   //  error = print_maps_3D(cur_level, type); MB_CHK_ERR(error);
 
     //Step 8: If edges exists, refine them as well.
-    if (!_inedges.empty())
+    //if (!_inedges.empty())
+    if (level_mesh[cur_level].num_edges != 0)
       {
         error = construct_hm_1D(cur_level,deg, type, trackvertsC_edg); MB_CHK_ERR(error);
         //error = print_maps_1D(cur_level); MB_CHK_ERR(error);
@@ -1670,8 +1685,6 @@ namespace moab{
         error = construct_hm_2D(cur_level, deg, type, trackvertsC_edg, trackvertsC_face); MB_CHK_ERR(error);
         //error = print_maps_2D(cur_level,MBTRI);
       }
-
-
 
     delete [] vbuffer;
 
@@ -2231,7 +2244,7 @@ ErrorCode NestedRefine::update_ahf_1D(int cur_level)
   ErrorCode error;
   error = ahf->determine_sibling_halfverts(level_mesh[cur_level].verts, level_mesh[cur_level].edges);MB_CHK_ERR(error);
 
-  error = ahf->determine_incident_halfverts(level_mesh[cur_level].verts, level_mesh[cur_level].edges);MB_CHK_ERR(error);
+  error = ahf->determine_incident_halfverts( level_mesh[cur_level].edges);MB_CHK_ERR(error);
 
   return MB_SUCCESS;
 }
