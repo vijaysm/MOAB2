@@ -17,5 +17,5 @@ add_library( FBiGeomMOAB
   ${FBiGEOM_SOURCE}
   ${FBiGEOM_INCLUDE_HEADERS} )
 
-target_link_libraries( FBiGeomMOAB MOAB )
+target_link_libraries( FBiGeomMOAB MOAB iMesh )
 
