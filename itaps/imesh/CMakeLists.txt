@@ -59,15 +59,6 @@ if ( MOAB_HAVE_MPI )
           ${CMAKE_CURRENT_BINARY_DIR}/iMeshP_extensions_protos.h )
 endif()
 
-include_directories(
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_CURRENT_BINARY_DIR}
-  ${CMAKE_BINARY_DIR}/src
-  ${CMAKE_SOURCE_DIR}/src
-  ${CMAKE_SOURCE_DIR}/itaps
-  ${CMAKE_BINARY_DIR}/itaps
-  )
-
 if ( MOAB_HAVE_HDF5 AND HDF5_FOUND )
   include_directories( ${HDF5_INCLUDE_DIRECTORIES}
                        ${CMAKE_SOURCE_DIR}/src/io/mhdf/include )
@@ -97,6 +88,10 @@ if (MOAB_USE_MPI)
 endif ()
 
 target_link_libraries( iMesh PUBLIC MOAB )
+target_include_directories(iMesh PUBLIC
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>"
+  "$<INSTALL_INTERFACE:include>")
 
 set_target_properties(
   iMesh
