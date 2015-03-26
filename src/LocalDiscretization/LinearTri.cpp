@@ -2,6 +2,7 @@
 #include "moab/Forward.hpp"
 #include <algorithm>
 #include <math.h>
+#include <limits>
 
 namespace moab 
 {
@@ -188,10 +189,11 @@ namespace moab
       double c = edge[0]*fnrm[1] - fnrm[0]*edge[1];
       double nrm = sqrt(a*a+b*b+c*c);
 
-      normal[0] = a/nrm;
-      normal[1] = b/nrm;
-      normal[2] = c/nrm;
-
+      if (nrm > std::numeric_limits<double>::epsilon()) {
+          normal[0] = a/nrm;
+          normal[1] = b/nrm;
+          normal[2] = c/nrm;
+        }
       return MB_SUCCESS;
     }
 
