@@ -2,6 +2,8 @@
 #ifndef _ITAPS_iMeshP
 #define _ITAPS_iMeshP
 
+#include "imesh_export.h"
+
 #include "iMesh.h"
 #include "iMeshP_protos.h"
 #include "moab_mpi.h"
@@ -165,6 +167,7 @@ Release 0.1; October 2008
  *  \param  partition        (Out) The newly created partition.
  *  \param  err              (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_createPartitionAll(
             iMesh_Instance instance,
             MPI_Comm communicator,
@@ -185,6 +188,7 @@ void iMeshP_createPartitionAll(
  *  \param  partition        (In)  The partition to be destroyed.
  *  \param  err              (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_destroyPartitionAll(
             iMesh_Instance instance,
             iMeshP_PartitionHandle partition,
@@ -204,6 +208,7 @@ void iMeshP_destroyPartitionAll(
  *  \param  communicator     (Out) Communicator associated with the partition.
  *  \param  err              (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_getPartitionComm(
             iMesh_Instance instance,
             iMeshP_PartitionHandle partition,
@@ -230,6 +235,7 @@ void iMeshP_getPartitionComm(
  *  \param  partition        (In)  The partition being updated.
  *  \param  err              (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_syncPartitionAll(
             iMesh_Instance instance,
             iMeshP_PartitionHandle partition,
@@ -249,6 +255,7 @@ void iMeshP_syncPartitionAll(
  *                                 mesh instance.
  *  \param  err              (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_getNumPartitions(
             iMesh_Instance instance,
             int *num_partitions,
@@ -274,6 +281,7 @@ void iMeshP_getNumPartitions(
  *                                               partitions array.
  *  \param  err                         (Out)    Error code.
  */
+IMESH_EXPORT
 void iMeshP_getPartitions(
             iMesh_Instance instance,
             iMeshP_PartitionHandle **partitions,
@@ -295,6 +303,7 @@ void iMeshP_getPartitions(
  *  \param  num_global_part  (Out) Global number of parts in the partition.
  *  \param  err              (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_getNumGlobalParts(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -316,6 +325,7 @@ void iMeshP_getNumGlobalParts(
  *                                 the partition.
  *  \param  err              (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_getNumLocalParts(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -342,6 +352,7 @@ void iMeshP_getNumLocalParts(
  *                                          parts array.
  *  \param  err                    (Out)    Error code.
  */
+IMESH_EXPORT
 void iMeshP_getLocalParts(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -366,6 +377,7 @@ void iMeshP_getLocalParts(
  *  \param  rank             (Out) Process rank of part_id.
  *  \param  err              (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_getRankOfPart(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -394,6 +406,7 @@ void iMeshP_getRankOfPart(
  *  \param  ranks_size       (Out)    Occupied size of ranks array.
  *  \param  err              (Out)    Error code.
  */
+IMESH_EXPORT
 void iMeshP_getRankOfPartArr(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -426,6 +439,7 @@ void iMeshP_getRankOfPartArr(
  *                                  the partition and entity set.
  *  \param  err               (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_getNumOfTypeAll(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -456,6 +470,7 @@ void iMeshP_getNumOfTypeAll(
  *                                  the partition and entity set.
  *  \param  err               (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_getNumOfTopoAll(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -484,6 +499,7 @@ void iMeshP_getNumOfTopoAll(
  *  \param  part              (Out) The newly created part.
  *  \param  err               (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_createPart(
             iMesh_Instance instance,
             iMeshP_PartitionHandle partition,
@@ -505,6 +521,7 @@ void iMeshP_createPart(
  *  \param  part              (In)  The part to be removed.
  *  \param  err               (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_destroyPart(
             iMesh_Instance instance,
             iMeshP_PartitionHandle partition,
@@ -527,6 +544,7 @@ void iMeshP_destroyPart(
  *  \param  part_id           (Out) Part ID for part.
  *  \param  err               (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_getPartIdFromPartHandle(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -557,6 +575,7 @@ void iMeshP_getPartIdFromPartHandle(
  *  \param  part_ids_size       (Out)    Occupied size of part_ids array.
  *  \param  err                 (Out)    Error code.
  */
+IMESH_EXPORT
 void iMeshP_getPartIdsFromPartHandlesArr(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -583,6 +602,7 @@ void iMeshP_getPartIdsFromPartHandlesArr(
  *  \param  part              (Out) Part handle associated with part_id.
  *  \param  err               (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_getPartHandleFromPartId(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -616,6 +636,7 @@ void iMeshP_getPartHandleFromPartId(
  *                                           array.
  *  \param  err                     (Out)    Error code.
  */
+IMESH_EXPORT
 void iMeshP_getPartHandlesFromPartsIdsArr(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -651,6 +672,7 @@ void iMeshP_getPartHandlesFromPartsIdsArr(
  *  \param  num_part_nbors    (Out) Number of parts neighboring the given part.
  *  \param  err               (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_getNumPartNbors(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -691,6 +713,7 @@ void iMeshP_getNumPartNbors(
  *                                             array.
  *  \param  err                       (Out)    Error code.
  */
+IMESH_EXPORT
 void iMeshP_getNumPartNborsArr(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -731,6 +754,7 @@ void iMeshP_getNumPartNborsArr(
  *                                            array.
  *  \param  err                      (Out)    Error code.
  */
+IMESH_EXPORT
 void iMeshP_getPartNbors(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -777,6 +801,7 @@ void iMeshP_getPartNbors(
  *                                            array.
  *  \param  err                      (Out)    Error code.
  */
+IMESH_EXPORT
 void iMeshP_getPartNborsArr(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -815,6 +840,7 @@ void iMeshP_getPartNborsArr(
  *                                  by part and target_part_id.
  *  \param  err               (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_getNumPartBdryEnts(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -858,6 +884,7 @@ void iMeshP_getNumPartBdryEnts(
  *                                            array.
  *  \param  err                      (Out)    Error code.
  */
+IMESH_EXPORT
 void iMeshP_getPartBdryEnts(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -898,6 +925,7 @@ void iMeshP_getPartBdryEnts(
  *  \param  entity_iterator   (Out) Iterator returned by the function.
  *  \param  err               (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_initPartBdryEntIter(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -938,6 +966,7 @@ void iMeshP_initPartBdryEntIter(
  *  \param  entity_iterator   (Out) Iterator returned by the function.
  *  \param  err               (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_initPartBdryEntArrIter(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -975,6 +1004,7 @@ void iMeshP_initPartBdryEntArrIter(
  *                                  both part and entity_set.
  *  \param  err               (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_getNumOfType(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -1007,6 +1037,7 @@ void iMeshP_getNumOfType(
  *                                  both part and entity_set.
  *  \param  err               (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_getNumOfTopo(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -1062,6 +1093,7 @@ void iMeshP_getNumOfTopo(
  *                                         in 'adj_entity_indices' at which
  *                                         values for that entity are stored.
  */
+IMESH_EXPORT
 void iMeshP_getAdjEntIndices(iMesh_Instance instance,
                              iMeshP_PartitionHandle partition,
                              iMeshP_PartHandle part,
@@ -1113,6 +1145,7 @@ void iMeshP_getAdjEntIndices(iMesh_Instance instance,
  *  \param  entities_size            (Out)    Occupied size of entities.
  *  \param  err                      (Out)    Error code.
  */
+IMESH_EXPORT
 void iMeshP_getEntities(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -1179,6 +1212,7 @@ void iMeshP_getEntities(
  *                                                in_entity_set.
  *  \param  err                          (Out)    Error code.
  */
+IMESH_EXPORT
 void iMeshP_getAdjEntities(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -1223,6 +1257,7 @@ void iMeshP_getAdjEntities(
  *  \param  entity_iterator              (Out) Iterator returned from function.
  *  \param  err                          (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_initEntIter(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -1262,6 +1297,7 @@ void iMeshP_initEntIter(
  *  \param  entArr_iterator              (Out) Iterator returned from function.
  *  \param  err                          (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_initEntArrIter(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -1299,6 +1335,7 @@ void iMeshP_initEntArrIter(
  *                                             the entity.
  *  \param  err                          (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_getEntOwnerPart(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition, 
@@ -1328,6 +1365,7 @@ void iMeshP_getEntOwnerPart(
  *  \param  part_ids_size         (Out)    Occupied size of part_ids array.
  *  \param  err                   (Out)    Error code.
  */
+IMESH_EXPORT
 void iMeshP_getEntOwnerPartArr(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition, 
@@ -1355,6 +1393,7 @@ void iMeshP_getEntOwnerPartArr(
  *                                     is the owner of the given entity.
  *  \param  err                  (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_isEntOwner(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition, 
@@ -1387,6 +1426,7 @@ void iMeshP_isEntOwner(
  *  \param  is_owner_size            (Out)    Occupied size of is_owner array.
  *  \param  err                      (Out)    Error code.
  */
+IMESH_EXPORT
 void iMeshP_isEntOwnerArr(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition, 
@@ -1417,6 +1457,7 @@ void iMeshP_isEntOwnerArr(
  *                                     is the entity with respect to the part.
  *  \param  err                  (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_getEntStatus(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition, 
@@ -1453,6 +1494,7 @@ void iMeshP_getEntStatus(
  *  \param  err                     (Out)    Error code.
  */
 
+IMESH_EXPORT
 void iMeshP_getEntStatusArr(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition, 
@@ -1484,6 +1526,7 @@ void iMeshP_getEntStatusArr(
  *                                     exist in the partition.
  *  \param  err                  (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_getNumCopies(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition, 
@@ -1515,6 +1558,7 @@ void iMeshP_getNumCopies(
  *  \param  part_ids_size           (Out)    Occupied size of part_ids array.
  *  \param  err                     (Out)    Error code.
  */
+IMESH_EXPORT
 void iMeshP_getCopyParts(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition, 
@@ -1552,6 +1596,7 @@ void iMeshP_getCopyParts(
  *  \param  copies_size             (Out)    Occupied size of copies.
  *  \param  err                     (Out)    Error code.
  */
+IMESH_EXPORT
 void iMeshP_getCopies(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition, 
@@ -1585,6 +1630,7 @@ void iMeshP_getCopies(
  *                                        entity copy from the given part.
  *  \param  err                     (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_getCopyOnPart(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition, 
@@ -1612,6 +1658,7 @@ void iMeshP_getCopyOnPart(
  *                                        entity copy from the owner part.
  *  \param  err                     (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_getOwnerCopy(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition, 
@@ -1641,6 +1688,7 @@ void iMeshP_getOwnerCopy(
  *                                        we should wait.
  *  \param  err                     (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_waitForRequest(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -1664,6 +1712,7 @@ void iMeshP_waitForRequest(
  *  \param  index                   (Out) Index of the request that completed.
  *  \param  err                     (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_waitForAnyRequest(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -1689,6 +1738,7 @@ void iMeshP_waitForAnyRequest(
  *  \param  requests_size           (In)  Number of requests in requests.
  *  \param  err                     (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_waitForAllRequests(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -1715,6 +1765,7 @@ void iMeshP_waitForAllRequests(
  *  \param  out_entities_size       (Out)    Occupied size of out_entities.
  *  \param  err                     (Out)    Error code.
  */
+IMESH_EXPORT
 void iMeshP_waitForRequestEnt(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -1742,6 +1793,7 @@ void iMeshP_waitForRequestEnt(
  *                                        completed.
  *  \param  err                     (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_testRequest(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -1771,6 +1823,7 @@ void iMeshP_testRequest(
  *                                                requests_completed.
  *  \param  err                          (Out)    Error code.
  */
+IMESH_EXPORT
 void iMeshP_pollForRequests(
             iMesh_Instance instance,
             iMeshP_PartitionHandle partition,
@@ -1813,6 +1866,7 @@ void iMeshP_pollForRequests(
  *                                  for blocking until this send is complete.
  *  \param  err               (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_exchEntArrToPartsAll(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -1848,6 +1902,7 @@ void iMeshP_exchEntArrToPartsAll(
  *  \param  request           (Out) The iMeshP request handle returned.
  *  \param  err               (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_migrateEntity(
             iMesh_Instance instance, 
             const iMeshP_PartitionHandle partition,
@@ -1874,6 +1929,7 @@ void iMeshP_migrateEntity(
  *  \param  local_vertex      (In)  The vertex whose copies should be updated.
  *  \param  err               (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_updateVtxCoords(
             iMesh_Instance instance, 
             const iMeshP_PartitionHandle partition,
@@ -1910,6 +1966,7 @@ void iMeshP_updateVtxCoords(
  *  \param  offset_size       (In)  The number of entries in offset.
  *  \param  err               (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_replaceOnPartBdry(
             iMesh_Instance instance, 
             const iMeshP_PartitionHandle partition,
@@ -1941,6 +1998,7 @@ void iMeshP_replaceOnPartBdry(
  *  \param  request           (Out) The iMeshP request handle returned.
  *  \param  err               (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_addGhostOf(
             iMesh_Instance instance, 
             const iMeshP_PartitionHandle partition,
@@ -1967,6 +2025,7 @@ void iMeshP_addGhostOf(
  *                                  target_part_id.
  *  \param  err               (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_rmvGhostOf(
             iMesh_Instance instance, 
             const iMeshP_PartitionHandle partition,
@@ -1989,6 +2048,7 @@ void iMeshP_rmvGhostOf(
  *  \param  partition         (In)  The partition being queried.
  *  \param  err               (Out) Error code.
  */  
+IMESH_EXPORT
 void iMeshP_syncMeshAll(
             iMesh_Instance instance, 
             iMeshP_PartitionHandle partition,
@@ -2021,6 +2081,7 @@ void iMeshP_syncMeshAll(
  *                                  entity topology.
  *  \param  err               (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_pushTags(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -2050,6 +2111,7 @@ void iMeshP_pushTags(
  *  \param  entities_size   (In)  The number of entities for which to send data.
  *  \param  err             (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_pushTagsEnt(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -2088,6 +2150,7 @@ void iMeshP_pushTagsEnt(
  *  \param  request           (Out) The iMeshP request handle returned.
  *  \param  err               (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_iPushTags(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -2120,6 +2183,7 @@ void iMeshP_iPushTags(
  *  \param  request         (Out) The iMeshP request handle returned.
  *  \param  err             (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_iPushTagsEnt(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -2172,6 +2236,7 @@ void iMeshP_iPushTagsEnt(
  *                                  (YES=1, NO=0).
  *  \param  err               (Out) Error code.
  */
+IMESH_EXPORT
 void iMeshP_createGhostEntsAll(
             iMesh_Instance instance,
             iMeshP_PartitionHandle partition,
@@ -2194,6 +2259,7 @@ void iMeshP_createGhostEntsAll(
  *  \param  err               (Out) Error code.
  *
  */
+IMESH_EXPORT
 void iMeshP_deleteGhostEntsAll(
             iMesh_Instance instance,
             iMeshP_PartitionHandle partition,
@@ -2227,6 +2293,7 @@ void iMeshP_deleteGhostEntsAll(
  *                                          rule.
  *  \param  err                    (Out)    Error code.
  */
+IMESH_EXPORT
 void iMeshP_ghostEntInfo(
             const iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -2270,6 +2337,7 @@ void iMeshP_ghostEntInfo(
  *  \param  name_len            (In)  Length of the file name character string.
  *  \param  options_len         (In)  Length of the options character string.
  */
+IMESH_EXPORT
 void iMeshP_loadAll(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
@@ -2296,6 +2364,7 @@ void iMeshP_loadAll(
  *  \param  name_len            (In)  Length of the file name character string.
  *  \param  options_len         (In)  Length of the options character string.
  */
+IMESH_EXPORT
 void iMeshP_saveAll(
             iMesh_Instance instance,
             const iMeshP_PartitionHandle partition,
