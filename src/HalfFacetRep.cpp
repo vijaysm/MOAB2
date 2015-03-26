@@ -178,10 +178,11 @@ namespace moab {
             error = mb->get_entities_by_dimension(this->_rset, 3, _acels, true);MB_CHK_ERR(error);
 
             MPI_Barrier(pcomm->comm());
-            if (!pcomm->rank())
+            std::cout << "["<<pcomm->rank()<<"] HalfFacetRep::initialize: Pre-filter: [" << _averts.size() << ", " << _aedgs.size() << ", " << _afacs.size() << ", " << _acels.size() << "]\n" ;
+         /*   if (!pcomm->rank())
               std::cout << "[0] HalfFacetRep::initialize: Pre-filter: [" << _averts.size() << ", " << _aedgs.size() << ", " << _afacs.size() << ", " << _acels.size() << "]\n" ;
             else
-              std::cout << "[1] HalfFacetRep::initialize: Pre-filter: [" << _averts.size() << ", " << _aedgs.size() << ", " << _afacs.size() << ", " << _acels.size() << "]\n" ;
+              std::cout << "[1] HalfFacetRep::initialize: Pre-filter: [" << _averts.size() << ", " << _aedgs.size() << ", " << _afacs.size() << ", " << _acels.size() << "]\n" ;*/
             MPI_Barrier(pcomm->comm());
 
             // filter based on parallel status
@@ -206,10 +207,11 @@ namespace moab {
         if (pcomm)
           {
             MPI_Barrier(pcomm->comm());
-            if (!pcomm->rank())
+            std::cout << "["<<pcomm->rank()<<"] HalfFacetRep::initialize: Post-filter: [" << nverts << ", " << nedges << ", " << nfaces << ", " << ncells << "]\n" ;
+         /*   if (!pcomm->rank())
               std::cout << "[0] HalfFacetRep::initialize: Post-filter: [" << nverts << ", " << nedges << ", " << nfaces << ", " << ncells << "]\n" ;
             else
-              std::cout << "[1] HalfFacetRep::initialize: Post-filter: [" << nverts << ", " << nedges << ", " << nfaces << ", " << ncells << "]\n" ;
+              std::cout << "[1] HalfFacetRep::initialize: Post-filter: [" << nverts << ", " << nedges << ", " << nfaces << ", " << ncells << "]\n" ;*/
             MPI_Barrier(pcomm->comm());
           }
 

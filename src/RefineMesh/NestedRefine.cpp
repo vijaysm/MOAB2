@@ -581,8 +581,8 @@ namespace moab{
       level_mesh[cur_level].num_cells = 0;
 
     //Add this level meshset to the fileset
-    error = mbImpl->add_child_meshset( *ahf->get_rset(), *set);MB_CHK_ERR(error);
-    error = mbImpl->add_parent_meshset(*set, *ahf->get_rset());MB_CHK_ERR(error);
+    //error = mbImpl->add_child_meshset( *ahf->get_rset(), *set);MB_CHK_ERR(error);
+    //error = mbImpl->add_parent_meshset(*set, *ahf->get_rset());MB_CHK_ERR(error);
 
     //Update the entity ranges
     error = ahf->update_entity_ranges(); MB_CHK_ERR(error);
@@ -715,6 +715,11 @@ namespace moab{
                 error = pcomm->exchange_tags(gidtag,facs);MB_CHK_ERR(error);
                 error = pcomm->exchange_tags(gidtag,elms);MB_CHK_ERR(error);
               }
+              std::stringstream file;
+              file <<  "MESH_LEVEL_" << l + 1 << ".h5m";
+              std::string tmpstr = file.str();
+              const char *output_file = tmpstr.c_str();
+              mbImpl->write_file(output_file, 0, ";;PARALLEL=WRITE_PART", &hm_set[l], 1);
             }
           }
       }
