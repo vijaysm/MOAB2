@@ -179,10 +179,7 @@ namespace moab {
 
             MPI_Barrier(pcomm->comm());
             std::cout << "["<<pcomm->rank()<<"] HalfFacetRep::initialize: Pre-filter: [" << _averts.size() << ", " << _aedgs.size() << ", " << _afacs.size() << ", " << _acels.size() << "]\n" ;
-         /*   if (!pcomm->rank())
-              std::cout << "[0] HalfFacetRep::initialize: Pre-filter: [" << _averts.size() << ", " << _aedgs.size() << ", " << _afacs.size() << ", " << _acels.size() << "]\n" ;
-            else
-              std::cout << "[1] HalfFacetRep::initialize: Pre-filter: [" << _averts.size() << ", " << _aedgs.size() << ", " << _afacs.size() << ", " << _acels.size() << "]\n" ;*/
+
             MPI_Barrier(pcomm->comm());
 
             // filter based on parallel status
@@ -208,10 +205,7 @@ namespace moab {
           {
             MPI_Barrier(pcomm->comm());
             std::cout << "["<<pcomm->rank()<<"] HalfFacetRep::initialize: Post-filter: [" << nverts << ", " << nedges << ", " << nfaces << ", " << ncells << "]\n" ;
-         /*   if (!pcomm->rank())
-              std::cout << "[0] HalfFacetRep::initialize: Post-filter: [" << nverts << ", " << nedges << ", " << nfaces << ", " << ncells << "]\n" ;
-            else
-              std::cout << "[1] HalfFacetRep::initialize: Post-filter: [" << nverts << ", " << nedges << ", " << nfaces << ", " << ncells << "]\n" ;*/
+
             MPI_Barrier(pcomm->comm());
           }
 
@@ -254,9 +248,12 @@ namespace moab {
   {
     ErrorCode error;
 
-    int nv = _verts.size();
-    int ne = _edges.size();
+  //  int nv = _verts.size();
+  //  int ne = _edges.size();
+    int nv = ID_FROM_HANDLE(*(_verts.end()-1));
+    int ne = ID_FROM_HANDLE(*(_edges.end()-1));
 
+    std::cout<<"nv = "<<nv<<", ne = "<<ne<<std::endl;
     v2hv.reserve(nv);
     sibhvs.reserve(ne*2);
 
@@ -651,7 +648,8 @@ namespace moab {
                 EntityHandle cur_eid = v2hv_map_eid[i];
                 int cur_lvid = v2hv_map_lvid[i];
 
-                int pidx = _edges.index(prev_eid);
+             //   int pidx = _edges.index(prev_eid);
+                int pidx = ID_FROM_HANDLE(prev_eid);
                 sibhvs[2*pidx+prev_lvid] = create_halffacet(cur_eid, cur_lvid);
 
                 prev_eid = cur_eid;
@@ -684,8 +682,8 @@ namespace moab {
 
         for(int i=0; i<2; ++i){
             EntityHandle v = conn[i];
-        //    int vidx = ID_FROM_HANDLE(v);
-            int vidx = _verts.index(v);
+            int vidx = ID_FROM_HANDLE(v);
+         //   int vidx = _verts.index(v);
             HFacet hf = v2hv[vidx];
             EntityHandle eid = fid_from_halfacet(hf, MBEDGE);
             if (eid==0){
@@ -707,7 +705,8 @@ namespace moab {
     if (lvids != NULL)
       lvids->reserve(20);
    
-    int vidx = _verts.index(vid);
+  //  int vidx = _verts.index(vid);
+    int vidx = ID_FROM_HANDLE(vid);
     HFacet hf = v2hv[vidx];
 
     EntityHandle  start_eid = fid_from_halfacet(hf, MBEDGE);
@@ -723,7 +722,8 @@ namespace moab {
 
       while (eid !=0) {
 
-	  int eidx = _edges.index(eid);
+	 // int eidx = _edges.index(eid);
+	  int eidx = ID_FROM_HANDLE(eid);
 	  HFacet shf = sibhvs[2*eidx+lid];
 	  eid = fid_from_halfacet(shf, MBEDGE);
 	  lid = lid_from_halffacet(shf);
@@ -749,7 +749,8 @@ namespace moab {
     EntityHandle sibhv_eid;
     int sibhv_lid;
 
-    int eidx = _edges.index(eid);
+   // int eidx = _edges.index(eid);
+    int eidx = ID_FROM_HANDLE(eid);
 
     for (int lid = 0;lid < 2; ++lid){
         HFacet shf = sibhvs[2*eidx+lid];
@@ -759,7 +760,8 @@ namespace moab {
       if (sibhv_eid != 0){
         adjents.push_back(sibhv_eid);
 
-        eidx = _edges.index(sibhv_eid);
+     //   eidx = _edges.index(sibhv_eid);
+        eidx = ID_FROM_HANDLE(sibhv_eid);
         HFacet nhf = sibhvs[2*eidx+sibhv_lid];
         EntityHandle hv_eid = fid_from_halfacet(nhf,MBEDGE);
         int hv_lid = lid_from_halffacet(nhf);
@@ -768,7 +770,8 @@ namespace moab {
 	  if (hv_eid != eid)
 	    adjents.push_back(hv_eid);
 
-	  eidx = _edges.index(hv_eid);
+	//  eidx = _edges.index(hv_eid);
+	  eidx = ID_FROM_HANDLE(hv_eid);
 	  HFacet hf = sibhvs[2*eidx+hv_lid];
 	  EntityHandle edge = fid_from_halfacet(hf, MBEDGE);
 	  if (edge == sibhv_eid)
@@ -2479,7 +2482,8 @@ namespace moab {
     if (type == MBEDGE)
       {
         assert(num_halffacets == 2);
-        int eidx = _edges.index(ent);
+   //     int eidx = _edges.index(ent);
+        int eidx = ID_FROM_HANDLE(ent);
         for (int i=0; i<2; i++)
           {
             HFacet hf = sibhvs[2*eidx+i];
@@ -2523,7 +2527,8 @@ namespace moab {
 
     if (type == MBEDGE)
       {
-        int eidx = _edges.index(ent);
+       // int eidx = _edges.index(ent);
+        int eidx = ID_FROM_HANDLE(ent);
         HFacet hf = sibhvs[2*eidx+lid];
         sib_entid = fid_from_halfacet(hf, MBEDGE);
         sib_lid = lid_from_halffacet(hf);
@@ -2554,7 +2559,8 @@ namespace moab {
     if (type == MBEDGE)
       {
         assert(num_halffacets == 2);
-        int eidx = _edges.index(ent);
+       // int eidx = _edges.index(ent);
+        int eidx = ID_FROM_HANDLE(ent);
         for (int i=0; i<2; i++)
           {
             sibhvs[2*eidx+i] = create_halffacet(set_entids[i], set_lids[i]);
@@ -2592,7 +2598,8 @@ namespace moab {
 
     if (type == MBEDGE)
       {
-        int eidx = _edges.index(ent);
+      //  int eidx = _edges.index(ent);
+        int eidx = ID_FROM_HANDLE(ent);
         sibhvs[2*eidx+lid] = create_halffacet(set_entid, set_lid);
       }
     else if (type == MBTRI || type == MBQUAD)
@@ -2618,7 +2625,8 @@ namespace moab {
 
     if (type == MBEDGE)
       {   
-        HFacet hf = v2hv[vidx];
+        int vidx1 = ID_FROM_HANDLE(vid);
+        HFacet hf = v2hv[vidx1];
         inci_entid = fid_from_halfacet(hf, type);
         inci_lid = lid_from_halffacet(hf);
       }
@@ -2644,7 +2652,8 @@ namespace moab {
 
     if (type == MBEDGE)
       {
-        v2hv[vidx] = create_halffacet(set_entid, set_lid);
+        int vidx1 = ID_FROM_HANDLE(vid);
+        v2hv[vidx1] = create_halffacet(set_entid, set_lid);
       }
     else if (type == MBTRI || type == MBQUAD)
       {
