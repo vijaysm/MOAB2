@@ -21,7 +21,6 @@
 #include "moab/ParallelComm.hpp"
 #include "moab/Range.hpp"
 #include "moab/CN.hpp"
-#include "Internals.hpp"
 
 namespace moab
 {
@@ -50,20 +49,6 @@ namespace moab
  */ 
 
  typedef EntityHandle HFacet;
-
-  inline EntityHandle CREATE_HALFFACET(const unsigned lid, const EntityID id)
-  {
-    assert(id <= MB_END_ID && lid < 6);
-    return (((HFacet)lid) << MB_ID_WIDTH)|id;
-  }
-  inline EntityID FID_FROM_HALFFACET(HFacet handle)
-  {
-    return (handle & MB_ID_MASK);
-  }
-  inline int LID_FROM_HALFFACET(HFacet handle)
-  {
-    return static_cast<int> (handle >> MB_ID_WIDTH);
-  }
 
 const int MAXSIZE = 100;
 

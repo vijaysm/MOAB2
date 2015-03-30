@@ -15,12 +15,28 @@
 
 
 #include "moab/HalfFacetRep.hpp"
+#include "Internals.hpp"
 #include <iostream>
 #include <assert.h>
 #include <vector>
 #include "MBTagConventions.hpp"
 
 namespace moab {
+
+  inline EntityHandle CREATE_HALFFACET(const unsigned lid, const EntityID id)
+  {
+    assert(id <= MB_END_ID && lid < 6);
+    return (((HFacet)lid) << MB_ID_WIDTH)|id;
+  }
+  inline EntityID FID_FROM_HALFFACET(HFacet handle)
+  {
+    return (handle & MB_ID_MASK);
+  }
+  inline int LID_FROM_HALFFACET(HFacet handle)
+  {
+    return static_cast<int> (handle >> MB_ID_WIDTH);
+  }
+
 
   HalfFacetRep::HalfFacetRep(Core *impl,   ParallelComm *comm, moab::EntityHandle rset)
     : mb(impl), pcomm(comm), _rset(rset)
