@@ -444,7 +444,7 @@ public:
 
   ErrorCode update_entity_ranges();
 
-  ErrorCode resize_hf_maps(int nverts, int nedges, int nfaces, int ncells);
+  ErrorCode resize_hf_maps(EntityHandle start_vert, int nverts, EntityHandle start_edge, int nedges, EntityHandle start_face, int nfaces, EntityHandle start_cell, int ncells);
 
   ErrorCode get_sibling_map(EntityType type, EntityHandle ent, EntityHandle *sib_entids, int *sib_lids, int num_halffacets);
 
