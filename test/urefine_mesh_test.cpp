@@ -2,6 +2,7 @@
 #include <iostream>
 #include <string>
 #include <sstream>
+#include <sys/time.h>
 #include <vector>
 #include <algorithm>
 #include "moab/Core.hpp"
@@ -48,6 +49,15 @@ void handle_error_code(ErrorCode rv, int &number_failed, int &number_successful)
     number_failed++;
   }
 }
+
+double wtime() {
+  double y = -1;
+  struct timeval cur_time;
+  gettimeofday(&cur_time, NULL);
+  y = (double)(cur_time.tv_sec) + (double)(cur_time.tv_usec)*1.e-6;
+  return (y);
+}
+
 
 ErrorCode test_adjacencies(Interface *mbImpl, NestedRefine *nr, Range all_ents)
 {
@@ -323,8 +333,10 @@ ErrorCode refine_entities(Interface *mb,  ParallelComm* pc, EntityHandle fset, i
   std::vector<EntityHandle> set;
 
   std::cout<<"Starting hierarchy generation"<<std::endl;
+  double time_start = wtime();
   error = uref.generate_mesh_hierarchy( num_levels,level_degrees, set); CHECK_ERR(error);
-  std::cout<<"Finished hierarchy generation"<<std::endl;
+  double time_total = wtime() - time_start;
+  std::cout<<"Finished hierarchy generation in "<<time_total<<"  secs"<<std::endl;
 
   // error = uref.exchange_ghosts(set, 1); CHECK_ERR(error);
 
