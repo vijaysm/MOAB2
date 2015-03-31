@@ -64,13 +64,11 @@ ErrorCode ahf_test(const char* filename)
     if (procs > 1){
     read_options = "PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;";
 
-    error = mbImpl->load_file(filename,  &fileset, read_options.c_str());
-    CHECK_ERR(error);
+    error = mbImpl->load_file(filename,  &fileset, read_options.c_str());CHECK_ERR(error);
     }
     else if (procs == 1) {
 #endif
-    error = mbImpl->load_file(filename,  &fileset);
-    CHECK_ERR(error);
+    error = mbImpl->load_file(filename,  &fileset);CHECK_ERR(error);
 #ifdef MOAB_HAVE_MPI
     }
 #endif
@@ -82,12 +80,13 @@ ErrorCode ahf_test(const char* filename)
     error = mbImpl->get_entities_by_dimension( fileset, 2, faces);
     error = mbImpl->get_entities_by_dimension( fileset, 3, cells);
 
+
     //std::cout<<"[nv, ne, nf, nc] = ["<<verts.size()<<", "<<edges.size()<<", "<<faces.size()<<", "<<cells.size()<<"]"<<std::endl;
 
     // Create an ahf instance
 #ifdef USE_MPI
     moab::ParallelComm *pc = new moab::ParallelComm(&moab, MPI_COMM_WORLD);
-    HalfFacetRep ahf(&moab, pc);
+    HalfFacetRep ahf(&moab, pc, fileset);
 #else
     HalfFacetRep ahf(&moab);
 #endif
@@ -131,8 +130,16 @@ ErrorCode ahf_test(const char* filename)
             error = mtu.get_bridge_adjacencies( *i, 0, 1, mbents);
             CHECK_ERR(error);
 
-            CHECK_EQUAL(adjents.size(), mbents.size());
+            if (adjents.size() != mbents.size())
+              {
+                std::cout<<"EDGE = "<<*i<<std::endl;
+                for (int j=0; j<(int)adjents.size(); j++)
+                  std::cout<<"hfents["<<j<<"] = "<<adjents[j]<<std::endl;
+                for (int j=0; j<(int)mbents.size(); j++)
+                  std::cout<<"mbents["<<j<<"] = "<<mbents[j]<<std::endl;
+              }
 
+            CHECK_EQUAL(adjents.size(), mbents.size());
             std::sort(adjents.begin(), adjents.end());
             std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
             mbents = subtract(mbents, ahfents);

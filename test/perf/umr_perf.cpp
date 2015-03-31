@@ -187,7 +187,7 @@ ErrorCode umr_perf_test(Core *mb, int *level_degrees, int num_levels, OUTTYPE ou
   //Create an hm object and generate the hierarchy
   std::cout<<"Creating a hm object"<<std::endl;
   NestedRefine uref(mb);
-  EntityHandle *set = new EntityHandle[num_levels];
+  std::vector<EntityHandle> set;
 
   std::cout<<"Starting hierarchy generation"<<std::endl;
   time_start = wtime();
