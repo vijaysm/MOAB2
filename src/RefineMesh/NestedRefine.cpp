@@ -509,7 +509,7 @@ namespace moab{
         hmest[0] += refTemplates[cindex][d].nv_cell * ncells_prev;
       }
 
-     // std::cout<<"nv = "<<hmest[0]<<", ne = "<<hmest[1]<<", nf = "<<hmest[2]<<", nc = "<<hmest[3]<<std::endl;
+      std::cout<<"nv = "<<hmest[0]<<", ne = "<<hmest[1]<<", nf = "<<hmest[2]<<", nc = "<<hmest[3]<<std::endl;
 
     return MB_SUCCESS;
   }
@@ -585,11 +585,14 @@ namespace moab{
     //error = mbImpl->add_parent_meshset(*set, *ahf->get_rset());MB_CHK_ERR(error);
 
     //Update the entity ranges
-    error = ahf->update_entity_ranges(); MB_CHK_ERR(error);
+    //error = ahf->update_entity_ranges(); MB_CHK_ERR(error);
 
     //Resize the ahf maps
  //   std::cout<<"\n nv = "<<level_mesh[cur_level].num_verts<<std::endl;
-    error = ahf->resize_hf_maps(level_mesh[cur_level].num_verts, level_mesh[cur_level].num_edges, level_mesh[cur_level].num_faces,level_mesh[cur_level].num_cells); MB_CHK_ERR(error);
+    error = ahf->resize_hf_maps(level_mesh[cur_level].start_vertex, level_mesh[cur_level].num_verts, level_mesh[cur_level].start_edge, level_mesh[cur_level].num_edges, level_mesh[cur_level].start_face, level_mesh[cur_level].num_faces, level_mesh[cur_level].start_cell, level_mesh[cur_level].num_cells); MB_CHK_ERR(error);
+
+
+    error = ahf->update_entity_ranges(); MB_CHK_ERR(error);
 
     //If the mesh type changes, then update the member variable in ahf to use the applicable adjacency matrix
     MESHTYPE nwmesh = ahf->get_mesh_type(level_mesh[cur_level].num_verts, level_mesh[cur_level].num_edges, level_mesh[cur_level].num_faces,level_mesh[cur_level].num_cells);MB_CHK_ERR(error);

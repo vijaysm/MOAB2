@@ -274,9 +274,10 @@ namespace moab {
     ErrorCode error;
     EntityType ftype = mb->type_from_handle(*_faces.begin());
     int nepf = lConnMap2D[ftype-2].num_verts_in_face;
-    int nv = _verts.size();
-    int nf = _faces.size();
-
+   // int nv = _verts.size();
+    int nv = ID_FROM_HANDLE(*(_verts.end()-1));
+    int nf = ID_FROM_HANDLE(*(_faces.end()-1));
+    std::cout<<"nv = "<<nv<<", nf = "<<nf<<std::endl;
     v2he.reserve(nv);
     sibhes.reserve(nf*nepf);
 
@@ -313,8 +314,9 @@ namespace moab {
 
     int index = get_index_in_lmap(*_cells.begin());
     int nfpc = lConnMap3D[index].num_faces_in_cell;
-    int nv = _verts.size();
-    int nc = _cells.size();
+   // int nv = _verts.size();
+    int nv = ID_FROM_HANDLE(*(_verts.end()-1));
+    int nc = ID_FROM_HANDLE(*(_cells.end()-1));;
 
     v2hf.reserve(nv);
     sibhfs.reserve(nc*nfpc);
@@ -351,7 +353,8 @@ namespace moab {
 
          for (Range::iterator i = _edges.begin(); i != _edges.end(); ++i){
              EntityHandle eid[2];  int lvid[2];
-             int eidx = _edges.index(*i);
+           //  int eidx = _edges.index(*i);
+             int eidx = ID_FROM_HANDLE(*i)-1;
              HFacet hf1 = sibhvs[2*eidx];
              HFacet hf2 = sibhvs[2*eidx+1];
              eid[0] = fid_from_halfacet(hf1,MBEDGE); eid[1] = fid_from_halfacet(hf2,MBEDGE);
@@ -362,7 +365,8 @@ namespace moab {
          std::cout<<"<V2HV_EID, V2HV_LVID>"<<std::endl;
 
          for (Range::iterator i = _verts.begin(); i != _verts.end(); ++i){
-             int vidx = _verts.index(*i);
+             //int vidx = _verts.index(*i);
+             int vidx = ID_FROM_HANDLE(*i)-1;
              HFacet hf = v2hv[vidx];
              EntityHandle eid = fid_from_halfacet(hf, MBEDGE);
              int lvid = lid_from_halffacet(hf);
@@ -377,7 +381,8 @@ namespace moab {
          std::cout<<"<SIBHES_FID,SIBHES_LEID>"<<std::endl;
 
          for (Range::iterator i = _faces.begin(); i != _faces.end(); ++i){
-             int fidx = _faces.index(*i);
+           //  int fidx = _faces.index(*i);
+             int fidx = ID_FROM_HANDLE(*i)-1;
              std::cout<<"Entity = "<<*i;
              for (int j=0; j<nepf; j++){
                  HFacet hf = sibhes[nepf*fidx+j];
@@ -391,7 +396,8 @@ namespace moab {
          std::cout<<"<V2HE_FID, V2HE_LEID>"<<std::endl;
 
          for (Range::iterator i = _verts.begin(); i != _verts.end(); ++i){
-             int vidx = _verts.index(*i);
+           //  int vidx = _verts.index(*i);
+             int vidx = ID_FROM_HANDLE(*i)-1;
              HFacet hf = v2he[vidx];
              EntityHandle fid = fid_from_halfacet(hf, ftype);
              int lid = lid_from_halffacet(hf);
@@ -408,7 +414,8 @@ namespace moab {
          std::cout<<"<SIBHES_CID,SIBHES_LFID>"<<std::endl;
 
          for (Range::iterator i = _cells.begin(); i != _cells.end(); ++i){
-             int cidx = _cells.index(*i);
+            // int cidx = _cells.index(*i);
+             int cidx = ID_FROM_HANDLE(*i)-1;
              std::cout<<"Entity = "<<*i;
              for (int j=0; j<nfpc; j++){
                  HFacet hf = sibhfs[nfpc*cidx+j];
@@ -422,7 +429,8 @@ namespace moab {
          std::cout<<"<V2HF_CID, V2HF_LFID>"<<std::endl;
 
          for (Range::iterator i = _verts.begin(); i != _verts.end(); ++i){
-             int vidx = _verts.index(*i);
+            // int vidx = _verts.index(*i);
+             int vidx = ID_FROM_HANDLE(*i)-1;
              HFacet hf = v2hf[vidx];
              EntityHandle cid = fid_from_halfacet(hf, ctype);
              int lid = lid_from_halffacet(hf);
@@ -649,7 +657,7 @@ namespace moab {
                 int cur_lvid = v2hv_map_lvid[i];
 
              //   int pidx = _edges.index(prev_eid);
-                int pidx = ID_FROM_HANDLE(prev_eid);
+                int pidx = ID_FROM_HANDLE(prev_eid)-1;
                 sibhvs[2*pidx+prev_lvid] = create_halffacet(cur_eid, cur_lvid);
 
                 prev_eid = cur_eid;
@@ -682,7 +690,7 @@ namespace moab {
 
         for(int i=0; i<2; ++i){
             EntityHandle v = conn[i];
-            int vidx = ID_FROM_HANDLE(v);
+            int vidx = ID_FROM_HANDLE(v)-1;
          //   int vidx = _verts.index(v);
             HFacet hf = v2hv[vidx];
             EntityHandle eid = fid_from_halfacet(hf, MBEDGE);
@@ -706,7 +714,7 @@ namespace moab {
       lvids->reserve(20);
    
   //  int vidx = _verts.index(vid);
-    int vidx = ID_FROM_HANDLE(vid);
+    int vidx = ID_FROM_HANDLE(vid)-1;
     HFacet hf = v2hv[vidx];
 
     EntityHandle  start_eid = fid_from_halfacet(hf, MBEDGE);
@@ -723,7 +731,7 @@ namespace moab {
       while (eid !=0) {
 
 	 // int eidx = _edges.index(eid);
-	  int eidx = ID_FROM_HANDLE(eid);
+	  int eidx = ID_FROM_HANDLE(eid)-1;
 	  HFacet shf = sibhvs[2*eidx+lid];
 	  eid = fid_from_halfacet(shf, MBEDGE);
 	  lid = lid_from_halffacet(shf);
@@ -750,7 +758,7 @@ namespace moab {
     int sibhv_lid;
 
    // int eidx = _edges.index(eid);
-    int eidx = ID_FROM_HANDLE(eid);
+    int eidx = ID_FROM_HANDLE(eid)-1;
 
     for (int lid = 0;lid < 2; ++lid){
         HFacet shf = sibhvs[2*eidx+lid];
@@ -761,7 +769,7 @@ namespace moab {
         adjents.push_back(sibhv_eid);
 
      //   eidx = _edges.index(sibhv_eid);
-        eidx = ID_FROM_HANDLE(sibhv_eid);
+        eidx = ID_FROM_HANDLE(sibhv_eid)-1;
         HFacet nhf = sibhvs[2*eidx+sibhv_lid];
         EntityHandle hv_eid = fid_from_halfacet(nhf,MBEDGE);
         int hv_lid = lid_from_halffacet(nhf);
@@ -771,7 +779,7 @@ namespace moab {
 	    adjents.push_back(hv_eid);
 
 	//  eidx = _edges.index(hv_eid);
-	  eidx = ID_FROM_HANDLE(hv_eid);
+	  eidx = ID_FROM_HANDLE(hv_eid)-1;
 	  HFacet hf = sibhvs[2*eidx+hv_lid];
 	  EntityHandle edge = fid_from_halfacet(hf, MBEDGE);
 	  if (edge == sibhv_eid)
@@ -860,8 +868,8 @@ namespace moab {
          const EntityHandle* conn;
          error = mb->get_connectivity(*fid, conn, nepf);MB_CHK_ERR(error);
 
-         int fidx = faces.index(*fid);
-
+      //   int fidx = faces.index(*fid);
+         int fidx = ID_FROM_HANDLE(*fid)-1;
          for (int k =0; k<nepf; k++)
            {
              HFacet hf = sibhes[nepf*fidx+k];
@@ -887,7 +895,8 @@ namespace moab {
                      EntityHandle cur_fid = v2he_map_fid[index];
                      int cur_leid = v2he_map_leid[index];
 
-                     int pidx = faces.index(prev_fid);
+                   //  int pidx = faces.index(prev_fid);
+                     int pidx = ID_FROM_HANDLE(prev_fid)-1;
                      sibhes[nepf*pidx+prev_leid] = create_halffacet(cur_fid, cur_leid);
                     // sibhes_fid[nepf*pidx+prev_leid] = cur_fid;
                    //  sibhes_leid[nepf*pidx+prev_leid] = cur_leid;
@@ -904,7 +913,8 @@ namespace moab {
                      EntityHandle cur_fid = v2he_map_fid[index];
                      int cur_leid = v2he_map_leid[index];
 
-                     int pidx = faces.index(prev_fid);
+                    // int pidx = faces.index(prev_fid);
+                     int pidx = ID_FROM_HANDLE(prev_fid)-1;
                      sibhes[nepf*pidx+prev_leid] = create_halffacet(cur_fid, cur_leid);
                    //  sibhes_fid[nepf*pidx+prev_leid] = cur_fid;
                   //   sibhes_leid[nepf*pidx+prev_leid] = cur_leid;
@@ -915,7 +925,8 @@ namespace moab {
                }
 
              if (prev_fid != first_fid){
-                 int pidx = faces.index(prev_fid);
+                // int pidx = faces.index(prev_fid);
+                 int pidx = ID_FROM_HANDLE(prev_fid)-1;
                  sibhes[nepf*pidx+prev_leid] = create_halffacet(first_fid, first_leid);
                  //sibhes_fid[nepf*pidx+prev_leid] = first_fid;
                  //sibhes_leid[nepf*pidx+prev_leid] = first_leid;
@@ -942,12 +953,12 @@ namespace moab {
         const EntityHandle* conn;
         error = mb->get_connectivity(*it, conn, nepf);MB_CHK_ERR(error);
 
-        int fidx = faces.index(*it);
-
+        //int fidx = faces.index(*it);
+        int fidx = ID_FROM_HANDLE(*it)-1;
         for(int i=0; i<nepf; ++i){
             EntityHandle v = conn[i];
-            int vidx = _verts.index(v);
-
+         //   int vidx = _verts.index(v);
+            int vidx = ID_FROM_HANDLE(v)-1;
             HFacet hf = v2he[vidx];
             EntityHandle vfid = fid_from_halfacet(hf, ftype);
 
@@ -970,7 +981,8 @@ namespace moab {
     ErrorCode error;
     EntityType ftype = mb->type_from_handle(*_faces.begin());
 
-    int vidx = _verts.index(vid);
+  //  int vidx = _verts.index(vid);
+    int vidx = ID_FROM_HANDLE(vid)-1;
     HFacet hf = v2he[vidx];
     EntityHandle fid = fid_from_halfacet(hf, ftype);
     int lid = lid_from_halffacet(hf);
@@ -1095,7 +1107,8 @@ namespace moab {
       }
 
 
-    int fidx = _faces.index(fid);
+  //  int fidx = _faces.index(fid);
+    int fidx = ID_FROM_HANDLE(fid)-1;
     HFacet hf = sibhes[nepf*fidx+leid];
     EntityHandle curfid = fid_from_halfacet(hf, ftype);
     int curlid = lid_from_halffacet(hf);
@@ -1120,7 +1133,8 @@ namespace moab {
               adj_orients->push_back(0);
           }
 
-        int cidx = _faces.index(curfid);
+       // int cidx = _faces.index(curfid);
+        int cidx = ID_FROM_HANDLE(curfid)-1;
         hf = sibhes[nepf*cidx+curlid];
         curfid = fid_from_halfacet(hf, ftype);
         curlid = lid_from_halffacet(hf);
@@ -1139,7 +1153,8 @@ namespace moab {
     EntityType ftype = mb->type_from_handle(fid);
     int nepf = lConnMap2D[ftype-2].num_verts_in_face;
 
-    int fidx = _faces.index(fid);
+    //int fidx = _faces.index(fid);
+    int fidx = ID_FROM_HANDLE(fid)-1;
     HFacet hf = sibhes[nepf*fidx+lid];
     EntityHandle curfid = fid_from_halfacet(hf, ftype);
     int curlid = lid_from_halffacet(hf);
@@ -1165,7 +1180,8 @@ namespace moab {
             qsize[0] += 1;
           }
 
-        int cidx = _faces.index(curfid);
+       // int cidx = _faces.index(curfid);
+        int cidx = ID_FROM_HANDLE(curfid)-1;
         hf = sibhes[nepf*cidx+curlid];
         curfid = fid_from_halfacet(hf, ftype);
         curlid = lid_from_halffacet(hf);
@@ -1185,7 +1201,8 @@ namespace moab {
     int num_conn = 0;
     error = mb->get_connectivity(eid, conn, num_conn);MB_CHK_ERR(error);
 
-    int vidx = _verts.index(conn[0]);
+   // int vidx = _verts.index(conn[0]);
+    int vidx = ID_FROM_HANDLE(conn[0])-1;
     HFacet hf = v2he[vidx];
     EntityHandle fid = fid_from_halfacet(hf, ftype);
     int lid = lid_from_halffacet(hf);
@@ -1553,8 +1570,8 @@ namespace moab {
          const EntityHandle* conn;
          error = mb->get_connectivity(*cid, conn, nvpc);MB_CHK_ERR(error);
 
-         int cidx = _cells.index(*cid);
-
+         //int cidx = _cells.index(*cid);
+         int cidx = ID_FROM_HANDLE(*cid)-1;
          for (int i =0; i<nfpc; i++)
            {
              HFacet hf = sibhfs[nfpc*cidx+i];
@@ -1598,7 +1615,8 @@ namespace moab {
                      //sibhfs_cid[nfpc*cidx+i] = cur_cid;
                      //sibhfs_lfid[nfpc*cidx+i] = cur_lfid;
 
-                     int scidx = _cells.index(cur_cid);
+                    // int scidx = _cells.index(cur_cid);
+                     int scidx = ID_FROM_HANDLE(cur_cid)-1;
                      sibhfs[nfpc*scidx+cur_lfid] = create_halffacet(*cid, i);
                      //sibhfs_cid[nfpc*scidx+cur_lfid] = *cid;
                      //sibhfs_lfid[nfpc*scidx+cur_lfid] = i;
@@ -1632,11 +1650,12 @@ namespace moab {
       const EntityHandle* conn;
       error = mb->get_connectivity(*cid, conn, nvpc);MB_CHK_ERR(error);
 
-      int cidx = _cells.index(cell);
-      
+    //  int cidx = _cells.index(cell);
+      int cidx = ID_FROM_HANDLE(cell)-1;
       for(int i=0; i<nvpc; ++i){
           EntityHandle v = conn[i];
-          int vidx = _verts.index(v);
+         // int vidx = _verts.index(v);
+          int vidx = ID_FROM_HANDLE(v)-1;
           HFacet hf  = v2hf[vidx];
           EntityHandle vcid = fid_from_halfacet(hf, ctype);
 
@@ -1681,8 +1700,8 @@ namespace moab {
         const EntityHandle* conn;
         error = mb->get_connectivity(*t, conn, nvpc);MB_CHK_ERR(error);
 
-        int cidx = _cells.index(*t);
-
+     //   int cidx = _cells.index(*t);
+        int cidx = ID_FROM_HANDLE(*t)-1;
         for (int i = 0; i < nfpc; ++i){
             HFacet hf = sibhfs[nfpc*cidx+i];
             EntityHandle sib_cid = fid_from_halfacet(hf, ctype);
@@ -1708,7 +1727,8 @@ namespace moab {
       EntityType ctype = mb->type_from_handle(*_cells.begin());
 
       // Obtain a half-face incident on v
-      int vidx = _verts.index(vid);
+     // int vidx = _verts.index(vid);
+      int vidx = ID_FROM_HANDLE(vid)-1;
       HFacet hf = v2hf[vidx];
       EntityHandle cur_cid = fid_from_halfacet(hf, ctype);
 
@@ -1750,8 +1770,8 @@ namespace moab {
 
               int nhf_thisv = lConnMap3D[index].v2hf_num[lv];
 
-              int cidx = _cells.index(cur_cid);
-
+             // int cidx = _cells.index(cur_cid);
+              int cidx = ID_FROM_HANDLE(cur_cid)-1;
               // Add new cells into the stack
               EntityHandle ngb;
               for (int i = 0; i < nhf_thisv; ++i){
@@ -1849,7 +1869,8 @@ namespace moab {
 
 	while(true){
 	  int lfid = lConnMap3D[index].e2hf[cur_leid][lface];
-	  int cidx = _cells.index(cur_cell);
+	//  int cidx = _cells.index(cur_cell);
+	  int cidx = ID_FROM_HANDLE(cur_cell)-1;
 	  HFacet hf = sibhfs[nfpc*cidx+lfid];
 	  cur_cell = fid_from_halfacet(hf, ctype);
 	  lfid = lid_from_halffacet(hf);
@@ -1945,7 +1966,8 @@ namespace moab {
         lfids->push_back(lfid);
       }
 
-    int cidx = _cells.index(cid);
+ //   int cidx = _cells.index(cid);
+    int cidx = ID_FROM_HANDLE(cid)-1;
     HFacet hf = sibhfs[nfpc*cidx+lfid];
     EntityHandle sibcid = fid_from_halfacet(hf, ctype);
     int siblid = lid_from_halffacet(hf);
@@ -1972,8 +1994,10 @@ namespace moab {
     error = mb->get_connectivity(eid, econn, num_conn);MB_CHK_ERR(error);
 
     EntityHandle v_start = econn[0], v_end = econn[1];
-    int v1idx = _verts.index(v_start);
-    int v2idx = _verts.index(v_end);
+    //int v1idx = _verts.index(v_start);
+    //int v2idx = _verts.index(v_end);
+    int v1idx = ID_FROM_HANDLE(v_start)-1;
+    int v2idx = ID_FROM_HANDLE(v_end)-1;
 
     // Find an incident cell to v_start
     EntityHandle cell2origin, cell2end;
@@ -2027,7 +2051,8 @@ namespace moab {
           }
 
         //push back new found unchecked incident tets of v_start
-        int cidx = _cells.index(cell_id);
+       // int cidx = _cells.index(cell_id);
+        int cidx = ID_FROM_HANDLE(cell_id)-1;
         int nhf_thisv = lConnMap3D[index].v2hf_num[lv];
 
         for (int i = 0; i < nhf_thisv; i++){
@@ -2068,7 +2093,8 @@ namespace moab {
     const EntityHandle* fid_verts;
     error = mb->get_connectivity(fid, fid_verts, nvF);MB_CHK_ERR(error);
 
-    int vidx = _verts.index(fid_verts[0]);
+   // int vidx = _verts.index(fid_verts[0]);
+    int vidx = ID_FROM_HANDLE(fid_verts[0])-1;
     HFacet hf = v2hf[vidx];
     EntityHandle cur_cid = fid_from_halfacet(hf, ctype);
 
@@ -2124,8 +2150,8 @@ namespace moab {
               {
                 // Add other cells that are incident on fid_verts[0]
                 int nhf_thisv = lConnMap3D[index].v2hf_num[lv[0]];
-                int cidx = _cells.index(cur_cid);
-
+                //int cidx = _cells.index(cur_cid);
+                int cidx = ID_FROM_HANDLE(cur_cid)-1;
                 // Add new cells into the stack
                 EntityHandle ngb;
                 for (int i = 0; i < nhf_thisv; ++i){
@@ -2165,7 +2191,8 @@ namespace moab {
     EntityType ctype = mb->type_from_handle(cid);
     int index = get_index_in_lmap(cid);
     int nfpc = lConnMap3D[index].num_faces_in_cell;
-    int cidx = _cells.index(cid);
+  //  int cidx = _cells.index(cid);
+    int cidx = ID_FROM_HANDLE(cid)-1;
 
     if (cid != 0 ){
       for (int lfid = 0; lfid < nfpc; ++lfid){
@@ -2223,25 +2250,7 @@ namespace moab {
               if (count == nle)
                 break;
             }
-
-
-       //   std::sort(temp[i].begin(), temp[i].end());
-      }
-
-      //Loop over all the local edges and find the intersection.
-  /*    for (int i = 0; i < nepc; ++i)
-      {
-          std::vector<EntityHandle> common(10);
-
-          int lv0 = lConnMap3D[index].e2v[i][0];
-          int lv1 = lConnMap3D[index].e2v[i][1];
-
-          std::set_intersection(temp[lv0].begin(), temp[lv0].end(), temp[lv1].begin(), temp[lv1].end(), common.begin());
-          if (*common.begin() == 0)
-              continue;
-
-          adjents.push_back(*common.begin());
-      }*/
+      }   
       return MB_SUCCESS;
   }
 
@@ -2275,14 +2284,6 @@ namespace moab {
       int search_verts[2];
       search_verts[0] = lConnMap3D[index].search_fverts[0];
       search_verts[1] = lConnMap3D[index].search_fverts[1];
-    /*  if (index==0)
-        search_verts[1] = 1;
-      else if (index ==1)
-        search_verts[1] = 4;
-      else if (index == 2)
-        search_verts[1] = 5;
-      else
-        search_verts[1] =6;*/
 
       std::vector<EntityHandle> temp;
       temp.reserve(20);
@@ -2418,43 +2419,55 @@ namespace moab {
   }
 
   ///////////////////////////////////////////////////////////////////////////////////////////
-  ErrorCode HalfFacetRep::resize_hf_maps(int nverts, int nedges, int nfaces, int ncells)
+  ErrorCode HalfFacetRep::resize_hf_maps(EntityHandle start_vert, int nverts, EntityHandle start_edge, int nedges, EntityHandle start_face, int nfaces, EntityHandle start_cell, int ncells)
   {
-
+    int nwsz=0, insz=0;
     if (nedges)
       {
-       int insz = sibhvs.size();
-       int nwsz = nedges*2;
-       sibhvs.resize(insz+nwsz,0);
+        if (ID_FROM_HANDLE((*(_edges.end()-1)+1)) != ID_FROM_HANDLE(start_edge))
+          nwsz = (ID_FROM_HANDLE(start_edge)-ID_FROM_HANDLE(*_edges.end())+nedges)*2;
+        else
+          nwsz = nedges*2;
+        insz = sibhvs.size();
+        sibhvs.resize(insz+nwsz,0);
 
-       if (v2hv.empty())
-         {
-           if ((!v2he.empty()))
-             insz = v2he.size();
-           else if ((!v2hf.empty()))
-             insz = v2hf.size();
-           else
-             MB_SET_ERR(MB_FAILURE,"Trying to resize ahf maps for a mesh with no edges, faces and cells");
-         }
-       else
-         insz = v2hv.size();
+        if (v2hv.empty())
+          {
+            if ((!v2he.empty()))
+              insz = v2he.size();
+            else if ((!v2hf.empty()))
+              insz = v2hf.size();
+            else
+              MB_SET_ERR(MB_FAILURE,"Trying to resize ahf maps for a mesh with no edges, faces and cells");
+          }
+        else
+          insz = v2hv.size();
 
-       nwsz = nverts;
-      // std::cout<<"V2HV Rsize :: insz = "<<insz<<" :: nwsz =  "<<nwsz<<std::endl;
-
+        if (ID_FROM_HANDLE(*(_verts.end()-1)+1) != ID_FROM_HANDLE(start_vert))
+          nwsz = ID_FROM_HANDLE(start_vert)-ID_FROM_HANDLE(*_verts.end())+nverts;
+        else
+          nwsz = nverts;
         v2hv.resize(insz+nwsz,0);
+
       }
 
    if (nfaces)
      {
        EntityType ftype = mb->type_from_handle(*_faces.begin());
        int nepf = lConnMap2D[ftype-2].num_verts_in_face;
-       int insz = sibhes.size();
-       int nwsz = nfaces*nepf;
+
+       if (ID_FROM_HANDLE((*(_faces.end()-1)+1)) != ID_FROM_HANDLE(start_face))
+         nwsz = (ID_FROM_HANDLE(start_face)-ID_FROM_HANDLE(*_faces.end())+nfaces)*nepf;
+       else
+         nwsz = nfaces*nepf;
+       insz = sibhes.size();
        sibhes.resize(insz+nwsz,0);
 
+       if (ID_FROM_HANDLE(*(_verts.end()-1)+1) != ID_FROM_HANDLE(start_vert))
+         nwsz = ID_FROM_HANDLE(start_vert)-ID_FROM_HANDLE(*_verts.end())+nverts;
+       else
+         nwsz = nverts;
        insz = v2he.size();
-       nwsz = nverts;
        v2he.resize(insz+nwsz,0);
      }
 
@@ -2463,12 +2476,18 @@ namespace moab {
        int index = get_index_in_lmap(*_cells.begin());
        int nfpc = lConnMap3D[index].num_faces_in_cell;
 
-       int insz = sibhfs.size();
-       int nwsz = ncells*nfpc;
+       if (ID_FROM_HANDLE((*(_cells.end()-1)+1)) != ID_FROM_HANDLE(start_cell))
+         nwsz = (ID_FROM_HANDLE(start_cell)-ID_FROM_HANDLE(*_cells.end())+ncells)*nfpc;
+       else
+         nwsz = ncells*nfpc;
+       insz = sibhfs.size();
        sibhfs.resize(insz+nwsz,0);
 
+       if (ID_FROM_HANDLE(*(_verts.end()-1)+1) != ID_FROM_HANDLE(start_vert))
+         nwsz = ID_FROM_HANDLE(start_vert)-ID_FROM_HANDLE(*_verts.end())+nverts;
+       else
+         nwsz = nverts;
        insz = v2hf.size();
-       nwsz = nverts;
        v2hf.resize(insz+nwsz,0);
      }
 
@@ -2482,8 +2501,7 @@ namespace moab {
     if (type == MBEDGE)
       {
         assert(num_halffacets == 2);
-   //     int eidx = _edges.index(ent);
-        int eidx = ID_FROM_HANDLE(ent);
+        int eidx = ID_FROM_HANDLE(ent)-1;
         for (int i=0; i<2; i++)
           {
             HFacet hf = sibhvs[2*eidx+i];
@@ -2495,8 +2513,7 @@ namespace moab {
       {
        int nepf = lConnMap2D[type-2].num_verts_in_face;
        assert(num_halffacets == nepf);
-       int fidx = _faces.index(ent);
-
+       int fidx = ID_FROM_HANDLE(ent)-1;
         for (int i=0; i<nepf; i++)
           {
             HFacet hf = sibhes[nepf*fidx+i];
@@ -2509,8 +2526,8 @@ namespace moab {
         int idx = get_index_in_lmap(*_cells.begin());
         int nfpc = lConnMap3D[idx].num_faces_in_cell;
         assert(num_halffacets == nfpc);
-        int cidx = _cells.index(ent);
-
+        //int cidx = _cells.index(ent);
+        int cidx = ID_FROM_HANDLE(ent)-1;
         for (int i=0; i<nfpc; i++)
           {
             HFacet hf = sibhfs[nfpc*cidx+i];
@@ -2528,7 +2545,7 @@ namespace moab {
     if (type == MBEDGE)
       {
        // int eidx = _edges.index(ent);
-        int eidx = ID_FROM_HANDLE(ent);
+        int eidx = ID_FROM_HANDLE(ent)-1;
         HFacet hf = sibhvs[2*eidx+lid];
         sib_entid = fid_from_halfacet(hf, MBEDGE);
         sib_lid = lid_from_halffacet(hf);
@@ -2536,7 +2553,8 @@ namespace moab {
     else if (type == MBTRI || type == MBQUAD)
       {
        int nepf = lConnMap2D[type-2].num_verts_in_face;
-       int fidx = _faces.index(ent);
+       //int fidx = _faces.index(ent);
+       int fidx = ID_FROM_HANDLE(ent)-1;
        HFacet hf = sibhes[nepf*fidx+lid];
        sib_entid = fid_from_halfacet(hf, type);
        sib_lid = lid_from_halffacet(hf);
@@ -2545,7 +2563,8 @@ namespace moab {
       {
         int idx = get_index_in_lmap(*_cells.begin());
         int nfpc = lConnMap3D[idx].num_faces_in_cell;
-        int cidx = _cells.index(ent);
+      //  int cidx = _cells.index(ent);
+        int cidx = ID_FROM_HANDLE(ent)-1;
         HFacet hf = sibhfs[nfpc*cidx+lid];
         sib_entid = fid_from_halfacet(hf, type);
         sib_lid = lid_from_halffacet(hf);
@@ -2560,7 +2579,7 @@ namespace moab {
       {
         assert(num_halffacets == 2);
        // int eidx = _edges.index(ent);
-        int eidx = ID_FROM_HANDLE(ent);
+        int eidx = ID_FROM_HANDLE(ent)-1;
         for (int i=0; i<2; i++)
           {
             sibhvs[2*eidx+i] = create_halffacet(set_entids[i], set_lids[i]);
@@ -2570,8 +2589,8 @@ namespace moab {
       {
         int nepf = lConnMap2D[type-2].num_verts_in_face;
         assert(num_halffacets == nepf);
-        int fidx = _faces.index(ent);
-
+        //int fidx = _faces.index(ent);
+        int fidx = ID_FROM_HANDLE(ent)-1;
          for (int i=0; i<nepf; i++)
            {
              sibhes[nepf*fidx+i] = create_halffacet(set_entids[i], set_lids[i]);
@@ -2582,8 +2601,8 @@ namespace moab {
         int idx = get_index_in_lmap(*_cells.begin());
         int nfpc = lConnMap3D[idx].num_faces_in_cell;
         assert(num_halffacets == nfpc);
-        int cidx = _cells.index(ent);
-
+        //int cidx = _cells.index(ent);
+        int cidx = ID_FROM_HANDLE(ent)-1;
         for (int i=0; i<nfpc; i++)
           {
             sibhfs[nfpc*cidx+i] = create_halffacet(set_entids[i], set_lids[i]);
@@ -2599,20 +2618,22 @@ namespace moab {
     if (type == MBEDGE)
       {
       //  int eidx = _edges.index(ent);
-        int eidx = ID_FROM_HANDLE(ent);
+        int eidx = ID_FROM_HANDLE(ent)-1;
         sibhvs[2*eidx+lid] = create_halffacet(set_entid, set_lid);
       }
     else if (type == MBTRI || type == MBQUAD)
       {
         int nepf = lConnMap2D[type-2].num_verts_in_face;
-        int fidx = _faces.index(ent);
+      //  int fidx = _faces.index(ent);
+        int fidx = ID_FROM_HANDLE(ent)-1;
         sibhes[nepf*fidx+lid] = create_halffacet(set_entid, set_lid);
       }
     else
       {
         int idx = get_index_in_lmap(*_cells.begin());
         int nfpc = lConnMap3D[idx].num_faces_in_cell;
-        int cidx = _cells.index(ent);
+       // int cidx = _cells.index(ent);
+        int cidx = ID_FROM_HANDLE(ent)-1;
         sibhfs[nfpc*cidx+lid] = create_halffacet(set_entid, set_lid);
       }
 
@@ -2621,24 +2642,23 @@ namespace moab {
 
   ErrorCode HalfFacetRep::get_incident_map(EntityType type, EntityHandle vid, EntityHandle &inci_entid, int  &inci_lid)
   {
-    int vidx = _verts.index(vid);
+   // int vidx = _verts.index(vid);
 
     if (type == MBEDGE)
       {   
-        int vidx1 = ID_FROM_HANDLE(vid);
-        HFacet hf = v2hv[vidx1];
+        HFacet hf = v2hv[ ID_FROM_HANDLE(vid)-1];
         inci_entid = fid_from_halfacet(hf, type);
         inci_lid = lid_from_halffacet(hf);
       }
     else if (type == MBTRI || type == MBQUAD)
       {
-        HFacet hf = v2he[vidx];
+        HFacet hf = v2he[ID_FROM_HANDLE(vid)-1];
         inci_entid = fid_from_halfacet(hf, type);
         inci_lid = lid_from_halffacet(hf);
       }
     else
       {
-        HFacet hf = v2hf[vidx];
+        HFacet hf = v2hf[ID_FROM_HANDLE(vid)-1];
         inci_entid = fid_from_halfacet(hf, type);
         inci_lid = lid_from_halffacet(hf);
       }
@@ -2648,20 +2668,19 @@ namespace moab {
 
   ErrorCode HalfFacetRep::set_incident_map(EntityType type, EntityHandle vid, EntityHandle &set_entid, int &set_lid)
   {
-    int vidx = _verts.index(vid);
+   // int vidx = _verts.index(vid);
 
     if (type == MBEDGE)
       {
-        int vidx1 = ID_FROM_HANDLE(vid);
-        v2hv[vidx1] = create_halffacet(set_entid, set_lid);
+        v2hv[ID_FROM_HANDLE(vid)-1] = create_halffacet(set_entid, set_lid);
       }
     else if (type == MBTRI || type == MBQUAD)
       {
-        v2he[vidx] = create_halffacet(set_entid, set_lid);
+        v2he[ID_FROM_HANDLE(vid)-1] = create_halffacet(set_entid, set_lid);
       }
     else
       {
-        v2hf[vidx] = create_halffacet(set_entid, set_lid);
+        v2hf[ID_FROM_HANDLE(vid)-1] = create_halffacet(set_entid, set_lid);
       }
 
     return MB_SUCCESS;
@@ -2691,10 +2710,6 @@ namespace moab {
    error = mb->get_entities_by_dimension(0, 3, _cells, true);MB_CHK_ERR(error);
 
    std::cout<<"Sizes: nv = "<<_verts.size()<<", ne = "<<_edges.size()<<", nf = "<<_faces.size()<<", nc = "<<_cells.size()<<std::endl;
-   /*_verts = verts;
-   _edges = edges;
-   _faces = faces;
-   _cells = cells;*/
 
    return MB_SUCCESS;
   }
