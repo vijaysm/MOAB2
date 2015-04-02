@@ -1,9 +1,10 @@
 #ifndef IMESH_REC_CBIND_H__
 #define IMESH_REC_CBIND_H__
 
+#include "moab/MOABConfig.h"
 #include "iMesh.h"
 #include "iMesh_extensions_protos.h"
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "iMeshP.h"
 #include "moab_mpi.h"
 #endif

@@ -13,8 +13,8 @@ program advection
   implicit none
 
 #include "mpif.h"
-
-#ifdef USE_MPI
+#include "moab/MOABConfig.h"
+#ifdef MOAB_HAVE_MPI
 #  include "iMeshP_f.h"
 #else
 #  include "iMesh_f.h"
@@ -52,7 +52,7 @@ program advection
   integer lenopt, lenname
   integer isList
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   ! local variables for parallel runs
   iMeshP_PartitionHandle imeshp
   IBASE_HANDLE_T mpi_comm_c

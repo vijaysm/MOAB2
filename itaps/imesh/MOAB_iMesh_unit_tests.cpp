@@ -22,7 +22,7 @@ int main( int argc, char* argv[] )
   REGISTER_TEST( test_getEntArrAdj_invalid_size );
   REGISTER_TEST( test_getEntArrAdj_none );
   REGISTER_TEST( test_existinterface );
-#ifdef  HDF5_FILE
+#ifdef  MOAB_HAVE_HDF5
   REGISTER_TEST( test_tags_retrieval );
 #endif
   return RUN_TESTS( argc, argv ); 

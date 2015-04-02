@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <assert.h>
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab_mpi.h"
 #endif
 
@@ -86,7 +86,7 @@ ErrorOutput::~ErrorOutput()
 
 void ErrorOutput::use_world_rank()
 {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     int flag1;
     MPI_Initialized(&flag1);
     int flag2;

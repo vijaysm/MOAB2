@@ -11,7 +11,7 @@ static const char example[] = STRINGIFY(MESHDIR) "/io/gcrm_r3.nc";
 static const char example[] = "/io/gcrm_r3.nc";
 #endif
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab_mpi.h"
 #include "moab/ParallelComm.hpp"
 #endif
@@ -34,7 +34,7 @@ int main(int argc, char* argv[])
 {
   int result = 0;
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   int fail = MPI_Init(&argc, &argv);
   if (fail)
     return 1;
@@ -50,7 +50,7 @@ int main(int argc, char* argv[])
   result += RUN_TEST(test_read_no_edges);
   result += RUN_TEST(test_gather_onevar);
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   fail = MPI_Finalize();
   if (fail)
     return 1;
@@ -72,7 +72,7 @@ void test_read_all()
   CHECK_ERR(rval);
 
   int procs = 1;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
   procs = pcomm->proc_config().proc_size();
 #endif
@@ -246,7 +246,7 @@ void test_read_onevar()
   CHECK_ERR(rval);
 
   int procs = 1;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
   procs = pcomm->proc_config().proc_size();
 #endif
@@ -420,7 +420,7 @@ void test_read_novars()
   CHECK_ERR(rval);
 
   int procs = 1;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
   procs = pcomm->proc_config().proc_size();
 #endif
@@ -507,7 +507,7 @@ void test_gather_onevar()
   rval = mb.load_file(example, &file_set, opts.c_str());
   CHECK_ERR(rval);
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
   int rank = pcomm->proc_config().proc_rank();
 
@@ -570,7 +570,7 @@ void test_gather_onevar()
 
 void get_options(std::string& opts)
 {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   // Use parallel options
   opts = std::string(";;PARALLEL=READ_PART;PARTITION_METHOD=TRIVIAL");
 #else

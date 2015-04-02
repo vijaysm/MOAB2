@@ -1,9 +1,10 @@
 #ifndef MBProcConfig_HEADER
 #define MBProcConfig_HEADER
 
+#include "MOABConfig.h"
 #include "MBTypes.h"
 #include "MBRange.hpp"
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #  include "MBmpi.h"
 #endif
 

@@ -23,12 +23,12 @@ static const char example_mpas[] = "/io/mpasx1.642.t.2.nc";
 static const char example_gcrm[] = "/io/gcrm_r3.nc";
 #endif
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab_mpi.h"
 #include "moab/ParallelComm.hpp"
 #endif
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
 #include "pnetcdf.h"
 #define NCFUNC(func) ncmpi_ ## func
 #define NCDF_SIZE MPI_Offset
@@ -70,7 +70,7 @@ void test_eul_check_append();
 void test_eul_read_write_across_files();
 void test_eul_check_across_files();
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 // Test mesh with ghosted entities
 void test_eul_read_write_ghosting();
 void test_eul_check_ghosting();
@@ -89,7 +89,7 @@ int main(int argc, char* argv[])
 {
   int result = 0;
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   int fail = MPI_Init(&argc, &argv);
   if (fail)
     return 1;
@@ -121,12 +121,12 @@ int main(int argc, char* argv[])
   result += RUN_TEST(test_eul_read_write_across_files);
   result += RUN_TEST(test_eul_check_across_files);
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   result += RUN_TEST(test_eul_read_write_ghosting);
   result += RUN_TEST(test_eul_check_ghosting);
 #endif
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   fail = MPI_Finalize();
   if (fail)
     return 1;
@@ -139,12 +139,12 @@ int main(int argc, char* argv[])
 void test_eul_read_write_T()
 {
   int procs = 1;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Comm_size(MPI_COMM_WORLD, &procs);
 #endif
 
 // We will not test NC writer in parallel without pnetcdf support
-#ifndef PNETCDF_FILE
+#ifndef MOAB_HAVE_PNETCDF
   if (procs > 1)
     return;
 #endif
@@ -166,7 +166,7 @@ void test_eul_read_write_T()
 
   // Write variables T and gw
   std::string write_opts = ";;VARIABLE=T,gw;DEBUG_IO=0";
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   // Use parallel options
   write_opts += ";PARALLEL=WRITE_PART";
 #endif
@@ -183,13 +183,13 @@ void test_eul_check_T()
 {
   int rank = 0;
   int procs = 1;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &procs);
 #endif
 
 // We will not test NC writer in parallel without pnetcdf support
-#ifndef PNETCDF_FILE
+#ifndef MOAB_HAVE_PNETCDF
   if (procs > 1)
     return;
 #endif
@@ -205,14 +205,14 @@ void test_eul_check_T()
     else
       filename = "test_eul_T.nc";
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     success = NCFUNC(open)(MPI_COMM_SELF, filename.c_str(), NC_NOWRITE, MPI_INFO_NULL, &ncid);
 #else
     success = NCFUNC(open)(filename.c_str(), NC_NOWRITE, &ncid);
 #endif
     CHECK_EQUAL(0, success);
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     success = NCFUNC(open)(MPI_COMM_SELF, example_eul, NC_NOWRITE, MPI_INFO_NULL, &ncid_ref);
 #else
     success = NCFUNC(open)(example_eul, NC_NOWRITE, &ncid_ref);
@@ -235,13 +235,13 @@ void test_eul_check_T()
     success = NCFUNC(inq_varid)(ncid_ref, "gw", &gw_id_ref);
     CHECK_EQUAL(0, success);
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // Enter independent I/O mode
     success = NCFUNC(begin_indep_data)(ncid);
     CHECK_EQUAL(0, success);
 #endif
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // Enter independent I/O mode
     success = NCFUNC(begin_indep_data)(ncid_ref);
     CHECK_EQUAL(0, success);
@@ -272,13 +272,13 @@ void test_eul_check_T()
     success = NCFUNC(get_vara_double)(ncid_ref, gw_id_ref, start, count, gw_vals_ref);
     CHECK_EQUAL(0, success);
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // End independent I/O mode
     success = NCFUNC(end_indep_data)(ncid);
     CHECK_EQUAL(0, success);
 #endif
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // End independent I/O mode
     success = NCFUNC(end_indep_data)(ncid_ref);
     CHECK_EQUAL(0, success);
@@ -303,12 +303,12 @@ void test_eul_check_T()
 void test_fv_read_write_T()
 {
   int procs = 1;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Comm_size(MPI_COMM_WORLD, &procs);
 #endif
 
 // We will not test NC writer in parallel without pnetcdf support
-#ifndef PNETCDF_FILE
+#ifndef MOAB_HAVE_PNETCDF
   if (procs > 1)
     return;
 #endif
@@ -330,7 +330,7 @@ void test_fv_read_write_T()
 
   // Write variable T
   std::string write_opts = ";;VARIABLE=T;DEBUG_IO=0";
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   // Use parallel options
   write_opts += ";PARALLEL=WRITE_PART";
 #endif
@@ -346,13 +346,13 @@ void test_fv_check_T()
 {
   int rank = 0;
   int procs = 1;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &procs);
 #endif
 
 // We will not test NC writer in parallel without pnetcdf support
-#ifndef PNETCDF_FILE
+#ifndef MOAB_HAVE_PNETCDF
   if (procs > 1)
     return;
 #endif
@@ -368,14 +368,14 @@ void test_fv_check_T()
     else
       filename = "test_fv_T.nc";
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     success = NCFUNC(open)(MPI_COMM_SELF, filename.c_str(), NC_NOWRITE, MPI_INFO_NULL, &ncid);
 #else
     success = NCFUNC(open)(filename.c_str(), NC_NOWRITE, &ncid);
 #endif
     CHECK_EQUAL(0, success);
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     success = NCFUNC(open)(MPI_COMM_SELF, example_fv, NC_NOWRITE, MPI_INFO_NULL, &ncid_ref);
 #else
     success = NCFUNC(open)(example_fv, NC_NOWRITE, &ncid_ref);
@@ -390,13 +390,13 @@ void test_fv_check_T()
     success = NCFUNC(inq_varid)(ncid_ref, "T", &T_id_ref);
     CHECK_EQUAL(0, success);
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // Enter independent I/O mode
     success = NCFUNC(begin_indep_data)(ncid);
     CHECK_EQUAL(0, success);
 #endif
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // Enter independent I/O mode
     success = NCFUNC(begin_indep_data)(ncid_ref);
     CHECK_EQUAL(0, success);
@@ -416,13 +416,13 @@ void test_fv_check_T()
     success = NCFUNC(get_vara_double)(ncid_ref, T_id_ref, start, count, T_vals_ref);
     CHECK_EQUAL(0, success);
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // End independent I/O mode
     success = NCFUNC(end_indep_data)(ncid);
     CHECK_EQUAL(0, success);
 #endif
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // End independent I/O mode
     success = NCFUNC(end_indep_data)(ncid_ref);
     CHECK_EQUAL(0, success);
@@ -444,12 +444,12 @@ void test_fv_check_T()
 void test_homme_read_write_T()
 {
   int procs = 1;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Comm_size(MPI_COMM_WORLD, &procs);
 #endif
 
 // We will not test NC writer in parallel without pnetcdf support
-#ifndef PNETCDF_FILE
+#ifndef MOAB_HAVE_PNETCDF
   if (procs > 1)
     return;
 #endif
@@ -475,7 +475,7 @@ void test_homme_read_write_T()
 
   // Write variables T and lat
   std::string write_opts = ";;VARIABLE=T,lat;DEBUG_IO=0";
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   // Use parallel options
   write_opts += ";PARALLEL=WRITE_PART";
 #endif
@@ -492,13 +492,13 @@ void test_homme_check_T()
 {
   int rank = 0;
   int procs = 1;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &procs);
 #endif
 
 // We will not test NC writer in parallel without pnetcdf support
-#ifndef PNETCDF_FILE
+#ifndef MOAB_HAVE_PNETCDF
   if (procs > 1)
     return;
 #endif
@@ -514,14 +514,14 @@ void test_homme_check_T()
     else
       filename = "test_homme_T.nc";
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     success = NCFUNC(open)(MPI_COMM_SELF, filename.c_str(), NC_NOWRITE, MPI_INFO_NULL, &ncid);
 #else
     success = NCFUNC(open)(filename.c_str(), NC_NOWRITE, &ncid);
 #endif
     CHECK_EQUAL(0, success);
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     success = NCFUNC(open)(MPI_COMM_SELF, example_homme, NC_NOWRITE, MPI_INFO_NULL, &ncid_ref);
 #else
     success = NCFUNC(open)(example_homme, NC_NOWRITE, &ncid_ref);
@@ -544,13 +544,13 @@ void test_homme_check_T()
     success = NCFUNC(inq_varid)(ncid_ref, "lat", &lat_id_ref);
     CHECK_EQUAL(0, success);
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // Enter independent I/O mode
     success = NCFUNC(begin_indep_data)(ncid);
     CHECK_EQUAL(0, success);
 #endif
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // Enter independent I/O mode
     success = NCFUNC(begin_indep_data)(ncid_ref);
     CHECK_EQUAL(0, success);
@@ -581,13 +581,13 @@ void test_homme_check_T()
     success = NCFUNC(get_vara_double)(ncid_ref, lat_id_ref, start, count, lat_vals_ref);
     CHECK_EQUAL(0, success);
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // End independent I/O mode
     success = NCFUNC(end_indep_data)(ncid);
     CHECK_EQUAL(0, success);
 #endif
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // End independent I/O mode
     success = NCFUNC(end_indep_data)(ncid_ref);
     CHECK_EQUAL(0, success);
@@ -613,12 +613,12 @@ void test_homme_check_T()
 void test_mpas_read_write_vars()
 {
   int procs = 1;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Comm_size(MPI_COMM_WORLD, &procs);
 #endif
 
 // We will not test NC writer in parallel without pnetcdf support
-#ifndef PNETCDF_FILE
+#ifndef MOAB_HAVE_PNETCDF
   if (procs > 1)
     return;
 #endif
@@ -642,7 +642,7 @@ void test_mpas_read_write_vars()
 
   // Write variables vorticity, u and ke
   std::string write_opts = ";;VARIABLE=vorticity,u,ke;DEBUG_IO=0";
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   // Use parallel options
   write_opts += ";PARALLEL=WRITE_PART";
 #endif
@@ -658,13 +658,13 @@ void test_mpas_check_vars()
 {
   int rank = 0;
   int procs = 1;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &procs);
 #endif
 
 // We will not test NC writer in parallel without pnetcdf support
-#ifndef PNETCDF_FILE
+#ifndef MOAB_HAVE_PNETCDF
   if (procs > 1)
     return;
 #endif
@@ -680,14 +680,14 @@ void test_mpas_check_vars()
     else
       filename = "test_mpas_vars.nc";
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     success = NCFUNC(open)(MPI_COMM_SELF, filename.c_str(), NC_NOWRITE, MPI_INFO_NULL, &ncid);
 #else
     success = NCFUNC(open)(filename.c_str(), NC_NOWRITE, &ncid);
 #endif
     CHECK_EQUAL(0, success);
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     success = NCFUNC(open)(MPI_COMM_SELF, example_mpas, NC_NOWRITE, MPI_INFO_NULL, &ncid_ref);
 #else
     success = NCFUNC(open)(example_mpas, NC_NOWRITE, &ncid_ref);
@@ -718,13 +718,13 @@ void test_mpas_check_vars()
     success = NCFUNC(inq_varid)(ncid_ref, "ke", &ke_id_ref);
     CHECK_EQUAL(0, success);
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // Enter independent I/O mode
     success = NCFUNC(begin_indep_data)(ncid);
     CHECK_EQUAL(0, success);
 #endif
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // Enter independent I/O mode
     success = NCFUNC(begin_indep_data)(ncid_ref);
     CHECK_EQUAL(0, success);
@@ -769,13 +769,13 @@ void test_mpas_check_vars()
     success = NCFUNC(get_vara_double)(ncid_ref, ke_id_ref, start, count, ke_vals_ref);
     CHECK_EQUAL(0, success);
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // End independent I/O mode
     success = NCFUNC(end_indep_data)(ncid);
     CHECK_EQUAL(0, success);
 #endif
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // End independent I/O mode
     success = NCFUNC(end_indep_data)(ncid_ref);
     CHECK_EQUAL(0, success);
@@ -806,12 +806,12 @@ void test_mpas_check_vars()
 void test_gcrm_read_write_vars()
 {
   int procs = 1;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Comm_size(MPI_COMM_WORLD, &procs);
 #endif
 
 // We will not test NC writer in parallel without pnetcdf support
-#ifndef PNETCDF_FILE
+#ifndef MOAB_HAVE_PNETCDF
   if (procs > 1)
     return;
 #endif
@@ -836,7 +836,7 @@ void test_gcrm_read_write_vars()
 
   // Write variables u, wind, vorticity and pressure
   std::string write_opts = ";;VARIABLE=u,wind,vorticity,pressure;DEBUG_IO=0";
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   // Use parallel options
   write_opts += ";PARALLEL=WRITE_PART";
 #endif
@@ -853,13 +853,13 @@ void test_gcrm_check_vars()
 {
   int rank = 0;
   int procs = 1;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &procs);
 #endif
 
 // We will not test NC writer in parallel without pnetcdf support
-#ifndef PNETCDF_FILE
+#ifndef MOAB_HAVE_PNETCDF
   if (procs > 1)
     return;
 #endif
@@ -875,14 +875,14 @@ void test_gcrm_check_vars()
     else
       filename = "test_gcrm_vars.nc";
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     success = NCFUNC(open)(MPI_COMM_SELF, filename.c_str(), NC_NOWRITE, MPI_INFO_NULL, &ncid);
 #else
     success = NCFUNC(open)(filename.c_str(), NC_NOWRITE, &ncid);
 #endif
     CHECK_EQUAL(0, success);
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     success = NCFUNC(open)(MPI_COMM_SELF, example_gcrm, NC_NOWRITE, MPI_INFO_NULL, &ncid_ref);
 #else
     success = NCFUNC(open)(example_gcrm, NC_NOWRITE, &ncid_ref);
@@ -921,13 +921,13 @@ void test_gcrm_check_vars()
     success = NCFUNC(inq_varid)(ncid_ref, "pressure", &pressure_id_ref);
     CHECK_EQUAL(0, success);
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // Enter independent I/O mode
     success = NCFUNC(begin_indep_data)(ncid);
     CHECK_EQUAL(0, success);
 #endif
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // Enter independent I/O mode
     success = NCFUNC(begin_indep_data)(ncid_ref);
     CHECK_EQUAL(0, success);
@@ -982,13 +982,13 @@ void test_gcrm_check_vars()
     success = NCFUNC(get_vara_double)(ncid_ref, pressure_id_ref, start, count, pressure_vals_ref);
     CHECK_EQUAL(0, success);
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // End independent I/O mode
     success = NCFUNC(end_indep_data)(ncid);
     CHECK_EQUAL(0, success);
 #endif
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // End independent I/O mode
     success = NCFUNC(end_indep_data)(ncid_ref);
     CHECK_EQUAL(0, success);
@@ -1020,12 +1020,12 @@ void test_gcrm_check_vars()
 void test_eul_read_write_timestep()
 {
   int procs = 1;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Comm_size(MPI_COMM_WORLD, &procs);
 #endif
 
 // We will not test NC writer in parallel without pnetcdf support
-#ifndef PNETCDF_FILE
+#ifndef MOAB_HAVE_PNETCDF
   if (procs > 1)
     return;
 #endif
@@ -1047,7 +1047,7 @@ void test_eul_read_write_timestep()
 
   // Write variable T on timestep 2
   std::string write_opts = ";;VARIABLE=T;TIMESTEP=2;DEBUG_IO=0";
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   // Use parallel options
   write_opts += ";PARALLEL=WRITE_PART";
 #endif
@@ -1062,13 +1062,13 @@ void test_eul_check_timestep()
 {
   int rank = 0;
   int procs = 1;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &procs);
 #endif
 
 // We will not test NC writer in parallel without pnetcdf support
-#ifndef PNETCDF_FILE
+#ifndef MOAB_HAVE_PNETCDF
   if (procs > 1)
     return;
 #endif
@@ -1084,14 +1084,14 @@ void test_eul_check_timestep()
     else
       filename = "test_eul_T2.nc";
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     success = NCFUNC(open)(MPI_COMM_SELF, filename.c_str(), NC_NOWRITE, MPI_INFO_NULL, &ncid);
 #else
     success = NCFUNC(open)(filename.c_str(), NC_NOWRITE, &ncid);
 #endif
     CHECK_EQUAL(0, success);
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     success = NCFUNC(open)(MPI_COMM_SELF, example_eul, NC_NOWRITE, MPI_INFO_NULL, &ncid_ref);
 #else
     success = NCFUNC(open)(example_eul, NC_NOWRITE, &ncid_ref);
@@ -1106,13 +1106,13 @@ void test_eul_check_timestep()
     success = NCFUNC(inq_varid)(ncid_ref, "T", &T_id_ref);
     CHECK_EQUAL(0, success);
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // Enter independent I/O mode
     success = NCFUNC(begin_indep_data)(ncid);
     CHECK_EQUAL(0, success);
 #endif
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // Enter independent I/O mode
     success = NCFUNC(begin_indep_data)(ncid_ref);
     CHECK_EQUAL(0, success);
@@ -1133,13 +1133,13 @@ void test_eul_check_timestep()
     success = NCFUNC(get_vara_double)(ncid_ref, T_id_ref, start, count, T_vals_ref);
     CHECK_EQUAL(0, success);
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // End independent I/O mode
     success = NCFUNC(end_indep_data)(ncid);
     CHECK_EQUAL(0, success);
 #endif
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // End independent I/O mode
     success = NCFUNC(end_indep_data)(ncid_ref);
     CHECK_EQUAL(0, success);
@@ -1162,12 +1162,12 @@ void test_eul_check_timestep()
 void test_eul_read_write_append()
 {
   int procs = 1;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Comm_size(MPI_COMM_WORLD, &procs);
 #endif
 
 // We will not test NC writer in parallel without pnetcdf support
-#ifndef PNETCDF_FILE
+#ifndef MOAB_HAVE_PNETCDF
   if (procs > 1)
     return;
 #endif
@@ -1189,7 +1189,7 @@ void test_eul_read_write_append()
 
   // Write variable T
   std::string write_opts = ";;VARIABLE=T;DEBUG_IO=0";
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   // Use parallel options
   write_opts += ";PARALLEL=WRITE_PART";
 #endif
@@ -1201,7 +1201,7 @@ void test_eul_read_write_append()
 
   // Append to the file variable U
   write_opts = ";;VARIABLE=U;APPEND;DEBUG_IO=0";
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   // Use parallel options
   write_opts += ";PARALLEL=WRITE_PART";
 #endif
@@ -1213,7 +1213,7 @@ void test_eul_read_write_append()
 
   // Append to the file variable V, renamed to VNEWNAME
   write_opts = ";;VARIABLE=V;RENAME=VNEWNAME;APPEND;DEBUG_IO=0";
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   // Use parallel options
   write_opts += ";PARALLEL=WRITE_PART";
 #endif
@@ -1228,13 +1228,13 @@ void test_eul_check_append()
 {
   int rank = 0;
   int procs = 1;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &procs);
 #endif
 
 // We will not test NC writer in parallel without pnetcdf support
-#ifndef PNETCDF_FILE
+#ifndef MOAB_HAVE_PNETCDF
   if (procs > 1)
     return;
 #endif
@@ -1250,14 +1250,14 @@ void test_eul_check_append()
     else
       filename = "test_eul_append.nc";
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     success = NCFUNC(open)(MPI_COMM_SELF, filename.c_str(), NC_NOWRITE, MPI_INFO_NULL, &ncid);
 #else
     success = NCFUNC(open)(filename.c_str(), NC_NOWRITE, &ncid);
 #endif
     CHECK_EQUAL(0, success);
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     success = NCFUNC(open)(MPI_COMM_SELF, example_eul, NC_NOWRITE, MPI_INFO_NULL, &ncid_ref);
 #else
     success = NCFUNC(open)(example_eul, NC_NOWRITE, &ncid_ref);
@@ -1288,13 +1288,13 @@ void test_eul_check_append()
     success = NCFUNC(inq_varid)(ncid_ref, "V", &V_id_ref);
     CHECK_EQUAL(0, success);
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // Enter independent I/O mode
     success = NCFUNC(begin_indep_data)(ncid);
     CHECK_EQUAL(0, success);
 #endif
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // Enter independent I/O mode
     success = NCFUNC(begin_indep_data)(ncid_ref);
     CHECK_EQUAL(0, success);
@@ -1334,13 +1334,13 @@ void test_eul_check_append()
     success = NCFUNC(get_vara_double)(ncid_ref, V_id_ref, start, count, V_vals_ref);
     CHECK_EQUAL(0, success);
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // End independent I/O mode
     success = NCFUNC(end_indep_data)(ncid);
     CHECK_EQUAL(0, success);
 #endif
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // End independent I/O mode
     success = NCFUNC(end_indep_data)(ncid_ref);
     CHECK_EQUAL(0, success);
@@ -1364,12 +1364,12 @@ void test_eul_check_append()
 void test_eul_read_write_across_files()
 {
   int procs = 1;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Comm_size(MPI_COMM_WORLD, &procs);
 #endif
 
 // We will not test NC writer in parallel without pnetcdf support
-#ifndef PNETCDF_FILE
+#ifndef MOAB_HAVE_PNETCDF
   if (procs > 1)
     return;
 #endif
@@ -1406,7 +1406,7 @@ void test_eul_read_write_across_files()
 
   // Write variable T with 3 timesteps
   std::string write_opts = ";;VARIABLE=T;TIMESTEP=0,1,2;DEBUG_IO=0";
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   // Use parallel options
   write_opts += ";PARALLEL=WRITE_PART";
 #endif
@@ -1421,13 +1421,13 @@ void test_eul_check_across_files()
 {
   int rank = 0;
   int procs = 1;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &procs);
 #endif
 
 // We will not test NC writer in parallel without pnetcdf support
-#ifndef PNETCDF_FILE
+#ifndef MOAB_HAVE_PNETCDF
   if (procs > 1)
     return;
 #endif
@@ -1443,14 +1443,14 @@ void test_eul_check_across_files()
     else
       filename = "test_eul_across_files.nc";
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     success = NCFUNC(open)(MPI_COMM_SELF, filename.c_str(), NC_NOWRITE, MPI_INFO_NULL, &ncid);
 #else
     success = NCFUNC(open)(filename.c_str(), NC_NOWRITE, &ncid);
 #endif
     CHECK_EQUAL(0, success);
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     success = NCFUNC(open)(MPI_COMM_SELF, example_eul, NC_NOWRITE, MPI_INFO_NULL, &ncid_ref);
 #else
     success = NCFUNC(open)(example_eul, NC_NOWRITE, &ncid_ref);
@@ -1465,13 +1465,13 @@ void test_eul_check_across_files()
     success = NCFUNC(inq_varid)(ncid_ref, "T", &T_id_ref);
     CHECK_EQUAL(0, success);
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // Enter independent I/O mode
     success = NCFUNC(begin_indep_data)(ncid);
     CHECK_EQUAL(0, success);
 #endif
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // Enter independent I/O mode
     success = NCFUNC(begin_indep_data)(ncid_ref);
     CHECK_EQUAL(0, success);
@@ -1491,13 +1491,13 @@ void test_eul_check_across_files()
     success = NCFUNC(get_vara_double)(ncid_ref, T_id_ref, start, count, T_vals_ref);
     CHECK_EQUAL(0, success);
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // End independent I/O mode
     success = NCFUNC(end_indep_data)(ncid);
     CHECK_EQUAL(0, success);
 #endif
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // End independent I/O mode
     success = NCFUNC(end_indep_data)(ncid_ref);
     CHECK_EQUAL(0, success);
@@ -1515,7 +1515,7 @@ void test_eul_check_across_files()
   }
 }
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 // NC writer should filter entities that are not owned, e.g. ghosted elements
 void test_eul_read_write_ghosting()
 {
@@ -1523,7 +1523,7 @@ void test_eul_read_write_ghosting()
   MPI_Comm_size(MPI_COMM_WORLD, &procs);
 
 // We will not test NC writer in parallel without pnetcdf support
-#ifndef PNETCDF_FILE
+#ifndef MOAB_HAVE_PNETCDF
   if (procs > 1)
     return;
 #endif
@@ -1556,13 +1556,13 @@ void test_eul_check_ghosting()
 {
   int rank = 0;
   int procs = 1;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &procs);
 #endif
 
 // We will not test NC writer in parallel without pnetcdf support
-#ifndef PNETCDF_FILE
+#ifndef MOAB_HAVE_PNETCDF
   if (procs > 1)
     return;
 #endif
@@ -1578,14 +1578,14 @@ void test_eul_check_ghosting()
     else
       filename = "test_eul_ghosting.nc";
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     success = NCFUNC(open)(MPI_COMM_SELF, filename.c_str(), NC_NOWRITE, MPI_INFO_NULL, &ncid);
 #else
     success = NCFUNC(open)(filename.c_str(), NC_NOWRITE, &ncid);
 #endif
     CHECK_EQUAL(0, success);
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     success = NCFUNC(open)(MPI_COMM_SELF, example_eul, NC_NOWRITE, MPI_INFO_NULL, &ncid_ref);
 #else
     success = NCFUNC(open)(example_eul, NC_NOWRITE, &ncid_ref);
@@ -1600,13 +1600,13 @@ void test_eul_check_ghosting()
     success = NCFUNC(inq_varid)(ncid_ref, "T", &T_id_ref);
     CHECK_EQUAL(0, success);
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // Enter independent I/O mode
     success = NCFUNC(begin_indep_data)(ncid);
     CHECK_EQUAL(0, success);
 #endif
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // Enter independent I/O mode
     success = NCFUNC(begin_indep_data)(ncid_ref);
     CHECK_EQUAL(0, success);
@@ -1626,13 +1626,13 @@ void test_eul_check_ghosting()
     success = NCFUNC(get_vara_double)(ncid_ref, T_id_ref, start, count, T_vals_ref);
     CHECK_EQUAL(0, success);
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // End independent I/O mode
     success = NCFUNC(end_indep_data)(ncid);
     CHECK_EQUAL(0, success);
 #endif
 
-#ifdef PNETCDF_FILE
+#ifdef MOAB_HAVE_PNETCDF
     // End independent I/O mode
     success = NCFUNC(end_indep_data)(ncid_ref);
     CHECK_EQUAL(0, success);
@@ -1653,7 +1653,7 @@ void test_eul_check_ghosting()
 
 void get_eul_read_options(std::string& opts)
 {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   // Use parallel options
   opts = ";;PARALLEL=READ_PART;PARTITION_METHOD=SQIJ";
 #else
@@ -1663,7 +1663,7 @@ void get_eul_read_options(std::string& opts)
 
 void get_fv_read_options(std::string& opts)
 {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   // Use parallel options
   opts = ";;PARALLEL=READ_PART;PARTITION_METHOD=SQIJ";
 #else
@@ -1673,7 +1673,7 @@ void get_fv_read_options(std::string& opts)
 
 void get_homme_read_options(std::string& opts)
 {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   // Use parallel options
   opts = ";;PARALLEL=READ_PART;PARTITION_METHOD=TRIVIAL";
 #else
@@ -1683,7 +1683,7 @@ void get_homme_read_options(std::string& opts)
 
 void get_mpas_read_options(std::string& opts)
 {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   // Use parallel options
 #ifdef HAVE_ZOLTAN
   opts = ";;PARALLEL=READ_PART;PARTITION_METHOD=RCBZOLTAN";

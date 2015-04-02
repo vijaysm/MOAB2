@@ -5,7 +5,7 @@
 #include "MBTagConventions.hpp"
 #include "moab/FileOptions.hpp"
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab_mpi.h"
 #endif
 
@@ -154,7 +154,7 @@ void test_read_partial_ids();
 
 int main( int argc, char* argv[] )
 {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   int fail = MPI_Init(&argc, &argv);
   if (fail) return fail;
 #endif
@@ -187,7 +187,7 @@ int main( int argc, char* argv[] )
   REGISTER_TEST(test_read_partial_ids);
   int result = RUN_TESTS( argc, argv );
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   fail = MPI_Finalize();
   if (fail) return fail;
 #endif

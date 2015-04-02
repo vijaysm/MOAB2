@@ -16,7 +16,7 @@ void print_usage(char *argv)
   
 int main( int argc, char* argv[] )
 {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Init( &argc, &argv );
 #else
 # define MPI_COMM_WORLD 0
@@ -101,7 +101,7 @@ int main( int argc, char* argv[] )
 
   delete [] moab;
   
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Finalize();
 #endif
 

@@ -24,7 +24,7 @@ ProcConfig::ProcConfig(MPI_Comm proc_comm1)
     : procComm(proc_comm1),
       crystalData(0)
 {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   int rank, size;
   MPI_Comm_rank(procComm, &rank); 
   procRank = (unsigned int) rank;
@@ -38,7 +38,7 @@ ProcConfig::ProcConfig(MPI_Comm proc_comm1)
 
 gs_data::crystal_data *ProcConfig::crystal_router(bool construct_if_missing)
 {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   if (!crystalData && construct_if_missing) {
     crystalData = new gs_data::crystal_data(procComm);
   }
@@ -50,7 +50,7 @@ gs_data::crystal_data *ProcConfig::crystal_router(bool construct_if_missing)
 ProcConfig::~ProcConfig() 
 {
   if (crystalData) {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     crystalData->reset();
 #endif
     delete crystalData;
