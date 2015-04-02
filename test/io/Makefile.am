@@ -13,7 +13,7 @@ AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
                -I$(top_srcdir)/src/io \
                -I$(top_srcdir)/src/parallel
 
-if NETCDF_FILE
+if HAVE_NETCDF
   EXODUS_TEST = exodus_test
   NC_TEST = read_nc read_ucd_nc read_mpas_nc write_nc read_gcrm_nc
 else
@@ -21,7 +21,7 @@ else
   NC_TEST = 
 endif
 
-if CCMIO_FILE
+if HAVE_CCMIO
   CCMIO_TEST = ccmio_test
 else
   CCMIO_TEST = 
@@ -34,7 +34,7 @@ else
   CGM_TEST = 
 endif
 
-if CGNS_FILE
+if HAVE_CGNS
   CGNS_TEST = cgns_test
 else
   CGNS_TEST = 

@@ -11,7 +11,7 @@ AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
                -I$(top_srcdir)/src/parallel \
                -I$(top_srcdir)/tools/dagmc 
 TESTS = 
-if HDF5_FILE
+if HAVE_HDF5
  TESTS += dagmc_simple_test \
         dagmc_rayfire_test \
         dagmc_pointinvol_test

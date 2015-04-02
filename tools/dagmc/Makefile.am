@@ -11,7 +11,7 @@ if HAVE_CGM
   AM_CPPFLAGS += $(CGM_INCLUDES) $(CGM_CPPFLAGS) -DCGM $(MOAB_CGM_DEFINES)
   AM_CXXFLAGS += $(CGM_CXXFLAGS)
 
-if NETCDF_FILE
+if HAVE_NETCDF
   netcdf_progs = update_coords 
 else
   netcdf_progs = 
@@ -37,7 +37,7 @@ if HAVE_CGM
 endif
 
 TESTS = 
-if HDF5_FILE
+if HAVE_HDF5
    TESTS+=test_geom 
 endif
 check_PROGRAMS = $(TESTS) pt_vol_test ray_fire_test

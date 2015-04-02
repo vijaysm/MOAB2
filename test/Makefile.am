@@ -2,7 +2,7 @@
 AUTOMAKE_OPTIONS = foreign subdir-objects no-dependencies
 
 SUBDIRS = . io dual obb perf
-if HDF5_FILE
+if HAVE_HDF5
   SUBDIRS += h5file
 endif
 if ENABLE_dagmc
@@ -11,9 +11,9 @@ endif
 if PARALLEL
   SUBDIRS += parallel
 endif
-if OLD_HEADERS
-  SUBDIRS += oldinc
-endif
+#if OLD_HEADERS
+#  SUBDIRS += oldinc
+#endif
 
 LDADD = $(top_builddir)/src/libMOAB.la
 
@@ -61,7 +61,7 @@ TESTS = range_test \
         uref_mesh_test \
         verdict_test
 
-if HDF5_FILE
+if HAVE_HDF5
   TESTS += mbfacet_test \
         gttool_test \
         cropvol_test \
