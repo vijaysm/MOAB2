@@ -1,6 +1,6 @@
 #include "moab/ErrorHandler.hpp"
 #include "ErrorOutput.hpp"
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab_mpi.h"
 #endif
 
@@ -93,7 +93,7 @@ ErrorCode MBError(int line, const char* func, const char* file, const char* dir,
 
   MBTraceBackErrorHandler(line, func, file, dir, err_msg, err_type);
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   // If this is called from the main() routine we call MPI_Abort() to allow
   // the parallel program to be properly shutdown
   if (strncmp(func, "main", 4) == 0)

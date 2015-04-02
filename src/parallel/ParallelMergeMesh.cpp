@@ -8,7 +8,7 @@
 #include "float.h"
 #include <algorithm>
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab_mpi.h"
 #endif
 

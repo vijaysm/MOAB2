@@ -11,7 +11,7 @@ using namespace moab;
 #include <algorithm>
 #include <sstream>
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab_mpi.h"
 #endif
 
@@ -1303,7 +1303,7 @@ void test_leaf_intersects_ray()
 
 int main()
 {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   int fail = MPI_Init(0, 0);
   if (fail) return fail;
 #endif
@@ -1321,7 +1321,7 @@ int main()
   error_count += RUN_TEST(test_leaf_intersects_plane);
   error_count += RUN_TEST(test_leaf_intersects_ray);
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   fail = MPI_Finalize();
   if (fail) return fail;
 #endif

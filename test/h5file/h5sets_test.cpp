@@ -2,7 +2,7 @@
 #include "moab/Range.hpp"
 #include "TestUtil.hpp"
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab_mpi.h"
 #endif
 
@@ -362,7 +362,7 @@ void test_set_flags();
   
 int main(int argc, char* argv[])
 {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   int fail = MPI_Init(&argc, &argv);
   if (fail) return fail;
 #endif
@@ -390,7 +390,7 @@ int main(int argc, char* argv[])
     exitval += RUN_TEST( test_big_tree );
   }
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   fail = MPI_Finalize();
   if (fail) return fail;
 #endif

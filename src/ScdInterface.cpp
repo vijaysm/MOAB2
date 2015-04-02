@@ -6,7 +6,7 @@
 #include "VertexSequence.hpp"
 #include "ScdVertexData.hpp"
 #include "MBTagConventions.hpp"
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #  include "moab/ParallelComm.hpp"
 #  include "moab/TupleList.hpp"
 #  include "moab/gs.hpp"
@@ -112,7 +112,7 @@ ErrorCode ScdInterface::construct_box(HomCoord low, HomCoord high, const double 
   int tmp_lper[3] = {0, 0, 0};
   if (lperiodic) std::copy(lperiodic, lperiodic+3, tmp_lper);
   
-#ifndef USE_MPI
+#ifndef MOAB_HAVE_MPI
   if (-1 != tag_shared_ents) ERRORR(MB_FAILURE, "Parallel capability requested but MOAB not compiled parallel.");
   if (-1 == tag_shared_ents && !assign_gids) assign_gids = true; // need to assign gids in order to tag shared verts
 #else
@@ -226,7 +226,7 @@ ErrorCode ScdInterface::construct_box(HomCoord low, HomCoord high, const double 
     ERRORR(rval, "Trouble assigning global ids");
   }
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   if (par_data && -1 != tag_shared_ents) {
     rval = tag_shared_vertices(par_data->pComm, new_box);
   }
@@ -685,7 +685,7 @@ ErrorCode ScdBox::get_adj_edge_or_face(int dim, int i, int j, int k, int dir, En
   return rval;
 }
     
-#ifndef USE_MPI
+#ifndef MOAB_HAVE_MPI
 ErrorCode ScdInterface::tag_shared_vertices(ParallelComm *, ScdBox *) 
 {
   return MB_FAILURE;
@@ -1289,7 +1289,7 @@ ErrorCode ScdInterface::get_neighbor_alljorkori(int np, int pfrom,
 }
   
   //! get shared vertices for alljorkori partition scheme
-#ifndef USE_MPI
+#ifndef MOAB_HAVE_MPI
 ErrorCode ScdInterface::get_shared_vertices(ParallelComm *, ScdBox *, 
                                             std::vector<int> &,
                                             std::vector<int> &, std::vector<int> &)  

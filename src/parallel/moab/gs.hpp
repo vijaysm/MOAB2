@@ -1,11 +1,11 @@
 #ifndef GS_HPP
 #define GS_HPP
 
-
+#include "MOABConfig.h"
 #include "moab/TupleList.hpp"
 #include "moab/Types.hpp"
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab_mpi.h"
 #endif
 
@@ -14,7 +14,7 @@ namespace moab {
   class gs_data
   {
   public:
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     class nonlocal_info
     {
     public:
@@ -165,7 +165,7 @@ namespace moab {
 #endif
 
     sint *local_cm; /* local condense map */
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     nonlocal_info *nlinfo;
     MPI_Comm _comm;
 #endif
