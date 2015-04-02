@@ -117,11 +117,11 @@ AM_CPPFLAGS="$AM_CPPFLAGS $NO_VECTOR_TEMPLATE_INSERT $OLD_STD_COUNT"
 ################################################################################
 #                              HANDLE SIZE
 ################################################################################
-AC_CHECK_HEADER([inttypes.h], [AC_DEFINE(HAVE_INTTYPES_H,  [], [MOAB qualified HAVE_INTTYPES_H]) ])
-AC_CHECK_HEADER([stdint.h],   [AC_DEFINE(HAVE_STDINT_H,    [], [MOAB qualified HAVE_STDINT_H])   ])
-AC_CHECK_HEADER([sys/types.h],[AC_DEFINE(HAVE_SYS_TYPES_H, [], [MOAB qualified HAVE_SYS_TYPES_H])])
-AC_CHECK_HEADER([stddef.h],   [AC_DEFINE(HAVE_STDDEF_H,    [], [MOAB qualified HAVE_STDDEF_H])   ])
-AC_CHECK_HEADER([stdlib.h],   [AC_DEFINE(HAVE_STDLIB_H,    [], [MOAB qualified HAVE_STDLIB_H])   ])
+AC_CHECK_HEADER([inttypes.h], [AC_DEFINE(HAVE_INTTYPES_H,  [1], [MOAB qualified HAVE_INTTYPES_H]) ])
+AC_CHECK_HEADER([stdint.h],   [AC_DEFINE(HAVE_STDINT_H,    [1], [MOAB qualified HAVE_STDINT_H])   ])
+AC_CHECK_HEADER([sys/types.h],[AC_DEFINE(HAVE_SYS_TYPES_H, [1], [MOAB qualified HAVE_SYS_TYPES_H])])
+AC_CHECK_HEADER([stddef.h],   [AC_DEFINE(HAVE_STDDEF_H,    [1], [MOAB qualified HAVE_STDDEF_H])   ])
+AC_CHECK_HEADER([stdlib.h],   [AC_DEFINE(HAVE_STDLIB_H,    [1], [MOAB qualified HAVE_STDLIB_H])   ])
 SIZEOF_MBENTITYHANDLE=0
 AC_CHECK_SIZEOF([void *])
 SIZEOF_VOID_P=$ac_cv_sizeof_void_p
@@ -129,7 +129,7 @@ AC_SUBST(SIZEOF_VOID_P)
 AC_ARG_ENABLE([64bit-handles],
   [AS_HELP_STRING([--enable-64bit-handles],[Force EntityHandle to be 64 bits])],
   [AC_CHECK_TYPE([uint64_t],
-    [AC_DEFINE(MOAB_FORCE_64_BIT_HANDLES,[],[Use int64_t for handles])
+    [AC_DEFINE(MOAB_FORCE_64_BIT_HANDLES,[1],[Use int64_t for handles])
      SIZEOF_MBENTITYHANDLE=8
      DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-64bit-handles"],
     [AC_MSG_ERROR([Platform does not have uint64_t. Cannot force 64-bit handles])])
@@ -137,7 +137,7 @@ AC_ARG_ENABLE([64bit-handles],
 AC_ARG_ENABLE([32bit-handles],
   [AS_HELP_STRING([--enable-32bit-handles],[Force EntityHandle to be 32 bits])],
   [AC_CHECK_TYPE([uint32_t],
-    [AC_DEFINE(MOAB_FORCE_32_BIT_HANDLES,[],[Use int32_t for handles])
+    [AC_DEFINE(MOAB_FORCE_32_BIT_HANDLES,[1],[Use int32_t for handles])
      SIZEOF_MBENTITYHANDLE=4
      DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-32bit-handles"],
     [AC_MSG_ERROR([Platform does not have uint32_t. Cannot force 32-bit handles])])
@@ -145,7 +145,7 @@ AC_ARG_ENABLE([32bit-handles],
 if test "x$SIZEOF_MBENTITYHANDLE" = "x0"; then
   SIZEOF_MBENTITYHANDLE=$SIZEOF_VOID_P
   AC_CHECK_TYPE([size_t], 
-   [AC_DEFINE(HAVE_SIZE_T,[],[System provides size_t typedef])],
+   [AC_DEFINE(HAVE_SIZE_T,[1],[System provides size_t typedef])],
    [AC_CHECK_SIZEOF([unsigned long])
     SIZEOF_UNSIGNGED_LONG=$ac_cv_sizeof_unsigned_long
     if test "$SIZEOF_UNSIGNED_LONG" -ne "$SIZEOF_VOID_P"; then
@@ -153,7 +153,7 @@ if test "x$SIZEOF_MBENTITYHANDLE" = "x0"; then
     fi]
   )
   AC_CHECK_TYPE([ptrdiff_t], 
-   [AC_DEFINE(HAVE_PTRDIFF_T,[],[System provides ptrdiff_t typedef])],
+   [AC_DEFINE(HAVE_PTRDIFF_T,[1],[System provides ptrdiff_t typedef])],
    [AC_CHECK_SIZEOF([long])
     AC_CHECK_SIZEOF([void *])
     SIZEOF_VOID_P=$ac_cv_sizeof_void_p
@@ -335,7 +335,10 @@ MK_CHECK_UNORDERED_MAP([CPPFLAGS="$CPPFLAGS -DUNORDERED_MAP_NS=$result -DHAVE_UN
 
 FATHOM_CHECK_MPI
 FATHOM_CONFIG_MPI_EXEC
-test "xyes" != "x$enablempi" || AM_CPPFLAGS="$AM_CPPFLAGS -DUSE_MPI"
+if (test "xno" != "x$enablempi"); then
+#  AM_CPPFLAGS="$AM_CPPFLAGS -DUSE_MPI"
+  AC_DEFINE([HAVE_MPI],[1],[Define if configured with support for parallel computations.])
+fi
 AM_CONDITIONAL(HAVE_MPI, [test "xno" != "x$enablempi"])
 # Used to generate moab_mpi.h
 if test "xyes" = "x$MPI_CXX_HELP_NEEDED"; then
@@ -365,7 +368,8 @@ fi
 FATHOM_CHECK_HDF5
 if test "xno" = "x$HAVE_HDF5"; then
   AC_MSG_WARN([Support for native HDF5 file format disabled])
-#else
+else
+  AC_DEFINE([HAVE_HDF5],[1],["Define if configured with HDF5 support."])
 #  AM_CPPFLAGS="$AM_CPPFLAGS -DHDF5_FILE"
 fi
 AM_CONDITIONAL(HAVE_HDF5, [test "xno" != "x$HAVE_HDF5"])
@@ -390,6 +394,7 @@ fi
 AM_CONDITIONAL(HAVE_HDF5_PARALLEL, [test "xno" != "x$HAVE_HDF5_PARALLEL"])
 if test "xno" != "x$HAVE_HDF5_PARALLEL"; then
   #AM_CPPFLAGS="$AM_CPPFLAGS -DHDF5_PARALLEL"
+  AC_DEFINE([HAVE_HDF5_PARALLEL],[1],["Define if configured with Parallel HDF5 support."])
   
   AC_MSG_CHECKING([for H5_MPI_COMPLEX_DERIVED_DATATYPE_WORKS])
   old_CPPFLAGS="$CPPFLAGS"
@@ -409,9 +414,10 @@ old_LDFLAGS="$LDFLAGS"
 LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"
 FATHOM_CHECK_CCMIO
 LDFLAGS="$old_LDFLAGS"
-#if test "xno" != "x$HAVE_CCMIO"; then
+if test "xno" != "x$HAVE_CCMIO"; then
 #  AM_CPPFLAGS="$AM_CPPFLAGS -DCCMIO_FILE"
-#fi
+  AC_DEFINE([HAVE_CCMIO],[1],["Define if configured with CCM I/O support."])
+fi
 AM_CONDITIONAL(HAVE_CCMIO, [test "xno" != "x$HAVE_CCMIO"])
 AM_CPPFLAGS="$CCMIO_CPPFLAGS $AM_CPPFLAGS"
 EXPORT_LDFLAGS="$CCMIO_LDFLAGS $EXPORT_LDFLAGS"
@@ -426,9 +432,10 @@ old_LDFLAGS="$LDFLAGS"
 LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"
 FATHOM_CHECK_DAMSEL
 LDFLAGS="$old_LDFLAGS"
-#if test "xno" != "x$HAVE_DAMSEL"; then
+if test "xno" != "x$HAVE_DAMSEL"; then
+  AC_DEFINE([HAVE_DAMSEL],[1],["Define if configured with Damsel I/O format support."])
 #  AM_CPPFLAGS="$AM_CPPFLAGS -DDAMSEL_FILE"
-#fi
+fi
 AM_CONDITIONAL(HAVE_DAMSEL, [test "xno" != "x$HAVE_DAMSEL"])
 AM_CPPFLAGS="$DAMSEL_CPPFLAGS $AM_CPPFLAGS"
 EXPORT_LDFLAGS="$DAMSEL_LDFLAGS $EXPORT_LDFLAGS"
@@ -441,9 +448,10 @@ AC_SUBST(DAMSEL_LIBS)
 
   # now pnetcdf
 FATHOM_CHECK_PNETCDF([65536],[524288])
-#if test "xyes" = "x$HAVE_PNETCDF"; then
+if test "xyes" = "x$HAVE_PNETCDF"; then
+  AC_DEFINE([HAVE_PNETCDF],[1],["Define if configured with Parallel NetCDF support."])
 #  AM_CPPFLAGS="$AM_CPPFLAGS -DPNETCDF_FILE"
-#fi
+fi
 AM_CONDITIONAL(HAVE_PNETCDF, [test "xyes" = "x$HAVE_PNETCDF"])
 AM_CPPFLAGS="$PNETCDF_CPPFLAGS $AM_CPPFLAGS"
 EXPORT_LDFLAGS="$PNETCDF_LDFLAGS $EXPORT_LDFLAGS"
@@ -453,9 +461,10 @@ old_LDFLAGS="$LDFLAGS"
 LDFLAGS="$LDFLAGS $PNETCDF_LDFLAGS $HDF5_LDFLAGS"
 FATHOM_CHECK_NETCDF([65536],[524288])
 LDFLAGS="$old_LDFLAGS"
-#if test "xyes" = "x$HAVE_NETCDF"; then
+if test "xyes" = "x$HAVE_NETCDF"; then
+  AC_DEFINE([HAVE_NETCDF],[1],["Define if configured with NetCDF support."])
 #  AM_CPPFLAGS="$AM_CPPFLAGS -DNETCDF_FILE"
-#fi
+fi
 AM_CONDITIONAL(HAVE_NETCDF, [test "xno" != "x$HAVE_NETCDF"])
 AM_CPPFLAGS="$NETCDF_CPPFLAGS $AM_CPPFLAGS"
 EXPORT_LDFLAGS="$NETCDF_LDFLAGS $EXPORT_LDFLAGS"
@@ -470,9 +479,10 @@ old_LDFLAGS="$LDFLAGS"
 LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"
 FATHOM_CHECK_CGNS
 LDFLAGS="$old_LDFLAGS"
-#if test "xno" != "x$HAVE_CGNS"; then
+if test "xno" != "x$HAVE_CGNS"; then
+  AC_DEFINE([HAVE_CGNS],[1],["Define if configured with CGNS support."])
 #  AM_CPPFLAGS="$AM_CPPFLAGS -DCGNS_FILE"
-#fi
+fi
 AM_CONDITIONAL(HAVE_CGNS, [test "xno" != "x$HAVE_CGNS"])
 AM_CPPFLAGS="$CGNS_CPPFLAGS $AM_CPPFLAGS"
 EXPORT_LDFLAGS="$CGNS_LDFLAGS $EXPORT_LDFLAGS"
@@ -759,6 +769,9 @@ AC_DEFUN([MB_OPTIONAL_TOOL],[
 AS_HELP_STRING([--disable-$1],[Don't build $1])],
                  [ENABLE_$1=$enableval],[ENABLE_$1=${mb_default_$1}] )
   AM_CONDITIONAL([ENABLE_$1],[test "x${ENABLE_$1}" != "xno"])
+  if (test "x${ENABLE_$1}" != "xno"); then
+    AC_DEFINE(m4_toupper(HAVE_$1),[1],Configure with tool: m4_toupper($1))
+  fi
   AC_MSG_CHECKING([if $1 is to be built])
   AC_MSG_RESULT([${ENABLE_$1}])
   DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-$1=\"${ENABLE_$1}\""
@@ -1365,7 +1378,7 @@ AC_ARG_VAR([FC], [FORTRAN compiler command])
 # Create a temporary file with e.g. HAVE_MPI
 AC_CONFIG_HEADERS([.MOABConfig.h:config/MOABConfig.h.in])
 # Prefixes everything in the temporary file with MOAB_, e.g. MOAB_HAVE_MPI
-AX_PREFIX_CONFIG_H([MOABConfig.h],[MOAB],[.MOABConfig.h])
+AX_PREFIX_CONFIG_H([src/moab/MOABConfig.h],[MOAB],[.MOABConfig.h])
 
 
 AC_CONFIG_HEADERS([src/moab/Version.h
