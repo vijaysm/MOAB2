@@ -29,10 +29,10 @@
 #include <math.h>
 #include <assert.h>
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab_mpi.h"
 #endif
-#ifdef USE_MPE
+#ifdef MOAB_HAVE_MPE
 #include "mpe.h"
 int IFACE_START, IFACE_END;
 int GHOST_START, GHOST_END;
@@ -443,7 +443,7 @@ namespace moab {
 
     // Communicate numbers
     std::vector<int> num_elements(procConfig.proc_size() * 4);
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     if (procConfig.proc_size() > 1 && parallel) {
       int retval = MPI_Allgather(local_num_elements, 4, MPI_INT,
                                  &num_elements[0], 4,
@@ -520,7 +520,7 @@ namespace moab {
                                              const bool adjacencies,
                                              const bool tags)
   {
-#ifndef USE_MPI
+#ifndef MOAB_HAVE_MPI
     return MB_FAILURE;
 #else
 
@@ -583,7 +583,7 @@ namespace moab {
                                            const bool adjacencies,
                                            const bool tags)
   {
-#ifndef USE_MPI
+#ifndef MOAB_HAVE_MPI
     return MB_FAILURE;
 #else
     ErrorCode result = MB_SUCCESS;
@@ -683,7 +683,7 @@ namespace moab {
                                         std::vector<MPI_Request> &recv_remoteh_reqs,
                                         bool /*wait_all*/)
   {
-#ifndef USE_MPI
+#ifndef MOAB_HAVE_MPI
     return MB_FAILURE;
 #else
     // Pack entities to local buffer
@@ -725,7 +725,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                                       int& incoming1, int& incoming2,
                                       const bool store_remote_handles)
 {
-#ifdef USE_MPE
+#ifdef MOAB_HAVE_MPE
   if (myDebug->get_verbosity() == 2) {
     MPE_Log_event(OWNED_START, procConfig.proc_rank(), "Starting send_entities.");
   }
@@ -826,7 +826,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
   }
   entprocs.reset();
 
-#ifdef USE_MPE
+#ifdef MOAB_HAVE_MPE
   if (myDebug->get_verbosity() == 2) {
     MPE_Log_event(ENTITIES_END, procConfig.proc_rank(), "Ending send_entities.");
   }
@@ -850,7 +850,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                                         std::vector<MPI_Request> &recv_remoteh_reqs,
                                         bool /*wait_all*/)
   {
-#ifndef USE_MPI
+#ifndef MOAB_HAVE_MPI
     return MB_FAILURE;
 #else
     // Non-blocking receive for the first message (having size info)
@@ -976,7 +976,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       MB_SET_ERR(MB_FAILURE, "Requests length doesn't match proc count in entity exchange");
     }
 
-  #ifdef USE_MPE
+  #ifdef MOAB_HAVE_MPE
     if (myDebug->get_verbosity() == 2) {
       MPE_Log_event(ENTITIES_END, procConfig.proc_rank(), "Ending recv entities.");
     }
@@ -1043,7 +1043,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       }
     }
 
-  #ifdef USE_MPE
+  #ifdef MOAB_HAVE_MPE
     if (myDebug->get_verbosity() == 2) {
       MPE_Log_event(RHANDLES_END, procConfig.proc_rank(), "Ending remote handles.");
       MPE_Log_event(OWNED_END, procConfig.proc_rank(),
@@ -1069,7 +1069,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                                         std::vector<unsigned int> &L2p,
                                         std::vector<MPI_Request> &recv_remoteh_reqs)
   {
-#ifndef USE_MPI
+#ifndef MOAB_HAVE_MPI
     return MB_FAILURE;
 #else
     MPI_Status status;
@@ -1146,7 +1146,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                                                       std::vector<unsigned int> &L2p,
                                                       std::vector<MPI_Request> &recv_remoteh_reqs)
   {
-#ifndef USE_MPI
+#ifndef MOAB_HAVE_MPI
     return MB_FAILURE;
 #else
     MPI_Status status;
@@ -3637,7 +3637,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                                               Range *skin_ents,
                                               const Tag* id_tag)
   {
-#ifdef USE_MPE
+#ifdef MOAB_HAVE_MPE
     if (myDebug->get_verbosity() == 2) {
       define_mpe();
       MPE_Log_event(RESOLVE_START, procConfig.proc_rank(), "Entering resolve_shared_ents.");
@@ -3734,7 +3734,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     std::copy(skin_ents[0].begin(), skin_ents[0].end(),
               std::back_inserter(handle_vec));
 
-#ifdef USE_MPE
+#ifdef MOAB_HAVE_MPE
     if (myDebug->get_verbosity() == 2) {
       MPE_Log_event(SHAREDV_START, procConfig.proc_rank(), "Creating crystal router.");
     }
@@ -3804,7 +3804,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     result = tag_shared_verts(shared_verts, skin_ents,
                               proc_nvecs, proc_verts);MB_CHK_SET_ERR(result, "Failed to tag shared verts");
 
-#ifdef USE_MPE
+#ifdef MOAB_HAVE_MPE
     if (myDebug->get_verbosity() == 2) {
       MPE_Log_event(SHAREDV_END, procConfig.proc_rank(), "Finished tag_shared_verts.");
     }
@@ -3848,7 +3848,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     gsd->reset();
     delete gsd;
 
-#ifdef USE_MPE
+#ifdef MOAB_HAVE_MPE
     if (myDebug->get_verbosity() == 2) {
       MPE_Log_event(RESOLVE_END, procConfig.proc_rank(), "Exiting resolve_shared_ents.");
     }
@@ -3864,7 +3864,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
   void ParallelComm::define_mpe()
   {
-#ifdef USE_MPE
+#ifdef MOAB_HAVE_MPE
     if (myDebug->get_verbosity() == 2) {
       // Define mpe states used for logging
       int success;
@@ -5066,7 +5066,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                                                bool wait_all,
                                                EntityHandle *file_set)
   {
-#ifdef USE_MPE
+#ifdef MOAB_HAVE_MPE
     if (myDebug->get_verbosity() == 2) {
       if (!num_layers)
         MPE_Log_event(IFACE_START, procConfig.proc_rank(), "Starting interface exchange.");
@@ -5101,7 +5101,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     //===========================================
     // Post ghost irecv's for ghost entities from all communicating procs
     //===========================================
-#ifdef USE_MPE
+#ifdef MOAB_HAVE_MPE
     if (myDebug->get_verbosity() == 2) {
       MPE_Log_event(ENTITIES_START, procConfig.proc_rank(), "Starting entity exchange.");
     }
@@ -5265,7 +5265,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       MB_SET_ERR(MB_FAILURE, "Requests length doesn't match proc count in ghost exchange");
     }
 
-#ifdef USE_MPE
+#ifdef MOAB_HAVE_MPE
     if (myDebug->get_verbosity() == 2) {
       MPE_Log_event(ENTITIES_END, procConfig.proc_rank(), "Ending entity exchange.");
     }
@@ -5289,7 +5289,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       if (MB_SUCCESS != result) std::cout << "Failed check." << std::endl;
 #endif
 
-#ifdef USE_MPE
+#ifdef MOAB_HAVE_MPE
       if (myDebug->get_verbosity() == 2) {
         MPE_Log_event(IFACE_END, procConfig.proc_rank(), "Ending interface exchange.");
       }
@@ -5378,7 +5378,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       }
     }
 
-#ifdef USE_MPE
+#ifdef MOAB_HAVE_MPE
     if (myDebug->get_verbosity() == 2) {
       MPE_Log_event(RHANDLES_END, procConfig.proc_rank(), "Ending remote handles.");
       MPE_Log_event(GHOST_END, procConfig.proc_rank(),
@@ -6220,7 +6220,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                                               bool wait_all,
                                               bool migrate)
   {
-#ifdef USE_MPE
+#ifdef MOAB_HAVE_MPE
     if (myDebug->get_verbosity() == 2) {
       MPE_Log_event(OWNED_START, procConfig.proc_rank(), "Starting owned ents exchange.");
     }
@@ -6254,7 +6254,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     //===========================================
     // Post ghost irecv's for entities from all communicating procs
     //===========================================
-#ifdef USE_MPE
+#ifdef MOAB_HAVE_MPE
     if (myDebug->get_verbosity() == 2) {
       MPE_Log_event(ENTITIES_START, procConfig.proc_rank(), "Starting entity exchange.");
     }
@@ -6449,7 +6449,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       MB_SET_ERR(MB_FAILURE, "Requests length doesn't match proc count in entity exchange");
     }
 
-#ifdef USE_MPE
+#ifdef MOAB_HAVE_MPE
     if (myDebug->get_verbosity() == 2) {
       MPE_Log_event(ENTITIES_END, procConfig.proc_rank(), "Ending entity exchange.");
     }
@@ -6515,7 +6515,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       }
     }
 
-#ifdef USE_MPE
+#ifdef MOAB_HAVE_MPE
     if (myDebug->get_verbosity() == 2) {
       MPE_Log_event(RHANDLES_END, procConfig.proc_rank(), "Ending remote handles.");
       MPE_Log_event(OWNED_END, procConfig.proc_rank(),
@@ -7877,7 +7877,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     }
 
     if (MB_SUCCESS != result && print_em) {
-#ifdef HDF5_FILE
+#ifdef MOAB_HAVE_HDF5
       std::ostringstream ent_str;
       ent_str << "mesh." << procConfig.proc_rank() << ".h5m";
       mbImpl->write_mesh(ent_str.str().c_str());

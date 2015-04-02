@@ -60,7 +60,7 @@
 #include "moab/HalfFacetRep.hpp"
 #endif
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 /* Leave ParallelComm.hpp before mpi.h or MPICH2 will fail
  * because its C++ headers do not like SEEK_* macros.
  */
@@ -69,8 +69,8 @@
 #include "ReadParallel.hpp"
 #endif
 
-#ifdef HDF5_FILE
-#  ifdef HDF5_PARALLEL
+#ifdef MOAB_HAVE_HDF5
+#  ifdef MOAB_HAVE_HDF5_PARALLEL
 #    include "WriteHDF5Parallel.hpp"
      typedef moab::WriteHDF5Parallel DefaultWriter;
 #    define DefaultWriterName "WriteHDF5Parallel"
@@ -79,7 +79,7 @@
      typedef moab::WriteHDF5 DefaultWriter;
 #    define DefaultWriterName "WriteHDF5"
 #  endif
-#elif defined(NETCDF_FILE)
+#elif defined(MOAB_HAVE_NETCDF)
 #  include "WriteNCDF.hpp"
    typedef moab::WriteNCDF DefaultWriter;
 #  define DefaultWriterName "WriteNCDF"
@@ -102,7 +102,7 @@
 #include "nsMemory.h"
 #endif
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab_mpe.h"
 #endif
 
@@ -224,7 +224,7 @@ Core::~Core()
 
 ErrorCode Core::initialize()
 {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   int flag;
   if (MPI_SUCCESS == MPI_Initialized(&flag)) {
     mpiFinalize = !flag;
@@ -302,7 +302,7 @@ EntityHandle Core::get_root_set()
 void Core::deinitialize()
 {
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   std::vector<ParallelComm*> pc_list;
   ParallelComm::get_all_pcomm(this, pc_list);
   for (std::vector<ParallelComm*>::iterator vit = pc_list.begin();
@@ -335,7 +335,7 @@ void Core::deinitialize()
     delete mError;
   mError = 0;
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   if (writeMPELog) {
     const char* default_log = MOAB_MPE_LOG;
     const char* logfile = getenv("MPE_LOG_FILE");
@@ -419,9 +419,9 @@ int Core::QueryInterface(const MBuuid& uuid, UnknownInterface** iface)
 float Core::impl_version( std::string *version_string )
 {
   if (version_string)
-    *version_string = MB_VERSION_STRING;
+    *version_string = MOAB_VERSION_STRING;
 
-  return MB_VERSION_MAJOR + MB_VERSION_MINOR / 100.0f;
+  return MOAB_VERSION_MAJOR + MOAB_VERSION_MINOR / 100.0f;
 }
 
 //! get the type from a handle, returns type
@@ -492,7 +492,7 @@ ErrorCode Core::load_file( const char* file_name,
   std::string parallel_opt;
   rval = opts.get_option( "PARALLEL", parallel_opt);
   if (MB_SUCCESS == rval) {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     ParallelComm* pcomm = 0;
     int pcomm_id;
     rval = opts.get_int_option( "PARALLEL_COMM", pcomm_id );

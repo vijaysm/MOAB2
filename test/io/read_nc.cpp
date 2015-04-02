@@ -11,7 +11,7 @@ static const char example_eul[] = "/io/eul3x48x96.t.3.nc";
 static const char example_fv[] = "/io/fv3x46x72.t.3.nc";
 #endif
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab_mpi.h"
 #include "moab/ParallelComm.hpp"
 #endif
@@ -29,7 +29,7 @@ void test_read_fv_onevar();
 void test_read_fv_onetimestep();
 void test_read_fv_nomesh();
 void test_read_fv_novars();
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 void test_read_fv_ghosting();
 #endif
 
@@ -41,7 +41,7 @@ int main(int argc, char* argv[])
 {
   int result = 0;
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   int fail = MPI_Init(&argc, &argv);
   if (fail)
     return 1;
@@ -62,12 +62,12 @@ int main(int argc, char* argv[])
   result += RUN_TEST(test_read_fv_nomesh);
   result += RUN_TEST(test_read_fv_novars);
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   // Before ghosting issues with ownership were fixed, this test failed on 4 processors
   result += RUN_TEST(test_read_fv_ghosting);
 #endif
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   fail = MPI_Finalize();
   if (fail)
     return 1;
@@ -134,7 +134,7 @@ void test_read_eul_onevar()
   // Check values of tag T0 (first level) at some strategically chosen places below
   int rank = 0;
   int procs = 1;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
   rank = pcomm->proc_config().proc_rank();
   procs = pcomm->proc_config().proc_size();
@@ -337,7 +337,7 @@ void test_read_fv_onevar()
   // Check values of tag T0 (first level) at some strategically chosen places below
   int rank = 0;
   int procs = 1;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
   rank = pcomm->proc_config().proc_rank();
   procs = pcomm->proc_config().proc_size();
@@ -504,7 +504,7 @@ void test_read_fv_novars()
   CHECK_ERR(rval);
 }
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 void test_read_fv_ghosting()
 {
   Core moab;
@@ -535,7 +535,7 @@ void test_read_fv_ghosting()
 
 ErrorCode get_options(std::string& opts) 
 {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   // Use parallel options
   opts = std::string(";;PARALLEL=READ_PART;PARTITION_METHOD=SQIJ");
   return MB_SUCCESS;

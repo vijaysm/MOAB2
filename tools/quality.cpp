@@ -6,7 +6,8 @@
 #include <stdio.h>
 #include <iomanip>
 #include <fstream>
-#ifdef USE_MPI
+#include "moab/MOABConfig.h"
+#ifdef MOAB_HAVE_MPI
   #include "moab_mpi.h"
   #include "moab/ParallelComm.hpp"
 #endif
@@ -38,7 +39,7 @@ static void print_usage( const char* name, std::ostream& stream )
 int main( int argc, char* argv[] )
 {
   int proc_id = 0, size = 1;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Init(&argc,&argv);
   MPI_Comm_rank( MPI_COMM_WORLD, &proc_id );
   MPI_Comm_size( MPI_COMM_WORLD, &size );
@@ -46,7 +47,7 @@ int main( int argc, char* argv[] )
   if (argc<2 && 0==proc_id)
   {
     print_usage(argv[0], std::cerr);
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     MPI_Finalize();
 #endif
     return 1;
@@ -59,7 +60,7 @@ int main( int argc, char* argv[] )
   if (size>1 && argc>2)
   {
     std::cerr<<" cannot use verbose option in parallel \n";
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     MPI_Finalize();
 #endif
     return 1;
@@ -77,7 +78,7 @@ int main( int argc, char* argv[] )
   if (MB_SUCCESS != mb.load_file(argv[1], 0, read_options.c_str() ) )
   {
     fprintf(stderr, "Error reading file: %s\n", argv[1] );
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     MPI_Finalize();
 #endif
     return 1;
@@ -90,7 +91,7 @@ int main( int argc, char* argv[] )
   if (MB_SUCCESS!=rval )
   {
     fprintf(stderr, "Error getting entities from file %s\n", argv[1] );
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     MPI_Finalize();
 #endif
     return 1;
@@ -102,7 +103,7 @@ int main( int argc, char* argv[] )
   if (MB_SUCCESS!=rval )
   {
     fprintf(stderr, "Error getting all faces" );
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     MPI_Finalize();
 #endif
     return 1;
@@ -112,7 +113,7 @@ int main( int argc, char* argv[] )
   if (MB_SUCCESS!=rval )
   {
     fprintf(stderr, "Error getting all edges" );
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     MPI_Finalize();
 #endif
     return 1;
@@ -129,7 +130,7 @@ int main( int argc, char* argv[] )
     int ne_local = (int)owned.size();
     int ne_global = ne_local;
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     int mpi_err;
     if (size>1)
     {
@@ -161,7 +162,7 @@ int main( int argc, char* argv[] )
         if (MB_SUCCESS!=rval )
         {
           fprintf(stderr, "Error getting quality for entity type %d with id %ld \n", et, (long)mb.id_from_handle(*it) );
-  #ifdef USE_MPI
+  #ifdef MOAB_HAVE_MPI
           MPI_Finalize();
   #endif
           return 1;
@@ -191,7 +192,7 @@ int main( int argc, char* argv[] )
           if (MB_SUCCESS!=rval )
           {
             fprintf(stderr, "Error getting quality for entity type %d with id %ld \n", et, (long)mb.id_from_handle(*it) );
-  #ifdef USE_MPI
+  #ifdef MOAB_HAVE_MPI
             MPI_Finalize();
   #endif
             return 1;
@@ -246,7 +247,7 @@ int main( int argc, char* argv[] )
           local_min = 1.e38; // so this task has no entities of this type
           local_max = -1.e38;// it can get here only in parallel
         }
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
         mpi_err = MPI_Reduce(&local_min, &global_min, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
         if (mpi_err)
         {
@@ -278,7 +279,7 @@ int main( int argc, char* argv[] )
   {
     ofile.close();
   }
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Finalize();
 #endif
   return 0;

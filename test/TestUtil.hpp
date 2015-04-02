@@ -1,6 +1,7 @@
 #ifndef TEST_UTIL_HPP
 #define TEST_UTIL_HPP
 
+#include "moab/MOABConfig.h"
 /* Define these here because they are used by many tests
  * to find the add directory for input files */
 #define STRINGIFY_(X) #X

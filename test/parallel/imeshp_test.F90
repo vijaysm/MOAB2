@@ -13,6 +13,7 @@ program imeshp_test
   use ISO_C_BINDING
   implicit none
 
+#include "moab/MOABConfig.h"
 #include "mpif.h"
 #include "iMeshP_f.h"
 
@@ -186,7 +187,7 @@ subroutine create_mesh( &
   use ISO_C_BINDING
   implicit none
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #  include "iMeshP_f.h"
 #  include "mpif.h"
 #else

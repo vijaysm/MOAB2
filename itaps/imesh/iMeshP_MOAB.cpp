@@ -1,3 +1,4 @@
+#include "moab/MOABConfig.h"
 #include "iMeshP_extensions.h"
 #include "iMesh_MOAB.hpp"
 #include "moab/Core.hpp"
@@ -16,7 +17,7 @@
 #include <assert.h>
 #include <sstream>
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab_mpi.h"
 #endif
 

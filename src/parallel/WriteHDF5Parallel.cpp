@@ -7,10 +7,6 @@
 #include <stdio.h>
 #include <time.h>
 
-#ifndef HDF5_FILE
-  #error Attempt to compile WriteHDF5Parallel with HDF5 support disabled
-#endif
-
 #include <stdlib.h>
 #include <string.h>
 
@@ -21,15 +17,6 @@
 #include <iostream>
 #include <sstream>
 
-#include "WriteHDF5Parallel.hpp"
-
-#include <H5Tpublic.h>
-#include <H5Ppublic.h>
-#include <H5FDmpi.h>
-#include <H5FDmpio.h>
-
-#include "mhdf.h"
-
 #include "moab/Interface.hpp"
 #include "Internals.hpp"
 #include "MBTagConventions.hpp"
@@ -37,6 +24,19 @@
 #include "moab/ParallelComm.hpp"
 #include "moab/CN.hpp"
 #include "moab/Range.hpp"
+
+#include "WriteHDF5Parallel.hpp"
+
+#ifndef MOAB_HAVE_HDF5
+  #error Attempt to compile WriteHDF5Parallel with HDF5 support disabled
+#endif
+
+#include <H5Tpublic.h>
+#include <H5Ppublic.h>
+#include <H5FDmpi.h>
+#include <H5FDmpio.h>
+
+#include "mhdf.h"
 
 #include "IODebugTrack.hpp"
 #include "moab/FileOptions.hpp"

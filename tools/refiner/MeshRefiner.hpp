@@ -26,6 +26,7 @@
 #ifndef MOAB_MESH_REFINER_HPP
 #define MOAB_MESH_REFINER_HPP
 
+#include "moab/MOABConfig.h"
 #include "moab/Compiler.hpp" // for MB_DLL_EXPORT
 #include "moab/Range.hpp"
 

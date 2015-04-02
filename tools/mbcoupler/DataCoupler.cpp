@@ -5,7 +5,7 @@
 #include "moab/ElemEvaluator.hpp"
 #include "moab/Error.hpp"
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab/ParallelComm.hpp"
 #endif
 
@@ -67,7 +67,7 @@ ErrorCode DataCoupler::locate_points(Range &targ_ents,
 {
   targetEnts = targ_ents;
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   if (myPcomm && myPcomm->size() > 1)
     return myLocator->par_locate_points(myPcomm, targ_ents, rel_iter_tol, abs_iter_tol, inside_tol);
 #endif
@@ -79,7 +79,7 @@ ErrorCode DataCoupler::locate_points(double *xyz, int num_points,
                                      const double rel_iter_tol, const double abs_iter_tol,
                                      const double inside_tol)
 {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   if (myPcomm && myPcomm->size() > 1)
     return myLocator->par_locate_points(myPcomm, xyz, num_points, rel_iter_tol, abs_iter_tol, inside_tol);
 #endif

@@ -7,7 +7,7 @@
 #include "Intx2MeshOnSphere.hpp"
 #include "moab/GeomUtil.hpp"
 #include "MBTagConventions.hpp"
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab/ParallelComm.hpp"
 #endif
 
@@ -482,7 +482,7 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
   ERRORR(rval, "can't get existing tracers values");
 
   // create new tuple list for tracers to other processors, from remote_cells
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   if (remote_cells)
   {
     int n = remote_cells->get_n();
@@ -532,7 +532,7 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
     rval = mb->tag_get_data(corrTag, &blue, 1, &redArr);
     if (0==redArr || MB_TAG_NOT_FOUND==rval)
     {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
       if (!remote_cells_with_tracers)
         ERRORR( MB_FAILURE, "no remote cells, failure\n");
       // maybe the element is remote, from another processor
@@ -562,7 +562,7 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
   }
   // now, send back the remote_cells_with_tracers to the processors they came from, with the updated values for
   // the tracer mass in a cell
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   if (remote_cells_with_tracers)
   {
     // so this means that some cells will be sent back with tracer info to the procs they were sent from
@@ -580,7 +580,7 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
         newValues[arrRedIndex*numTracers+k] += remote_cells_with_tracers->vr_rd[j*numTracers+k];
     }
   }
-#endif /* USE_MPI */
+#endif /* MOAB_HAVE_MPI */
   // now divide by red area (current)
   int j=0;
   Range::iterator iter = rs2.begin();
@@ -605,7 +605,7 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
   ERRORR(rval, "can't set new values tag");
 
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   std::vector<double> total_mass(numTracers,0.);
   double total_intx_area =0;
   int mpi_err = MPI_Reduce(&total_mass_local[0], &total_mass[0], numTracers, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);

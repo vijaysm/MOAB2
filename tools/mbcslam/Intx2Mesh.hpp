@@ -32,7 +32,7 @@ namespace moab {
 #define ERRORV(rval, str) \
     if (MB_SUCCESS != rval) {std::cout << str << "\n"; return ;}
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 // forward declarations
 class ParallelComm;
 class TupleList;
@@ -104,7 +104,7 @@ public:
   ErrorCode build_processor_euler_boxes(EntityHandle euler_set, Range & local_verts);
 
   void correct_polygon(EntityHandle * foundIds, int & nP);
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   ErrorCode correct_intersection_points_positions();
 #endif
   void enable_debug()  {dbg_1 = 1;}
@@ -157,7 +157,7 @@ protected: // so it can be accessed in derived classes, InPlane and OnSphere
   Range localEnts;// this range is for local elements of interest, euler cells
   unsigned int my_rank;
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   ParallelComm * parcomm;
   TupleList * remote_cells; // not used anymore for communication, just a container
   TupleList * remote_cells_with_tracers; // these will be used now to update tracers on remote procs

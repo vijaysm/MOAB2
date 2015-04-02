@@ -4,7 +4,7 @@
 #include "moab/CartVect.hpp"
 #include "moab/BoundBox.hpp"
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab/ParallelComm.hpp"
 #include "MBParallelConventions.h"
 #endif
@@ -73,7 +73,7 @@ ErrorCode LloydSmoother::perform_smooth()
   rval = mbImpl->tag_set_data(centroid, verts, &vcentroids[0]);MB_CHK_SET_ERR(rval, "Failed setting centroid tag");
 
   Range owned_verts, shared_owned_verts;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     // filter verts down to owned ones and get fixed tag for them
   if (myPcomm && myPcomm->size() > 1) {
     rval = myPcomm->filter_pstatus(verts, PSTATUS_NOT_OWNED, PSTATUS_NOT, -1, &owned_verts);MB_CHK_SET_ERR(rval, "Failed to filter on pstatus");
@@ -153,7 +153,7 @@ ErrorCode LloydSmoother::perform_smooth()
       // accessed randomly in loop over faces
     rval = mbImpl->tag_set_data(centroid, owned_verts, &vcentroids[0]);MB_CHK_SET_ERR(rval, "Failed to set vertex centroid");
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     // 2c. exchange tags on owned verts
     if (myPcomm && myPcomm->size() > 1) {
       rval = myPcomm->exchange_tags(centroid, shared_owned_verts);MB_CHK_SET_ERR(rval, "Failed to exchange tags");
@@ -162,7 +162,7 @@ ErrorCode LloydSmoother::perform_smooth()
 
     if (reportIts && !(numIts%reportIts)) {
       double global_max = resid;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
         // global reduce for maximum delta, then report it
       if (myPcomm && myPcomm->size() > 1)
         MPI_Reduce(&resid, &global_max, 1, MPI_DOUBLE, MPI_MAX, 0, myPcomm->comm());
@@ -199,7 +199,7 @@ ErrorCode LloydSmoother::initialize()
     Range skin, skin_verts;
     rval = skinner.find_skin(0, myElems, false, skin);MB_CHK_SET_ERR(rval, "Unable to find skin");
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
       // need to do a little extra if we're working in parallel
     if (myPcomm) {
         // filter out ghost and interface facets

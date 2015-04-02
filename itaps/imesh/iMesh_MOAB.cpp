@@ -1,3 +1,4 @@
+#include "moab/MOABConfig.h"
 #include "iMesh_extensions.h"
 #include "moab/Core.hpp"
 #include "moab/Range.hpp"
@@ -12,7 +13,7 @@
 #include "Internals.hpp"
 #undef IS_BUILDING_MB
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab_mpi.h"
 #include "moab/ParallelComm.hpp"
 #endif
@@ -279,7 +280,7 @@ extern "C" {
 
     ErrorCode result = opts.get_null_option("PARALLEL");
     if (MB_SUCCESS == result) {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
       int flag = 1;
       int retval = MPI_Initialized(&flag);
       if (MPI_SUCCESS != retval || !flag) {
@@ -3404,7 +3405,7 @@ void iMesh_createStructuredMesh(iMesh_Instance instance,
     }
   }
 
-#ifdef USE_MPI  
+#ifdef MOAB_HAVE_MPI  
     // do parallel stuff, if requested
   if (resolve_shared) {
     ParallelComm *pcomm = ParallelComm::get_pcomm(MOABI, 0);
