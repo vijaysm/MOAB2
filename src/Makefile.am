@@ -222,6 +222,7 @@ nobase_libMOAB_la_include_HEADERS = \
   MBCN.h \
   MOAB_FCDefs.h \
   MBCN_protos.h \
+  moab/MOABConfig.h \
   MBTagConventions.hpp
 
 if ENABLE_mbpart

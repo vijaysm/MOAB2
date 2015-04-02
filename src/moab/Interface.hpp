@@ -40,6 +40,7 @@
 #define MOAB_API_VERSION 1.01
 #define MOAB_API_VERSION_STRING "1.01"
 
+#include "moab/MOABConfig.h"
 #include "moab/Forward.hpp"
 #include "moab/Range.hpp"
 #include "moab/Compiler.hpp"
