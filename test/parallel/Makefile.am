@@ -37,7 +37,7 @@ TESTS = pcomm_unit \
         $(HDF5_TESTS) \
         $(MBCSLAM_TESTS) $(IMESH_TESTS)
 
-if PARALLEL_HDF5
+if HAVE_HDF5_PARALLEL
   HDF5_TESTS = parallel_hdf5_test mhdf_parallel parallel_write_test \
         parallel_unit_tests \
         uber_parallel_test parallel_adj parmerge_test
@@ -45,14 +45,14 @@ else
   HDF5_TESTS = 
 endif
 
-if NETCDF_FILE
+if HAVE_NETCDF
   NETCDF_TESTS = scdpart read_nc_par ucdtrvpart mpastrvpart gcrm_par
 else
   NETCDF_TESTS = 
 endif
 
-if PNETCDF_FILE
-if !NETCDF_FILE
+if HAVE_PNETCDF
+if !HAVE_NETCDF
   NETCDF_TESTS += scdpart read_nc_par ucdtrvpart mpastrvpart write_nc_par
 else
   NETCDF_TESTS += write_nc_par
@@ -61,7 +61,7 @@ endif
 
 
 if ENABLE_mbcslam
-if PARALLEL_HDF5
+if HAVE_HDF5_PARALLEL
   MBCSLAM_TESTS = par_intx_sph 
 else
   MBCSLAM_TESTS =
@@ -72,7 +72,7 @@ endif
 
 IMESH_TESTS = 
 if ENABLE_imesh
-if PARALLEL_HDF5
+if HAVE_HDF5_PARALLEL
 if ENABLE_FORTRAN
    IMESH_TESTS += imeshp_test
    AM_FCFLAGS += -I$(top_srcdir)/itaps \
@@ -84,7 +84,7 @@ endif
 endif
 
 check_PROGRAMS = $(TESTS) mbparallelcomm_test partcheck structured3 
-if PARALLEL_HDF5
+if HAVE_HDF5_PARALLEL
   check_PROGRAMS += parmerge
 endif
 
@@ -113,7 +113,7 @@ parallel_adj_SOURCES = ../adj_moab_test.cpp
 parmerge_test_SOURCES = parmerge_test.cpp
 
 if ENABLE_imesh
-if PARALLEL_HDF5
+if HAVE_HDF5_PARALLEL
 if ENABLE_FORTRAN
   imeshp_test_SOURCES = imeshp_test.F90
   imeshp_test_LDADD =   $(top_builddir)/itaps/imesh/libiMesh.la $(LDADD) ${MOAB_CXX_LINKFLAGS} ${MOAB_CXX_LIBS}
