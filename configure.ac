@@ -117,11 +117,11 @@ AM_CPPFLAGS="$AM_CPPFLAGS $NO_VECTOR_TEMPLATE_INSERT $OLD_STD_COUNT"
 ################################################################################
 #                              HANDLE SIZE
 ################################################################################
-AC_CHECK_HEADER([inttypes.h], [AC_DEFINE(HAVE_INTTYPES_H,  [], [MOAB qualified HAVE_INTTYPES_H]) ])
-AC_CHECK_HEADER([stdint.h],   [AC_DEFINE(HAVE_STDINT_H,    [], [MOAB qualified HAVE_STDINT_H])   ])
-AC_CHECK_HEADER([sys/types.h],[AC_DEFINE(HAVE_SYS_TYPES_H, [], [MOAB qualified HAVE_SYS_TYPES_H])])
-AC_CHECK_HEADER([stddef.h],   [AC_DEFINE(HAVE_STDDEF_H,    [], [MOAB qualified HAVE_STDDEF_H])   ])
-AC_CHECK_HEADER([stdlib.h],   [AC_DEFINE(HAVE_STDLIB_H,    [], [MOAB qualified HAVE_STDLIB_H])   ])
+AC_CHECK_HEADER([inttypes.h], [AC_DEFINE(HAVE_INTTYPES_H,  [1], [MOAB qualified HAVE_INTTYPES_H]) ])
+AC_CHECK_HEADER([stdint.h],   [AC_DEFINE(HAVE_STDINT_H,    [1], [MOAB qualified HAVE_STDINT_H])   ])
+AC_CHECK_HEADER([sys/types.h],[AC_DEFINE(HAVE_SYS_TYPES_H, [1], [MOAB qualified HAVE_SYS_TYPES_H])])
+AC_CHECK_HEADER([stddef.h],   [AC_DEFINE(HAVE_STDDEF_H,    [1], [MOAB qualified HAVE_STDDEF_H])   ])
+AC_CHECK_HEADER([stdlib.h],   [AC_DEFINE(HAVE_STDLIB_H,    [1], [MOAB qualified HAVE_STDLIB_H])   ])
 SIZEOF_MBENTITYHANDLE=0
 AC_CHECK_SIZEOF([void *])
 SIZEOF_VOID_P=$ac_cv_sizeof_void_p
@@ -129,7 +129,7 @@ AC_SUBST(SIZEOF_VOID_P)
 AC_ARG_ENABLE([64bit-handles],
   [AS_HELP_STRING([--enable-64bit-handles],[Force EntityHandle to be 64 bits])],
   [AC_CHECK_TYPE([uint64_t],
-    [AC_DEFINE(MOAB_FORCE_64_BIT_HANDLES,[],[Use int64_t for handles])
+    [AC_DEFINE(MOAB_FORCE_64_BIT_HANDLES,[1],[Use int64_t for handles])
      SIZEOF_MBENTITYHANDLE=8
      DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-64bit-handles"],
     [AC_MSG_ERROR([Platform does not have uint64_t. Cannot force 64-bit handles])])
@@ -137,7 +137,7 @@ AC_ARG_ENABLE([64bit-handles],
 AC_ARG_ENABLE([32bit-handles],
   [AS_HELP_STRING([--enable-32bit-handles],[Force EntityHandle to be 32 bits])],
   [AC_CHECK_TYPE([uint32_t],
-    [AC_DEFINE(MOAB_FORCE_32_BIT_HANDLES,[],[Use int32_t for handles])
+    [AC_DEFINE(MOAB_FORCE_32_BIT_HANDLES,[1],[Use int32_t for handles])
      SIZEOF_MBENTITYHANDLE=4
      DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-32bit-handles"],
     [AC_MSG_ERROR([Platform does not have uint32_t. Cannot force 32-bit handles])])
@@ -145,7 +145,7 @@ AC_ARG_ENABLE([32bit-handles],
 if test "x$SIZEOF_MBENTITYHANDLE" = "x0"; then
   SIZEOF_MBENTITYHANDLE=$SIZEOF_VOID_P
   AC_CHECK_TYPE([size_t], 
-   [AC_DEFINE(HAVE_SIZE_T,[],[System provides size_t typedef])],
+   [AC_DEFINE(HAVE_SIZE_T,[1],[System provides size_t typedef])],
    [AC_CHECK_SIZEOF([unsigned long])
     SIZEOF_UNSIGNGED_LONG=$ac_cv_sizeof_unsigned_long
     if test "$SIZEOF_UNSIGNED_LONG" -ne "$SIZEOF_VOID_P"; then
@@ -153,7 +153,7 @@ if test "x$SIZEOF_MBENTITYHANDLE" = "x0"; then
     fi]
   )
   AC_CHECK_TYPE([ptrdiff_t], 
-   [AC_DEFINE(HAVE_PTRDIFF_T,[],[System provides ptrdiff_t typedef])],
+   [AC_DEFINE(HAVE_PTRDIFF_T,[1],[System provides ptrdiff_t typedef])],
    [AC_CHECK_SIZEOF([long])
     AC_CHECK_SIZEOF([void *])
     SIZEOF_VOID_P=$ac_cv_sizeof_void_p
@@ -1365,7 +1365,7 @@ AC_ARG_VAR([FC], [FORTRAN compiler command])
 # Create a temporary file with e.g. HAVE_MPI
 AC_CONFIG_HEADERS([.MOABConfig.h:config/MOABConfig.h.in])
 # Prefixes everything in the temporary file with MOAB_, e.g. MOAB_HAVE_MPI
-AX_PREFIX_CONFIG_H([MOABConfig.h],[MOAB],[.MOABConfig.h])
+AX_PREFIX_CONFIG_H([src/moab/MOABConfig.h],[MOAB],[.MOABConfig.h])
 
 
 AC_CONFIG_HEADERS([src/moab/Version.h
