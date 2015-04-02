@@ -121,6 +121,10 @@ int main(int argc, char **argv)
 #ifdef MOAB_HAVE_MPI
   // Need to init MPI first, to tell how many procs and rank
   int err = MPI_Init(&argc, &argv);
+  if (err != 0) {
+    std::cout << "MPI Initialization did not succeed.\n";
+    exit(1);
+  }
 #endif
 
   std::vector<const char*> ssTagNames, ssTagValues;
@@ -139,6 +143,10 @@ int main(int argc, char **argv)
     print_usage(argv);
 #ifdef MOAB_HAVE_MPI
     err = MPI_Finalize();
+    if (err != 0) {
+      std::cout << "MPI Initialization did not succeed.\n";
+      exit(1);
+    }
 #endif
     return 1;
   }
