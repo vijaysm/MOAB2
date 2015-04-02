@@ -17,7 +17,7 @@ AC_CHECK_PROG( [SED], [sed], [sed], [true] )
 # Infer the source directory as the path to the ./configure script
 #srcdir=`dirname $0`
 #top_srcdir=`dirname $0`
-USER_CONFIGURE_CMD="$0 $@"
+USER_CONFIGURE_CMD="$0 $ac_configure_args"
 
 ################################################################################
 #                           Compilers
@@ -129,7 +129,7 @@ AC_SUBST(SIZEOF_VOID_P)
 AC_ARG_ENABLE([64bit-handles],
   [AS_HELP_STRING([--enable-64bit-handles],[Force EntityHandle to be 64 bits])],
   [AC_CHECK_TYPE([uint64_t],
-    [AC_DEFINE(MOAB_FORCE_64_BIT_HANDLES,[1],[Use int64_t for handles])
+    [AC_DEFINE(FORCE_64_BIT_HANDLES,[1],[Use int64_t for handles])
      SIZEOF_MBENTITYHANDLE=8
      DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-64bit-handles"],
     [AC_MSG_ERROR([Platform does not have uint64_t. Cannot force 64-bit handles])])
@@ -137,7 +137,7 @@ AC_ARG_ENABLE([64bit-handles],
 AC_ARG_ENABLE([32bit-handles],
   [AS_HELP_STRING([--enable-32bit-handles],[Force EntityHandle to be 32 bits])],
   [AC_CHECK_TYPE([uint32_t],
-    [AC_DEFINE(MOAB_FORCE_32_BIT_HANDLES,[1],[Use int32_t for handles])
+    [AC_DEFINE(FORCE_32_BIT_HANDLES,[1],[Use int32_t for handles])
      SIZEOF_MBENTITYHANDLE=4
      DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-32bit-handles"],
     [AC_MSG_ERROR([Platform does not have uint32_t. Cannot force 32-bit handles])])
@@ -369,7 +369,7 @@ FATHOM_CHECK_HDF5
 if test "xno" = "x$HAVE_HDF5"; then
   AC_MSG_WARN([Support for native HDF5 file format disabled])
 else
-  AC_DEFINE([HAVE_HDF5],[1],["Define if configured with HDF5 support."])
+  AC_DEFINE([HAVE_HDF5],[1],[Define if configured with HDF5 support.])
 #  AM_CPPFLAGS="$AM_CPPFLAGS -DHDF5_FILE"
 fi
 AM_CONDITIONAL(HAVE_HDF5, [test "xno" != "x$HAVE_HDF5"])
@@ -394,7 +394,7 @@ fi
 AM_CONDITIONAL(HAVE_HDF5_PARALLEL, [test "xno" != "x$HAVE_HDF5_PARALLEL"])
 if test "xno" != "x$HAVE_HDF5_PARALLEL"; then
   #AM_CPPFLAGS="$AM_CPPFLAGS -DHDF5_PARALLEL"
-  AC_DEFINE([HAVE_HDF5_PARALLEL],[1],["Define if configured with Parallel HDF5 support."])
+  AC_DEFINE([HAVE_HDF5_PARALLEL],[1],[Define if configured with Parallel HDF5 support.])
   
   AC_MSG_CHECKING([for H5_MPI_COMPLEX_DERIVED_DATATYPE_WORKS])
   old_CPPFLAGS="$CPPFLAGS"
@@ -574,6 +574,7 @@ AC_ARG_WITH( [zoltan],
                  else
                    ZOLTAN_INC_FLAGS="-I$withval"
                  fi
+                 AC_DEFINE([HAVE_ZOLTAN],[1],["Define if configured with Zoltan library partitioning support."])
                  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-zoltan=\"${withval}\""
                  ;;
                esac],[WITH_ZOLTAN=$ZOLTAN_DEFAULT] )
@@ -601,6 +602,9 @@ AC_ARG_WITH([parmetis],
                    ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$withval/include"
                  else
                    ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$withval"
+                 fi
+                 if (test -f "$withval/include/parmetis.h" || test -f "$withval/parmetis.h"); then
+                   AC_DEFINE(HAVE_PARMETIS, [1], [Define if configured with ParMetis partitioner support])
                  fi
                  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-parmetis=\"${withval}\""
 		 ;;
@@ -630,6 +634,9 @@ AC_ARG_WITH([metis],
                  else
                    ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$withval"
                  fi
+                 if (test -f "$withval/include/metis.h" || test -f "$withval/metis.h"); then
+                   AC_DEFINE(HAVE_METIS, [1], [Define if configured with Metis partitioner support])
+                 fi
                  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-metis=\"${withval}\""
      ;;
                esac] )
@@ -653,6 +660,7 @@ if (test "$enablescotch" != "no"); then
          ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$SCOTCH_DIR/lib"
          if (test -f "$SCOTCH_DIR/lib/libscotch.a" || test -f "$SCOTCH_DIR/lib/libscotch.so" || test -f "$SCOTCH_DIR/lib/libscotch.dylib"); then
            SCOTCH_LIBS="-lscotch -lscotcherr -lscotcherrexit"
+           AC_DEFINE([HAVE_SCOTCH],[1],["Define if configured with Scotch library partitioning support."])
          else
            AC_MSG_ERROR([Scotch libraries not found at $SCOTCH_DIR/lib])
          fi
@@ -694,6 +702,7 @@ if (test "$enableptscotch" != "no"); then
          ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$PTSCOTCH_DIR/lib"
          if (test -f "$SCOTCH_DIR/lib/libptscotch.a" || test -f "$SCOTCH_DIR/lib/libptscotch.so" || test -f "$SCOTCH_DIR/lib/libptscotch.dylib"); then
            SCOTCH_LIBS="-lptscotch -lptscotcherr -lptscotcherrexit $SCOTCH_LIBS"
+           AC_DEFINE([HAVE_SCOTCH],[1],["Define if configured with Parallel Scotch library partitioning support."])
          else
            AC_MSG_ERROR([Scotch libraries not found at $SCOTCH_DIR/lib])
          fi
@@ -1034,6 +1043,8 @@ if  (test "x$WITH_VTK" != "xno" && test "x$WITH_VTK" != "x"); then
       done
       if test "x" = "x$VTK_LIB_DIR"; then
         AC_MSG_ERROR([VTK libraries not found])
+      else
+        AC_DEFINE([HAVE_VTK],[1],["Define if configured with VTK I/O library support."])
       fi
       LIBS="$old_LIBS"
       ;;
@@ -1041,9 +1052,9 @@ if  (test "x$WITH_VTK" != "xno" && test "x$WITH_VTK" != "x"); then
 
    # These are ordered such that a given library depends only on those libraries
    # that preceed it in the list.
-  FATHOM_CHECK_LIB_LIST([pthread],[],[vtk_sys_libs])
-  FATHOM_CHECK_LIB_LIST([dl],[],     [vtk_sys_libs])
-  FATHOM_CHECK_LIB_LIST([m],[],      [vtk_sys_libs])
+  FATHOM_CHECK_LIB_LIST([pthread],[AC_DEFINE([HAVE_PTHREAD],[1],["Define if configured with pthread support."])],[vtk_sys_libs])
+  FATHOM_CHECK_LIB_LIST([dl],[AC_DEFINE([HAVE_PTHREAD],[1],["Define if configured with dynamic library loading support."])],     [vtk_sys_libs])
+  FATHOM_CHECK_LIB_LIST([m],[AC_DEFINE([HAVE_PTHREAD],[1],["Define if configured with math library support."])],      [vtk_sys_libs])
   FATHOM_CHECK_LIB_LIST([gcc],[],    [vtk_sys_libs])
   x_libs_arg="$X_EXTRA_LIBS -lX11 $X_PRE_LIBS"
   FATHOM_CHECK_LIB_LIST([Xext],[],[vtk_x_libs],[$x_libs_arg],[-L$x_libraries]) 
@@ -1132,6 +1143,7 @@ if test $ENABLE_qvdual = yes; then
         if test "x" = "x$GRAPH_LIB_DIR"; then
           if test -d $dir; then
             GRAPH_LIB_DIR=-L$dir
+            AC_DEFINE([HAVE_GRAPHVIZ],[1],["Define if configured with GraphViz support."])
           fi
         fi
       done
@@ -1240,7 +1252,7 @@ if test $ENABLE_qvdual = yes; then
     AC_MSG_RESULT([no])
     LIBS="$old_LIBS $qlibdir"
     AC_CHECK_LIB([qt],[main],[QT_LIBS="$qlibdir -lqt"],[QT_MISSING=yes],[])ac_cv_lib_qt=ac_cv_lib_qt_main
-
+    AC_DEFINE([HAVE_QT],[1],["Define if configured with Qt library support."])
   ])
   LIBS="$VTK_LIBS $QT_LIBS"
   AC_CHECK_LIB([QVTK],[main],[QT_LIBS="-lQVTL $QT_LIBS"],[AC_MSG_ERROR([QVTK library for qvdual not found])],[])ac_cv_lib_QVTK=ac_cv_lib_QVTK_main
@@ -1335,6 +1347,10 @@ AC_SUBST(CGM_LIBS)
 AC_SUBST(CGM_DIR)
 
 AM_CONDITIONAL( HAVE_CGM, [test "x$CGM_MISSING" = "xno"] )
+
+if (test "x$CGM_MISSING" != "xno"); then
+  AC_DEFINE([HAVE_CGM],[1],["Define if configured with CGM support."])
+fi
 
 ################################################################################
 #                           Output Files

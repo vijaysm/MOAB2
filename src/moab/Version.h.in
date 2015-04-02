@@ -2,18 +2,18 @@
 #define MB_VERSION_H
 
 /* MOAB Version */
-#undef MB_VERSION
+#undef MOAB_VERSION
 
 /* MOAB Major Version */
-#undef MB_VERSION_MAJOR
+#undef MOAB_VERSION_MAJOR
 
 /* MOAB Minor Version */
-#undef MB_VERSION_MINOR
+#undef MOAB_VERSION_MINOR
 
 /* MOAB Patch Level */
-#undef MB_VERSION_PATCH
+#undef MOAB_VERSION_PATCH
 
 /* MOAB Version String */
-#undef MB_VERSION_STRING
+#undef MOAB_VERSION_STRING
 
 #endif
