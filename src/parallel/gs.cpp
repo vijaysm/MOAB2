@@ -70,12 +70,11 @@
 #include <stdarg.h>
 #include <string.h>
 #include <math.h>
-#include "MOABConfig.h"
+#include "moab/gs.hpp"
 #ifdef MOAB_HAVE_MPI
 #  include "moab_mpi.h"
 #endif
 
-#include "moab/gs.hpp"
 #ifdef MOAB_HAVE_MPI
 
 #ifdef MOAB_HAVE_VALGRIND
