@@ -278,7 +278,7 @@ add_subdirectory( tools )
 # Testing Related Settings
 ################################################################################
 #turn on ctest if we want testing
-if ( MOAB_ENABLE_TESTING )
+if ( ENABLE_TESTING )
   enable_testing()
   add_subdirectory( test )
 endif()
