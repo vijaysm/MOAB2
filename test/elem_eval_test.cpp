@@ -28,6 +28,11 @@ void test_linear_quad();
 void test_linear_hex();
 void test_linear_tet();
 void test_quadratic_hex();
+void test_normal_linear_tri();
+void test_normal_linear_quad();
+void test_normal_linear_tet();
+void test_normal_linear_hex();
+ErrorCode create_mesh(Core &mb, EntityType type);
 
 CartVect hex_verts[] = { 
       // corners
@@ -143,6 +148,10 @@ int main()
   failures += RUN_TEST(test_linear_hex);
   failures += RUN_TEST(test_quadratic_hex);
   failures += RUN_TEST(test_linear_tet);
+  failures += RUN_TEST(test_normal_linear_tri);
+  failures += RUN_TEST(test_normal_linear_quad);
+  failures += RUN_TEST(test_normal_linear_tet);
+  failures += RUN_TEST(test_normal_linear_hex);
 
   return failures;
 }
@@ -244,4 +253,294 @@ void test_linear_tet()
   rval = mb.tag_set_data(tag, verts, &vals[0]); CHECK_ERR(rval);
 
   test_evals(ee, true, tets, 5, tag, 8.0);
+}
+
+void test_normal_linear_tri()
+{
+  ErrorCode error;
+  Core mb;
+
+  error = create_mesh(mb, MBTRI); CHECK_ERR(error);
+  Range faces;
+  error = mb.get_entities_by_dimension(0,2,faces); CHECK_ERR(error);
+
+  ElemEvaluator ee(&mb,0,0);
+  ee.set_eval_set(MBTRI, LinearTri::eval_set());
+
+  double nrms[8][3];
+
+  for (int i=0; i<4; i++)
+    {
+      ee.set_ent_handle(faces[i]);
+      ee.get_normal(1, 0, nrms[2*i]);
+      ee.get_normal(1, 2, nrms[2*i+1]);
+    }
+
+  for (int i=0; i<4; i++)
+    {
+      if (i == 3)
+        {
+          double val = nrms[7][0]*nrms[0][0] + nrms[7][1]*nrms[0][1] + nrms[7][2]*nrms[0][2];
+          CHECK_EQUAL(val, -1);
+        }
+      else
+        {
+          double val = nrms[2*i+1][0]*nrms[2*(i+1)][0] + nrms[2*i+1][1]*nrms[2*(i+1)][1] + nrms[2*i+1][2]*nrms[2*(i+1)][2];
+          CHECK_EQUAL(val, -1);
+        }
+    }
+}
+
+void test_normal_linear_quad()
+{
+  ErrorCode error;
+  Core mb;
+
+  error = create_mesh(mb, MBQUAD); CHECK_ERR(error);
+  Range faces;
+  error = mb.get_entities_by_dimension(0,2,faces); CHECK_ERR(error);
+
+  ElemEvaluator ee(&mb,0,0);
+  ee.set_eval_set(MBQUAD, LinearQuad::eval_set());
+
+  double nrms[8][3];
+
+  for (int i=0; i<4; i++)
+    {
+      ee.set_ent_handle(faces[i]);
+      ee.get_normal(1, 0, nrms[2*i]);
+      ee.get_normal(1, 3, nrms[2*i+1]);
+    }
+
+  for (int i=0; i<4; i++)
+    {
+      if (i == 3)
+        {
+          double val = nrms[7][0]*nrms[0][0] + nrms[7][1]*nrms[0][1] + nrms[7][2]*nrms[0][2];
+          CHECK_EQUAL(val, -1);
+        }
+      else
+        {
+          double val = nrms[2*i+1][0]*nrms[2*(i+1)][0] + nrms[2*i+1][1]*nrms[2*(i+1)][1] + nrms[2*i+1][2]*nrms[2*(i+1)][2];
+          CHECK_EQUAL(val, -1);
+        }
+    }
+}
+
+void test_normal_linear_tet()
+{
+  ErrorCode error;
+  Core mb;
+
+  error = create_mesh(mb, MBTET); CHECK_ERR(error);
+  Range cells;
+  error = mb.get_entities_by_dimension(0,3,cells); CHECK_ERR(error);
+
+  ElemEvaluator ee(&mb,0,0);
+  ee.set_eval_set(MBTET, LinearTet::eval_set());
+
+  double nrms[8][3];
+
+  for (int i=0; i<4; i++)
+    {
+      ee.set_ent_handle(cells[i]);
+      ee.get_normal(2, 0, nrms[2*i]);
+      ee.get_normal(2, 2, nrms[2*i+1]);
+    }
+
+  for (int i=0; i<4; i++)
+    {
+      if (i == 3)
+        {
+          double val = nrms[7][0]*nrms[0][0] + nrms[7][1]*nrms[0][1] + nrms[7][2]*nrms[0][2];
+          CHECK_EQUAL(val, -1);
+        }
+      else
+        {
+          double val = nrms[2*i+1][0]*nrms[2*(i+1)][0] + nrms[2*i+1][1]*nrms[2*(i+1)][1] + nrms[2*i+1][2]*nrms[2*(i+1)][2];
+          CHECK_EQUAL(val, -1);
+        }
+    }
+}
+
+void test_normal_linear_hex()
+{
+  ErrorCode error;
+  Core mb;
+
+  error = create_mesh(mb, MBHEX); CHECK_ERR(error);
+  Range cells;
+  error = mb.get_entities_by_dimension(0,3,cells); CHECK_ERR(error);
+
+  ElemEvaluator ee(&mb,0,0);
+  ee.set_eval_set(MBHEX, LinearHex::eval_set());
+
+  double nrms[8][3];
+
+  for (int i=0; i<4; i++)
+    {
+      ee.set_ent_handle(cells[i]);
+      ee.get_normal(2, 0, nrms[2*i]);
+      ee.get_normal(2, 3, nrms[2*i+1]);
+    }
+
+  for (int i=0; i<4; i++)
+    {
+      if (i == 3)
+        {
+          double val = nrms[7][0]*nrms[0][0] + nrms[7][1]*nrms[0][1] + nrms[7][2]*nrms[0][2];
+          CHECK_EQUAL(val, -1);
+        }
+      else
+        {
+          double val = nrms[2*i+1][0]*nrms[2*(i+1)][0] + nrms[2*i+1][1]*nrms[2*(i+1)][1] + nrms[2*i+1][2]*nrms[2*(i+1)][2];
+          CHECK_EQUAL(val, -1);
+        }
+    }
+}
+
+ErrorCode create_mesh(Core &mb, EntityType type)
+{
+  ErrorCode error;
+  if (type == MBTRI)
+    {
+      const double coords[] = {0,0,0,
+                              1,0,0,
+                              0,1,0,
+                              -1,0,0,
+                              0,-1,0};
+      const size_t num_vtx = sizeof(coords)/sizeof(double)/3;
+
+      const int conn[] = {0, 1, 2,
+                         0,2,3,
+                         0,3,4,
+                         0,4,1};
+      const size_t num_elems = sizeof(conn)/sizeof(int)/3;
+
+      EntityHandle verts[num_vtx], faces[num_elems];
+      for (size_t i=0; i< num_vtx; ++i)
+        {
+          error = mb.create_vertex(coords+3*i, verts[i]); CHECK_ERR(error);
+        }
+
+      for (size_t i=0; i< num_elems; ++i)
+        {
+          EntityHandle c[3];
+          for (int j=0; j<3; j++)
+            c[j] = verts[conn[3*i+j]];
+
+          error = mb.create_element(MBTRI, c, 3, faces[i]); CHECK_ERR(error);
+        }
+    }
+  else if (type == MBQUAD)
+    {
+      const double coords[] = {0,0,0,
+                               1,0,0,
+                               1,1,0,
+                               0,1,0,
+                               -1,1,0,
+                               -1,0,0,
+                               -1,-1,0,
+                               0,-1,0,
+                               1,-1,0};
+      const size_t num_vtx = sizeof(coords)/sizeof(double)/3;
+
+      const int conn[] = {0,1,2,3,
+                         0,3,4,5,
+                         0,5,6,7,
+                         0,7,8,1};
+      const size_t num_elems = sizeof(conn)/sizeof(int)/4;
+
+      EntityHandle verts[num_vtx], faces[num_elems];
+      for (size_t i=0; i< num_vtx; ++i)
+        {
+          error = mb.create_vertex(coords+3*i, verts[i]); CHECK_ERR(error);
+        }
+
+      for (size_t i=0; i< num_elems; ++i)
+        {
+          EntityHandle c[4];
+          for (int j=0; j<4; j++)
+            c[j] = verts[conn[4*i+j]];
+
+          error = mb.create_element(MBQUAD, c, 4, faces[i]); CHECK_ERR(error);
+        }
+
+    }
+  else if (type == MBTET)
+    {
+      const double coords[] = {0,0,0,
+                               1,0,0,
+                               0,1,0,
+                               -1,0,0,
+                               0,-1,0,
+                               0,0,1};
+      const size_t num_vtx = sizeof(coords)/sizeof(double)/3;
+
+      const int conn[] = {0,1,2,5,
+                         0,2,3,5,
+                         0,3,4,5,
+                         0,4,1,5};
+      const size_t num_elems = sizeof(conn)/sizeof(int)/4;
+
+      EntityHandle verts[num_vtx], cells[num_elems];
+      for (size_t i=0; i< num_vtx; ++i)
+        {
+          error = mb.create_vertex(coords+3*i, verts[i]); CHECK_ERR(error);
+        }
+
+      for (size_t i=0; i< num_elems; ++i)
+        {
+          EntityHandle c[4];
+          for (int j=0; j<4; j++)
+            c[j] = verts[conn[4*i+j]];
+
+          error = mb.create_element(MBTET, c, 4, cells[i]); CHECK_ERR(error);
+        }
+    }
+  else if (type == MBHEX)
+    {
+      const double coords[] = {0,0,0,
+                               1,0,0,
+                              1,1,0,
+                              0,1,0,
+                              -1,1,0,
+                              -1,0,0,
+                              -1,-1,0,
+                              0,-1,0,
+                              1,-1,0,
+                              0,0,1,
+                              1,0,1,
+                              1,1,1,
+                              0,1,1,
+                              -1,1,1,
+                              -1,0,1,
+                              -1,-1,1,
+                              0,-1,1,
+                              1,-1,1};
+      const size_t num_vtx = sizeof(coords)/sizeof(double)/3;
+
+      const int conn[] = {0,1,2,3,9,10,11,12,
+                         0,3,4,5,9,12,13,14,
+                         0,5,6,7,9,14,15,16,
+                         0,7,8,1,9,16,17,10};
+      const size_t num_elems = sizeof(conn)/sizeof(int)/8;
+
+      EntityHandle verts[num_vtx], cells[num_elems];
+      for (size_t i=0; i< num_vtx; ++i)
+        {
+          error = mb.create_vertex(coords+3*i, verts[i]); CHECK_ERR(error);
+        }
+
+      for (size_t i=0; i< num_elems; ++i)
+        {
+          EntityHandle c[8];
+          for (int j=0; j<8; j++)
+            c[j] = verts[conn[8*i+j]];
+
+          error = mb.create_element(MBHEX, c, 8, cells[i]); CHECK_ERR(error);
+        }
+    }
+
+  return MB_SUCCESS;
 }
