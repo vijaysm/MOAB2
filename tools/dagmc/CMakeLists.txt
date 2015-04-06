@@ -27,6 +27,7 @@ add_executable( dagmc_preproc dagmc_preproc.cpp
                               obb_analysis.cpp 
                               dagmc_preproc.hpp )
 target_link_libraries( dagmc_preproc MOAB dagmc )
+set( MOAB_HAVE_DAGMC 1 )
 install(TARGETS dagmc_preproc RUNTIME DESTINATION bin
                               LIBRARY DESTINATION lib
                               ARCHIVE DESTINATION lib )
