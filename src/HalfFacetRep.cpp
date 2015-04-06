@@ -2737,26 +2737,25 @@ namespace moab {
     int nf = _faces.size();
     int nc = _cells.size();
 
+    std::cout<<v2hv.capacity()<<"  "<<sibhvs.capacity()<<std::endl;
     //1D
-    if ( ne != 0)
-      {
-        entity_total += v2hv.capacity()*sizeof(HFacet) +sizeof(v2hv);
-        entity_total += sibhvs.capacity()*sizeof(HFacet) + sizeof(sibhvs);
-      }
+    if ( !v2hv.empty())
+      entity_total += v2hv.capacity()*sizeof(HFacet) +sizeof(v2hv);
+    if (!sibhvs.empty())
+      entity_total += sibhvs.capacity()*sizeof(HFacet) + sizeof(sibhvs);
 
     //2D
-    if (nf != 0)
-      {
-        entity_total += v2he.capacity()*sizeof(HFacet) + sizeof(v2he);
-        entity_total += sibhes.capacity()*sizeof(HFacet) + sizeof(sibhes);
-      }
+    if (!v2he.empty())
+      entity_total += v2he.capacity()*sizeof(HFacet) + sizeof(v2he);
+    if (!sibhes.empty())
+      entity_total += sibhes.capacity()*sizeof(HFacet) + sizeof(sibhes);
 
     //3D
-    if (nc != 0)
-      {
-        entity_total += v2hf.capacity()*sizeof(HFacet) + sizeof(v2hf);
-        entity_total += sibhfs.capacity()*sizeof(HFacet) + sizeof(sibhfs);
-      }
+    if (!v2hf.empty())
+      entity_total += v2hf.capacity()*sizeof(HFacet) + sizeof(v2hf);
+    if (!sibhfs.empty())
+      entity_total += sibhfs.capacity()*sizeof(HFacet) + sizeof(sibhfs);
+
     memory_total = entity_total;
   }
 
