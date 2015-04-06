@@ -14,7 +14,7 @@ include_directories(
 
 add_subdirectory(io)
 add_subdirectory(dual)
-if( MOAB_USE_HDF )
+if( MOAB_HAVE_HDF5 )
   add_subdirectory(h5file)
 endif()
 add_subdirectory(obb)
@@ -42,7 +42,7 @@ set( TESTS range_test.cpp
            coords_connect_iterate.cpp
            test_boundbox.cpp )
            
-if(MOAB_USE_HDF)
+if(MOAB_HAVE_HDF5)
   set( TESTS ${TESTS}
              mergemesh_test.cpp
              mbfacet_test.cpp
@@ -133,7 +133,7 @@ add_test( xform_test ${EXECUTABLE_OUTPUT_PATH}/xform_test )
 if(ENABLE_IMESH)
   set( TESTS MOAB_iMesh_unit_tests.cpp
              MOAB_iMesh_extensions_tests.cpp )
-  if(MOAB_USE_MPI)
+  if(MOAB_HAVE_MPI)
     set(TESTS ${TESTS} MOAB_iMeshP_unit_tests.cpp )
   endif()
   foreach( fname ${TESTS} )
@@ -146,7 +146,7 @@ if(ENABLE_IMESH)
   endforeach()
 endif()
 
-if ( MOAB_USE_MPI AND MPI_FOUND )
+if ( MOAB_HAVE_MPI AND MPI_FOUND )
 
   add_executable ( mbparallelcomm_test parallel/mbparallelcomm_test.cpp )
   target_link_libraries( mbparallelcomm_test MOAB )
@@ -165,7 +165,7 @@ if ( MOAB_USE_MPI AND MPI_FOUND )
     ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 2 ${MPIEXEC_PREFLAGS}
     ${EXECUTABLE_OUTPUT_PATH}/mbparallelcomm_test ${MPIEXEC_POSTFLAGS} -3 ${CMAKE_SOURCE_DIR}/parallel/ptest.cub )
 
-  if ( MOAB_USE_HDF )
+  if ( MOAB_HAVE_HDF5 )
     include_directories(
       ${HDF5_INCLUDE_DIR}
       ${CMAKE_SOURCE_DIR}/src/io/mhdf/include
@@ -182,7 +182,7 @@ if ( MOAB_USE_MPI AND MPI_FOUND )
     target_link_libraries( parmerge_test MOAB ${HDF5_LIBRARIES} )
     add_test( Testparmerge_test ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 2 ${MPIEXEC_PREFLAGS} ${EXECUTABLE_OUTPUT_PATH}/parmerge_test ${MPIEXEC_POSTFLAGS}  )
     
-  endif ( MOAB_USE_HDF )
+  endif ( MOAB_HAVE_HDF5 )
 
   set_source_files_properties( parallel/parallel_unit_tests.cpp
     COMPILE_FLAGS "-DTEST ${MOAB_DEFINES} ${TEST_COMP_FLAGS}" )
@@ -199,4 +199,4 @@ if ( MOAB_USE_MPI AND MPI_FOUND )
     ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 1 ${MPIEXEC_PREFLAGS}
     ${EXECUTABLE_OUTPUT_PATH}/pcomm_serial ${MPIEXEC_POSTFLAGS} 1 ${MOAB_SOURCE_DIR}/MeshFiles/unittest/ptest.cub )
 
-endif ( MOAB_USE_MPI AND MPI_FOUND )
+endif ( MOAB_HAVE_MPI AND MPI_FOUND )
