@@ -1,7 +1,7 @@
 #ifndef CPUTIMER_HPP
 #define CPUTIMER_HPP
 
-#include "MOABConfig.h"
+#include "moab/MOABConfig.h"
 #ifdef MOAB_HAVE_MPI
 #  include "moab_mpi.h"
 #else

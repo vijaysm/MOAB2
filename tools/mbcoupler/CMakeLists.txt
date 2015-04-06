@@ -34,6 +34,7 @@ if ( MOAB_USE_NETCDF )
   set(netcdf_progs update_coords)
 endif()
 
+set( MOAB_HAVE_MBCOUPLER 1 )
 install(TARGETS mbcoupler RUNTIME DESTINATION bin
                           LIBRARY DESTINATION lib
                           ARCHIVE DESTINATION lib )

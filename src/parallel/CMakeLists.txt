@@ -23,12 +23,13 @@ set( MOAB_GENERATED_INSTALL_PHEADERS
      ${CMAKE_CURRENT_BINARY_DIR}/moab_mpi_config.h )
 
 include_directories(
+    ${MOAB_BINARY_DIR}/src
     ${MOAB_SOURCE_DIR}/src
     ${MOAB_SOURCE_DIR}/src/parallel
     ${CMAKE_CURRENT_BINARY_DIR}
   )
 
-if ( MOAB_USE_HDF AND MOAB_HDF_HAVE_PARALLEL )
+if ( MOAB_HAVE_HDF5 AND MOAB_HAVE_HDF5_PARALLEL )
   set( moab_PARALLEL_SRCS ${moab_PARALLEL_SRCS}
                           WriteHDF5Parallel.cpp )
   
@@ -36,11 +37,11 @@ if ( MOAB_USE_HDF AND MOAB_HDF_HAVE_PARALLEL )
                                   WriteHDF5Parallel.hpp )
 endif()
 
-if ( MOAB_USE_HDF )
+if ( MOAB_HAVE_HDF5 )
   include_directories(
     ${MOAB_SOURCE_DIR}/mhdf/include
   )
-endif ( MOAB_USE_HDF )
+endif ( MOAB_HAVE_HDF5 )
 
 set_source_files_properties( ${moab_PARALLEL_SRCS}
   COMPILE_FLAGS "-DIS_BUILDING_MB -DSRCDIR=\"${MOAB_SOURCE_DIR}\" ${MOAB_DEFINES}"

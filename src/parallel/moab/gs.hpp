@@ -1,7 +1,7 @@
 #ifndef GS_HPP
 #define GS_HPP
 
-#include "MOABConfig.h"
+#include "moab/MOABConfig.h"
 #include "moab/TupleList.hpp"
 #include "moab/Types.hpp"
 
