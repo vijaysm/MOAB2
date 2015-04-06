@@ -118,11 +118,9 @@ void reduceMax(double &v)
 
 int main(int argc, char **argv)
 {
-  int err;
-
 #ifdef USE_MPI
   // Need to init MPI first, to tell how many procs and rank
-  err = MPI_Init(&argc, &argv);
+  int err = MPI_Init(&argc, &argv);
 #endif
 
   std::vector<const char*> ssTagNames, ssTagValues;
