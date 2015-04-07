@@ -54,6 +54,8 @@ ErrorCode ahf_test(const char* filename)
     Interface* mbImpl = &moab;
     MeshTopoUtil mtu(mbImpl);
     ErrorCode error;
+    EntityHandle fileset;
+    error = mbImpl->create_meshset(moab::MESHSET_SET, fileset); CHECK_ERR(error);
 
 #ifdef USE_MPI
     int procs = 1;
@@ -62,12 +64,12 @@ ErrorCode ahf_test(const char* filename)
     if (procs > 1){
     read_options = "PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;PARALLEL_GHOSTS=3.0.1.3";
 
-    error = mbImpl->load_file(filename, 0, read_options.c_str());
+    error = mbImpl->load_file(filename,  &fileset, read_options.c_str());
     CHECK_ERR(error);
     }
     else if (procs == 1) {
 #endif
-    error = mbImpl->load_file(filename);
+    error = mbImpl->load_file(filename,  &fileset);
     CHECK_ERR(error);
 #ifdef USE_MPI
     }
@@ -75,10 +77,12 @@ ErrorCode ahf_test(const char* filename)
 
     /*Create ranges for handles of explicit elements of the mixed mesh*/
     Range verts, edges, faces, cells;
-    error = mbImpl->get_entities_by_dimension( 0, 0, verts);
-    error = mbImpl->get_entities_by_dimension( 0, 1, edges);
-    error = mbImpl->get_entities_by_dimension( 0, 2, faces);
-    error = mbImpl->get_entities_by_dimension( 0, 3, cells);
+    error = mbImpl->get_entities_by_dimension( fileset, 0, verts);
+    error = mbImpl->get_entities_by_dimension( fileset, 1, edges);
+    error = mbImpl->get_entities_by_dimension( fileset, 2, faces);
+    error = mbImpl->get_entities_by_dimension( fileset, 3, cells);
+
+    //std::cout<<"[nv, ne, nf, nc] = ["<<verts.size()<<", "<<edges.size()<<", "<<faces.size()<<", "<<cells.size()<<"]"<<std::endl;
 
     // Create an ahf instance
     HalfFacetRep ahf(&moab);
