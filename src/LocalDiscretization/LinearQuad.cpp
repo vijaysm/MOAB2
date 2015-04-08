@@ -91,7 +91,13 @@ namespace moab
     
     ErrorCode LinearQuad::normalFcn(const int ientDim, const int facet, const int nverts, const double *verts,  double normal[3])
     {
-      assert(facet <4 && ientDim == 1 && nverts==4);
+      //assert(facet <4 && ientDim == 1 && nverts==4);
+      if (nverts != 4)
+        MB_SET_ERR(MB_FAILURE, "Incorrect vertex count for passed quad :: expected value = 4");
+      if (ientDim != 1)
+        MB_SET_ERR(MB_FAILURE, "Requesting normal for unsupported dimension :: expected value = 1 ");
+      if (facet >4 || facet < 0)
+        MB_SET_ERR(MB_FAILURE, "Incorrect local edge id :: expected value = one of 0-3");
 
       //Get the local vertex ids of  local edge
       int id0 = CN::mConnectivityMap[MBQUAD][ientDim-1].conn[facet][0];
