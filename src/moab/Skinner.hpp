@@ -229,7 +229,7 @@ protected:
    *                  corners of sides will be returned (i.e. no higher-order
    *                  nodes.)  This argument is ignored if skin_verts is NULL.
    */
-  ErrorCode find_skin_vertices_2D( Tag tag,
+  ErrorCode find_skin_vertices_2D(const EntityHandle this_set, Tag tag,
                                      const Range& faces,
                                      Range* skin_verts = 0,
                                      Range* skin_edges = 0,
@@ -257,7 +257,7 @@ protected:
    *                  corners of sides will be returned (i.e. no higher-order
    *                  nodes.)  This argument is ignored if skin_verts is NULL.
    */
-  ErrorCode find_skin_vertices_3D( Tag tag,
+  ErrorCode find_skin_vertices_3D(const EntityHandle this_set, Tag tag,
                                      const Range& entities,
                                      Range* skin_verts = 0,
                                      Range* skin_faces = 0,
@@ -265,7 +265,7 @@ protected:
                                      bool create_faces = false,
                                      bool corners_only = false );
 
-  ErrorCode create_side( EntityHandle element,
+  ErrorCode create_side(const EntityHandle this_set, EntityHandle element,
                            EntityType side_type,
                            const EntityHandle* side_corners,
                            EntityHandle& side_elem_handle_out );
