@@ -160,7 +160,13 @@ namespace moab
 
     ErrorCode LinearTri::normalFcn(const int ientDim, const int facet, const int nverts, const double *verts,  double normal[3])
     {
-      assert(facet < 3 && ientDim == 1 && nverts==3);
+      //assert(facet < 3 && ientDim == 1 && nverts==3);
+      if (nverts != 3)
+        MB_SET_ERR(MB_FAILURE, "Incorrect vertex count for passed triangle :: expected value = 3 ");
+      if (ientDim != 1)
+        MB_SET_ERR(MB_FAILURE, "Requesting normal for unsupported dimension :: expected value = 1 ");
+      if (facet >3 || facet < 0)
+        MB_SET_ERR(MB_FAILURE, "Incorrect local edge id :: expected value = one of 0-2");
 
       //Get the local vertex ids of  local edge
       int id0 = CN::mConnectivityMap[MBTRI][ientDim-1].conn[facet][0];

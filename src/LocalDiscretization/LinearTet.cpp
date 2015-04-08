@@ -154,7 +154,14 @@ namespace moab
 
     ErrorCode LinearTet::normalFcn(const int ientDim, const int facet, const int nverts, const double *verts,  double normal[3])
     {
-      assert(facet < 4 && ientDim == 2 && nverts == 4);
+      //assert(facet < 4 && ientDim == 2 && nverts == 4);
+      if (nverts != 4)
+        MB_SET_ERR(MB_FAILURE, "Incorrect vertex count for passed tet :: expected value = 4 ");
+      if (ientDim != 2)
+        MB_SET_ERR(MB_FAILURE, "Requesting normal for unsupported dimension :: expected value = 2 ");
+      if (facet >4 || facet < 0)
+        MB_SET_ERR(MB_FAILURE, "Incorrect local face id :: expected value = one of 0-3");
+
       int id0 = CN::mConnectivityMap[MBTET][ientDim-1].conn[facet][0];
       int id1 = CN::mConnectivityMap[MBTET][ientDim-1].conn[facet][1];
       int id2 = CN::mConnectivityMap[MBTET][ientDim-1].conn[facet][2];

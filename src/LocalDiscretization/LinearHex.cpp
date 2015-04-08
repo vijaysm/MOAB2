@@ -113,7 +113,14 @@ namespace moab
 
     ErrorCode LinearHex::normalFcn(const int ientDim, const int facet, const int nverts, const double *verts,  double normal[3])
     {
-      assert(facet < 6 && ientDim == 2 && nverts == 8);
+      //assert(facet < 6 && ientDim == 2 && nverts == 8);
+      if (nverts != 8)
+        MB_SET_ERR(MB_FAILURE, "Incorrect vertex count for passed hex :: expected value = 8 ");
+      if (ientDim != 2)
+        MB_SET_ERR(MB_FAILURE, "Requesting normal for unsupported dimension :: expected value = 2 ");
+      if (facet >6 || facet < 0)
+        MB_SET_ERR(MB_FAILURE, "Incorrect local face id :: expected value = one of 0-5");
+
       int id0 = CN::mConnectivityMap[MBHEX][ientDim-1].conn[facet][0];
       int id1 = CN::mConnectivityMap[MBHEX][ientDim-1].conn[facet][1];
       int id2 = CN::mConnectivityMap[MBHEX][ientDim-1].conn[facet][3];
