@@ -58,6 +58,9 @@ DECLARE_TEST(pyramid)
 DECLARE_TEST(pyramid13)
 
 DECLARE_TEST(structured_points_2d)
+DECLARE_TEST(free_nodes)
+//DECLARE_TEST(free_nodes_and_triangle)
+
 DECLARE_TEST(structured_grid_2d)
 DECLARE_TEST(rectilinear_grid_2d)
 DECLARE_TEST(structured_points_3d)
@@ -112,6 +115,7 @@ DECLARE_TEST(tensor_attrib_float)
 DECLARE_TEST(tensor_attrib_double)
 
 DECLARE_TEST(subset)
+DECLARE_TEST(write_free_nodes)
 
 DECLARE_TEST(unstructured_field)
 
@@ -676,7 +680,57 @@ bool test_structured_points_2d()
   
   return rval1 && rval2;
 }
+bool test_free_vertices (const  char * file)
+{
+  // read VTK file
+   Core instance;
+   bool bval = read_file( &instance, file ); CHECK(bval);
+   return true;
+}
 
+bool test_free_nodes()
+{
+  const char file1[] =
+     "# vtk DataFile Version 3.0\n"
+     "MOAB Version 1.00\n"
+     "ASCII\n"
+     "DATASET UNSTRUCTURED_GRID\n"
+     "POINTS 2 double\n"
+     "10.0 0 0\n"
+     "-10.0 0 0\n"
+     "CELLS 2 4\n"
+     "1 0\n"
+     "1 1\n"
+     "CELL_TYPES 2\n"
+     "1\n"
+     "1\n" ;
+
+   bool rval1 = test_free_vertices(file1);
+
+   const char file2[] =
+      "# vtk DataFile Version 3.0\n"
+      "MOAB Version 1.00\n"
+      "ASCII\n"
+      "DATASET UNSTRUCTURED_GRID\n"
+      "POINTS 5 double\n"
+      "10.0 0 0\n"
+      "-10.0 0 0\n"
+      "-5 2. 2.\n"
+      "-5 2. 0.\n"
+      "-5 4. 2.\n"
+      "CELLS 3 8\n"
+      "1 0\n"
+      "1 1\n"
+      "3 2 3 4\n"
+      "CELL_TYPES 3\n"
+      "1\n"
+      "1\n"
+      "5\n";
+
+    bool rval2 = test_free_vertices(file2);
+    return rval1 && rval2;
+
+}
 bool test_structured_grid_2d()
 {
   char file[4096] =
@@ -1472,6 +1526,59 @@ bool test_subset()
   CHECK( vcoords[1] == 0 );
   CHECK( vcoords[2] == 0 );
   
+  return true;
+}
+
+bool test_write_free_nodes()
+{
+  Core moab_inst;
+  Interface& moab = moab_inst;
+  ErrorCode rval;
+
+    // create 9 nodes in grid pattern
+  EntityHandle verts[9];
+  const double coords[][3] = { { 0, 0, 0 },
+                               { 1, 0, 0 },
+                               { 2, 0, 0 },
+                               { 0, 1, 0 },
+                               { 1, 1, 0 },
+                               { 2, 1, 0 },
+                               { 0, 2, 0 },
+                               { 1, 2, 0 },
+                               { 2, 2, 0 } };
+  for (unsigned i = 0; i < 9; ++i) {
+    rval = moab.create_vertex(coords[i], verts[i]);
+    assert(MB_SUCCESS == rval);
+  }
+
+    // create 3 quad elements, one node (8) not used
+  const int conn[][4] = { { 0, 1, 4, 3 },
+                          { 1, 2, 5, 4 },
+                          { 3, 4, 7, 6 }};
+
+  Tag gid;
+  rval = moab.tag_get_handle("GLOBAL_ID", 1, moab::MB_TYPE_INTEGER, gid);
+  assert(MB_SUCCESS == rval);
+  EntityHandle econn[4], elems[3];
+  for (unsigned i = 0; i < 3; ++i) {
+    for (unsigned j = 0; j < 4; ++j)
+      econn[j] = verts[conn[i][j]];
+    rval = moab.create_element( MBQUAD, econn, 4, elems[i] );
+    assert(MB_SUCCESS == rval);
+    int id = i+1;
+    rval = moab.tag_set_data(gid, &elems[i], 1, &id);
+    assert(MB_SUCCESS == rval);
+  }
+
+  rval = moab.write_mesh(  "tmp_file.vtk");
+  CHECK(rval);
+
+    // read data back in
+  moab.delete_mesh();
+  rval = moab.load_mesh( "tmp_file.vtk" );
+  remove( "tmp_file.vtk" );
+  CHECK(rval);
+
   return true;
 }
 
