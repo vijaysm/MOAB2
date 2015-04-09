@@ -28,6 +28,8 @@ namespace moab {
                                         const double iter_tol, const double inside_tol, 
                                         double *work, double *params, int *is_inside);
         
+  typedef ErrorCode (*NormalFcn)(const int ientDim, const int facet, const int nverts, const double *verts,  double normal[3]);
+
     class EvalSet
     {
   public:
@@ -37,6 +39,9 @@ namespace moab {
         /** \brief Reverse-evaluation of parametric coordinates at physical space position */
       ReverseEvalFcn reverseEvalFcn;
         
+      /** \brief Evaluate the normal at a local facet (edge/face for 2D/3D) */
+      NormalFcn normalFcn;
+
         /** \brief Evaluate the jacobian at a specified parametric position */
       JacobianFcn jacobianFcn;
         
@@ -50,11 +55,11 @@ namespace moab {
       InsideFcn insideFcn;
 
         /** \brief Bare constructor */
-      EvalSet() : evalFcn(NULL), reverseEvalFcn(NULL), jacobianFcn(NULL), integrateFcn(NULL), initFcn(NULL), insideFcn(NULL) {}
+      EvalSet() : evalFcn(NULL), reverseEvalFcn(NULL), normalFcn(NULL), jacobianFcn(NULL), integrateFcn(NULL), initFcn(NULL), insideFcn(NULL) {}
 
         /** \brief Constructor */
-      EvalSet(EvalFcn eval, ReverseEvalFcn rev, JacobianFcn jacob, IntegrateFcn integ, InitFcn initf, InsideFcn insidef)
-              : evalFcn(eval), reverseEvalFcn(rev), jacobianFcn(jacob), integrateFcn(integ), initFcn(initf), insideFcn(insidef)
+      EvalSet(EvalFcn eval, ReverseEvalFcn rev, NormalFcn normal, JacobianFcn jacob, IntegrateFcn integ, InitFcn initf, InsideFcn insidef)
+              : evalFcn(eval), reverseEvalFcn(rev), normalFcn(normal), jacobianFcn(jacob), integrateFcn(integ), initFcn(initf), insideFcn(insidef)
           {}
 
         /** \brief Given an entity handle, get an appropriate eval set, based on type & #vertices */
@@ -67,6 +72,7 @@ namespace moab {
       EvalSet &operator=(const EvalSet &eval) {
         evalFcn = eval.evalFcn;
         reverseEvalFcn = eval.reverseEvalFcn;
+        normalFcn = eval.normalFcn;
         jacobianFcn = eval.jacobianFcn;
         integrateFcn = eval.integrateFcn;
         initFcn = eval.initFcn;
@@ -142,6 +148,14 @@ namespace moab {
          */
       ErrorCode reverse_eval(const double *posn, double iter_tol, double inside_tol, double *params, 
                              int *is_inside = NULL) const;
+
+      /**
+       * \brief Evaluate the normal to a facet of an entity
+       * \param ientDim Dimension of the facet. Should be (d-1) for d-dimensional entities
+       * \param facet Local id of the facet w.r.t the entity
+       * \param normal Returns the normal.
+       */
+      ErrorCode get_normal(const int ientDim, const int facet, double normal[3]) const;
         
         /** \brief Evaluate the jacobian of the cached entity at a given parametric location
          * \param params Parameters at which to evaluate jacobian
@@ -462,6 +476,13 @@ namespace moab {
       return (*evalSets[entType].reverseEvalFcn)(evalSets[entType].evalFcn, evalSets[entType].jacobianFcn, evalSets[entType].insideFcn,
                                                  posn, vertPos[0].array(), numVerts, 
                                                  entDim, iter_tol, inside_tol, workSpace, params, ins);
+    }
+
+      /** \brief Evaluate the normal of the cached entity at a given facet */
+    inline ErrorCode ElemEvaluator::get_normal(const int ientDim, const int facet, double normal[]) const
+    {
+      assert(entHandle && MBMAXTYPE != entType);
+      return (*evalSets[entType].normalFcn)( ientDim, facet, numVerts, vertPos[0].array(), normal);
     }
         
       /** \brief Evaluate the jacobian of the cached entity at a given parametric location */
