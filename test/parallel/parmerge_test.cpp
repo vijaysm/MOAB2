@@ -17,6 +17,13 @@ int main(int argc, char* argv[])
   MPI_Comm_size(MPI_COMM_WORLD, &nproc);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
+  if (nproc==1)
+  {
+    std::cout <<" run this test on 2 tasks\n";
+    MPI_Finalize();
+    return 0; // do not return an error, because we run g coverage on 1 task
+  }
+
   if (nproc!=2)
   {
     std::cout <<" run this test on 2 tasks\n";

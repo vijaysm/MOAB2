@@ -166,6 +166,13 @@ int main( int argc, char* argv[] )
   MPI_Comm_rank( MPI_COMM_WORLD, &rank );
   MPI_Comm_size( MPI_COMM_WORLD, &size );
 
+  if (size==1)
+  {
+    // do not return an error, because sometimes we want to run the whole suite on 1 task
+    std::cout <<" this test should be run on 2 processes\n";
+    MPI_Finalize();
+    return 0;
+  }
   int pause_proc = -1;
   const char* filename = 0;
   for (int i = 1; i < argc; ++i) {

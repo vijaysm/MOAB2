@@ -46,6 +46,13 @@ int main(int argc, char *argv[])
   MPI_Init(&argc, &argv);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
+  if (size==1)
+  {
+    // do not return an error, because sometimes we want to run the whole suite on 1 task
+    std::cout <<" this test should be run on 2 or 4 processes\n";
+    MPI_Finalize();
+    return 0;
+  }
   if (size != 4 && size != 2) {
     std::cerr << "Run this with 2 or 4 processes\n";
     MPI_Finalize();
