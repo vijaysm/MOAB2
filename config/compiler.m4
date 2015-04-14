@@ -178,6 +178,8 @@ CFLAGS="$USER_CFLAGS $FATHOM_CC_SPECIAL"
 CXXFLAGS="$USER_CXXFLAGS $FATHOM_CXX_SPECIAL"
 FFLAGS="$USER_FFLAGS $FATHOM_F77_SPECIAL"
 FCFLAGS="$USER_FCFLAGS $FATHOM_FC_SPECIAL"
+FLIBS=""
+FCLIBS=""
 
 # On IBM/AIX, the check for OBJEXT fails for the mpcc compiler.
 # (Comment out this hack, it should be fixed correctly now)
@@ -330,6 +332,9 @@ if (test "x$ENABLE_FORTRAN" != "xno" && test "x$CHECK_FC" != "xno"); then
   AC_LANG_POP([Fortran])
 
 fi
+
+AC_SUBST(FLIBS)
+AC_SUBST(FCLIBS)
 
 ]) # FATHOM_COMPILER_FLAGS
 
