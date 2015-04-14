@@ -324,10 +324,10 @@ ErrorCode refine_entities(Interface *mb,  ParallelComm* pc, EntityHandle fset, i
   }
 #else
   NestedRefine uref(dynamic_cast<Core*>(mb));
-  error = mb->get_entities_by_dimension(0, 0, init_ents[0]); CHECK_ERR(error);
-  error = mb->get_entities_by_dimension(0, 1, init_ents[1]); CHECK_ERR(error);
-  error = mb->get_entities_by_dimension(0, 2, init_ents[2]); CHECK_ERR(error);
-  error = mb->get_entities_by_dimension(0, 3, init_ents[3]);  CHECK_ERR(error);
+  error = mb->get_entities_by_dimension(fset, 0, init_ents[0]); CHECK_ERR(error);
+  error = mb->get_entities_by_dimension(fset, 1, init_ents[1]); CHECK_ERR(error);
+  error = mb->get_entities_by_dimension(fset, 2, init_ents[2]); CHECK_ERR(error);
+  error = mb->get_entities_by_dimension(fset, 3, init_ents[3]);  CHECK_ERR(error);
 #endif
 
   std::vector<EntityHandle> set;
@@ -1240,7 +1240,7 @@ int main(int argc, char *argv[])
     else if (argc == 2)
       {
         const char* filename = argv[1];
-        int deg[3] = {2,2,2};
+        int deg[1] = {2};
         int len = sizeof(deg) / sizeof(int);
         result = test_mesh(filename, deg, len);
         handle_error_code(result, number_tests_failed, number_tests_successful);

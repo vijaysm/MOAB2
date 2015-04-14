@@ -25,14 +25,14 @@ namespace moab
 
   class Core;
   class HalfFacetRep;
-
+  class ParallelComm;
   class NestedRefine
   {
     
   public:
 
     NestedRefine(Core *impl,  ParallelComm *comm=0, EntityHandle rset=0);
-    
+
     ~NestedRefine();
     
     ErrorCode initialize();

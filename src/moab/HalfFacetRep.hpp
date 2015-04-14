@@ -18,7 +18,6 @@
 #define MOAB_HALF_FACET_REP_HPP
 
 #include "moab/Core.hpp"
-#include "moab/ParallelComm.hpp"
 #include "moab/Range.hpp"
 #include "moab/CN.hpp"
 
@@ -72,13 +71,13 @@ enum {
 };
 
 class Core;
-
+class ParallelComm;
 class HalfFacetRep{
 
 public:
 
   HalfFacetRep(Core *impl,  ParallelComm *comm=0, moab::EntityHandle rset=0);
-    
+
   ~HalfFacetRep();
 
   bool check_mixed_entity_type();
