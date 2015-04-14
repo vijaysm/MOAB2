@@ -3,11 +3,11 @@
 #include "moab/Templates.hpp"
 #include "moab/HalfFacetRep.hpp"
 #include "moab/ReadUtilIface.hpp"
-
+#ifdef USE_MPI
 #include "moab/ParallelComm.hpp"
 #include "moab/ParallelMergeMesh.hpp"
 #include "moab/Skinner.hpp"
-
+#endif
 #include "Internals.hpp"
 #include "MBTagConventions.hpp"
 
@@ -26,11 +26,12 @@ namespace moab{
     ErrorCode error;
     assert(NULL != impl);
 
+#ifdef USE_MPI
     // Get the Parallel Comm instance to prepare all new sets to work in parallel
     // in case the user did not provide any arguments
     if (!comm)
       pcomm = moab::ParallelComm::get_pcomm(mbImpl, 0);
-
+#endif
     error = initialize();
     if (error != MB_SUCCESS)
     {
@@ -67,8 +68,6 @@ namespace moab{
 
     error = ahf->initialize(); MB_CHK_ERR(error);
     error = ahf->get_entity_ranges(_inverts, _inedges, _infaces, _incells);  MB_CHK_ERR(error);
-
-   // std::cout<<"_inverts = "<<_inverts.size()<<", _inedges = "<<_inedges.size()<<", _infaces = "<<_infaces.size()<<", _incells = "<<_incells.size()<<std::endl;
 
     //Check for supported entity type
     if (!_incells.empty())
@@ -407,7 +406,11 @@ namespace moab{
       return MB_SUCCESS;
 
     hasghost = true;
+#ifdef USE_MPI
     error = pcomm->exchange_ghost_cells(meshdim, 0, num_glayers, 0, true, false);MB_CHK_ERR(error);
+#else
+    MB_SET_ERR(MB_FAILURE,"Requesting ghost layers for a serial mesh");
+#endif
 
     Range  * lverts = new Range[lsets.size()];
     Range *  lents   = new Range[lsets.size()];
@@ -509,7 +512,7 @@ namespace moab{
         hmest[0] += refTemplates[cindex][d].nv_cell * ncells_prev;
       }
 
-      std::cout<<"nv = "<<hmest[0]<<", ne = "<<hmest[1]<<", nf = "<<hmest[2]<<", nc = "<<hmest[3]<<std::endl;
+     // std::cout<<"nv = "<<hmest[0]<<", ne = "<<hmest[1]<<", nf = "<<hmest[2]<<", nc = "<<hmest[3]<<std::endl;
 
     return MB_SUCCESS;
   }
@@ -612,11 +615,9 @@ namespace moab{
   {
     ErrorCode error;
 
-    moab::Tag part_tag;
-
     Tag gidtag;
     error = mbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, gidtag);MB_CHK_ERR(error);
-    mbImpl->write_file("test_0.h5m", 0, ";;PARALLEL=WRITE_PART", &_rset, 1);
+   // mbImpl->write_file("test_0.h5m", 0, ";;PARALLEL=WRITE_PART", &_rset, 1);
 
     for (int l = 0; l<num_level; l++)
       {
@@ -640,6 +641,7 @@ namespace moab{
 
 
         // Go into parallel communication
+#ifdef USE_MPI
         if (pcomm)
         {
           // TEMP: Add the adjacencies for MOAB-native DS
@@ -675,6 +677,7 @@ namespace moab{
               error = mbImpl->get_entities_by_dimension(hm_set[l], 3, elms, false);MB_CHK_ERR(error);
 
               // set the parallel partition tag data
+              moab::Tag part_tag;
               moab::EntityHandle part_set;
               int partid = pcomm->rank(), dum_id = -1;
               error = mbImpl->tag_get_handle("PARALLEL_PARTITION", 1, moab::MB_TYPE_INTEGER,
@@ -725,9 +728,10 @@ namespace moab{
               mbImpl->write_file(output_file, 0, ";;PARALLEL=WRITE_PART", &hm_set[l], 1);
             }
           }
+#endif
       }
 
-    mbImpl->write_file("test.h5m", 0, ";;PARALLEL=WRITE_PART");
+    //mbImpl->write_file("test.h5m", 0, ";;PARALLEL=WRITE_PART");
 
     return MB_SUCCESS;
   }

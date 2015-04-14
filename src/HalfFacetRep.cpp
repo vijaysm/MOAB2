@@ -20,6 +20,9 @@
 #include <assert.h>
 #include <vector>
 #include "MBTagConventions.hpp"
+#ifdef USE_MPI
+#include "moab/ParallelComm.hpp"
+#endif
 
 namespace moab {
 
@@ -183,11 +186,9 @@ namespace moab {
 
     if (!mInitAHFmaps){
         mInitAHFmaps = true;
-
-        if (pcomm)
-          {
+#ifdef USE_MPI
+        if (pcomm){
             moab::Range _averts, _aedgs, _afacs, _acels;
-
             error = mb->get_entities_by_dimension(this->_rset, 0, _averts, true);MB_CHK_ERR(error);
             error = mb->get_entities_by_dimension(this->_rset, 1, _aedgs, true);MB_CHK_ERR(error);
             error = mb->get_entities_by_dimension(this->_rset, 2, _afacs, true);MB_CHK_ERR(error);
@@ -204,19 +205,26 @@ namespace moab {
             error = pcomm->filter_pstatus(_afacs, PSTATUS_GHOST, PSTATUS_NOT, -1, &_faces);MB_CHK_ERR(error);
             error = pcomm->filter_pstatus(_acels, PSTATUS_GHOST, PSTATUS_NOT, -1, &_cells);MB_CHK_ERR(error);
           }
-        else
-          {
+        else {
             error = mb->get_entities_by_dimension( this->_rset, 0, _verts, true);MB_CHK_ERR(error);
             error = mb->get_entities_by_dimension( this->_rset, 1, _edges, true);MB_CHK_ERR(error);
             error = mb->get_entities_by_dimension( this->_rset, 2, _faces, true);MB_CHK_ERR(error);
             error = mb->get_entities_by_dimension( this->_rset, 3, _cells, true);MB_CHK_ERR(error);
           }
+#else
+        error = mb->get_entities_by_dimension( this->_rset, 0, _verts, true);MB_CHK_ERR(error);
+        error = mb->get_entities_by_dimension( this->_rset, 1, _edges, true);MB_CHK_ERR(error);
+        error = mb->get_entities_by_dimension( this->_rset, 2, _faces, true);MB_CHK_ERR(error);
+        error = mb->get_entities_by_dimension( this->_rset, 3, _cells, true);MB_CHK_ERR(error);
+
+#endif
 
         int nverts = _verts.size();
         int nedges = _edges.size();
         int nfaces = _faces.size();
         int ncells = _cells.size();
 
+#ifdef USE_MPI
         if (pcomm)
           {
             MPI_Barrier(pcomm->comm());
@@ -224,6 +232,7 @@ namespace moab {
 
             MPI_Barrier(pcomm->comm());
           }
+#endif
 
 
         MESHTYPE mesh_type = get_mesh_type(nverts, nedges, nfaces, ncells);
@@ -264,12 +273,9 @@ namespace moab {
   {
     ErrorCode error;
 
-  //  int nv = _verts.size();
-  //  int ne = _edges.size();
     int nv = ID_FROM_HANDLE(*(_verts.end()-1));
     int ne = ID_FROM_HANDLE(*(_edges.end()-1));
 
-    std::cout<<"nv = "<<nv<<", ne = "<<ne<<std::endl;
     v2hv.reserve(nv);
     sibhvs.reserve(ne*2);
 
@@ -290,7 +296,7 @@ namespace moab {
     ErrorCode error;
     EntityType ftype = mb->type_from_handle(*_faces.begin());
     int nepf = lConnMap2D[ftype-2].num_verts_in_face;
-   // int nv = _verts.size();
+
     int nv = ID_FROM_HANDLE(*(_verts.end()-1));
     int nf = ID_FROM_HANDLE(*(_faces.end()-1));
     std::cout<<"nv = "<<nv<<", nf = "<<nf<<std::endl;
@@ -330,7 +336,6 @@ namespace moab {
 
     int index = get_index_in_lmap(*_cells.begin());
     int nfpc = lConnMap3D[index].num_faces_in_cell;
-   // int nv = _verts.size();
     int nv = ID_FROM_HANDLE(*(_verts.end()-1));
     int nc = ID_FROM_HANDLE(*(_cells.end()-1));;
 
@@ -2733,11 +2738,11 @@ namespace moab {
   void HalfFacetRep::get_memory_use(unsigned long long &entity_total, unsigned long long &memory_total)
   {
     entity_total = memory_total = 0;
-    int ne = _edges.size();
+   /* int ne = _edges.size();
     int nf = _faces.size();
-    int nc = _cells.size();
+    int nc = _cells.size();*/
 
-    std::cout<<v2hv.capacity()<<"  "<<sibhvs.capacity()<<std::endl;
+    //std::cout<<v2hv.capacity()<<"  "<<sibhvs.capacity()<<std::endl;
     //1D
     if ( !v2hv.empty())
       entity_total += v2hv.capacity()*sizeof(HFacet) +sizeof(v2hv);
