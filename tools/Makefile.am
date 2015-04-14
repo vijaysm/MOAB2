@@ -133,7 +133,12 @@ endif
 if ENABLE_mbquality
   AM_CPPFLAGS += -I$(top_srcdir)/src/verdict
   bin_PROGRAMS += mbquality
-endif 
+endif
+
+if ENABLE_mbumr
+  AM_CPPFLAGS += -I$(top_srcdir)/src/RefineMesh
+  bin_PROGRAMS += mbumr
+endif
 
 noinst_PROGRAMS = $(parread)
 
@@ -159,5 +164,5 @@ mbtagprop_SOURCES = parse.cpp parse.hpp propagate_tags.cpp
 mbmem_SOURCES = mbmem.cpp
 parread_SOURCES = parread.cpp
 mbquality_SOURCES = quality.cpp
-
+mbumr_SOURCES = umr.cpp
 
