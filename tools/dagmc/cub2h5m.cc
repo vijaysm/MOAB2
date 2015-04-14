@@ -819,7 +819,7 @@ ErrorCode fix_surface_senses(Interface *MBI, const EntityHandle cgm_file_set,
       {
         std::cout
             << "error: signed volume could not be calculated unambiguously"
-            << std::cout;
+            << std::endl;
         return MB_FAILURE;
       }
     }
