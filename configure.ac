@@ -27,7 +27,9 @@ ENABLE_FORTRAN=no
 AC_ARG_ENABLE([fortran],
               [AS_HELP_STRING([--disable-fortran], [Disable Fortran support and name mangling in ITAPS/MBCN C headers])])
 
-AS_IF([test "x$enable_fortran" != "xno"], [ENABLE_FORTRAN=yes])
+if (test "x$enable_fortran" != "xno"); then
+  ENABLE_FORTRAN=yes
+fi
 AC_SUBST(ENABLE_FORTRAN)
 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-fortran=$ENABLE_FORTRAN"
 EXTRA_GNU_FLAGS='-Wall -pipe -pedantic -Wno-long-long -Wextra -Wcast-align  -Wpointer-arith -Wformat -Wformat-security -Wshadow -Wunused-parameter'
@@ -313,14 +315,14 @@ AM_CONDITIONAL(HAVE_IEEEFP_H, [test "$HAVE_IEEEFP"!="0"])
 if (test "$HAVE_IEEEFP" != "0"); then
   AC_DEFINE(HAVE_IEEEFP, [1], [Defined if configured with IEEE Floating point support])
 fi
+HAVE_VALGRIND=0
 if test "xyes" = "x$enable_debug"; then
-  HAVE_VALGRIND=0
   AC_CHECK_HEADER( [valgrind/memcheck.h], [HAVE_VALGRIND=1] )
-  AM_CONDITIONAL(HAVE_VALGRIND, [test "$HAVE_VALGRIND"!="0"])
   if (test "$HAVE_IEEEFP" != "0"); then
     AC_DEFINE(HAVE_VALGRIND, [1], [Defined if configured with Valgrind support])
   fi
 fi
+AM_CONDITIONAL(HAVE_VALGRIND, [test "$HAVE_VALGRIND"!="0"])
 
 ################################################################################
 #                             BOOST OPTIONS
