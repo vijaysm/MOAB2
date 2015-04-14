@@ -134,12 +134,12 @@ fi
   AC_PROG_CXXCPP
 
   # Fortran support
-  #if (test "x$CHECK_FC" != "xno"); then
+  if (test "x$CHECK_FC" != "xno"); then
     FATHOM_SET_MPI_COMPILER([FC],  [$FC_LIST],[$COMPILERPATHS])
     FATHOM_SET_MPI_COMPILER([F77],[$F77_LIST],[$COMPILERPATHS])
     AC_PROG_FC
     AC_PROG_F77
-  #fi
+  fi
 
 ]) # FATHOM_CHECK_COMPILERS
 
@@ -210,7 +210,7 @@ if test "xyes" = "x$enable_debug"; then
   DEBUG=yes
   CXXFLAGS="$CXXFLAGS -g"
   CFLAGS="$CFLAGS -g"
-  if (test "x$ENABLE_FORTRAN" != "xno"); then
+  if (test "x$CHECK_FC" != "xno"); then
     FCFLAGS="$FCFLAGS -g"
     FFLAGS="$FFLAGS -g"
   fi
@@ -292,10 +292,10 @@ DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-32bit=$enable_32b
 
 # Check if we are using new Darwin kernels with Clang -- needs libc++ instead of libstdc++
 if (test "x$ENABLE_FORTRAN" != "xno" && test "x$CHECK_FC" != "xno"); then
-  AC_F77_WRAPPERS
-  #AC_F77_LIBRARY_LDFLAGS
-  AC_FC_WRAPPERS
-  #AC_FC_LIBRARY_LDFLAGS
+  #AC_F77_WRAPPERS
+  ##AC_F77_LIBRARY_LDFLAGS
+  #AC_FC_WRAPPERS
+  ##AC_FC_LIBRARY_LDFLAGS
 
   # check how to link against C++ runtime for fortran programs correctly
   AC_LANG_PUSH([Fortran])
