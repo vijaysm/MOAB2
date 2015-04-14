@@ -204,6 +204,16 @@ namespace moab {
             error = pcomm->filter_pstatus(_aedgs, PSTATUS_GHOST, PSTATUS_NOT, -1, &_edges);MB_CHK_ERR(error);
             error = pcomm->filter_pstatus(_afacs, PSTATUS_GHOST, PSTATUS_NOT, -1, &_faces);MB_CHK_ERR(error);
             error = pcomm->filter_pstatus(_acels, PSTATUS_GHOST, PSTATUS_NOT, -1, &_cells);MB_CHK_ERR(error);
+
+            //In the 3D case, the edges on the interface should also be created.
+            if (!_cells.empty()){
+                Range bnd_edges;
+                error = mb->get_adjacencies(_faces,1,true,bnd_edges, Interface::UNION);MB_CHK_ERR(error);
+
+                _edges.insert(bnd_edges.begin(),bnd_edges.end());
+
+                error = mb->add_entities(this->_rset, bnd_edges);MB_CHK_ERR(error);
+              }
           }
         else {
             error = mb->get_entities_by_dimension( this->_rset, 0, _verts, true);MB_CHK_ERR(error);
@@ -2716,19 +2726,19 @@ namespace moab {
     return MB_SUCCESS;
   }
 
-  ErrorCode HalfFacetRep::update_entity_ranges()
+  ErrorCode HalfFacetRep::update_entity_ranges(EntityHandle fileset)
   {
    ErrorCode error;
-   Range verts, edges, faces, cells;
+ //  Range verts, edges, faces, cells;
    std::cout<<"Sizes: nv = "<<_verts.size()<<", ne = "<<_edges.size()<<", nf = "<<_faces.size()<<", nc = "<<_cells.size()<<std::endl;
 
-   error = mb->get_entities_by_dimension(0, 0, _verts, true);MB_CHK_ERR(error);
+   error = mb->get_entities_by_dimension(fileset, 0, _verts, true);MB_CHK_ERR(error);
 
-   error = mb->get_entities_by_dimension(0, 1, _edges, true);MB_CHK_ERR(error);
+   error = mb->get_entities_by_dimension(fileset, 1, _edges, true);MB_CHK_ERR(error);
 
-   error = mb->get_entities_by_dimension(0, 2, _faces, true);MB_CHK_ERR(error);
+   error = mb->get_entities_by_dimension(fileset, 2, _faces, true);MB_CHK_ERR(error);
 
-   error = mb->get_entities_by_dimension(0, 3, _cells, true);MB_CHK_ERR(error);
+   error = mb->get_entities_by_dimension(fileset, 3, _cells, true);MB_CHK_ERR(error);
 
    std::cout<<"Sizes: nv = "<<_verts.size()<<", ne = "<<_edges.size()<<", nf = "<<_faces.size()<<", nc = "<<_cells.size()<<std::endl;
 

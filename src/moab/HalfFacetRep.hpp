@@ -426,7 +426,7 @@ public:
 
   int lid_from_halffacet(const HFacet facet);
 
-  ErrorCode update_entity_ranges();
+  ErrorCode update_entity_ranges(EntityHandle fileset);
 
   ErrorCode resize_hf_maps(EntityHandle start_vert, int nverts, EntityHandle start_edge, int nedges, EntityHandle start_face, int nfaces, EntityHandle start_cell, int ncells);
 

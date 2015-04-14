@@ -1,23 +1,30 @@
 #include <iostream>
 #include <stdlib.h>
 #include <vector>
-#include <map>
 #include <string>
 #include <stdio.h>
 #include <iomanip>
 #include <fstream>
-
+#include <sys/time.h>
+#include <time.h>
 #include <math.h>
 #include <assert.h>
 #include <float.h>
+
 #include "moab/Core.hpp"
 #include "moab/Interface.hpp"
 #include "moab/VerdictWrapper.hpp"
 #include "moab/NestedRefine.hpp"
+
 #ifdef USE_MPI
   #include "moab_mpi.h"
   #include "moab/ParallelComm.hpp"
 #endif
+
+/* Exit values */
+#define SUCCESS 0
+#define USAGE_ERROR 1
+#define NOT_IMPLEMENTED 2
 
 using namespace moab;
 
@@ -35,9 +42,10 @@ static void print_usage( const char* name, std::ostream& stream )
          << " <options> <input_file> [<input_file2> ...]" << std::endl
          << "Options: " << std::endl
          << "\t-h             - Print this help text and exit." << std::endl
+         << "\t-d             - Dimension of the mesh."<<std::endl
          << "\t-n             - Exact or a maximum number of levels for the hierarchy." << std::endl
-         << "\t-d             - Degree of refinement for each level. Pass an array to use different degrees for each level." << std::endl
-         << "\t-qv           - Pass a quality constraint of maximum volume for the hierarchy. If a volume constraint is passed, then a corresponding maximum number of levels should be passed. A optimal degree sequence would be computed satisfying the constraints to generate the hierarchy." << std::endl
+         << "\t-L             - Degree of refinement for each level. Pass an array to use different degrees for each level." << std::endl
+         << "\t-V           - Pass a quality constraint of maximum volume for the hierarchy. If a volume constraint is passed, then a corresponding maximum number of levels should be passed. A optimal degree sequence would be computed satisfying the constraints to generate the hierarchy." << std::endl
          << "\t-T             - Print out the time taken to generate hierarchy." << std::endl
          << "\t-o    - Specify true for output files for the mesh levels of the hierarchy." << std::endl
          //<< "\t-O option      - Specify read option." << std::endl
@@ -56,6 +64,9 @@ static void usage_error( const char* name )
   exit(USAGE_ERROR);
 }
 
+bool parse_id_list(const char* string, int dim, int nval, std::vector<int> results );
+
+bool make_opts_string( std::vector<std::string> options, std::string& opts );
 
 int main(int argc, char* argv[])
 {
@@ -66,16 +77,16 @@ int main(int argc, char* argv[])
   MPI_Comm_size( MPI_COMM_WORLD, &size );
 #endif
 
-  int num_levels = 0;
-  int *level_degrees;
+  int num_levels = 0, dim=0;
+  std::vector<int> level_degrees;
   bool do_flag = true;
   bool print_times = false, output = false;
-  bool parallel = false, resolve_shared = false, exhange_ghosts = false;
-  bool print_usage = false;
+  bool parallel = false, resolve_shared = false, exchange_ghosts = false;
+  bool printusage = false, parselevels = false;
   bool qc_vol = false; double cvol = 0 ;
-  std::vector<std::string> file_list;
+  std::string infile;
 
-  for (i = 1; i < argc; i++)
+  for (int i = 1; i < argc; i++)
   {
     if (!argv[i][0])
       usage_error(argv[0]);
@@ -88,10 +99,11 @@ int main(int argc, char* argv[])
         case '-': do_flag = false;       break;
         case 'T': print_times = true;    break;
         case 'h':
-        case 'H': print_usage( argv[0], std::cerr ); printed_usage = true; break;
-        case 'n': num_level = argv[i];   break;
-        case 'd': parse_id_list(argv[i], num_level, level_degrees); break;
-        case 'qv': qc_vol = true; cvol = argv[i]; break;
+        case 'H': print_usage( argv[0], std::cerr ); printusage = true; break;
+        case 'd': dim = atol(argv[i]); break;
+        case 'n': num_levels = atol(argv[i]);   break;
+        case 'L': parselevels = parse_id_list(argv[i], dim, num_levels, level_degrees); break;
+        case 'V': qc_vol = true; cvol = strtod(argv[i], NULL); break;
         case 'o': output = true; break;
 #ifdef USE_MPI
         case 'p':
@@ -101,20 +113,28 @@ int main(int argc, char* argv[])
             break;
 #endif
         default:
-            ++i;
-            switch ( argv[i-1][1] )
+          ++i;
+          switch ( argv[i-1][1] )
             {
               //case 'O':  read_opts.push_back(argv[i]); break;
-              default: std::cerr << "Invalid option: " << argv[i] << std::endl;
+            default: std::cerr << "Invalid option: " << argv[i] << std::endl;
             }
-
-      }
+        }
     }
     // do file names
     else {
-      file_list.push_back( argv[i] );
+      infile = argv[i] ;
     }
   }
+
+  //If a volume constraint is given, find an optimal degree sequence to reach the desired volume constraint.
+  if (qc_vol){
+      exit(NOT_IMPLEMENTED);
+      //error = get_degree_seq(&moab, fileset, cvol, &num_levels, level_degrees);MB_CHK_ERR(error);
+    }
+
+  if (!parselevels || printusage)
+    exit(USAGE_ERROR);
 
   ErrorCode error;
   Core moab;
@@ -123,8 +143,11 @@ int main(int argc, char* argv[])
 
   //Create a fileset
   error = mb->create_meshset(MESHSET_SET, fileset);MB_CHK_ERR(error);
+
   //Set the read options for parallel file loading
-  std::string read_opts = NULL, write_opts = NULL;
+  std::vector<std::string> read_opts, write_opts;
+  std::string read_options, write_options;
+
   if (parallel){
       read_opts.push_back("PARALLEL=READ_PART");
       read_opts.push_back("PARTITION=PARALLEL_PARTITION");
@@ -134,53 +157,69 @@ int main(int argc, char* argv[])
       if (output)
         write_opts.push_back("PARALLEL=WRITE_PART");
     }
+
+      if (!make_opts_string(  read_opts,  read_options ) || !make_opts_string(  write_opts,  write_options ))
+        {
+#ifdef USE_MPI
+          MPI_Finalize();
+#endif
+          return USAGE_ERROR;
+        }
+
   //Load file
-  error = mb->load_file(file_list[0], &fileset, read_opts.c_str());MB_CHK_ERR(error);
+  error = mb->load_file(infile.c_str(), &fileset, read_options.c_str());MB_CHK_ERR(error);
 
   //Create the nestedrefine instance
-if (parallel){
-    ParallelComm *pc = new ParallelComm(&moab, MPI_COMM_WORLD);
-    NestedRefine uref(&moab,pc,fileset);
-  }
-else
-  NestedRefine uref(&moab,);
+#ifdef USE_MPI
+  ParallelComm *pc = new ParallelComm(&moab, MPI_COMM_WORLD);
+  NestedRefine uref(&moab,pc,fileset);
+#else
+  NestedRefine uref(&moab);
+#endif
 
-//If a volume constraint is given, find an optimal degree sequence to reach the desired volume constraint.
-Range entities;
-error = mb->get_entities_by_handle(fileset, entities);MB_CHK_ERR(error);
-if (qc_vol){
-    int nl_new = 0;
-    int *ldeg;
-    get_degree_seq(&moab, fileset, &nl_new, ldeg);MB_CHK_ERR(error);
+  std::vector<EntityHandle> lsets;
+  if (print_times)
+    std::cout<<"Starting hierarchy generation"<<std::endl;
 
+  double time_start = wtime();
+  int *ldeg =  new int[num_levels];
+  for (int i=0; i<num_levels; i++)
+    ldeg[i] = level_degrees[i];
+  error = uref.generate_mesh_hierarchy( num_levels,ldeg, lsets);MB_CHK_ERR(error);
+  double time_total = wtime() - time_start;
 
-  }
+  if (print_times)
+    std::cout<<"Finished hierarchy generation in "<<time_total<<"  secs"<<std::endl;
 
-std::vector<EntityHandle> lsets;
-if (print_times)
-  std::cout<<"Starting hierarchy generation"<<std::endl;
+  if (output){
+      for (int i=0; i<num_levels; i++){
 
-double time_start = wtime();
-error = uref.generate_mesh_hierarchy( num_levels,level_degrees, set); MB_CHK_ERR(error);
-double time_total = wtime() - time_start;
+          std::string::size_type idx = infile.find_last_of(".");
+          std::string file = infile.substr(0,idx);
+          std::stringstream out;
+          out <<  "_ML_" <<i+1<<".h5m";
+          file = file + out.str();
+        //  file <<  "_ML_" <<i+1<<".h5m";
+         // std::string str = file.str();
+          const char* output_file = file.c_str();
+          mb->write_file(output_file, 0, write_options.c_str(), &lsets[i+1], 1);
+        }
+    }
 
-if (print_times)
-  std::cout<<"Finished hierarchy generation in "<<time_total<<"  secs"<<std::endl;
+  delete [] ldeg;
 
-if (output){
-    for (int i=0; i<num_levels; i++){
-        const char *output_file = tmpstr.c_str();
-        mb->write_file(output_file, 0, write_opts, &lsets[l+1], 1);
-      }
-  }
+#ifdef USE_MPI
+  MPI_Finalize();
+#endif
 
-
+exit(SUCCESS);
 }
 
-void get_degree_seq(Core &moab,EntityHandle fileset, int &nl_new,int *ldeg)
+ErrorCode get_degree_seq(Core &moab,EntityHandle fileset, double desired_vol, int &num_levels,int *level_degs)
 {
   ErrorCode error;
   VerdictWrapper vw(&moab);
+
   Range entities;
   error = moab.get_entities_by_handle(fileset, entities);MB_CHK_ERR(error);
 
@@ -194,9 +233,10 @@ void get_degree_seq(Core &moab,EntityHandle fileset, int &nl_new,int *ldeg)
 
     }
 
+  return MB_SUCCESS;
 }
 
-void parse_id_list( const char* string, int nval, int *results )
+bool parse_id_list( const char* string, int dim, int nval, std::vector<int> results )
 {
   bool okay = true;
   char* mystr = strdup( string );
@@ -204,41 +244,76 @@ void parse_id_list( const char* string, int nval, int *results )
   {
     char* endptr;
     int val = strtol( ptr, &endptr, 0 );
+
+    if (dim==1 || dim == 2){
+        if(val != 2 && val != 3 && val != 5){
+            std::cerr <<"Not a valid degree for the passed dimension" << std::endl;
+            okay = false;
+            break;
+          }
+      }
+    else if (dim==3){
+        if(val != 2 && val != 3){
+            std::cerr <<"Not a valid degree for the passed dimension" << std::endl;
+            okay = false;
+            break;
+          }
+      }
+
     if (endptr == ptr || val <= 0) {
       std::cerr << "Not a valid id: " << ptr << std::endl;
       okay = false;
       break;
     }
 
-    int val2 = val;
-    if (*endptr == '-') {
-      const char* sptr = endptr+1;
-      val2 = strtol( sptr, &endptr, 0 );
-      if (endptr == sptr || val2 <= 0) {
-        std::cerr << "Not a valid id: " << sptr << std::endl;
-        okay = false;
-        break;
-      }
-      if (val2 < val) {
-        std::cerr << "Invalid id range: " << ptr << std::endl;
-        okay = false;
-        break;
-      }
-    }
-
-    if (*endptr) {
-      std::cerr << "Unexpected character: " << *endptr << std::endl;
-      okay = false;
-      break;
-    }
-
-    for (; val <= val2; ++val)
-      if (!results.insert( (int)val ).second)
-        std::cerr << "Warning: duplicate Id: " << val << std::endl;
-
+    results.push_back(val);
   }
+
+  assert((int)results.size()==nval);
 
   free( mystr );
   return okay;
+}
+
+bool make_opts_string( std::vector<std::string> options, std::string& opts )
+{
+  opts.clear();
+  if (options.empty())
+    return true;
+
+    // choose a separator character
+  std::vector<std::string>::const_iterator i;
+  char separator = '\0';
+  const char* alt_separators = ";+,:\t\n";
+  for (const char* sep_ptr = alt_separators; *sep_ptr; ++sep_ptr) {
+    bool seen = false;
+    for (i = options.begin(); i != options.end(); ++i)
+      if (i->find( *sep_ptr, 0 ) != std::string::npos) {
+        seen = true;
+        break;
+      }
+    if (!seen) {
+      separator = *sep_ptr;
+      break;
+    }
+  }
+  if (!separator) {
+    std::cerr << "Error: cannot find separator character for options string" << std::endl;
+    return false;
+  }
+  if (separator != ';') {
+    opts = ";";
+    opts += separator;
+  }
+
+    // concatenate options
+  i = options.begin();
+  opts += *i;
+  for (++i; i != options.end(); ++i) {
+    opts += separator;
+    opts += *i;
+  }
+
+  return true;
 }
 
