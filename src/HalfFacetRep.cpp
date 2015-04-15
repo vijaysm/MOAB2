@@ -206,14 +206,14 @@ namespace moab {
             error = pcomm->filter_pstatus(_acels, PSTATUS_GHOST, PSTATUS_NOT, -1, &_cells);MB_CHK_ERR(error);
 
             //In the 3D case, the edges on the interface should also be created.
-            if (!_cells.empty()){
+           /* if (!_cells.empty()){
                 Range bnd_edges;
                 error = mb->get_adjacencies(_faces,1,true,bnd_edges, Interface::UNION);MB_CHK_ERR(error);
 
                 _edges.insert(bnd_edges.begin(),bnd_edges.end());
 
                 error = mb->add_entities(this->_rset, bnd_edges);MB_CHK_ERR(error);
-              }
+              }*/
           }
         else {
             error = mb->get_entities_by_dimension( this->_rset, 0, _verts, true);MB_CHK_ERR(error);
