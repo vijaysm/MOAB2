@@ -294,14 +294,18 @@ DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-32bit=$enable_32b
 
 # Check if we are using new Darwin kernels with Clang -- needs libc++ instead of libstdc++
 if (test "x$ENABLE_FORTRAN" != "xno" && test "x$CHECK_FC" != "xno"); then
-  #AC_F77_WRAPPERS
-  ##AC_F77_LIBRARY_LDFLAGS
-  #AC_FC_WRAPPERS
-  ##AC_FC_LIBRARY_LDFLAGS
+
+  AC_LANG_PUSH([Fortran 77])
+  FAC_FC_WRAPPERS
+  AC_F77_MAIN
+  AC_F77_DUMMY_MAIN
+  AC_LANG_POP([Fortran 77])
 
   # check how to link against C++ runtime for fortran programs correctly
   AC_LANG_PUSH([Fortran])
-
+  FAC_FC_WRAPPERS
+  AC_FC_MAIN
+  AC_FC_DUMMY_MAIN
   fcxxlinkage=no
   if (test "$cc_compiler" == "Intel"); then
     my_save_ldflags="$LDFLAGS"
@@ -376,6 +380,49 @@ AC_DEFUN([FATHOM_TRY_COMPILER_DEFINE_GE], [
  [$3],[$4])
 ])
 
+# FAC_FC_WRAPPERS
+# ---------------
+# Defines C macros {F77,FC}_FUNC(name,NAME) and {F77,FC}_FUNC_(name,NAME) to
+# properly mangle the names of C identifiers, and C identifiers with
+# underscores, respectively, so that they match the name mangling
+# scheme used by the Fortran compiler.
+AC_DEFUN([FAC_FC_WRAPPERS],
+[_AC_FORTRAN_ASSERT()dnl
+AH_TEMPLATE(_AC_FC[_FUNC],
+    [Define to a macro mangling the given C identifier (in lower and upper
+     case), which must not contain underscores, for linking with Fortran.])dnl
+AH_TEMPLATE(_AC_FC[_FUNC_],
+    [As ]_AC_FC[_FUNC, but for C identifiers containing underscores.])dnl
+case $ac_cv_[]_AC_LANG_ABBREV[]_mangling in
+  "lower case, no underscore, no extra underscore")
+          AC_DEFINE(_AC_FC[_FUNC(name,NAME)],  [name])
+          AC_DEFINE(_AC_FC[_FUNC_(name,NAME)], [name]) ;;
+  "lower case, no underscore, extra underscore")
+          AC_DEFINE(_AC_FC[_FUNC(name,NAME)],  [name])
+          AC_DEFINE(_AC_FC[_FUNC_(name,NAME)], [name ## _]) ;;
+  "lower case, underscore, no extra underscore")
+          AC_DEFINE(_AC_FC[_FUNC(name,NAME)],  [name ## _])
+          AC_DEFINE(_AC_FC[_FUNC_(name,NAME)], [name ## _]) ;;
+  "lower case, underscore, extra underscore")
+          AC_DEFINE(_AC_FC[_FUNC(name,NAME)],  [name ## _])
+          AC_DEFINE(_AC_FC[_FUNC_(name,NAME)], [name ## __]) ;;
+  "upper case, no underscore, no extra underscore")
+          AC_DEFINE(_AC_FC[_FUNC(name,NAME)],  [NAME])
+          AC_DEFINE(_AC_FC[_FUNC_(name,NAME)], [NAME]) ;;
+  "upper case, no underscore, extra underscore")
+          AC_DEFINE(_AC_FC[_FUNC(name,NAME)],  [NAME])
+          AC_DEFINE(_AC_FC[_FUNC_(name,NAME)], [NAME ## _]) ;;
+  "upper case, underscore, no extra underscore")
+          AC_DEFINE(_AC_FC[_FUNC(name,NAME)],  [NAME ## _])
+          AC_DEFINE(_AC_FC[_FUNC_(name,NAME)], [NAME ## _]) ;;
+  "upper case, underscore, extra underscore")
+          AC_DEFINE(_AC_FC[_FUNC(name,NAME)],  [NAME ## _])
+          AC_DEFINE(_AC_FC[_FUNC_(name,NAME)], [NAME ## __]) ;;
+  *)
+          AC_MSG_WARN([unknown Fortran name-mangling scheme])
+          ;;
+esac
+])# FAC_FC_WRAPPERS
 
 #######################################################################################
 # Check for compiler-specific flags.
