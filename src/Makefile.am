@@ -195,6 +195,7 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/Matrix3.hpp \
   moab/MergeMesh.hpp \
   moab/MeshTopoUtil.hpp \
+  moab/MOABConfig.h \
   moab/OrientedBoxTreeTool.hpp \
   moab/ProgOptions.hpp \
   moab/Range.hpp \
