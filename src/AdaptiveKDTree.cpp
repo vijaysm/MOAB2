@@ -270,7 +270,7 @@ namespace moab {
       rval = make_tag(moab(), tagname, MB_TAG_DENSE, MB_TYPE_OPAQUE, sizeof(Plane), 0, planeTag, ctl);
       if (MB_SUCCESS != rval) return rval;
 
-#ifdef HDF5_FILE  
+#ifdef MOAB_HAVE_HDF5  
         // create a mesh tag holding the HDF5 type for a struct Plane
       Tag type_tag;
       std::string type_tag_name = "__hdf5_tag_type_";

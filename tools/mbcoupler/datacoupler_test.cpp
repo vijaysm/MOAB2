@@ -8,7 +8,7 @@
 #include <sstream>
 #include <assert.h>
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab/ParallelComm.hpp"
 #include "MBParallelConventions.h"
 #endif
@@ -62,7 +62,7 @@ void print_usage(char **argv)
   std::cerr << "    -meth <method> (0=CONSTANT, 1=LINEAR_FE, 2=QUADRATIC_FE, 3=SPECTRAL)" << std::endl;
 }
 
-#ifdef HDF5_FILE
+#ifdef MOAB_HAVE_HDF5
 
 ErrorCode get_file_options(int argc, char **argv,
                            std::vector<std::string> &meshFiles,
@@ -85,7 +85,7 @@ ErrorCode get_file_options(int argc, char **argv,
 //                           std::string &out_fname,
 //                           std::string &opts);
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 ErrorCode report_iface_ents(Interface *mbImpl,
                             std::vector<ParallelComm*> &pcs,
                             bool print_results);
@@ -118,9 +118,13 @@ void reduceMax(double &v)
 
 int main(int argc, char **argv)
 {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   // Need to init MPI first, to tell how many procs and rank
   int err = MPI_Init(&argc, &argv);
+  if (err != 0) {
+    std::cout << "MPI Initialization did not succeed.\n";
+    exit(1);
+  }
 #endif
 
   std::vector<const char*> ssTagNames, ssTagValues;
@@ -137,15 +141,19 @@ int main(int argc, char **argv)
 
   if (result != MB_SUCCESS || help) {
     print_usage(argv);
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     err = MPI_Finalize();
+    if (err != 0) {
+      std::cout << "MPI Initialization did not succeed.\n";
+      exit(1);
+    }
 #endif
     return 1;
   }
 
   int nprocs = 1, rank = 0;
 
-#ifdef USE_MPI  
+#ifdef MOAB_HAVE_MPI  
   err = MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   err = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   std::vector<ParallelComm*> pcs(meshFiles.size());
@@ -174,7 +182,7 @@ int main(int argc, char **argv)
   for (unsigned int i = 0; i < meshFiles.size(); i++) {
     std::string newReadopts;
     std::ostringstream extraOpt;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     pcs[i] = new ParallelComm(mbImpl, MPI_COMM_WORLD);
     int index = pcs[i]->get_id();
     extraOpt << ";PARALLEL_COMM=" << index;
@@ -187,7 +195,7 @@ int main(int argc, char **argv)
     PRINT_LAST_ERROR;
   }
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   result = report_iface_ents(mbImpl, pcs, true);
   PRINT_LAST_ERROR;
 #endif
@@ -216,7 +224,7 @@ int main(int argc, char **argv)
     partSets.insert((EntityHandle)roots[1]);
     std::string newwriteOpts = writeOpts;
     std::ostringstream extraOpt;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     extraOpt << ";PARALLEL_COMM=" << 1;
     newwriteOpts += extraOpt.str();
 #endif
@@ -226,7 +234,7 @@ int main(int argc, char **argv)
     std::cout << "mbcoupler_test complete." << std::endl;
   }
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   for (unsigned int i = 0; i < meshFiles.size(); i++)
     delete pcs[i];
 #endif
@@ -234,14 +242,14 @@ int main(int argc, char **argv)
   delete mbImpl;
   // May be leaking iMeshInst, don't care since it's end of program. Remove above deletes?
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   err = MPI_Finalize();
 #endif
 
   return 0;
 }
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 ErrorCode report_iface_ents(Interface *mbImpl,
                             std::vector<ParallelComm*> &pcs,
                             const bool print_results)
@@ -513,7 +521,7 @@ ErrorCode get_file_options(int argc, char **argv,
     std::cout << "Interpolation field name not given, using default of " << interpTag << std::endl;
   }
 
-#ifdef HDF5_FILE
+#ifdef MOAB_HAVE_HDF5
   if (1 == argc) {
     std::cout << "No arguments given; using output file dum.h5m." << std::endl;
     outFile = "dum.h5m";
@@ -563,7 +571,7 @@ ErrorCode test_interpolation(Interface *mbImpl,
   // In that case, the points of interest are the GL points, not the vertex nodes
   std::vector<double> vpos; // This will have the positions we are interested in
   int numPointsOfInterest = 0;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   result = pcs[1]->get_part_entities(targ_elems, 3);
 #endif
   PRINT_LAST_ERROR;
@@ -576,7 +584,7 @@ ErrorCode test_interpolation(Interface *mbImpl,
                                      Interface::UNION);
   PRINT_LAST_ERROR;
 
-#ifdef USE_MPI  
+#ifdef MOAB_HAVE_MPI  
   // Then get non-owned verts and subtract
   Range tmp_verts;
   result = pcs[1]->get_pstatus_entities(0, PSTATUS_NOT_OWNED, tmp_verts);
@@ -590,7 +598,7 @@ ErrorCode test_interpolation(Interface *mbImpl,
   PRINT_LAST_ERROR;
 
   // Locate those points in the source mesh
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   std::cout << "rank " << pcs[0]->proc_config().proc_rank();
 #endif
   std::cout << " points of interest: " << numPointsOfInterest << "\n";

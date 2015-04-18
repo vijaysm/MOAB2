@@ -28,7 +28,7 @@ libFBiGeomMOAB_la_include_HEADERS = \
 
 # stuff for test program
 check_PROGRAMS =
-if HDF5_FILE
+if HAVE_HDF5
   check_PROGRAMS += testgeom  testSmoothGeom testSmooth2
 
 testgeom_SOURCES = testgeom.cc

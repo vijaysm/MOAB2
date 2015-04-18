@@ -70,14 +70,14 @@
 #include <stdarg.h>
 #include <string.h>
 #include <math.h>
-#ifdef USE_MPI
+#include "moab/gs.hpp"
+#ifdef MOAB_HAVE_MPI
 #  include "moab_mpi.h"
 #endif
 
-#include "moab/gs.hpp"
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 
-#ifdef VALGRIND
+#ifdef MOAB_HAVE_VALGRIND
 #  include <valgrind/memcheck.h>
 #elif !defined(VALGRIND_CHECK_MEM_IS_DEFINED)
 #  define VALGRIND_CHECK_MEM_IS_DEFINED(a,b) ((void)0)
@@ -193,7 +193,7 @@ static void local_uncondense_vec(realType *u, uint n, const sint *cm)
  Non-local Execution Phases
  --------------------------------------------------------------------------*/
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 
 void gs_data::nonlocal_info::initialize(uint np, uint count,
     uint nlabels, uint nulabels, uint maxv)
@@ -705,7 +705,7 @@ ErrorCode gs_data::crystal_data::gs_transfer(int dynamic,
 void gs_data::gs_data_op(realType *u, int op)
 {
   local_condense(u, op, this->local_cm);
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   this->nlinfo->nonlocal(u,op,_comm);
 #endif
   local_uncondense(u, local_cm);
@@ -713,13 +713,13 @@ void gs_data::gs_data_op(realType *u, int op)
 
 void gs_data::gs_data_op_vec(realType *u, uint n, int op)
 {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   if (n>nlinfo->_maxv)
     moab::fail("%s: initialized with max vec size = %d,"
       " but called with vec size = %d\n",__FILE__,nlinfo->_maxv,n);
 #endif
   local_condense_vec(u, n, op, local_cm);
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   this->nlinfo->nonlocal_vec(u,n,op,_comm);
 #endif
   local_uncondense_vec(u, n, local_cm);
@@ -728,7 +728,7 @@ void gs_data::gs_data_op_vec(realType *u, uint n, int op)
 void gs_data::gs_data_op_many(realType **u, uint n, int op)
 {
   uint i;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   if (n>nlinfo->_maxv)
     moab::fail("%s: initialized with max vec size = %d,"
       " but called with vec size = %d\n",__FILE__,nlinfo->_maxv,n);
@@ -739,7 +739,7 @@ void gs_data::gs_data_op_many(realType **u, uint n, int op)
   moab::fail("%s: initialized with max vec size = %d,"
       " but called with vec size = %d\n", __FILE__, 6, n);
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   this->nlinfo->nonlocal_many(u,n,op,_comm);
 #endif
   for (i = 0; i < n; ++i)
@@ -758,14 +758,14 @@ ErrorCode gs_data::initialize(uint n, const long *label, const ulong *ulabel,
   unsigned int j;
   TupleList nonzero, primary;
   ErrorCode rval;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   TupleList shared;
 #else
   moab::TupleList::buffer buf;
 #endif
   (void)VALGRIND_CHECK_MEM_IS_DEFINED(label, nlabels * sizeof(long));
   (void)VALGRIND_CHECK_MEM_IS_DEFINED(ulabel, nlabels * sizeof(ulong));
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Comm_dup(crystal->_comm,&this->_comm);
 #else
   buf.buffer_init(1024);
@@ -798,7 +798,7 @@ ErrorCode gs_data::initialize(uint n, const long *label, const ulong *ulabel,
   }
 
   /* sort nonzeros by label: (index ^2, label ^1) */
-#ifndef USE_MPI
+#ifndef MOAB_HAVE_MPI
   nonzero.sort(1, &buf);
 #else
   nonzero.sort(1,&crystal->all->buf);
@@ -849,7 +849,7 @@ ErrorCode gs_data::initialize(uint n, const long *label, const ulong *ulabel,
 
   /* sort unique labels by primary index:
    (nonzero index ^2, primary index ^1, count, label ^2) */
-#ifndef USE_MPI
+#ifndef MOAB_HAVE_MPI
   primary.sort(0, &buf);
   buf.reset();
   //buffer_free(&buf);
@@ -873,7 +873,7 @@ ErrorCode gs_data::initialize(uint n, const long *label, const ulong *ulabel,
     *cm++ = -1;
   }
   nonzero.reset();
-#ifndef USE_MPI
+#ifndef MOAB_HAVE_MPI
   primary.reset();
 #else
   /* assign work proc by label modulo np */
@@ -895,7 +895,7 @@ ErrorCode gs_data::initialize(uint n, const long *label, const ulong *ulabel,
     primary.resize( (primary.get_max() ? primary.get_max()+(primary.get_max()+1)/2+1 : 2));
   primary.vl_wr[nlabels*primary.get_n()] = -1;
   /* construct shared list: (proc1, proc2, index1, label) */
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   shared.initialize(3,nlabels,nulabels,0,primary.get_n());
   shared.enableWriteAccess();
 #endif
@@ -1006,7 +1006,7 @@ void gs_data::reset()
 {
   free(local_cm);
   local_cm = NULL;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   if(nlinfo != NULL)
   {
     nlinfo->nlinfo_free();

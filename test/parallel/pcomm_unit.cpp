@@ -13,7 +13,7 @@
 
 using namespace moab;
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #  include "moab_mpi.h"
 #else
 #  define MPI_COMM_WORLD 0
@@ -57,7 +57,7 @@ void test_filter_pstatus();
 
 int main( int argc, char* argv[] )
 {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Init( &argc, &argv );
 #endif
 
@@ -80,7 +80,7 @@ int main( int argc, char* argv[] )
   num_err += RUN_TEST( test_pack_shared_entities_3d );
   num_err += RUN_TEST( test_filter_pstatus );
   
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Finalize();
 #endif
   return num_err;

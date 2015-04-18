@@ -6,12 +6,12 @@
 #include "RefinerTagManager.hpp"
 #include "MeshOutputFunctor.hpp"
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab/ParallelComm.hpp"
 #include "moab_mpi.h"
-#else // USE_MPI
+#else // MOAB_HAVE_MPI
 typedef int MPI_Comm;
-#endif // USE_MPI
+#endif // MOAB_HAVE_MPI
 
 namespace moab {
 

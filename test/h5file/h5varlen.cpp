@@ -2,7 +2,7 @@
 #include "TestUtil.hpp"
 #include "moab/Range.hpp"
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab_mpi.h"
 #endif
 
@@ -50,7 +50,7 @@ while (false)
 
 int main(int argc, char* argv[])
 {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   int fail = MPI_Init(&argc, &argv);
   if (fail) return fail;
 #endif
@@ -75,7 +75,7 @@ int main(int argc, char* argv[])
   err_count += RUN_TEST( test_var_length_handle_tag );
   err_count += RUN_TEST( test_var_length_data_big );
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   fail = MPI_Finalize();
   if (fail) return fail;
 #endif

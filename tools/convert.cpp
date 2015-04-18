@@ -37,7 +37,7 @@
 #  include <unistd.h>
 #endif
 #include <time.h>
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #  include "moab_mpi.h"
 #endif
 #include <stdio.h>
@@ -65,7 +65,7 @@ static void print_usage( const char* name, std::ostream& stream )
     << "\t-h             - Print this help text and exit." << std::endl
     << "\t-l             - List available file formats and exit." << std::endl
     << "\t-I <dim>       - Generate internal entities of specified dimension." << std::endl
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     << "\t-P             - Append processor ID to output file name" << std::endl
     << "\t-p             - Replace '%' with processor ID in input and output file name" << std::endl
     << "\t-M[0|1|2]      - Read/write in parallel, optionally also doing resolve_shared_ents (1) and exchange_ghosts (2)" << std::endl
@@ -117,7 +117,7 @@ static void print_help( const char* name )
 static void usage_error( const char* name )
 {
   print_usage( name, std::cerr );
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Finalize();
 #endif
   exit(USAGE_ERROR);
@@ -137,7 +137,7 @@ static std::string percent_subst( const std::string& s, int val );
 int main(int argc, char* argv[])
 {
   int proc_id = 0;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Init(&argc,&argv);
   MPI_Comm_rank( MPI_COMM_WORLD, &proc_id );
 #endif
@@ -194,7 +194,7 @@ int main(int argc, char* argv[])
         case 'h': 
         case 'H': print_help( argv[0] ); break;
         case 'l': list_formats( gMB );   break;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
         case 'P': append_rank = true;    break;
         case 'p': percent_rank_subst = true; break;
         case 'M':
@@ -286,7 +286,7 @@ int main(int argc, char* argv[])
   if (!make_opts_string(  read_opts,  read_options ) ||
       !make_opts_string( write_opts, write_options )) 
   {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     MPI_Finalize();
 #endif
     return USAGE_ERROR;
@@ -303,7 +303,7 @@ int main(int argc, char* argv[])
       std::string message;
       if (MB_SUCCESS == gMB->get_last_error(message) && !message.empty())
         std::cerr << "Error message: " << message << std::endl;
-  #ifdef USE_MPI
+  #ifdef MOAB_HAVE_MPI
       MPI_Finalize();
   #endif
       return READ_ERROR;
@@ -483,7 +483,7 @@ int main(int argc, char* argv[])
   if (have_sets && set_list.empty())
   {
     std::cerr << "Nothing to write." << std::endl;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     MPI_Finalize();
 #endif
     return ENT_NOT_FOUND;
@@ -511,7 +511,7 @@ int main(int argc, char* argv[])
     std::string message;
     if (MB_SUCCESS == gMB->get_last_error(message) && !message.empty())
       std::cerr << "Error message: " << message << std::endl;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     MPI_Finalize();
 #endif
     return WRITE_ERROR;
@@ -520,7 +520,7 @@ int main(int argc, char* argv[])
   if (!proc_id) std::cerr << "Wrote \"" << out << "\"" << std::endl;
   if (print_times && !proc_id) write_times( std::cout );
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Finalize();
 #endif
   return 0;

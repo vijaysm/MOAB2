@@ -45,7 +45,7 @@
 #include "moab/CartVect.hpp"
 #include "moab/WriteUtilIface.hpp"
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab_mpi.h"
 #endif
 
@@ -86,7 +86,7 @@ string TestDir( "." );
             std::cerr << "Test failed at " __FILE__ ":" << __LINE__ << std::endl; \
             return MB_FAILURE; } } while(false)
 
-#if NETCDF_FILE
+#if MOAB_HAVE_NETCDF
 ErrorCode load_file_one( Interface* iface )
 {
   std::string file_name = TestDir + "/mbtest1.g";
@@ -517,7 +517,7 @@ ErrorCode mb_adjacent_vertex_test()
   
   return MB_SUCCESS;
 }
-#if NETCDF_FILE
+#if MOAB_HAVE_NETCDF
 ErrorCode mb_adjacencies_test() 
 {
   Core moab;
@@ -2463,7 +2463,7 @@ static const EntityType types[] = { MBVERTEX, MBEDGE, MBTRI, MBQUAD, MBTET, MBHE
 const int num_types = sizeof(types)/sizeof(types[0]);
 static const unsigned int num_entities[num_types+1] = {47,12,18,8,22,8,0};
 
-#if NETCDF_FILE
+#if MOAB_HAVE_NETCDF
 ErrorCode mb_delete_mesh_test()
 {
   Core moab;
@@ -3238,7 +3238,7 @@ ErrorCode mb_bit_tags_test()
   return MB_SUCCESS;
 }
 
-#if NETCDF_FILE
+#if MOAB_HAVE_NETCDF
 ErrorCode mb_tags_test()
 {
   Core moab;
@@ -3596,7 +3596,7 @@ private:
   double mCoords[3];
   double mOffset[3];
 };
-#if NETCDF_FILE
+#if MOAB_HAVE_NETCDF
 ErrorCode mb_entity_conversion_test()
 {
   ErrorCode error;
@@ -4625,7 +4625,7 @@ ErrorCode mb_merge_update_test()
 
   return MB_SUCCESS;
 }
-#if NETCDF_FILE
+#if MOAB_HAVE_NETCDF
 ErrorCode mb_stress_test()
 {
   ErrorCode error;
@@ -8289,7 +8289,7 @@ static void _run_test( TestFunc func, const char* func_str )
 
 int main(int argc, char* argv[])
 {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   int fail = MPI_Init(&argc, &argv);
   if (fail) return fail;
 #endif
@@ -8297,7 +8297,7 @@ int main(int argc, char* argv[])
   argv0 = argv[0];
 
     // Check command line arg to see if we should avoid doing the stress test
-#if NETCDF_FILE
+#if MOAB_HAVE_NETCDF
   bool stress_test = true;
 #endif
 
@@ -8312,7 +8312,7 @@ int main(int argc, char* argv[])
 
     if (string(argv[i]) == "-d" && (i+1) < argc)
       TestDir = argv[++i];
-#if NETCDF_FILE
+#if MOAB_HAVE_NETCDF
     else if (string(argv[i]) == "-nostress")
       stress_test = false;
 #endif
@@ -8349,7 +8349,7 @@ int main(int argc, char* argv[])
   RUN_TEST( mb_sparse_tag_test );
   RUN_TEST( mb_higher_order_test );
   RUN_TEST( mb_bit_tags_test );
-#if NETCDF_FILE
+#if MOAB_HAVE_NETCDF
   RUN_TEST( mb_adjacencies_test );
   RUN_TEST( mb_tags_test );
   RUN_TEST( mb_delete_mesh_test );
@@ -8401,7 +8401,7 @@ int main(int argc, char* argv[])
   RUN_TEST( mb_type_is_maxtype_test );
   RUN_TEST( mb_root_set_test );
   RUN_TEST( mb_merge_test );
-#if NETCDF_FILE
+#if MOAB_HAVE_NETCDF
   if (stress_test) RUN_TEST( mb_stress_test );
 #endif
 
@@ -8413,7 +8413,7 @@ int main(int argc, char* argv[])
        << "   Number Failed:          " << number_tests_failed 
        << "\n\n";
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   fail = MPI_Finalize();
   if (fail) return fail;
 #endif
