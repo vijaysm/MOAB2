@@ -1414,7 +1414,6 @@ AC_CONFIG_FILES([Makefile
                  src/LocalDiscretization/Makefile
                  src/RefineMesh/Makefile
                  src/parallel/Makefile
-                 src/oldinc/Makefile
                  src/verdict/Makefile
                  test/Makefile
                  test/dagmc/Makefile
@@ -1425,7 +1424,6 @@ AC_CONFIG_FILES([Makefile
                  test/perf/point_location/Makefile
                  test/io/Makefile
                  test/parallel/Makefile
-                 test/oldinc/Makefile
                  itaps/iBase_f.h
                  itaps/Makefile
                  itaps/imesh/Makefile
