@@ -88,5 +88,5 @@ moab.config: config.status Makefile.am
 	  tr "'" "\n" | \
 	  sed -e '/^ *$$/d' > $@
 
-CLEANFILES = moab.config a.out
+CLEANFILES = moab.config a.out configs.sed
 
