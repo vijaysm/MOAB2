@@ -23,8 +23,7 @@ LloydSmoother::LloydSmoother(Interface *impl, ParallelComm *pc, Range &elms, Tag
 LloydSmoother::~LloydSmoother() 
 {
   if (iCreatedTag && fixedTag) {
-    ErrorCode rval = mbImpl->tag_delete(fixedTag);
-    if (rval) throw rval;
+    ErrorCode rval = mbImpl->tag_delete(fixedTag);MB_CHK_SET_ERR_RET(rval, "Failed to delete the fixed tag");
   }
 }
 
