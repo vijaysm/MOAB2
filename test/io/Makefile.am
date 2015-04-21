@@ -47,6 +47,7 @@ TESTS = readutil_test \
 	$(EXODUS_TEST) \
         gmsh_test \
 	nastran_test \
+	abaqus_test \
 	$(NC_TEST) \
         ideas_test \
         stl_test \
@@ -87,6 +88,7 @@ read_cgm_group_test_SOURCES = $(srcdir)/../TestUtil.hpp read_cgm_group_test.cpp
 read_cgm_group_test_CXXFLAGS = $(CGM_CPPFLAGS) $(CGM_LIBS)  $(CXXFLAGS)
 readutil_test_SOURCES = $(srcdir)/../TestUtil.hpp readutil_test.cpp
 cgns_test_SOURCES=$(srcdir)/../TestUtil.hpp cgns_test.cpp
+abaqus_test_SOURCES=$(srcdir)/../TestUtil.hpp abaqus_test.cpp
 
 MOSTLYCLEANFILES = dumped_acis.sat \
                    gcrm.h5m \

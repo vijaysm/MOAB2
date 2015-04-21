@@ -23,6 +23,7 @@ EXTRA_DIST = HommeMapping.nc \
 	     singlecyl.ccmg \
              test.cub \
              test.nas \
+             tet4.abq \
              test.unv \
 	     sample.stl \
              three.smf \

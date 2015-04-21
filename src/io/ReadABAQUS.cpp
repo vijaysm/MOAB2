@@ -185,7 +185,8 @@ ErrorCode ReadABAQUS::load_file(const char *abaqus_file_name,
     next_line_type = get_next_line_type();
   }
 
-  // Temporary??? delete parts
+  return MB_SUCCESS;
+  /*// Temporary??? delete parts
   // Get all node sets in part
   Range part_sets;
   int tag_val = ABQ_PART_SET;
@@ -243,10 +244,10 @@ ErrorCode ReadABAQUS::load_file(const char *abaqus_file_name,
     MB_RETURN_IF_FAIL;
   }
 
-  return mdbImpl->delete_entities(&file_set, 1);
+  return mdbImpl->delete_entities(&file_set, 1);*/
 }
 
-ErrorCode ReadABAQUS::read_heading(EntityHandle /*file_set*/)
+ErrorCode ReadABAQUS::read_heading(EntityHandle file_set)
 {
   std::vector<std::string> tokens;
 
