@@ -3,7 +3,6 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/src/io
-    ${CMAKE_SOURCE_DIR}/src/oldinc
     ${CMAKE_SOURCE_DIR}/src/LocalDiscretization
     ${CMAKE_SOURCE_DIR}/itaps
     ${CMAKE_BINARY_DIR}/itaps
@@ -18,7 +17,6 @@ if( MOAB_HAVE_HDF5 )
   add_subdirectory(h5file)
 endif()
 add_subdirectory(obb)
-add_subdirectory(oldinc)
 add_subdirectory(perf)
 
 set(TEST_COMP_FLAGS "-DMESHDIR=${MOAB_ABSSRC_DIR}/MeshFiles/unittest")
