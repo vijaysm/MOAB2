@@ -1394,15 +1394,17 @@ AC_SUBST([AM_FFLAGS])
 AC_ARG_VAR([FC], [FORTRAN compiler command])
 # AC_CONFIG_HEADERS([config.h])
 # Create a temporary file with e.g. HAVE_MPI
-AC_CONFIG_HEADERS([.MOABConfig.h:config/MOABConfig.h.in])
+#AC_CONFIG_HEADERS([.MOABConfig.h:config/MOABConfig.h.in])
 # Prefixes everything in the temporary file with MOAB_, e.g. MOAB_HAVE_MPI
-AX_PREFIX_CONFIG_H([src/moab/MOABConfig.h],[MOAB],[.MOABConfig.h])
-
+#AX_PREFIX_CONFIG_H([src/moab/MOABConfig.h],[MOAB],[.MOABConfig.h])
 
 AC_CONFIG_HEADERS([src/moab/Version.h
                    src/moab/EntityHandle.hpp
                    src/parallel/moab_mpi_config.h
-                   src/FCDefs.h])
+                   src/FCDefs.h
+                   src/moab/MOABConfig.h:config/MOABConfig.h.in])
+AX_PREFIX_CONFIG_H([src/moab/MOABConfig.h],[MOAB],[src/moab/MOABConfig.h])
+
 AC_CONFIG_FILES([Makefile 
                  moab.make                  
                  MOABConfig.cmake
