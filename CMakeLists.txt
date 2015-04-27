@@ -126,7 +126,7 @@ option ( ENABLE_TESTING "Enable Testing"                                  ON  )
 option ( MOAB_FORCE_64_BIT_HANDLES "Force MBEntityHandle to be 64 bits (uint64_t)" OFF )
 option ( MOAB_FORCE_32_BIT_HANDLES "Force MBEntityHandle to be 32 bits (uint32_t)" OFF )
 
-option ( ENABLE_IMESH        "Should build IMESH?"       OFF )
+option ( ENABLE_IMESH        "Should build IMESH?"       ON )
 option ( ENABLE_IGEOM        "Should build IGEOM?"       OFF )
 
 mark_as_advanced(
@@ -331,7 +331,7 @@ CONFIGURE_FILE(
 #  OUTPUT_STRIP_TRAILING_WHITESPACE
 #  )
 CONFIGURE_FILE(config/MOABConfig.cmake.h.in "${PROJECT_BINARY_DIR}/src/moab/MOABConfig.h" @ONLY)
-INSTALL( FILES "${PROJECT_BINARY_DIR}/src/moab/lib/MOABConfig.h" DESTINATION include ) 
+#INSTALL( FILES "${PROJECT_BINARY_DIR}/src/moab/MOABConfig.h" DESTINATION include ) 
 
 CONFIGURE_FILE(MOABConfig.new.cmake.in "${PROJECT_BINARY_DIR}/MOABConfig.cmake" @ONLY)
 CONFIGURE_FILE(moab.make.in "${PROJECT_BINARY_DIR}/lib/moab.make" @ONLY)

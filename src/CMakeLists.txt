@@ -200,7 +200,9 @@ set( MOAB_INSTALL_HEADERS
 set( MOAB_GENERATED_INSTALL_HEADERS
      ${CMAKE_CURRENT_BINARY_DIR}/MOAB_FCDefs.h
      ${CMAKE_CURRENT_BINARY_DIR}/MBCN_protos.h
-     ${CMAKE_CURRENT_BINARY_DIR}/moab/EntityHandle.hpp )
+     ${CMAKE_CURRENT_BINARY_DIR}/moab/EntityHandle.hpp
+     ${CMAKE_CURRENT_BINARY_DIR}/moab/MOABConfig.h
+  )
 
 if( MOAB_HAVE_CGM )
   set( MOAB_CGM_LIBS ${CGM_LIBRARIES} )
@@ -211,8 +213,8 @@ if (MOAB_HAVE_ZOLTAN)
           ZoltanPartitioner.cpp )
   set( MOAB_INSTALL_HEADERS ${MOAB_INSTALL_HEADERS}
           moab/ZoltanPartitioner.hpp )
-  include_directories( ${Zoltan_INCLUDES} )
-  list(APPEND MOAB_DEP_LIBRARIES ${Zoltan_LIBRARIES})
+  include_directories( ${ZOLTAN_INCLUDES} )
+  list(APPEND MOAB_DEP_LIBRARIES ${ZOLTAN_LIBRARIES})
 endif()
 add_library( MOAB ${MOAB_LIB_SOURCES} ${MOAB_INSTALL_HEADERS} ${MOAB_GENERATED_INSTALL_HEADERS}
                   $<TARGET_OBJECTS:moabio>
