@@ -592,6 +592,7 @@ AC_ARG_WITH([parmetis],
                  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-parmetis=\"${withval}\""
 		 ;;
                esac] )
+AM_CONDITIONAL(ENABLE_parmetis, [test "x" != "x$PARMETIS_DIR"])
 
 # If user specified with-metis, then assume they are trying
 # to add an additional library search directory in which to check
@@ -608,18 +609,22 @@ AC_ARG_WITH([metis],
                  METIS_DIR="$withval"
                  test -d "$withval" || AC_MSG_ERROR([Not a directory: with-metis=$withval])
                  if test -d "$withval/lib"; then
-                   ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval/lib"
+                   METIS_LIB_FLAGS="-L$withval/lib"
                  else
-                   ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval"
+                   METIS_LIB_FLAGS="-L$withval"
                  fi
+                 METIS_LIBS="$METIS_LIB_FLAGS -lmetis"
+                 ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS $METIS_LIB_FLAGS"
                  if test -d "$withval/include"; then
-                   ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$withval/include"
+                   METIS_INC_FLAGS="-I$withval/include"
                  else
-                   ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$withval"
+                   METIS_INC_FLAGS="-I$withval"
                  fi
+                 ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS $METIS_INC_FLAGS"
                  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-metis=\"${withval}\""
      ;;
                esac] )
+AM_CONDITIONAL(ENABLE_metis, [test "x" != "x$METIS_DIR"])
 
 # If user specified with-scotch, then assume they are trying
 # to add an additional library search directory in which to check

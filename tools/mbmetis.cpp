@@ -29,7 +29,7 @@
 #include <stdlib.h>
 #include <list>
 #include <time.h>
-#include "MetisMOABPartitioner.hpp"
+#include "moab/MetisPartitioner.hpp"
 
 const char DEFAULT_TAGGEDSETS_TAG[] = "PARALLEL_PARTITION";
 const char ALTERNATIVE_METIS_METHOD[] = "ML_RB";

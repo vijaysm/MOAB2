@@ -92,6 +92,14 @@ else
   mbcoupler_DIR=
 endif
 
+if ENABLE_metis
+  bin_PROGRAMS += mbmetis
+  AM_CPPFLAGS += $(METIS_IN_FLAGS)
+  AM_LDFLAGS += $(METIS_LIB_FLAGS)
+  mbmetis_SOURCES = mbmetis.cpp
+  mbmetis_LDADD = $(top_builddir)/src/libMOAB.la $(METIS_LIBS)
+endif
+
 if ENABLE_mbpart
   bin_PROGRAMS += mbpart
   AM_CPPFLAGS += $(ZOLTAN_INC_FLAGS)
