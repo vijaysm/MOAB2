@@ -59,8 +59,16 @@ int main( int argc, char* argv[] )
     {
       /*printf(" tag index %d is parallel partition tag\n", i);*/
       if (tag_desc->have_sparse) {
-
         mhdf_openSparseTagData(file, pname, &nval, &junk, table, &status);
+        if (mhdf_isError( &status )) {
+          fprintf( stderr,"%s: %s\n", argv[1], mhdf_message( &status ) );
+          return 1;
+        }
+      }
+      else
+      {
+        /* could be dense tags on sets */
+        mhdf_openDenseTagData(file, pname, mhdf_set_type_handle(), &nval, &status);
         if (mhdf_isError( &status )) {
           fprintf( stderr,"%s: %s\n", argv[1], mhdf_message( &status ) );
           return 1;
