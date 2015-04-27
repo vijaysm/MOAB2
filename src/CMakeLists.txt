@@ -211,8 +211,8 @@ if (MOAB_HAVE_ZOLTAN)
           ZoltanPartitioner.cpp )
   set( MOAB_INSTALL_HEADERS ${MOAB_INSTALL_HEADERS}
           moab/ZoltanPartitioner.hpp )
-  include_directories( ${Zoltan_INCLUDES} )
-  list(APPEND MOAB_DEP_LIBRARIES ${Zoltan_LIBRARIES})
+  include_directories( ${ZOLTAN_INCLUDES} )
+  list(APPEND MOAB_DEP_LIBRARIES ${ZOLTAN_LIBRARIES})
 endif()
 add_library( MOAB ${MOAB_LIB_SOURCES} ${MOAB_INSTALL_HEADERS} ${MOAB_GENERATED_INSTALL_HEADERS}
                   $<TARGET_OBJECTS:moabio>
