@@ -30,7 +30,7 @@ set ( MOAB_IMESH_LIB_INCLUDES
           ${CMAKE_CURRENT_BINARY_DIR}/iMesh_protos.h
           MBiMesh.hpp )
 
-if ( MOAB_USE_MPI )
+if ( MOAB_HAVE_MPI )
   include_directories( ${CMAKE_SOURCE_DIR}/src/parallel
                        ${CMAKE_BINARY_DIR}/src/parallel)
   ADD_CUSTOM_COMMAND(
@@ -65,7 +65,7 @@ include_directories( ${CMAKE_CURRENT_SOURCE_DIR}
                      ${CMAKE_SOURCE_DIR}/itaps
                      ${CMAKE_BINARY_DIR}/itaps )
 
-if ( MOAB_USE_HDF5 AND HDF5_FOUND )
+if ( MOAB_HAVE_HDF5 AND HDF5_FOUND )
   include_directories( ${HDF5_INCLUDE_DIRECTORIES}
                        ${CMAKE_SOURCE_DIR}/src/io/mhdf/include )
 endif( )
