@@ -19,7 +19,7 @@ using namespace moab;
 
 // Generic function to create two tris from a quad. This can be improved later.
 ErrorCode make_tris_from_quad( Interface *MBI,
-                                 EntityHandle quad,  /* intput */
+                                 EntityHandle quad,  /* input */
                                  EntityHandle &tri0, /* output */
 				 EntityHandle &tri1  /* output */) {
   
@@ -110,7 +110,7 @@ ErrorCode quads_to_tris( Interface *MBI, EntityHandle input_meshset ) {
   // ******************************************************************
   // Loop over every surface meshset and grab each surface's quads.
   // ******************************************************************
-  for( Range::iterator i=surface_meshsets.begin(); i!=surface_meshsets.end(); i++ ) {
+  for( Range::iterator i=surface_meshsets.begin(); i!=surface_meshsets.end(); ++i ) {
 
     // get the surface id of the surface meshset
     int surf_id=0;
@@ -127,7 +127,7 @@ ErrorCode quads_to_tris( Interface *MBI, EntityHandle input_meshset ) {
     // ******************************************************************
     // For each quad, make two triangles then delete the quad.
     // ******************************************************************
-    for(Range::iterator j=quads.begin(); j!=quads.end(); j++ ) {
+    for(Range::iterator j=quads.begin(); j!=quads.end(); ++j ) {
     
       // make the tris
       EntityHandle tri0 = 0, tri1 = 0;

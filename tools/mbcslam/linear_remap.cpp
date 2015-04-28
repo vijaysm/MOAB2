@@ -140,7 +140,7 @@ void get_gnomonic_plane(moab::Interface * mb, moab::EntityHandle set,
   if (MB_SUCCESS != rval)
     return;
 
-  for (Range::iterator it = cells.begin(); it != cells.end(); it++) {
+  for (Range::iterator it = cells.begin(); it != cells.end(); ++it) {
     moab::EntityHandle icell = *it;
     // get the nodes, then the coordinates
     const moab::EntityHandle * verts;
@@ -191,7 +191,7 @@ void get_barycenters(moab::Interface * mb, moab::EntityHandle set,
   // set sphere radius to 1 
   double R = 1.0;
 
-  for (Range::iterator it = cells.begin(); it != cells.end(); it++) {
+  for (Range::iterator it = cells.begin(); it != cells.end(); ++it) {
     moab::EntityHandle icell = *it;
 
     // get the nodes
@@ -286,7 +286,7 @@ void get_linear_reconstruction(moab::Interface * mb, moab::EntityHandle set,
 
   // Get coefficients of reconstruction (in cubed-sphere coordinates)
   // rho(x,y) = Ax + By + C
-  for (Range::iterator it = cells.begin(); it != cells.end(); it++) {
+  for (Range::iterator it = cells.begin(); it != cells.end(); ++it) {
     moab::EntityHandle icell = *it;
 
     // get the nodes, then the coordinates
@@ -405,7 +405,7 @@ void test_linear_reconstruction(moab::Interface * mb, moab::EntityHandle set,
   double R = 1;
 
   // For get coefficients for reconstruction (in cubed-sphere coordinates)
-  for (Range::iterator it = cells.begin(); it != cells.end(); it++) {
+  for (Range::iterator it = cells.begin(); it != cells.end(); ++it) {
     moab::EntityHandle icell = *it;
 
     // get the nodes, then the coordinates
@@ -656,7 +656,7 @@ moab::ErrorCode add_field_value(moab::Interface * mb,
     double params[] = { 5 * M_PI / 6.0, 0.0, 7 * M_PI / 6, 0.0, 0.1, 0.9, 1.,
         0.5 };
     for (Range::iterator vit = connecVerts.begin(); vit != connecVerts.end();
-        vit++) {
+        ++vit) {
       moab::EntityHandle oldV = *vit;
       moab::CartVect posi;
       rval = mb->get_coords(&oldV, 1, &(posi[0]));
@@ -680,7 +680,7 @@ moab::ErrorCode add_field_value(moab::Interface * mb,
     //                  x1,    y1,     z1,    x2,   y2,    z2,   h_max, b0
     double params[] = { p1[0], p1[1], p1[2], p2[0], p2[1], p2[2], 1, 5. };
     for (Range::iterator vit = connecVerts.begin(); vit != connecVerts.end();
-        vit++) {
+        ++vit) {
       moab::EntityHandle oldV = *vit;
       moab::CartVect posi;
       rval = mb->get_coords(&oldV, 1, &(posi[0]));
@@ -696,7 +696,7 @@ moab::ErrorCode add_field_value(moab::Interface * mb,
     //                   la1, te1,   la2, te2,       b,   c,   r
     double params[] = { M_PI, M_PI / 3, M_PI, -M_PI / 3, 0.1, 0.9, 0.5 }; // no h_max
     for (Range::iterator vit = connecVerts.begin(); vit != connecVerts.end();
-        vit++) {
+        ++vit) {
       moab::EntityHandle oldV = *vit;
       moab::CartVect posi;
       rval = mb->get_coords(&oldV, 1, &(posi[0]));
@@ -711,7 +711,7 @@ moab::ErrorCode add_field_value(moab::Interface * mb,
   } else if (4 == field_type) // constant = 1
       {
     for (Range::iterator vit = connecVerts.begin(); vit != connecVerts.end();
-        vit++) {
+        ++vit) {
      /* moab::EntityHandle oldV = *vit;
       moab::CartVect posi;
       rval = mb->get_coords(&oldV, 1, &(posi[0]));
@@ -733,7 +733,7 @@ moab::ErrorCode add_field_value(moab::Interface * mb,
 
     rval = mb->tag_iterate(tagArea, iter, polygons.end(), count, data);
     double * ptrArea = (double*) data;
-    for (int i = 0; i < count; i++, iter++, ptr++, ptrArea++) {
+    for (int i = 0; i < count; i++, ++iter, ptr++, ptrArea++) {
       const moab::EntityHandle * conn = NULL;
       int num_nodes = 0;
       rval = mb->get_connectivity(*iter, conn, num_nodes);

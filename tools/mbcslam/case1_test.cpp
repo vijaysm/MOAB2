@@ -68,7 +68,7 @@ ErrorCode manufacture_lagrange_mesh_on_sphere(Interface * mb,
   // then connect them in quads
   std::map<EntityHandle, EntityHandle> newNodes;
   for (Range::iterator vit = connecVerts.begin(); vit != connecVerts.end();
-      vit++)
+      ++vit)
   {
     EntityHandle oldV = *vit;
     CartVect posi;
@@ -85,7 +85,7 @@ ErrorCode manufacture_lagrange_mesh_on_sphere(Interface * mb,
       return rval;
     newNodes[oldV] = new_vert;
   }
-  for (Range::iterator it = quads.begin(); it != quads.end(); it++)
+  for (Range::iterator it = quads.begin(); it != quads.end(); ++it)
   {
     EntityHandle q = *it;
     int nnodes;

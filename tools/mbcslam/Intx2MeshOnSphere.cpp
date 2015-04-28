@@ -509,9 +509,9 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
   // we need index blue to update index red?
   std::vector<double> newValues(rs2.size()*numTracers, 0.);// initialize with 0 all of them
   // area of the polygon * conc on red (old) current quantity
-  // finaly, divide by the area of the red
+  // finally, divide by the area of the red
   double check_intx_area=0.;
-  for (Range::iterator it= polys.begin(); it!=polys.end(); it++)
+  for (Range::iterator it= polys.begin(); it!=polys.end(); ++it)
   {
     EntityHandle poly=*it;
     int blueIndex, redIndex;

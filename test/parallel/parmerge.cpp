@@ -151,7 +151,7 @@ void print_output(moab::ParallelComm *pc, moab::Core *mb,
     if(myID==0)std::cout<<"------------------------------------------"<<std::endl;
     //Check the count of total vertices
     mb->get_entities_by_dimension(0,0,ents);
-    for(moab::Range::iterator rit = ents.begin(); rit != ents.end(); rit++){
+    for(moab::Range::iterator rit = ents.begin(); rit != ents.end(); ++rit){
       pc->get_owner(*rit, tmp);
       if(tmp==myID){
 	o_ct++;
@@ -171,7 +171,7 @@ void print_output(moab::ParallelComm *pc, moab::Core *mb,
     mb->get_entities_by_dimension(0,3,ents);
     skinner.find_skin(0, ents, 2, skin);
     for(moab::Range::iterator s_rit = skin.begin(); 
-        s_rit != skin.end(); s_rit++){
+        s_rit != skin.end(); ++s_rit){
       pc->get_owner(*s_rit, tmp);
       if(tmp==myID){
 	o_ct++;

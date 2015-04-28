@@ -342,7 +342,7 @@ ErrorCode geometry_evaluation_test(FBEngine * pFacet)
    if (i != iBase_EDGE) {*/
   for (i = 3; i >= 0; i--) {
     if (i != 1) {
-      for (vit = gentity_vectors[i].begin(); vit != gentity_vectors[i].end(); vit++) {
+      for (vit = gentity_vectors[i].begin(); vit != gentity_vectors[i].end(); ++vit) {
         EntityHandle this_gent = *vit;
         rval = pFacet->getEntBoundBox(this_gent, &min[0], &min[1], &min[2],
             &max[0], &max[1], &max[2]);
@@ -358,7 +358,7 @@ ErrorCode geometry_evaluation_test(FBEngine * pFacet)
     else
     {
       // for edges, provide a little better help
-      for (vit = gentity_vectors[i].begin(); vit != gentity_vectors[i].end(); vit++) {
+      for (vit = gentity_vectors[i].begin(); vit != gentity_vectors[i].end(); ++vit) {
         EntityHandle this_gent = *vit;
         // we know that the edge is parametric, with par between 0 and 1
 
@@ -410,7 +410,7 @@ ErrorCode normals_test(FBEngine * pFacet)
   double normal[3] = { .0, .0, .0 };
   std::vector<EntityHandle>::iterator vit;
   for (i = 3/*iBase_REGION*/; i > 1 /*iBase_EDGE*/; i--) {
-    for (vit = gentity_vectors[i].begin(); vit != gentity_vectors[i].end(); vit++) {
+    for (vit = gentity_vectors[i].begin(); vit != gentity_vectors[i].end(); ++vit) {
       EntityHandle this_gent = *vit;
       rval = pFacet->getEntBoundBox(this_gent, &min[0], &min[1], &min[2],
           &max[0], &max[1], &max[2]);

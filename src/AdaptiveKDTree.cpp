@@ -614,7 +614,7 @@ namespace moab {
   
         // Find tree node at which the specified side of the box
         // for this node was created.
-      AdaptiveKDTreeIter iter( *this ); // temporary iterator (don't modifiy *this)
+      AdaptiveKDTreeIter iter( *this ); // temporary iterator (don't modify *this)
       node = iter.mStack.back();
       iter.mStack.pop_back();
       for (;;) {
@@ -1553,13 +1553,13 @@ namespace moab {
       
       result_list.reserve(result_list_nodes.size());
       for (std::vector<NodeDistance>::iterator vit = result_list_nodes.begin(); 
-           vit != result_list_nodes.end(); vit++)
+           vit != result_list_nodes.end(); ++vit)
         result_list.push_back((*vit).handle);
   
       if (result_dists && distance > 0.0) {
         result_dists->reserve(result_list_nodes.size());
         for (std::vector<NodeDistance>::iterator vit = result_list_nodes.begin(); 
-             vit != result_list_nodes.end(); vit++)
+             vit != result_list_nodes.end(); ++vit)
           result_dists->push_back((*vit).dist.length());
       }
   
@@ -1688,10 +1688,10 @@ namespace moab {
  *  position and the first entry in 'closest_pts' is the closest
  *  location on that triangle.  Any other values in the lists must
  *  be other triangles for which the closest point is within the
- *  input tolernace of the closest closest point.  This function
+ *  input tolerance of the closest closest point.  This function
  *  will update the lists as appropriate if any closer triangles
  *  or triangles within the tolerance of the current closest location
- *  are found.  The fisrt entry is maintaned as the closest of the
+ *  are found.  The first entry is maintained as the closest of the
  *  list of triangles.
  */
 /*
@@ -2145,7 +2145,7 @@ namespace moab {
 
       Range tree_sets, elem2d, elem3d, verts, all;
       moab()->get_child_meshsets( myRoot, tree_sets, 0 );
-      for (Range::iterator rit = tree_sets.begin(); rit != tree_sets.end(); rit++) {
+      for (Range::iterator rit = tree_sets.begin(); rit != tree_sets.end(); ++rit) {
         moab()->get_entities_by_dimension( *rit, 2, elem2d );
         moab()->get_entities_by_dimension( *rit, 3, elem3d );
         moab()->get_entities_by_type( *rit, MBVERTEX, verts );

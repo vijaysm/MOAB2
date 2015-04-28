@@ -290,7 +290,7 @@ MBErrorCode vtkMOABUtils::make_vertex_points(vtkUnstructuredGrid *&ug)
   MBRange::reverse_iterator rit = verts.rbegin();
   double coords[3];
   MBErrorCode tmp_result;
-  for (rit = verts.rbegin(); rit != verts.rend(); rit++) {
+  for (rit = verts.rbegin(); rit != verts.rend(); ++rit) {
       // need to check for allocation
     tmp_result = 
       vtkMOABUtils::mbImpl->tag_get_data(vtkPointAllocatedTag, &(*rit), 1, &allocated);
@@ -324,7 +324,7 @@ MBErrorCode vtkMOABUtils::make_cells(MBRange &ents,
     ug->Allocate();
     
   vtkIdType cell_id;
-  for (MBRange::iterator rit = ents.begin(); rit != ents.end(); rit++) {
+  for (MBRange::iterator rit = ents.begin(); rit != ents.end(); ++rit) {
       // check to see if it's been allocated already
     tmp_result = vtkMOABUtils::mbImpl->tag_get_data(vtkCellTag, &(*rit), 1, &cell_id);
     if (MB_SUCCESS != tmp_result) result = tmp_result;
@@ -447,7 +447,7 @@ MBErrorCode vtkMOABUtils::update_set_actors(const MBRange &update_sets,
   MBRange ents;
   MBErrorCode result = MB_SUCCESS;
   
-  for (MBRange::const_iterator rit = update_sets.begin(); rit != update_sets.end(); rit++) {
+  for (MBRange::const_iterator rit = update_sets.begin(); rit != update_sets.end(); ++rit) {
     ents.clear();
 
       // get a list of vtk cell ids for this set
@@ -614,7 +614,7 @@ MBErrorCode vtkMOABUtils::get_id_list(MBRange &ents, vtkIdList *&ids)
   MBErrorCode tmp_result, result = MB_SUCCESS;
   ids = vtkIdList::New();
   vtkIdType this_id;
-  for (MBRange::iterator rit = ents.begin(); rit != ents.end(); rit++) {
+  for (MBRange::iterator rit = ents.begin(); rit != ents.end(); ++rit) {
     if (vtkMOABUtils::mbImpl->type_from_handle(*rit) == MBENTITYSET) continue;
     tmp_result = vtkMOABUtils::mbImpl->tag_get_data(vtkCellTag, &(*rit), 1, &this_id);
     if (MB_SUCCESS != tmp_result) result = tmp_result;
@@ -651,7 +651,7 @@ MBErrorCode vtkMOABUtils::get_top_contains_sets(MBRange &top_sets)
   
     // now go through all children, removing them from top sets
   MBErrorCode tmp_result;
-  for (MBRange::iterator rit = dum_sets.begin(); rit != dum_sets.end(); rit++) {
+  for (MBRange::iterator rit = dum_sets.begin(); rit != dum_sets.end(); ++rit) {
     tmp_set.clear();
     tmp_result = vtkMOABUtils::mbImpl->get_entities_by_type(*rit, MBENTITYSET, tmp_set);
     if (MB_SUCCESS != tmp_result) result = tmp_result;
@@ -679,7 +679,7 @@ MBErrorCode vtkMOABUtils::get_top_parent_sets(MBRange &top_sets)
 
   MBErrorCode tmp_result;
   int num_children, num_parents;
-  for (MBRange::iterator rit = dum_sets.begin(); rit != dum_sets.end(); rit++) {
+  for (MBRange::iterator rit = dum_sets.begin(); rit != dum_sets.end(); ++rit) {
     tmp_result = vtkMOABUtils::mbImpl->num_child_meshsets(*rit, &num_children);
     if (MB_SUCCESS != tmp_result) result = tmp_result;
     tmp_result = vtkMOABUtils::mbImpl->num_parent_meshsets(*rit, &num_parents);
@@ -804,7 +804,7 @@ MBErrorCode vtkMOABUtils::get_set_category_name( MBEntityHandle this_set,
 void vtkMOABUtils::print_debug() 
 {
   for (std::map<vtkActor*,vtkProperty*>::const_iterator mit = actorProperties.begin();
-       mit != actorProperties.end(); mit++)
+       mit != actorProperties.end(); ++mit)
     mit->first->GetMapper()->GetInput()->PrintSelf(std::cout, vtkIndent(0));
 }
 
@@ -836,7 +836,7 @@ void vtkMOABUtils::change_set_properties(MBRange &high_mbsets, MBRange &unhigh_m
   vtkProperty *curr_prop;
   MBRange::iterator rit;
   
-  for (rit = high_mbsets.begin(); rit != high_mbsets.end(); rit++) {
+  for (rit = high_mbsets.begin(); rit != high_mbsets.end(); ++rit) {
     vtkActor *this_actor = get_actor(*rit);
     if (NULL == this_actor) continue;
     curr_prop = this_actor->GetProperty();
@@ -844,7 +844,7 @@ void vtkMOABUtils::change_set_properties(MBRange &high_mbsets, MBRange &unhigh_m
       this_actor->SetProperty(highlightProperty);
   }
 
-  for (rit = unhigh_mbsets.begin(); rit != unhigh_mbsets.end(); rit++) {
+  for (rit = unhigh_mbsets.begin(); rit != unhigh_mbsets.end(); ++rit) {
     vtkActor *this_actor = get_actor(*rit);
     if (NULL == this_actor) continue;
     curr_prop = this_actor->GetProperty();
@@ -860,7 +860,7 @@ void vtkMOABUtils::change_set_properties(MBRange &high_mbsets, MBRange &unhigh_m
     //! toggle the wireframe/shaded property
 void vtkMOABUtils::toggle_wireframe_shaded(MBRange &high_mbsets) 
 {
-  for (MBRange::iterator rit = high_mbsets.begin(); rit != high_mbsets.end(); rit++) {
+  for (MBRange::iterator rit = high_mbsets.begin(); rit != high_mbsets.end(); ++rit) {
     vtkProperty *this_prop = get_property(*rit, true);
 
     if (this_prop->GetRepresentation() == VTK_WIREFRAME)
@@ -1119,7 +1119,7 @@ void vtkMOABUtils::update_display(vtkUnstructuredGrid *ug)
       MBRange ents, dum_ents;
       MBErrorCode result = mbImpl->get_entities_by_dimension(0, 3, dum_ents);
       if (MB_SUCCESS != result) return;
-      for (MBRange::iterator rit = dum_ents.begin(); rit != dum_ents.end(); rit++)
+      for (MBRange::iterator rit = dum_ents.begin(); rit != dum_ents.end(); ++rit)
         if (mbImpl->type_from_handle(*rit) != MBPOLYHEDRON) ents.insert(*rit);
       
       result = vtkMOABUtils::get_id_list(ents, ids);
@@ -1224,7 +1224,7 @@ void vtkMOABUtils::reset_drawing_data()
   dualTool->get_dual_hyperplanes(vtkMOABUtils::mbImpl, 1, these_sets);
   dualTool->get_dual_hyperplanes(vtkMOABUtils::mbImpl, 2, these_sets);
 
-  for (MBRange::iterator rit = these_sets.begin(); rit != these_sets.end(); rit++)
+  for (MBRange::iterator rit = these_sets.begin(); rit != these_sets.end(); ++rit)
     vtkMOABUtils::get_actor(*rit)->Delete();
 
   actorProperties.clear();

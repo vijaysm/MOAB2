@@ -35,7 +35,7 @@ int main( int argc, char* argv[] )
   VerdictWrapper vw(mb);
   // for size methods/quality, we need a size, to compute relative sizes and stuff
   rval = vw.set_size(1.0);
-  for (Range::iterator eit=entities.begin(); eit!=entities.end(); eit++)
+  for (Range::iterator eit=entities.begin(); eit!=entities.end(); ++eit)
   {
     EntityHandle eh=*eit;
     EntityType etype=TYPE_FROM_HANDLE(eh);
@@ -66,7 +66,7 @@ int main( int argc, char* argv[] )
     if (MB_SUCCESS == rval)
     {
       mb->list_entity(eh);
-      for (std::map<QualityType, double>::iterator mit=qualities.begin(); mit!=qualities.end(); mit++)
+      for (std::map<QualityType, double>::iterator mit=qualities.begin(); mit!=qualities.end(); ++mit)
       {
         std::cout << "   " << vw.quality_name(mit->first) << " " << mit->second << " \n";
       }

@@ -691,7 +691,7 @@ double measure(Interface *MBI, const EntityHandle element)
 }
 
 /* Calculate the signed volumes beneath the surface (x 6.0). Use the triangle's
- cannonical sense. Do not take sense tags into account. Code taken from
+ canonical sense. Do not take sense tags into account. Code taken from
  DagMC::measure_volume.
 
  Special Case: If the surface is planar, and the plane includes the origin,
@@ -972,7 +972,7 @@ ErrorCode add_dead_elems_to_impl_compl(Interface *MBI,
     return result;
 
   // get the corresponding cub volume
-  for (Range::iterator i = cgm_vols.begin(); i != cgm_vols.end(); i++)
+  for (Range::iterator i = cgm_vols.begin(); i != cgm_vols.end(); ++i)
   {
     int vol_id;
     result = MBI->tag_get_data(idTag, &(*i), 1, &vol_id);
@@ -1670,7 +1670,7 @@ int is_acis_txt_file(FILE* file)
   if (version < 1 || version > 0xFFFF)
     return 0;
 
-  // Skip appliation name
+  // Skip application name
   if (fseek(file, length, SEEK_CUR))
     return 0;
 

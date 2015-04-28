@@ -38,7 +38,7 @@ DataCoupler::DataCoupler(Interface *impl,
     if (!source_ents.empty()) {
       Range::pair_iterator pit = source_ents.pair_begin();
       EntityType last_type = MBMAXTYPE;
-      for (; pit != source_ents.pair_end(); pit++) {
+      for (; pit != source_ents.pair_end(); ++pit) {
         EntityType this_type = mbImpl->type_from_handle(pit->first);
         if (last_type == this_type)
           continue;

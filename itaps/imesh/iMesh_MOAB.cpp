@@ -2662,7 +2662,7 @@ extern "C" {
     int k = 0;
 
       // filter out entity sets here
-    for (iter = out_entities.begin(); iter != out_entities.end(); iter++)
+    for (iter = out_entities.begin(); iter != out_entities.end(); ++iter)
       (*entity_handles)[k++] = (iBase_EntityHandle)*iter;
 
       // now it's safe to set the size; set it to k, not out_entities.size(), to
@@ -2876,11 +2876,11 @@ extern "C" {
 
       // filter out entity sets here
     if (iBase_ALL_TYPES == entity_type && iMesh_ALL_TOPOLOGIES == entity_topology) {
-      for (; iter != end_iter && MOABI->type_from_handle(*iter) != MBENTITYSET; iter++)
+      for (; iter != end_iter && MOABI->type_from_handle(*iter) != MBENTITYSET; ++iter)
         (*entity_handles)[k++] = (iBase_EntityHandle)*iter;
     }
     else {
-      for (; iter != end_iter; iter++)
+      for (; iter != end_iter; ++iter)
         (*entity_handles)[k++] = (iBase_EntityHandle)*iter;
     }
 
