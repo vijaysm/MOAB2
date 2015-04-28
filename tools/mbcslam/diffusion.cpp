@@ -105,7 +105,7 @@ ErrorCode add_field_value(Interface * mb, EntityHandle euler_set, int rank, Tag 
   if (field_type==1) // quasi smooth
   {
     double params[] = { M_PI, M_PI/3, M_PI, -M_PI/3, 0.1, 0.9, 1., 0.5};
-    for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); vit++ )
+    for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); ++vit)
     {
       EntityHandle oldV=*vit;
       CartVect posi;
@@ -131,7 +131,7 @@ ErrorCode add_field_value(Interface * mb, EntityHandle euler_set, int rank, Tag 
     p2 = spherical_to_cart(spr);
     //                  x1,    y1,     z1,    x2,   y2,    z2,   h_max, b0
     double params[] = { p1[0], p1[1], p1[2], p2[0], p2[1], p2[2], 1,    5.};
-    for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); vit++ )
+    for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); ++vit)
     {
       EntityHandle oldV=*vit;
       CartVect posi;
@@ -149,7 +149,7 @@ ErrorCode add_field_value(Interface * mb, EntityHandle euler_set, int rank, Tag 
   {
     //                   la1, te1,   la2, te2,       b,   c,   r
     double params[] = { M_PI, M_PI/3, M_PI, -M_PI/3, 0.1, 0.9, 0.5};// no h_max
-    for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); vit++ )
+    for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); ++vit)
     {
       EntityHandle oldV=*vit;
       CartVect posi;
@@ -244,7 +244,7 @@ ErrorCode compute_velocity_case1(Interface * mb, EntityHandle euler_set, Tag & t
   double * ptr_velo=(double*)data;
   // lambda is for longitude, theta for latitude
 
-  for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); vit++ )
+  for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); ++vit)
   {
     EntityHandle oldV=*vit;
     CartVect posi;
@@ -290,7 +290,7 @@ ErrorCode compute_tracer_case1(Interface * mb, Intx2MeshOnSphere & worker, Entit
 
   // change coordinates of lagr mesh vertices
   for (Range::iterator vit = connecVerts.begin(); vit != connecVerts.end();
-      vit++)
+      ++vit)
   {
     EntityHandle oldV = *vit;
     CartVect posi;

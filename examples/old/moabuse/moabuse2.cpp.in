@@ -71,7 +71,7 @@ int main()
 	    << std::setw(10) << "Y"
 	    << std::setw(10) << "Z" << std::endl;
 
-  for(iter = connectivity.begin(); iter != connectivity.end(); iter++) {
+  for(iter = connectivity.begin(); iter != connectivity.end(); ++iter) {
     rval = mbint.get_coords(&(*iter), 1, coord);
     MBERR("get_coords", rval);
     
@@ -103,7 +103,7 @@ int main()
   unsigned count = 0;
   const double PI = 3.14159265359;
   const double ANGLE = PI/4;
-  for(iter = vertex_range.begin(); iter != vertex_range.end(); iter++) {
+  for(iter = vertex_range.begin(); iter != vertex_range.end(); ++iter) {
 
     // Save the old coordinates:
     double x = vertex_coords[count+0];

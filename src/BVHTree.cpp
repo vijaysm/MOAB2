@@ -108,10 +108,10 @@ namespace moab
       EntityHandle set_handle = startSetHandle;
       std::vector<Node>::iterator it;
       myTree.reserve(tree_nodes.size());
-      for (it = tree_nodes.begin(); it != tree_nodes.end(); it++, set_handle++) {
+      for (it = tree_nodes.begin(); it != tree_nodes.end(); ++it, set_handle++) {
         if (it != tree_nodes.begin() && !it->entities.empty()) {
           Range range;
-          for (HandleDataVec::iterator hit = it->entities.begin(); hit != it->entities.end(); hit++)
+          for (HandleDataVec::iterator hit = it->entities.begin(); hit != it->entities.end(); ++hit)
             range.insert(hit->myHandle);
           rval = mbImpl->add_entities(set_handle, range);
           if (MB_SUCCESS != rval) return rval;
@@ -274,7 +274,7 @@ namespace moab
       data.split = middle_center;
       data.nl = std::distance(begin, middle)+1;
       data.nr = total-data.nl;
-      middle++;
+      ++middle;
       data.leftBox  = begin->myBox;
       data.rightBox = middle->myBox;
       for(HandleDataVec::iterator i = begin; i != middle; ++i){
@@ -452,7 +452,7 @@ namespace moab
         rval = mbImpl->get_entities_by_handle(startSetHandle+index, entities);
         if (MB_SUCCESS != rval) return rval;
         
-        for(Range::iterator i = entities.begin(); i != entities.end(); i++) {
+        for(Range::iterator i = entities.begin(); i != entities.end(); ++i) {
           treeStats.traversalLeafObjectTests++;
           myEval->set_ent_handle(*i);
           myEval->reverse_eval(&point[0], iter_tol, inside_tol, params.array(), &is_inside);
@@ -497,7 +497,7 @@ namespace moab
          * sought point. This results in less overall traversal, and the correct
          * cell is identified more quickly.
          */
-        //Sofar all testing confirms that this 'heuristic' is
+        //So far all testing confirms that this 'heuristic' is
         //significantly slower.
         //I conjecture this is because it gets improperly
         //branch predicted..
@@ -680,7 +680,7 @@ namespace moab
     {
       int i;
       std::vector<Node>::iterator it;
-      for (it = nodes.begin(), i = 0; it != nodes.end(); it++, i++) {
+      for (it = nodes.begin(), i = 0; it != nodes.end(); ++it, i++) {
         std::cout << "Node " << i << ": dim = " << it->dim << ", child = " << it->child << ", Lmax/Rmin = "
                   << it->Lmax << "/" << it->Rmin << ", box = " << it->box << std::endl;
       }
@@ -691,7 +691,7 @@ namespace moab
     {
       int i;
       std::vector<TreeNode>::iterator it;
-      for (it = myTree.begin(), i = 0; it != myTree.end(); it++, i++) {
+      for (it = myTree.begin(), i = 0; it != myTree.end(); ++it, i++) {
         std::cout << "Node " << i << ": dim = " << it->dim << ", child = " << it->child << ", Lmax/Rmin = "
                   << it->Lmax << "/" << it->Rmin << ", box = " << it->box << std::endl;
       }

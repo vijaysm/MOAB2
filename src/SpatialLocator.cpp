@@ -244,7 +244,7 @@ namespace moab
         CartVect tmp_pnt(TLquery_o.vr_rd+3*i);
 
           //compare coordinates to list of bounding boxes
-        for (std::map<int, BoundBox>::iterator mit = srcProcBoxes.begin(); mit != srcProcBoxes.end(); mit++) {
+        for (std::map<int, BoundBox>::iterator mit = srcProcBoxes.begin(); mit != srcProcBoxes.end(); ++mit) {
           if ((*mit).second.contains_point(tmp_pnt.array(), abs_iter_tol)) {
             iargs[0] = (*mit).first;
             TLforward_o.push_back(iargs, NULL, NULL, tmp_pnt.array());

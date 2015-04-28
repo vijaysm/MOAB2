@@ -27,7 +27,7 @@ int main(int argc, char **argv) {
       return 1;
     }
     std::cout << "Found " << ents.size() << " " << d << "-dimensional entities:" << std::endl;
-    for (moab::Range::iterator it = ents.begin(); it != ents.end(); it++) {
+    for (moab::Range::iterator it = ents.begin(); it != ents.end(); ++it) {
       moab::EntityHandle ent = *it;
       std::cout << "Found d=" << d << " entity " 
                 << mb->id_from_handle(ent) << "." << std::endl;

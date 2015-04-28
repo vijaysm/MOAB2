@@ -428,7 +428,7 @@ ErrorCode report_iface_ents(Interface *mbImpl,
   for (unsigned int p = 0; p < pcs.size(); p++) {
     // get entities owned by this partition
     for (Range::iterator rit = pcs[p]->partition_sets().begin();
-	 rit != pcs[p]->partition_sets().end(); rit++) {
+	 rit != pcs[p]->partition_sets().end(); ++rit) {
       tmp_result = mbImpl->get_entities_by_dimension(*rit, 3, part_ents, true);
       if (MB_SUCCESS != tmp_result) result = tmp_result;
     }

@@ -600,7 +600,7 @@ ErrorCode mb_adjacencies_test()
       iter = nodes.erase(iter);
     }
     else
-      iter++;
+      ++iter;
 
   }
 
@@ -1046,7 +1046,7 @@ ErrorCode nothing_but_type( Range& range, EntityType type )
   iter = range.begin();
   end_iter = range.end();
 
-  for(; iter != end_iter; iter++)
+  for(; iter != end_iter; ++iter)
   {
     if( TYPE_FROM_HANDLE(*iter) != type )
     {
@@ -3386,7 +3386,7 @@ ErrorCode mb_tags_test()
       return MB_FAILURE;
     if(MB->tag_set_data( stale_bits, &(*iter), 1, &bits ) != MB_SUCCESS ) 
       return MB_FAILURE;
-    iter++;
+    ++iter;
   }
 
   entities.clear();
@@ -4202,7 +4202,7 @@ ErrorCode mb_forced_adjacencies_test()
   {
   std::vector<EntityHandle> vert_vec(vertices.size());
   Range::const_iterator iter;
-  for (iter = vertices.begin(); iter != vertices.end(); iter++) 
+  for (iter = vertices.begin(); iter != vertices.end(); ++iter)
   vert_vec.push_back(*iter);
   vert_vec.sort(lessnodesZ);
   }*/
@@ -4229,13 +4229,13 @@ ErrorCode find_coincident_nodes(Interface* gMB, Range vertices,
   std::pair<EntityHandle, EntityHandle> coincident_pair;
   ErrorCode result;
 
-  for (iter = vertices.begin(); iter != vertices.end(); iter++)
+  for (iter = vertices.begin(); iter != vertices.end(); ++iter)
   {
     result = gMB->get_coords(&(*iter),1, first_coords);
     if (result != MB_SUCCESS)
       return result;
 
-    for (jter = iter; jter != vertices.end(); jter++)
+    for (jter = iter; jter != vertices.end(); ++jter)
     {
       if (*iter != *jter)
       {
@@ -4264,7 +4264,7 @@ ErrorCode find_coincident_elements(Interface* gMB, Range entities, int num_nodes
   std::pair<EntityHandle, EntityHandle> coincident_pair;
   int i = 0,/* j = 0,*/ ii = 0;
 
-  for(iter = entities.begin(); iter != entities.end(); iter++)
+  for(iter = entities.begin(); iter != entities.end(); ++iter)
   {
       // Get the coordinates for the element corners.
     if(gMB->get_connectivity(&(*iter), 1, conn) != MB_SUCCESS)
@@ -4275,7 +4275,7 @@ ErrorCode find_coincident_elements(Interface* gMB, Range entities, int num_nodes
         return MB_FAILURE;
     }
 
-    for(jter = iter; jter != entities.end(); jter++)
+    for(jter = iter; jter != entities.end(); ++jter)
     {
       if(*iter != *jter)
       {
@@ -4469,7 +4469,7 @@ ErrorCode mb_merge_test()
   result = find_coincident_nodes(MB,nodes, coin_nodes);
   cout <<"coin_nodes.size() = "<<coin_nodes.size() <<"\n";
   std::vector< std::pair<EntityHandle, EntityHandle> >::iterator n_iter;
-  for (n_iter=coin_nodes.begin(); n_iter != coin_nodes.end(); n_iter++) {
+  for (n_iter=coin_nodes.begin(); n_iter != coin_nodes.end(); ++n_iter) {
     result = MB->merge_entities((*n_iter).first, (*n_iter).second, false, true);
     if (MB_SUCCESS != result)
       return result;
@@ -4480,7 +4480,7 @@ ErrorCode mb_merge_test()
         if (result != MB_SUCCESS) cout <<"find_coincident_elements fail!\n";
         cout <<"coin_faces.size() = "<<coin_faces.size() <<"\n";
         std::vector< std::pair<EntityHandle, EntityHandle> >::iterator f_iter;
-        for (f_iter=coin_faces.begin(); f_iter != coin_faces.end(); f_iter++)
+        for (f_iter=coin_faces.begin(); f_iter != coin_faces.end(); ++f_iter)
         MB->merge_entities((*f_iter).first, (*f_iter).second, true, true);*/
     /*
       std::vector<std::pair<EntityHandle, EntityHandle> > coin_fl;
@@ -4671,7 +4671,7 @@ ErrorCode mb_stress_test()
 
   std::vector<EntityHandle> conn;
   Range::iterator iter;
-  for (iter = hexes.begin(); iter != hexes.end(); iter++)
+  for (iter = hexes.begin(); iter != hexes.end(); ++iter)
   {
     error = MB->get_connectivity(&(*iter), 1, conn);
     if (error != MB_SUCCESS)
@@ -4683,7 +4683,7 @@ ErrorCode mb_stress_test()
     EntityHandle element_handle;
     std::vector<EntityHandle>::iterator jter;
 
-    for (jter = conn.begin(); jter != conn.end(); jter++)
+    for (jter = conn.begin(); jter != conn.end(); ++jter)
     {
       error = MB->get_coords(&(*jter), 1, coords);
       if (error != MB_SUCCESS)

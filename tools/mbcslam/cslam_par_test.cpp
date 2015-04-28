@@ -133,7 +133,7 @@ ErrorCode  compute_lagrange_mesh_on_sphere(Interface * mb, EntityHandle euler_se
 // now put the vertices in the right place....
   //int vix=0; // vertex index in new array
 
-  for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); vit++ )
+  for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); ++vit)
   {
     EntityHandle oldV=*vit;
     CartVect posi;
