@@ -262,7 +262,7 @@ void uiQVDual::updateTagList()
   QListViewItem *tags_item;
   
   for (std::vector<MBTag>::iterator tag_it = tag_handles.begin(); tag_it != tag_handles.end();
-       tag_it++) {
+       ++tag_it) {
     
     std::string tag_name;
     result = vtkMOABUtils::mbImpl->tag_get_name(*tag_it, tag_name);
@@ -324,7 +324,7 @@ void uiQVDual::updateActorList()
     itemSetMap[last_item] = 0;
     last_item->setOpen(false);
 
-    for (MBRange::iterator rit = top_sets.begin(); rit != top_sets.end(); rit++)
+    for (MBRange::iterator rit = top_sets.begin(); rit != top_sets.end(); ++rit)
       updateActorContainsList(last_item, *rit);
   }
   
@@ -338,7 +338,7 @@ void uiQVDual::updateActorList()
     itemSetMap[last_item] = 0;
     last_item->setOpen(false);
 
-    for (MBRange::iterator rit = top_sets.begin(); rit != top_sets.end(); rit++)
+    for (MBRange::iterator rit = top_sets.begin(); rit != top_sets.end(); ++rit)
       updateActorParentList(last_item, *rit);
   }
 }
@@ -432,7 +432,7 @@ void uiQVDual::updateActorContainsList( QListViewItem *item, MBEntityHandle set_
                                                       contained_sets);
   if (MB_SUCCESS != result) return;
 
-  for (MBRange::iterator rit = contained_sets.begin(); rit != contained_sets.end(); rit++)
+  for (MBRange::iterator rit = contained_sets.begin(); rit != contained_sets.end(); ++rit)
     updateActorContainsList(set_item, *rit);
 }
 
@@ -469,7 +469,7 @@ void uiQVDual::updateActorParentList( QListViewItem *item, MBEntityHandle set_ha
   if (MB_SUCCESS != result) return;
 
   for (std::vector<MBEntityHandle>::iterator vit = child_sets.begin(); 
-       vit != child_sets.end(); vit++)
+       vit != child_sets.end(); ++vit)
     updateActorParentList(set_item, *vit);
 }
 
@@ -480,7 +480,7 @@ void uiQVDual::changeSetProperty( std::set<QListViewItem *> &high_sets, std::set
   vtkActor *this_actor;
   
   for (std::set<QListViewItem *>::iterator sit = high_sets.begin(); 
-       sit != high_sets.end(); sit++) {
+       sit != high_sets.end(); ++sit) {
 
     item_set = itemSetMap[*sit];
     if (0 == item_set)
@@ -498,7 +498,7 @@ void uiQVDual::changeSetProperty( std::set<QListViewItem *> &high_sets, std::set
     itemSelList.insert(*sit);
   }
   for (std::set<QListViewItem *>::iterator sit = unhigh_sets.begin(); 
-       sit != unhigh_sets.end(); sit++) {
+       sit != unhigh_sets.end(); ++sit) {
 
     item_set = itemSetMap[*sit];
     if (0 == item_set)
@@ -550,7 +550,7 @@ void uiQVDual::displayVisible()
 
     // get child sets of selected ones, they should be drawn too
   std::vector<MBEntityHandle> children;
-  for (MBRange::iterator rit = selected.begin(); rit != selected.end(); rit++)
+  for (MBRange::iterator rit = selected.begin(); rit != selected.end(); ++rit)
     vtkMOABUtils::mbImpl->get_child_meshsets(*rit, children, 0);
 
   std::copy(children.begin(), children.end(), range_inserter(selected));
@@ -568,7 +568,7 @@ void uiQVDual::displayDraw()
   
     // get child sets of selected ones, they should be drawn too
   std::vector<MBEntityHandle> children;
-  for (MBRange::iterator rit = selected.begin(); rit != selected.end(); rit++)
+  for (MBRange::iterator rit = selected.begin(); rit != selected.end(); ++rit)
     vtkMOABUtils::mbImpl->get_child_meshsets(*rit, children, 0);
 
   std::copy(children.begin(), children.end(), range_inserter(selected));
@@ -609,7 +609,7 @@ void uiQVDual::displayInvisible()
 
     // get child sets of selected ones, they should be set too
   std::vector<MBEntityHandle> children;
-  for (MBRange::iterator rit = selected.begin(); rit != selected.end(); rit++)
+  for (MBRange::iterator rit = selected.begin(); rit != selected.end(); ++rit)
     vtkMOABUtils::mbImpl->get_child_meshsets(*rit, children, 0);
 
   std::copy(children.begin(), children.end(), range_inserter(selected));
@@ -626,7 +626,7 @@ void uiQVDual::getSelected( QListView *listv,
   if (NULL == listv && currentWin == 0) {
       // check all items
     for (std::map<QListViewItem*, MBEntityHandle>::iterator mit = itemSetMap.begin();
-         mit != itemSetMap.end(); mit++) {
+         mit != itemSetMap.end(); ++mit) {
       if ((*mit).first->isSelected())
         selected.insert((*mit).first);
       else
@@ -687,7 +687,7 @@ void uiQVDual::getItemSets( std::set<QListViewItem *> &items, MBRange &sets )
 {
   std::set<QListViewItem*>::iterator sit;
   std::map<QListViewItem*, MBEntityHandle>::iterator mit;
-  for (sit = items.begin(); sit != items.end(); sit++) {
+  for (sit = items.begin(); sit != items.end(); ++sit) {
     mit = itemSetMap.find(*sit);
     if (mit != itemSetMap.end() && (*mit).second != 0) 
       sets.insert((*mit).second);
@@ -718,7 +718,7 @@ void uiQVDual::displayDrawSheetAction_activated()
   MBRange dual_surfs;
   MBEntityHandle dum_tag;
   MBErrorCode result;
-  for (MBRange::iterator rit = selected.begin(); rit != selected.end(); rit++) {
+  for (MBRange::iterator rit = selected.begin(); rit != selected.end(); ++rit) {
     result = vtkMOABUtils::mbImpl->tag_get_data(vtkMOABUtils::dualTool->dualSurface_tag(), 
                                                 &(*rit), 1, &dum_tag);
     if (MB_SUCCESS == result && 0 != dum_tag)
@@ -813,7 +813,7 @@ void uiQVDual::negAPbutton_clicked()
   }
 
   MBRange other_sheets;
-  for (MBRange::iterator rit = chords.begin(); rit != chords.end(); rit++) {
+  for (MBRange::iterator rit = chords.begin(); rit != chords.end(); ++rit) {
     result = vtkMOABUtils::mbImpl->get_parent_meshsets(*rit, other_sheets);
     if (MB_SUCCESS != result) {
       std::cerr << "Trouble getting chord parents." << std::endl;
@@ -890,7 +890,7 @@ void uiQVDual::FOCbutton_clicked()
   result = vtkMOABUtils::mbImpl->get_parent_meshsets(chord, sheets);
   if (MB_SUCCESS == result) drawn_sheets.merge(sheets);
   std::vector<MBEntityHandle> dum_sheets;
-  for (MBRange::iterator rit = drawn_sheets.begin(); rit != drawn_sheets.end(); rit++) {
+  for (MBRange::iterator rit = drawn_sheets.begin(); rit != drawn_sheets.end(); ++rit) {
     int dum;
     if (vtkMOABUtils::mbImpl->get_number_entities_by_handle(*rit, dum) == MB_SUCCESS &&
         dum > 0) {
@@ -944,7 +944,7 @@ void uiQVDual::FSbutton_clicked()
   result = vtkMOABUtils::mbImpl->get_parent_meshsets(chord, sheets);
   if (MB_SUCCESS == result) {
     drawn_sheets = drawn_sheets.subtract(sheets);
-    for (MBRange::iterator rit = drawn_sheets.begin(); rit != drawn_sheets.end(); rit++) {
+    for (MBRange::iterator rit = drawn_sheets.begin(); rit != drawn_sheets.end(); ++rit) {
       int dum;
       if (vtkMOABUtils::mbImpl->get_number_entities_by_handle(*rit, dum) == MB_SUCCESS &&
           dum > 0) {
@@ -1009,7 +1009,7 @@ void uiQVDual::negFCbutton_clicked()
   result = vtkMOABUtils::mbImpl->get_parent_meshsets(chord, sheets);
   if (MB_SUCCESS == result) {
     drawn_sheets = drawn_sheets.subtract(sheets);
-    for (MBRange::iterator rit = drawn_sheets.begin(); rit != drawn_sheets.end(); rit++) {
+    for (MBRange::iterator rit = drawn_sheets.begin(); rit != drawn_sheets.end(); ++rit) {
       int dum;
       if (vtkMOABUtils::mbImpl->get_number_entities_by_handle(*rit, dum) == MB_SUCCESS &&
           dum > 0) {
@@ -1124,7 +1124,7 @@ void uiQVDual::displayPrintSheet()
   MBRange dual_surfs;
   MBEntityHandle dum_tag;
   MBErrorCode result;
-  for (MBRange::iterator rit = selected.begin(); rit != selected.end(); rit++) {
+  for (MBRange::iterator rit = selected.begin(); rit != selected.end(); ++rit) {
     result = vtkMOABUtils::mbImpl->tag_get_data(vtkMOABUtils::dualTool->dualSurface_tag(), 
                                                 &(*rit), 1, &dum_tag);
     if (MB_SUCCESS == result && 0 != dum_tag)

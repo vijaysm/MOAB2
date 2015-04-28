@@ -585,7 +585,7 @@ namespace moab {
   
     //! Get rank of the owner of a shared set.  
     //! Returns this proc if set is not shared.
-    //! Optionally returns hanlde on owning process for shared set.
+    //! Optionally returns handle on owning process for shared set.
     ErrorCode get_entityset_owner( EntityHandle entity_set,
 				   unsigned& owner_rank,
 				   EntityHandle* remote_handle = 0 ) const;
@@ -1139,7 +1139,7 @@ namespace moab {
     /**\brief Serialize entity tag data
      *
      * This function operates in two passes.  The first phase,
-     * specified by 'just_count == true' calculates the necesary
+     * specified by 'just_count == true' calculates the necessary
      * buffer size for the serialized data.  The second phase
      * writes the actual binary serialized representation of the
      * data to the passed buffer.
@@ -1154,15 +1154,15 @@ namespace moab {
      *                     serves as the superset from which to compose entity
      *                     lists from individual tags if just_count and
      *                     all_possible_tags are both true.
-     *\param buff_ptr      Buffer into which to write binary serailzed data
+     *\param buff_ptr      Buffer into which to write binary serialized data
      *\param count         Output:  The size of the serialized data is added
-     *                     to this parameter.  NOTE: Should probalby initialize
+     *                     to this parameter.  NOTE: Should probably initialize
      *                     to zero before calling.
      *\param just_count    If true, just calculate the buffer size required to
      *                     hold the serialized data.  Will also append to
      *                     'all_tags' and 'tag_ranges' if all_possible_tags
      *                     == true.
-     *\param store_handles The data for each tag is preceeded by a list of 
+     *\param store_handles The data for each tag is preceded by a list of
      *                     EntityHandles designating the entity each of
      *                     the subsequent tag values corresponds to.  This value
      *                     may be one of:
@@ -1188,9 +1188,9 @@ namespace moab {
                         const bool store_handles,
                         const int to_proc);
 
-    /**\brief Calculate buffer size required to packtag data
+    /**\brief Calculate buffer size required to pack tag data
      *\param source_tag The tag for which data will be serialized
-     *\param entites    The entities for which tag values will be serialized
+     *\param entities    The entities for which tag values will be serialized
      *\param count_out  Output: The required buffer size, in bytes.
      */
     ErrorCode packed_tag_size( Tag source_tag, 
@@ -1201,13 +1201,13 @@ namespace moab {
      *\param source_tag    The tag for which data will be serialized
      *\param destination_tag Tag in which to store unpacked tag data.  Typically
      *                     the same as source_tag.
-     *\param entites       The entities for which tag values will be serialized
+     *\param entities       The entities for which tag values will be serialized
      *\param whole_range   Calculate entity indices as location in this range
      *\param buff_ptr      Input/Output: As input, pointer to the start of the
      *                     buffer in which to serialize data.  As output, the
      *                     position just passed the serialized data.
      *\param count_out     Output: The required buffer size, in bytes.
-     *\param store_handles The data for each tag is preceeded by a list of 
+     *\param store_handles The data for each tag is preceded by a list of
      *                     EntityHandles designating the entity each of
      *                     the subsequent tag values corresponds to.  This value
      *                     may be one of:
@@ -1485,20 +1485,20 @@ namespace moab {
   inline void ParallelComm::reset_all_buffers() 
   {
     std::vector<Buffer*>::iterator vit;
-    for (vit = localOwnedBuffs.begin(); vit != localOwnedBuffs.end(); vit++)
+    for (vit = localOwnedBuffs.begin(); vit != localOwnedBuffs.end(); ++vit)
       (*vit)->reset_buffer();
-    for (vit = remoteOwnedBuffs.begin(); vit != remoteOwnedBuffs.end(); vit++)
+    for (vit = remoteOwnedBuffs.begin(); vit != remoteOwnedBuffs.end(); ++vit)
       (*vit)->reset_buffer();
   }
 
   inline void ParallelComm::delete_all_buffers() 
   {
     std::vector<Buffer*>::iterator vit;
-    for (vit = localOwnedBuffs.begin(); vit != localOwnedBuffs.end(); vit++)
+    for (vit = localOwnedBuffs.begin(); vit != localOwnedBuffs.end(); ++vit)
       delete (*vit);
     localOwnedBuffs.clear();
   
-    for (vit = remoteOwnedBuffs.begin(); vit != remoteOwnedBuffs.end(); vit++)
+    for (vit = remoteOwnedBuffs.begin(); vit != remoteOwnedBuffs.end(); ++vit)
       delete (*vit);
     remoteOwnedBuffs.clear();
   }

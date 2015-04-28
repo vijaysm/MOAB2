@@ -225,7 +225,7 @@ int main( int argc, char* argv[] )
       return 1;
     }
     
-    for (std::vector<int>::iterator vit = matsets.begin(); vit != matsets.end(); vit++) {
+    for (std::vector<int>::iterator vit = matsets.begin(); vit != matsets.end(); ++vit) {
       int this_matset = *vit;
       const void *this_matset_ptr = &this_matset;
       Range this_range, ent_range;

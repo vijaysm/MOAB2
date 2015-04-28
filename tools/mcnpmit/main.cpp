@@ -240,7 +240,7 @@ int main(int argc, char **argv) {
         assert(moab::MB_SUCCESS == MBresult);
       }
       std::cout << "No leaf found, MCNP coord xyz=" << x << " " << y << " " << z << std::endl;
-      cfd_iter++;
+      ++cfd_iter;
       continue;
     }
 
@@ -252,7 +252,7 @@ int main(int argc, char **argv) {
     // if (range.size() > nmax) nmax = range.size();
     // if (range.size() < nmin) nmin = range.size();
 
-    for (moab::Range::iterator rit = range.begin(); rit != range.end(); rit++) {
+    for (moab::Range::iterator rit = range.begin(); rit != range.end(); ++rit) {
       verts.clear();
       const moab::EntityHandle *connect;
       int num_connect;
@@ -297,7 +297,7 @@ int main(int argc, char **argv) {
       }
     }
 
-    if (!read_qnv) cfd_iter++;
+    if (!read_qnv) ++cfd_iter;
 
     if (!found) {
       std::cout << n << " " << testvc << std::endl;

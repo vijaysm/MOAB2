@@ -1454,7 +1454,7 @@ template <typename T> ErrorCode check_shared_ents(ParallelComm &pcomm, Tag tagh,
     // for each, compare number of sharing procs against tag value, should be 1/fact the tag value
   Range::iterator rit;
   int i = 0;
-  for (rit = shared_ents.begin(); rit != shared_ents.end(); rit++, i++) {
+  for (rit = shared_ents.begin(); rit != shared_ents.end(); ++rit, i++) {
     rval = pcomm.get_sharing_data(*rit, &shprocs[0], &shhandles[0], pstatus, np); CHKERR(rval);
     if (1 == np && shprocs[0] != (int) pcomm.proc_config().proc_rank()) np++;
     bool with_root = std::find(&shprocs[0], &shprocs[np], 0)-&shprocs[0] != np || !pcomm.rank();
@@ -1667,7 +1667,7 @@ ErrorCode test_delete_entities( const char* filename )
   rval = pcomm->delete_entities(local2);
   CHKERR(rval);
 
-  for (Range::iterator it=local2.begin(); it!=local2.end(); it++)
+  for (Range::iterator it=local2.begin(); it!=local2.end(); ++it)
   {
     if (mb_instance.is_valid(*it))
       return MB_FAILURE;

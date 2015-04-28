@@ -122,7 +122,7 @@ namespace moab {
       ErrorCode rval = MB_SUCCESS;
       unsigned int nevals = 0;
       Range::iterator i;
-      for(i = entities.begin(); i != entities.end(); i++) {
+      for(i = entities.begin(); i != entities.end(); ++i) {
         nevals++;
         set_ent_handle(*i);
         rval = reverse_eval(point, iter_tol, inside_tol, params, &is_inside);

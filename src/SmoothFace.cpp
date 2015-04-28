@@ -67,7 +67,7 @@ double SmoothFace::area()
   //assert(_smooth_face);
   //double area1 = _smooth_face->area();
   double totArea = 0.;
-  for (Range::iterator it = _triangles.begin(); it != _triangles.end(); it++)
+  for (Range::iterator it = _triangles.begin(); it != _triangles.end(); ++it)
   {
     EntityHandle tria = *it;
     const EntityHandle * conn3;
@@ -162,7 +162,7 @@ ErrorCode SmoothFace::compute_control_points_on_edges(double min_dot,
   _markTag = markTag;
 
   // now, compute control points for all edges that are not marked already (they are no on the boundary!)
-  for (Range::iterator it = _edges.begin(); it != _edges.end(); it++)
+  for (Range::iterator it = _edges.begin(); it != _edges.end(); ++it)
   {
     EntityHandle edg = *it;
     // is the edge marked? already computed
@@ -222,7 +222,7 @@ int SmoothFace::init_gradient()
       MB_TAG_DENSE|MB_TAG_CREAT, &defPlane);
   // the fourth double is for weight, accumulated at each vertex so far
   // maybe not needed in the end
-  for (Range::iterator it = _triangles.begin(); it != _triangles.end(); it++)
+  for (Range::iterator it = _triangles.begin(); it != _triangles.end(); ++it)
   {
     EntityHandle tria = *it;
     const EntityHandle * conn3;
@@ -294,7 +294,7 @@ int SmoothFace::init_gradient()
   {
     std::cout << " normals at  " << numNodes << " nodes" << std::endl;
     int i = 0;
-    for (Range::iterator it = _nodes.begin(); it != _nodes.end(); it++, i++)
+    for (Range::iterator it = _nodes.begin(); it != _nodes.end(); ++it, i++)
     {
       EntityHandle node = *it;
       std::cout << " Node id " << _mb->id_from_handle(node) << "  "
@@ -385,7 +385,7 @@ ErrorCode SmoothFace::compute_tangents_for_each_edge()
     return MB_FAILURE;
 
   // now, compute Tangents for all edges that are not on boundary, so they are not marked
-  for (Range::iterator it = _edges.begin(); it != _edges.end(); it++)
+  for (Range::iterator it = _edges.begin(); it != _edges.end(); ++it)
   {
     EntityHandle edg = *it;
 
@@ -489,7 +489,7 @@ ErrorCode SmoothFace::compute_internal_control_points_on_facets(double ,
   _facetCtrlTag = facetCtrlTag;
   _facetEdgeCtrlTag = facetEdgeCtrlTag;
 
-  for (Range::iterator it = _triangles.begin(); it != _triangles.end(); it++)
+  for (Range::iterator it = _triangles.begin(); it != _triangles.end(); ++it)
   {
     EntityHandle tri = *it;
     // first get connectivity, and the edges
@@ -592,7 +592,7 @@ void SmoothFace::adjust_bounding_box(CartVect & vect)
 ////Function Name: init_facet_control_points
 ////
 ////Member Type:  PRIVATE
-////Descriptoin:  compute the control points for a facet
+////Description:  compute the control points for a facet
 ////===============================================================
 ErrorCode SmoothFace::init_facet_control_points(CartVect N[6], // vertex normals (per edge)
     CartVect P[3][5], // edge control points
@@ -657,7 +657,7 @@ void SmoothFace::DumpModelControlPoints()
   smoothPoints.open(name);//("smooth.Point3D");
   smoothPoints << "# x y z \n";
   CartVect controlPoints[3]; // edge control points
-  for (Range::iterator it = _edges.begin(); it != _edges.end(); it++)
+  for (Range::iterator it = _edges.begin(); it != _edges.end(); ++it)
   {
     EntityHandle edge = *it;
 
@@ -671,7 +671,7 @@ void SmoothFace::DumpModelControlPoints()
   }
   CartVect controlTriPoints[6]; // triangle control points
   CartVect P_facet[3];// result in 3 "mid" control points
-  for (Range::iterator it2 = _triangles.begin(); it2 != _triangles.end(); it2++)
+  for (Range::iterator it2 = _triangles.begin(); it2 != _triangles.end(); ++it2)
   {
     EntityHandle tri = *it2;
 

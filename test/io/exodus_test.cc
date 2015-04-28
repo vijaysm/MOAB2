@@ -398,7 +398,7 @@ void mb_write_mesh_test()
 
     //add evens to 'block_ms'
   std::vector<EntityHandle> temp_vec; 
-  for(; iter != end_iter; iter++)
+  for(; iter != end_iter; ++iter)
   {
     if( ID_FROM_HANDLE( *iter ) % 2 == 0 ) 
       temp_vec.push_back( *iter );
@@ -415,7 +415,7 @@ void mb_write_mesh_test()
     //add some entities to it
   temp_vec.clear();
   iter = temp_range.begin();
-  for(; iter != end_iter; iter++)
+  for(; iter != end_iter; ++iter)
   {
     if( ID_FROM_HANDLE( *iter ) % 2 )  //add all odds
       temp_vec.push_back( *iter );
@@ -453,7 +453,7 @@ void mb_write_mesh_test()
 
     //add evens to 'sideset_ms'
   temp_vec.clear(); 
-  for(; iter != end_iter; iter++)
+  for(; iter != end_iter; ++iter)
   {
     if( ID_FROM_HANDLE( *iter ) % 2 == 0 ) 
       temp_vec.push_back( *iter );
@@ -469,7 +469,7 @@ void mb_write_mesh_test()
     //add some entities to it
   temp_vec.clear();
   iter = temp_range.begin();
-  for(; iter != end_iter; iter++)
+  for(; iter != end_iter; ++iter)
   {
     if( ID_FROM_HANDLE( *iter ) % 2 )  //add all odds
       temp_vec.push_back( *iter );
@@ -503,7 +503,7 @@ void mb_write_mesh_test()
   CHECK_ERR(result);
   
   unsigned int k = 0;
-  for(Range::iterator it = temp_range.begin(); it != temp_range.end(); it++) {
+  for(Range::iterator it = temp_range.begin(); it != temp_range.end(); ++it) {
     if( coords[12*k] == 2.5 && coords[12*k+3] == 2.5 &&
         coords[12*k+6] == 2.5 && coords[12*k+9] == 2.5 )
       temp_vec.push_back(*it);
@@ -646,7 +646,7 @@ void mb_write_mesh_test()
 
     //add evens to 'nodeset_ms'
   temp_vec.clear(); 
-  for(; iter != end_iter; iter++)
+  for(; iter != end_iter; ++iter)
   {
     if( ID_FROM_HANDLE( *iter ) % 2 == 0 ) 
       temp_vec.push_back( *iter );
@@ -662,7 +662,7 @@ void mb_write_mesh_test()
   temp_vec.clear();
   iter = nodes_of_quads.begin();
   end_iter = nodes_of_quads.end();
-  for(; iter != end_iter; iter++)
+  for(; iter != end_iter; ++iter)
   {
     if( ID_FROM_HANDLE( *iter ) % 2 )  //add all odds
       temp_vec.push_back( *iter );

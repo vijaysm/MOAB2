@@ -77,7 +77,7 @@ bool SweptElementData::boundary_complete() const
     // pseudo code:
     // for each vertex sequence v:
   for (std::vector<VertexDataRef>::const_iterator vseq = vertexSeqRefs.begin();
-       vseq != vertexSeqRefs.end(); vseq++)
+       vseq != vertexSeqRefs.end(); ++vseq)
   {
     //   test min corner mincorner:
     bool mincorner = true;
@@ -86,7 +86,7 @@ bool SweptElementData::boundary_complete() const
 
     //     for each vsequence v' != v:
       for (std::vector<VertexDataRef>::const_iterator othervseq = vertexSeqRefs.begin();
-           othervseq != vertexSeqRefs.end(); othervseq++) 
+           othervseq != vertexSeqRefs.end(); ++othervseq)
       {
         if (othervseq == vseq) continue;        
     //       if v.min-p contained in v'
@@ -105,7 +105,7 @@ bool SweptElementData::boundary_complete() const
 
     //     for each vsequence v' != v:
       for (std::vector<VertexDataRef>::const_iterator othervseq = vertexSeqRefs.begin();
-           othervseq != vertexSeqRefs.end(); othervseq++) 
+           othervseq != vertexSeqRefs.end(); ++othervseq)
       {
         if (othervseq == vseq) continue;        
     //       if v.max+p contained in v'

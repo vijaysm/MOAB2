@@ -306,7 +306,7 @@ void Core::deinitialize()
   std::vector<ParallelComm*> pc_list;
   ParallelComm::get_all_pcomm(this, pc_list);
   for (std::vector<ParallelComm*>::iterator vit = pc_list.begin();
-       vit != pc_list.end(); vit++)
+       vit != pc_list.end(); ++vit)
     delete *vit;
 #endif
 
@@ -744,7 +744,7 @@ ErrorCode Core::write_file( const char* file_name,
 
   // Try all possible writers
   for (ReaderWriterSet::iterator i = reader_writer_set()->begin();
-       i != reader_writer_set()->end(); i++) {
+       i != reader_writer_set()->end(); ++i) {
 
     if ((file_type && !i->name().compare(file_type)) ||
         i->writes_extension(ext.c_str())) {
@@ -855,7 +855,7 @@ ErrorCode Core::get_vertex_coordinates(std::vector<double> &coords) const
   int vec_pos = 0;
   double xyz[3];
   coords.resize(geometricDimension*num_verts);
-  for (Range::iterator it = vertices.begin(); it != vertices.end(); it++)
+  for (Range::iterator it = vertices.begin(); it != vertices.end(); ++it)
   {
     result = get_coords(&(*it), 1, xyz);MB_CHK_ERR(result);
 
@@ -941,7 +941,7 @@ ErrorCode  Core::get_coords(const Range& entities, double *coords) const
 
     // for non-vertices...
   ErrorCode rval = MB_SUCCESS;
-  for (Range::const_iterator rit(&(*i), i->first); rit != entities.end(); rit++) {
+  for (Range::const_iterator rit(&(*i), i->first); rit != entities.end(); ++rit) {
     rval = get_coords(&(*rit), 1, coords);MB_CHK_ERR(rval);
     coords += 3;
   }
@@ -999,7 +999,7 @@ ErrorCode Core::get_coords( const Range& entities,
     // for non-vertices...
   ErrorCode rval = MB_SUCCESS;
   double xyz[3];
-  for (Range::const_iterator rit(&(*i), i->first); rit != entities.end(); rit++) {
+  for (Range::const_iterator rit(&(*i), i->first); rit != entities.end(); ++rit) {
     rval = get_coords(&(*rit), 1, xyz);MB_CHK_ERR(rval);
     *x_coords++ = xyz[0];
     *y_coords++ = xyz[1];
@@ -1118,7 +1118,7 @@ ErrorCode  Core::set_coords(Range entity_handles, const double *coords)
 
   int j = 0;
 
-  for (Range::iterator rit = entity_handles.begin(); rit != entity_handles.end(); rit++) {
+  for (Range::iterator rit = entity_handles.begin(); rit != entity_handles.end(); ++rit) {
     if ( TYPE_FROM_HANDLE(*rit) == MBVERTEX )
     {
       EntitySequence* seq = 0;
@@ -1155,7 +1155,7 @@ ErrorCode Core::get_connectivity_by_type(const EntityType type,
     // now loop over these entities, getting connectivity for each
   for (Range::iterator this_it = this_range.begin();
        this_it != this_range.end();
-       this_it++)
+       ++this_it)
   {
     const EntityHandle *connect_vec;
     result = get_connectivity(*this_it, connect_vec, num_ents, true);MB_CHK_ERR(result);
@@ -1377,7 +1377,7 @@ ErrorCode get_adjacencies_intersection( Core* mb,
     ++begin;
   }
 
-  for (ITER from_it = begin; from_it != end; from_it++)
+  for (ITER from_it = begin; from_it != end; ++from_it)
   {
       // running results kept in adj_entities; clear temp_vec, which is working space
     temp_vec.clear();
@@ -1478,7 +1478,7 @@ ErrorCode get_adjacencies_intersection_ahf(Core *mb,
     ++begin;
   }
 
-  for (ITER from_it = begin; from_it != end; from_it++)
+  for (ITER from_it = begin; from_it != end; ++from_it)
   {
       // running results kept in adj_entities; clear temp_vec, which is working space
     temp_vec.clear();
@@ -1787,7 +1787,7 @@ ErrorCode Core::add_adjacencies(const EntityHandle entity_handle,
 {
   ErrorCode result = MB_SUCCESS;
 
-  for (Range::iterator rit = adjacencies.begin(); rit != adjacencies.end(); rit++) {
+  for (Range::iterator rit = adjacencies.begin(); rit != adjacencies.end(); ++rit) {
     result = aEntityFactory->add_adjacency(entity_handle, *rit, both_ways);MB_CHK_ERR(result);
   }
 
@@ -2001,7 +2001,7 @@ ErrorCode Core::get_entities_by_handle(const EntityHandle meshset,
     result = mseq->get_entities( sequence_manager(), meshset, entities, recursive );MB_CHK_ERR(result);
   }
   else {
-    // iterate backards so range insertion is quicker
+    // iterate backwards so range insertion is quicker
     for (EntityType type = MBENTITYSET; type >= MBVERTEX; --type)
       sequence_manager()->get_entities( type, entities );
   }
@@ -2777,7 +2777,7 @@ ErrorCode Core::delete_entities(const Range &range)
       result = temp_result;
   }
 
-  for (Range::const_reverse_iterator rit = range.rbegin(); rit != range.rend(); rit++) {
+  for (Range::const_reverse_iterator rit = range.rbegin(); rit != range.rend(); ++rit) {
 
       // tell AEntityFactory that this element is going away
     temp_result = aEntityFactory->notify_delete_entity(*rit);
@@ -2921,7 +2921,7 @@ ErrorCode Core::list_entities(const Range &temp_range) const
 {
   ErrorCode result = MB_SUCCESS, tmp_result;
 
-  for (Range::const_iterator rit = temp_range.begin(); rit != temp_range.end(); rit++) {
+  for (Range::const_iterator rit = temp_range.begin(); rit != temp_range.end(); ++rit) {
     EntityType this_type = TYPE_FROM_HANDLE(*rit);
     std::cout << CN::EntityTypeName(this_type) << " " << ID_FROM_HANDLE(*rit) << ":" << endl;
 
@@ -2970,7 +2970,7 @@ ErrorCode Core::list_entity(const EntityHandle entity) const
       // create_if_missing, so we know we won't change anything
     result = (const_cast<Core*>(this))->get_adjacencies(&(entity), 1, dim, false, adj_vec);
     if (MB_FAILURE == result) continue;
-    for (HandleVec::iterator adj_it = adj_vec.begin(); adj_it != adj_vec.end(); adj_it++) {
+    for (HandleVec::iterator adj_it = adj_vec.begin(); adj_it != adj_vec.end(); ++adj_it) {
       if (adj_it != adj_vec.begin()) std::cout << ", ";
       else std::cout << "   ";
       std::cout << CN::EntityTypeName(TYPE_FROM_HANDLE(*adj_it)) << " " << ID_FROM_HANDLE(*adj_it);
@@ -3689,7 +3689,7 @@ void Core::print(const EntityHandle ms_handle, const char *prefix,
   std::cout << "  Parent sets: ";
   if (temp.empty()) std::cout << "(none)" << std::endl;
   else {
-    for (Range::iterator rit = temp.begin(); rit != temp.end(); rit++) {
+    for (Range::iterator rit = temp.begin(); rit != temp.end(); ++rit) {
       if (rit != temp.begin()) std::cout << ", ";
       std::cout << ID_FROM_HANDLE(*rit);
     }
@@ -3701,7 +3701,7 @@ void Core::print(const EntityHandle ms_handle, const char *prefix,
   std::cout << "  Child sets: ";
   if (temp.empty()) std::cout << "(none)" << std::endl;
   else {
-    for (Range::iterator rit = temp.begin(); rit != temp.end(); rit++) {
+    for (Range::iterator rit = temp.begin(); rit != temp.end(); ++rit) {
       if (rit != temp.begin()) std::cout << ", ";
       std::cout << ID_FROM_HANDLE(*rit);
     }
@@ -3720,7 +3720,7 @@ ErrorCode Core::print_entity_tags(std::string indent_prefix, const EntityHandle 
   indent_prefix += "  ";
 
   for (std::vector<Tag>::iterator vit = set_tags.begin();
-       vit != set_tags.end(); vit++) {
+       vit != set_tags.end(); ++vit) {
     TagType this_type;
     result = this->tag_get_type(*vit, this_type);
     if (MB_SUCCESS != result || tp != this_type) continue;
@@ -3788,7 +3788,7 @@ ErrorCode Core::check_adjacencies()
   Range all_ents;
   ErrorCode result = get_entities_by_handle(0, all_ents);MB_CHK_ERR(result);
 
-  for (Range::iterator rit = all_ents.begin(); rit != all_ents.end(); rit++) {
+  for (Range::iterator rit = all_ents.begin(); rit != all_ents.end(); ++rit) {
     result = check_adjacencies(&(*rit), 1);MB_CHK_ERR(result);
   }
 
@@ -3834,7 +3834,7 @@ ErrorCode Core::check_adjacencies(const EntityHandle *ents, int num_ents)
       }
 
         // now check and reverse-evaluate them
-      for (Range::iterator rit = adjs.begin(); rit != adjs.end(); rit++) {
+      for (Range::iterator rit = adjs.begin(); rit != adjs.end(); ++rit) {
         EntitySequence* seq = 0;
         tmp_result = sequence_manager()->find(*rit, seq);
         if(seq == 0 || tmp_result != MB_SUCCESS) {
@@ -3929,7 +3929,7 @@ ErrorCode Core::remove_set_iterator(SetIterator *set_iter)
 ErrorCode Core::get_set_iterators(EntityHandle meshset,
                                   std::vector<SetIterator *> &set_iters)
 {
-  for (std::vector<SetIterator*>::const_iterator vit = setIterators.begin(); vit != setIterators.end(); vit++)
+  for (std::vector<SetIterator*>::const_iterator vit = setIterators.begin(); vit != setIterators.end(); ++vit)
     if ((*vit)->ent_set() == meshset) set_iters.push_back(*vit);
   return MB_SUCCESS;
 }
@@ -3946,7 +3946,7 @@ void Core::estimated_memory_use_internal( const Range* ents,
                                   type_memstorage* tag_storage,
                                   type_memstorage* amortized_tag_storage )
 {
-    // Figure out which values we need to calulate
+    // Figure out which values we need to calculate
   type_memstorage i_entity_storage,    ia_entity_storage,
                 i_adjacency_storage, ia_adjacency_storage,
                 i_tag_storage,       ia_tag_storage;

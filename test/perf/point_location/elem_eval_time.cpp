@@ -117,7 +117,7 @@ ErrorCode time_forward_eval(Interface *mbi, int method, Range &elems,
     eeval.set_eval_set(*elems.begin());
     eeval.set_tag_handle(0, 0); // indicates coordinates as the field to evaluate
   
-    for (rit = elems.begin(), i = 0; rit != elems.end(); rit++, i++) {
+    for (rit = elems.begin(), i = 0; rit != elems.end(); ++rit, i++) {
       eeval.set_ent_handle(*rit);
       rval = eeval.eval(params[i].array(), coords[i].array(), 3);
 #ifndef NDEBUG
@@ -130,7 +130,7 @@ ErrorCode time_forward_eval(Interface *mbi, int method, Range &elems,
     const EntityHandle *connect;
     int nconn;
     Element::Map *elemmap = NULL;
-    for (rit = elems.begin(), i = 0; rit != elems.end(); rit++, i++) {
+    for (rit = elems.begin(), i = 0; rit != elems.end(); ++rit, i++) {
       rval = mbi->get_connectivity(*rit, connect, nconn); CHK(rval, "get_connectivity");
       rval = mbi->get_coords(connect, nconn, vcoords[0].array()); CHK(rval, "get_coords");
       rval = get_elem_map(mbi->type_from_handle(*rit), vcoords, nconn, elemmap); CHK(rval, "get_elem_map");
@@ -156,7 +156,7 @@ ErrorCode time_reverse_eval(Interface *mbi, int method, Range &elems,
     eeval.set_eval_set(*elems.begin());
     eeval.set_tag_handle(0, 0); // indicates coordinates as the field to evaluate    
     int ins;
-    for (rit = elems.begin(), i = 0; rit != elems.end(); rit++, i++) {
+    for (rit = elems.begin(), i = 0; rit != elems.end(); ++rit, i++) {
       eeval.set_ent_handle(*rit);
       rval = eeval.reverse_eval(coords[i].array(), 1.0e-10, 1.0e-6, params[i].array(), &ins);
       assert(ins);
@@ -170,7 +170,7 @@ ErrorCode time_reverse_eval(Interface *mbi, int method, Range &elems,
     const EntityHandle *connect;
     int nconn;
     Element::Map *elemmap = NULL;
-    for (rit = elems.begin(), i = 0; rit != elems.end(); rit++, i++) {
+    for (rit = elems.begin(), i = 0; rit != elems.end(); ++rit, i++) {
       rval = mbi->get_connectivity(*rit, connect, nconn); CHK(rval, "get_connectivity");
       rval = mbi->get_coords(connect, nconn, vcoords[0].array()); CHK(rval, "get_coords");
       rval = get_elem_map(mbi->type_from_handle(*rit), vcoords, nconn, elemmap); CHK(rval, "get_elem_map");
@@ -194,7 +194,7 @@ ErrorCode time_jacobian(Interface *mbi, int method, Range &elems, std::vector<Ca
     ElemEvaluator eeval(mbi);
     eeval.set_eval_set(*elems.begin());
     eeval.set_tag_handle(0, 0); // indicates coordinates as the field to evaluate    
-    for (rit = elems.begin(), i = 0; rit != elems.end(); rit++, i++) {
+    for (rit = elems.begin(), i = 0; rit != elems.end(); ++rit, i++) {
       eeval.set_ent_handle(*rit);
       rval = eeval.jacobian(params[i].array(), jac.array());
 #ifndef NDEBUG
@@ -207,7 +207,7 @@ ErrorCode time_jacobian(Interface *mbi, int method, Range &elems, std::vector<Ca
     const EntityHandle *connect;
     int nconn;
     Element::Map *elemmap = NULL;
-    for (rit = elems.begin(), i = 0; rit != elems.end(); rit++, i++) {
+    for (rit = elems.begin(), i = 0; rit != elems.end(); ++rit, i++) {
       rval = mbi->get_connectivity(*rit, connect, nconn); CHK(rval, "get_connectivity");
       rval = mbi->get_coords(connect, nconn, vcoords[0].array()); CHK(rval, "get_coords");
       rval = get_elem_map(mbi->type_from_handle(*rit), vcoords, nconn, elemmap); CHK(rval, "get_elem_map");
@@ -229,7 +229,7 @@ ErrorCode time_integrate(Interface *mbi, int method, Tag tag, Range &elems, doub
     eeval.set_eval_set(*elems.begin());
     eeval.set_tag_handle(0, 0); // indicates coordinates as the field to evaluate    
     rval = eeval.set_tag_handle(tag, 0); CHK(rval, "set_tag_handle");
-    for (Range::iterator rit = elems.begin(); rit != elems.end(); rit++) {
+    for (Range::iterator rit = elems.begin(); rit != elems.end(); ++rit) {
       eeval.set_ent_handle(*rit);
       rval = eeval.integrate(&integral);
 #ifndef NDEBUG
@@ -245,7 +245,7 @@ ErrorCode time_integrate(Interface *mbi, int method, Tag tag, Range &elems, doub
     Element::Map *elemmap = NULL;
     Range::iterator rit;
     unsigned int i;
-    for (rit = elems.begin(), i = 0; rit != elems.end(); rit++, i++) {
+    for (rit = elems.begin(), i = 0; rit != elems.end(); ++rit, i++) {
       rval = mbi->get_connectivity(*rit, connect, nconn); CHK(rval, "get_connectivity");
       rval = mbi->get_coords(connect, nconn, vcoords[0].array()); CHK(rval, "get_coords");
       rval = get_elem_map(mbi->type_from_handle(*rit), vcoords, nconn, elemmap); CHK(rval, "get_elem_map");
