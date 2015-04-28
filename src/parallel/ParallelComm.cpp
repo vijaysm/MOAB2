@@ -4253,7 +4253,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     // On 64 bits, long and int are different
     // On 32 bits, they are not; if size of long is 8, it is a 64 bit machine (really?)
 
-    for (Range::iterator rit = sets.begin(); rit != sets.end(); rit++) {
+    for (Range::iterator rit = sets.begin(); rit != sets.end(); ++rit) {
       if (sizeof(long) == bytes_per_tag && ((MB_TYPE_HANDLE == tag_type) || (MB_TYPE_OPAQUE == tag_type))) { // It is a special id tag
         long dum;
         result = mbImpl->tag_get_data(idtag, &(*rit), 1, &dum);

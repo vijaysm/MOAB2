@@ -174,7 +174,7 @@ void test_spectral_hex()
   moab::Element::SpectralHex specHex(sem_dims[0] );
 
  // compute the data for some elements 
-  for (moab::Range::iterator rit=ents.begin(); rit!=ents.end(); rit++)
+  for (moab::Range::iterator rit=ents.begin(); rit!=ents.end(); ++rit)
   { 
   // get the tag pointers to the internal storage for xm1, to not copy the values
      moab::EntityHandle eh= *rit;
@@ -272,7 +272,7 @@ void test_spectral_quad()
   moab::Element::SpectralQuad specQuad(NP);
 
  // compute the gl points for some elements
-  for (moab::Range::iterator rit = ents.begin(); rit != ents.end(); rit++)
+  for (moab::Range::iterator rit = ents.begin(); rit != ents.end(); ++rit)
   {
 
     const moab::EntityHandle * conn4 = NULL;

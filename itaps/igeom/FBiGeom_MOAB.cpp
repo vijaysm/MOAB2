@@ -324,13 +324,13 @@ void FBiGeom_getEnt2ndAdj(FBiGeom_Instance instance,
 
   Range::iterator iter, jter, kter, end_jter;
   Range::iterator end_iter = bridge_ents.end();
-  for (iter = bridge_ents.begin(); iter != end_iter; iter++) {
+  for (iter = bridge_ents.begin(); iter != end_iter; ++iter) {
     rval = FBE_cast(instance)->getEntAdj(*iter, to_dimension,
                                          tmp_ents);
 
     CHKERR(rval, "Failed to get adjacent entities in FBiGeom_getEnt2ndAdj.");
 
-    for (jter = tmp_ents.begin(); jter != end_jter; jter++) {
+    for (jter = tmp_ents.begin(); jter != end_jter; ++jter) {
       if (to_ents.find(*jter) == to_ents.end()) {
         to_ents.insert(*jter);
       }

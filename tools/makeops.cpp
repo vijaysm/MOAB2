@@ -77,7 +77,7 @@ int main(int argc, char **argv)
   ErrorCode result = MB_SUCCESS, tmp_result = MB_FAILURE;
 
   for (std::vector<OperationType>::iterator vit = op_types.begin(); 
-       vit != op_types.end(); vit++) {
+       vit != op_types.end(); ++vit) {
     if (*vit == ATOMIC_PILLOW) {
       tmp_result = make_atomic_pillow();
     }

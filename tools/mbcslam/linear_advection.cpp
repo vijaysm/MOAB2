@@ -280,7 +280,7 @@ void get_gnomonic_plane(moab::Interface * mb, moab::EntityHandle set, moab::Tag 
   if (MB_SUCCESS != rval)
     return;
 
-  for (Range::iterator it = cells.begin(); it != cells.end(); it++)
+  for (Range::iterator it = cells.begin(); it != cells.end(); ++it)
   {
     moab::EntityHandle icell = *it;
 
@@ -335,7 +335,7 @@ void get_barycenters(moab::Interface * mb, moab::EntityHandle set, moab::Tag &pl
   // set sphere radius to 1
    double R = 1.0;
 
-  for (Range::iterator it = cells.begin(); it != cells.end(); it++)
+  for (Range::iterator it = cells.begin(); it != cells.end(); ++it)
   {
     moab::EntityHandle icell = *it;
 
@@ -430,7 +430,7 @@ void set_density(moab::Interface * mb, moab::EntityHandle euler_set, moab::Tag &
 
   // loop over cells 
   int cell_ind = 0;
-  for (Range::iterator it = cells.begin(); it != cells.end(); it++)
+  for (Range::iterator it = cells.begin(); it != cells.end(); ++it)
   {
     moab::EntityHandle icell = *it;
    
@@ -494,7 +494,7 @@ void get_linear_reconstruction(moab::Interface * mb, moab::EntityHandle set, moa
     return;
 
   // Get coefficients for reconstruction (in cubed-sphere coordinates)
-  for (Range::iterator it = cells.begin(); it != cells.end(); it++)
+  for (Range::iterator it = cells.begin(); it != cells.end(); ++it)
   {
     moab::EntityHandle icell = *it;
 
@@ -616,7 +616,7 @@ moab::ErrorCode get_departure_grid(moab::Interface * mb, moab::EntityHandle eule
 
   // change coordinates of lagr mesh vertices
   for (Range::iterator vit = connecVerts.begin(); vit != connecVerts.end();
-      vit++)
+      ++vit)
   {
     moab::EntityHandle oldV = *vit;
     CartVect posi;
@@ -715,7 +715,7 @@ moab::ErrorCode update_density(moab::Interface * mb, moab::EntityHandle euler_se
   // rho_eul^n+1 = mass_lagr/area_eul
   double check_intx_area = 0.;
   int polyIndex = 0;
-  for (Range::iterator it= polys.begin(); it!=polys.end(); it++)
+  for (Range::iterator it= polys.begin(); it!=polys.end(); ++it)
   {
 
     moab::EntityHandle poly=*it;
@@ -881,7 +881,7 @@ void get_intersection_weights(moab::Interface * mb, moab::EntityHandle euler_set
       return;
 
   double total_area = 0.;
-  for (moab::Range::iterator it = polys.begin(); it != polys.end(); it++)
+  for (moab::Range::iterator it = polys.begin(); it != polys.end(); ++it)
   {
     moab::EntityHandle poly = *it;
 
@@ -979,7 +979,7 @@ ErrorCode  create_lagr_mesh(moab::Interface * mb, moab::EntityHandle euler_set, 
   CHECK_ERR(rval);
 
   std::map<moab::EntityHandle, moab::EntityHandle> newNodes;
-  for (Range::iterator vit = connecVerts.begin(); vit != connecVerts.end(); vit++)
+  for (Range::iterator vit = connecVerts.begin(); vit != connecVerts.end(); ++vit)
   {
     moab::EntityHandle oldV = *vit;
     moab::CartVect posi;
@@ -1005,7 +1005,7 @@ ErrorCode  create_lagr_mesh(moab::Interface * mb, moab::EntityHandle euler_set, 
     CHECK_ERR(rval);
 
   }
- for (Range::iterator it = polys.begin(); it != polys.end(); it++)
+ for (Range::iterator it = polys.begin(); it != polys.end(); ++it)
   {
     moab::EntityHandle q = *it;
     int nnodes;

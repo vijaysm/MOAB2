@@ -184,7 +184,7 @@ MCNPError McnpData::read_mcnpfile(bool skip_mesh) {
                 }
 
 /*
-                  for (MBRange::iterator rit=vert_handles.begin(); rit != vert_handles.end(); rit++) {
+                  for (MBRange::iterator rit=vert_handles.begin(); rit != vert_handles.end(); ++rit) {
                         std::cout << *rit << std::endl; 
                   }
 

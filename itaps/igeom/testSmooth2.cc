@@ -943,7 +943,7 @@ bool topology_adjacencies_test(FBiGeom_Instance geom) {
    // check adjacencies in both directions
    std::vector<iBase_EntityHandle>::iterator vit;
    for (i = iBase_REGION; i >= iBase_VERTEX; i--) {
-      for (vit = gentity_vectors[i].begin(); vit != gentity_vectors[i].end(); vit++) {
+      for (vit = gentity_vectors[i].begin(); vit != gentity_vectors[i].end(); ++vit) {
          iBase_EntityHandle this_gent = *vit;
 
          // check downward adjacencies
@@ -1010,7 +1010,7 @@ bool geometry_evaluation_test(FBiGeom_Instance geom) {
    std::vector<iBase_EntityHandle>::iterator vit;
    for (i = iBase_REGION; i >= iBase_VERTEX; i--) {
       if (i != iBase_EDGE) {
-         for (vit = gentity_vectors[i].begin(); vit != gentity_vectors[i].end(); vit++) {
+         for (vit = gentity_vectors[i].begin(); vit != gentity_vectors[i].end(); ++vit) {
             iBase_EntityHandle this_gent = *vit;
             FBiGeom_getEntBoundBox(geom, this_gent, &min[0], &min[1], &min[2],
             &max[0], &max[1], &max[2], &err);
@@ -1059,7 +1059,7 @@ bool normals_test(FBiGeom_Instance geom) {
    double normal[3] = {.0, .0, .0};
    std::vector<iBase_EntityHandle>::iterator vit;
    for (i = iBase_REGION; i > iBase_EDGE; i--) {
-      for (vit = gentity_vectors[i].begin(); vit != gentity_vectors[i].end(); vit++) {
+      for (vit = gentity_vectors[i].begin(); vit != gentity_vectors[i].end(); ++vit) {
          iBase_EntityHandle this_gent = *vit;
          FBiGeom_getEntBoundBox(geom, this_gent, &min[0], &min[1], &min[2],
          &max[0], &max[1], &max[2], &err);

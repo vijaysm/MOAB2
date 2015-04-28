@@ -41,7 +41,7 @@ int main(int argc, char **argv) {
 
       // for each child, get parents and do something with them
     moab::Range::iterator ch_it, p_it;
-    for (ch_it = chsets.begin(); ch_it != chsets.end(); ch_it++) {
+    for (ch_it = chsets.begin(); ch_it != chsets.end(); ++ch_it) {
         // get the children and put in child set list
       psets.clear();
       rval = mb ->get_parent_meshsets(*ch_it, psets);
@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
                 << " parents." << std::endl;
 
       if (2 == dim) {
-        for (p_it = psets.begin(); p_it != psets.end(); p_it++) {
+        for (p_it = psets.begin(); p_it != psets.end(); ++p_it) {
           rval = mb->tag_get_data(gid_tag, &(*p_it), 1, &pgid);
           rval = gt.get_sense(*ch_it, *p_it, sense);
           if (moab::MB_SUCCESS != rval) continue;

@@ -66,10 +66,10 @@ namespace moab{
     myCD.gs_transfer(1, myTup, 0);
 
     /* Sort By X,Y,Z
-       -Utilizes a custom quick sort incoroporating eplison*/
+       -Utilizes a custom quick sort incorporating epsilon*/
     SortTuplesByReal(myTup,myEps);
 
-    //Initilize another tuple list for matches
+    //Initialize another tuple list for matches
     myMatches.initialize(2,0,2,0,mySkinEnts[0].size());
 
     //ID the matching tuples
@@ -182,12 +182,12 @@ namespace moab{
     std::vector<int> toProcs;
     int xPart, yPart, zPart, xEps, yEps, zEps, baseProc;
     unsigned long long tup_i=0, tup_ul=0, tup_r=0, count=0;
-    //These are boolean to determine if the vertice is on close enought to a given border
+    //These are boolean to determine if the vertex is on close enough to a given border
     bool xDup, yDup, zDup;
     bool canWrite = myTup.get_writeEnabled();
     if(!canWrite) myTup.enableWriteAccess();
-    //Go through each vertice
-    for(Range::iterator it = mySkinEnts[0].begin(); it != mySkinEnts[0].end(); it++){
+    //Go through each vertex
+    for(Range::iterator it = mySkinEnts[0].begin(); it != mySkinEnts[0].end(); ++it){
       xDup = false; yDup = false; zDup = false;
       //Figure out which x,y,z partition the element is in.
       xPart = static_cast<int>(floor((x[count]-gbox[0])/lengths[0]));
@@ -204,7 +204,7 @@ namespace moab{
       yEps = static_cast<int>(floor((y[count]-gbox[1]+myEps)/lengths[1]));
       zEps = static_cast<int>(floor((z[count]-gbox[2]+myEps)/lengths[2]));
 
-      //Figure out if the vertice needs to be sent to multiple procs
+      //Figure out if the vertex needs to be sent to multiple procs
       xDup = (xPart != xEps && xEps < parts[0]);
       yDup = (yPart != yEps && yEps < parts[1]);
       zDup = (zPart != zEps && zEps < parts[2]);
@@ -249,7 +249,7 @@ namespace moab{
       //Add each proc as a tuple
       for(std::vector<int>::iterator proc = toProcs.begin();
 	  proc != toProcs.end();
-	  proc++){
+	  ++proc){
 	myTup.vi_wr[tup_i++] = *proc;
 	myTup.vul_wr[tup_ul++] = *it;
 	myTup.vr_wr[tup_r++] = x[count];
@@ -381,7 +381,7 @@ namespace moab{
 	}
       }
     }
-    //If we havent reached the goal ratio yet, check out factor = numProcs
+    //If we haven't reached the goal ratio yet, check out factor = numProcs
     if(ratio < goalRatio){
       oldRatio = ratio;
       oldFactor = factor;
@@ -495,7 +495,7 @@ namespace moab{
     ErrorCode rval;
 
     // get the entities in the partition sets
-    for (Range::iterator rit = myPcomm->partitionSets.begin(); rit != myPcomm->partitionSets.end(); rit++) {
+    for (Range::iterator rit = myPcomm->partitionSets.begin(); rit != myPcomm->partitionSets.end(); ++rit) {
       Range tmp_ents;
       rval = myMB->get_entities_by_handle(*rit, tmp_ents, true);
       if (MB_SUCCESS != rval){
@@ -511,7 +511,7 @@ namespace moab{
     }
     
 
-    //This vector doesnt appear to be used but its in resolve_shared_ents
+    //This vector doesn't appear to be used but its in resolve_shared_ents
     int maxp = -1;
     std::vector<int> sharing_procs(MAX_SHARING_PROCS);
     std::fill(sharing_procs.begin(), sharing_procs.end(), maxp);

@@ -212,7 +212,7 @@ ErrorCode Skinner::find_geometric_skin(const EntityHandle meshset, Range &forwar
   Range skin_sets;
   if (debug) std::cout << "Found " << face_sets.size() << " face sets total..." << std::endl;
   
-  for (it = face_sets.begin(); it != face_sets.end(); it++) {
+  for (it = face_sets.begin(); it != face_sets.end(); ++it) {
     int num_parents;
     result = thisMB->num_parent_meshsets(*it, &num_parents);
     if (MB_SUCCESS != result)
@@ -227,7 +227,7 @@ ErrorCode Skinner::find_geometric_skin(const EntityHandle meshset, Range &forwar
     return MB_FAILURE;
       
     // ok, we have the shell; gather up the elements, putting them all in forward for now
-  for (it = skin_sets.begin(); it != skin_sets.end(); it++) {
+  for (it = skin_sets.begin(); it != skin_sets.end(); ++it) {
     result = thisMB->get_entities_by_handle(*it, forward_target_entities, true);
     if (MB_SUCCESS != result)
       return result;
@@ -285,7 +285,7 @@ ErrorCode Skinner::find_skin_scd(const Range& source_entities,
   Range myrange;
   rval = scdi->find_boxes(boxes);
   if (MB_SUCCESS != rval) return rval;
-  for (std::vector<ScdBox*>::iterator bit = boxes.begin(); bit != boxes.end(); bit++) {
+  for (std::vector<ScdBox*>::iterator bit = boxes.begin(); bit != boxes.end(); ++bit) {
     Range belems((*bit)->start_element(), (*bit)->start_element() + (*bit)->num_elements()-1);
     if (source_entities.contains(belems)) {
       myboxes.push_back(*bit);
@@ -295,7 +295,7 @@ ErrorCode Skinner::find_skin_scd(const Range& source_entities,
   if (myboxes.empty() || myrange.size() != source_entities.size()) return MB_FAILURE;
 
     // ok, we're all structured; get the skin for each box
-  for (std::vector<ScdBox*>::iterator bit = boxes.begin(); bit != boxes.end(); bit++) {
+  for (std::vector<ScdBox*>::iterator bit = boxes.begin(); bit != boxes.end(); ++bit) {
     rval = skin_box(*bit, get_vertices, output_handles, create_skin_elements);
     if (MB_SUCCESS != rval) return rval;
   }
@@ -868,7 +868,7 @@ ErrorCode Skinner::classify_2d_boundary( const Range &boundary,
   Range::iterator edge_iter, edge_end_iter;
   edge_end_iter = edge_list.end();
   int count;
-  for(edge_iter = edge_list.begin(); edge_iter != edge_end_iter; edge_iter++)
+  for(edge_iter = edge_list.begin(); edge_iter != edge_end_iter; ++edge_iter)
   {
     // check the count_tag
     result = thisMB->tag_get_data(count_tag, &(*edge_iter), 1, &count);

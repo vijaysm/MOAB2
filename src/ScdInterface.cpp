@@ -42,7 +42,7 @@ ScdInterface::~ScdInterface()
   std::vector<ScdBox*> tmp_boxes;
   tmp_boxes.swap(scdBoxes);
 
-  for (std::vector<ScdBox*>::iterator rit = tmp_boxes.begin(); rit != tmp_boxes.end(); rit++)
+  for (std::vector<ScdBox*>::iterator rit = tmp_boxes.begin(); rit != tmp_boxes.end(); ++rit)
     delete *rit;
 
   if (box_set_tag(false)) 
@@ -61,7 +61,7 @@ ErrorCode ScdInterface::find_boxes(std::vector<ScdBox*> &scd_boxes)
   ErrorCode rval = find_boxes(tmp_boxes);
   if (MB_SUCCESS != rval) return rval;
 
-  for (Range::iterator rit = tmp_boxes.begin(); rit != tmp_boxes.end(); rit++) {
+  for (Range::iterator rit = tmp_boxes.begin(); rit != tmp_boxes.end(); ++rit) {
     ScdBox *tmp_box = get_scd_box(*rit);
     if (tmp_box) scd_boxes.push_back(tmp_box);
     else rval = MB_FAILURE;
@@ -87,7 +87,7 @@ ErrorCode ScdInterface::find_boxes(Range &scd_boxes)
     }
   }
 
-  for (std::vector<ScdBox*>::iterator vit = scdBoxes.begin(); vit != scdBoxes.end(); vit++)
+  for (std::vector<ScdBox*>::iterator vit = scdBoxes.begin(); vit != scdBoxes.end(); ++vit)
     scd_boxes.insert((*vit)->box_set());
 
   return rval;
@@ -793,7 +793,7 @@ ErrorCode ScdInterface::tag_shared_vertices(ParallelComm *pcomm, ScdBox *box)
   pcomm->partition_sets().insert(box->box_set());
 
     // make sure buffers are allocated for communicating procs
-  for (std::vector<int>::iterator pit = procs.begin(); pit != procs.end(); pit++)
+  for (std::vector<int>::iterator pit = procs.begin(); pit != procs.end(); ++pit)
     pcomm->get_buffers(*pit);
 
   if (pcomm->get_debug_verbosity() > 1) pcomm->list_entities(NULL, 1);

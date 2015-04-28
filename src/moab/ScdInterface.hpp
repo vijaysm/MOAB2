@@ -1051,8 +1051,8 @@ inline ErrorCode ScdInterface::compute_partition_sqjk(int np, int nr,
       double jkratio = ((double)(gijk[4]-gijk[1]))/((double)(gijk[5]-gijk[2]));
 
       std::vector<double>::iterator vit  = std::lower_bound(ppfactors.begin(), ppfactors.end(), jkratio);
-      if (vit == ppfactors.end()) vit--;
-      else if (vit != ppfactors.begin() && fabs(*(vit-1)-jkratio) < fabs((*vit)-jkratio)) vit--;
+      if (vit == ppfactors.end()) --vit;
+      else if (vit != ppfactors.begin() && fabs(*(vit-1)-jkratio) < fabs((*vit)-jkratio)) --vit;
       int ind = vit - ppfactors.begin();
   
       pj = 1;
@@ -1241,7 +1241,7 @@ inline ErrorCode ScdInterface::tag_shared_vertices(ParallelComm *pcomm, EntityHa
     Range tmp_range;
     ErrorCode rval = mbImpl->get_entities_by_type(seth, MBENTITYSET, tmp_range);
     if (MB_SUCCESS != rval) return rval;
-    for (Range::iterator rit = tmp_range.begin(); rit != tmp_range.end(); rit++) {
+    for (Range::iterator rit = tmp_range.begin(); rit != tmp_range.end(); ++rit) {
       box = get_scd_box(*rit);
       if (box) break;
     }

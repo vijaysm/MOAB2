@@ -77,7 +77,7 @@ ErrorCode SphereDecomp::compute_nodes(const int dim)
   double radii[4], unitv[3];
   int num_verts = CN::VerticesPerEntity(the_types[dim]);
   
-  for (Range::iterator rit = these_ents.begin(); rit != these_ents.end(); rit++) {
+  for (Range::iterator rit = these_ents.begin(); rit != these_ents.end(); ++rit) {
     
       // get vertices
     const EntityHandle *connect;
@@ -142,7 +142,7 @@ ErrorCode SphereDecomp::build_hexes(std::vector<EntityHandle> &sphere_hexes,
   Range tets;
   ErrorCode result = mbImpl->get_entities_by_type(0, MBTET, tets); RR;
   
-  for (Range::iterator vit = tets.begin(); vit != tets.end(); vit++) {
+  for (Range::iterator vit = tets.begin(); vit != tets.end(); ++vit) {
     result = subdivide_tet(*vit, sphere_hexes, interstic_hexes); RR;
   }
   
@@ -169,7 +169,7 @@ ErrorCode SphereDecomp::subdivide_tet(EntityHandle tet,
     else ents.push_back(tet);
     
       // for each, get subdiv verts & put into vector
-    for (std::vector<EntityHandle>::iterator vit = ents.begin(); vit != ents.end(); vit++) {
+    for (std::vector<EntityHandle>::iterator vit = ents.begin(); vit != ents.end(); ++vit) {
       result = retrieve_subdiv_verts(tet, *vit, &tet_conn[0], dim, subdiv_verts); RR;
     }
   }
