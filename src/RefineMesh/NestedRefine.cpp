@@ -2,6 +2,7 @@
 #include "moab/NestedRefine.hpp"
 #include "moab/Templates.hpp"
 #include "moab/HalfFacetRep.hpp"
+#include "moab/MeasureTime.hpp"
 #include "moab/ReadUtilIface.hpp"
 #ifdef USE_MPI
 #include "moab/ParallelComm.hpp"
@@ -53,6 +54,10 @@ namespace moab{
   ErrorCode NestedRefine::initialize()
   {
     ErrorCode error;
+
+    tm = new MeasureTime();
+    if (!tm)
+      return MB_MEMORY_ALLOCATION_FAILED;
 
 #ifdef USE_AHF
     ahf = mbImpl->a_half_facet_rep();
@@ -512,7 +517,7 @@ namespace moab{
         hmest[0] += refTemplates[cindex][d].nv_cell * ncells_prev;
       }
 
-      std::cout<<"nv = "<<hmest[0]<<", ne = "<<hmest[1]<<", nf = "<<hmest[2]<<", nc = "<<hmest[3]<<std::endl;
+    //  std::cout<<"nv = "<<hmest[0]<<", ne = "<<hmest[1]<<", nf = "<<hmest[2]<<", nc = "<<hmest[3]<<std::endl;
 
     return MB_SUCCESS;
   }
@@ -619,8 +624,13 @@ namespace moab{
     error = mbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, gidtag);MB_CHK_ERR(error);
    // mbImpl->write_file("test_0.h5m", 0, ";;PARALLEL=WRITE_PART", &_rset, 1);
 
+    timeall.tm_total = 0;
+    timeall.tm_refine = 0;
+    timeall.tm_presolve = 0;
+
     for (int l = 0; l<num_level; l++)
       {
+        double tstart = tm->wtime();
         // Estimate storage
         int hmest[4] = {0,0,0,0};
         EntityHandle set;
@@ -638,6 +648,8 @@ namespace moab{
 
         //Create the new entities and new vertices
         error = construct_hm_entities(l, level_degrees[l]); MB_CHK_ERR(error);
+
+        timeall.tm_refine += tm->wtime() - tstart;
 
 
         // Go into parallel communication
@@ -669,6 +681,8 @@ namespace moab{
 
           if (pcomm->size() > 1)
             {
+              double tpstart = tm->wtime();
+
               // get all entities on the rootset
               moab::Range vtxs, edgs, facs, elms;
               error = mbImpl->get_entities_by_dimension(hm_set[l], 0, vtxs, false);MB_CHK_ERR(error);
@@ -700,9 +714,10 @@ namespace moab{
               // an optimization step.
               //   > Assign global IDs consistently for shared entities so that parallel
               //   > resolve shared ents can happen out of the box. This is the fastest option.
-              ParallelMergeMesh pm(pcomm, 1e-08);
 
+              ParallelMergeMesh pm(pcomm, 1e-08);
               error = pm.merge(hm_set[l], true);MB_CHK_ERR(error);
+
               //
               // Parallel Communication complete - all entities resolved
               //
@@ -721,17 +736,17 @@ namespace moab{
                 error = pcomm->exchange_tags(gidtag,facs);MB_CHK_ERR(error);
                 error = pcomm->exchange_tags(gidtag,elms);MB_CHK_ERR(error);
               }
-              std::stringstream file;
+              timeall.tm_presolve += tm->wtime() - tpstart;
+             /* std::stringstream file;
               file <<  "MESH_LEVEL_" << l + 1 << ".h5m";
               std::string tmpstr = file.str();
               const char *output_file = tmpstr.c_str();
-              mbImpl->write_file(output_file, 0, ";;PARALLEL=WRITE_PART", &hm_set[l], 1);
+              mbImpl->write_file(output_file, 0, ";;PARALLEL=WRITE_PART", &hm_set[l], 1);*/
             }
           }
 #endif
       }
-
-    //mbImpl->write_file("test.h5m", 0, ";;PARALLEL=WRITE_PART");
+    timeall.tm_total = timeall.tm_refine + timeall.tm_presolve;
 
     return MB_SUCCESS;
   }
@@ -1529,9 +1544,9 @@ namespace moab{
     //Step 8: If faces exists, refine them as well.
     if (!_infaces.empty())
       {
-        std::cout<<"\n Refining faces "<<std::endl;
+        //std::cout<<"\n Refining faces "<<std::endl;
         error = construct_hm_2D(cur_level, deg, type, trackvertsC_edg, trackvertsC_face); MB_CHK_ERR(error);
-        std::cout<<"\n Refined faces "<<std::endl;
+      //  std::cout<<"\n Refined faces "<<std::endl;
         //error = print_maps_2D(cur_level,MBQUAD);
       }
 

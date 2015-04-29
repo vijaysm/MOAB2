@@ -1208,7 +1208,7 @@ ErrorCode test_mesh(const char* filename, int *level_degrees, int num_levels)
 #endif
 
     //Generate hierarchy
-    error = refine_entities(&moab, pc, fileset, level_degrees, num_levels, true);  CHECK_ERR(error);
+    error = refine_entities(&moab, pc, fileset, level_degrees, num_levels, false);  CHECK_ERR(error);
 
     return MB_SUCCESS;
 }

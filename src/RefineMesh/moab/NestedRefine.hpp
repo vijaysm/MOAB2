@@ -26,6 +26,8 @@ namespace moab
   class Core;
   class HalfFacetRep;
   class ParallelComm;
+  class MeasureTime;
+
   class NestedRefine
   {
     
@@ -121,10 +123,19 @@ namespace moab
 
       ErrorCode exchange_ghosts(std::vector<EntityHandle> &lsets, int num_glayers);
 
+      struct codeperf{
+        double tm_total;
+        double tm_refine;
+        double tm_presolve;
+      };
+
+      codeperf timeall;
+
   protected:
     Core *mbImpl;
     ParallelComm *pcomm;
     HalfFacetRep *ahf;
+    MeasureTime *tm;
 
     EntityHandle _rset;
     Range _inverts, _inedges, _infaces, _incells;

@@ -309,7 +309,7 @@ namespace moab {
 
     int nv = ID_FROM_HANDLE(*(_verts.end()-1));
     int nf = ID_FROM_HANDLE(*(_faces.end()-1));
-    std::cout<<"nv = "<<nv<<", nf = "<<nf<<std::endl;
+   // std::cout<<"nv = "<<nv<<", nf = "<<nf<<std::endl;
     v2he.reserve(nv);
     sibhes.reserve(nf*nepf);
 
@@ -2730,7 +2730,7 @@ namespace moab {
   {
    ErrorCode error;
  //  Range verts, edges, faces, cells;
-   std::cout<<"Sizes: nv = "<<_verts.size()<<", ne = "<<_edges.size()<<", nf = "<<_faces.size()<<", nc = "<<_cells.size()<<std::endl;
+  // std::cout<<"Sizes: nv = "<<_verts.size()<<", ne = "<<_edges.size()<<", nf = "<<_faces.size()<<", nc = "<<_cells.size()<<std::endl;
 
    error = mb->get_entities_by_dimension(fileset, 0, _verts, true);MB_CHK_ERR(error);
 
@@ -2740,7 +2740,7 @@ namespace moab {
 
    error = mb->get_entities_by_dimension(fileset, 3, _cells, true);MB_CHK_ERR(error);
 
-   std::cout<<"Sizes: nv = "<<_verts.size()<<", ne = "<<_edges.size()<<", nf = "<<_faces.size()<<", nc = "<<_cells.size()<<std::endl;
+ //  std::cout<<"Sizes: nv = "<<_verts.size()<<", ne = "<<_edges.size()<<", nf = "<<_faces.size()<<", nc = "<<_cells.size()<<std::endl;
 
    return MB_SUCCESS;
   }
