@@ -13,7 +13,7 @@
 
 #include "moab/Core.hpp"
 #include "moab/Interface.hpp"
-#include "moab/VerdictWrapper.hpp"
+#include "../verdict/moab/VerdictWrapper.hpp"
 #include "../RefineMesh/moab/NestedRefine.hpp"
 
 #ifdef USE_MPI
@@ -94,8 +94,13 @@ int main(int argc, char* argv[])
   int i=1;
   while ( i<argc)
   {
-    if (!argv[i][0])
-      usage_error(argv[0]);
+    if (!argv[i][0] && 0==proc_id)
+      {
+        usage_error(argv[0]);
+#ifdef USE_MPI
+        MPI_Finalize();
+#endif
+      }
 
     if (do_flag && argv[i][0] == '-')
     {
@@ -159,7 +164,7 @@ int main(int argc, char* argv[])
   std::vector<std::string> read_opts, write_opts;
   std::string read_options, write_options;
 
-  if (parallel){
+  if (parallel && size > 1){
       read_opts.push_back("PARALLEL=READ_PART");
       read_opts.push_back("PARTITION=PARALLEL_PARTITION");
       if (resolve_shared) read_opts.push_back("PARALLEL_RESOLVE_SHARED_ENTS");
@@ -284,18 +289,14 @@ ErrorCode get_degree_seq(Core &moab,EntityHandle fileset, int dim, double desire
   ErrorCode error;
   VerdictWrapper vw(&moab);
 
-  Range entities;
-  error = moab.get_entities_by_handle(fileset, entities);MB_CHK_ERR(error);
 
-  Range edges, faces, cells;
-  edges = entities.subset_by_dimension(1);
-  faces = entities.subset_by_dimension(2);
-  cells = entities.subset_by_dimension(3);
+  Range allents, ents;
+  error = moab.get_entities_by_handle(fileset, allents);MB_CHK_ERR(error);
+  ents = allents.subset_by_dimension(dim);MB_CHK_ERR(error);
 
-  if (!cells.empty())
-    {
 
-    }
+
+
 
   return MB_SUCCESS;
 }
