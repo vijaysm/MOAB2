@@ -10,7 +10,7 @@ AM_CPPFLAGS += -I$(top_srcdir)/src \
             
 LDADD = $(top_builddir)/src/libMOAB.la
 
-check_PROGRAMS = perf seqperf adj_time perftool adj_mem_time umr_perf adj_time_test
+check_PROGRAMS = perf seqperf adj_time perftool adj_mem_time umr_perf
 noinst_PROGRAMS =
 
 if PARALLEL
@@ -23,7 +23,6 @@ adj_time_SOURCES = adj_time.cpp
 perftool_SOURCES = perftool.cpp
 adj_mem_time_SOURCES = adj_mem_time_test.cpp
 umr_perf_SOURCES = umr_perf.cpp
-adj_time_test_SOURCES = adj_time_test.cpp
 
 if ENABLE_imesh
   LDADD += $(top_builddir)/itaps/imesh/libiMesh.la
