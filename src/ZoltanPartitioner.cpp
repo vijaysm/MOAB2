@@ -28,11 +28,9 @@
 #include "moab/ZoltanPartitioner.hpp"
 #include "moab/Interface.hpp"
 #include "Internals.hpp"
-#include "moab/ParallelComm.hpp"
 #include "moab/Range.hpp"
 #include "moab/WriteUtilIface.hpp"
 #include "moab/MeshTopoUtil.hpp"
-#include "moab/ParallelComm.hpp"
 #include "MBTagConventions.hpp"
 #include "moab/CN.hpp"
 
@@ -74,31 +72,20 @@ ZoltanPartitioner::ZoltanPartitioner( Interface *impl,
                     , GeometryQueryTool *gqt
 #endif
 )
-                   : mbImpl(impl),
+                   : PartitionerBase(impl,use_coords),
                      myZZ(NULL),
-                     newMoab(false),
-                     newComm(false),
-                     useCoords(use_coords),
                      argcArg(argc),
                      argvArg(argv)
 #ifdef MOAB_HAVE_CGM
                    , gti(gqt)
 #endif
 {
-  mbpc = ParallelComm::get_pcomm(mbImpl, 0);
-  if (!mbpc) {
-    mbpc = new ParallelComm(impl, MPI_COMM_WORLD, 0);
-    newComm = true;
-  }
 }
 
 ZoltanPartitioner::~ZoltanPartitioner()
 {
   if (NULL != myZZ)
     delete myZZ;
-
-  if (newComm)
-    delete mbpc;
 }
 
 ErrorCode ZoltanPartitioner::balance_mesh(const char *zmethod,

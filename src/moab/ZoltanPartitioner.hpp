@@ -23,9 +23,8 @@
 #define ZOLTANPARTITIONER_HPP
 
 #include <stdlib.h>
-#include "moab_mpi.h"
+#include "moab/PartitionerBase.hpp"
 #include "zoltan_cpp.h"
-#include "moab/Range.hpp"
 #include <time.h>
 
 #ifdef MOAB_HAVE_CGM
@@ -70,7 +69,6 @@ extern "C"
 }
 
 #include <vector>
-#include "moab/Types.hpp"
 
 namespace moab {
 
@@ -81,7 +79,7 @@ namespace moab {
 
 using namespace moab;
 
-  class ZoltanPartitioner
+  class ZoltanPartitioner : public PartitionerBase
   {
 
   public:
@@ -95,7 +93,7 @@ using namespace moab;
               );
 
     
-    ~ZoltanPartitioner();
+    virtual ~ZoltanPartitioner();
 
     ErrorCode balance_mesh(const char *zmethod,
                            const char *other_method,
@@ -123,7 +121,7 @@ using namespace moab;
 
       // given a processor assignment returned from Zoltan, write that as a
       // processor assignment to MOAB
-    ErrorCode write_partition(const int nparts, Range &elems, 
+    virtual ErrorCode write_partition(const int nparts, Range &elems, 
                               const int *assignment,
                               const bool write_as_sets,
                               const bool write_as_tags);
@@ -149,7 +147,7 @@ using namespace moab;
       // put closure of entities in the part sets too
     ErrorCode include_closure();
     
-    ErrorCode write_file(const char *filename, const char *out_file);
+    virtual ErrorCode write_file(const char *filename, const char *out_file);
   
     void SetOCTPART_Parameters(const char *oct_method);
   
@@ -162,16 +160,8 @@ using namespace moab;
     void SetRIB_Parameters();
   
     void SetRCB_Parameters();
-
-    Range &part_sets() {return partSets;};
-    
-    const Range &part_sets() const {return partSets;};
-  
+ 
   private:
-
-    Interface *mbImpl;
-
-    ParallelComm *mbpc;
 
     Zoltan *myZZ;
 
@@ -181,10 +171,6 @@ using namespace moab;
 
     bool newComm;
   
-    bool useCoords;
-
-    bool write_output;
-
     int myNumPts;
 
     int argcArg;

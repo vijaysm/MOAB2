@@ -13,41 +13,34 @@
  *
  */
 
-// Contributed by Lorenzo Alessio Botti (SpaFEDTe)
-// This implementation is mostly borrowed from the mbzoltan MOAB partitioning tool
-
-#ifndef __moabpartitioner_hpp__
-#define __moabpartitioner_hpp__
+#ifndef __partitioner_base_hpp__
+#define __partitioner_base_hpp__
 
 #include <stdlib.h>
 #include "moab_mpi.h"
 #include "moab/Range.hpp"
-#include "moab/Interface.hpp"
-#include "moab/ParallelComm.hpp"
-#include "moab/Skinner.hpp"
-#include "moab/WriteUtilIface.hpp"
-#include "moab/MeshTopoUtil.hpp"
-#include "moab/ParallelComm.hpp"
-#include "MBTagConventions.hpp"
-#include "moab/CN.hpp"
 #include <vector>
 #include "moab/Types.hpp"
 
-#include "metis.h"
+#include "moab/ParallelComm.hpp"
+namespace moab {
+
+  class Interface;
+  class Range;
+}
 
 using namespace moab;
 
-  class MOABPartitioner 
+  class PartitionerBase 
   {
 
   public:
-    MOABPartitioner( Interface *impl = NULL,
-                      const bool use_coords = false,
-                      int argc = 0, 
-                      char **argv = NULL);
+    PartitionerBase( Interface *impl = NULL,
+                      const bool use_coords = false);
     
-    ~MOABPartitioner();
+    ~PartitionerBase();
 
+    /*
     ErrorCode partition_mesh_geom(const int nparts,
                                   const char *method,
                                   const int part_dim = 3, 
@@ -60,13 +53,14 @@ using namespace moab;
     int get_mesh(std::vector<double> &pts, std::vector<int> &ids,
                  std::vector<int> &adjs, std::vector<int> &length,
                  Range &elems);
+    */
 
-    ErrorCode write_partition(const int nparts, Range &elems, 
+    virtual ErrorCode write_partition(const int nparts, Range &elems, 
                                 const int *assignment,
                                 const bool write_as_sets,
                                 const bool write_as_tags) = 0;
 
-    ErrorCode write_file(const char *filename, const char *out_file) = 0;
+    virtual ErrorCode write_file(const char *filename, const char *out_file) = 0;
  
     Range &part_sets() {return partSets;};
     
@@ -74,12 +68,38 @@ using namespace moab;
 
   protected:
 
+    Interface *mbImpl;
+
+    ParallelComm *mbpc;
+    
     bool write_output;
     bool useCoords;
+    bool newComm;
 
     Range partSets;
 
   };
+
+inline
+PartitionerBase::PartitionerBase(Interface *impl,
+                                  const bool use_coords)
+    : mbImpl(impl), useCoords(use_coords), newComm(false)
+{
+  mbpc = ParallelComm::get_pcomm(mbImpl, 0);
+  if (!mbpc) {
+    mbpc = new ParallelComm(impl, MPI_COMM_WORLD, 0);
+    newComm = true;
+  }
+}
+
+inline
+PartitionerBase::~PartitionerBase()
+{
+  if (newComm)
+    delete mbpc;
+
+  mbImpl = NULL;
+}
 
 #endif
 

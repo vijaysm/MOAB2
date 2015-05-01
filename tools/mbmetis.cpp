@@ -53,7 +53,7 @@ int main( int argc, char* argv[] )
   Interface& mb = moab;
   std::vector<int> set_l;
   
-  LONG_DESC << "This utility invokes the MetisMOABPartitioner componemnt of MOAB/CGM"
+  LONG_DESC << "This utility invokes the MetisPartitioner component of MOAB/CGM"
     "to partition a mesh/geometry." << std::endl;
   
   ProgOptions opts(LONG_DESC.str(), BRIEF_DESC);
@@ -102,9 +102,9 @@ int main( int argc, char* argv[] )
 
   opts.parseCommandLine( argc, argv ); 
 
-  MetisMOABPartitioner *tool = NULL;
+  MetisPartitioner *tool = NULL;
 
-  tool = new MetisMOABPartitioner (&mb, false, argc, argv);
+  tool = new MetisPartitioner (&mb, false, argc, argv);
   num_parts = opts.getReqArg<int>("#parts");
 
   if ((aggregating_tag.empty() && partition_tagged_sets) || (aggregating_tag.empty() && partition_tagged_ents))
