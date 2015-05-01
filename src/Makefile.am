@@ -193,6 +193,7 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/MeshTopoUtil.hpp \
   moab/MOABConfig.h \
   moab/OrientedBoxTreeTool.hpp \
+  moab/PartitionerBase.hpp \
   moab/ProgOptions.hpp \
   moab/Range.hpp \
   moab/RangeMap.hpp \
