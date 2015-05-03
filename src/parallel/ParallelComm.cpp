@@ -6790,6 +6790,10 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     result = mbImpl->get_adjacencies(tmp_ents, 0, false, sent_ents,
                                      Interface::UNION);MB_CHK_SET_ERR(result, "Failed to get vertices adj to ghosted ents");
 
+    // if polyhedra, need to add all faces from there
+    Range polyhedra=sent_ents.subset_by_type(MBPOLYHEDRON);
+    // get all faces adjacent to every polyhedra
+    result = mbImpl->get_connectivity(polyhedra, sent_ents);MB_CHK_SET_ERR(result, "Failed to get polyhedra faces");
     return result;
   }
 

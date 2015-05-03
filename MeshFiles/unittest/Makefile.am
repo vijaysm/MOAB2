@@ -35,6 +35,7 @@ EXTRA_DIST  = 125hex.g \
               poly14.txt \
               BedCrop2.h5m \
               mpas_p8.h5m \
+              twoPolyh.h5m \
               Homme_2pt.h5m \
               surfrandomtris-4part.h5m \
 	      hexes_mixed.vtk \
