@@ -147,7 +147,7 @@ using namespace moab;
       // put closure of entities in the part sets too
     ErrorCode include_closure();
     
-    virtual ErrorCode write_file(const char *filename, const char *out_file);
+    // virtual ErrorCode write_file(const char *filename, const char *out_file);
   
     void SetOCTPART_Parameters(const char *oct_method);
   

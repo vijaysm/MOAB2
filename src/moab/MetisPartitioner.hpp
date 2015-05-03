@@ -65,7 +65,7 @@ using namespace moab;
                                              const bool write_as_sets,
                                              const bool write_as_tags);
 
-    virtual ErrorCode write_file(const char *filename, const char *out_file);
+    // virtual ErrorCode write_file(const char *filename, const char *out_file);
   
   private:
 

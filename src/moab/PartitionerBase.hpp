@@ -60,7 +60,7 @@ using namespace moab;
                                 const bool write_as_sets,
                                 const bool write_as_tags) = 0;
 
-    virtual ErrorCode write_file(const char *filename, const char *out_file) = 0;
+    // virtual ErrorCode write_file(const char *filename, const char *out_file) = 0;
  
     Range &part_sets() {return partSets;};
     
