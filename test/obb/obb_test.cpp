@@ -6,7 +6,7 @@
 #include "moab/GeomUtil.hpp"
 #include "moab/CN.hpp"
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab_mpi.h"
 #endif
 
@@ -25,7 +25,7 @@ using namespace moab;
 const char* NAME = "obb_test";
 const char* DEFAULT_FILES[] = { STRINGIFY(MESHDIR) "/3k-tri-sphere.vtk",
                               //  STRINGIFY(MESHDIR) "../4k-tri-plane.vtk",
-#ifdef HDF5_FILE
+#ifdef MOAB_HAVE_HDF5
                                 STRINGIFY(MESHDIR) "/3k-tri-cube.h5m",
 #endif
                                 0 };
@@ -123,7 +123,7 @@ void parse_ray( int& i, int argc, char* argv[] );
 
 int main( int argc, char* argv[] )
 {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   int fail = MPI_Init(&argc, &argv);
   if (fail) return fail;
 #endif
@@ -214,7 +214,7 @@ int main( int argc, char* argv[] )
     if (!do_file( file_names[j] ))
       ++exit_val;
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   fail = MPI_Finalize();
   if (fail) return fail;
 #endif

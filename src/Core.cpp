@@ -56,7 +56,7 @@
 #include <errno.h>
 #include <string.h>
 
-#ifdef USE_AHF
+#ifdef MOAB_HAVE_AHF
 #include "moab/HalfFacetRep.hpp"
 #endif
 
@@ -284,7 +284,7 @@ ErrorCode Core::initialize()
   geom_dimension_tag();
   globalId_tag();
 
-#ifdef USE_AHF
+#ifdef MOAB_HAVE_AHF
   ahfRep = new HalfFacetRep(this);
   if (!ahfRep)
     return MB_MEMORY_ALLOCATION_FAILED;
@@ -310,7 +310,7 @@ void Core::deinitialize()
     delete *vit;
 #endif
 
-#ifdef USE_AHF
+#ifdef MOAB_HAVE_AHF
   delete ahfRep;
   ahfRep = 0;
 #endif
@@ -1445,7 +1445,7 @@ ErrorCode get_adjacencies_intersection( Core* mb,
 
 ///////////////////////////////////////////////////////////////////
 //////////////////////////////////////////
-#ifdef USE_AHF
+#ifdef MOAB_HAVE_AHF
 
 template <typename ITER> static inline
 ErrorCode get_adjacencies_intersection_ahf(Core *mb,
@@ -1526,7 +1526,7 @@ ErrorCode Core::get_adjacencies( const EntityHandle *from_entities,
                                      const int operation_type)
 {
 
-#ifdef USE_AHF
+#ifdef MOAB_HAVE_AHF
     bool can_handle = true;
 
     if (to_dimension == 4)
@@ -1604,7 +1604,7 @@ ErrorCode Core::get_adjacencies( const EntityHandle *from_entities,
         //return MB_SUCCESS;
 
 
-#ifdef USE_AHF
+#ifdef MOAB_HAVE_AHF
     }
 #endif
 
@@ -2668,7 +2668,7 @@ ErrorCode Core::create_element(const EntityType type,
   if (MB_SUCCESS == status)
     status = aEntityFactory->notify_create_entity( handle, connectivity, num_nodes);
 
-#ifdef USE_AHF
+#ifdef MOAB_HAVE_AHF
   mesh_modified = true;
 #endif
 

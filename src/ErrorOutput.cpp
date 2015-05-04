@@ -111,7 +111,7 @@ void ErrorOutput::print_real(const std::string& str)
 void ErrorOutput::print_real(const char* fmt, va_list args1, va_list args2)
 {
   size_t idx = lineBuffer.size();
-#ifdef HAVE_VSNPRINTF
+#ifdef MOAB_HAVE_VSNPRINTF
   // try once with remaining space in buffer
   lineBuffer.resize(lineBuffer.capacity());
   unsigned size = vsnprintf(&lineBuffer[idx], lineBuffer.size() - idx, fmt, args1);
