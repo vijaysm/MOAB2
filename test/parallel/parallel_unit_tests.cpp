@@ -133,7 +133,8 @@ ErrorCode test_reduce_tag_failures( const char* );
 ErrorCode test_reduce_tag_explicit_dest(const char *);
 // Test delete_entities
 ErrorCode test_delete_entities(const char *);
-
+// Test ghsting polyhedra
+ErrorCode test_ghost_polyhedra(const char *);
 
 /**************************************************************************
                               Main Method
@@ -194,6 +195,7 @@ int main( int argc, char* argv[] )
 
 #ifdef MESHDIR
   const char* filename2 = STRINGIFY(MESHDIR) "/64bricks_1khex.h5m";
+  const char* filename3 = STRINGIFY(MESHDIR) "/twoPolyh.h5m";
 #else
 #error Specify MESHDIR during compilation
 #endif
@@ -234,6 +236,7 @@ int main( int argc, char* argv[] )
   num_errors += RUN_TEST( test_reduce_tag_failures, 0);
   num_errors += RUN_TEST( test_reduce_tag_explicit_dest, 0);
   num_errors += RUN_TEST( test_delete_entities, filename2);
+  num_errors += RUN_TEST( test_ghost_polyhedra, filename3);
   
   if (rank == 0) {
     if (!num_errors) 
@@ -1678,3 +1681,19 @@ ErrorCode test_delete_entities( const char* filename )
   return MB_SUCCESS;
 }
 
+
+ErrorCode test_ghost_polyhedra( const char* filename3 )
+{
+  Core mb_instance;
+  Interface& moab = mb_instance;
+  ErrorCode rval;
+
+  rval = moab.load_file( filename3, 0,
+                         "PARALLEL=READ_PART;"
+                         "PARTITION=PARALLEL_PARTITION;"
+                         "PARALLEL_RESOLVE_SHARED_ENTS;"
+                         "PARALLEL_GHOSTS=3.0.1");
+  CHKERR(rval);
+
+  return MB_SUCCESS;
+}
