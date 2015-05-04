@@ -8,7 +8,7 @@ libdagmc_la_includedir = $(includedir)
 libdagmc_la_include_HEADERS = DagMC.hpp
 
 if HAVE_CGM
-  AM_CPPFLAGS += $(CGM_INCLUDES) $(CGM_CPPFLAGS) -DCGM $(MOAB_CGM_DEFINES)
+  AM_CPPFLAGS += $(CGM_INCLUDES) $(CGM_CPPFLAGS) 
   AM_CXXFLAGS += $(CGM_CXXFLAGS)
 
 if HAVE_NETCDF

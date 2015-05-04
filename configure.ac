@@ -329,7 +329,10 @@ AM_CONDITIONAL(HAVE_VALGRIND, [test "$HAVE_VALGRIND"!="0"])
 ################################################################################
 
 dnl FATHOM_CHECK_BOOST( [boost/pool/object_pool.hpp] )
-MK_CHECK_UNORDERED_MAP([CPPFLAGS="$CPPFLAGS -DUNORDERED_MAP_NS=$result -DHAVE_UNORDERED_MAP=${incdir}unordered_map -DHAVE_UNORDERED_SET=${incdir}unordered_set"])
+# MK_CHECK_UNORDERED_MAP([CPPFLAGS="$CPPFLAGS -DUNORDERED_MAP_NS=$result -DHAVE_UNORDERED_MAP=${incdir}unordered_map -DHAVE_UNORDERED_SET=${incdir}unordered_set"])
+MK_CHECK_UNORDERED_MAP([AC_DEFINE_UNQUOTED([UNORDERED_MAP_NS], [$result], [Unordered map namespace])
+                        AC_DEFINE_UNQUOTED([HAVE_UNORDERED_MAP], [${incdir}unordered_map], [Specify if unordered map is available])
+                        AC_DEFINE_UNQUOTED([HAVE_UNORDERED_SET], [${incdir}unordered_set], [Specify if unordered set is available])])
 
 ################################################################################
 #                              MPI OPTIONS
@@ -338,7 +341,6 @@ MK_CHECK_UNORDERED_MAP([CPPFLAGS="$CPPFLAGS -DUNORDERED_MAP_NS=$result -DHAVE_UN
 FATHOM_CHECK_MPI
 FATHOM_CONFIG_MPI_EXEC
 if (test "xno" != "x$enablempi"); then
-#  AM_CPPFLAGS="$AM_CPPFLAGS -DUSE_MPI"
   AC_DEFINE([HAVE_MPI],[1],[Define if configured with support for parallel computations.])
 fi
 AM_CONDITIONAL(HAVE_MPI, [test "xno" != "x$enablempi"])
@@ -372,7 +374,6 @@ if test "xno" = "x$HAVE_HDF5"; then
   AC_MSG_WARN([Support for native HDF5 file format disabled])
 else
   AC_DEFINE([HAVE_HDF5],[1],[Define if configured with HDF5 support.])
-#  AM_CPPFLAGS="$AM_CPPFLAGS -DHDF5_FILE"
 fi
 AM_CONDITIONAL(HAVE_HDF5, [test "xno" != "x$HAVE_HDF5"])
 AM_CPPFLAGS="$HDF5_CPPFLAGS $AM_CPPFLAGS"
@@ -395,7 +396,6 @@ if test "xno" != "x$HAVE_HDF5"; then
 fi
 AM_CONDITIONAL(HAVE_HDF5_PARALLEL, [test "xno" != "x$HAVE_HDF5_PARALLEL"])
 if test "xno" != "x$HAVE_HDF5_PARALLEL"; then
-  #AM_CPPFLAGS="$AM_CPPFLAGS -DHDF5_PARALLEL"
   AC_DEFINE([HAVE_HDF5_PARALLEL],[1],[Define if configured with Parallel HDF5 support.])
   
   AC_MSG_CHECKING([for H5_MPI_COMPLEX_DERIVED_DATATYPE_WORKS])
@@ -417,7 +417,6 @@ LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"
 FATHOM_CHECK_CCMIO
 LDFLAGS="$old_LDFLAGS"
 if test "xno" != "x$HAVE_CCMIO"; then
-#  AM_CPPFLAGS="$AM_CPPFLAGS -DCCMIO_FILE"
   AC_DEFINE([HAVE_CCMIO],[1],["Define if configured with CCM I/O support."])
 fi
 AM_CONDITIONAL(HAVE_CCMIO, [test "xno" != "x$HAVE_CCMIO"])
@@ -436,7 +435,6 @@ FATHOM_CHECK_DAMSEL
 LDFLAGS="$old_LDFLAGS"
 if test "xno" != "x$HAVE_DAMSEL"; then
   AC_DEFINE([HAVE_DAMSEL],[1],["Define if configured with Damsel I/O format support."])
-#  AM_CPPFLAGS="$AM_CPPFLAGS -DDAMSEL_FILE"
 fi
 AM_CONDITIONAL(HAVE_DAMSEL, [test "xno" != "x$HAVE_DAMSEL"])
 AM_CPPFLAGS="$DAMSEL_CPPFLAGS $AM_CPPFLAGS"
@@ -452,7 +450,6 @@ AC_SUBST(DAMSEL_LIBS)
 FATHOM_CHECK_PNETCDF([65536],[524288])
 if test "xyes" = "x$HAVE_PNETCDF"; then
   AC_DEFINE([HAVE_PNETCDF],[1],["Define if configured with Parallel NetCDF support."])
-#  AM_CPPFLAGS="$AM_CPPFLAGS -DPNETCDF_FILE"
 fi
 AM_CONDITIONAL(HAVE_PNETCDF, [test "xyes" = "x$HAVE_PNETCDF"])
 AM_CPPFLAGS="$PNETCDF_CPPFLAGS $AM_CPPFLAGS"
@@ -465,7 +462,6 @@ FATHOM_CHECK_NETCDF([65536],[524288])
 LDFLAGS="$old_LDFLAGS"
 if test "xyes" = "x$HAVE_NETCDF"; then
   AC_DEFINE([HAVE_NETCDF],[1],["Define if configured with NetCDF support."])
-#  AM_CPPFLAGS="$AM_CPPFLAGS -DNETCDF_FILE"
 fi
 AM_CONDITIONAL(HAVE_NETCDF, [test "xno" != "x$HAVE_NETCDF"])
 AM_CPPFLAGS="$NETCDF_CPPFLAGS $AM_CPPFLAGS"
@@ -483,7 +479,6 @@ FATHOM_CHECK_CGNS
 LDFLAGS="$old_LDFLAGS"
 if test "xno" != "x$HAVE_CGNS"; then
   AC_DEFINE([HAVE_CGNS],[1],["Define if configured with CGNS support."])
-#  AM_CPPFLAGS="$AM_CPPFLAGS -DCGNS_FILE"
 fi
 AM_CONDITIONAL(HAVE_CGNS, [test "xno" != "x$HAVE_CGNS"])
 AM_CPPFLAGS="$CGNS_CPPFLAGS $AM_CPPFLAGS"
@@ -576,7 +571,6 @@ AC_ARG_WITH( [zoltan],
                  else
                    ZOLTAN_INC_FLAGS="-I$withval"
                  fi
-                 AC_DEFINE([HAVE_ZOLTAN],[1],["Define if configured with Zoltan library partitioning support."])
                  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-zoltan=\"${withval}\""
                  ;;
                esac],[WITH_ZOLTAN=$ZOLTAN_DEFAULT] )
@@ -827,9 +821,9 @@ if test "xyes" = "x$ENABLE_dagmc"; then
    AC_SUBST(DAGMC_LIBS)
 fi
 
-#if test "xyes" = "x$ENABLE_ahf"; then
-#  AM_CPPFLAGS="$AM_CPPFLAGS -DUSE_AHF"
-#fi
+if test "xyes" = "x$ENABLE_ahf"; then
+  AC_DEFINE([HAVE_AHF],[1],[Enable use of AHF data-structures for querying adjacency information])
+fi
 
 AM_CONDITIONAL(ENABLE_AHF, [test "xyes" == "x$ENABLE_ahf"])
 
@@ -914,7 +908,7 @@ if test "xyes" = "x$WITH_ZOLTAN"; then
   LDFLAGS="$old_LDFLAGS"
 
     # Define macro HAVE_ZOLTAN
-  AM_CPPFLAGS="$AM_CPPFLAGS -DHAVE_ZOLTAN"  
+  AC_DEFINE([HAVE_ZOLTAN],[1],["Define if configured with Zoltan library partitioning support."])
 fi
 
 AC_SUBST(ZOLTAN_LIBS)
@@ -1055,15 +1049,15 @@ if  (test "x$WITH_VTK" != "xno" && test "x$WITH_VTK" != "x"); then
    # These are ordered such that a given library depends only on those libraries
    # that preceed it in the list.
   FATHOM_CHECK_LIB_LIST([pthread],[AC_DEFINE([HAVE_PTHREAD],[1],["Define if configured with pthread support."])],[vtk_sys_libs])
-  FATHOM_CHECK_LIB_LIST([dl],[AC_DEFINE([HAVE_PTHREAD],[1],["Define if configured with dynamic library loading support."])],     [vtk_sys_libs])
-  FATHOM_CHECK_LIB_LIST([m],[AC_DEFINE([HAVE_PTHREAD],[1],["Define if configured with math library support."])],      [vtk_sys_libs])
+  FATHOM_CHECK_LIB_LIST([dl],[AC_DEFINE([HAVE_LDL],[1],["Define if configured with dynamic library loading support."])],     [vtk_sys_libs])
+  FATHOM_CHECK_LIB_LIST([m],[AC_DEFINE([HAVE_LM],[1],["Define if configured with math library support."])],      [vtk_sys_libs])
   FATHOM_CHECK_LIB_LIST([gcc],[],    [vtk_sys_libs])
   x_libs_arg="$X_EXTRA_LIBS -lX11 $X_PRE_LIBS"
   FATHOM_CHECK_LIB_LIST([Xext],[],[vtk_x_libs],[$x_libs_arg],[-L$x_libraries]) 
   FATHOM_CHECK_LIB_LIST([ICE],[], [vtk_x_libs],[$x_libs_arg],[-L$x_libraries]) 
   FATHOM_CHECK_LIB_LIST([SM],[],  [vtk_x_libs],[$x_libs_arg],[-L$x_libraries]) 
   FATHOM_CHECK_LIB_LIST([Xt],[],  [vtk_x_libs],[$x_libs_arg],[-L$x_libraries]) 
-  FATHOM_CHECK_LIB_LIST([GL],[],  [vtk_x_libs],[$x_libs_arg],[-L$x_libraries]) 
+  FATHOM_CHECK_LIB_LIST([GL],[AC_DEFINE([HAVE_GL],[1],["Define if configured with openGL library support."])],  [vtk_x_libs],[$x_libs_arg],[-L$x_libraries]) 
   FATHOM_CHECK_LIB_LIST([GLU],[], [vtk_x_libs],[$x_libs_arg],[-L$x_libraries]) 
   vtk_libs_arg="-L$x_libraries $vtk_x_libs $X_EXTRA_LIBS -lX11 $X_PRE_LIBS $vtk_sys_libs"
   
@@ -1295,11 +1289,9 @@ case "x$CGM_DIR" in
     CGM_MISSING=no
     CGM_MAKE=
     AC_CHECK_FILE([${CGM_DIR}/lib/cgm.make],
-                  [CGM_MAKE="${CGM_DIR}/lib/cgm.make";
-                   AM_CPPFLAGS="$AM_CPPFLAGS -DCGM"],
+                  [CGM_MAKE="${CGM_DIR}/lib/cgm.make"],
                   [AC_CHECK_FILE([${CGM_DIR}/cgm.make],
-                                 [CGM_MAKE="${CGM_DIR}/cgm.make";
-                   AM_CPPFLAGS="$AM_CPPFLAGS -DCGM"],
+                                 [CGM_MAKE="${CGM_DIR}/cgm.make"],
                                  [AC_MSG_ERROR([$CGM_DIR : not a configured CGM]); 
                                   CGM_MISSING=yes])
                   ])
@@ -1322,6 +1314,7 @@ if test "x$CGM_MISSING" = "xno"; then
   CPPFLAGS="$CGM_CPPFLAGS $CPPFLAGS"
   LDFLAGS="$CGM_LTFLAGS $CGM_LDFLAGS $CPPFLAGS"
   LIBS="$CGM_LIBS $LIBS"
+  HAVE_CGM_FIRE_RAY=no
   AC_LINK_IFELSE(
     [AC_LANG_PROGRAM([#include "GeometryQueryTool.hpp"
                       #include "CubitVector.hpp"],
@@ -1329,7 +1322,7 @@ if test "x$CGM_MISSING" = "xno"; then
                      DLIList<double> c;
                      GeometryQueryTool::instance()->fire_ray((RefFace*)0, a, b, c );
                     ])],
-    [MOAB_CGM_DEFINES="-DHAVE_CGM_FIRE_RAY"; AC_MSG_RESULT(yes)],
+    [HAVE_CGM_FIRE_RAY=yes; AC_MSG_RESULT(yes)],
     [AC_MSG_RESULT(no)])
   CPPFLAGS="$old_CPPFLAGS"
   LDFLAGS="$old_LDFLAGS"
@@ -1341,7 +1334,6 @@ if test "x$CGM_MISSING" = "xno"; then
   EXPORT_LTFLAGS="$EXPORT_LTFLAGS $CGM_LTFLAGS"
 fi
 
-AC_SUBST(MOAB_CGM_DEFINES)
 AC_SUBST(CGM_CPPFLAGS)
 AC_SUBST(CGM_LDFLAGS)
 AC_SUBST(CGM_LTFLAGS)
@@ -1352,6 +1344,9 @@ AM_CONDITIONAL( HAVE_CGM, [test "x$CGM_MISSING" = "xno"] )
 
 if (test "x$CGM_MISSING" == "xno"); then
   AC_DEFINE([HAVE_CGM],[1],["Define if configured with CGM support."])
+  if (test "x$HAVE_CGM_FIRE_RAY" != "xno"); then
+    AC_DEFINE([HAVE_CGM_FIRE_RAY],[1],["Define if configured with CGM and Ray fire support."])
+  fi
 fi
 
 ################################################################################
