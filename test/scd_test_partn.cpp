@@ -4,7 +4,7 @@
 
 #include <iostream>
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab/ParallelComm.hpp"
 #endif
 

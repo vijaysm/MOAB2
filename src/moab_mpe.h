@@ -2,7 +2,7 @@
 #define MOAB_MPE_H
 
 #include "moab/MOABConfig.h"
-#ifdef USE_MPE
+#ifdef MOAB_HAVE_LIBMPE
 # include "moab_mpi.h"
 # include "mpe.h"
 #else
