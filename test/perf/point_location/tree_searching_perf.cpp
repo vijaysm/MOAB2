@@ -9,7 +9,7 @@
 #include "moab/ProgOptions.hpp"
 #include "moab/CpuTimer.hpp"
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab_mpi.h"
 #endif
 
@@ -23,7 +23,7 @@ ErrorCode create_hex_mesh(Interface &mb, Range &elems, int n, int dim);
 
 int main(int argc, char **argv)
 {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   int fail = MPI_Init(&argc, &argv);
   if (fail) return fail;
 #else
@@ -122,7 +122,7 @@ int main(int argc, char **argv)
   } // # elements
 
   
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   fail = MPI_Finalize();
   if (fail) return fail;
 #endif

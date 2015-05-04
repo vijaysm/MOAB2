@@ -10,7 +10,7 @@
 #include "../TestUtil.hpp"
 #include <sys/time.h>
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab/ParallelComm.hpp"
 #include "MBParallelConventions.h"
 #include "moab/FileOptions.hpp"
@@ -23,7 +23,7 @@ using namespace moab;
 #define STRINGIFY_(X) #X
 #define STRINGIFY(X) STRINGIFY_(X)
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 std::string read_options;
 #endif
 
@@ -80,7 +80,7 @@ struct mesh_mem
 void handle_error_code(ErrorCode rv, int &number_failed, int &number_successful)
 {
   if (rv == MB_SUCCESS) {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
       int rank = 0;
       MPI_Comm_rank(MPI_COMM_WORLD, &rank);
       if (rank==0)
@@ -113,7 +113,7 @@ ErrorCode adj_perf(const char* filename)
   struct query_time qtime;
   struct mesh_mem qmem;
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     int procs = 1;
     MPI_Comm_size(MPI_COMM_WORLD, &procs);
 
@@ -127,7 +127,7 @@ ErrorCode adj_perf(const char* filename)
 #endif
     error = mbImpl->load_file(filename);
     CHECK_ERR(error);
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     }
 #endif
 
@@ -189,7 +189,7 @@ ErrorCode adj_perf(const char* filename)
   qtime.vertex_to_edges_avg = time_avg;
 
   //NQ1:  For every edge, obtain neighbor edges  
-#ifdef USE_AHF
+#ifdef MOAB_HAVE_AHF
   time_start = wtime();
   for (Range::iterator i = edges.begin(); i != edges.end(); ++i) {    
     adjents.clear();
@@ -242,7 +242,7 @@ ErrorCode adj_perf(const char* filename)
   qtime.edge_to_faces_avg = time_avg;
 
   //NQ2: For every face, obtain neighbor faces 
-#ifdef USE_AHF
+#ifdef MOAB_HAVE_AHF
   time_start = wtime();
   for (Range::iterator i = faces.begin(); i != faces.end(); ++i) {
       adjents.clear();
@@ -319,7 +319,7 @@ ErrorCode adj_perf(const char* filename)
   qtime.face_to_cells_avg = time_avg;
 
   //NQ3: For every cell, obtain neighbor cells
-#ifdef USE_AHF
+#ifdef MOAB_HAVE_AHF
   time_start = wtime();
   for (Range::iterator i = cells.begin(); i != cells.end(); ++i) {   
       adjents.clear();
@@ -376,7 +376,7 @@ ErrorCode adj_perf(const char* filename)
   qmem.amortized_total_storage[1] = eTAS;
   qmem.entity_storage[1] = eES;
   qmem.amortized_entity_storage[1] = eAES;
-  #ifdef USE_AHF
+  #ifdef MOAB_HAVE_AHF
   qmem.adjacency_storage[1] = eTS-sTS;
   qmem.amortized_adjacency_storage[1] = eATS-sATS;
   qmem.tag_storage[1] = sTS;
@@ -394,7 +394,7 @@ ErrorCode adj_perf(const char* filename)
   std::cout<<" Data Structure Construction Time = "<<qtime.ds_construction<<" Secs"<<std::endl;
   std::cout<<std::endl;
   std::cout<<"Query times in Seconds"<<std::endl;
-#ifdef USE_AHF
+#ifdef MOAB_HAVE_AHF
   std::cout<<"QUERY: Vertex -> Edges :: MOAB_AHF: Average time =  "<< qtime.vertex_to_edges_avg ;
   std::cout<<", Total time = "<<qtime.vertex_to_edges_total<<std::endl;
   std::cout<<std::endl;
@@ -404,7 +404,7 @@ ErrorCode adj_perf(const char* filename)
   std::cout<<std::endl;
 #endif
 
-#ifdef USE_AHF
+#ifdef MOAB_HAVE_AHF
   std::cout<<"QUERY: Edge -> Edges :: MOAB_AHF: Average time = "<<qtime.edge_to_edges_avg;
   std::cout<<", Total time = "<<qtime.edge_to_edges_total<<std::endl;
   std::cout<<std::endl;
@@ -414,7 +414,7 @@ ErrorCode adj_perf(const char* filename)
   std::cout<<std::endl;
 #endif
 
-#ifdef USE_AHF
+#ifdef MOAB_HAVE_AHF
   std::cout<<"QUERY: Vertex -> Faces :: MOAB_AHF: Average time =  "<<qtime.vertex_to_faces_avg;
   std::cout<<", Total time = "<<qtime.vertex_to_faces_total<<std::endl;
   std::cout<<std::endl;
@@ -424,7 +424,7 @@ ErrorCode adj_perf(const char* filename)
   std::cout<<std::endl;
 #endif
 
-#ifdef USE_AHF
+#ifdef MOAB_HAVE_AHF
   std::cout<<"QUERY: Edge -> Faces :: MOAB_AHF: Average time =  "<<qtime.edge_to_faces_avg;
   std::cout<<", Total time = "<<qtime.edge_to_faces_total<<std::endl;
   std::cout<<std::endl;
@@ -434,7 +434,7 @@ ErrorCode adj_perf(const char* filename)
   std::cout<<std::endl;
 #endif
 
-#ifdef USE_AHF
+#ifdef MOAB_HAVE_AHF
   std::cout<<"QUERY: Face -> Faces :: MOAB_AHF: Average time = "<< qtime.face_to_faces_avg;
   std::cout<<", Total time = "<<qtime.face_to_faces_total<<std::endl;
   std::cout<<std::endl;
@@ -444,7 +444,7 @@ ErrorCode adj_perf(const char* filename)
   std::cout<<std::endl;
 #endif
 
-#ifdef USE_AHF
+#ifdef MOAB_HAVE_AHF
   std::cout<<"QUERY: Face -> Edges :: MOAB_AHF: Average time =  "<<qtime.face_to_edges_avg;
   std::cout<<", Total time = "<<qtime.face_to_edges_total<<std::endl;
   std::cout<<std::endl;
@@ -454,7 +454,7 @@ ErrorCode adj_perf(const char* filename)
   std::cout<<std::endl;
 #endif
 
-#ifdef USE_AHF
+#ifdef MOAB_HAVE_AHF
   std::cout<<"QUERY: Vertex -> Cells :: MOAB_AHF: Average time =  "<<qtime.vertex_to_cells_avg;
   std::cout<<", Total time = "<<qtime.vertex_to_cells_total<<std::endl;
   std::cout<<std::endl;
@@ -464,7 +464,7 @@ ErrorCode adj_perf(const char* filename)
   std::cout<<std::endl;
 #endif
 
-#ifdef USE_AHF
+#ifdef MOAB_HAVE_AHF
   std::cout<<"QUERY: Edge -> Cells :: MOAB_AHF: Average time =  "<<qtime.edge_to_cells_avg;
   std::cout<<", Total time = "<<qtime.edge_to_cells_total<<std::endl;
   std::cout<<std::endl;
@@ -474,7 +474,7 @@ ErrorCode adj_perf(const char* filename)
   std::cout<<std::endl;
 #endif
 
-#ifdef USE_AHF
+#ifdef MOAB_HAVE_AHF
   std::cout<<"QUERY: Face -> Cells :: MOAB_AHF: Average time =  "<<qtime.face_to_cells_avg;
   std::cout<<", Total time = "<<qtime.face_to_cells_total<<std::endl;
   std::cout<<std::endl;
@@ -484,7 +484,7 @@ ErrorCode adj_perf(const char* filename)
   std::cout<<std::endl;
 #endif
 
-#ifdef USE_AHF
+#ifdef MOAB_HAVE_AHF
   std::cout<<"QUERY: Cell -> Cells :: MOAB_AHF: Average time =  "<< qtime.cell_to_cells_avg;
   std::cout<<", Total time = "<<qtime.cell_to_cells_total<<std::endl;
   std::cout<<std::endl;
@@ -494,7 +494,7 @@ ErrorCode adj_perf(const char* filename)
   std::cout<<std::endl;
 #endif
 
-#ifdef USE_AHF
+#ifdef MOAB_HAVE_AHF
   std::cout<<"QUERY: Cell -> Edges :: MOAB_AHF: Average time =  "<<qtime.cell_to_edges_avg;
   std::cout<<", Total time = "<<qtime.cell_to_edges_total<<std::endl;
   std::cout<<std::endl;
@@ -504,7 +504,7 @@ ErrorCode adj_perf(const char* filename)
   std::cout<<std::endl;
 #endif
 
-#ifdef USE_AHF
+#ifdef MOAB_HAVE_AHF
   std::cout<<"QUERY: Cell -> Faces :: MOAB_AHF: Average time =  "<<qtime.cell_to_faces_avg;
   std::cout<<", Total time = "<<qtime.cell_to_faces_total<<std::endl;
   std::cout<<std::endl;
@@ -529,7 +529,7 @@ ErrorCode adj_perf(const char* filename)
       std::cout<<"Entity storage = "<<qmem.entity_storage[i]<<std::endl;
       std::cout<<"Amortized entity storage = "<<qmem.amortized_entity_storage[i]<<std::endl;
       std::cout<<std::endl;
-#ifdef USE_AHF
+#ifdef MOAB_HAVE_AHF
       if (i==0)
         {
           std::cout<<"Adjacency storage  = "<<qmem.adjacency_storage[i]<<std::endl;
@@ -560,7 +560,7 @@ ErrorCode adj_perf(const char* filename)
 int main(int argc, char *argv[])
 {
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     MPI_Init(&argc, &argv);
 
     int nprocs, rank;
@@ -570,13 +570,13 @@ int main(int argc, char *argv[])
 
     const char* filename = 0;
 #ifdef MESHDIR
- #ifdef HDF5_FILE
+ #ifdef MOAB_HAVE_HDF5
     filename = STRINGIFY(MESHDIR) "/32hex_ef.h5m";
  #else
     filename = STRINGIFY(MESHDIR) "/hexes_mixed.vtk";
  #endif
 #else
- #ifdef HDF5_FILE
+ #ifdef MOAB_HAVE_HDF5
     filename = "32hex_ef.h5m";
  #else
     filename = "hexes_mixed.vtk";
@@ -586,7 +586,7 @@ int main(int argc, char *argv[])
 
     if (argc==1)
     {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
         if (rank == 0)
             std::cout<<"Using default input file:"<<filename<<std::endl;
 #else
@@ -603,7 +603,7 @@ int main(int argc, char *argv[])
 
     ErrorCode result;
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     if (rank == 0)
         std::cout<<" para_adj_perf: ";
 #else
@@ -614,7 +614,7 @@ int main(int argc, char *argv[])
     handle_error_code(result, number_tests_failed, number_tests_successful);
     std::cout<<"\n";
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     MPI_Finalize();
 #endif
 

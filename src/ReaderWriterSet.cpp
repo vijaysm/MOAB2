@@ -32,7 +32,7 @@
 #include "ReadSmf.hpp"
 #include "ReadTemplate.hpp"
 #include "ReadTxt.hpp"
-#ifdef CGM
+#ifdef MOAB_HAVE_CGM
 #  include "ReadCGM.hpp"
 #endif
 
@@ -127,7 +127,7 @@ ReaderWriterSet::ReaderWriterSet(Core* mdb)
 
   register_factory( ReadSmf::factory, WriteSmf::factory , "QSlim format", "smf", "SMF");
 
-#ifdef CGM
+#ifdef MOAB_HAVE_CGM
   const char* acis_sufxs[] = { "sat", "sab", NULL };
   const char* occ_sufxs[] = { "brep", "occ", NULL };
   const char* step_sufxs[] = { "step", "stp", NULL };

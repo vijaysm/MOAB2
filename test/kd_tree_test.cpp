@@ -3,7 +3,7 @@
 #include "moab/Range.hpp"
 #include "moab/CartVect.hpp"
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab_mpi.h"
 #endif
 
@@ -32,7 +32,7 @@ void test_point_search();
 
 int main(int argc, char **argv)
 {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   int fail = MPI_Init(&argc, &argv);
   if (fail) return fail;
 #else
@@ -44,14 +44,14 @@ int main(int argc, char **argv)
   if (err)  // can't run other tests if can't create tree
     return 1;
   err += RUN_TEST(test_leaf_merge);
-#ifdef HDF5_FILE
+#ifdef MOAB_HAVE_HDF5
   err += RUN_TEST(test_tree_readwrite);
 #endif
   err += RUN_TEST(test_tree_delete);
   err += RUN_TEST(test_iterator_back);
   err += RUN_TEST(test_point_search);
   
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   fail = MPI_Finalize();
   if (fail) return fail;
 #endif

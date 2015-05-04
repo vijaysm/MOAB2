@@ -35,7 +35,7 @@ class EntitySequence;
 class FileOptions;
 class SetIterator;
 
-#ifdef USE_AHF
+#ifdef MOAB_HAVE_AHF
 class HalfFacetRep;
 #endif
 
@@ -1136,7 +1136,7 @@ public:
   AEntityFactory *a_entity_factory() { return aEntityFactory; }
   const AEntityFactory *a_entity_factory() const { return aEntityFactory; }
 
-#ifdef USE_AHF
+#ifdef MOAB_HAVE_AHF
   HalfFacetRep *a_half_facet_rep() { return ahfRep; }
   const HalfFacetRep *a_half_facet_rep() const {return ahfRep; }
 #endif
@@ -1363,7 +1363,7 @@ private:
     //! list of iterators 
   std::vector<SetIterator*> setIterators;
 
-#ifdef USE_AHF
+#ifdef MOAB_HAVE_AHF
   HalfFacetRep *ahfRep;
   bool mesh_modified;
 #endif
