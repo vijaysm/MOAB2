@@ -15,12 +15,12 @@ static const char example[] = STRINGIFY(MESHDIR) "/io/gcrm_r3.nc";
 #endif
 
 void test_read_onevar_trivial();
-#if defined(USE_MPI) && defined(HAVE_ZOLTAN)
+#if defined(MOAB_HAVE_MPI) && defined(MOAB_HAVE_ZOLTAN)
 void test_read_onevar_rcbzoltan();
 #endif
 
 void test_read_mesh_parallel_trivial();
-#if defined(USE_MPI) && defined(HAVE_ZOLTAN)
+#if defined(MOAB_HAVE_MPI) && defined(MOAB_HAVE_ZOLTAN)
 void test_read_mesh_parallel_rcbzoltan();
 #endif
 
@@ -45,12 +45,12 @@ int main(int argc, char* argv[])
   int result = 0;
 
   result += RUN_TEST(test_read_onevar_trivial);
-#if defined(USE_MPI) && defined(HAVE_ZOLTAN)
+#if defined(MOAB_HAVE_MPI) && defined(MOAB_HAVE_ZOLTAN)
   result += RUN_TEST(test_read_onevar_rcbzoltan);
 #endif
 
   result += RUN_TEST(test_read_mesh_parallel_trivial);
-#if defined(USE_MPI) && defined(HAVE_ZOLTAN)
+#if defined(MOAB_HAVE_MPI) && defined(MOAB_HAVE_ZOLTAN)
   result += RUN_TEST(test_read_mesh_parallel_rcbzoltan);
 #endif
 
@@ -453,7 +453,7 @@ void read_mesh_parallel(bool rcbzoltan)
     CHECK_EQUAL(642, total_cells_num);
   }
 
-#ifdef HDF5_PARALLEL
+#ifdef MOAB_HAVE_HDF5_PARALLEL
   std::string write_options("PARALLEL=WRITE_PART;");
 
   std::string output_file = "test_gcrm";

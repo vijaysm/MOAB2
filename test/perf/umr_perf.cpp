@@ -11,7 +11,7 @@
 #include "../TestUtil.hpp"
 #include <sys/time.h>
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab/ParallelComm.hpp"
 #include "MBParallelConventions.h"
 #include "moab/FileOptions.hpp"
@@ -24,7 +24,7 @@ using namespace moab;
 #define STRINGIFY_(X) #X
 #define STRINGIFY(X) STRINGIFY_(X)
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 std::string read_options;
 #endif
 
@@ -76,7 +76,7 @@ enum OUTTYPE{
 void handle_error_code(ErrorCode rv, int &number_failed, int &number_successful)
 {
   if (rv == MB_SUCCESS) {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
       int rank = 0;
       MPI_Comm_rank(MPI_COMM_WORLD, &rank);
       if (rank==0)
@@ -712,7 +712,7 @@ ErrorCode perf_inmesh(const char* filename, int *level_degrees, int num_levels, 
   Core mb;
   Interface* mbImpl = &mb;
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     int procs = 1;
     MPI_Comm_size(MPI_COMM_WORLD, &procs);
 
@@ -726,7 +726,7 @@ ErrorCode perf_inmesh(const char* filename, int *level_degrees, int num_levels, 
 #endif
     error = mbImpl->load_file(filename);
     CHECK_ERR(error);
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     }
 #endif
   //  OUTTYPE output = MEM;
@@ -740,7 +740,7 @@ ErrorCode perf_inmesh(const char* filename, int *level_degrees, int num_levels, 
 int main(int argc, char *argv[])
 {
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     MPI_Init(&argc, &argv);
 
     int nprocs, rank;
@@ -748,7 +748,7 @@ int main(int argc, char *argv[])
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     if (rank == 0)
         std::cout<<" para_umr_perf: ";
 #else
@@ -820,7 +820,7 @@ int main(int argc, char *argv[])
             return 1;
     }
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     MPI_Finalize();
 #endif
 

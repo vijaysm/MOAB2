@@ -8,7 +8,7 @@
 #include "moab/HalfFacetRep.hpp"
 #include "TestUtil.hpp"
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab/ParallelComm.hpp"
 #include "MBParallelConventions.h"
 #include "moab/FileOptions.hpp"
@@ -21,7 +21,7 @@ using namespace moab;
 #define STRINGIFY_(X) #X
 #define STRINGIFY(X) STRINGIFY_(X)
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 std::string read_options;
 #endif
 
@@ -31,7 +31,7 @@ int number_tests_failed = 0;
 void handle_error_code(ErrorCode rv, int &number_failed, int &number_successful)
 {
   if (rv == MB_SUCCESS) {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
       int rank = 0;
       MPI_Comm_rank(MPI_COMM_WORLD, &rank);
       if (rank==0)
@@ -57,7 +57,7 @@ ErrorCode ahf_test(const char* filename)
     EntityHandle fileset;
     error = mbImpl->create_meshset(moab::MESHSET_SET, fileset); CHECK_ERR(error);
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     int procs = 1;
     MPI_Comm_size(MPI_COMM_WORLD, &procs);
 
@@ -71,7 +71,7 @@ ErrorCode ahf_test(const char* filename)
 #endif
     error = mbImpl->load_file(filename,  &fileset);
     CHECK_ERR(error);
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     }
 #endif
 
@@ -337,7 +337,7 @@ ErrorCode ahf_test(const char* filename)
 int main(int argc, char *argv[])
 {
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     MPI_Init(&argc, &argv);
 
     int nprocs, rank;
@@ -347,13 +347,13 @@ int main(int argc, char *argv[])
 
     const char* filename = 0;
 #ifdef MESHDIR
- #ifdef HDF5_FILE
+ #ifdef MOAB_HAVE_HDF5
     filename = STRINGIFY(MESHDIR) "/32hex_ef.h5m";
  #else
     filename = STRINGIFY(MESHDIR) "/hexes_mixed.vtk";
  #endif
 #else
- #ifdef HDF5_FILE
+ #ifdef MOAB_HAVE_HDF5
     filename = "32hex_ef.h5m";
  #else
     filename = "hexes_mixed.vtk";
@@ -363,7 +363,7 @@ int main(int argc, char *argv[])
 
     if (argc==1)
     {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
         if (rank == 0)
             std::cout<<"Using default input file:"<<filename<<std::endl;
 #else
@@ -380,7 +380,7 @@ int main(int argc, char *argv[])
 
     ErrorCode result;
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     if (rank == 0)
         std::cout<<" para_ahf_test: ";
 #else
@@ -391,7 +391,7 @@ int main(int argc, char *argv[])
     handle_error_code(result, number_tests_failed, number_tests_successful);
     std::cout<<"\n";
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     MPI_Finalize();
 #endif
 

@@ -20,7 +20,7 @@
 #include <iostream>
 #include <string>
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab_mpi.h"
 #endif
 
@@ -31,7 +31,7 @@ using namespace moab;
 
 int main(int argc, char* argv[])
 {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
     // Check command line arg
@@ -82,7 +82,7 @@ int main(int argc, char* argv[])
   delete my_tqd;
   delete my_impl;
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   int nprocs, rank;
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
