@@ -16,7 +16,8 @@ TESTS = h5test \
         h5sets_test \
         h5regression \
         h5partial \
-        h5portable
+        h5portable \
+        h5hdr
 
 check_PROGRAMS = $(TESTS) dump_sets
 LDADD = $(top_builddir)/src/libMOAB.la
@@ -28,6 +29,7 @@ h5sets_test_SOURCES = h5sets_test.cpp
 h5regression_SOURCES = h5regression.cpp
 h5partial_SOURCES = h5partial.cpp
 h5portable_SOURCES = h5portable.cpp
+h5hdr_SOURCES = h5hdr.cpp
 
 dump_sets_SOURCES = dump_sets.c
 dump_sets_LDADD = $(top_builddir)/src/io/mhdf/libmhdf.la

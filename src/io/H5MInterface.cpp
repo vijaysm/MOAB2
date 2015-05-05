@@ -1,3 +1,12 @@
+/*
+ * H5MInterface.cpp
+ *
+ *  Created on: May 5, 2015
+ *      Author: iulian
+ */
+
+#include "moab/H5MInterface.hpp"
+
 #include "mhdf.h"
 #include <stdlib.h>
 #include <stdio.h>
@@ -5,8 +14,30 @@
 #include <ctype.h>
 #include <H5Tpublic.h>
 
-int main( int argc, char* argv[] )
+namespace moab {
+
+H5MInterface::H5MInterface(const char * filena) : filename(filena) {
+  // TODO Auto-generated constructor stub
+ /* mhdf_Status status;
+  fileHandle = mhdf_openFile( filename, 0, &max_id, -1, &status );
+*/
+}
+
+H5MInterface::~H5MInterface() {
+  // TODO Auto-generated destructor stub
+  /*mhdf_Status status;
+  mhdf_closeFile( fileHandle, &status );*/
+}
+
+int H5MInterface::get_mesh_info( int* verts, int *edges, int*faces, int* regions, int *numdim, int* parts)
 {
+  *verts = 0;
+  *edges = 0;
+  *faces = 0;
+  *regions = 0;
+  *numdim = 0;
+  *parts = 0;
+
   mhdf_FileHandle file;
   mhdf_Status status;
   unsigned long max_id;
@@ -16,26 +47,23 @@ int main( int argc, char* argv[] )
   int i, maxc, ne;
   long int nval, junk;
   hid_t table[3];
-  
-  if (argc != 2) {
-    fprintf( stderr,"Usage: %s <filename>\n", argv[0] );
-    return 1;
-  }
-  
-  file = mhdf_openFile( argv[1], 0, &max_id, -1, &status );
+
+
+  file = mhdf_openFile( filename, 0, &max_id, -1, &status );
   if (mhdf_isError( &status )) {
-    fprintf( stderr,"%s: %s\n", argv[1], mhdf_message( &status ) );
+    fprintf( stderr,"%s: %s\n", filename, mhdf_message( &status ) );
     return 1;
   }
-  
+
   data = mhdf_getFileSummary( file, H5T_NATIVE_ULONG, &status );
   if (mhdf_isError( &status )) {
-    fprintf( stderr,"%s: %s\n", argv[1], mhdf_message( &status ) );
+    fprintf( stderr,"%s: %s\n", filename, mhdf_message( &status ) );
     return 1;
   }
-  
-  printf(" num dimensions: %d\n", data->nodes.vals_per_ent);
-  printf(" num vertices:   %d\n", (int)data->nodes.count);
+  *numdim = data->nodes.vals_per_ent;
+  //printf(" num dimensions: %d\n", data->nodes.vals_per_ent);
+  *verts = (int)data->nodes.count;
+  //printf(" num vertices:   %d\n", (int)data->nodes.count);
 
   /* max connectivity number of elem */
   maxc = -1;
@@ -50,8 +78,8 @@ int main( int argc, char* argv[] )
       maxc = ent_d->vals_per_ent;
     }
   }
-  printf(" num elements:   %d\n", ne);
-
+  //printf(" num elements:   %d\n", ne);
+  *regions = ne;
   for (i=0; i<data->num_tag_desc; i++)
   {
     struct mhdf_TagDesc * tag_desc = &(data->tags[i]);
@@ -61,7 +89,7 @@ int main( int argc, char* argv[] )
       if (tag_desc->have_sparse) {
         mhdf_openSparseTagData(file, pname, &nval, &junk, table, &status);
         if (mhdf_isError( &status )) {
-          fprintf( stderr,"%s: %s\n", argv[1], mhdf_message( &status ) );
+          fprintf( stderr,"%s: %s\n", filename, mhdf_message( &status ) );
           return 1;
         }
       }
@@ -70,16 +98,18 @@ int main( int argc, char* argv[] )
         /* could be dense tags on sets */
         mhdf_openDenseTagData(file, pname, mhdf_set_type_handle(), &nval, &status);
         if (mhdf_isError( &status )) {
-          fprintf( stderr,"%s: %s\n", argv[1], mhdf_message( &status ) );
+          fprintf( stderr,"%s: %s\n", filename, mhdf_message( &status ) );
           return 1;
         }
       }
-      printf(" num parallel partitions: %d\n", (int)nval);
+    //  printf(" num parallel partitions: %d\n", (int)nval);
+      *parts = (int)nval;
     }
   }
 
   mhdf_closeFile( file, &status );
-  
+
   free( data );
   return 0;
 }
+} /* namespace moab */
