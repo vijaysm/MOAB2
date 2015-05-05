@@ -69,6 +69,7 @@ if HAVE_HDF5
   libmoabio_la_LIBADD += mhdf/libmhdf.la
   MOAB_HDF5_SRCS = HDF5Common.cpp \
                    HDF5Common.hpp \
+                   H5MInterface.cpp \
                    ReadHDF5.cpp \
                    ReadHDF5.hpp \
                    ReadHDF5Dataset.hpp \
@@ -169,3 +170,6 @@ libmoabio_la_SOURCES = \
 
 libmoabio_la_includedir = $(includedir)
 nobase_libmoabio_la_include_HEADERS = moab/ExoIIInterface.hpp
+if HDF5_FILE
+  nobase_libmoabio_la_include_HEADERS += moab/H5MInterface.hpp
+endif
