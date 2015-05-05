@@ -118,7 +118,7 @@ namespace moab {
               if (poly.size())
                   is_mixed = true;
 
-              return is_mixed;
+              if (is_mixed) return is_mixed;
           }
 
           error = mb->get_entities_by_dimension( 0, 3, celems);
