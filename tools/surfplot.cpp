@@ -347,6 +347,10 @@ void  write_gnuplot( std::ostream& stream,
   for (iter = coords.begin(); iter != coords.end(); ++iter) {
     stream << iter->x << ' ' << iter->y << std::endl;
     ++iter;
+    if (iter == coords.end()) {
+      stream << std::endl;
+      break;
+    }
     stream << iter->x << ' ' << iter->y << std::endl;
     stream << std::endl;
   }
