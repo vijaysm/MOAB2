@@ -1,8 +1,5 @@
 /*
  * H5MInterface.cpp
- *
- *  Created on: May 5, 2015
- *      Author: iulian
  */
 
 #include "moab/H5MInterface.hpp"
@@ -17,16 +14,11 @@
 namespace moab {
 
 H5MInterface::H5MInterface(const char * filena) : filename(filena) {
-  // TODO Auto-generated constructor stub
- /* mhdf_Status status;
-  fileHandle = mhdf_openFile( filename, 0, &max_id, -1, &status );
-*/
+
 }
 
 H5MInterface::~H5MInterface() {
-  // TODO Auto-generated destructor stub
-  /*mhdf_Status status;
-  mhdf_closeFile( fileHandle, &status );*/
+
 }
 
 int H5MInterface::get_mesh_info( int* verts, int *edges, int*faces, int* regions, int *numdim, int* parts)

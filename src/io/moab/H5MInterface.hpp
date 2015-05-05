@@ -1,8 +1,5 @@
 /*
  * H5MInterface.hpp
- *
- *  Created on: May 5, 2015
- *      Author: iulian
  */
 
 #ifndef H5MINTERFACE_HPP
