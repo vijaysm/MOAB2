@@ -36,10 +36,10 @@ int VTKTCL_EXPORT vtkMOABReaderCppCommand(vtkMOABReader *op, Tcl_Interp *interp,
   static char temps[80];
   int    error;
 
-  error = 0; error = error;
-  tempi = 0; tempi = tempi;
-  tempd = 0; tempd = tempd;
-  temps[0] = 0; temps[0] = temps[0];
+  error = 0;
+  tempi = 0;
+  tempd = 0;
+  temps[0] = 0;
 
   if (argc < 2)
     {
