@@ -70,7 +70,7 @@ bool parse_id_list(const char* string, int dim, int nval, std::vector<int> &resu
 
 bool make_opts_string( std::vector<std::string> options, std::string& opts );
 
-ErrorCode get_degree_seq(Core &moab, EntityHandle fileset, int dim, double desired_vol, int &num_levels, std::vector<int> &level_degs);
+ErrorCode get_degree_seq(Core &mb, EntityHandle fileset, int dim, double desired_vol, int &num_levels, std::vector<int> &level_degs);
 
 int main(int argc, char* argv[])
 {
@@ -284,15 +284,43 @@ int main(int argc, char* argv[])
 exit(SUCCESS);
 }
 
-ErrorCode get_degree_seq(Core &moab,EntityHandle fileset, int dim, double desired_vol, int &num_levels, std::vector<int> &level_degs)
+ErrorCode get_degree_seq(Core &mb,EntityHandle fileset, int dim, double desired_vol, int &num_levels, std::vector<int> &level_degs)
 {
   ErrorCode error;
-  VerdictWrapper vw(&moab);
+  VerdictWrapper vw(&mb);
 
+  //Get all entities of the highest dimension which is passed as a command line argument.
+  Range allents, owned;
+  error = mb.get_entities_by_handle(fileset, allents);MB_CHK_ERR(error);
+  owned = allents.subset_by_dimension(dim);MB_CHK_ERR(error);
+  int ne_local = (int)owned.size();
+  int ne_global = ne_local;
+  int size = 1;
 
-  Range allents, ents;
-  error = moab.get_entities_by_handle(fileset, allents);MB_CHK_ERR(error);
-  ents = allents.subset_by_dimension(dim);MB_CHK_ERR(error);
+#ifdef USE_MPI
+/*  MPI_Comm_size( MPI_COMM_WORLD, &size );
+  int mpi_err;
+  if (size>1)
+  {
+  // filter the entities not owned, so we do not process them more than once
+    ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
+    Range current = owned;
+    owned.clear();
+    rval = pcomm->filter_pstatus(current, PSTATUS_NOT_OWNED, PSTATUS_NOT, -1, &owned);
+    if (rval != MB_SUCCESS)
+    {
+      MPI_Finalize();
+      return 1;
+    }
+    ne_local = (int)owned.size();
+    mpi_err = MPI_Reduce(&ne_local, &ne_global, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+    if (mpi_err)
+    {
+      MPI_Finalize();
+      return 1;
+    }
+  }*/
+#endif
 
 
 

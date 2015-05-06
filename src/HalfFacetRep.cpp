@@ -20,6 +20,7 @@
 #include <assert.h>
 #include <vector>
 #include "MBTagConventions.hpp"
+#include "moab/ScdInterface.hpp"
 #ifdef USE_MPI
 #include "moab/ParallelComm.hpp"
 #endif
@@ -170,9 +171,21 @@ namespace moab {
 
               if (polyhed.size())
                   is_mixed = true;
-              return is_mixed;
+          }
+
+          ScdInterface *scdi = NULL;
+          error = mb->query_interface(scdi);MB_CHK_ERR(error);
+          if (scdi){
+              Range boxes;
+              error = scdi->find_boxes(boxes);MB_CHK_ERR(error);
+              std::cout<<"DEBUG: HFR: check_mixed : box_size = "<<boxes.size()<<std::endl;
+
+              if (!boxes.empty())
+                is_mixed = true;
           }
       }
+
+      //std::cout<<"DEBUG: HFR: check_mixed : is_mixed = "<<is_mixed<<std::endl;
       return is_mixed;
   }
 
@@ -1559,7 +1572,10 @@ namespace moab {
      for (Range::iterator cid = cells.begin(); cid != cells.end(); ++cid)
        {
          const EntityHandle* conn;
+       //  std::cout<<"DEBUG: HFR: 3d sibhfs:: before calling get_conn"<<std::endl;
          error = mb->get_connectivity(*cid, conn, nvpc);MB_CHK_ERR(error);
+     //    std::cout<<"DEBUG: HFR: 3d sibhfs:: after calling get_conn"<<std::endl;
+
 
          for (int i = 0; i< nfpc; i++)
            {
