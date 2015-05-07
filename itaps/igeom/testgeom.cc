@@ -93,7 +93,7 @@ template <typename T> class SimpleArray
 #define ARRAY_INOUT( A ) A.ptr(), &A.capacity(), &A.size()
 #define ARRAY_IN( A ) &A[0], A.size()
 
-bool gLoad_test(const std::string filename, FBiGeom_Instance);
+bool gLoad_test(const std::string &filename, FBiGeom_Instance);
 
 bool tags_test(FBiGeom_Instance geom);
 bool tag_get_set_test(FBiGeom_Instance geom);
@@ -280,7 +280,7 @@ int main( int argc, char *argv[] )
   Load Mesh
   @li Load a mesh file
 */
-bool gLoad_test(const std::string filename, FBiGeom_Instance geom)
+bool gLoad_test(const std::string &filename, FBiGeom_Instance geom)
 {
   int err;
   FBiGeom_load( geom, &filename[0], 0, &err, filename.length(), 0 );
