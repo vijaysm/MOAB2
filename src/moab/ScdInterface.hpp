@@ -188,7 +188,7 @@ public:
      * \param new_box Reference to the newly created box of entities
      * \param is_periodic[3] If is_periodic[s] is non-zero, mesh should be periodic in direction s (s=[0,1,2])
      */
-  ErrorCode create_scd_sequence(HomCoord low, HomCoord high, EntityType type,
+  ErrorCode create_scd_sequence(const HomCoord &low, const HomCoord &high, EntityType type,
                                 int starting_id, ScdBox *&new_box, 
                                 int *is_periodic = NULL);
 
@@ -304,7 +304,7 @@ private:
      * \param scd_set Entity set created
      * \param is_periodic[3] If is_periodic[s] is non-zero, mesh should be periodic in direction s (s=[0,1,2])
      */
-  ErrorCode create_box_set(const HomCoord low, const HomCoord high,
+  ErrorCode create_box_set(const HomCoord &low, const HomCoord &high,
                            EntityHandle &scd_set,
                            int *is_periodic = NULL);
   
@@ -507,7 +507,7 @@ public:
     /**
      * \param ijk Parametric coordinates being evaluated
      */
-  EntityHandle get_element(HomCoord ijk) const;
+  EntityHandle get_element(const HomCoord &ijk) const;
   
     //! Get the element at the specified coordinates
     /**
@@ -521,7 +521,7 @@ public:
     /**
      * \param ijk Parametric coordinates being evaluated
      */
-  EntityHandle get_vertex(HomCoord ijk) const;
+  EntityHandle get_vertex(const HomCoord &ijk) const;
   
     //! Get the vertex at the specified coordinates
     /**
@@ -591,7 +591,7 @@ public:
      * \param j Parametric coordinates being evaluated
      * \param k Parametric coordinates being evaluated
      */
-  bool contains(const HomCoord ijk) const;
+  bool contains(const HomCoord &ijk) const;
 
     //! Set/Get the entity set representing the box
   void box_set(EntityHandle this_set);
@@ -1331,7 +1331,7 @@ inline EntityHandle ScdBox::get_element(int i, int j, int k) const
           startElem + (k-boxDims[2])*boxSizeIJM1 + (j-boxDims[1])*boxSizeIM1 + i-boxDims[0]);
 }
 
-inline EntityHandle ScdBox::get_element(HomCoord ijk) const 
+inline EntityHandle ScdBox::get_element(const HomCoord &ijk) const
 {
   return get_element(ijk[0], ijk[1], ijk[2]);
 }
@@ -1342,12 +1342,12 @@ inline EntityHandle ScdBox::get_vertex(int i, int j, int k) const
 	  (boxDims[1] == -1 && boxDims[4] == -1 ? 0 : (j-boxDims[1]))*boxSize[0] + i-boxDims[0] : get_vertex_from_seq(i, j, k));
 }
 
-inline EntityHandle ScdBox::get_vertex(HomCoord ijk) const 
+inline EntityHandle ScdBox::get_vertex(const HomCoord &ijk) const
 {
   return get_vertex(ijk[0], ijk[1], ijk[2]);
 }
   
-inline bool ScdBox::contains(const HomCoord ijk) const
+inline bool ScdBox::contains(const HomCoord &ijk) const
 {
   return (ijk >= HomCoord(boxDims, 3) && 
           ijk <= HomCoord(boxDims+3, 3));

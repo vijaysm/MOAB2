@@ -117,7 +117,7 @@ public:
 #define ARRAY_INOUT( A ) A.ptr(), &A.capacity(), &A.size()
 #define ARRAY_IN( A ) &A[0], A.size()
 
-bool smooth_test(const std::string filename, FBiGeom_Instance);
+bool smooth_test(const std::string &filename, FBiGeom_Instance);
 
 bool tags_test(FBiGeom_Instance geom);
 bool tag_get_set_test(FBiGeom_Instance geom);
@@ -337,7 +337,7 @@ int main(int argc, char *argv[]) {
  @li Load a mesh file
  */
 
-bool smooth_test(const std::string filename, FBiGeom_Instance geom) {
+bool smooth_test(const std::string &filename, FBiGeom_Instance geom) {
    int err;
    char opts[] = "SMOOTH;";
    FBiGeom_load(geom, &filename[0], opts, &err, filename.length(), 8);
