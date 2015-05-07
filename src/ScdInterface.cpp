@@ -266,7 +266,7 @@ ErrorCode ScdInterface::assign_global_ids(ScdBox *box)
   return MB_SUCCESS;
 }
 
-ErrorCode ScdInterface::create_scd_sequence(HomCoord low, HomCoord high, EntityType tp,
+ErrorCode ScdInterface::create_scd_sequence(const HomCoord &low, const HomCoord &high, EntityType tp,
                                             int starting_id, ScdBox *&new_box,
                                             int *is_periodic)
 {
@@ -315,7 +315,7 @@ ErrorCode ScdInterface::create_scd_sequence(HomCoord low, HomCoord high, EntityT
   return MB_SUCCESS;
 }
 
-ErrorCode ScdInterface::create_box_set(const HomCoord low, const HomCoord high,
+ErrorCode ScdInterface::create_box_set(const HomCoord &low, const HomCoord &high,
                                        EntityHandle &scd_set, int *is_periodic) 
 {
     // create the set and put the entities in it

@@ -535,8 +535,8 @@ ErrorCode skin_hex_elems(Interface *MBI, Range elems, const int dim,
 #endif //dead code isolation
 // Given a 1D array of data, axis labels, title, and number of bins, create a
 // histogram.
-void plot_histogram(const std::string title, const std::string x_axis_label,
-    const std::string y_axis_label, const int n_bins, const double data[],
+void plot_histogram(const std::string &title, const std::string &x_axis_label,
+    const std::string &y_axis_label, const int n_bins, const double data[],
     const int n_data)
 {
   // find max and min
@@ -609,7 +609,7 @@ void plot_histogram(const std::string title, const std::string x_axis_label,
 
 // This is a helper function that creates data and labels for histograms.
 void generate_plots(const double orig[], const double defo[], const int n_elems,
-    const std::string time_step)
+    const std::string &time_step)
 {
 
   // find volume ratio then max and min
@@ -698,7 +698,7 @@ double measure(Interface *MBI, const EntityHandle element)
  the signed volume will be ~0. If the signed volume is ~0 then offset everything
  by a random amount and try again. */
 ErrorCode get_signed_volume(Interface *MBI, const EntityHandle surf_set,
-    const CartVect offset, double &signed_volume)
+    const CartVect &offset, double &signed_volume)
 {
   ErrorCode rval;
   Range tris;
