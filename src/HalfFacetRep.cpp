@@ -178,7 +178,6 @@ namespace moab {
           if (scdi){
               Range boxes;
               error = scdi->find_boxes(boxes);MB_CHK_ERR(error);
-              std::cout<<"DEBUG: HFR: check_mixed : box_size = "<<boxes.size()<<std::endl;
 
               if (!boxes.empty())
                 is_mixed = true;
