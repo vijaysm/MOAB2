@@ -7120,7 +7120,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     // If the tags are different, copy the source to the dest tag locally
     std::vector<Tag>::const_iterator vit = src_tags.begin(), vit2 = dst_tags.begin();
     std::vector<int>::const_iterator vsizes = tags_sizes.begin();
-    for (; vit != src_tags.end(); ++vit, ++vit2, vsizes++) {
+    for (; vit != src_tags.end(); ++vit, ++vit2, ++vsizes) {
       if (*vit == *vit2)
         continue;
       vals.resize(entities.size()*(*vsizes));

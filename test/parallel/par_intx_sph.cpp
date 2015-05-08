@@ -125,7 +125,7 @@ ErrorCode  manufacture_lagrange_mesh_on_sphere(Interface * mb, EntityHandle eule
   double t=0.1, T=5;// check the script
   double time =0.05;
   double rot= M_PI/10;
-  for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); vit++ )
+  for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); ++vit)
   {
     EntityHandle oldV=*vit;
     CartVect posi;

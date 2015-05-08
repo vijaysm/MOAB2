@@ -85,7 +85,7 @@ ErrorCode manufacture_lagrange_mesh_on_sphere(Interface * mb,
   double T=5;// check the script
 
 
-  for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); vit++ )
+  for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); ++vit)
   {
     EntityHandle oldV=*vit;
     CartVect posi;

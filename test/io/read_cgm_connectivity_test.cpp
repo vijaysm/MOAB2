@@ -87,7 +87,7 @@ void cube_verts_connectivity_test()
   CHECK_ERR(rval);
 
   //Check that each vertex connects to at least 4 and no more than 6 triangles
-  for(Range::const_iterator i = verts.begin(); i!=verts.end(); i++)
+  for(Range::const_iterator i = verts.begin(); i!=verts.end(); ++i)
     {
       std::vector<EntityHandle> adj_tris;
       rval = mb->get_adjacencies( &(*i), 1, 2, false, adj_tris );
@@ -116,7 +116,7 @@ void cube_tris_connectivity_test()
 
   int expected_num_of_adj_tris = 3;
 
-  for(Range::const_iterator i = tris.begin()+1; i!=tris.end(); i++)
+  for(Range::const_iterator i = tris.begin()+1; i!=tris.end(); ++i)
     {
       Range adj_tris;
       moab::MeshTopoUtil mu(mb);
@@ -157,7 +157,7 @@ void cube_tri_curve_coincidence_test()
   rval = mb->get_entities_by_type( 0, MBTRI, tris );
   CHECK_ERR(rval);
 
-  for(Range::const_iterator i=tris.begin(); i!=tris.end(); i++)
+  for(Range::const_iterator i=tris.begin(); i!=tris.end(); ++i)
     {
       //Get the any curve edges that are a part of the triangle
       Range tri_edges;
@@ -178,9 +178,9 @@ void match_tri_edges_w_curve( Range tri_edges, Range curves )
   int match_counter=0;
   int num_of_tri_edges = tri_edges.size();
   CHECK(num_of_tri_edges);
-  for(Range::const_iterator i=tri_edges.begin(); i!=tri_edges.end(); i++)
+  for(Range::const_iterator i=tri_edges.begin(); i!=tri_edges.end(); ++i)
     {
-      for(Range::const_iterator j=curves.begin(); j!=curves.end(); j++)
+      for(Range::const_iterator j=curves.begin(); j!=curves.end(); ++j)
 	{
           // If the edge handle matches a curve handle, increment the number
           // matches
@@ -207,7 +207,7 @@ void cube_edge_adjacencies_test()
   rval = mb->get_entities_by_type( 0, MBEDGE, curves );
   CHECK_ERR(rval);
 
-  for(Range::const_iterator i=curves.begin(); i!=curves.end(); i++)
+  for(Range::const_iterator i=curves.begin(); i!=curves.end(); ++i)
     {
       //Get triangle adjacent to each edge
       Range adj_tris;
@@ -235,7 +235,7 @@ void cube_tri_vertex_test()
   rval = mb->get_entities_by_type( 0, MBTRI, tris );
   CHECK_ERR(rval);
 
-  for(Range::const_iterator i=tris.begin(); i!=tris.end(); i++)
+  for(Range::const_iterator i=tris.begin(); i!=tris.end(); ++i)
     {
       //Get all triangle vertices
       Range verts;
