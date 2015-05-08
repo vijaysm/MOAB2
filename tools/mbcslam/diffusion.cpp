@@ -179,7 +179,7 @@ ErrorCode add_field_value(Interface * mb, EntityHandle euler_set, int rank, Tag 
     rval = mb->tag_iterate(tagArea, iter, polygons.end(), count, data);
     CHECK_ERR(rval);
     double * ptrArea=(double*)data;
-    for (int i=0; i<count; i++, iter++, ptr++, ptrArea++)
+    for (int i=0; i<count; i++, ++iter, ptr++, ptrArea++)
     {
       const moab::EntityHandle * conn = NULL;
       int num_nodes = 0;
@@ -577,7 +577,7 @@ int main(int argc, char **argv)
     rval = mb.tag_iterate(tagArea, iter, redEls.end(), count, data);
     CHECK_ERR(rval);
     double * ptrArea=(double*)data;
-    for (int i=0; i<count; i++, iter++, ptrTracer++, ptrArea++, j++)
+    for (int i=0; i<count; i++, ++iter, ptrTracer++, ptrArea++, j++)
     {
       //double area = *ptrArea;
       norm1+=fabs(*ptrTracer - iniVals[j])* (*ptrArea);

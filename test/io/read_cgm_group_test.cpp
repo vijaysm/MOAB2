@@ -111,7 +111,7 @@ void read_cylcube_groups_test()
   std::vector<std::string> g_names;
   std::vector<int> g_ent_ids;
 
-  for(Range::iterator i=group_sets.begin(); i!=group_sets.end(); i++)
+  for(Range::iterator i=group_sets.begin(); i!=group_sets.end(); ++i)
     {
       int group_id = geom_id_by_handle( mb, *i );
       g_ids.push_back(group_id);

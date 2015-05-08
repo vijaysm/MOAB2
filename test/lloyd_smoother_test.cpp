@@ -59,7 +59,7 @@ int main(int argc, char**argv)
   CHECK_ERR(rval);
   unsigned int i;
   Range::iterator vit;
-  for (vit = verts.begin(), i = 0; vit != verts.end(); vit++, i+=3) {
+  for (vit = verts.begin(), i = 0; vit != verts.end(); ++vit, i+=3) {
     CartVect old_pos(&coords[i]), new_pos(&new_coords[i]);
     CartVect almost_pos = old_pos + .99 * (new_pos - old_pos);
     almost_pos.get(&new_coords[i]);
