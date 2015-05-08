@@ -245,7 +245,7 @@ int main(int argc, char *argv[]) {
 
        rval = mb.tag_iterate(areaTag, iter, redEls.end(), count, data);
        double * ptrArea=(double*)data;
-       for (int i=0; i<count; i++, iter++, ptrTracer++, ptrArea++, j++)
+       for (int i=0; i<count; i++, ++iter, ptrTracer++, ptrArea++, j++)
        {
           //double area = *ptrArea;
           norm1+=fabs(*ptrTracer - iniValsRho[j])* (*ptrArea);
@@ -750,7 +750,7 @@ moab::ErrorCode update_density(moab::Interface * mb, moab::EntityHandle euler_se
   {
     rval = mb->tag_iterate(areaTag, iter, rs2.end(), count, data);
     double * ptrArea=(double*)data;
-    for (int i=0; i<count; i++, iter++, j++, ptrArea++)
+    for (int i=0; i<count; i++, ++iter, j++, ptrArea++)
     {
       total_mass_local+=newValues[j];
       newValues[j]/= (*ptrArea);

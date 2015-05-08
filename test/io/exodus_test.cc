@@ -538,7 +538,7 @@ void mb_write_mesh_test()
   end_iter = temp_range.end();
 
   temp_vec.clear();
-  for(; iter != end_iter; iter++ )
+  for(; iter != end_iter; ++iter)
   {
     std::vector<EntityHandle> nodes;
     result = MB->get_connectivity( &(*iter), 1, nodes );
@@ -630,7 +630,7 @@ void mb_write_mesh_test()
   end_iter = temp_range.end();
 
 
-  for(; iter != end_iter; iter++ )
+  for(; iter != end_iter; ++iter)
   {
     std::vector<EntityHandle> nodes;
     result = MB->get_connectivity( &(*iter), 1, nodes);

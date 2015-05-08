@@ -752,7 +752,7 @@ ErrorCode fix_surface_senses(Interface *MBI, const EntityHandle cgm_file_set,
       two_val, 1, cgm_surfs);
   if (MB_SUCCESS != result)
     return result;
-  for (Range::iterator i = cgm_surfs.begin(); i != cgm_surfs.end(); i++)
+  for (Range::iterator i = cgm_surfs.begin(); i != cgm_surfs.end(); ++i)
   {
     int surf_id;
     result = MBI->tag_get_data(idTag, &(*i), 1, &surf_id);

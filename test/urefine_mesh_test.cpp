@@ -1,4 +1,4 @@
-/*This unit test is for the uniform refinement capability based on AHF datastructures*/
+/*This unit test is for the uniform refinement capability based on AHF data structures*/
 #include <iostream>
 #include <string>
 #include <sstream>
