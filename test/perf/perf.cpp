@@ -1122,9 +1122,9 @@ void query_vert_to_elem_direct()
   int i;
   Range::iterator vit;
   EntityHandle estart = *tmp_ents.begin();
-  for (vit = all_verts.begin(), i = 0; vit != all_verts.end(); vit++, i++) {
+  for (vit = all_verts.begin(), i = 0; vit != all_verts.end(); ++vit, i++) {
     assert(adjs[i]);
-    for (std::vector<EntityHandle>::const_iterator vit2 = adjs[i]->begin(); vit2 != adjs[i]->end(); vit2++)
+    for (std::vector<EntityHandle>::const_iterator vit2 = adjs[i]->begin(); vit2 != adjs[i]->end(); ++vit2)
       if (*vit >= estart) {
         int eind = *vit2 - estart;
         centroid[3*eind+0] += coords[0][i];

@@ -592,7 +592,7 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
     rval = mb->tag_iterate(tagArea, iter, rs2.end(), count, data);
     ERRORR(rval, "can't tag iterate");
     double * ptrArea=(double*)data;
-    for (int i=0; i<count; i++, iter++, j++, ptrArea++)
+    for (int i=0; i<count; i++, ++iter, j++, ptrArea++)
     {
       for (int k=0; k<numTracers; k++)
       {
