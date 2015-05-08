@@ -107,6 +107,8 @@ int main(int argc, char* argv[])
     else std::cout << "(no message)" << std::endl;
   }
 
+  delete my_impl; // done with the read
+  MPI_Finalize();
 #endif
 
   return result;

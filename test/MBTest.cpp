@@ -6388,6 +6388,120 @@ ErrorCode mb_skin_scd_test()
   return MB_SUCCESS;
 }
 
+ErrorCode mb_skin_fileset_test()
+{
+  Core moab;
+  Interface *mb = &moab;
+  ErrorCode error;
+  const double coords[] = {0,0,0,
+                           1,0,0,
+                           2,0,0,
+                           2,1,0,
+                           1,1,0,
+                           0,1,0,
+                           0,0,1,
+                           1,0,1,
+                           2,0,1,
+                           2,1,1,
+                           1,1,1,
+                           0,1,1,
+                           0,0,2,
+                           1,0,2,
+                           2,0,2,
+                           2,1,2,
+                           1,1,2,
+                           0,1,2 };
+     const size_t num_vtx = sizeof(coords)/sizeof(double)/3;
+
+     const int conn[] = {0,1,4,5,6,7,10,11,
+                        1,2,3,4,7,8,9,10,
+                        6,7,10,11,12,13,16,17,
+                        7,8,9,10,13,14,15,16};
+     const size_t num_elems = sizeof(conn)/sizeof(int)/8;
+
+     EntityHandle verts[num_vtx], cells[num_elems];
+     for (size_t i=0; i< num_vtx; ++i)
+       {
+         error = mb->create_vertex(coords+3*i, verts[i]); MB_CHK_ERR(error);
+       }
+
+     for (size_t i=0; i< num_elems; ++i)
+       {
+         EntityHandle c[8];
+         for (int j=0; j<8; j++)
+           c[j] = verts[conn[8*i+j]];
+
+         error = mb->create_element(MBHEX, c, 8, cells[i]);MB_CHK_ERR(error);
+       }
+
+     EntityHandle fileset;
+     error = mb->create_meshset(MESHSET_SET, fileset);MB_CHK_ERR(error);
+     error = mb->add_entities(fileset, &verts[0], num_vtx);MB_CHK_ERR(error);
+     error = mb->add_entities(fileset, &cells[0], num_elems);MB_CHK_ERR(error);
+
+     Range fverts, fedges, ffaces, fcells;
+     error = mb->get_entities_by_dimension(fileset, 0, fverts);MB_CHK_ERR(error);
+     error = mb->get_entities_by_dimension(fileset, 1, fedges);MB_CHK_ERR(error);
+     error = mb->get_entities_by_dimension(fileset, 2, ffaces);MB_CHK_ERR(error);
+     error = mb->get_entities_by_dimension(fileset, 3, fcells);MB_CHK_ERR(error);
+
+     assert(fverts.size()==18 && fedges.size()==0 && ffaces.size()==0 && fcells.size()==4);
+
+     Skinner sk(mb);
+     Range skin_ents;
+     error = sk.find_skin(fileset, fcells, 2, skin_ents, false, true);MB_CHK_ERR(error);
+     error = mb->get_entities_by_dimension(fileset, 2, ffaces);MB_CHK_ERR(error);
+     assert(ffaces.size() == 16);
+     error = sk.find_skin(fileset, fcells, 1, skin_ents, false, true);MB_CHK_ERR(error);
+     error = mb->get_entities_by_dimension(fileset, 1, fedges);MB_CHK_ERR(error);
+     assert(fedges.size() == 32);
+
+     const double fcoords[] = {  0,0,3,
+                                 1,0,3,
+                                 2,0,3,
+                                 2,1,3,
+                                 1,1,3,
+                                 0,1,3 };
+        const size_t num_fvtx = sizeof(fcoords)/sizeof(double)/3;
+
+        const int fconn[] = {0,1,4,5,
+                           1,2,3,4};
+        const size_t num_faces = sizeof(fconn)/sizeof(int)/4;
+        EntityHandle nwverts[num_fvtx], faces[num_faces];
+        for (size_t i=0; i< num_fvtx; ++i)
+          {
+            error = mb->create_vertex(fcoords+3*i, nwverts[i]); MB_CHK_ERR(error);
+          }
+
+        for (size_t i=0; i< num_faces; ++i)
+          {
+            EntityHandle c[4];
+            for (int j=0; j<4; j++)
+              c[j] = nwverts[fconn[4*i+j]];
+
+            error = mb->create_element(MBQUAD, c, 4, faces[i]);MB_CHK_ERR(error);
+          }
+        EntityHandle fileset1;
+        error = mb->create_meshset(MESHSET_SET, fileset1);MB_CHK_ERR(error);
+        error = mb->add_entities(fileset1, &nwverts[0], num_fvtx);MB_CHK_ERR(error);
+        error = mb->add_entities(fileset1, &faces[0], num_faces);MB_CHK_ERR(error);
+
+        Range verts1, edges1, faces1;
+        error = mb->get_entities_by_dimension(fileset1, 0, verts1);MB_CHK_ERR(error);
+        error = mb->get_entities_by_dimension(fileset1, 1, edges1);MB_CHK_ERR(error);
+        error = mb->get_entities_by_dimension(fileset1, 2, faces1);MB_CHK_ERR(error);
+
+        assert(verts1.size()==6 && edges1.size()==0 && faces1.size()==2);
+
+      //  error = sk.find_skin(fileset1, faces1, 1, skin_ents, false, true);MB_CHK_ERR(error);
+        error = sk.find_skin(fileset1, faces1, false, skin_ents, NULL, true, true, false);MB_CHK_ERR(error);
+        error = mb->get_entities_by_dimension(fileset1, 1, edges1);MB_CHK_ERR(error);
+        assert(edges1.size() == 6);
+
+
+        return MB_SUCCESS;
+}
+
 // It is a common problem for readers to incorrectly
 // handle invalid/unknown file types and non-existant 
 // files.  For either case, MOAB will try all readers
@@ -8280,6 +8394,7 @@ int main(int argc, char* argv[])
   RUN_TEST( mb_skin_adj_regions_full_test );
   RUN_TEST( mb_skin_adjacent_surf_patches );
   RUN_TEST(mb_skin_scd_test);
+  RUN_TEST(mb_skin_fileset_test);
   RUN_TEST( mb_read_fail_test );
   RUN_TEST( mb_enum_string_test );
   RUN_TEST( mb_merge_update_test );

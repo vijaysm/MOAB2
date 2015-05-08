@@ -60,11 +60,11 @@ ErrorCode Skinner::initialize()
 
   ErrorCode result = thisMB->tag_get_handle("skinner adj", sizeof(void*), MB_TYPE_OPAQUE, mAdjTag, 
                                             MB_TAG_DENSE|MB_TAG_CREAT, &null_ptr);
-  if (MB_SUCCESS != result) return result;
+ MB_CHK_ERR(result);
 
   if(mDeletableMBTag == 0) {
     result = thisMB->tag_get_handle("skinner deletable", 1, MB_TYPE_BIT, mDeletableMBTag, MB_TAG_BIT|MB_TAG_CREAT);
-    if (MB_SUCCESS != result) return result;
+   MB_CHK_ERR(result);
   }
   
   Range entities;
@@ -99,7 +99,7 @@ ErrorCode Skinner::deinitialize()
   if (0 != mDeletableMBTag) {
     result = thisMB->tag_delete( mDeletableMBTag);
     mDeletableMBTag = 0;
-    if (MB_SUCCESS != result) return result;
+    MB_CHK_ERR(result);
   }
 
   // remove the adjaceny tag
@@ -108,18 +108,16 @@ ErrorCode Skinner::deinitialize()
   if (0 != mAdjTag) {
     for (EntityType t = MBVERTEX; t != MBMAXTYPE; ++t) {
       Range entities;
-      result = thisMB->get_entities_by_type_and_tag( 0, t, &mAdjTag, 0, 1, entities );
-      if (MB_SUCCESS != result) return result;
+      result = thisMB->get_entities_by_type_and_tag( 0, t, &mAdjTag, 0, 1, entities ); MB_CHK_ERR(result);
       adj_arr.resize( entities.size() );
-      result = thisMB->tag_get_data( mAdjTag, entities, &adj_arr[0] );
-      if (MB_SUCCESS != result) return result;
+      result = thisMB->tag_get_data( mAdjTag, entities, &adj_arr[0] ); MB_CHK_ERR(result);
       for (i = adj_arr.begin(); i != adj_arr.end(); ++i)
         delete *i;
     }
   
     result = thisMB->tag_delete(mAdjTag);
     mAdjTag = 0;
-    if (MB_SUCCESS != result) return result;
+    MB_CHK_ERR(result);
   }
 
   return MB_SUCCESS;
@@ -131,8 +129,7 @@ ErrorCode Skinner::add_adjacency(EntityHandle entity)
   std::vector<EntityHandle> *adj = NULL;
   const EntityHandle *nodes;
   int num_nodes;
-  ErrorCode result = thisMB->get_connectivity(entity, nodes, num_nodes, true);
-  if (MB_SUCCESS != result) return result;
+  ErrorCode result = thisMB->get_connectivity(entity, nodes, num_nodes, true); MB_CHK_ERR(result);
   const EntityHandle *iter =
     std::min_element(nodes, nodes+num_nodes);
 
@@ -149,8 +146,7 @@ ErrorCode Skinner::add_adjacency(EntityHandle entity)
   {
     adj = new std::vector<EntityHandle>;
     adj->push_back(entity);
-    result = thisMB->tag_set_data(mAdjTag, iter, 1, &adj);
-    if (MB_SUCCESS != result) return result;
+    result = thisMB->tag_set_data(mAdjTag, iter, 1, &adj); MB_CHK_ERR(result);
   }
 
   return MB_SUCCESS;
@@ -233,7 +229,7 @@ ErrorCode Skinner::find_geometric_skin(const EntityHandle meshset, Range &forwar
     // ok, we have the shell; gather up the elements, putting them all in forward for now
   for (it = skin_sets.begin(); it != skin_sets.end(); it++) {
     result = thisMB->get_entities_by_handle(*it, forward_target_entities, true);
-    if (MB_SUCCESS != result) 
+    if (MB_SUCCESS != result)
       return result;
   }
         
@@ -643,8 +639,7 @@ bool Skinner::connectivity_match( const EntityHandle *conn1,
 ErrorCode Skinner::remove_adjacency(EntityHandle entity)
 {
   std::vector<EntityHandle> nodes, *adj = NULL;
-  ErrorCode result = thisMB->get_connectivity(&entity, 1, nodes);
-  if (MB_SUCCESS != result) return result;
+  ErrorCode result = thisMB->get_connectivity(&entity, 1, nodes); MB_CHK_ERR(result);
   std::vector<EntityHandle>::iterator iter = 
     std::min_element(nodes.begin(), nodes.end());
 
@@ -683,29 +678,20 @@ ErrorCode Skinner::classify_2d_boundary( const Range &boundary,
   Range bedges, iedges, nmedges, oedges;
   ErrorCode result = classify_2d_boundary(boundary, bar_elements,
                                              bedges, iedges, nmedges, oedges,
-                                             number_boundary_nodes);
-  if (MB_SUCCESS != result) return result;
+                                             number_boundary_nodes);MB_CHK_ERR(result);
   
     // now set the input meshsets to the output ranges
-  result = thisMB->clear_meshset(&boundary_edges, 1);
-  if (MB_SUCCESS != result) return result;
-  result = thisMB->add_entities(boundary_edges, bedges);
-  if (MB_SUCCESS != result) return result;
+  result = thisMB->clear_meshset(&boundary_edges, 1);MB_CHK_ERR(result);
+  result = thisMB->add_entities(boundary_edges, bedges); MB_CHK_ERR(result);
 
-  result = thisMB->clear_meshset(&inferred_edges, 1);
-  if (MB_SUCCESS != result) return result;
-  result = thisMB->add_entities(inferred_edges, iedges);
-  if (MB_SUCCESS != result) return result;
+  result = thisMB->clear_meshset(&inferred_edges, 1);MB_CHK_ERR(result);
+  result = thisMB->add_entities(inferred_edges, iedges);MB_CHK_ERR(result);
 
-  result = thisMB->clear_meshset(&non_manifold_edges, 1);
-  if (MB_SUCCESS != result) return result;
-  result = thisMB->add_entities(non_manifold_edges, nmedges);
-  if (MB_SUCCESS != result) return result;
+  result = thisMB->clear_meshset(&non_manifold_edges, 1); MB_CHK_ERR(result);
+  result = thisMB->add_entities(non_manifold_edges, nmedges);MB_CHK_ERR(result);
 
-  result = thisMB->clear_meshset(&other_edges, 1);
-  if (MB_SUCCESS != result) return result;
-  result = thisMB->add_entities(other_edges, oedges);
-  if (MB_SUCCESS != result) return result;
+  result = thisMB->clear_meshset(&other_edges, 1);MB_CHK_ERR(result);
+  result = thisMB->add_entities(other_edges, oedges);MB_CHK_ERR(result);
 
   return MB_SUCCESS;
 }
@@ -755,8 +741,7 @@ ErrorCode Skinner::classify_2d_boundary( const Range &boundary,
   Tag count_tag;
   int default_count = 0;
   ErrorCode result = thisMB->tag_get_handle(0, 1, MB_TYPE_INTEGER,
-                                        count_tag, MB_TAG_DENSE|MB_TAG_CREAT, &default_count);
-  if (MB_SUCCESS != result) return result;
+                                        count_tag, MB_TAG_DENSE|MB_TAG_CREAT, &default_count); MB_CHK_ERR(result);
 
  
   Range::const_iterator iter, end_iter;
@@ -1040,7 +1025,9 @@ ErrorCode Skinner::find_skin(const EntityHandle this_set,
   }
   else {
     result = thisMB->get_adjacencies( tmp_skin, dim, create_skin_elements, skin_entities,
-                                      Interface::UNION );
+                                      Interface::UNION );MB_CHK_ERR(result);
+    if (this_set)
+      result = thisMB->add_entities(this_set, skin_entities);
   }
   
   return result;
@@ -1101,12 +1088,12 @@ ErrorCode Skinner::find_skin_vertices( const EntityHandle this_set,
         rval = MB_SUCCESS;
       break;
     case 2:
-      rval = find_skin_vertices_2D( tag, entities, skin_verts, 
+      rval = find_skin_vertices_2D(this_set, tag, entities, skin_verts,
                                     skin_elems, skin_rev_elems, 
                                     create_skin_elems, corners_only );
       break;
     case 3:
-      rval = find_skin_vertices_3D( tag, entities, skin_verts, 
+      rval = find_skin_vertices_3D( this_set, tag, entities, skin_verts,
                                     skin_elems, skin_rev_elems, 
                                     create_skin_elems, corners_only );
       break;
@@ -1453,7 +1440,7 @@ bool AdjSides<4>::Side::operator==( const Side& other ) const
 //        a lower-dim element representing the side.
 // side_type - The EntityType of the desired side.
 // side_conn - The connectivity of the new side.
-ErrorCode Skinner::create_side( EntityHandle elem,
+ErrorCode Skinner::create_side( const EntityHandle this_set, EntityHandle elem,
                                     EntityType side_type,
                                     const EntityHandle* side_conn,
                                     EntityHandle& side_elem )
@@ -1505,7 +1492,12 @@ ErrorCode Skinner::create_side( EntityHandle elem,
     else if  ( conn[nextIndex]!=side_conn[1])
       return MB_FAILURE; // it is not adjacent to the polygon
 
-    return thisMB->create_element( MBEDGE, conn2, 2, side_elem );
+    rval = thisMB->create_element( MBEDGE, conn2, 2, side_elem );MB_CHK_ERR(rval);
+    if (this_set)
+      {
+        rval = thisMB->add_entities(this_set, &side_elem,1); MB_CHK_ERR(rval);
+      }
+    return MB_SUCCESS;
 
   }
   // Find which side we are creating and get indices of all nodes
@@ -1522,7 +1514,12 @@ ErrorCode Skinner::create_side( EntityHandle elem,
   for (int i = 0; i < side_len; ++i)
     side_conn_full[i] = conn[indices[i]];
   
-  return thisMB->create_element( side_type, side_conn_full, side_len, side_elem );
+  rval = thisMB->create_element( side_type, side_conn_full, side_len, side_elem );MB_CHK_ERR(rval);
+  if (this_set)
+    {
+      rval = thisMB->add_entities(this_set, &side_elem,1); MB_CHK_ERR(rval);
+    }
+  return MB_SUCCESS;;
 }
 
 // Test if an edge is reversed with respect CN's ordering
@@ -1567,7 +1564,7 @@ bool Skinner::face_reversed( EntityHandle region,
   return (!r && sense == -1);
 }
 
-ErrorCode Skinner::find_skin_vertices_2D( Tag tag,
+ErrorCode Skinner::find_skin_vertices_2D( const EntityHandle this_set, Tag tag,
                                               const Range& faces,
                                               Range* skin_verts,
                                               Range* skin_edges,
@@ -1760,7 +1757,7 @@ ErrorCode Skinner::find_skin_vertices_2D( Tag tag,
       for (AdjSides<2>::const_iterator p = adj_edges.begin(); p != adj_edges.end(); ++p) {
         if (p->skin()) {
           EntityHandle edge, ec[] = { *it, p->handles[0] };
-          rval = create_side( p->adj_elem, MBEDGE, ec, edge );
+          rval = create_side(this_set, p->adj_elem, MBEDGE, ec, edge );
           if (MB_SUCCESS != rval) return rval;
           if (skin_edges)
             skin_edges->insert( edge );
@@ -1774,7 +1771,7 @@ ErrorCode Skinner::find_skin_vertices_2D( Tag tag,
 }
   
 
-ErrorCode Skinner::find_skin_vertices_3D( Tag tag,
+ErrorCode Skinner::find_skin_vertices_3D(const EntityHandle this_set, Tag tag,
                                               const Range& entities,
                                               Range* skin_verts,
                                               Range* skin_faces,
@@ -2068,7 +2065,7 @@ ErrorCode Skinner::find_skin_vertices_3D( Tag tag,
       for (AdjSides<3>::const_iterator t = adj_tris.begin(); t != adj_tris.end(); ++t) {
         if (t->skin()) {
           EntityHandle tri, c[3] = { *it, t->handles[0], t->handles[1] };
-          rval = create_side( t->adj_elem, MBTRI, c, tri );
+          rval = create_side( this_set, t->adj_elem, MBTRI, c, tri );
           if (MB_SUCCESS != rval) return rval;
           if (skin_faces)
             skin_faces->insert( tri );
@@ -2081,7 +2078,7 @@ ErrorCode Skinner::find_skin_vertices_3D( Tag tag,
       for (AdjSides<4>::const_iterator q = adj_quads.begin(); q != adj_quads.end(); ++q) {
         if (q->skin()) {
           EntityHandle quad, c[4] = { *it, q->handles[0], q->handles[1], q->handles[2] };
-          rval = create_side( q->adj_elem, MBQUAD, c, quad );
+          rval = create_side(this_set, q->adj_elem, MBQUAD, c, quad );
           if (MB_SUCCESS != rval) return rval;
           if (skin_faces)
             skin_faces->insert( quad );

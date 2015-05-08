@@ -235,6 +235,7 @@ test/perf/point_in_elem
 test/perf/runtest
 test/perf/seqperf
 test/perf/tstt_perf_binding
+test/perf/umr_perf
 test/perf/point_location/elem_eval_time
 test/perf/point_location/point_location
 test/perf/point_location/sploc_searching_perf
@@ -250,8 +251,10 @@ test/tag_test
 test/test_adj
 test/test_prog_opt
 test/TestRunner.hpp
+test/uref_mesh_test
 test/var_len_test
 test/var_len_test_no_template
+test/verdict_test
 test/xform_test
 tools/dagmc/dagmc_preproc
 tools/dagmc/pt_vol_test
@@ -263,8 +266,10 @@ tools/hexmodops
 tools/mbconvert
 tools/mbcoupler/*.h5m
 tools/mbcoupler/*.g
+tools/mbcoupler/parcoupler_test
 tools/mbcoupler/tests/
 tools/mbcslam/advection
+tools/mbcslam/arc_intx_tests
 tools/mbcslam/case1_test
 tools/mbcslam/create_dp
 tools/mbcslam/cslam_par_test
@@ -275,9 +280,12 @@ tools/mbcslam/intx_imesh
 tools/mbcslam/intx_in_plane_test
 tools/mbcslam/intx_mpas
 tools/mbcslam/intx_on_sphere_test
+tools/mbcslam/IntxRllCssphere_test
 tools/mbcslam/intx.vtk
 tools/mbcslam/lagr.h5m
 tools/mbcslam/lagrIni.h5m
+tools/mbcslam/linear_advection
+tools/mbcslam/linear_remap
 tools/mbcslam/spectral.vtk
 tools/mbcslam/spec_visu_test
 tools/mbcslam/spherical_area_test
@@ -287,6 +295,7 @@ tools/mbdepth
 tools/mbgsets
 tools/mbmem
 tools/mbpart
+tools/mbquality
 tools/mbsize
 tools/mbskin
 tools/mbsurfplot

@@ -1,6 +1,11 @@
 $MeshFormat
 2.1 0 8
 $EndMeshFormat
+$PhysicalNames
+2
+2 1 "name1"
+2 2 "name2"
+$EndPhysicalNames
 $Nodes
 6
 1 0.0 0.0 0.0

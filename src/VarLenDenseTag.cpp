@@ -602,7 +602,7 @@ ErrorCode VarLenDenseTag::find_entities_with_value(const SequenceManager* seqman
 
 bool VarLenDenseTag::is_tagged(const SequenceManager* seqman, EntityHandle h) const
 {
-  const VarLenTag* ptr;
+  const VarLenTag* ptr = NULL; // Initialize to get rid of warning
   size_t count;
   return (MB_SUCCESS == get_array(seqman, 0, h, ptr, count))
           && (NULL != ptr) && (NULL != ptr->data());

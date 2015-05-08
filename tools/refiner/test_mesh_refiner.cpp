@@ -41,7 +41,7 @@ int TestMeshRefiner( int argc, char* argv[] )
 
   // Create the input mesh and, if -new-mesh is specified, an output mesh
   std::string ifname = argc > 1 ? argv[1] : TestDir + "fourVolsBare.cub";
-  bool input_is_output, do_output = false;
+  bool input_is_output = false, do_output = false;
   std::string output_filename;
   if ( argc > 2) {
     if (!strcmp( argv[2], "-new-mesh" )) input_is_output = true;

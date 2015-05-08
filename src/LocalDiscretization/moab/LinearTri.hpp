@@ -3,6 +3,7 @@
   /**\brief Shape function space for trilinear tetrahedron, obtained by a pushforward of the canonical linear (affine) functions. */
 
 #include "moab/ElemEvaluator.hpp"
+#include "moab/CN.hpp"
 
 namespace moab 
 {
@@ -19,6 +20,9 @@ public:
                                   const double *posn, const double *verts, const int nverts, const int ndim,
                                   const double iter_tol, const double inside_tol, double *work, 
                                   double *params, int *is_inside);
+
+    /** \brief Evaluate the normal at a specified facet*/
+  static ErrorCode normalFcn(const int ientDim, const int facet, const int nverts, const double *verts,  double normal[]);
         
     /** \brief Evaluate the jacobian at a specified parametric position */
   static ErrorCode jacobianFcn(const double *params, const double *verts, const int nverts, const int ndim, 
@@ -41,7 +45,7 @@ public:
 
   static EvalSet eval_set() 
       {
-        return EvalSet(evalFcn, reverseEvalFcn, jacobianFcn, integrateFcn, initFcn, insideFcn);
+        return EvalSet(evalFcn, reverseEvalFcn, normalFcn, jacobianFcn, integrateFcn, initFcn, insideFcn);
       }
       
   static bool compatible(EntityType tp, int numv, EvalSet &eset) 
@@ -53,6 +57,7 @@ public:
         else return false;
       }
   
+
 protected:
       
   static const double corner[3][2];

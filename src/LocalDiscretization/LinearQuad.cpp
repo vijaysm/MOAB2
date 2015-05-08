@@ -1,6 +1,8 @@
 #include "moab/LinearQuad.hpp"
 #include "moab/Matrix3.hpp"
 #include "moab/Forward.hpp"
+#include <math.h>
+#include <limits>
 
 namespace moab 
 {
@@ -87,4 +89,49 @@ namespace moab
       return EvalSet::inside_function(params, ndim, tol);
     }
     
+    ErrorCode LinearQuad::normalFcn(const int ientDim, const int facet, const int nverts, const double *verts,  double normal[3])
+    {
+      //assert(facet <4 && ientDim == 1 && nverts==4);
+      if (nverts != 4)
+        MB_SET_ERR(MB_FAILURE, "Incorrect vertex count for passed quad :: expected value = 4");
+      if (ientDim != 1)
+        MB_SET_ERR(MB_FAILURE, "Requesting normal for unsupported dimension :: expected value = 1 ");
+      if (facet >4 || facet < 0)
+        MB_SET_ERR(MB_FAILURE, "Incorrect local edge id :: expected value = one of 0-3");
+
+      //Get the local vertex ids of  local edge
+      int id0 = CN::mConnectivityMap[MBQUAD][ientDim-1].conn[facet][0];
+      int id1 = CN::mConnectivityMap[MBQUAD][ientDim-1].conn[facet][1];
+
+      //Find a vector along the edge
+      double edge[3];
+      for (int i=0; i<3; i++){
+          edge[i] = verts[3*id1+i] - verts[3*id0+i];
+        }
+      //Find the normal of the face
+      double x0[3], x1[3], fnrm[3];
+      for (int i=0; i<3; i++)
+        {
+          x0[i] = verts[3*1+i] - verts[3*0+i];
+          x1[i] = verts[3*3+i] - verts[3*0+i];
+        }
+      fnrm[0] = x0[1]*x1[2] - x1[1]*x0[2];
+      fnrm[1] = x1[0]*x0[2] - x0[0]*x1[2];
+      fnrm[2] = x0[0]*x1[1] - x1[0]*x0[1];
+
+      //Find the normal of the edge as the cross product of edge and face normal
+
+      double a = edge[1]*fnrm[2] - fnrm[1]*edge[2];
+      double b = edge[2]*fnrm[0] - fnrm[2]*edge[0];
+      double c = edge[0]*fnrm[1] - fnrm[0]*edge[1];
+      double nrm = sqrt(a*a+b*b+c*c);
+
+      if (nrm > std::numeric_limits<double>::epsilon()) {
+          normal[0] = a/nrm;
+          normal[1] = b/nrm;
+          normal[2] = c/nrm;
+        }
+      return MB_SUCCESS;
+    }
+
 } // namespace moab

@@ -305,7 +305,7 @@ MCNPError McnpData::make_elements(std::vector<double> x[3], int* n) {
       MBI->create_vertices(coords, num_verts, vert_handles);
       
 
-      delete coords;
+      delete[] coords;
       return MCNP_SUCCESS;
 }
 
