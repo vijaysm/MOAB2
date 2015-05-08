@@ -17,8 +17,9 @@
 #include "../RefineMesh/moab/NestedRefine.hpp"
 
 #ifdef USE_MPI
-  #include "moab_mpi.h"
-  #include "moab/ParallelComm.hpp"
+#include "moab_mpi.h"
+#include "moab/ParallelComm.hpp"
+#include "MBParallelConventions.h"
 #endif
 
 /* Exit values */
@@ -27,14 +28,6 @@
 #define NOT_IMPLEMENTED 2
 
 using namespace moab;
-
-double wtime() {
-  double y = -1;
-  struct timeval cur_time;
-  gettimeofday(&cur_time, NULL);
-  y = (double)(cur_time.tv_sec) + (double)(cur_time.tv_usec)*1.e-6;
-  return (y);
-}
 
 static void print_usage( const char* name, std::ostream& stream )
 {
@@ -45,7 +38,8 @@ static void print_usage( const char* name, std::ostream& stream )
          << "\t-d             - Dimension of the mesh."<<std::endl
          << "\t-n             - Exact or a maximum number of levels for the hierarchy. Default 1." << std::endl
          << "\t-L             - Degree of refinement for each level. Pass an array or a number. It is mandatory to pass dimension and num_levels before to use this option. If this flag is not used, a default of deg 2 refinement is used. " << std::endl
-         << "\t-V             - Pass a quality constraint of maximum volume for the hierarchy. If a volume constraint is passed, then a corresponding maximum number of levels should be passed. A optimal degree sequence would be computed satisfying the constraints to generate the hierarchy. It is mandatory to pass dimension for this option. " << std::endl
+         << "\t-V             - Pass a desired volume (absolute) . This will generate a hierarchy such that the maximum volume is reduced to the given amount approximately. The length of the hierarchy can be constrained further if a maximum number of levels is passed. It is mandatory to pass the dimension for this option. " << std::endl
+         <<"\t-q             - Prints out the maximum volume of the mesh and exits the program. This option can be used as a guide to volume constrainted mesh hierarchy later. "<<std::endl
          << "\t-t             - Print out the time taken to generate hierarchy." << std::endl
          <<"\t-s             - Print out the mesh sizes of each level of the generated hierarchy." << std::endl
          << "\t-o             - Specify true for output files for the mesh levels of the hierarchy." << std::endl
@@ -72,6 +66,8 @@ bool make_opts_string( std::vector<std::string> options, std::string& opts );
 
 ErrorCode get_degree_seq(Core &mb, EntityHandle fileset, int dim, double desired_vol, int &num_levels, std::vector<int> &level_degs);
 
+ErrorCode get_max_volume(Core &mb, EntityHandle fileset, int dim, double &vmax);
+
 int main(int argc, char* argv[])
 {
   int proc_id = 0, size = 1;
@@ -87,10 +83,9 @@ int main(int argc, char* argv[])
   bool print_times = false, print_size=false, output = false;
   bool parallel = false, resolve_shared = false, exchange_ghosts = false;
   bool printusage = false, parselevels = true;
-  bool qc_vol = false; double cvol = 0 ;
+  bool qc_vol = false, only_quality = false; double cvol = 0 ;
   std::string infile;
 
- // for (int i = 1; i < argc; i++
   int i=1;
   while ( i<argc)
   {
@@ -120,6 +115,7 @@ int main(int argc, char* argv[])
             {print_usage( argv[0], std::cerr ); printusage = true;}
           break;
         case 'V': qc_vol = true; cvol = strtod(argv[i+1], NULL); ++i; break;
+        case 'q': only_quality = true; break;
         case 'o': output = true; break;
 #ifdef USE_MPI
         case 'p':
@@ -151,6 +147,9 @@ int main(int argc, char* argv[])
   if (!parselevels)
     exit(USAGE_ERROR);
 
+#ifdef USE_MPI
+  parallel = true;
+#endif
 
   ErrorCode error;
   Core moab;
@@ -186,6 +185,7 @@ int main(int argc, char* argv[])
   error = mb->load_file(infile.c_str(), &fileset, read_options.c_str());MB_CHK_ERR(error);
 
   //Create the nestedrefine instance
+
 #ifdef USE_MPI
   ParallelComm *pc = new ParallelComm(&moab, MPI_COMM_WORLD);
   NestedRefine uref(&moab,pc,fileset);
@@ -195,19 +195,36 @@ int main(int argc, char* argv[])
 
   std::vector<EntityHandle> lsets;
 
-  if (num_levels == 0)
-    num_levels = 1;
+ // std::cout<<"Read input file"<<std::endl;
+
+  if (only_quality)
+    {
+      double vmax;
+      error = get_max_volume(moab, fileset, dim, vmax);MB_CHK_ERR(error);
+#ifdef USE_MPI
+      int rank = 0;
+      MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+      if (rank==0)
+        std::cout<<"Maximum global volume = "<<vmax<<std::endl;
+#else
+      std::cout<<"Maximum volume = "<<vmax<<std::endl;
+#endif
+      exit(SUCCESS);
+    }
 
   //If a volume constraint is given, find an optimal degree sequence to reach the desired volume constraint.
   if (qc_vol){
-      exit(NOT_IMPLEMENTED);
+      error = get_degree_seq(moab, fileset, dim, cvol, num_levels, level_degrees);MB_CHK_ERR(error);
+
       if (dim==0)
         print_usage(argv[0], std::cerr);
-     // error = get_degree_seq(&moab, fileset, dim, cvol, &num_levels, level_degrees);MB_CHK_ERR(error);
     }
 
-  int *ldeg =  new int[num_levels];
+  if (num_levels == 0)
+    num_levels = 1;
 
+  int *ldeg =  new int[num_levels];
+  //std::cout<<"level_degrees.size = "<<level_degrees.size()<<std::endl;
   if (level_degrees.empty()){
       for (int l=0; l<num_levels; l++)
         ldeg[l] = 2;
@@ -242,7 +259,14 @@ int main(int argc, char* argv[])
         ents[k] = all_ents.subset_by_dimension(k);
 
       std::cout<<std::endl;
-      std::cout<<"Mesh size for level 0"<<"  :: nverts = "<<ents[0].size()<<", nedges = "<<ents[1].size()<<", nfaces = "<<ents[2].size()<<", ncells = "<<ents[3].size()<<std::endl;
+      if (qc_vol)
+        {
+          double volume;
+          error = get_max_volume(moab, fileset, dim, volume);MB_CHK_ERR(error);
+          std::cout<<"Mesh size for level 0"<<"  :: nverts = "<<ents[0].size()<<", nedges = "<<ents[1].size()<<", nfaces = "<<ents[2].size()<<", ncells = "<<ents[3].size()<<" :: Vmax = "<<volume<<std::endl;
+        }
+      else
+        std::cout<<"Mesh size for level 0"<<"  :: nverts = "<<ents[0].size()<<", nedges = "<<ents[1].size()<<", nfaces = "<<ents[2].size()<<", ncells = "<<ents[3].size()<<std::endl;
 
       for (int l=0; l<num_levels; l++)
         {
@@ -253,7 +277,15 @@ int main(int argc, char* argv[])
           for (int k=0; k<4; k++)
             ents[k] = all_ents.subset_by_dimension(k);
 
-          std::cout<<std::endl;
+         // std::cout<<std::endl;
+
+          if (qc_vol)
+            {
+              double volume;
+              error = get_max_volume(moab, lsets[l+1], dim, volume);MB_CHK_ERR(error);
+              std::cout<<"Mesh size for level "<<l+1<<"  :: nverts = "<<ents[0].size()<<", nedges = "<<ents[1].size()<<", nfaces = "<<ents[2].size()<<", ncells = "<<ents[3].size()<<" :: Vmax = "<<volume<<std::endl;
+            }
+          else
           std::cout<<"Mesh size for level "<<l+1<<"  :: nverts = "<<ents[0].size()<<", nedges = "<<ents[1].size()<<", nfaces = "<<ents[2].size()<<", ncells = "<<ents[3].size()<<std::endl;
         }
     }
@@ -281,53 +313,159 @@ int main(int argc, char* argv[])
   MPI_Finalize();
 #endif
 
-exit(SUCCESS);
+  exit(SUCCESS);
 }
 
-ErrorCode get_degree_seq(Core &mb,EntityHandle fileset, int dim, double desired_vol, int &num_levels, std::vector<int> &level_degs)
+ErrorCode get_degree_seq(Core &mb, EntityHandle fileset, int dim, double desired_vol, int &num_levels, std::vector<int> &level_degs)
+{
+  //Find max volume
+  double vmax_global;
+  ErrorCode error = get_max_volume(mb, fileset, dim, vmax_global);MB_CHK_ERR(error);
+
+  int init_nl = num_levels;
+  num_levels = 0; level_degs.clear();
+
+  //Find a sequence that reduces the maximum volume to desired.
+  //desired_vol should be a fraction or absolute value ?
+
+  //double remV = vmax_global*desired_vol/dim;
+  double Vdesired = desired_vol;
+  double try_x;
+  double remV = vmax_global;
+  int degs[3][3] = {{5,3,2},{25,9,4},{0,27,8}};
+
+  if (dim==1 || dim == 2)
+    {
+      while (remV -Vdesired>= 0){
+          try_x = degs[dim-1][0];
+          if ((remV/try_x - Vdesired)>=0)
+            {
+              level_degs.push_back(5);
+              num_levels += 1;
+              remV /= try_x;
+            }
+          else
+            {
+              try_x = degs[dim-1][1];
+              if ((remV/try_x - Vdesired)>=0)
+                {
+                  level_degs.push_back(3);
+                  num_levels += 1;
+                  remV /= try_x;
+                }
+              else {
+                  try_x = degs[dim-1][2];
+                  if ((remV/try_x - Vdesired)>=0)
+                    {
+                      level_degs.push_back(2);
+                      num_levels += 1;
+                      remV /= try_x;
+                    }
+                  else
+                    break;
+                }
+            }
+        }
+    }
+  else
+    {
+      while (remV -Vdesired>= 0){
+          try_x = degs[dim-1][1];
+          if ((remV/try_x - Vdesired)>=0)
+            {
+              level_degs.push_back(3);
+              num_levels += 1;
+              remV /= try_x;
+            }
+          else
+            {
+              try_x = degs[dim-1][2];
+              if ((remV/try_x - Vdesired)>=0)
+                {
+                  level_degs.push_back(2);
+                  num_levels += 1;
+                  remV /= try_x;
+                }
+              else
+                break;
+            }
+        }
+    }
+
+  if (init_nl != 0 && init_nl < num_levels)
+    {
+      for (int i=level_degs.size(); i>= init_nl; i--)
+        level_degs.pop_back();
+      num_levels = init_nl;
+    }
+
+  return MB_SUCCESS;
+}
+
+ErrorCode get_max_volume(Core &mb,  EntityHandle fileset, int dim, double &vmax)
 {
   ErrorCode error;
   VerdictWrapper vw(&mb);
+  QualityType q;
+
+  switch (dim) {
+    case 1: q = MB_LENGTH; break;
+    case 2: q = MB_AREA; break;
+    case 3: q = MB_VOLUME; break;
+    default: return MB_FAILURE; break;
+    }
 
   //Get all entities of the highest dimension which is passed as a command line argument.
   Range allents, owned;
   error = mb.get_entities_by_handle(fileset, allents);MB_CHK_ERR(error);
   owned = allents.subset_by_dimension(dim);MB_CHK_ERR(error);
-  int ne_local = (int)owned.size();
-  int ne_global = ne_local;
-  int size = 1;
 
+  //Get all owned entities
 #ifdef USE_MPI
-/*  MPI_Comm_size( MPI_COMM_WORLD, &size );
+  int size = 1;
+  MPI_Comm_size( MPI_COMM_WORLD, &size );
   int mpi_err;
   if (size>1)
-  {
-  // filter the entities not owned, so we do not process them more than once
-    ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
-    Range current = owned;
-    owned.clear();
-    rval = pcomm->filter_pstatus(current, PSTATUS_NOT_OWNED, PSTATUS_NOT, -1, &owned);
-    if (rval != MB_SUCCESS)
     {
-      MPI_Finalize();
-      return 1;
+      // filter the entities not owned, so we do not process them more than once
+      ParallelComm* pcomm = moab::ParallelComm::get_pcomm(&mb, 0);
+      Range current = owned;
+      owned.clear();
+      error = pcomm->filter_pstatus(current, PSTATUS_NOT_OWNED, PSTATUS_NOT, -1, &owned);
+      if (error != MB_SUCCESS)
+        {
+          MPI_Finalize();
+          return MB_FAILURE;
+        }
     }
-    ne_local = (int)owned.size();
-    mpi_err = MPI_Reduce(&ne_local, &ne_global, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
-    if (mpi_err)
-    {
-      MPI_Finalize();
-      return 1;
-    }
-  }*/
 #endif
 
+  double vmax_local=0;
+  //Find the maximum volume of an entity in the owned mesh
+  for (Range::iterator it=owned.begin(); it != owned.end(); it++)
+    {
+      double volume;
+      error = vw.quality_measure(*it, q, volume);MB_CHK_ERR(error);
+      if (volume >vmax_local)
+        vmax_local = volume;
+    }
 
+  //Get the global maximum
+  double vmax_global = vmax_local;
+#ifdef USE_MPI
+  mpi_err = MPI_Reduce(&vmax_local, &vmax_global, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+  if (mpi_err)
+      {
+        MPI_Finalize();
+        return MB_FAILURE;
+      }
+#endif
 
-
+  vmax = vmax_global;
 
   return MB_SUCCESS;
 }
+
 
 bool parse_id_list( const char* string, int dim, int nval, std::vector<int> &results )
 {
