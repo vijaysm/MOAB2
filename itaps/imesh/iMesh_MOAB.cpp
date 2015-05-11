@@ -718,10 +718,13 @@ extern "C" {
           array_alloc = entity_handles_size * num_connect;
         else
           array_alloc = std::max(array_alloc*2, prev_off+num_connect);
-        array = (EntityHandle*)realloc( array, array_alloc*sizeof(EntityHandle) );
-        if (!array) {
+        EntityHandle* new_array = (EntityHandle*)realloc( array, array_alloc*sizeof(EntityHandle) );
+        if (!new_array) {
+          free(array);
           RETURN(iBase_MEMORY_ALLOCATION_FAILED);
         }
+        else
+          array = new_array;
         std::copy(connect, connect+num_connect, array+prev_off);
       }
       // else do nothing.  Will catch error later when comparing
