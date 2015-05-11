@@ -62,15 +62,15 @@ ErrorCode ahf_test(const char* filename)
     MPI_Comm_size(MPI_COMM_WORLD, &procs);
 
     if (procs > 1){
-    read_options = "PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;PARALLEL_GHOSTS=3.0.1.3";
+    read_options = "PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;";
 
-    error = mbImpl->load_file(filename,  &fileset, read_options.c_str());
-    CHECK_ERR(error);
+    error = mbImpl->load_file(filename,  &fileset, read_options.c_str());CHECK_ERR(error);
     }
     else if (procs == 1) {
 #endif
-    error = mbImpl->load_file(filename,  &fileset);
-    CHECK_ERR(error);
+
+    error = mbImpl->load_file(filename,  &fileset);CHECK_ERR(error);
+
 #ifdef MOAB_HAVE_MPI
     }
 #endif
@@ -82,15 +82,21 @@ ErrorCode ahf_test(const char* filename)
     error = mbImpl->get_entities_by_dimension( fileset, 2, faces);
     error = mbImpl->get_entities_by_dimension( fileset, 3, cells);
 
+
     //std::cout<<"[nv, ne, nf, nc] = ["<<verts.size()<<", "<<edges.size()<<", "<<faces.size()<<", "<<cells.size()<<"]"<<std::endl;
 
     // Create an ahf instance
+#ifdef USE_MPI
+    moab::ParallelComm *pc = new moab::ParallelComm(&moab, MPI_COMM_WORLD);
+    HalfFacetRep ahf(&moab, pc, fileset);
+#else
     HalfFacetRep ahf(&moab);
+#endif
 
     // Call the initialize function which creates the maps for each dimension
     ahf.initialize();
 
-    //ahf.print_tags();
+ //   ahf.print_tags();
 
     //Perform queries
     std::vector<EntityHandle> adjents;
@@ -126,8 +132,16 @@ ErrorCode ahf_test(const char* filename)
             error = mtu.get_bridge_adjacencies( *i, 0, 1, mbents);
             CHECK_ERR(error);
 
-            CHECK_EQUAL(adjents.size(), mbents.size());
+            if (adjents.size() != mbents.size())
+              {
+                std::cout<<"EDGE = "<<*i<<std::endl;
+                for (int j=0; j<(int)adjents.size(); j++)
+                  std::cout<<"hfents["<<j<<"] = "<<adjents[j]<<std::endl;
+                for (int j=0; j<(int)mbents.size(); j++)
+                  std::cout<<"mbents["<<j<<"] = "<<mbents[j]<<std::endl;
+              }
 
+            CHECK_EQUAL(adjents.size(), mbents.size());
             std::sort(adjents.begin(), adjents.end());
             std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
             mbents = subtract(mbents, ahfents);
@@ -146,6 +160,15 @@ ErrorCode ahf_test(const char* filename)
             error = mbImpl->get_adjacencies( &*i, 1, 2, false, mbents);
             CHECK_ERR(error);
 
+            if (adjents.size() != mbents.size())
+              {
+                std::cout<<"VID = "<<*i<<std::endl;
+                for (int j=0; j<(int)adjents.size(); j++)
+                  std::cout<<"adjents["<<j<<"] = "<<adjents[j]<<std::endl;
+                std::cout<<std::endl;
+                for (int j=0; j<(int)mbents.size(); j++)
+                  std::cout<<"mbents["<<j<<"] = "<<mbents[j]<<std::endl;
+              }
             CHECK_EQUAL(adjents.size(), mbents.size());
 
             std::sort(adjents.begin(), adjents.end());
@@ -300,13 +323,23 @@ ErrorCode ahf_test(const char* filename)
             error = mbImpl->get_adjacencies( &*i, 1, 1, false, mbents);
             CHECK_ERR(error);
 
+            if (adjents.size() != mbents.size())
+              {
+                std::cout<<"EDGE = "<<*i<<std::endl;
+                for (int j=0; j<(int)adjents.size(); j++)
+                  std::cout<<"adjents["<<j<<"] = "<<adjents[j]<<std::endl;
+                std::cout<<std::endl;
+                for (int j=0; j<(int)mbents.size(); j++)
+                  std::cout<<"mbents["<<j<<"] = "<<mbents[j]<<std::endl;
+              }
+
             CHECK_EQUAL(adjents.size(), mbents.size());
 
             std::sort(adjents.begin(), adjents.end());
             std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
             mbents = subtract(mbents, ahfents);
             CHECK(!mbents.size());
-          }
+            }
       }
 
     //DQ 32: For every cell, obtain its faces
@@ -328,7 +361,7 @@ ErrorCode ahf_test(const char* filename)
           }
       }
 
-    ahf.deinitialize();
+   // ahf.deinitialize();
 
     return MB_SUCCESS;
 

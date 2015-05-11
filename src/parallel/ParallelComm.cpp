@@ -3681,6 +3681,11 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         result = mbImpl->get_adjacencies(skin_ents[skin_dim], this_dim,
                                          true, skin_ents[this_dim],
                                          Interface::UNION);MB_CHK_SET_ERR(result, "Failed to get skin adjacencies");
+
+        if (this_set && skin_dim==2 && this_dim==1)
+          {
+            result = mbImpl->add_entities(this_set, skin_ents[this_dim]);MB_CHK_ERR(result);
+          }
       }
     }
     else if (skin_ents[resolve_dim].empty())

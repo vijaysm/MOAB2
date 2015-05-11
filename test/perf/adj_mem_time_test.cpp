@@ -131,7 +131,7 @@ ErrorCode adj_perf(const char* filename)
     }
 #endif
 
-    //Storage Costs before calling ahf functionalities
+    //Storage Costs before any call to adjacencies
     unsigned long long sTotS, sTAS, sES, sAES, sAS, sAAS, sTS, sATS;
     sTotS = sTAS = sES = sAES = sAS = sAAS = sTS = sATS = 0;
     mbImpl->estimated_memory_use(NULL, 0, &sTotS, &sTAS, &sES, &sAES, &sAS, &sAAS, NULL, 0, &sTS, &sATS);
@@ -153,7 +153,7 @@ ErrorCode adj_perf(const char* filename)
     error = mbImpl->get_entities_by_dimension( 0, 2, faces);
     error = mbImpl->get_entities_by_dimension( 0, 3, cells);
 
-  int nverts = verts.size(); 
+  int nverts = verts.size();
   int nedges = edges.size();
   int nfaces = faces.size();
   int ncells = cells.size();
@@ -178,7 +178,7 @@ ErrorCode adj_perf(const char* filename)
 
   //IQ1: For every vertex, obtain incident edges
   time_start = wtime();
-  for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {    
+  for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
     adjents.clear();
     error = mbImpl->get_adjacencies( &*i, 1, 1, false, adjents);
   }
@@ -224,7 +224,7 @@ ErrorCode adj_perf(const char* filename)
     error = mbImpl->get_adjacencies( &*i, 1, 2, false, adjents);
   }
   time_total = wtime()-time_start;
-  time_avg = time_total/(double)edges.size();
+  time_avg = time_total/(double)verts.size();
 
   qtime.vertex_to_faces_total = time_total;
   qtime.vertex_to_faces_avg = time_avg;
@@ -289,7 +289,7 @@ ErrorCode adj_perf(const char* filename)
       error = mbImpl->get_adjacencies(&*i, 1, 3, false, adjents);
   }
   time_total = wtime()-time_start;
-  time_avg = time_total/(double)edges.size();
+  time_avg = time_total/(double)verts.size();
 
   qtime.vertex_to_cells_total = time_total;
   qtime.vertex_to_cells_avg = time_avg;
@@ -376,18 +376,10 @@ ErrorCode adj_perf(const char* filename)
   qmem.amortized_total_storage[1] = eTAS;
   qmem.entity_storage[1] = eES;
   qmem.amortized_entity_storage[1] = eAES;
-  #ifdef MOAB_HAVE_AHF
-  qmem.adjacency_storage[1] = eTS-sTS;
-  qmem.amortized_adjacency_storage[1] = eATS-sATS;
-  qmem.tag_storage[1] = sTS;
-  qmem.amortized_tag_storage[1] = sATS;
-  #else
   qmem.adjacency_storage[1] = eAS;
   qmem.amortized_adjacency_storage[1] = eAAS;
   qmem.tag_storage[1] = eTS;
   qmem.amortized_tag_storage[1] = eATS;
-  #endif
-
 
   //Print times
   std::cout<<std::endl;
@@ -526,33 +518,25 @@ ErrorCode adj_perf(const char* filename)
       std::cout<<"Total storage = "<<qmem.total_storage[i]<<std::endl;
       std::cout<<"Total amortized storage = "<<qmem.amortized_total_storage[i]<<std::endl;
       std::cout<<std::endl;
+
       std::cout<<"Entity storage = "<<qmem.entity_storage[i]<<std::endl;
       std::cout<<"Amortized entity storage = "<<qmem.amortized_entity_storage[i]<<std::endl;
       std::cout<<std::endl;
-#ifdef MOAB_HAVE_AHF
-      if (i==0)
-        {
-          std::cout<<"Adjacency storage  = "<<qmem.adjacency_storage[i]<<std::endl;
-          std::cout<<"Amortized adjacency storage = "<<qmem.amortized_adjacency_storage[i]<<std::endl;
-          std::cout<<std::endl;
-        }
-        else
-        {
-          std::cout<<"AHF adjacency storage  = "<<qmem.adjacency_storage[i]<<std::endl;
-          std::cout<<"Amortized AHF adjacency storage = "<<qmem.amortized_adjacency_storage[i]<<std::endl;
-          std::cout<<std::endl;
-        }
-      std::cout<<"Tag storage = "<<qmem.tag_storage[i]<<std::endl;
-      std::cout<<"Amortized tag storage = "<<qmem.amortized_tag_storage[i]<<std::endl;
-#else
-      std::cout<<"EntFact Adjacency storage = "<<qmem.adjacency_storage[i]<<std::endl;
-      std::cout<<"Amortized EntFact adjacency lists storage = "<<qmem.amortized_adjacency_storage[i]<<std::endl;
+
+      std::cout<<"Adjacency storage = "<<qmem.adjacency_storage[i]<<std::endl;
+      std::cout<<"Amortized adjacency lists storage = "<<qmem.amortized_adjacency_storage[i]<<std::endl;
       std::cout<<std::endl;
+
       std::cout<<"Tag storage = "<<qmem.tag_storage[i]<<std::endl;
       std::cout<<"Amortized tag storage = "<<qmem.amortized_tag_storage[i]<<std::endl;
-#endif
       std::cout<<std::endl;
     }
+
+  double total_time = qtime.vertex_to_edges_total+qtime.edge_to_edges_total+qtime.vertex_to_faces_total+qtime.edge_to_faces_total+qtime.face_to_faces_total+qtime.face_to_edges_total+qtime.vertex_to_cells_total+qtime.edge_to_cells_total+qtime.face_to_cells_total+qtime.cell_to_cells_total+qtime.cell_to_edges_total+qtime.cell_to_faces_total;
+
+  //Print values in a line to aid data copying later
+  std::cout<<qtime.ds_construction<<"  "<<total_time<<"  "<<qmem.entity_storage[1]<<"  "<<qmem.adjacency_storage[1]<<"  "<<qtime.vertex_to_edges_avg<<"  "<<qtime.edge_to_edges_avg<<"  "<<qtime.vertex_to_faces_avg<<"  "<<qtime.edge_to_faces_avg<<"  "<<qtime.face_to_faces_avg<<"  "<<qtime.face_to_edges_avg<<"  "<<qtime.vertex_to_cells_avg<<"  "<<qtime.edge_to_cells_avg<<"  "<<qtime.face_to_cells_avg<<"  "<<qtime.cell_to_cells_avg<<"  "<<qtime.cell_to_edges_avg<<"  "<<qtime.cell_to_faces_avg<<std::endl;
+
 
   return MB_SUCCESS;
 }

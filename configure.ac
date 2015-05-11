@@ -822,6 +822,7 @@ MB_OPTIONAL_TOOL([h5mtools],     [${HAVE_HDF5}], [${HAVE_HDF5}])
 MB_OPTIONAL_TOOL([mbcslam],      [no], [yes])
 MB_OPTIONAL_TOOL([ahf],          [no], [no])
 MB_OPTIONAL_TOOL([mbquality],    [yes], [yes])
+MB_OPTIONAL_TOOL([mbumr],        [yes], [yes])
 if test "xyes" = "x$ENABLE_dagmc"; then
    DAGMC_LIBS="-ldagmc"
    AC_SUBST(DAGMC_LIBS)
