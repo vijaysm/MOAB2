@@ -30,13 +30,22 @@ size_t num_tests = 0;
 test_data *test_array = 0;
 int register_test( test_ptr test, const char* name )
 {
-  test_array = (test_data*)realloc( test_array, sizeof(test_data)*(num_tests+1) );
+  test_data* new_test_array = (test_data*)realloc( test_array, sizeof(test_data)*(num_tests+1) );
+  if (!new_test_array) {
+    fprintf(stderr, "VtkTest.cpp::regeister_test(): reallocation of test array failed\n");
+    free(test_array);
+    test_array = NULL;
+    num_tests = 0;
+    return -1;
+  }
+  else
+    test_array = new_test_array;
   test_array[num_tests].test = test;
   test_array[num_tests].name = name;
   test_array[num_tests].result = true;
   ++num_tests;
   return 0;
-}   
+}
 
 DECLARE_TEST(edge2)
 DECLARE_TEST(edge3)
