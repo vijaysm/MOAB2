@@ -79,12 +79,8 @@ AM_CONDITIONAL([HAVE_ZCAT],[test "x" = "x$ZCAT"])
 
 FATHOM_TEMPLATE_SPECIALIZATION
 FATHOM_TEMPLATE_FUNC_SPECIALIZATION
-AM_CPPFLAGS="$AM_CPPFLAGS $TEMPLATE_SPECIALIZATION $TEMPLATE_FUNC_SPECIALIZATION"
 
 FATHOM_CHECK_CXX_WORKS([], [AC_MSG_ERROR([Cannot build without C++ compiler])])
-#if test "xyes" = "x$ENABLE_FORTRAN" && test "x" != "x$FC"; then
-#  AC_FC_WRAPPERS
-#fi
 
 ################################################################################
 #            Check for need for extra flags to support cray pointers
@@ -107,14 +103,8 @@ fi
 AC_CHECK_FUNC([vsnprintf],
               AC_DEFINE([HAVE_VSNPRINTF],[1],[Define if vsnprintf is available.]))
 
-# Use 64-bit off_t value for file offsets.  W/out this, the stat/fseek calls
-# in serial_open_file and other places will fail on 32-bit systems if the file 
-# is larger that 2GB.
-AM_CPPFLAGS="$AM_CPPFLAGS -D_FILE_OFFSET_BITS=64"
-
 FATHOM_VECTOR_TEMPLATE_INSERT
 FATHOM_OLD_STD_COUNT
-AM_CPPFLAGS="$AM_CPPFLAGS $NO_VECTOR_TEMPLATE_INSERT $OLD_STD_COUNT"
 
 ################################################################################
 #                              HANDLE SIZE
@@ -166,16 +156,14 @@ if test "x$SIZEOF_MBENTITYHANDLE" = "x0"; then
   )
 fi
 
-### Checks for other standard libraries.
-AC_CHECK_LIB(pthread, pthread_create,
-  [ CPPFLAGS="$CPPFLAGS -D_REENTRANT -D_POSIX_PTHREAD_SEMANTICS"
-    LIBS="$LIBS -lpthread" ],
-  AC_CHECK_LIB(c_r, pthread_create,
-    [ CPPFLAGS="$CPPFLAGS -D_THREAD_SAFE"
-      LIBS="$LIBS -pthread"],
-    AC_MSG_ERROR([POSIX threads not found.])
-  )
-)
+# Use 64-bit off_t value for file offsets.  W/out this, the stat/fseek calls
+# in serial_open_file and other places will fail on 32-bit systems if the file
+# is larger that 2GB.
+if (test "x$enable_32bit_handles" != "x"); then
+  AM_CPPFLAGS="$AM_CPPFLAGS -D_FILE_OFFSET_BITS=64"
+  # AC_DEFINE_UNQUOTED([FILE_OFFSET_BITS], [64], [Support for handling files larger than 2GB on 32-bit machines])
+fi
+
 AC_CHECK_LIB(z, compress, LIBS="$LIBS -lz")
 AC_CHECK_LIB(dl, dlopen, LIBS="$LIBS -ldl")
 AC_CHECK_LIB(m, pow, LIBS="$LIBS -lm")

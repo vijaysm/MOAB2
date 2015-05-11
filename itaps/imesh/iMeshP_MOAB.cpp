@@ -32,7 +32,7 @@ using namespace moab;
 
 /******** Type-safe casting between MOAB and ITAPS types *********/
 
-#ifndef TEMPLATE_FUNC_SPECIALIZATION
+#ifndef MOAB_TEMPLATE_FUNC_SPECIALIZATION
 // if no template specialization, disable some type checking
 template <typename T, typename S> inline
 T itaps_cast( S handle )
