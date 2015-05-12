@@ -1822,7 +1822,7 @@ void ZoltanPartitioner::mbPrintGlobalResult(const char *s,
   if (mbpc->proc_config().proc_rank() == 0) {
     fprintf(stdout, "======%s======\n", s);
     for (i = 0, v = v2; i < mbpc->proc_config().proc_size(); i++, v += 4) {
-      fprintf(stdout,"%d: originally had %d, import %d, exp %d, %s\n",
+      fprintf(stdout,"%u: originally had %d, import %d, exp %d, %s\n",
         i, v[0], v[1], v[2],
         v[3] ? "a change of partitioning" : "no change");
     }
