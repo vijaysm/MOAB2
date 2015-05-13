@@ -1778,12 +1778,12 @@ namespace moab {
       HFacet hf = v2hf[vidx];
       EntityHandle cur_cid = fid_from_halfacet(hf, ctype);
 
-      int index = get_index_in_lmap(cur_cid);
-      int nvpc = lConnMap3D[index].num_verts_in_cell;
-      int nfpc = lConnMap3D[index].num_faces_in_cell;
-
       // Collect all incident cells
       if (cur_cid != 0){
+          int index = get_index_in_lmap(cur_cid);
+          int nvpc = lConnMap3D[index].num_verts_in_cell;
+          int nfpc = lConnMap3D[index].num_faces_in_cell;
+
           int Stksize = 0, count = -1;
           Stkcells[0] = cur_cid;
 
