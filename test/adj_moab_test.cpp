@@ -86,7 +86,7 @@ ErrorCode ahf_test(const char* filename)
     //std::cout<<"[nv, ne, nf, nc] = ["<<verts.size()<<", "<<edges.size()<<", "<<faces.size()<<", "<<cells.size()<<"]"<<std::endl;
 
     // Create an ahf instance
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     moab::ParallelComm *pc = new moab::ParallelComm(&moab, MPI_COMM_WORLD);
     HalfFacetRep ahf(&moab, pc, fileset);
 #else

@@ -297,7 +297,7 @@ ErrorCode refine_entities(Interface *mb,  ParallelComm* pc, EntityHandle fset, i
   //Create an hm object and generate the hierarchy
   std::cout<<"Creating a hm object"<<std::endl;
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   NestedRefine uref(dynamic_cast<Core*>(mb), pc, fset);
 
   Range averts, aedges, afaces, acells;
