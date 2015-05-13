@@ -4,7 +4,7 @@
 #include "moab/HalfFacetRep.hpp"
 #include "moab/MeasureTime.hpp"
 #include "moab/ReadUtilIface.hpp"
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab/ParallelComm.hpp"
 #include "moab/ParallelMergeMesh.hpp"
 #include "moab/Skinner.hpp"
@@ -27,7 +27,7 @@ namespace moab{
     ErrorCode error;
     assert(NULL != impl);
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     // Get the Parallel Comm instance to prepare all new sets to work in parallel
     // in case the user did not provide any arguments
     if (!comm)
@@ -43,7 +43,7 @@ namespace moab{
 
   NestedRefine::~NestedRefine()
   {
-#ifdef USE_AHF
+#ifdef MOAB_HAVE_AHF
     ahf = NULL;
 #else
     delete ahf;
@@ -59,7 +59,7 @@ namespace moab{
     if (!tm)
       return MB_MEMORY_ALLOCATION_FAILED;
 
-#ifdef USE_AHF
+#ifdef MOAB_HAVE_AHF
     ahf = mbImpl->a_half_facet_rep();
 #else
     ahf = new HalfFacetRep(mbImpl, pcomm, _rset);
@@ -411,7 +411,7 @@ namespace moab{
       return MB_SUCCESS;
 
     hasghost = true;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     error = pcomm->exchange_ghost_cells(meshdim, 0, num_glayers, 0, true, false);MB_CHK_ERR(error);
 #else
     MB_SET_ERR(MB_FAILURE,"Requesting ghost layers for a serial mesh");
@@ -654,7 +654,7 @@ namespace moab{
 
 
         // Go into parallel communication
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
         if (pcomm)
         {
           // TEMP: Add the adjacencies for MOAB-native DS

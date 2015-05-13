@@ -21,7 +21,7 @@
 #include <vector>
 #include "MBTagConventions.hpp"
 #include "moab/ScdInterface.hpp"
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab/ParallelComm.hpp"
 #endif
 
@@ -198,7 +198,7 @@ namespace moab {
 
     if (!mInitAHFmaps){
         mInitAHFmaps = true;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
         if (pcomm){
             moab::Range _averts, _aedgs, _afacs, _acels;
             error = mb->get_entities_by_dimension(this->_rset, 0, _averts, true);MB_CHK_ERR(error);
@@ -246,7 +246,7 @@ namespace moab {
         int nfaces = _faces.size();
         int ncells = _cells.size();
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
         if (pcomm)
           {
             MPI_Barrier(pcomm->comm());
