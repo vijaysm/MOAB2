@@ -434,18 +434,7 @@ namespace moab{
     {
       error = mbImpl->add_entities(lsets[i], lverts[i]);MB_CHK_ERR(error);
       error = mbImpl->add_entities(lsets[i], lents[i]);MB_CHK_ERR(error);
-     /* std::stringstream file;
-      file <<  "MESH_LEVEL_" << i <<"_" <<pcomm->proc_config().proc_rank() <<  ".vtk";
-      std::string tmpstr = file.str();
-      const char *output_file = tmpstr.c_str();
-      error = mbImpl->write_file(output_file, 0,0 , &lsets[i], 1); MB_CHK_ERR(error);*/
     }
-
-    /*std::stringstream file;
-    file <<  "full_" <<pcomm->proc_config().proc_rank() <<  ".vtk";
-    std::string tmpstr = file.str();
-    const char *output_file = tmpstr.c_str();
-    error = mbImpl->write_file(output_file); MB_CHK_ERR(error);*/
 
     delete [] lverts;
     delete [] lents;
@@ -517,8 +506,6 @@ namespace moab{
         hmest[0] += refTemplates[cindex][d].nv_cell * ncells_prev;
       }
 
-    //  std::cout<<"nv = "<<hmest[0]<<", ne = "<<hmest[1]<<", nf = "<<hmest[2]<<", nc = "<<hmest[3]<<std::endl;
-
     return MB_SUCCESS;
   }
 
@@ -588,15 +575,7 @@ namespace moab{
     else
       level_mesh[cur_level].num_cells = 0;
 
-    //Add this level meshset to the fileset
-    //error = mbImpl->add_child_meshset( *ahf->get_rset(), *set);MB_CHK_ERR(error);
-    //error = mbImpl->add_parent_meshset(*set, *ahf->get_rset());MB_CHK_ERR(error);
-
-    //Update the entity ranges
-    //error = ahf->update_entity_ranges(); MB_CHK_ERR(error);
-
     //Resize the ahf maps
- //   std::cout<<"\n nv = "<<level_mesh[cur_level].num_verts<<std::endl;
     error = ahf->resize_hf_maps(level_mesh[cur_level].start_vertex, level_mesh[cur_level].num_verts, level_mesh[cur_level].start_edge, level_mesh[cur_level].num_edges, level_mesh[cur_level].start_face, level_mesh[cur_level].num_faces, level_mesh[cur_level].start_cell, level_mesh[cur_level].num_cells); MB_CHK_ERR(error);
 
 
@@ -622,7 +601,6 @@ namespace moab{
 
     Tag gidtag;
     error = mbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, gidtag);MB_CHK_ERR(error);
-   // mbImpl->write_file("test_0.h5m", 0, ";;PARALLEL=WRITE_PART", &_rset, 1);
 
     timeall.tm_total = 0;
     timeall.tm_refine = 0;
@@ -631,6 +609,7 @@ namespace moab{
     for (int l = 0; l<num_level; l++)
       {
         double tstart = tm->wtime();
+
         // Estimate storage
         int hmest[4] = {0,0,0,0};
         EntityHandle set;
@@ -650,7 +629,6 @@ namespace moab{
         error = construct_hm_entities(l, level_degrees[l]); MB_CHK_ERR(error);
 
         timeall.tm_refine += tm->wtime() - tstart;
-
 
         // Go into parallel communication
 #ifdef USE_MPI
@@ -737,11 +715,6 @@ namespace moab{
                 error = pcomm->exchange_tags(gidtag,elms);MB_CHK_ERR(error);
               }
               timeall.tm_presolve += tm->wtime() - tpstart;
-             /* std::stringstream file;
-              file <<  "MESH_LEVEL_" << l + 1 << ".h5m";
-              std::string tmpstr = file.str();
-              const char *output_file = tmpstr.c_str();
-              mbImpl->write_file(output_file, 0, ";;PARALLEL=WRITE_PART", &hm_set[l], 1);*/
             }
           }
 #endif
@@ -900,7 +873,7 @@ namespace moab{
     int nve = refTemplates[0][d].nv_edge;
     int vtotal =  2+ refTemplates[0][d].total_new_verts;
     int etotal = refTemplates[0][d].total_new_ents;
-    int ne, dim, index;
+    int ne=0, dim=0, index=0;
     if (type == MBTRI || type == MBQUAD)
       {
         index = type-2;
@@ -949,7 +922,7 @@ namespace moab{
               vbuffer[i] = level_mesh[cur_level].start_vertex + (econn[i] - *_inverts.begin());
           }
 
-        int fid, lid, idx1, idx2;
+        int fid=-1, lid=-1, idx1=-1, idx2=-1;
 
         if (dim==2)
           {
@@ -1004,8 +977,6 @@ namespace moab{
                level_mesh[cur_level].edge_conn[2*(count_nents)+1] = vbuffer[id2];
                ent_buffer[i] = level_mesh[cur_level].start_edge+count_nents;
 
-            //   std::cout<<"Edge ="<<ent_buffer[i]<<" :: conn =  "<<level_mesh[cur_level].edge_conn[2 * (count_nents)]<<"  "<<level_mesh[cur_level].edge_conn[2 * (count_nents)+1]<<std::endl;
-
                count_nents += 1;
              };
 
@@ -1038,7 +1009,6 @@ namespace moab{
     //Create some book-keeping arrays over the old mesh to avoid introducing duplicate vertices and calculating vertices more than once.
     EntityType ftype = mbImpl->type_from_handle(*_infaces.begin());
     int nepf = ahf->lConnMap2D[ftype-2].num_verts_in_face;
-    //EntityType type = mbImpl->type_from_handle(*(_infaces.begin()));
     int findex = ftype-1;
 
     int d = get_index_from_degree(deg);
@@ -1179,7 +1149,6 @@ namespace moab{
         error = compute_coordinates(cur_level, deg, ftype, vbuffer, vtotal, corner_coords, flag_verts, nverts_prev);  MB_CHK_ERR(error);
 
         delete [] corner_coords;
-
       }
 
     // Step 6: Update the global maps
@@ -1189,7 +1158,6 @@ namespace moab{
     if (!_inedges.empty())
       {
         error = construct_hm_1D(cur_level, deg, ftype, trackvertsF); MB_CHK_ERR(error);
-      //  error = print_maps_1D(cur_level); MB_CHK_ERR(error);
       }
 
     delete [] vbuffer;
@@ -1202,10 +1170,8 @@ namespace moab{
   {
     ErrorCode error;
 
-    EntityType ftype;
-    if (type == MBTET)
-      ftype = MBTRI;
-    else if (type == MBHEX)
+    EntityType ftype=MBTRI;
+    if (type == MBHEX)
       ftype = MBQUAD;
 
     int d = get_index_from_degree(deg);
@@ -1362,11 +1328,8 @@ namespace moab{
             id1 = intFacEdg[ftype - 2][d].ieconn[i][0];
             id2 = intFacEdg[ftype - 2][d].ieconn[i][1];
             level_mesh[cur_level].edge_conn[2 * (ecount)] = vbuffer[id1];
-            level_mesh[cur_level].edge_conn[2 * (ecount) + 1] = vbuffer[id2];
-         //   std::cout<<"Edge ="<<level_mesh[cur_level].start_edge+ecount<<" :: conn =  "<<level_mesh[cur_level].edge_conn[2 * (ecount)]<<"  "<<level_mesh[cur_level].edge_conn[2 * (ecount)+1]<<std::endl;
-
+            level_mesh[cur_level].edge_conn[2 * (ecount) + 1] = vbuffer[id2];      
             ecount += 1;
-
           }
       }
 
@@ -1525,34 +1488,22 @@ namespace moab{
 
         delete [] ent_buffer;
         delete [] corner_coords;
-
-        //error = mbImpl->write_file("volume_only.vtk"); MB_CHK_ERR(error);
       }
 
     //Step 6: Update the global maps
     error = update_global_ahf(type, cur_level, deg); MB_CHK_ERR(error);
-   // error = print_maps_3D(cur_level, type); MB_CHK_ERR(error);
 
     //Step 7: If edges exists, refine them as well.
-    //if (!_inedges.empty())
     if (level_mesh[cur_level].num_edges != 0)
       {
         error = construct_hm_1D(cur_level,deg, type, trackvertsC_edg); MB_CHK_ERR(error);
-       // error = print_maps_1D(cur_level); MB_CHK_ERR(error);
       }
 
     //Step 8: If faces exists, refine them as well.
     if (!_infaces.empty())
       {
-        //std::cout<<"\n Refining faces "<<std::endl;
         error = construct_hm_2D(cur_level, deg, type, trackvertsC_edg, trackvertsC_face); MB_CHK_ERR(error);
-      //  std::cout<<"\n Refined faces "<<std::endl;
-        //error = print_maps_2D(cur_level,MBQUAD);
       }
-
-/*    if (!_inedges.empty()){
-        error = print_maps_1D(cur_level); MB_CHK_ERR(error);
-      }*/
 
     delete [] vbuffer;
 
@@ -1697,21 +1648,16 @@ namespace moab{
     //Step 7: Update the global maps
     error = update_global_ahf(cur_level, deg, cell_patterns); MB_CHK_ERR(error);
 
-  //  error = print_maps_3D(cur_level, type); MB_CHK_ERR(error);
-
     //Step 8: If edges exists, refine them as well.
-    //if (!_inedges.empty())
     if (level_mesh[cur_level].num_edges != 0)
       {
         error = construct_hm_1D(cur_level,deg, type, trackvertsC_edg); MB_CHK_ERR(error);
-        //error = print_maps_1D(cur_level); MB_CHK_ERR(error);
       }
 
     //Step 9: If faces exists, refine them as well.
     if (!_infaces.empty())
       {
         error = construct_hm_2D(cur_level, deg, type, trackvertsC_edg, trackvertsC_face); MB_CHK_ERR(error);
-        //error = print_maps_2D(cur_level,MBTRI);
       }
 
     delete [] vbuffer;
