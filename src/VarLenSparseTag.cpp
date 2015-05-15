@@ -334,7 +334,6 @@ void get_tagged(const VarLenSparseTag::MapType& mData,
                 Range::const_iterator end,
                 Container& output_range)
 {
-  VarLenSparseTag::MapType::const_iterator iter;
   typename Container::iterator hint = output_range.begin();
   for (Range::const_iterator i = begin; i != end; ++i)
     if (mData.find(*i) != mData.end())

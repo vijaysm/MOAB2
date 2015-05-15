@@ -550,8 +550,6 @@ namespace moab
                                     EntityHandle *start_node,
                                     CartVect *params) 
     {
-      std::vector<EntityHandle> children;
-
       treeStats.numTraversals++;
 
       EntityHandle this_set = (start_node ? *start_node : startSetHandle);
@@ -620,13 +618,12 @@ namespace moab
 
       const double dist_sqr = distance * distance;
       const CartVect from(from_point);
-      std::vector<EntityHandle> candidates, result_list_nodes;     // list of subtrees to traverse, and results 
+      std::vector<EntityHandle> candidates; // list of subtrees to traverse
         // pre-allocate space for default max tree depth
       candidates.reserve(maxDepth );
 
         // misc temporary values
       ErrorCode rval;
-      std::vector<EntityHandle> children;
       BoundBox box;
   
       candidates.push_back(this_set-startSetHandle);

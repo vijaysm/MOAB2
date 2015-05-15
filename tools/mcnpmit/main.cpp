@@ -131,7 +131,6 @@ int main(int argc, char **argv) {
   char* ctmp;
   int elems_read = 0;
   int p = 0;
-  std::string s;
   char line[10000];
 
   // Used only when reading a mesh file to get vertex info
@@ -386,7 +385,6 @@ MCNPError next_double(std::string s, double &d, int &p) {
 
   unsigned int slen = s.length();
   unsigned int j;
-  std::string sn;
 
   for (unsigned int i = p; i < slen; i++) {
     if ( ( (s[i] >= 48) && (s[i] <= 57) ) || (s[i] == 45) ) {
@@ -410,7 +408,6 @@ MCNPError next_int(std::string s, int &k, int &p) {
 
   unsigned int slen = s.length();
   unsigned int j;
-  std::string sn;
 
   for (unsigned int i = p; i < slen; i++) {
     if ( ( (s[i] >= 48) && (s[i] <= 57) ) || (s[i] == 45) ) {

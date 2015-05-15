@@ -24,8 +24,6 @@ int main(int argc, char **argv)
 {
   MPI_Init(&argc, &argv);
 
-  string options;
-
   // Need option handling here for input filename
   if (argc < 3)
    return 1;

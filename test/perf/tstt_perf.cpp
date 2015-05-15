@@ -351,7 +351,6 @@ void query_elem_to_vert(TSTTM::Mesh &mesh)
       // now loop over elements
     for (int i = 0; i < all_hexes_size; i++) {
       sidl::array<int> dum_offsets;
-      int dum_offsets_size;
       sidl::array<Entity_Handle> dum_connect;
       int dum_connect_size = 0;
         // get the connectivity of this element; will allocate space on 1st iteration,
