@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
     // traverse the model, from dimension 3 downward
   moab::Range psets, chsets;
   std::vector<moab::EntityHandle> sense_ents;
-  std::vector<int> senses, pgids;
+  std::vector<int> senses;
   int dim, pgid, chgid;
   void *dim_ptr = &dim;
   int sense;

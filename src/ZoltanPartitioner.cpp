@@ -235,7 +235,6 @@ ErrorCode  ZoltanPartitioner::repartition(std::vector<double> & x,std::vector<do
     const char * zmethod, Range & localGIDs)
 {
   //
-  std::vector<int> sendToProcs;
   int nprocs=mbpc->proc_config().proc_size();
   int rank = mbpc->proc_config().proc_rank();
   clock_t t = clock();

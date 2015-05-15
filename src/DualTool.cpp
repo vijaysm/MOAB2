@@ -337,7 +337,7 @@ ErrorCode DualTool::construct_dual_edges(const Range &all_faces,
     }
     
       // no dual entity; construct one; get the bounding regions
-    std::vector<EntityHandle> in_ents, out_ents;
+    std::vector<EntityHandle> out_ents;
     tmp_result = mbImpl->get_adjacencies(&(*rit), 1, 3, false, out_ents);
     if (MB_SUCCESS != tmp_result || out_ents.empty()) continue;
 
@@ -875,7 +875,6 @@ ErrorCode DualTool::construct_dual_hyperplanes(const int dim,
     // main part of traversal loop
   EntityHandle this_ent;
   EntityHandle this_hp;
-  std::vector<EntityHandle> parents;
 
   while (!tot_untreated.empty()) {
     if (debug && dim == 2 /*(tot_untreated.size()%report == 0)*/)
