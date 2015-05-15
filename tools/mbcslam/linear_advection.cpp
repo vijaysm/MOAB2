@@ -82,7 +82,7 @@ int main(int argc, char *argv[]) {
    moab::EntityHandle euler_set;
    moab::ErrorCode rval = mb.create_meshset(MESHSET_SET, euler_set);
 
-   std::stringstream opts;
+   //std::stringstream opts;
    //opts << "PARALLEL=READ_PART;PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;GATHER_SET=0;PARTITION_METHOD=TRIVIAL_PARTITION;VARIABLE=";
    //opts << "PARALLEL=READ_PART;PARTITION;PARALLEL_RESOLVE_SHARED_ENTS";
    //rval = mb.load_file(file_name.c_str(), &euler_set, opts.str().c_str());

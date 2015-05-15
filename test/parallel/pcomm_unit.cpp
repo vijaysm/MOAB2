@@ -99,7 +99,6 @@ void pack_unpack_noremoteh( Core& moab, Range& entities )
   }
   
   ParallelComm *pcomm = new ParallelComm( &moab, MPI_COMM_WORLD );
-  std::vector<int> addl_procs;
 
     // get the necessary vertices too
   Range tmp_range = entities.subset_by_type(MBENTITYSET);
