@@ -436,7 +436,6 @@ namespace moab {
   {
     int local_num_elements[4];
     ErrorCode result;
-    std::vector<unsigned char> pstatus;
     for (int dim = 0; dim <= dimension; dim++) {
       local_num_elements[dim] = entities[dim].size();
     }
@@ -1207,11 +1206,8 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     ErrorCode result;
 
     Range set_range;
-    std::vector<Range> set_ranges;
     std::vector<Tag> all_tags;
     std::vector<Range> tag_ranges;
-    std::vector<int> set_sizes;
-    std::vector<unsigned int> options_vec;
 
     Range::const_iterator rit;
 
@@ -1882,9 +1878,6 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     ReadUtilIface *ru = NULL;
 
     result = mbImpl->query_interface(ru);MB_CHK_SET_ERR(result, "Failed to get ReadUtilIface");
-
-    // procs the sending proc is telling me I'll be receiving from
-    std::set<unsigned int> comm_procs;
 
     // 1. # entities = E
     int num_ents = 0;
@@ -3406,7 +3399,6 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
     int num_tags;
     UNPACK_INT(buff_ptr, num_tags);
-    std::vector<EntityHandle> tag_ents;
     std::vector<const void*> var_len_vals;
     std::vector<unsigned char*> dum_vals;
     std::vector<EntityHandle> dum_ehvals;
@@ -4413,7 +4405,6 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     Range::iterator rit;
 
     // Create interface sets, tag them, and tag their contents with iface set tag
-    std::vector<EntityHandle> tag_vals;
     std::vector<unsigned char> pstatus;
     for (std::map<std::vector<int>,std::vector<EntityHandle> >::iterator vit = proc_nvecs.begin();
          vit != proc_nvecs.end(); ++vit) {
@@ -7959,7 +7950,6 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     unsigned char pstat;
     Range bad_ents;
     std::vector<std::string> errors;
-    std::string dum_err;
 
     std::vector<EntityHandle>::const_iterator vit;
     for (vit = sharedEnts.begin(); vit != sharedEnts.end(); ++vit) {
@@ -8482,7 +8472,6 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       incoming--;
 
       bool done = false;
-      std::vector<EntityHandle> dum_vec;
       result = recv_buffer(MB_MESG_TAGS_SIZE, status,
           remoteOwnedBuffs[ind],
           recv_intx_reqs[3*ind + 1], // This is for receiving the second message

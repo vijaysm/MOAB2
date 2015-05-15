@@ -382,8 +382,6 @@ void DrawDual::update_high_polydatas()
 
     // now go through highlight entities, adding to highlight poly in each window
   ErrorCode result;
-  std::vector<EntityHandle> dual_sets;
-  std::vector<EntityHandle>::iterator vit;
   GVEntity **gvents;
   
   result = MBI->tag_get_data(gvEntityHandle, pickRange, &gvents); 
@@ -1909,7 +1907,7 @@ ErrorCode DrawDual::label_other_sheets(EntityHandle dual_surf,
                                          vtkPolyData *&new_pd) 
 {
     // gather the chord sets
-  std::vector<EntityHandle> chords, chord_surfs;
+  std::vector<EntityHandle> chords;
   Range dedges, dverts, dverts_loop;
   ErrorCode result = MBI->get_child_meshsets(dual_surf, chords);
   if (MB_SUCCESS != result || 0 == chords.size()) return result;

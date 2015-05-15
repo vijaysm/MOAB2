@@ -350,7 +350,6 @@ MCNPError next_number(std::string s, double &d, int &p) {
 
       unsigned int slen = s.length();
       unsigned int j;
-      std::string sn;
 
       for (unsigned int i = p; i < slen; i++) {
             if ( ( (s[i] >= 48) && (s[i] <= 57) ) || (s[i] == 45) ) {
