@@ -82,16 +82,6 @@ ErrorCode test_adjacencies(Interface *mbImpl, NestedRefine *nr, Range all_ents)
           adjents.clear(); mbents.clear(); ahfents.clear();
           error = nr->get_adjacencies( *i, 1, adjents);  CHECK_ERR(error);
           error = mbImpl->get_adjacencies( &*i, 1, 1, false, mbents ); CHECK_ERR(error);
-
-          if (adjents.size() != mbents.size())
-            {
-              std::cout<<"VID = "<<*i<<std::endl;
-              for (int j=0; j<(int)adjents.size(); j++)
-                std::cout<<"hfents["<<j<<"] = "<<adjents[j]<<std::endl;
-              for (int j=0; j<(int)mbents.size(); j++)
-                std::cout<<"mbents["<<j<<"] = "<<mbents[j]<<std::endl;
-            }
-
           CHECK_EQUAL(adjents.size(),mbents.size());
           std::sort(adjents.begin(), adjents.end());
           std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
@@ -104,16 +94,6 @@ ErrorCode test_adjacencies(Interface *mbImpl, NestedRefine *nr, Range all_ents)
           adjents.clear(); mbents.clear(); ahfents.clear();
           error = nr->get_adjacencies( *i, 1, adjents); CHECK_ERR(error);
           error = mtu.get_bridge_adjacencies( *i, 0, 1, mbents); CHECK_ERR(error);
-
-          if (adjents.size() != mbents.size())
-            {
-              std::cout<<"EDGE = "<<*i<<std::endl;
-              for (int j=0; j<(int)adjents.size(); j++)
-                std::cout<<"hfents["<<j<<"] = "<<adjents[j]<<std::endl;
-              for (int j=0; j<(int)mbents.size(); j++)
-                std::cout<<"mbents["<<j<<"] = "<<mbents[j]<<std::endl;
-            }
-
           CHECK_EQUAL(adjents.size(), mbents.size());
           std::sort(adjents.begin(), adjents.end());
           std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
@@ -298,8 +278,6 @@ ErrorCode refine_entities(Interface *mb,  ParallelComm* pc, EntityHandle fset, i
   std::cout<<"Creating a hm object"<<std::endl;
 
 #ifdef MOAB_HAVE_MPI
-  NestedRefine uref(dynamic_cast<Core*>(mb), pc, fset);
-
   Range averts, aedges, afaces, acells;
   error = mb->get_entities_by_dimension(fset, 0, averts);MB_CHK_ERR(error);
   error = mb->get_entities_by_dimension(fset, 1, aedges);MB_CHK_ERR(error);
@@ -323,13 +301,13 @@ ErrorCode refine_entities(Interface *mb,  ParallelComm* pc, EntityHandle fset, i
 
   }
 #else
-  NestedRefine uref(dynamic_cast<Core*>(mb));
   error = mb->get_entities_by_dimension(fset, 0, init_ents[0]); CHECK_ERR(error);
   error = mb->get_entities_by_dimension(fset, 1, init_ents[1]); CHECK_ERR(error);
   error = mb->get_entities_by_dimension(fset, 2, init_ents[2]); CHECK_ERR(error);
   error = mb->get_entities_by_dimension(fset, 3, init_ents[3]);  CHECK_ERR(error);
 #endif
 
+  NestedRefine uref(dynamic_cast<Core*>(mb), pc, fset);
   std::vector<EntityHandle> set;
 
   std::cout<<"Starting hierarchy generation"<<std::endl;
@@ -419,8 +397,6 @@ ErrorCode refine_entities(Interface *mb,  ParallelComm* pc, EntityHandle fset, i
                   bool bnd = uref.is_entity_on_boundary(ent);
                   if (bnd)
                     vbnd.push_back(*v);
-
-                  //  std::cout<<"entID = "<<*v<<" :: is_bnd = "<<bnd<<std::endl;
                 }
             }
         }
@@ -1180,7 +1156,7 @@ ErrorCode test_mesh(const char* filename, int *level_degrees, int num_levels)
 {
   Core moab;
   Interface* mbImpl = &moab;
-  ParallelComm *pc ;
+  ParallelComm *pc = NULL;
   EntityHandle fileset;
 
   ErrorCode error;

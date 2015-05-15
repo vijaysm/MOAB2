@@ -52,6 +52,7 @@ ErrorCode ahf_test(const char* filename)
 
     Core moab;
     Interface* mbImpl = &moab;
+    ParallelComm *pc=NULL;
     MeshTopoUtil mtu(mbImpl);
     ErrorCode error;
     EntityHandle fileset;
@@ -82,21 +83,16 @@ ErrorCode ahf_test(const char* filename)
     error = mbImpl->get_entities_by_dimension( fileset, 2, faces);
     error = mbImpl->get_entities_by_dimension( fileset, 3, cells);
 
-
-    //std::cout<<"[nv, ne, nf, nc] = ["<<verts.size()<<", "<<edges.size()<<", "<<faces.size()<<", "<<cells.size()<<"]"<<std::endl;
-
-    // Create an ahf instance
+    // Create an ahf instance  
 #ifdef MOAB_HAVE_MPI
-    moab::ParallelComm *pc = new moab::ParallelComm(&moab, MPI_COMM_WORLD);
-    HalfFacetRep ahf(&moab, pc, fileset);
-#else
-    HalfFacetRep ahf(&moab);
+    pc = ParallelComm::get_pcomm(mbImpl,0);
+    if (!pc)
+      pc = new moab::ParallelComm(&moab, MPI_COMM_WORLD);
 #endif
+    HalfFacetRep ahf(&moab, pc, fileset);
 
     // Call the initialize function which creates the maps for each dimension
-    ahf.initialize();
-
- //   ahf.print_tags();
+    error = ahf.initialize();CHECK_ERR(error);
 
     //Perform queries
     std::vector<EntityHandle> adjents;
@@ -112,9 +108,7 @@ ErrorCode ahf_test(const char* filename)
             mbents.clear();
             error = mbImpl->get_adjacencies( &*i, 1, 1, false, mbents );
             CHECK_ERR(error);
-
             CHECK_EQUAL(adjents.size(),mbents.size());
-
             std::sort(adjents.begin(), adjents.end());
             std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
             mbents = subtract(mbents, ahfents);
@@ -131,16 +125,6 @@ ErrorCode ahf_test(const char* filename)
             mbents.clear();
             error = mtu.get_bridge_adjacencies( *i, 0, 1, mbents);
             CHECK_ERR(error);
-
-            if (adjents.size() != mbents.size())
-              {
-                std::cout<<"EDGE = "<<*i<<std::endl;
-                for (int j=0; j<(int)adjents.size(); j++)
-                  std::cout<<"hfents["<<j<<"] = "<<adjents[j]<<std::endl;
-                for (int j=0; j<(int)mbents.size(); j++)
-                  std::cout<<"mbents["<<j<<"] = "<<mbents[j]<<std::endl;
-              }
-
             CHECK_EQUAL(adjents.size(), mbents.size());
             std::sort(adjents.begin(), adjents.end());
             std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
@@ -159,18 +143,7 @@ ErrorCode ahf_test(const char* filename)
             mbents.clear();
             error = mbImpl->get_adjacencies( &*i, 1, 2, false, mbents);
             CHECK_ERR(error);
-
-            if (adjents.size() != mbents.size())
-              {
-                std::cout<<"VID = "<<*i<<std::endl;
-                for (int j=0; j<(int)adjents.size(); j++)
-                  std::cout<<"adjents["<<j<<"] = "<<adjents[j]<<std::endl;
-                std::cout<<std::endl;
-                for (int j=0; j<(int)mbents.size(); j++)
-                  std::cout<<"mbents["<<j<<"] = "<<mbents[j]<<std::endl;
-              }
             CHECK_EQUAL(adjents.size(), mbents.size());
-
             std::sort(adjents.begin(), adjents.end());
             std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
             mbents = subtract(mbents, ahfents);
@@ -187,9 +160,7 @@ ErrorCode ahf_test(const char* filename)
             mbents.clear();
             error = mbImpl->get_adjacencies( &*i, 1, 2, false, mbents);
             CHECK_ERR(error);
-
             CHECK_EQUAL(adjents.size(), mbents.size());
-
             std::sort(adjents.begin(), adjents.end());
             std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
             mbents = subtract(mbents, ahfents);
@@ -206,9 +177,7 @@ ErrorCode ahf_test(const char* filename)
             mbents.clear();
             error = mtu.get_bridge_adjacencies( *i, 1, 2, mbents);
             CHECK_ERR(error);
-
             CHECK_EQUAL(adjents.size(), mbents.size());
-
             std::sort(adjents.begin(), adjents.end());
             std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
             mbents = subtract(mbents, ahfents);
@@ -225,9 +194,7 @@ ErrorCode ahf_test(const char* filename)
             mbents.clear();
             error = mbImpl->get_adjacencies( &*i, 1, 1, false, mbents);
             CHECK_ERR(error);
-
             CHECK_EQUAL(adjents.size(), mbents.size());
-
             std::sort(adjents.begin(), adjents.end());
             std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
             mbents = subtract(mbents, ahfents);
@@ -245,9 +212,7 @@ ErrorCode ahf_test(const char* filename)
             mbents.clear();
             error = mbImpl->get_adjacencies(&*i, 1, 3, false, mbents);
             CHECK_ERR(error);
-
             CHECK_EQUAL(adjents.size(), mbents.size());
-
             std::sort(adjents.begin(), adjents.end());
             std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
             mbents = subtract(mbents, ahfents);
@@ -264,9 +229,7 @@ ErrorCode ahf_test(const char* filename)
             mbents.clear();
             error = mbImpl->get_adjacencies(&*i, 1, 3, false, mbents);
             CHECK_ERR(error);
-
             CHECK_EQUAL(adjents.size(), mbents.size());
-
             std::sort(adjents.begin(), adjents.end());
             std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
             mbents = subtract(mbents, ahfents);
@@ -283,9 +246,7 @@ ErrorCode ahf_test(const char* filename)
             mbents.clear();
             error = mbImpl->get_adjacencies(&*i, 1, 3, false, mbents);
             CHECK_ERR(error);
-
             CHECK_EQUAL(adjents.size(), mbents.size());
-
             std::sort(adjents.begin(), adjents.end());
             std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
             mbents = subtract(mbents, ahfents);
@@ -302,9 +263,7 @@ ErrorCode ahf_test(const char* filename)
             mbents.clear();
             error = mtu.get_bridge_adjacencies( *i, 2, 3, mbents);
             CHECK_ERR(error);
-
             CHECK_EQUAL(adjents.size(), mbents.size());
-
             std::sort(adjents.begin(), adjents.end());
             std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
             mbents = subtract(mbents, ahfents);
@@ -322,19 +281,7 @@ ErrorCode ahf_test(const char* filename)
             mbents.clear();
             error = mbImpl->get_adjacencies( &*i, 1, 1, false, mbents);
             CHECK_ERR(error);
-
-            if (adjents.size() != mbents.size())
-              {
-                std::cout<<"EDGE = "<<*i<<std::endl;
-                for (int j=0; j<(int)adjents.size(); j++)
-                  std::cout<<"adjents["<<j<<"] = "<<adjents[j]<<std::endl;
-                std::cout<<std::endl;
-                for (int j=0; j<(int)mbents.size(); j++)
-                  std::cout<<"mbents["<<j<<"] = "<<mbents[j]<<std::endl;
-              }
-
             CHECK_EQUAL(adjents.size(), mbents.size());
-
             std::sort(adjents.begin(), adjents.end());
             std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
             mbents = subtract(mbents, ahfents);
@@ -351,9 +298,7 @@ ErrorCode ahf_test(const char* filename)
             mbents.clear();
             error = mbImpl->get_adjacencies( &*i, 1, 2, false, mbents);
             CHECK_ERR(error);
-
             CHECK_EQUAL(adjents.size(), mbents.size());
-
             std::sort(adjents.begin(), adjents.end());
             std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
             mbents = subtract(mbents, ahfents);
@@ -361,7 +306,7 @@ ErrorCode ahf_test(const char* filename)
           }
       }
 
-   // ahf.deinitialize();
+   error = ahf.deinitialize();CHECK_ERR(error);
 
     return MB_SUCCESS;
 
