@@ -84,13 +84,11 @@ public:
 
   // User interface functions
 
-  //! Creates all the necessary tags to store the maps. Constructs the sibling-half-facet and vertex-to-incident-half-facet maps for each dimension present in the input.
-
+  //! Constructs the sibling-half-facet and vertex-to-incident-half-facet maps for each dimension present in the input. This routine should be called before any calls for adjacency is made.
   ErrorCode initialize();
 
-  //! Deletes all the created tags.
-
-  //ErrorCode deinitialize();
+  //! Deinitialize
+  ErrorCode deinitialize();
 
   //! Prints the tag values.
   ErrorCode print_tags(int dim);

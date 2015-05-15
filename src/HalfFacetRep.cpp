@@ -204,26 +204,11 @@ namespace moab {
             error = mb->get_entities_by_dimension(this->_rset, 2, _afacs, true);MB_CHK_ERR(error);
             error = mb->get_entities_by_dimension(this->_rset, 3, _acels, true);MB_CHK_ERR(error);
 
-            MPI_Barrier(pcomm->comm());
-            std::cout << "["<<pcomm->rank()<<"] HalfFacetRep::initialize: Pre-filter: [" << _averts.size() << ", " << _aedgs.size() << ", " << _afacs.size() << ", " << _acels.size() << "]\n" ;
-
-            MPI_Barrier(pcomm->comm());
-
             // filter based on parallel status
             error = pcomm->filter_pstatus(_averts, PSTATUS_GHOST, PSTATUS_NOT, -1, &_verts);MB_CHK_ERR(error);
             error = pcomm->filter_pstatus(_aedgs, PSTATUS_GHOST, PSTATUS_NOT, -1, &_edges);MB_CHK_ERR(error);
             error = pcomm->filter_pstatus(_afacs, PSTATUS_GHOST, PSTATUS_NOT, -1, &_faces);MB_CHK_ERR(error);
             error = pcomm->filter_pstatus(_acels, PSTATUS_GHOST, PSTATUS_NOT, -1, &_cells);MB_CHK_ERR(error);
-
-            //In the 3D case, the edges on the interface should also be created.
-           /* if (!_cells.empty()){
-                Range bnd_edges;
-                error = mb->get_adjacencies(_faces,1,true,bnd_edges, Interface::UNION);MB_CHK_ERR(error);
-
-                _edges.insert(bnd_edges.begin(),bnd_edges.end());
-
-                error = mb->add_entities(this->_rset, bnd_edges);MB_CHK_ERR(error);
-              }*/
           }
         else {
             error = mb->get_entities_by_dimension( this->_rset, 0, _verts, true);MB_CHK_ERR(error);
@@ -243,16 +228,6 @@ namespace moab {
         int nedges = _edges.size();
         int nfaces = _faces.size();
         int ncells = _cells.size();
-
-#ifdef USE_MPI
-        if (pcomm)
-          {
-            MPI_Barrier(pcomm->comm());
-            std::cout << "["<<pcomm->rank()<<"] HalfFacetRep::initialize: Post-filter: [" << nverts << ", " << nedges << ", " << nfaces << ", " << ncells << "]\n" ;
-
-            MPI_Barrier(pcomm->comm());
-          }
-#endif
 
 
         MESHTYPE mesh_type = get_mesh_type(nverts, nedges, nfaces, ncells);
@@ -289,6 +264,11 @@ namespace moab {
     return MB_SUCCESS;
   }
 
+  ErrorCode HalfFacetRep::deinitialize()
+  {
+    return MB_SUCCESS;
+  }
+
   ErrorCode HalfFacetRep::init_curve()
   {
     ErrorCode error;
@@ -296,14 +276,8 @@ namespace moab {
     int nv = ID_FROM_HANDLE(*(_verts.end()-1));
     int ne = ID_FROM_HANDLE(*(_edges.end()-1));
 
-    v2hv.reserve(nv);
-    sibhvs.reserve(ne*2);
-
-    for (int i=0; i<2*ne; i++)
-      sibhvs.push_back(0);
-
-    for (int i=0; i<nv; i++)
-      v2hv.push_back(0);
+    v2hv.resize(nv,0);
+    sibhvs.resize(ne*2,0);
 
     error = determine_sibling_halfverts(_verts, _edges);MB_CHK_ERR(error);
     error = determine_incident_halfverts( _edges);MB_CHK_ERR(error);
@@ -320,14 +294,8 @@ namespace moab {
     int nv = ID_FROM_HANDLE(*(_verts.end()-1));
     int nf = ID_FROM_HANDLE(*(_faces.end()-1));
 
-    v2he.reserve(nv);
-    sibhes.reserve(nf*nepf);
-
-    for (int i=0; i<nf*nepf; i++)
-      sibhes.push_back(0);
-
-    for (int i=0; i<nv; i++)
-      v2he.push_back(0);
+    v2he.resize(nv, 0);
+    sibhes.resize(nf*nepf,0);
 
     // Construct ahf maps
     error = determine_sibling_halfedges(_faces);MB_CHK_ERR(error);
@@ -359,15 +327,8 @@ namespace moab {
     int nv = ID_FROM_HANDLE(*(_verts.end()-1));
     int nc = ID_FROM_HANDLE(*(_cells.end()-1));;
 
-    v2hf.reserve(nv);
-    sibhfs.reserve(nc*nfpc);
-
-    for (int i=0; i<nc*nfpc; i++)
-      sibhfs.push_back(0);
-
-    for (int i=0; i<nv; i++)
-      v2hf.push_back(0);
-
+    v2hf.resize(nv, 0);
+    sibhfs.resize(nc*nfpc, 0);
 
     //Construct the maps
     error = determine_sibling_halffaces(_cells);MB_CHK_ERR(error);
@@ -394,7 +355,6 @@ namespace moab {
 
          for (Range::iterator i = _edges.begin(); i != _edges.end(); ++i){
              EntityHandle eid[2];  int lvid[2];
-           //  int eidx = _edges.index(*i);
              int eidx = ID_FROM_HANDLE(*i)-1;
              HFacet hf1 = sibhvs[2*eidx];
              HFacet hf2 = sibhvs[2*eidx+1];
@@ -406,7 +366,6 @@ namespace moab {
          std::cout<<"<V2HV_EID, V2HV_LVID>"<<std::endl;
 
          for (Range::iterator i = _verts.begin(); i != _verts.end(); ++i){
-             //int vidx = _verts.index(*i);
              int vidx = ID_FROM_HANDLE(*i)-1;
              HFacet hf = v2hv[vidx];
              EntityHandle eid = fid_from_halfacet(hf, MBEDGE);
@@ -422,7 +381,6 @@ namespace moab {
          std::cout<<"<SIBHES_FID,SIBHES_LEID>"<<std::endl;
 
          for (Range::iterator i = _faces.begin(); i != _faces.end(); ++i){
-           //  int fidx = _faces.index(*i);
              int fidx = ID_FROM_HANDLE(*i)-1;
              std::cout<<"Entity = "<<*i;
              for (int j=0; j<nepf; j++){
@@ -437,7 +395,6 @@ namespace moab {
          std::cout<<"<V2HE_FID, V2HE_LEID>"<<std::endl;
 
          for (Range::iterator i = _verts.begin(); i != _verts.end(); ++i){
-           //  int vidx = _verts.index(*i);
              int vidx = ID_FROM_HANDLE(*i)-1;
              HFacet hf = v2he[vidx];
              EntityHandle fid = fid_from_halfacet(hf, ftype);
@@ -455,7 +412,6 @@ namespace moab {
          std::cout<<"<SIBHES_CID,SIBHES_LFID>"<<std::endl;
 
          for (Range::iterator i = _cells.begin(); i != _cells.end(); ++i){
-            // int cidx = _cells.index(*i);
              int cidx = ID_FROM_HANDLE(*i)-1;
              std::cout<<"Entity = "<<*i;
              for (int j=0; j<nfpc; j++){
@@ -470,7 +426,6 @@ namespace moab {
          std::cout<<"<V2HF_CID, V2HF_LFID>"<<std::endl;
 
          for (Range::iterator i = _verts.begin(); i != _verts.end(); ++i){
-            // int vidx = _verts.index(*i);
              int vidx = ID_FROM_HANDLE(*i)-1;
              HFacet hf = v2hf[vidx];
              EntityHandle cid = fid_from_halfacet(hf, ctype);
@@ -2685,7 +2640,6 @@ namespace moab {
   ErrorCode HalfFacetRep::update_entity_ranges(EntityHandle fileset)
   {
    ErrorCode error;
- //  Range verts, edges, faces, cells;
 
    error = mb->get_entities_by_dimension(fileset, 0, _verts, true);MB_CHK_ERR(error);
 
