@@ -831,10 +831,12 @@ void testD(const int nelem, const double *coords, int ver)
 #ifndef NDEBUG
     check_answers("D");
     result = gMB->tag_delete(pos_tag);
+    assert(MB_SUCCESS == result);
     result = gMB->tag_get_handle("position_tag", 3, MB_TYPE_DOUBLE, pos_tag,
                                  MB_TAG_DENSE | MB_TAG_CREAT, def_val);
     assert(MB_SUCCESS == result);
     result = gMB->tag_delete(pos2_tag);
+    assert(MB_SUCCESS == result);
     result = gMB->tag_get_handle("position2_tag", 3, MB_TYPE_DOUBLE, pos2_tag,
                                  MB_TAG_DENSE | MB_TAG_CREAT, def_val);
     assert(MB_SUCCESS == result);
@@ -852,10 +854,12 @@ void testD(const int nelem, const double *coords, int ver)
 #ifndef NDEBUG
     check_answers("D");
     result = gMB->tag_delete(pos_tag);
+    assert(MB_SUCCESS == result);
     result = gMB->tag_get_handle("position_tag", 3, MB_TYPE_DOUBLE, pos_tag,
                                  MB_TAG_DENSE | MB_TAG_CREAT, def_val);
     assert(MB_SUCCESS == result);
     result = gMB->tag_delete(pos2_tag);
+    assert(MB_SUCCESS == result);
     result = gMB->tag_get_handle("position2_tag", 3, MB_TYPE_DOUBLE, pos2_tag,
                                  MB_TAG_DENSE | MB_TAG_CREAT, def_val);
     assert(MB_SUCCESS == result);
@@ -877,10 +881,12 @@ void testD(const int nelem, const double *coords, int ver)
 #ifndef NDEBUG
     check_answers("D");
     result = gMB->tag_delete(pos_tag);
+    assert(MB_SUCCESS == result);
     result = gMB->tag_get_handle("position_tag", 3, MB_TYPE_DOUBLE, pos_tag,
                                  MB_TAG_DENSE | MB_TAG_CREAT, def_val);
     assert(MB_SUCCESS == result);
     result = gMB->tag_delete(pos2_tag);
+    assert(MB_SUCCESS == result);
     result = gMB->tag_get_handle("position2_tag", 3, MB_TYPE_DOUBLE, pos2_tag,
                                  MB_TAG_DENSE | MB_TAG_CREAT, def_val);
     assert(MB_SUCCESS == result);
@@ -898,10 +904,12 @@ void testD(const int nelem, const double *coords, int ver)
 #ifndef NDEBUG
     check_answers("D");
     result = gMB->tag_delete(pos_tag);
+    assert(MB_SUCCESS == result);
     result = gMB->tag_get_handle("position_tag", 3, MB_TYPE_DOUBLE, pos_tag,
                                  MB_TAG_DENSE | MB_TAG_CREAT, def_val);
     assert(MB_SUCCESS == result);
     result = gMB->tag_delete(pos2_tag);
+    assert(MB_SUCCESS == result);
     result = gMB->tag_get_handle("position2_tag", 3, MB_TYPE_DOUBLE, pos2_tag,
                                  MB_TAG_DENSE | MB_TAG_CREAT, def_val);
     assert(MB_SUCCESS == result);
@@ -1092,6 +1100,7 @@ void query_vert_to_elem_direct()
 
     // make sure vertex-element adjacencies are created
   result = gMB->get_adjacencies(&(*all_verts.begin()), 1, 3, false, tmp_ents);
+  assert(MB_SUCCESS == result);
   
   const std::vector<EntityHandle> **adjs;
   int count;

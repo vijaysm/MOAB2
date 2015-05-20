@@ -530,6 +530,7 @@ public:
   ErrorCode leaf( EntityHandle node ) {
     OrientedBox box;
     ErrorCode rval = mTool->box( node, box );
+    if (MB_SUCCESS !=rval) return rval;
     EntityHandle h;
     rval = box.make_hex( h, mOut );
     if (MB_SUCCESS !=rval) return rval;

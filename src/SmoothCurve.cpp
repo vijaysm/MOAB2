@@ -419,14 +419,20 @@ void SmoothCurve::compute_tangents_for_each_edge()
     // current edge will start after first one
     currentEdge = entities[i];
     rval = _mb->tag_get_data(tangentsTag, &currentEdge, 1, &TC[0]);//
+    if (rval != MB_SUCCESS)
+      return; // some error should be thrown
     // now compute the new tangent at common vertex; reset tangents for previous edge and current edge
     // a little bit of CPU and memory waste, but this is life
     CartVect T = 0.5 * TC[0] + 0.5 * TP[1]; //
     T.normalize();
     TP[1] = T;
     rval = _mb->tag_set_data(tangentsTag, &previousEdge, 1, &TP[0]);//
+    if (rval != MB_SUCCESS)
+      return; // some error should be thrown
     TC[0] = T;
     rval = _mb->tag_set_data(tangentsTag, &currentEdge, 1, &TC[0]);//
+    if (rval != MB_SUCCESS)
+      return; // some error should be thrown
     // now set the next edge
     previousEdge = currentEdge;
     TP[0] = TC[0];

@@ -583,12 +583,10 @@ ErrorCode Core::serial_load_file( const char* file_name,
     MB_SET_GLB_ERR(MB_FILE_DOES_NOT_EXIST, file_name << ": Cannot read directory/folder");
   }
 
-  ErrorCode rval = MB_FAILURE;
   const ReaderWriterSet* set = reader_writer_set();
 
-
   Range initial_ents;
-  rval = get_entities_by_handle( 0, initial_ents );MB_CHK_ERR(rval);
+  ErrorCode rval = get_entities_by_handle( 0, initial_ents );MB_CHK_ERR(rval);
 
   std::vector<Tag> initial_tags;
   rval = tag_get_tags( initial_tags );MB_CHK_ERR(rval);
@@ -3726,6 +3724,7 @@ ErrorCode Core::print_entity_tags(std::string indent_prefix, const EntityHandle 
     if (MB_SUCCESS != result || tp != this_type) continue;
     DataType this_data_type;
     result = this->tag_get_data_type(*vit, this_data_type);
+    if (MB_SUCCESS != result) continue;
     int this_size;
     result = this->tag_get_length(*vit, this_size);
     if (MB_SUCCESS != result) continue;

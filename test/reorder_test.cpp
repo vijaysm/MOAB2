@@ -622,6 +622,7 @@ void check_bit_tag()
   
   Tag gid;
   rval = mb->tag_get_handle( GLOBAL_ID_NAME, 1, MB_TYPE_INTEGER, gid );
+  CHECK_ERR(rval);
  
   Tag bit_data;
   rval = mb->tag_get_handle( BIT_NAME, BITS_PER_TAG, MB_TYPE_BIT, bit_data );

@@ -782,6 +782,8 @@ ErrorCode fix_surface_senses(Interface *MBI, const EntityHandle cgm_file_set,
       return result;
     Range cub_tris;
     result = make_tris_from_quads(MBI, quads, cub_tris);
+    if (MB_SUCCESS != result)
+      return result;
 
     // Add the tris to the same surface meshset as the quads are inside.            
     result = MBI->add_entities(cub_surf.front(), cub_tris);

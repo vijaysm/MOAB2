@@ -668,7 +668,7 @@ ErrorCode MeshTopoUtil::split_entities_manifold(EntityHandle *entities,
           up_elem2 = tmp_elem;
         }
         
-        tmp_result = mbImpl->remove_adjacencies(entities[i], &up_elem1, 1);
+        mbImpl->remove_adjacencies(entities[i], &up_elem1, 1);
           // (ok if there's an error, that just means there wasn't an explicit adj)
 
         tmp_result = mbImpl->add_adjacencies(new_entity, &up_elem1, 1, false); TC;

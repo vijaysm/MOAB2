@@ -26,7 +26,7 @@ ErrorCode SphereDecomp::build_sphere_mesh(const char *sphere_radii_tag_name,
   Range all_verts;
   result = mbImpl->get_entities_by_type(0, MBVERTEX, all_verts); RR;
   MeshTopoUtil mtu(mbImpl);
-  result = mtu.construct_aentities(all_verts);
+  result = mtu.construct_aentities(all_verts); RR;
   
     // create tag to hold vertices
   result = mbImpl->tag_get_handle(SUBDIV_VERTICES_TAG_NAME, 9, MB_TYPE_HANDLE, 
@@ -39,7 +39,7 @@ ErrorCode SphereDecomp::build_sphere_mesh(const char *sphere_radii_tag_name,
   
     // build hex elements
   std::vector<EntityHandle> sphere_hexes, interstic_hexes;
-  result = build_hexes(sphere_hexes, interstic_hexes); 
+  result = build_hexes(sphere_hexes, interstic_hexes); RR;
 
   result = mbImpl->tag_delete(subdivVerticesTag); RR;
 
