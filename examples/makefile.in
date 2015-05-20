@@ -73,6 +73,9 @@ ReadWriteTest: ReadWriteTest.o ${MOAB_LIBDIR}/libMOAB.la
 GenLargeMesh: GenLargeMesh.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
+HelixSweep: HelixSweep.o ${MOAB_LIBDIR}/libMOAB.la
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
 ErrorHandlingSimulation: ErrorHandlingSimulation.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
