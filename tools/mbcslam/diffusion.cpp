@@ -70,15 +70,13 @@ std::string TestDir(".");
 using namespace moab;
 ErrorCode add_field_value(Interface * mb, EntityHandle euler_set, int rank, Tag & tagTracer, Tag & tagElem, Tag & tagArea)
 {
-  ErrorCode rval = MB_SUCCESS;
-
   /*
    * get all plys first, then vertices, then move them on the surface of the sphere
    *  radius is 1., most of the time
    *
    */
   Range polygons;
-  rval = mb->get_entities_by_dimension(euler_set, 2, polygons);
+  ErrorCode rval = mb->get_entities_by_dimension(euler_set, 2, polygons);
   if (MB_SUCCESS != rval)
     return rval;
 
@@ -222,10 +220,8 @@ ErrorCode add_field_value(Interface * mb, EntityHandle euler_set, int rank, Tag 
 
 ErrorCode compute_velocity_case1(Interface * mb, EntityHandle euler_set, Tag & tagh, int rank, int tStep)
 {
-  ErrorCode rval = MB_SUCCESS;
-
   Range polygons;
-  rval = mb->get_entities_by_dimension(euler_set, 2, polygons);
+  ErrorCode rval = mb->get_entities_by_dimension(euler_set, 2, polygons);
   if (MB_SUCCESS != rval)
     return rval;
 
@@ -275,8 +271,6 @@ ErrorCode compute_tracer_case1(Interface * mb, Intx2MeshOnSphere & worker, Entit
     EntityHandle lagr_set, EntityHandle out_set, Tag & tagElem, Tag & tagArea, int rank,
     int tStep, Range & connecVerts)
 {
-  ErrorCode rval = MB_SUCCESS;
-
   EntityHandle dum=0;
   Tag corrTag;
   mb->tag_get_handle(CORRTAGNAME, 1, MB_TYPE_HANDLE, corrTag,
@@ -285,7 +279,7 @@ ErrorCode compute_tracer_case1(Interface * mb, Intx2MeshOnSphere & worker, Entit
   double t = tStep * T / numSteps; // numSteps is global; so is T
   double delta_t = T / numSteps; // this is global too, actually
   Range polys;
-  rval = mb->get_entities_by_dimension(euler_set, 2, polys);
+  ErrorCode rval = mb->get_entities_by_dimension(euler_set, 2, polys);
   CHECK_ERR(rval);
 
   // change coordinates of lagr mesh vertices

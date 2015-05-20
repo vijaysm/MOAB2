@@ -1103,6 +1103,8 @@ ErrorCode create_span_quads(Interface * mb, EntityHandle euler_set, int rank) {
   // now create some if missing
   Range allEdges;
   rval = mb->get_adjacencies(polygons, 1, true, allEdges, Interface::UNION);
+  if (MB_SUCCESS != rval)
+    return rval;
   // create the vertices at the DP points, and the quads after that
   Range verts;
   rval = mb->get_connectivity(polygons, verts);
@@ -1188,6 +1190,8 @@ ErrorCode create_span_quads(Interface * mb, EntityHandle euler_set, int rank) {
 
   Range quadEdges;
   rval = mb->get_adjacencies(quads, 1, true, quadEdges, Interface::UNION);
+  if (MB_SUCCESS != rval)
+    return rval;
   mb->add_entities(outSet2, quadEdges);
 
   std::stringstream outf2;

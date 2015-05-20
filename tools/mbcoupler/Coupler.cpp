@@ -746,6 +746,8 @@ ErrorCode Coupler::nat_param(double xyz[3],
 
       // Get connectivity
       result = mbImpl->get_connectivity(*iter, connect, num_connect, true);
+      if (MB_SUCCESS != result)
+        return result;
 
       // Get coordinates of the vertices
       std::vector<CartVect> coords_vert(num_connect);

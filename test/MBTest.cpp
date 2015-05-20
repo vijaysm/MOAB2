@@ -160,8 +160,10 @@ ErrorCode mb_vertex_coordinate_test()
     // Try getting coordinates for a hex (should fail)
   Range hexes;
   error = MB->get_entities_by_type( 0, MBHEX, hexes );
+  CHKERR(error);
   EntityHandle handle = hexes.front();
   error = MB->get_coords(&handle, 1, &x[0]);
+  CHKERR(error);
   CHECK_EQUAL(0.5, x[0]);
   CHECK_EQUAL(0.5, x[1]);
   CHECK_EQUAL(0.5, x[2]);
@@ -197,6 +199,7 @@ ErrorCode mb_vertex_tag_test()
     // put a value in vertex 1 and retrieve
   std::vector<EntityHandle> verts;
   error = MB->get_entities_by_type( 0, MBVERTEX, verts );
+  if (MB_SUCCESS != error) return error;
   EntityHandle handle = verts[0];
   int input_value = 11;
   error = MB->tag_set_data(tag_id, &handle, 1, &input_value);
@@ -2275,6 +2278,7 @@ ErrorCode mb_mesh_set_list_replace_test()
   std::vector<EntityHandle> list( verts );
   list.push_back( verts.front() );
   rval = mb->add_entities( set, &list[0], list.size() );
+  CHKERR(rval);
     // swap 3 of the vertices
   EntityHandle old_ents[3] = { verts[2], verts[4], verts[6] };
   EntityHandle new_ents[3] = { verts[1], verts[9], verts[5] };
@@ -4443,6 +4447,8 @@ ErrorCode mb_merge_test()
       //get Hexes from model
   }
   result = MB->get_entities_by_type(0, MBHEX, entities);
+  if (MB_SUCCESS != result)
+    return result;
   Skinner_Obj.find_skin(0,entities,false,forward_lower,&reverse_lower);
   cout <<"num hexes = "<<entities.size()<<"\n";
   cout <<"fl = "<<forward_lower.size()<<" rl = "<<reverse_lower.size()<<"\n";
@@ -6331,8 +6337,14 @@ ErrorCode mb_skin_surface_test_common( bool use_adj )
     // Check each edge
   std::vector<EntityHandle> conn[3];
   rval = mb->get_connectivity( &skin.front(), 1, conn[0] );
+  if (MB_SUCCESS != rval)
+    return rval;
   rval = mb->get_connectivity( &*++skin.begin(), 1, conn[1] );
+  if (MB_SUCCESS != rval)
+    return rval;
   rval = mb->get_connectivity( &skin.back(), 1, conn[2] );
+  if (MB_SUCCESS != rval)
+    return rval;
   for (int i = 0; i < 3; ++i)
     if (conn[i][0] > conn[i][1])
       std::swap(conn[i][0], conn[i][1]);
