@@ -46,13 +46,11 @@ public:
 };
 
 ErrorCode obbvis_create( DagMC& dag, std::vector<int> &volumes, int grid, std::string& filename ){
-
-  ErrorCode rval = MB_SUCCESS;
   OrientedBoxTreeTool& obbtool = *dag.obb_tree();
   
   CartVect min, max;
   EntityHandle vol = dag.entity_by_id( 3, volumes.front() );
-  rval = dag.getobb( vol, min.array(), max.array() );
+  ErrorCode rval = dag.getobb( vol, min.array(), max.array() );
   CHECKERR(dag, rval);
 
   /* Compute an axis-aligned bounding box of all the requested volumes */

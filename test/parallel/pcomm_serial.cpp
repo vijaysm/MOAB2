@@ -63,13 +63,8 @@ int main( int argc, char* argv[] )
   pa_vec.push_back(ReadParallel::PA_READ);
   pa_vec.push_back(ReadParallel::PA_GET_FILESET_ENTS);
   pa_vec.push_back(ReadParallel::PA_DELETE_NONLOCAL);
-  bool partition_distrib = false;
+  bool partition_distrib = true;
 
-  partition_distrib = true;
-  
-    //std::string ptag_name("MATERIAL_SET");
-    //partition_distrib = true;
-  
   FileOptions fopts(NULL);
   
   for (int i = 0; i < nprocs; i++) {

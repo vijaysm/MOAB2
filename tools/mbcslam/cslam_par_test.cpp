@@ -90,19 +90,18 @@ int main(int argc, char **argv)
 // will save the LOC tag on the euler nodes
 ErrorCode  compute_lagrange_mesh_on_sphere(Interface * mb, EntityHandle euler_set)
 {
-  ErrorCode rval = MB_SUCCESS;
-
   /*
    * get all quads first, then vertices, then move them on the surface of the sphere
    *  radius is 1, usually
    *  pos (t-dt) = pos(t) -Velo(t)*dt; this will be lagrange mesh, on each processor
    */
   Range quads;
-  rval = mb->get_entities_by_type(euler_set, MBQUAD, quads);
+  ErrorCode rval = mb->get_entities_by_type(euler_set, MBQUAD, quads);
   CHECK_ERR(rval);
 
   Range connecVerts;
   rval = mb->get_connectivity(quads, connecVerts);
+  CHECK_ERR(rval);
 
   // the LOC tag, should be provided by the user?
   Tag tagh = 0;

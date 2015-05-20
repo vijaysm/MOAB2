@@ -78,10 +78,10 @@ ErrorCode ahf_test(const char* filename)
 
     /*Create ranges for handles of explicit elements of the mixed mesh*/
     Range verts, edges, faces, cells;
-    error = mbImpl->get_entities_by_dimension( fileset, 0, verts);
-    error = mbImpl->get_entities_by_dimension( fileset, 1, edges);
-    error = mbImpl->get_entities_by_dimension( fileset, 2, faces);
-    error = mbImpl->get_entities_by_dimension( fileset, 3, cells);
+    error = mbImpl->get_entities_by_dimension( fileset, 0, verts);CHECK_ERR(error);
+    error = mbImpl->get_entities_by_dimension( fileset, 1, edges);CHECK_ERR(error);
+    error = mbImpl->get_entities_by_dimension( fileset, 2, faces);CHECK_ERR(error);
+    error = mbImpl->get_entities_by_dimension( fileset, 3, cells);CHECK_ERR(error);
 
     // Create an ahf instance  
 #ifdef MOAB_HAVE_MPI

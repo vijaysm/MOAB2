@@ -31,6 +31,7 @@
 #define IS_BUILDING_MB
 #endif
 #include "Internals.hpp"
+#include "TestUtil.hpp"
 
 using namespace moab;
 
@@ -44,16 +45,20 @@ int main()
   std::vector<EntityHandle> nodes;
   int err;
   EntityHandle h = CREATE_HANDLE(MBQUAD, MB_START_ID, err);
-  err = iface->get_adjacencies( &h, 1, 0, true, nodes);
+  CHECK_EQUAL(0, err);
+  ErrorCode rval = iface->get_adjacencies( &h, 1, 0, true, nodes);
+  CHECK_EQUAL(MB_ENTITY_NOT_FOUND, rval);
 
   std::vector<EntityHandle> tris;
-  err = iface->get_adjacencies( &h, 1, 1, true, tris);
+  rval = iface->get_adjacencies( &h, 1, 1, true, tris);
+  CHECK_EQUAL(MB_ENTITY_NOT_FOUND, rval);
 
   //faces to nodes
 
   for(unsigned int i=0; i<tris.size(); i++)
   {
-    err = iface->get_adjacencies( &tris[i], 1, 0, true, nodes );
+    rval = iface->get_adjacencies( &tris[i], 1, 0, true, nodes );
+    CHECK_ERR(rval);
     std::cout << "edge " << ID_FROM_HANDLE(tris[i]) << std::endl;
     std::cout << "nodes = ";
     for(unsigned int j=0; j<nodes.size(); j++)

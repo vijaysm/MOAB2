@@ -46,11 +46,10 @@ int main(int argc, char* argv[])
   }
 
   // read meshes in 2 file sets
-  ErrorCode rval = MB_SUCCESS;
   Core moab;
   Interface * mb = &moab; // global
   EntityHandle sf1, sf2;
-  rval = mb->create_meshset(MESHSET_SET, sf1);
+  ErrorCode rval = mb->create_meshset(MESHSET_SET, sf1);
   if (MB_SUCCESS != rval)
     return 1;
   rval = mb->create_meshset(MESHSET_SET, sf2);

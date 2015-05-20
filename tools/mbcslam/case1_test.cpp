@@ -33,8 +33,6 @@ double t = 0.1, delta_t = 0.43; // check the script
 ErrorCode manufacture_lagrange_mesh_on_sphere(Interface * mb,
     EntityHandle euler_set, EntityHandle & lagr_set)
 {
-  ErrorCode rval = MB_SUCCESS;
-
   /*
    * get all quads first, then vertices, then move them on the surface of the sphere
    *  radius is in, it comes from MeshKit/python/examples/manufHomme.py :
@@ -46,7 +44,7 @@ ErrorCode manufacture_lagrange_mesh_on_sphere(Interface * mb,
    */
   double radius = CubeSide / 2 * sqrt(3.); // our value depends on cube side
   Range quads;
-  rval = mb->get_entities_by_type(euler_set, MBQUAD, quads);
+  ErrorCode rval = mb->get_entities_by_type(euler_set, MBQUAD, quads);
   if (MB_SUCCESS != rval)
     return rval;
 

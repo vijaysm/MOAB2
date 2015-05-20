@@ -96,6 +96,7 @@ int main(int argc, char **argv)
           }
           FileOptions fo(opts.str().c_str());
           rval = tree->parse_options(fo);
+          if (MB_SUCCESS != rval) return rval;
           SpatialLocator sl(&mb, elems, tree);
 
             // call evaluation

@@ -103,6 +103,7 @@ int main(int argc, char **argv)
           opts << "MAX_DEPTH=" << *dep_it << ";MAX_PER_LEAF=" << *leafs_it;
           FileOptions fo(opts.str().c_str());
           rval = tree->parse_options(fo);
+          if (MB_SUCCESS != rval) return rval;
           SpatialLocator sl(&mb, elems, tree, eeval);
 
             // call evaluation

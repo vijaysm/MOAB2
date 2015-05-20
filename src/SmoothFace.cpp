@@ -213,6 +213,7 @@ int SmoothFace::init_gradient()
   sprintf(name, "GRADIENT%lu", setId);// name should be something like GRADIENT29, where 29 is the set ID of the face
   rval = _mb->tag_get_handle(name, 3, MB_TYPE_DOUBLE, _gradientTag,
       MB_TAG_DENSE|MB_TAG_CREAT, &defNormal);
+  assert(rval == MB_SUCCESS);
 
   double defPlane[4] = { 0., 0., 1., 0. };
   // also define a plane tag ; this will be for each triangle
@@ -220,6 +221,7 @@ int SmoothFace::init_gradient()
   sprintf(namePlaneTag, "PLANE%lu", setId);
   rval = _mb->tag_get_handle("PLANE", 4, MB_TYPE_DOUBLE, _planeTag,
       MB_TAG_DENSE|MB_TAG_CREAT, &defPlane);
+  assert(rval == MB_SUCCESS);
   // the fourth double is for weight, accumulated at each vertex so far
   // maybe not needed in the end
   for (Range::iterator it = _triangles.begin(); it != _triangles.end(); ++it)
@@ -1115,6 +1117,7 @@ ErrorCode SmoothFace::project_to_facets_main(CartVect &this_point, bool trim,
   // we will start with a list of facets anyway, the best among them wins
   ErrorCode rval = _my_geomTopoTool->obb_tree()->closest_to_location(
       (double*) &this_point, _obb_root, tolerance, facets_out);
+  if (MB_SUCCESS != rval) return rval;
 
   int interpOrder = 4;
   double compareTol = 1.e-5;
@@ -1216,7 +1219,7 @@ ErrorCode SmoothFace::project_to_facets(std::vector<EntityHandle> & facet_list,
 //Function Name: project_to_patch
 //
 //Member Type:  PUBLIC
-//Descriptoin:  Project a point to a bezier patch. Pass in the areacoord
+//Description:  Project a point to a bezier patch. Pass in the areacoord
 //              of the point projected to the linear facet.  Function
 //              assumes that the point is contained within the patch -
 //              if not, it will project to one of its edges.
@@ -1574,8 +1577,6 @@ ErrorCode SmoothFace::project_to_facet(EntityHandle facet, CartVect &pt,
     CartVect &areacoord, CartVect &close_point, bool &outside_facet,
     double compare_tol)
 {
-
-  ErrorCode stat = MB_SUCCESS;
   const EntityHandle * conn3;
   int nnodes;
   _mb->get_connectivity(facet, conn3, nnodes);
@@ -1586,7 +1587,7 @@ ErrorCode SmoothFace::project_to_facet(EntityHandle facet, CartVect &pt,
   _mb->get_coords(conn3, 3, (double*) &p[0]);
 
   int edge_id = -1;
-  stat = project_to_patch(facet, areacoord, pt, close_point, NULL,
+  ErrorCode stat = project_to_patch(facet, areacoord, pt, close_point, NULL,
       outside_facet, compare_tol, edge_id);
   /* }
    break;
