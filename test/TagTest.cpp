@@ -801,8 +801,10 @@ void test_get_set_bit()
     srand( counter++ );
     unsigned char bits = (unsigned char)(rand() & 3);
     rval = mb.tag_set_data( tag, &*i, 1, &bits );
+    CHECK_ERR(rval);
     unsigned char bits_out = 0;
     rval = mb.tag_get_data( tag, &*i, 1, &bits_out );
+    CHECK_ERR(rval);
     CHECK_EQUAL( bits, bits_out );
   }
   
@@ -927,7 +929,7 @@ void test_get_by_tag( )
   CHECK_EQUAL( arr[1], *i ); ++i;
   CHECK_EQUAL( arr[2], *i ); ++i;
   CHECK_EQUAL( arr[3], *i ); ++i;
-  CHECK_EQUAL( arr[4], *i ); ++i;
+  CHECK_EQUAL( arr[4], *i );
   
     // try for whole mesh will null tag value, but non-null array
   found.clear();
@@ -939,7 +941,7 @@ void test_get_by_tag( )
   CHECK_EQUAL( arr[1], *i ); ++i;
   CHECK_EQUAL( arr[2], *i ); ++i;
   CHECK_EQUAL( arr[3], *i ); ++i;
-  CHECK_EQUAL( arr[4], *i ); ++i;
+  CHECK_EQUAL( arr[4], *i );
   
     // try for mesh set
   found.clear();
@@ -949,7 +951,7 @@ void test_get_by_tag( )
   i = found.begin();
   CHECK_EQUAL( arr[0], *i ); ++i;
   CHECK_EQUAL( arr[1], *i ); ++i;
-  CHECK_EQUAL( arr[2], *i ); ++i;
+  CHECK_EQUAL( arr[2], *i );
 }
 
 void test_get_by_tag_value( )
@@ -1177,6 +1179,7 @@ static void test_delete_type_tag( TagType storage )
   const EntityHandle mesh = 0;
   value = 2;
   rval = mb.tag_set_data( tag, &mesh, 1, &value );
+  CHECK_ERR( rval );
   
     // delete tag
   rval = mb.tag_delete( tag );
@@ -1278,7 +1281,9 @@ void test_get_entity_tags()
   EntityHandle    bit_ents[4] = { bit_ent, sparse_bit_ent, dense_bit_ent, all_tag_ent };
   int values[4] = { -1, -2, -3, -4 };
   rval = mb.tag_set_data(  sparse, sparse_ents, 4, &values );
+  CHECK_ERR(rval);
   rval = mb.tag_set_data(   dense,  dense_ents, 4, &values );
+  CHECK_ERR(rval);
   for (int j = 0; j < 4; ++j) {
     unsigned char bitval = 0xF;
     rval = mb.tag_set_data( bit, bit_ents+j, 1, &bitval );

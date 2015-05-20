@@ -336,9 +336,7 @@ bool smooth_test(const std::string &filename, FBiGeom_Instance geom) {
  @li Load a mesh file
  */
 bool tags_test(FBiGeom_Instance geom) {
-   bool success = true;
-
-   success = tag_info_test(geom);
+   bool success = tag_info_test(geom);
    if (!success)
       return success;
 

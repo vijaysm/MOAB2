@@ -1109,7 +1109,7 @@ ErrorCode DualTool::construct_new_hyperplane(const int dim,
     
   result = mbImpl->tag_set_data(globalId_tag(), &new_hyperplane, 1, &id); RR;
   Tag hp_tag = (1 == dim ? dualCurve_tag() : dualSurface_tag());
-  result = mbImpl->tag_set_data(hp_tag, &new_hyperplane, 1, &new_hyperplane);
+  result = mbImpl->tag_set_data(hp_tag, &new_hyperplane, 1, &new_hyperplane); RR;
 
     // assign a category name to these sets
   static const char dual_category_names[2][CATEGORY_TAG_SIZE] = 
@@ -1694,9 +1694,11 @@ void DualTool::print_cell(EntityHandle cell)
   
   assert(num_connect < 20);
   result = mbImpl->tag_get_data(dualEntityTag, connect, num_connect, primals);
+  if (MB_SUCCESS != result) return;
   ids.resize(num_connect);
   result = mbImpl->tag_get_data(globalIdTag, primals, 
                              num_connect, &ids[0]);
+  if (MB_SUCCESS != result) return;
   for (int i = 0; i < num_connect; i++) {
     if (!first) std::cout << "-";
     EntityType this_type = mbImpl->type_from_handle(primals[i]);
@@ -2570,8 +2572,11 @@ ErrorCode DualTool::list_entities(const Range &entities) const
       EntityHandle chord = 0, sheet = 0;
       int id;
       result = mbImpl->tag_get_data(dualCurve_tag(), &(*iter), 1, &chord);
+      if (MB_SUCCESS != result) return result;
       result = mbImpl->tag_get_data(dualSurface_tag(), &(*iter), 1, &sheet);
+      if (MB_SUCCESS != result) return result;
       result = mbImpl->tag_get_data(globalId_tag(), &(*iter), 1, &id);
+      if (MB_SUCCESS != result) return result;
         
       if (0 != chord)
         std::cout << "(Dual chord " << id << ")" << std::endl;

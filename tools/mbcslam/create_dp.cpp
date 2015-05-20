@@ -20,11 +20,9 @@ int field_type = 1;
 
 ErrorCode add_field_value(Interface & mb)
 {
-  ErrorCode rval = MB_SUCCESS;
-
   Tag tagTracer = 0;
   std::string tag_name("Tracer");
-  rval = mb.tag_get_handle(tag_name.c_str(), 1, MB_TYPE_DOUBLE, tagTracer, MB_TAG_DENSE | MB_TAG_CREAT);
+  ErrorCode rval = mb.tag_get_handle(tag_name.c_str(), 1, MB_TYPE_DOUBLE, tagTracer, MB_TAG_DENSE | MB_TAG_CREAT);
   CHECK_ERR(rval);
 
   // tagElem is the average computed at each element, from nodal values

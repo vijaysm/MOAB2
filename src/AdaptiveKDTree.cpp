@@ -248,14 +248,13 @@ namespace moab {
     ErrorCode AdaptiveKDTree::init()
     {
       std::vector<Tag> ctl;
-      ErrorCode rval = MB_SUCCESS;
 
 #ifndef MB_AD_KD_TREE_USE_SINGLE_TAG
         // create two tags, one for axis direction and one for axis coordinate
       std::string n1(treeName), n2(treeName);
       n1 += "_coord";
       n2 += "_norm";
-      rval = make_tag(moab(), n1, MB_TAG_DENSE, MB_TYPE_DOUBLE, 1, 0, planeTag, ctl);
+      ErrorCode rval = make_tag(moab(), n1, MB_TAG_DENSE, MB_TYPE_DOUBLE, 1, 0, planeTag, ctl);
       if (MB_SUCCESS != rval) return rval;
       rval = make_tag(moab(), n2, MB_TAG_DENSE, MB_TYPE_INT, 1, 0, axisTag, ctl);
       if (MB_SUCCESS != rval) return rval;
@@ -263,11 +262,11 @@ namespace moab {
 #elif defined(MB_AD_KD_TREE_USE_TWO_DOUBLE_TAG)
         // create tag to hold two doubles, one for location and one for axis
       std::string double_tag_name = std::string(treeName) + std::string("_coord_norm");
-      rval = make_tag(moab(), double_tag_name, MB_TAG_DENSE, MB_TYPE_DOUBLE, 2, 0, planeTag, ctl);
+      ErrorCode rval = make_tag(moab(), double_tag_name, MB_TAG_DENSE, MB_TYPE_DOUBLE, 2, 0, planeTag, ctl);
       if (MB_SUCCESS != rval) return rval;
 #else
         // create opaque tag to hold struct Plane
-      rval = make_tag(moab(), tagname, MB_TAG_DENSE, MB_TYPE_OPAQUE, sizeof(Plane), 0, planeTag, ctl);
+      ErrorCode rval = make_tag(moab(), tagname, MB_TAG_DENSE, MB_TYPE_OPAQUE, sizeof(Plane), 0, planeTag, ctl);
       if (MB_SUCCESS != rval) return rval;
 
 #ifdef MOAB_HAVE_HDF5  

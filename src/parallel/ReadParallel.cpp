@@ -102,7 +102,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
   // Get partition tag value(s), if any, and whether they're to be
   // distributed or assigned
   std::vector<int> partition_tag_vals;
-  result = opts.get_ints_option("PARTITION_VAL", partition_tag_vals);
+  opts.get_ints_option("PARTITION_VAL", partition_tag_vals);
 
   // See if we need to report times
   bool cputime = false;
@@ -573,10 +573,9 @@ ErrorCode ReadParallel::delete_nonlocal_entities(std::string &ptag_name,
                                                  EntityHandle file_set)
 {
   Range partition_sets;
-  ErrorCode result = MB_SUCCESS;
 
   Tag ptag;
-  result = mbImpl->tag_get_handle(ptag_name.c_str(), 1, MB_TYPE_INTEGER, ptag);MB_CHK_SET_ERR(result, "Failed getting tag handle in delete_nonlocal_entities");
+  ErrorCode result = mbImpl->tag_get_handle(ptag_name.c_str(), 1, MB_TYPE_INTEGER, ptag);MB_CHK_SET_ERR(result, "Failed getting tag handle in delete_nonlocal_entities");
 
   result = mbImpl->get_entities_by_type_and_tag(file_set, MBENTITYSET,
                                                 &ptag, NULL, 1,
@@ -675,8 +674,6 @@ ErrorCode ReadParallel::create_partition_sets(std::string &ptag_name,
 
 ErrorCode ReadParallel::delete_nonlocal_entities(EntityHandle file_set) 
 {
-  ErrorCode result = MB_SUCCESS;
-
   // Get partition entities and ents related to/used by those
   // get ents in the partition
   ReadUtilIface *read_iface;
@@ -685,7 +682,7 @@ ErrorCode ReadParallel::delete_nonlocal_entities(EntityHandle file_set)
 
   myDebug.tprint(2, "Gathering related entities.\n");
 
-  result = read_iface->gather_related_ents(myPcomm->partition_sets(), partition_ents,
+  ErrorCode result = read_iface->gather_related_ents(myPcomm->partition_sets(), partition_ents,
                                            &file_set);MB_CHK_SET_ERR(result, "Failure gathering related entities");
 
   // Get pre-existing entities

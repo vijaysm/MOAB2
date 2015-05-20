@@ -686,12 +686,11 @@ namespace moab {
     return MB_FAILURE;
 #else
     // Pack entities to local buffer
-    ErrorCode result = MB_SUCCESS;
     int ind = get_buffers(to_proc);
     localOwnedBuffs[ind]->reset_ptr(sizeof(int));
 
     // Add vertices
-    result = add_verts(orig_ents);MB_CHK_SET_ERR(result, "Failed to add verts in send_entities");
+    ErrorCode result = add_verts(orig_ents);MB_CHK_SET_ERR(result, "Failed to add verts in send_entities");
 
     // Filter out entities already shared with destination
     Range tmp_range;
@@ -1687,7 +1686,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     else {
       Tag shp_tag, shps_tag, shh_tag, shhs_tag, pstat_tag;
       ErrorCode result = get_shared_proc_tags(shp_tag, shps_tag,
-                                              shh_tag, shhs_tag, pstat_tag);
+                                              shh_tag, shhs_tag, pstat_tag);MB_CHK_SET_ERR(result, "Failed to get shared proc tags");
 
       // Get single-proc destination handles and shared procs
       std::vector<int> sharing_procs(num_ents);
@@ -1772,7 +1771,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     else {
       Tag shp_tag, shps_tag, shh_tag, shhs_tag, pstat_tag;
       ErrorCode result = get_shared_proc_tags(shp_tag, shps_tag, 
-                                              shh_tag, shhs_tag, pstat_tag);
+                                              shh_tag, shhs_tag, pstat_tag);MB_CHK_SET_ERR(result, "Failed to get shared proc tags");
 
       // Get single-proc destination handles and shared procs
       std::vector<int> sharing_procs(from_range.size());
@@ -3873,12 +3872,19 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       MPE_Log_get_state_eventIDs(&RHANDLES_START, &RHANDLES_END);
       MPE_Log_get_state_eventIDs(&OWNED_START, &OWNED_END);
       success = MPE_Describe_state(IFACE_START, IFACE_END, "Resolve interface ents", "green");
+      assert(MPE_LOG_OK == success);
       success = MPE_Describe_state(GHOST_START, GHOST_END, "Exchange ghost ents", "red");
+      assert(MPE_LOG_OK == success);
       success = MPE_Describe_state(SHAREDV_START, SHAREDV_END, "Resolve interface vertices", "blue");
+      assert(MPE_LOG_OK == success);
       success = MPE_Describe_state(RESOLVE_START, RESOLVE_END, "Resolve shared ents", "purple");
+      assert(MPE_LOG_OK == success);
       success = MPE_Describe_state(ENTITIES_START, ENTITIES_END, "Exchange shared ents", "yellow");
+      assert(MPE_LOG_OK == success);
       success = MPE_Describe_state(RHANDLES_START, RHANDLES_END, "Remote handles", "cyan");
+      assert(MPE_LOG_OK == success);
       success = MPE_Describe_state(OWNED_START, OWNED_END, "Exchange owned ents", "black");
+      assert(MPE_LOG_OK == success);
     }
 #endif
   }
@@ -5418,7 +5424,8 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       else {
         MPI_Status mult_status[3*MAX_SHARING_PROCS];
         success = MPI_Waitall(3*buffProcs.size(), &recv_remoteh_reqs[0], mult_status);
-        success = MPI_Waitall(3*buffProcs.size(), &sendReqs[0], mult_status);
+        if (MPI_SUCCESS == success)
+          success = MPI_Waitall(3*buffProcs.size(), &sendReqs[0], mult_status);
       }
       if (MPI_SUCCESS != success) {
         MB_SET_ERR(MB_FAILURE, "Failed in waitall in ghost exchange");
@@ -6576,7 +6583,8 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       else {
         MPI_Status mult_status[3*MAX_SHARING_PROCS];
         success = MPI_Waitall(3*buffProcs.size(), &recv_remoteh_reqs[0], mult_status);
-        success = MPI_Waitall(3*buffProcs.size(), &sendReqs[0], mult_status);
+        if (MPI_SUCCESS == success)
+          success = MPI_Waitall(3*buffProcs.size(), &sendReqs[0], mult_status);
       }
       if (MPI_SUCCESS != success) {
         MB_SET_ERR(MB_FAILURE, "Failed in waitall in owned entity exchange");
@@ -8248,8 +8256,10 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     ((int*)senddata)[0] = (int) gather_ents.size();
     int* ptr_int = (int*)senddata + 1;
     rval = mbImpl->tag_get_data(id_tag, gather_ents, (void*)ptr_int);
+    if (rval != MB_SUCCESS) return rval;
     ptr_int = (int*)(senddata) + 1 + gather_ents.size();
     rval = mbImpl->tag_get_data(tag_handle, gather_ents, (void*)ptr_int);
+    if (rval != MB_SUCCESS) return rval;
     std::vector<int> displs(proc_config().proc_size(), 0);
     MPI_Gather(&sz_buffer, 1, MPI_INT, &displs[0], 1, MPI_INT, root_proc_rank, comm());
     std::vector<int> recvcnts(proc_config().proc_size(), 0);

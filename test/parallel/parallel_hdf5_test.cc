@@ -686,7 +686,7 @@ void test_var_length_parallel()
   CHECK_ERR(rval);
   
   // Read file.  We only reset and re-read the file on the
-  // root processsor.  All other processors keep the pre-write
+  // root processor.  All other processors keep the pre-write
   // mesh.  This allows many of the tests to be run on all
   // processors.  Running the tests on the pre-write mesh on
   // non-root processors allows us to verify that any problems
@@ -709,9 +709,11 @@ void test_var_length_parallel()
   CHECK_EQUAL( MB_VARIABLE_DATA_LENGTH, rval );
   TagType storage;
   rval = mb.tag_get_type( vartag, storage );
+  CHECK_ERR(rval);
   CHECK_EQUAL( MB_TAG_DENSE, storage );
   DataType type;
   rval = mb.tag_get_data_type( vartag, type);
+  CHECK_ERR(rval);
   CHECK_EQUAL( MB_TYPE_INTEGER, type );
   
   // get vertices

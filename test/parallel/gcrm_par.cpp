@@ -529,6 +529,7 @@ void gather_one_cell_var(int gather_set_rank)
                                 gather_set_cells[321], gather_set_cells[641]};
     double vorticity0_val[4 * layers];
     rval = mb.tag_get_data(vorticity_tag0, &cell_ents[0], 4, vorticity0_val);
+    CHECK_ERR(rval);
 
     // Only check first two layers
     // Layer 0
