@@ -3578,6 +3578,7 @@ public:
   OffsetHexCenterNodes(Interface* mb, double x, double y, double z)
       : gMB(mb)
     { 
+      mCoords[0] = 0.0; mCoords[1] = 0.0; mCoords[2] = 0.0;
       mOffset[0] = x; mOffset[1] = y; mOffset[2] = z; 
     }
     

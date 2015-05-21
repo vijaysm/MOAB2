@@ -103,7 +103,8 @@ DebugOutput::DebugOutput( const DebugOutput& copy )
   : linePfx(copy.linePfx), 
     outputImpl(copy.outputImpl),
     mpiRank(copy.mpiRank),
-    verbosityLimit(copy.verbosityLimit)
+    verbosityLimit(copy.verbosityLimit),
+    initTime(copy.initTime)
 {
   outputImpl->referenceCount++; 
   assert(outputImpl->referenceCount > 1); 
@@ -115,6 +116,7 @@ DebugOutput& DebugOutput::operator=( const DebugOutput& copy )
   outputImpl = copy.outputImpl;
   mpiRank = copy.mpiRank;
   verbosityLimit = copy.verbosityLimit;
+  initTime = copy.initTime;
   outputImpl->referenceCount++; 
   assert(outputImpl->referenceCount > 1); 
   return *this;

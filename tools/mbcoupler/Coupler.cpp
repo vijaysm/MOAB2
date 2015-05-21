@@ -32,7 +32,7 @@ Coupler::Coupler(Interface *impl,
                  int coupler_id,
                  bool init_tree,
                  int max_ent_dim)
-  : mbImpl(impl), myPc(pc), myId(coupler_id), numIts(3), max_dim(max_ent_dim)
+  : mbImpl(impl), myPc(pc), myId(coupler_id), numIts(3), max_dim(max_ent_dim), _ntot(0)
 {
   assert(NULL != impl && (pc || !local_elems.empty()));
 
