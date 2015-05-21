@@ -14,7 +14,7 @@
 namespace moab {
 
 
-Intx2MeshOnSphere::Intx2MeshOnSphere(Interface * mbimpl):Intx2Mesh(mbimpl)
+Intx2MeshOnSphere::Intx2MeshOnSphere(Interface * mbimpl):Intx2Mesh(mbimpl), plane(0), R(0.0)
 {
   // TODO Auto-generated constructor stub
 

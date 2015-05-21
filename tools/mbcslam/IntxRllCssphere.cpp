@@ -10,7 +10,7 @@
 
 namespace moab {
 
-IntxRllCssphere::IntxRllCssphere(Interface * mbimpl):Intx2Mesh(mbimpl) {
+IntxRllCssphere::IntxRllCssphere(Interface * mbimpl):Intx2Mesh(mbimpl), R(0.0), plane(0) {
   // TODO Auto-generated constructor stub
 
 }

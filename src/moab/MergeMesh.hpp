@@ -63,7 +63,7 @@ private:
 };
 
 inline MergeMesh::MergeMesh(Interface *impl, bool printErrorIn) :
-    mbImpl(impl), printError(printErrorIn)
+    mergeTol(0.0), mergeTolSq(0.0), mbImpl(impl), mbMergeTag(0), printError(printErrorIn)
 {
 }
 

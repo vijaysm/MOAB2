@@ -766,7 +766,7 @@ namespace Element {
                                            {0,1,0},
                                            {0,0,1}};
 
-  LinearTet::LinearTet() : Map(0) {
+  LinearTet::LinearTet() : Map(0), det_T(0.0), det_T_inverse(0.0) {
 
   }// LinearTet::LinearTet()
 

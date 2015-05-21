@@ -9,7 +9,7 @@
 namespace moab {
 
 struct BSPTreePoly::Vertex : public CartVect {
-  Vertex( const CartVect& v ) : CartVect(v), usePtr(0) 
+  Vertex( const CartVect& v ) : CartVect(v), usePtr(0), markVal(0)
 #ifdef DEBUG_IDS
   , id(nextID++)
 #endif  
