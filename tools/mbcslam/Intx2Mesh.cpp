@@ -19,19 +19,17 @@
 
 namespace moab {
 
-Intx2Mesh::Intx2Mesh(Interface * mbimpl): mb(mbimpl)
+Intx2Mesh::Intx2Mesh(Interface * mbimpl): mb(mbimpl),
+  mbs1(0), mbs2(0), outSet(0),
+  RedFlagTag(0), redParentTag(0), blueParentTag(0), countTag(0),
+  redConn(NULL), blueConn(NULL),
+  dbg_1(0), epsilon_1(0.0), epsilon_area(0.0), box_error(0.0),
+  localRoot(0), my_rank(0)
 #ifdef MOAB_HAVE_MPI
    , parcomm(NULL), remote_cells(NULL), remote_cells_with_tracers(NULL)
 #endif
+  , max_edges(0), counting(0)
 {
-  dbg_1=0;
-  box_error=0;
-  my_rank=0;
-  RedFlagTag=0;
-  redParentTag =0;
-  blueParentTag = 0;
-  countTag = 0;
-  counting = 0;
 }
 
 Intx2Mesh::~Intx2Mesh()
