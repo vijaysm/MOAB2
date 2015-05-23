@@ -254,6 +254,7 @@ ErrorCode time_integrate(Interface *mbi, int method, Tag tag, Range &elems, doub
     }
   }
   inttime = mytime() - inttime;
+  std::cout << "integral = " << integral << std::endl;
   return MB_SUCCESS;
 }
 

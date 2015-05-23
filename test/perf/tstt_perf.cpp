@@ -233,7 +233,7 @@ void testC(TSTTM::Mesh &mesh,
 
     // array to hold vertices created individually
   sidl::array<Entity_Handle> sidl_vertices;
-  int sidl_vertices_size = num_verts;
+  //int sidl_vertices_size = num_verts;
   CHECK_SIZE(sidl_vertices, num_verts);
 
     // temporary array to hold vertex positions for single vertex
@@ -576,7 +576,7 @@ void build_coords(const int nelem, sidl::array<double> &coords)
   for (int i=1; i < nelem; i++) {
     for (int j=1; j < nelem; j++) {
       for (int k=1; k < nelem; k++) {
-        idx = VINDEX(i,j,k);
+        //idx = VINDEX(i,j,k);
         double tse = i*scale1;
         double ada = j*scale2;
         double gamma = k*scale3;

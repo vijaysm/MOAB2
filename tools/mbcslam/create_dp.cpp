@@ -169,7 +169,7 @@ ErrorCode add_field_value(Interface & mb)
 
       // we should have used some
       // total mass:
-      local_mass += *ptrArea * average;
+      //local_mass += *ptrArea * average;
     }
 
   }

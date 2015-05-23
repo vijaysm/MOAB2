@@ -540,7 +540,7 @@ bool gentityset_test(FBiGeom_Instance geom, bool /*multiset*/, bool /*ordered*/)
    int num_type = 4;
    iBase_EntitySetHandle ges_array[4];
    int number_array[4];
-   int num_all_gentities_super = 0;
+   //int num_all_gentities_super = 0;
    int ent_type = iBase_VERTEX;
 
    int err;
@@ -583,7 +583,7 @@ bool gentityset_test(FBiGeom_Instance geom, bool /*multiset*/, bool /*ordered*/)
       }
 
       // add to number of all entities in super set
-      num_all_gentities_super += num_type_gentity;
+      //num_all_gentities_super += num_type_gentity;
    }
 
    // make a super set having all entitysets

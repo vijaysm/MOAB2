@@ -373,8 +373,10 @@ ErrorCode SparseTag::tag_iterate(SequenceManager* seqman,
   rval = get_data_ptr(*iter, ptr);
   if (MB_SUCCESS == rval) 
     data_ptr = const_cast<void*>(ptr);
-  else if (get_default_value() && allocate)
+  else if (get_default_value() && allocate) {
     ptr = allocate_data(*iter, mData.end());
+    data_ptr = const_cast<void*>(ptr);
+  }
   else {
     // If allocation was not requested, need to increment the iterator so that
     // the count can be computed properly
