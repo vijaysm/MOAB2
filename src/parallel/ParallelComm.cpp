@@ -335,6 +335,7 @@ namespace moab {
 
       // mpi not initialized yet - initialize here
       retval = MPI_Init(&argc, &argv);
+      assert(MPI_SUCCESS == retval);
     }
 
     // Reserve space for vectors
@@ -1266,7 +1267,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     result = unpack_tags(buff_ptr, new_ents, store_remote_handles, from_proc);MB_CHK_SET_ERR(result, "Unpacking tags failed");
     if (myDebug->get_verbosity() == 3) {
       myDebug->tprintf(4, "unpack_tags buffer space: %ld bytes.\n", (long int)(buff_ptr - tmp_buff));
-      tmp_buff = buff_ptr;
+      //tmp_buff = buff_ptr;
     }
 
     if (myDebug->get_verbosity() == 3)
