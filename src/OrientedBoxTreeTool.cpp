@@ -2198,12 +2198,12 @@ ErrorCode OrientedBoxTreeTool::stats( EntityHandle set,
   unsigned min_leaf_depth = tree_height;
   num_leaves = 0;
   unsigned max_leaf_per_depth = 0;
-  double sum_leaf_depth = 0, sqr_leaf_depth = 0;
+  //double sum_leaf_depth = 0, sqr_leaf_depth = 0;
   for (i = 0; i < d.leaf_depth.size(); ++i) {
     unsigned val = d.leaf_depth[i];
     num_leaves += val;
-    sum_leaf_depth += (double)val*i;
-    sqr_leaf_depth += (double)val*i*i;
+    //sum_leaf_depth += (double)val*i;
+    //sqr_leaf_depth += (double)val*i*i;
     if (val && i < min_leaf_depth)
       min_leaf_depth = i;
     if (max_leaf_per_depth < val)

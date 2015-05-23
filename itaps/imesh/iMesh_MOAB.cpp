@@ -289,6 +289,7 @@ extern "C" {
 
           // mpi not initialized yet - initialize here
         retval = MPI_Init(&argc, &argv);
+        assert(MPI_SUCCESS == retval);
       }
       *mbi = new MBiMesh(NULL);
 #else

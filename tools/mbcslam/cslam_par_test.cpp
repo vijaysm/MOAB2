@@ -214,7 +214,7 @@ void test_intx_in_parallel_elem_based()
 
   //std::string opts_write("PARALLEL=WRITE_PART");
   //rval = mb.write_file("manuf.h5m", 0, opts_write.c_str(), &outputSet, 1);
-  std::string opts_write("");
+  //std::string opts_write("");
   std::stringstream outf;
   outf<<"intersect" << rank<<".h5m";
   rval = mb.write_file(outf.str().c_str(), 0, 0, &outputSet, 1);

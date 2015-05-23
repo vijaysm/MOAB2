@@ -183,7 +183,7 @@ void build_coords(const int nelem, double *&coords)
   for (int i=1; i < nelem; i++) {
     for (int j=1; j < nelem; j++) {
       for (int k=1; k < nelem; k++) {
-        idx = VINDEX(i,j,k);
+        //idx = VINDEX(i,j,k);
         double tse = i*scale1;
         double ada = j*scale2;
         double gamma = k*scale3;

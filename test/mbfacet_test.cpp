@@ -201,7 +201,7 @@ ErrorCode gentityset_test(FBEngine * pFacet)
   int num_type = 4;
   EntityHandle ges_array[4];
   int number_array[4];
-  int num_all_gentities_super = 0;
+  //int num_all_gentities_super = 0;
   int ent_type = 0; // iBase_VERTEX;
 
   EntityHandle root_set;
@@ -243,7 +243,7 @@ ErrorCode gentityset_test(FBEngine * pFacet)
     }
 
     // add to number of all entities in super set
-    num_all_gentities_super += num_type_gentity;
+    //num_all_gentities_super += num_type_gentity;
   }
 
   // make a super set having all entitysets

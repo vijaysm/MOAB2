@@ -2063,7 +2063,6 @@ namespace moab {
       while (MB_SUCCESS == iter.step()) {
         int temp = 0;
         moab()->get_number_entities_by_handle( iter.handle(), temp);
-        num_of_elements += temp;
         max = std::max( max, temp);
         min = std::min( min, temp);
         if (iter.depth() > max_depth)

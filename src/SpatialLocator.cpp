@@ -417,7 +417,7 @@ namespace moab
 
     ErrorCode SpatialLocator::locate_points(const double *pos, int num_points,
                                             EntityHandle *ents, double *params, int *is_inside,
-                                            const double rel_iter_tol, const double abs_iter_tol, 
+                                            const double /* rel_iter_tol */, const double abs_iter_tol,
                                             const double inside_tol)
     {
       bool i_initialized = false;
@@ -427,11 +427,13 @@ namespace moab
         i_initialized = true;
       }
 
+      /*
       double tmp_abs_iter_tol = abs_iter_tol;
       if (rel_iter_tol && !tmp_abs_iter_tol) {
           // relative epsilon given, translate to absolute epsilon using box dimensions
         tmp_abs_iter_tol = rel_iter_tol * localBox.diagonal_length();
       }
+      */
 
       if (elemEval && myTree->get_eval() != elemEval)
         myTree->set_eval(elemEval);
