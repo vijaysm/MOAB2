@@ -1957,7 +1957,7 @@ ErrorCode DrawDual::label_other_sheets(EntityHandle dual_surf,
       continue;
     }
     
-    int edge_vtk_vs[2];
+    //int edge_vtk_vs[2];
     GVEntity *gv_verts[2];
     const EntityHandle *edge_vs;
     int num_edge_vs;
@@ -1978,7 +1978,7 @@ ErrorCode DrawDual::label_other_sheets(EntityHandle dual_surf,
       for (int i = 0; i < 2; i++) {
         index = gv_verts[i]->get_index(dual_surf);
         assert(index >= 0 && NULL != gv_verts[i]->gvizPoints[index]);
-        edge_vtk_vs[i] = gv_verts[i]->vtkEntityIds[index];
+        //edge_vtk_vs[i] = gv_verts[i]->vtkEntityIds[index];
 
           // look for loop points, and add label if there are any
         if (dverts_loop.find(edge_vs[i]) != dverts_loop.end()) {

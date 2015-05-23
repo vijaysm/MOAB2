@@ -213,6 +213,7 @@ int main(int argc, char **argv)
   delete mbImpl;
   
   ierr = MPI_Finalize();
+  assert(MPI_SUCCESS == ierr);
   return 0;
 }
 

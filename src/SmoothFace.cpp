@@ -436,10 +436,10 @@ ErrorCode SmoothFace::init_edge_control_points(CartVect &P0, CartVect &P3,
       / 18.0e0));
   Vi[2] = Vi[3] - (di * (((6.0e0 * T3) + (row * N0) - ((2.0e0 * omega) * N3))
       / 18.0e0));
-  CartVect Wi[3];
-  Wi[0] = Vi[1] - Vi[0];
-  Wi[1] = Vi[2] - Vi[1];
-  Wi[2] = Vi[3] - Vi[2];
+  //CartVect Wi[3];
+  //Wi[0] = Vi[1] - Vi[0];
+  //Wi[1] = Vi[2] - Vi[1];
+  //Wi[2] = Vi[3] - Vi[2];
 
   Pi[0] = 0.25 * Vi[0] + 0.75 * Vi[1];
   Pi[1] = 0.50 * Vi[1] + 0.50 * Vi[2];
@@ -1870,54 +1870,54 @@ ErrorCode SmoothFace::eval_bezier_patch_normal(EntityHandle facet,
   normal = CartVect(0.0e0, 0.0e0, 0.0e0);
 
   //i=3; j=0; k=0;
-  double Bsum = 0.0;
+  //double Bsum = 0.0;
   double B = cube(areacoord[0]);
-  Bsum += B;
+  //Bsum += B;
   normal += B * Nijk[0];
 
   //i=2; j=1; k=0;
   B = 3.0 * sqr(areacoord[0]) * areacoord[1];
-  Bsum += B;
+  //Bsum += B;
   normal += B * Nijk[1];
 
   //i=1; j=2; k=0;
   B = 3.0 * areacoord[0] * sqr(areacoord[1]);
-  Bsum += B;
+  //Bsum += B;
   normal += B * Nijk[2];
 
   //i=0; j=3; k=0;
   B = cube(areacoord[1]);
-  Bsum += B;
+  //Bsum += B;
   normal += B * Nijk[3];
 
   //i=2; j=0; k=1;
   B = 3.0 * sqr(areacoord[0]) * areacoord[2];
-  Bsum += B;
+  //Bsum += B;
   normal += B * Nijk[4];
 
   //i=1; j=1; k=1;
   B = 6.0 * areacoord[0] * areacoord[1] * areacoord[2];
-  Bsum += B;
+  //Bsum += B;
   normal += B * Nijk[5];
 
   //i=0; j=2; k=1;
   B = 3.0 * sqr(areacoord[1]) * areacoord[2];
-  Bsum += B;
+  //Bsum += B;
   normal += B * Nijk[6];
 
   //i=1; j=0; k=2;
   B = 3.0 * areacoord[0] * sqr(areacoord[2]);
-  Bsum += B;
+  //Bsum += B;
   normal += B * Nijk[7];
 
   //i=0; j=1; k=2;
   B = 3.0 * areacoord[1] * sqr(areacoord[2]);
-  Bsum += B;
+  //Bsum += B;
   normal += B * Nijk[8];
 
   //i=0; j=0; k=3;
   B = cube(areacoord[2]);
-  Bsum += B;
+  //Bsum += B;
   normal += B * Nijk[9];
 
   //assert(fabs(Bsum - 1.0) < 1e-9);
