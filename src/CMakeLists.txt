@@ -5,6 +5,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}
                     io io/mhdf
                     ${MOAB_BINARY_DIR}/src/parallel )
 
+add_subdirectory(verdict)
 if(MOAB_HAVE_MPI AND MPI_FOUND)
   add_subdirectory(parallel)
   set( MOAB_MPI moabpar )
@@ -219,6 +220,7 @@ endif()
 add_library( MOAB ${MOAB_LIB_SOURCES} ${MOAB_INSTALL_HEADERS} ${MOAB_GENERATED_INSTALL_HEADERS}
                   $<TARGET_OBJECTS:moabio>
                   $<TARGET_OBJECTS:moab_loc_discr>
+                  $<TARGET_OBJECTS:moabverdict>
                   ${MOABPAR_OBJECTS}
                   ${MDHF_OBJ} )
 
