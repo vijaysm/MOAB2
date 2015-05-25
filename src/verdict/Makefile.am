@@ -36,8 +36,8 @@ nobase_libmoabverdict_la_include_HEADERS = \
 AM_CPPFLAGS += -DIS_BUILDING_MB -DSRCDIR=$(srcdir) \
                -I$(srcdir)/.. -I..
 
-check_PROGRAMS = verdict_test
+check_PROGRAMS = verdict_unit_test
 
-verdict_test_SOURCES = verdict_test.cpp
-verdict_test_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_srcdir)/src
-verdict_test_LDFLAGS = libmoabverdict.la $(top_builddir)/src/libMOAB.la
+verdict_unit_test_SOURCES = verdict_unit_test.cpp
+verdict_unit_test_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_srcdir)/src
+verdict_unit_test_LDFLAGS = libmoabverdict.la $(top_builddir)/src/libMOAB.la
