@@ -95,7 +95,7 @@ endif()
 
 add_executable( var_len_test_no_template VarLenTagTest.cpp )
 set_source_files_properties( ${CMAKE_SOURCE_DIR}/src/VarLenTagTest.cpp
-                             COMPILE_FLAGS "-UTEMPLATE_SPECIALIZATION ${MOAB_DEFINES}" )
+  COMPILE_FLAGS "-DMOAB_TEMPLATE_SPECIALIZATION ${MOAB_DEFINES}" )
 target_link_libraries( var_len_test_no_template MOAB )
 add_test( var_len_test_no_template ${EXECUTABLE_OUTPUT_PATH}/var_len_test_no_template )
 
@@ -103,7 +103,7 @@ add_executable( mbcn_test ${CMAKE_SOURCE_DIR}/src/moab/CN.hpp
                           ${CMAKE_SOURCE_DIR}/src/CN.cpp
                           mbcn_test.cc )
 set_target_properties( mbcn_test PROPERTIES 
-                       COMPILE_FLAGS "-UTEMPLATE_SPECIALIZATION ${MOAB_DEFINES}" )
+  COMPILE_FLAGS "-DMOAB_TEMPLATE_SPECIALIZATION ${MOAB_DEFINES}" )
 target_link_libraries( mbcn_test MOAB )
 add_test( mbcn_test ${EXECUTABLE_OUTPUT_PATH}/mbcn_test )
 

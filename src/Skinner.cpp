@@ -1151,7 +1151,7 @@ ErrorCode Skinner::find_skin_vertices_1D( Tag tag,
     tag_vals.resize( adj.size() );
     rval = thisMB->tag_get_data( tag, &adj[0], adj.size(), &tag_vals[0] );
     if (MB_SUCCESS != rval) return rval;
-#ifdef OLD_STD_COUNT
+#ifdef MOAB_OLD_STD_COUNT
     n = 0;
     std::count( tag_vals.begin(), tag_vals.end(), '\001', n );
 #else
