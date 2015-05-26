@@ -587,7 +587,7 @@ namespace moab {
   /******************************************************** 
   * 1D: sibhvs, v2hv, incident and neighborhood queries   *
   *********************************************************/
-  ErrorCode HalfFacetRep::determine_sibling_halfverts( Range verts, Range &edges)
+  ErrorCode HalfFacetRep::determine_sibling_halfverts(Range &verts, Range &edges)
   {
     ErrorCode error;
 
@@ -597,7 +597,6 @@ namespace moab {
     for (int i =0; i<nv+1; i++)
       is_index[i] = 0;
 
-    //std::vector<EntityHandle> conn(2);
     for (Range::iterator eid = edges.begin(); eid != edges.end(); ++eid)
       {
         const EntityHandle* conn;
@@ -2442,8 +2441,7 @@ namespace moab {
 
     if (type == MBEDGE)
       {
-        if (num_halffacets != 2)
-          MB_SET_ERR(MB_FAILURE, "Incorrect number of halfvertices.");
+        if (num_halffacets != 2)  MB_SET_ERR(MB_FAILURE, "Incorrect number of halfvertices.");
 
         int eidx = ID_FROM_HANDLE(ent)-1;
         for (int i=0; i<2; i++)
@@ -2457,8 +2455,7 @@ namespace moab {
       {
        int nepf = lConnMap2D[type-2].num_verts_in_face;
 
-       if(num_halffacets != nepf)
-         MB_SET_ERR(MB_FAILURE, "Incorrect number of halfedges.");
+       if(num_halffacets != nepf) MB_SET_ERR(MB_FAILURE, "Incorrect number of halfedges.");
 
        int fidx = ID_FROM_HANDLE(ent)-1;
         for (int i=0; i<nepf; i++)
@@ -2473,8 +2470,7 @@ namespace moab {
         int idx = get_index_in_lmap(*_cells.begin());
         int nfpc = lConnMap3D[idx].num_faces_in_cell;
 
-        if(num_halffacets != nfpc)
-          MB_SET_ERR(MB_FAILURE, "Incorrect number of halffaces.");
+        if(num_halffacets != nfpc) MB_SET_ERR(MB_FAILURE, "Incorrect number of halffaces.");
 
         int cidx = ID_FROM_HANDLE(ent)-1;
         for (int i=0; i<nfpc; i++)
@@ -2523,8 +2519,7 @@ namespace moab {
 
     if (type == MBEDGE)
       {
-        if (num_halffacets != 2)
-          MB_SET_ERR(MB_FAILURE, "Incorrect number of halfvertices");
+        if (num_halffacets != 2) MB_SET_ERR(MB_FAILURE, "Incorrect number of halfvertices");
 
         int eidx = ID_FROM_HANDLE(ent)-1;
         for (int i=0; i<2; i++)
@@ -2535,8 +2530,7 @@ namespace moab {
     else if (type == MBTRI || type == MBQUAD)
       {
         int nepf = lConnMap2D[type-2].num_verts_in_face;
-        if (num_halffacets != nepf)
-          MB_SET_ERR(MB_FAILURE, "Incorrect number of halfedges.");
+        if (num_halffacets != nepf) MB_SET_ERR(MB_FAILURE, "Incorrect number of halfedges.");
 
         int fidx = ID_FROM_HANDLE(ent)-1;
          for (int i=0; i<nepf; i++)
@@ -2548,8 +2542,7 @@ namespace moab {
       {
         int idx = get_index_in_lmap(*_cells.begin());
         int nfpc = lConnMap3D[idx].num_faces_in_cell;
-        if (num_halffacets != nfpc)
-            MB_SET_ERR(MB_FAILURE, "Incorrect number of halffaces.");
+        if (num_halffacets != nfpc) MB_SET_ERR(MB_FAILURE, "Incorrect number of halffaces.");
 
         int cidx = ID_FROM_HANDLE(ent)-1;
         for (int i=0; i<nfpc; i++)
