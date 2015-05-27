@@ -93,6 +93,7 @@ int main(int argc, char **argv)
   bool keep_skins = false;
   bool tetra = false;
   bool adjEnts = false;
+  bool readb = false;
 
   MPI_Init(&argc, &argv);
 
@@ -141,6 +142,8 @@ int main(int argc, char **argv)
 
   string outFileName = "GenLargeMesh.h5m";
   opts.addOpt<string>("outFile,o", "Specify the output file name string (default GenLargeMesh.h5m)", &outFileName);
+
+  opts.addOpt<void>("readback,r", "read back the generated mesh", &readb);
 
   opts.parseCommandLine(argc, argv);
 
@@ -542,6 +545,20 @@ int main(int argc, char **argv)
          << (clock() - tt) / (double)CLOCKS_PER_SEC << " seconds" << endl;
     tt = clock();
   }
+
+  mb->delete_mesh();
+
+  if (readb)
+  {
+    rval = mb->load_file(outFileName.c_str(), 0,
+        "PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS");MB_CHK_SET_ERR(rval, "Can't read in parallel");
+    if (0 == rank) {
+      cout << "read back file " << outFileName << " in "
+           << (clock() - tt) / (double)CLOCKS_PER_SEC << " seconds" << endl;
+      tt = clock();
+    }
+  }
+
 
   MPI_Finalize();
 
