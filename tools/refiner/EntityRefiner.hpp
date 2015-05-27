@@ -92,6 +92,7 @@ public:
   EntityHandle operator () ( EntityHandle h0, EntityHandle h1, const double* vcoords, const void* vtags )
     {
     EntityHandle harr[2];
+    // Cppcheck warning (false positive): variable harr is assigned a value that is never used
     harr[0] = h0;
     harr[1] = h1;
     return (*this)( 2, harr, vcoords, vtags );
@@ -108,6 +109,7 @@ public:
   virtual EntityHandle operator () ( EntityHandle h0, EntityHandle h1, EntityHandle h2, const double* vcoords, const void* vtags )
     {
     EntityHandle harr[3];
+    // Cppcheck warning (false positive): variable harr is assigned a value that is never used
     harr[0] = h0;
     harr[1] = h1;
     harr[2] = h2;

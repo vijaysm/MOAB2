@@ -1129,6 +1129,7 @@ ErrorCode create_span_quads(Interface * mb, EntityHandle euler_set, int rank) {
   if (MB_SUCCESS != rval)
     return rval;
   // fill it up
+  // Cppcheck warning (false positive): variable coords is assigned a value that is never used
   for (int i = 0; i < num_verts; i++) {
     // block from interleaved
     coords[0][i] = dep_points[3 * i];
@@ -1894,6 +1895,7 @@ ErrorCode deep_copy_set_with_quads(Interface * mb, EntityHandle source_set,
     rval = mb->tag_get_data(gid, &oldV, 1, &global_id);
     CHECK_ERR(rval);
     EntityHandle new_vert = start_vert + i;
+    // Cppcheck warning (false positive): variable coords is assigned a value that is never used
     coords[0][i] = posi[0];
     coords[1][i] = posi[1];
     coords[2][i] = posi[2];
