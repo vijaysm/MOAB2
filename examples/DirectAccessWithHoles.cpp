@@ -219,6 +219,7 @@ ErrorCode create_mesh_with_holes(Interface *mbImpl, int nquads, int nholes)
     for (int j = 0; j < 4; j++) connect[4*i + j] = quad_v + j; // Connectivity of each quad is a sequence starting from quad_v
   }
   // Last two vertices
+  // Cppcheck warning (false positive): variable coords is assigned a value that is never used
   coords[0][2*nquads] = coords[0][2*nquads + 1] = (double) nquads;
   coords[1][2*nquads] = 0.0; coords[1][2*nquads + 1] = 1.0; // y coords
   coords[2][2*nquads] = coords[2][2*nquads + 1] = (double) 0.0; // z values, all zero (2d mesh)

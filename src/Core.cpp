@@ -2694,6 +2694,7 @@ ErrorCode Core::create_vertices(const double *coordinates,
   result = read_iface->get_node_coords( 3, nverts, MB_START_ID,
                                         start_handle_out, arrays);
   Interface::release_interface(read_iface);MB_CHK_ERR(result);
+  // Cppcheck warning (false positive): variable arrays is assigned a value that is never used
   for (int i = 0; i < nverts; i++) {
     arrays[0][i] = coordinates[3*i];
     arrays[1][i] = coordinates[3*i+1];

@@ -133,7 +133,7 @@ ErrorCode add_field_value(Interface & mb)
 
 
   Range::iterator iter = polygons.begin();
-  double local_mass = 0.; // this is total mass on one proc
+  //double local_mass = 0.; // this is total mass on one proc
   while (iter != polygons.end())
   {
     rval = mb.tag_iterate(tagElem, iter, polygons.end(), count, data);

@@ -58,10 +58,12 @@ int main(int argc, char **argv)
 
   // 1. Decide what the local parameters of the mesh will be, based on parallel/serial and rank.
   int ilow = 0, ihigh = N;
-  int rank = 0, nprocs = 1;
 #ifdef MOAB_HAVE_MPI
+  int rank = 0, nprocs = 1;
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs); MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   ilow = rank*N; ihigh = ilow + N;
+#else
+  int rank = 0;
 #endif  
 
   // 2. Create a N^d structured mesh, which includes (N+1)^d vertices and N^d elements.
