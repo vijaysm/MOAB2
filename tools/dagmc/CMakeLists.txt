@@ -27,6 +27,7 @@ add_executable( dagmc_preproc dagmc_preproc.cpp
                               obb_analysis.cpp 
                               dagmc_preproc.hpp )
 target_link_libraries( dagmc_preproc MOAB dagmc )
+set( MOAB_HAVE_DAGMC 1 )
 install(TARGETS dagmc_preproc RUNTIME DESTINATION bin
                               LIBRARY DESTINATION lib
                               ARCHIVE DESTINATION lib )
@@ -38,7 +39,7 @@ if ( MOAB_ENABLE_TESTING )
   add_test( test_geom ${EXECUTABLE_OUTPUT_PATH}/test_geom )
 endif()
 
-if ( MOAB_USE_CGM )
+if ( MOAB_HAVE_CGM )
   target_link_libraries( dagmc ${CGM_LIBRARIES} )
   target_link_libraries( test_geom ${CGM_LIBRARIES} )
   option ( MOAB_BUILD_CGM2MOAB    "Build cgm2moab?"  OFF )

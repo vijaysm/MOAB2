@@ -36,7 +36,7 @@
 #include "MBTagConventions.hpp"
 #include "moab/CN.hpp"
 
-#ifdef CGM
+#ifdef MOAB_HAVE_CGM
 #include <limits>
 #include "RefEntity.hpp"
 #include "RefFace.hpp"
@@ -70,7 +70,7 @@ ZoltanPartitioner::ZoltanPartitioner( Interface *impl,
                     const bool use_coords,
                     int argc,
                     char **argv
-#ifdef CGM
+#ifdef MOAB_HAVE_CGM
                     , GeometryQueryTool *gqt
 #endif
 )
@@ -81,7 +81,7 @@ ZoltanPartitioner::ZoltanPartitioner( Interface *impl,
                      useCoords(use_coords),
                      argcArg(argc),
                      argvArg(argv)
-#ifdef CGM
+#ifdef MOAB_HAVE_CGM
                    , gti(gqt)
 #endif
 {
@@ -362,7 +362,7 @@ ErrorCode ZoltanPartitioner::partition_mesh_geom(const double part_geom_mesh_siz
                                         const int part_dim,
                                         const int obj_weight,
                                         const int edge_weight,
-#ifdef CGM
+#ifdef MOAB_HAVE_CGM
                                         const bool part_surf,
                                         const bool ghost,
 #else
@@ -398,7 +398,7 @@ ErrorCode ZoltanPartitioner::partition_mesh_geom(const double part_geom_mesh_siz
   std::vector<int> adjs, length, parts;
   std::vector<double> obj_weights, edge_weights;
   Range elems;
-#ifdef CGM
+#ifdef MOAB_HAVE_CGM
   DLIList<RefEntity*> entities;
 #endif
 
@@ -428,7 +428,7 @@ ErrorCode ZoltanPartitioner::partition_mesh_geom(const double part_geom_mesh_siz
                                write_as_sets, write_as_tags); RR;
     }
     else {
-#ifdef CGM
+#ifdef MOAB_HAVE_CGM
       result = partition_round_robin(nparts); RR;
 #endif
     }
@@ -444,7 +444,7 @@ ErrorCode ZoltanPartitioner::partition_mesh_geom(const double part_geom_mesh_siz
            spherical_coords); RR;
   }
   else {
-#ifdef CGM
+#ifdef MOAB_HAVE_CGM
     result = assemble_graph(part_dim, pts, ids, adjs, length, obj_weights,
                             edge_weights, parts, entities,
                             part_geom_mesh_size, nparts); RR;
@@ -601,7 +601,7 @@ ErrorCode ZoltanPartitioner::partition_mesh_geom(const double part_geom_mesh_siz
                              write_as_sets, write_as_tags);
   }
   else {
-#ifdef CGM
+#ifdef MOAB_HAVE_CGM
     result = write_partition(nparts, entities, assign_parts,
                              obj_weights, part_surf, ghost);
 #endif
@@ -780,7 +780,7 @@ ErrorCode ZoltanPartitioner::assemble_graph(const int dimension,
   return MB_SUCCESS;
 }
 
-#ifdef CGM
+#ifdef MOAB_HAVE_CGM
 ErrorCode ZoltanPartitioner::assemble_graph(const int /* dimension */,
                                    std::vector<double> & /* coords */,
                                    std::vector<int> &moab_ids,

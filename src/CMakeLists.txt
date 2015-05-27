@@ -5,7 +5,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}
                     io io/mhdf
                     ${MOAB_BINARY_DIR}/src/parallel )
 
-if(MOAB_USE_MPI AND MPI_FOUND)
+if(MOAB_HAVE_MPI AND MPI_FOUND)
   add_subdirectory(parallel)
   set( MOAB_MPI moabpar )
   set( MOABPAR_OBJECTS $<TARGET_OBJECTS:moabpar> )
@@ -31,7 +31,7 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/moab/Version.h.cmake.in "${CMAKE_CURR
 set(moab_link_lib)
 add_subdirectory(io)
 add_subdirectory(LocalDiscretization)
-add_subdirectory(oldinc)
+# add_subdirectory(oldinc)
 
 ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/MBCN_protos.h
@@ -43,17 +43,17 @@ ADD_CUSTOM_COMMAND(
           -P ${CMAKE_SOURCE_DIR}/config/ITAPSFortranMangling.cmake
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/MBCN.h )
 
-if( MOAB_USE_HDF )
+if( MOAB_HAVE_HDF5 )
   include_directories(${HDF5_INCLUDES})
   set( MOAB_HDF_LIBS ${HDF5_LIBRARIES} )
 endif()
-if( MOAB_USE_NETCDF )
-  include_directories(${NetCDF_INCLUDES})
-  if ( MOAB_USE_MPI )
-    set( MOAB_NETCDF_LIBS ${PNetCDF_LIBRARIES} ${NetCDF_LIBRARIES} )
-  else ( MOAB_USE_MPI )
-    set( MOAB_NETCDF_LIBS ${NetCDF_LIBRARIES} )
-  endif ( MOAB_USE_MPI )
+if( MOAB_HAVE_NETCDF )
+  include_directories(${NETCDF_INCLUDES})
+  if ( MOAB_HAVE_MPI )
+    set( MOAB_NETCDF_LIBS ${PNETCDF_LIBRARIES} ${NETCDF_LIBRARIES} )
+  else ( MOAB_HAVE_MPI )
+    set( MOAB_NETCDF_LIBS ${NETCDF_LIBRARIES} )
+  endif ( MOAB_HAVE_MPI )
 endif()
 
 set(MOAB_LIB_SOURCES
@@ -200,19 +200,21 @@ set( MOAB_INSTALL_HEADERS
 set( MOAB_GENERATED_INSTALL_HEADERS
      ${CMAKE_CURRENT_BINARY_DIR}/MOAB_FCDefs.h
      ${CMAKE_CURRENT_BINARY_DIR}/MBCN_protos.h
-     ${CMAKE_CURRENT_BINARY_DIR}/moab/EntityHandle.hpp )
+     ${CMAKE_CURRENT_BINARY_DIR}/moab/EntityHandle.hpp
+     ${CMAKE_CURRENT_BINARY_DIR}/moab/MOABConfig.h
+  )
 
-if( CGM_FOUND )
+if( MOAB_HAVE_CGM )
   set( MOAB_CGM_LIBS ${CGM_LIBRARIES} )
 endif()
 
-if (MOAB_USE_ZOLTAN)
+if (MOAB_HAVE_ZOLTAN)
   set( MOAB_LIB_SOURCES ${MOAB_LIB_SOURCES}
           ZoltanPartitioner.cpp )
   set( MOAB_INSTALL_HEADERS ${MOAB_INSTALL_HEADERS}
           moab/ZoltanPartitioner.hpp )
-  include_directories( ${Zoltan_INCLUDES} )
-  list(APPEND MOAB_DEP_LIBRARIES ${Zoltan_LIBRARIES})
+  include_directories( ${ZOLTAN_INCLUDES} )
+  list(APPEND MOAB_DEP_LIBRARIES ${ZOLTAN_LIBRARIES})
 endif()
 add_library( MOAB ${MOAB_LIB_SOURCES} ${MOAB_INSTALL_HEADERS} ${MOAB_GENERATED_INSTALL_HEADERS}
                   $<TARGET_OBJECTS:moabio>

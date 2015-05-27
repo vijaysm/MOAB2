@@ -5,9 +5,9 @@
  */
 
 #include "Intx2Mesh.hpp"
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab/ParallelComm.hpp"
-#endif /* USE_MPI */
+#endif /* MOAB_HAVE_MPI */
 #include "moab/AdaptiveKDTree.hpp"
 #include "MBParallelConventions.h"
 #include "MBTagConventions.hpp"
@@ -20,7 +20,7 @@
 namespace moab {
 
 Intx2Mesh::Intx2Mesh(Interface * mbimpl): mb(mbimpl)
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
    , parcomm(NULL), remote_cells(NULL), remote_cells_with_tracers(NULL)
 #endif
 {
@@ -37,7 +37,7 @@ Intx2Mesh::Intx2Mesh(Interface * mbimpl): mb(mbimpl)
 Intx2Mesh::~Intx2Mesh()
 {
   // TODO Auto-generated destructor stub
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   if (remote_cells)
   {
     delete remote_cells;
@@ -411,7 +411,7 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
   // before cleaning up , we need to settle the position of the intersection points
   // on the boundary edges
   // this needs to be collective, so we should maybe wait something
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   rval = correct_intersection_points_positions();
   if (rval!=MB_SUCCESS)
   {
@@ -470,7 +470,7 @@ void Intx2Mesh::correct_polygon(EntityHandle * nodes, int & nP)
   }
   return;
 }
-#if USE_MPI
+#if MOAB_HAVE_MPI
 ErrorCode Intx2Mesh::build_processor_euler_boxes(EntityHandle euler_set, Range & local_verts)
 {
   localEnts.clear();
@@ -1171,5 +1171,5 @@ ErrorCode Intx2Mesh::correct_intersection_points_positions()
   }
   return MB_SUCCESS;
 }
-#endif /* USE_MPI */
+#endif /* MOAB_HAVE_MPI */
 } /* namespace moab */

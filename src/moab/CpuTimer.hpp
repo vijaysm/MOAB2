@@ -1,7 +1,8 @@
 #ifndef CPUTIMER_HPP
 #define CPUTIMER_HPP
 
-#ifdef USE_MPI
+#include "moab/MOABConfig.h"
+#ifdef MOAB_HAVE_MPI
 #  include "moab_mpi.h"
 #else
 #  if defined(_MSC_VER)
@@ -35,7 +36,7 @@ public:
     {
 #if defined(_MSC_VER) || defined(__MINGW32__)
       return (double)clock() / CLOCKS_PER_SEC;
-#elif defined(USE_MPI)
+#elif defined(MOAB_HAVE_MPI)
       return MPI_Wtime();
 #else      
       struct rusage r_usage;
@@ -52,7 +53,7 @@ public:
     {
 #if defined(_MSC_VER) || defined(__MINGW32__)
       return 0;
-#elif defined(USE_MPI)
+#elif defined(MOAB_HAVE_MPI)
       return 0;
 #else
       struct rusage r_usage;

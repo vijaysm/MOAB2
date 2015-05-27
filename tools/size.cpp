@@ -5,13 +5,14 @@
 #include <string>
 #include <stdio.h>
 #include <iomanip>
+#include "moab/MOABConfig.h"
 #ifndef WIN32
 #  include <sys/times.h>
 #  include <limits.h>
 #  include <unistd.h>
 #endif
 #include <time.h>
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #  include "moab_mpi.h"
 #endif
 #if !defined(_MSC_VER) && !defined(__MINGW32__)
@@ -51,7 +52,7 @@ static void print_usage( const char* name, std::ostream& stream )
          << "\t-ll            - Verbose listing of every entity" << std::endl
          << "\t-m             - Print counts per block/boundary" << std::endl
          << "\t-O option      - Specify read option." << std::endl
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
          << "\t-p[0|1|2]      - Read in parallel[0], optionally also doing resolve_shared_ents (1) and exchange_ghosts (2)" << std::endl
 #endif
          << "\t-t             - Print counts by tag" << std::endl
@@ -556,7 +557,7 @@ void list_formats( Interface* gMB )
 static void usage_error( const char* name )
 {
   print_usage( name, std::cerr );
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Finalize();
 #endif
   exit(USAGE_ERROR);
@@ -653,7 +654,7 @@ int main( int argc, char* argv[] )
   std::vector<std::string> read_opts;
   
   int proc_id = 0;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   int initd = 0;
   MPI_Initialized(&initd);
   if (!initd) MPI_Init(&argc,&argv);
@@ -686,7 +687,7 @@ int main( int argc, char* argv[] )
             else if (strlen(argv[i]) == 3 && argv[i][2] == 'l')
               just_list = true;
             break;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
         case 'p':
             parallel = true;
             if (argv[i][2] == '1' || argv[i][2] == '2') resolve_shared = true;
@@ -723,7 +724,7 @@ int main( int argc, char* argv[] )
   
   if (!make_opts_string(  read_opts,  read_options )) 
   {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     MPI_Finalize();
 #endif
     return USAGE_ERROR;

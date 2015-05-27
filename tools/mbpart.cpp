@@ -3,7 +3,7 @@
 #include "moab/ProgOptions.hpp"
 #include "moab/ReorderTool.hpp"
 
-#ifdef CGM
+#ifdef MOAB_HAVE_CGM
 #include "InitCGMA.hpp"
 #include "CubitCompat.hpp"
 #endif
@@ -134,7 +134,7 @@ int main(int argc, char* argv[])
   }
   else
   { // partition geometry
-#ifdef CGM
+#ifdef MOAB_HAVE_CGM
   CubitStatus status = InitCGMA::initialize_cgma();
   if (CUBIT_SUCCESS != status)
   {
@@ -382,7 +382,7 @@ int main(int argc, char* argv[])
     }
     else
     {
-#ifdef CGM
+#ifdef MOAB_HAVE_CGM
       std::string::size_type idx = output_file.find_last_of( "." );
       int c_size = output_file.length() - idx;
       const char* file_type = NULL;

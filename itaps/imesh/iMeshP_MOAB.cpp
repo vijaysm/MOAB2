@@ -1,3 +1,4 @@
+#include "moab/MOABConfig.h"
 #include "iMeshP_extensions.h"
 #include "iMesh_MOAB.hpp"
 #include "moab/Core.hpp"
@@ -16,7 +17,7 @@
 #include <assert.h>
 #include <sstream>
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab_mpi.h"
 #endif
 
@@ -31,7 +32,7 @@ using namespace moab;
 
 /******** Type-safe casting between MOAB and ITAPS types *********/
 
-#ifndef TEMPLATE_FUNC_SPECIALIZATION
+#ifndef MOAB_TEMPLATE_FUNC_SPECIALIZATION
 // if no template specialization, disable some type checking
 template <typename T, typename S> inline
 T itaps_cast( S handle )

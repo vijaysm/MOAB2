@@ -60,10 +60,10 @@ AC_CACHE_CHECK([for C++-standard library in std:: namespace],
                                [snl_cv_cxx_stl_in_std=no])
                 AC_LANG_RESTORE])
                 
+CANT_USE_STD=
 if test $snl_cv_cxx_stl_in_std = no; then
   CANT_USE_STD=-DCANT_USE_STD
-else
-  CANT_USE_STD=
+  AC_DEFINE([CANT_USE_STD], [1], [Do not use the C++ std:: namespace])
 fi
 
 AC_CACHE_CHECK([for C++-standard I/O in std:: namespace],
@@ -79,10 +79,10 @@ AC_CACHE_CHECK([for C++-standard I/O in std:: namespace],
                                [snl_cv_cxx_io_in_std=no])
                 AC_LANG_RESTORE])
                 
+CANT_USE_STD_IO=
 if test $snl_cv_cxx_io_in_std = no; then
   CANT_USE_STD_IO=-DCANT_USE_STD_IO
-else
-  CANT_USE_STD_IO=
+  AC_DEFINE([CANT_USE_STD_IO], [1], [Do not use standard C++ I/O])
 fi
 
 ]) # FATHOM_CANT_USE_STD
@@ -119,10 +119,10 @@ AC_CACHE_CHECK([if C++ template definitions should be included],
                 rm -f $src $templ $exe
                 AC_LANG_RESTORE])
                 
+TEMPLATE_DEFS_INCLUDED=
 if test $snl_cv_cxx_template_defs_included = yes; then
   TEMPLATE_DEFS_INCLUDED=-DTEMPLATE_DEFS_INCLUDED
-else
-  TEMPLATE_DEFS_INCLUDED=
+  AC_DEFINE([TEMPLATE_DEFS_INCLUDED], [1], [Template class definitions should be included ?])
 fi
 
 ]) # FATHOM_TEMPLATE_DEFS_INCLUDED
@@ -146,6 +146,7 @@ AC_CACHE_CHECK([if C++ compiler supports template class specialization],
 TEMPLATE_SPECIALIZATION=
 if test $snl_cv_template_specialization = yes; then
   TEMPLATE_SPECIALIZATION=-DTEMPLATE_SPECIALIZATION
+  AC_DEFINE([TEMPLATE_SPECIALIZATION], [1], [Use template class specializations])
 fi
 
 ]) # FATHOM_TEMPLATE_SPECIALIZATION
@@ -170,6 +171,7 @@ AC_CACHE_CHECK([if C++ compiler supports template function specialization],
 TEMPLATE_FUNC_SPECIALIZATION=
 if test $snl_cv_template_func_specialization = yes; then
   TEMPLATE_FUNC_SPECIALIZATION=-DTEMPLATE_FUNC_SPECIALIZATION
+  AC_DEFINE([TEMPLATE_FUNC_SPECIALIZATION], [1], [Use template function specializations])
 fi
 
 ]) # FATHOM_TEMPLATE_FUNC_SPECIALIZATION
@@ -199,6 +201,7 @@ AC_LANG_POP([C++])])
 NO_VECTOR_TEMPLATE_INSERT=
 if test $fathom_cv_std_vector_templatized_insert = no; then
   NO_VECTOR_TEMPLATE_INSERT=-DNO_VECTOR_TEMPLATE_INSERT
+  AC_DEFINE([NO_VECTOR_TEMPLATE_INSERT], [1], [Do not use template vector insertions])
 fi
 ])
 
@@ -222,5 +225,6 @@ AC_LANG_POP([C++])])
 OLD_STD_COUNT=
 if test $fathom_cv_std_count_old_sgi = yes; then
   OLD_STD_COUNT=-DOLD_STD_COUNT
+  AC_DEFINE([OLD_STD_COUNT], [1], [Use old-style C++ std::count calls])
 fi
 ])

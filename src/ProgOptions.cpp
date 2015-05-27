@@ -9,8 +9,9 @@
 #include <assert.h>
 #include <string.h>
 
+#include "moab/MOABConfig.h"
 #include "moab/ProgOptions.hpp"
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 # include "moab_mpi.h"
 #endif
 
@@ -427,7 +428,7 @@ bool parse_int_list( const char* string, std::vector<int>& results )
 static
 std::string do_rank_subst( const std::string& s )
 {
-#ifndef USE_MPI
+#ifndef MOAB_HAVE_MPI
   return s;
 #else
   int rank, size;

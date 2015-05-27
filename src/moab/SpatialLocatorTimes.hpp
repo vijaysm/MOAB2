@@ -17,7 +17,7 @@
 
 #include <iostream>
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab_mpi.h"
 #endif
 
@@ -42,7 +42,7 @@ public:
      */
   void output(bool print_head = false, bool print_endl = false) const;
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     /* \brief Accumulate times over all processors into provided array
      * Max and min is accumulated over all processors, onto root, for each stat.  If avg_stats is non-NULL,
      * all stats are gathered to root so average can be taken too.
@@ -78,7 +78,7 @@ inline void SpatialLocatorTimes::reset()
   for (int i = 0; i < NUM_STATS; i++) slTimes[i] = 0.0;
 }
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 inline ErrorCode SpatialLocatorTimes::accumulate_times(MPI_Comm comm, 
                                                        double *min_times, double *max_times, double *avg_times) 
 {

@@ -4,7 +4,7 @@
 #include <limits>
 #include <stdlib.h>
 #include <iterator>
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 # include "moab_mpi.h"
 #endif
 
@@ -62,11 +62,11 @@ int main( int argc, char* argv[] )
   REGISTER_TEST( test_optional_arg );
   REGISTER_TEST( test_squashed_short );
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Init( &argc, &argv );
 #endif
   int result = RUN_TESTS( argc, argv );
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Finalize();
 #endif
   return result;
@@ -324,7 +324,7 @@ void test_string_rank_subst( )
                    eqflg.c_str() };
   opts.parseCommandLine( ARGCV(argv) );
   
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   int rank, size;
   MPI_Comm_rank( MPI_COMM_WORLD, &rank );
   MPI_Comm_size( MPI_COMM_WORLD, &size );

@@ -5,10 +5,10 @@
 #include "moab/Interface.hpp"
 #include "MBParallelConventions.h"
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab/ParallelComm.hpp"
 #include "moab_mpi.h"
-#endif // USE_MPI
+#endif // MOAB_HAVE_MPI
 
 #include <iostream>
 #include <sstream>
@@ -29,14 +29,14 @@ std::string TestDir( "./" );
 int TestMeshRefiner( int argc, char* argv[] )
 {
   int nprocs, rank;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Init( &argc, &argv );
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#else // USE_MPI
+#else // MOAB_HAVE_MPI
   nprocs = 1;
   rank = 0;
-#endif // USE_MPI
+#endif // MOAB_HAVE_MPI
   //sleep(20);
 
   // Create the input mesh and, if -new-mesh is specified, an output mesh
@@ -54,15 +54,15 @@ int TestMeshRefiner( int argc, char* argv[] )
   Interface* imesh = new Core; // ( rank, nprocs );
   Interface* omesh = input_is_output ? imesh : new Core; // ( rank, nprocs );
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   // Use an ParallelComm object to help set up the input mesh
   ParallelComm* ipcomm = new ParallelComm( imesh, MPI_COMM_WORLD );
   //ReadParallel* readpar = new ReadParallel( imesh, ipcomm );
-#endif // USE_MPI
+#endif // MOAB_HAVE_MPI
 
   EntityHandle set_handle;
   std::ostringstream parallel_options;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   if (nprocs > 1) {
     parallel_options
       << "PARALLEL=READ_DELETE" << ";" // NB: You can use BCAST_DELETE or READ_DELETE here.
@@ -126,7 +126,7 @@ int TestMeshRefiner( int argc, char* argv[] )
   }
   
   // Print out the results, one process at a time
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   for ( int i = 0; i < nprocs; ++ i )
     {
     MPI_Barrier( MPI_COMM_WORLD );
@@ -138,24 +138,24 @@ int TestMeshRefiner( int argc, char* argv[] )
       }
     MPI_Barrier( MPI_COMM_WORLD );
     }
-#else // USE_MPI
+#else // MOAB_HAVE_MPI
   omesh->list_entities( 0, 1 );
-#endif // USE_MPI
+#endif // MOAB_HAVE_MPI
 
   // Clean up
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   //delete readpar;
   delete ipcomm;
-#endif // USE_MPI
+#endif // MOAB_HAVE_MPI
   if ( omesh != imesh )
     delete omesh;
   delete imesh;
   delete mref; // mref will delete eref
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Barrier( MPI_COMM_WORLD );
   MPI_Finalize();
-#endif // USE_MPI
+#endif // MOAB_HAVE_MPI
 
   return 0;
 }
