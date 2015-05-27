@@ -60,6 +60,7 @@ void test_write_invalid_elem()
   std::vector<double*> coords;
   rval = readtool->get_node_coords( 3, 2, 1, first_node, coords );
   CHECK_ERR(rval);
+  // Cppcheck warning (false positive): variable coords is assigned a value that is never used
   coords[0][0] = coords[0][1] = 0.0;
   coords[1][0] = coords[1][1] = 0.0;
   coords[2][0] = coords[2][1] = 0.0;

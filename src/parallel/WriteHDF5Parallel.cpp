@@ -1358,6 +1358,7 @@ ErrorCode WriteHDF5Parallel::create_adjacency_tables()
                         AdjSetCreator(),
                         &groups[0]);CHECK_MB(rval);
 
+  // Cppcheck warning (false positive): variable groups is assigned a value that is never used
   for (int i = 0; i < numtypes; ++i) {
     groups[i]->max_num_adjs = max_ents[i];
     groups[i]->adj_offset = offsets[i];
