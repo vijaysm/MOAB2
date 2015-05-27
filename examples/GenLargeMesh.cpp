@@ -550,7 +550,8 @@ int main(int argc, char **argv)
 
   if (readb)
   {
-    rval = mb->load_file(outFileName.c_str(), 0,
+    Core mb2;
+    rval = mb2.load_file(outFileName.c_str(), 0,
         "PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS");MB_CHK_SET_ERR(rval, "Can't read in parallel");
     if (0 == rank) {
       cout << "read back file " << outFileName << " in "
