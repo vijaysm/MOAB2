@@ -1990,9 +1990,9 @@ void test_new_pcomm_instance()
 
   // This parallel read will create a ParallelComm instance implicitly
 #ifdef MESHDIR
-  const char example[] = STRINGIFY(MESHDIR) "/64bricks_512hex_256part.h5m";
+  const char example[] = STRINGIFY(MESHDIR) "/64bricks_1khex.h5m";
 #else
-  const char example[] = "64bricks_512hex_256part.h5m";
+  const char example[] = "64bricks_1khex.h5m";
 #endif
   std::string read_options = "PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS";
   ErrorCode rval = mb.load_file(example, 0, read_options.c_str());
