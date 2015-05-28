@@ -1984,17 +1984,17 @@ void test_filter_pstatus()
 
 void test_new_pcomm_instance()
 {
-#ifdef MOAB_HAVE_MPI
+#if defined(MOAB_HAVE_MPI) && defined(MOAB_HAVE_HDF5)
   Core moab;
   Interface& mb = moab;
 
   // This parallel read will create a ParallelComm instance implicitly
 #ifdef MESHDIR
-  const char example[] = STRINGIFY(MESHDIR) "/io/homme3x3458.t.3.nc";
+  const char example[] = STRINGIFY(MESHDIR) "/64bricks_512hex_256part.h5m";
 #else
-  const char example[] = "./homme3x3458.t.3.nc";
+  const char example[] = "64bricks_512hex_256part.h5m";
 #endif
-  std::string read_options = "PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;";
+  std::string read_options = "PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS";
   ErrorCode rval = mb.load_file(example, 0, read_options.c_str());
   CHECK_ERR(rval);
 
