@@ -395,6 +395,18 @@ namespace moab {
 			       std::vector<Range> &entities,
 			       const bool adjacencies = false,
 			       const bool tags = true);
+
+    // ======================================
+    // \section PARALLEL COMMUNICATION FOR MESH REFINEMENT
+    // ======================================
+
+    ErrorCode send_entities(std::set<unsigned int> &to_procs, std::vector<int> &msgsizes, std::vector<EntityHandle> &locVerts, std::vector<EntityHandle> &locEdges, std::vector<EntityHandle> &locFaces);
+
+     ErrorCode recv_entities(std::set<unsigned int> &from_procs,std::vector<int> &msgsizes, std::vector<EntityHandle> &remVerts, std::vector<EntityHandle> &remEdges, std::vector<EntityHandle> &remFaces);
+
+     ErrorCode get_remote_handles(EntityHandle ent, unsigned char pstatus, int *ps, EntityHandle *hs, int sz);
+
+     ErrorCode set_sharing_data(EntityHandle ent, unsigned char pstatus, int *ps, EntityHandle *hs, int sz);
   
     // ==================================
     // \section INITIALIZATION OF PARALLEL DATA (resolve_shared_ents, etc.)

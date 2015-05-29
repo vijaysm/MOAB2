@@ -115,7 +115,7 @@ namespace moab{
    *     Interface Functions                                  *
    ************************************************************/
 
-  ErrorCode NestedRefine::generate_mesh_hierarchy(int num_level, int *level_degrees, std::vector<EntityHandle> &level_sets)
+  ErrorCode NestedRefine::generate_mesh_hierarchy(int num_level, int *level_degrees, std::vector<EntityHandle> &level_sets, bool optimized)
   { 
     assert(num_level > 0);
 
@@ -138,8 +138,8 @@ namespace moab{
             level_dsequence[i] = level_degrees[i];
           }
       }
-
-    error = generate_hm(level_degrees, num_level, hmsets); MB_CHK_ERR(error);
+    nlevels = num_level;
+    error = generate_hm(level_degrees, num_level, hmsets, optimized); MB_CHK_ERR(error);
 
     // copy the entity handles
     level_sets.resize(num_level + 1);
@@ -291,6 +291,9 @@ namespace moab{
     assert ((child_level>0) && (child_level>parent_level));
     EntityType type = mbImpl->type_from_handle(parent);
     assert(type != MBVERTEX);
+
+    if (!children.empty())
+      children.clear();
 
     int parent_index;
     if (type == MBEDGE)
@@ -595,7 +598,7 @@ namespace moab{
    *   Hierarchical Mesh Generation  *
    * *********************************/
 
-  ErrorCode NestedRefine::generate_hm(int *level_degrees, int num_level, EntityHandle *hm_set)
+  ErrorCode NestedRefine::generate_hm(int *level_degrees, int num_level, EntityHandle *hm_set, bool optimized)
   {
     ErrorCode error;
 
@@ -632,93 +635,23 @@ namespace moab{
 
         // Go into parallel communication
 #ifdef USE_MPI
-        if (pcomm)
-        {
-          // TEMP: Add the adjacencies for MOAB-native DS
-          // NOTE (VSM): This is expensive since it creates a doubly
-          // redundant copy of the adjacency data in both MOAB-native
-          // and AHF. Need to fix this with AHF optimized branch.
-          ReadUtilIface *read_iface;
-          error = mbImpl->query_interface(read_iface);MB_CHK_ERR(error);
-          if (level_mesh[l].num_edges != 0)
+        if (pcomm & !optimized)
           {
-            error = read_iface->update_adjacencies(level_mesh[l].start_edge, level_mesh[l].num_edges, 2, level_mesh[l].edge_conn);MB_CHK_ERR(error);
-          }
-          if (level_mesh[l].num_faces != 0)
-          {
-              EntityType type = mbImpl->type_from_handle(*(_infaces.begin()));
-              int nvpf = ahf->lConnMap2D[type - 2].num_verts_in_face;
-              error = read_iface->update_adjacencies(level_mesh[l].start_face, level_mesh[l].num_faces, nvpf, level_mesh[l].face_conn);MB_CHK_ERR(error);
-          }
-          if (level_mesh[l].num_cells != 0)
-          {
-              int index = ahf->get_index_in_lmap(*_incells.begin());
-              int nvpc = ahf->lConnMap3D[index].num_verts_in_cell;
-              error = read_iface->update_adjacencies(level_mesh[l].start_cell, level_mesh[l].num_cells, nvpc, level_mesh[l].cell_conn);MB_CHK_ERR(error);
-          }
-
-          if (pcomm->size() > 1)
-            {
-              double tpstart = tm->wtime();
-
-              // get all entities on the rootset
-              moab::Range vtxs, edgs, facs, elms;
-              error = mbImpl->get_entities_by_dimension(hm_set[l], 0, vtxs, false);MB_CHK_ERR(error);
-              error = mbImpl->get_entities_by_dimension(hm_set[l], 1, edgs, false);MB_CHK_ERR(error);
-              error = mbImpl->get_entities_by_dimension(hm_set[l], 2, facs, false);MB_CHK_ERR(error);
-              error = mbImpl->get_entities_by_dimension(hm_set[l], 3, elms, false);MB_CHK_ERR(error);
-
-              // set the parallel partition tag data
-              moab::Tag part_tag;
-              moab::EntityHandle part_set;
-              int partid = pcomm->rank(), dum_id = -1;
-              error = mbImpl->tag_get_handle("PARALLEL_PARTITION", 1, moab::MB_TYPE_INTEGER,
-                                             part_tag, moab::MB_TAG_CREAT | moab::MB_TAG_SPARSE, &dum_id);MB_CHK_ERR(error);
-              error = mbImpl->create_meshset(moab::MESHSET_SET, part_set);MB_CHK_ERR(error);
-              error = mbImpl->add_entities(part_set, vtxs);MB_CHK_ERR(error);
-              error = mbImpl->add_entities(part_set, edgs);MB_CHK_ERR(error);
-              error = mbImpl->add_entities(part_set, facs);MB_CHK_ERR(error);
-              error = mbImpl->add_entities(part_set, elms);MB_CHK_ERR(error);
-              error = mbImpl->add_entities(hm_set[l],&part_set,1);MB_CHK_ERR(error);
-              error = mbImpl->tag_set_data(part_tag, &part_set, 1, &partid);MB_CHK_ERR(error);
-
-              //
-              // Now that we have the local piece of the mesh refined consistently,
-              // call parallel merge instead of resolved_shared to stitch together the meshes
-              // and to handle parallel communication of remote proc/entity-handle pairs for
-              // shared + non-owned interfaces entities.
-              //
-              // TODO: This needs to be replaced by the following scheme in the future as
-              // an optimization step.
-              //   > Assign global IDs consistently for shared entities so that parallel
-              //   > resolve shared ents can happen out of the box. This is the fastest option.
-
-              ParallelMergeMesh pm(pcomm, 1e-08);
-              error = pm.merge(hm_set[l], true);MB_CHK_ERR(error);
-
-              //
-              // Parallel Communication complete - all entities resolved
-              //
-
-              {
-                // Assign new global IDs for all the entities we just generated to maintain contiguity
-                // Range pents[4] = {vtxs, edgs, facs, elms};
-                // error = pcomm->assign_global_ids(pents, 3, 1, true, true);MB_CHK_ERR(error);
-                // error = pcomm->assign_global_ids(hm_set[l], 0, 1, false, true, false);MB_CHK_ERR(error);
-
-                // Now that we have resolved all shared entities in parallel,
-                // exchange GLOBAL_ID data for all local entities so that we are
-                // up to date on remote changes.
-                error = pcomm->exchange_tags(gidtag,vtxs);MB_CHK_ERR(error);
-                error = pcomm->exchange_tags(gidtag,edgs);MB_CHK_ERR(error);
-                error = pcomm->exchange_tags(gidtag,facs);MB_CHK_ERR(error);
-                error = pcomm->exchange_tags(gidtag,elms);MB_CHK_ERR(error);
-              }
-              timeall.tm_presolve += tm->wtime() - tpstart;
-            }
+            double tpstart = tm->wtime();
+            error = resolve_shared_ents_parmerge(l);MB_CHK_ERR(error);
+            timeall.tm_presolve += tm->wtime() - tpstart;
           }
 #endif
       }
+
+#ifdef USE_MPI
+    if (pcomm & optimized)
+      {
+        double tpstart = tm->wtime();
+        error = resolve_shared_ents_opt();MB_CHK_ERR(error);
+        timeall.tm_presolve = tm->wtime() - tpstart;
+      }
+#endif
     timeall.tm_total = timeall.tm_refine + timeall.tm_presolve;
 
     return MB_SUCCESS;
@@ -1827,6 +1760,425 @@ namespace moab{
             vflag[vbuffer[i]-vstart-nverts_prev] = 1;
           }
       }
+    return MB_SUCCESS;
+  }
+
+  /**********************************
+   *      Parallel Communication       *
+   * ********************************/
+
+  ErrorCode NestedRefine::resolve_shared_ents_parmerge(int level)
+  {
+    // TEMP: Add the adjacencies for MOAB-native DS
+    // NOTE (VSM): This is expensive since it creates a doubly
+    // redundant copy of the adjacency data in both MOAB-native
+    // and AHF. Need to fix this with AHF optimized branch.
+    ReadUtilIface *read_iface;
+    error = mbImpl->query_interface(read_iface);MB_CHK_ERR(error);
+    if (level_mesh[level].num_edges != 0)
+    {
+      error = read_iface->update_adjacencies(level_mesh[level].start_edge, level_mesh[level].num_edges, 2, level_mesh[level].edge_conn);MB_CHK_ERR(error);
+    }
+    if (level_mesh[level].num_faces != 0)
+    {
+        EntityType type = mbImpl->type_from_handle(*(_infaces.begin()));
+        int nvpf = ahf->lConnMap2D[type - 2].num_verts_in_face;
+        error = read_iface->update_adjacencies(level_mesh[level].start_face, level_mesh[level].num_faces, nvpf, level_mesh[level].face_conn);MB_CHK_ERR(error);
+    }
+    if (level_mesh[level].num_cells != 0)
+    {
+        int index = ahf->get_index_in_lmap(*_incells.begin());
+        int nvpc = ahf->lConnMap3D[index].num_verts_in_cell;
+        error = read_iface->update_adjacencies(level_mesh[level].start_cell, level_mesh[level].num_cells, nvpc, level_mesh[level].cell_conn);MB_CHK_ERR(error);
+    }
+
+    if (pcomm->size() > 1)
+      {
+
+        // get all entities on the rootset
+        moab::Range vtxs, edgs, facs, elms;
+        error = mbImpl->get_entities_by_dimension(hm_set[level], 0, vtxs, false);MB_CHK_ERR(error);
+        error = mbImpl->get_entities_by_dimension(hm_set[level], 1, edgs, false);MB_CHK_ERR(error);
+        error = mbImpl->get_entities_by_dimension(hm_set[level], 2, facs, false);MB_CHK_ERR(error);
+        error = mbImpl->get_entities_by_dimension(hm_set[level], 3, elms, false);MB_CHK_ERR(error);
+
+        // set the parallel partition tag data
+        moab::Tag part_tag;
+        moab::EntityHandle part_set;
+        int partid = pcomm->rank(), dum_id = -1;
+        error = mbImpl->tag_get_handle("PARALLEL_PARTITION", 1, moab::MB_TYPE_INTEGER,
+                                       part_tag, moab::MB_TAG_CREAT | moab::MB_TAG_SPARSE, &dum_id);MB_CHK_ERR(error);
+        error = mbImpl->create_meshset(moab::MESHSET_SET, part_set);MB_CHK_ERR(error);
+        error = mbImpl->add_entities(part_set, vtxs);MB_CHK_ERR(error);
+        error = mbImpl->add_entities(part_set, edgs);MB_CHK_ERR(error);
+        error = mbImpl->add_entities(part_set, facs);MB_CHK_ERR(error);
+        error = mbImpl->add_entities(part_set, elms);MB_CHK_ERR(error);
+        error = mbImpl->add_entities(hm_set[level],&part_set,1);MB_CHK_ERR(error);
+        error = mbImpl->tag_set_data(part_tag, &part_set, 1, &partid);MB_CHK_ERR(error);
+
+        //
+        // Now that we have the local piece of the mesh refined consistently,
+        // call parallel merge instead of resolved_shared to stitch together the meshes
+        // and to handle parallel communication of remote proc/entity-handle pairs for
+        // shared + non-owned interfaces entities.
+        //
+        // TODO: This needs to be replaced by the following scheme in the future as
+        // an optimization step.
+        //   > Assign global IDs consistently for shared entities so that parallel
+        //   > resolve shared ents can happen out of the box. This is the fastest option.
+
+        ParallelMergeMesh pm(pcomm, 1e-08);
+        error = pm.merge(hm_set[level], true);MB_CHK_ERR(error);
+
+        //
+        // Parallel Communication complete - all entities resolved
+        //
+
+        {
+          // Now that we have resolved all shared entities in parallel,
+          // exchange GLOBAL_ID data for all local entities so that we are
+          // up to date on remote changes.
+          error = pcomm->exchange_tags(gidtag,vtxs);MB_CHK_ERR(error);
+          error = pcomm->exchange_tags(gidtag,edgs);MB_CHK_ERR(error);
+          error = pcomm->exchange_tags(gidtag,facs);MB_CHK_ERR(error);
+          error = pcomm->exchange_tags(gidtag,elms);MB_CHK_ERR(error);
+        }
+
+      }
+    return MB_SUCCESS;
+  }
+
+  ErrorCode NestedRefine::resolve_shared_ents_opt()
+  {
+    if (pcomm->size() > 1)
+      {
+        ErrorCode error;
+
+        //Step 2: Get shared procs and gather shared data
+        std::set<unsigned int> shared_procs;
+        Range shared_ents, all_shared;
+
+         error = pcomm->get_shared_entities(-1, all_shared, -1, true);MB_CHK_ERR(error);
+
+        error = pcomm->get_comm_procs(shared_procs);MB_CHK_ERR(error);
+
+        int nsharedp = shared_procs.size();
+        std::vector<int> msgsizes(3*nsharedp,0);
+        std::vector<EntityHandle> locVerts, locEdges, locFaces;
+
+        for (int i=0; i< nsharedp; i++)
+          {
+            shared_ents.clear();
+            error = pcomm->get_shared_entities(shared_procs[i], shared_ents, -1, true);MB_CHK_ERR(error);
+
+            error = get_shared_new_entities(i, shared_ents, msgsizes, locVerts, locEdges, locFaces );MB_CHK_ERR(error);
+          }
+
+        //Step 3: Send the new shared entities to shared procs
+        error = pcomm->send_entities(shared_procs, msgsizes, locVerts, locEdges, locFaces);MB_CHK_ERR(error);
+
+       //Step 4: Receive the shared new entities from shared procs
+       std::vector<EntityHandle> remVerts, remEdges, remFaces;
+       error = pcomm->recv_entities(shared_procs, msgsizes, remVerts, remEdges, remFaces);MB_CHK_ERR(error);
+
+       //Step 5: Decipher parallel tag values to be updated
+       error = resolve_shared_new_ents(shared_procs, all_shared, msgsizes, locVerts, locEdges, locFaces, remVerts, remEdges, remFaces);MB_CHK_ERR(error);
+
+       //Step 1: Update the pstatus tags for all new entities
+       //error = update_pstatus_tag();MB_CHK_ERR(error);
+
+      }
+
+    return MB_SUCCESS;
+  }
+
+  ErrorCode NestedRefine::get_shared_new_entities(int pindex, Range shared_ents, std::vector<int> &msgsizes, std::vector<EntityHandle> &locVerts, std::vector<EntityHandle> &locEdges, std::vector<EntityHandle> &locFaces)
+  {
+    ErrorCode error;
+
+    Range Cverts, Cedges, Cfaces;
+    Cverts = shared_ents.subset_by_dimension(0);
+    Cedges = shared_ents.subset_by_dimension(1);
+    Cfaces = shared_ents.subset_by_dimension(2);
+
+    //Insert the coarse and duplicates of shared vertices
+    int nv = locVerts.size();
+    Range::iterator vit = locVerts.end();
+    locVerts.insert(vit, Cverts.begin(), Cverts.end());
+    for (int i=0; i<nlevels; i++)
+      {
+       vit = locVerts.end();
+       locVerts.insert(vit, level_mesh[i].verts.begin(), level_mesh[i].verts.begin()+Cverts.size());
+      }
+    msgsizes[3*pindex] = locVerts.size() - nv;
+
+    //Add coarse edges/faces and their children in all levels along with their connectivities
+    if (meshdim == 2)
+      {
+        assert(!Cedges.empty());
+        int ne = locEdges.size();
+
+        //Add all the coarse edges
+        Range::iterator eit = locEdges.end();
+        locEdges.insert(eit, Cedges.begin(), Cedges.end());
+
+        std::vector<EntityHandle> econn, all_econn;
+
+        //Collect connectivities of the coarse edges
+        for (eit = Cedges.begin(); eit != Cedges.end(); eit++)
+          {
+            error = get_connectivity(*eit, 0, econn);MB_CHK_ERR(error);
+            all_econn.push_back(econn[0]);
+            all_econn.push_back(econn[1]);
+          }
+
+        //For each level add all the children edges and collect their connectivities
+        for (int i=0; i<nlevels; i++)
+          {
+            for (eit = Cedges.begin(); eit != Cedges.end(); eit++)
+              {
+                std::vector<EntityHandle> child_edges;
+                error = parent_to_child(*eit, 0, i+1, child_edges);MB_CHK_ERR(error);
+
+                for (int j=0; j<(int)child_edges.size(); j++)
+                  {
+                    locEdges.push_back(child_edges[j]);
+                    error = get_connectivity(child_edges[j], i+1, econn);MB_CHK_ERR(error);
+                    all_econn.push_back(econn[0]);
+                    all_econn.push_back(econn[1]);
+                  }
+              }
+          }
+
+        //Insert all the connectivities and store the message size
+        eit = locEdges.end();
+        locEdges.insert(eit, all_econn.begin(), all_econn.end());
+        msgsizes[3*pindex+1] = locEdges.size()-ne;
+      }
+    else if (meshdim == 3)
+      {
+        assert(!Cfaces.empty());
+        int nf = locFaces.size();
+
+        //Add all the coarse faces
+        Range::iterator fit = locFaces.end();
+        locFaces.insert(fit, Cfaces.begin(), Cfaces.end());
+
+        std::vector<EntityHandle> fconn, all_fconn;
+
+        //Collect connectivities of the coarse faces
+        for (fit = Cfaces.begin(); fit != Cfaces.end(); fit++)
+          {
+            error = get_connectivity(*fit, 0, fconn);MB_CHK_ERR(error);
+            for (int j=0; j<(int)fconn.size(); j++)
+              all_fconn.push_back(fconn[j]);
+          }
+
+        //For each level add all the children faces and collect their connectivities
+        for (int i=0; i<nlevels; i++)
+          {
+            for (fit = Cfaces.begin(); fit != Cfaces.end(); fit++)
+              {
+                std::vector<EntityHandle> child_faces;
+                error = parent_to_child(*fit, 0, i+1, child_faces);MB_CHK_ERR(error);
+
+                for (int j=0; j<(int)child_faces.size(); j++)
+                  {
+                    locFaces.push_back(child_faces[j]);
+                    error = get_connectivity(child_faces[j], i+1, fconn);MB_CHK_ERR(error);
+                    for (int k=0; k<fconn.size(); k++)
+                      all_fconn.push_back(fconn[k]);
+                  }
+              }
+          }
+
+        //Insert all the connectivities and store the message size
+        fit = locFaces.end();
+        locFaces.insert(fit, all_fconn.begin(), all_fconn.end());
+        msgsizes[3*pindex+2] = locFaces.size() - nf;
+
+        //Now, add all the coarse edges
+        int ne = locEdges.size();
+
+        Range::iterator eit = locEdges.end();
+        locEdges.insert(eit, Cedges.begin(), Cedges.end());
+
+        std::vector<EntityHandle> econn, all_econn;
+
+        //Collect connectivities of the coarse edges
+        for (eit = Cedges.begin(); eit != Cedges.end(); eit++)
+          {
+            error = get_connectivity(*eit, 0, econn);MB_CHK_ERR(error);
+            all_econn.push_back(econn[0]);
+            all_econn.push_back(econn[1]);
+          }
+
+        //For each level add all the children edges, new interior edges of faces and collect their connectivities
+        int estart = ne+1, eend = ne+Cedges.size();
+        int fstart = nf+1, fend = nf+Cfaces.size();
+
+        for (int i=0; i<nlevels; i++)
+          {
+            //Add the children of previous level edges
+            for (int j=0; j<(eend-estart); j++)
+              {
+                std::vector<EntityHandle> child_edges;
+                error = parent_to_child(locEdges[estart+j], i, i+1, child_edges);MB_CHK_ERR(error);
+                for (int k=0; k<(int)child_edges.size(); k++)
+                  {
+                    locEdges.push_back(child_edges[k]);
+                    error = get_connectivity(child_edges[k], i+1, econn);MB_CHK_ERR(error);
+                    all_econn.push_back(econn[0]);
+                    all_econn.push_back(econn[1]);
+                  }
+              }
+
+            //Add the new interior face edges of the shared faces
+            int findex = mbImpl->type_from_handle(Cfaces[0])-1;
+            int d = get_index_from_degree(level_dsequence[i]);
+            int nintEd = intFacEdg[findex-1][d].nie;
+            int nedges_prev;
+            if (i==0)
+              nedges_prev = _inedges.size()*refTemplates[MBEDGE-1][d].total_new_ents;
+            else
+              nedges_prev = level_mesh[i].num_edges*refTemplates[MBEDGE-1][d].total_new_ents;
+
+            for (int j=0; j<(fend-fstart); f++)
+              {
+                EntityHandle face = locFaces[fstart+j];
+                int fid;
+                if (i==0)
+                  fid = _infaces.index(face);
+                else
+                  fid = level_mesh[i].faces.index(face);
+
+                for (int k=0; k<nintEd; k++)
+                  {
+                    EntityHandle edg = level_mesh[i].start_edge+nedges_prev+nintEd*fid+k;
+                    locEdges.push_back(edg);
+                    error = get_connectivity(edg, i+1, econn);MB_CHK_ERR(error);
+                    all_econn.push_back(econn[0]);
+                    all_econn.push_back(econn[1]);
+                  }
+              }
+            estart = eend+1;
+            eend = locEdges.size();
+            int cf = fend-fstart;
+            fstart = fend+1;
+            fend += cf*refTemplates[findex][d].total_new_ents;
+          }
+
+        //Insert all the connectivities and store the message size
+        eit = locEdges.end();
+        locEdges.insert(eit, all_econn.begin(), all_econn.end());
+        msgsizes[3*pindex+1] = locEdges.size()-ne;
+      }
+
+    return MB_SUCCESS;
+  }
+
+  ErrorCode NestedRefine::resolve_shared_new_ents(std::set<unsigned int> &shared_procs, Range all_shared, std::vector<int> &msgsizes, std::vector<EntityHandle> &locVerts, std::vector<EntityHandle> &locEdges, std::vector<EntityHandle> &locFaces, std::vector<EntityHandle> &remVerts, std::vector<EntityHandle> &remEdges, std::vector<EntityHandle> &remFaces )
+  {
+    ErrorCode error;
+    Range sverts, sedges, sfaces;
+    sverts = all_shared.subset_by_dimension(0);
+    sedges = all_shared.subset_by_dimension(1);
+    sfaces = all_shared.subset_by_dimension(2);
+
+    //Loop over shared coarse vertices
+    EntityHandle rhandles[64];
+    int sz, rprocs[64];
+    for (Range::iterator vit = sverts.begin(); vit != sverts.end(); vit++)
+      {
+        unsigned char pstat;
+        error = pcomm->get_pstatus(*vit, pstat);MB_CHK_ERR(error);
+        error = pcomm->get_remote_handles(*vit, pstat, rprocs, rhandles, sz);MB_CHK_ERR(error);
+
+        for (int i=0; i<nlevels; i++)
+          {
+           EntityHandle remoteh[64], dvertex;
+           error = find_remotes_duplicate_verts(*vit, i, locVerts, rem_handles, rem_procs, remVerts, dvertex, remoteh, sz);MB_CHK_ERR(error);
+           error = pcomm->set_sharing_data(dvertex, pstat, remoteh, rem_procs, sz);MB_CHK_ERR(error);
+          }
+      }
+
+    //Loop over shared coarse edges, if any
+    if (!sedges.empty())
+      {
+        for (Range::iterator eit = sedges.begin(); eit != sedges.end(); eit++)
+          {
+            unsigned char pstat;
+            error = pcomm->get_pstatus(*eit, pstat);MB_CHK_ERR(error);
+            error = pcomm->get_remote_handles(*eit, pstat, rprocs, rhandles, sz);MB_CHK_ERR(error);
+
+            for (int i=0; i<sz; i++)
+              {
+                bool match = check_orientation(*eit, locEdges, rprocs[i], rhandles[i], remEdges);
+
+                for (int j=0; j<nlevels; j++)
+                  {
+
+                  }
+              }
+            for (int i=0; i<nlevels; i++)
+              {
+                //Find children of the coarse edge in current level
+                std::vector<EntityHandle> child_edges;
+
+               EntityHandle remoteh[64];
+
+               error = find_remotes_duplicate_verts(*vit, i, locVerts, rem_handles, rem_procs, remVerts, dvertex, remoteh, sz);MB_CHK_ERR(error);
+               error = pcomm->set_sharing_data(dvertex, pstat, remoteh, rem_procs, sz);MB_CHK_ERR(error);
+              }
+        }
+      }
+
+    return MB_SUCCESS;
+  }
+
+  ErrorCode NestedRefine::update_pstatus_tag()
+  {
+    ErrorCode error;
+    unsigned char pstat;
+
+    //Update duplicates of coarsest vertices
+    for (Range::iterator vit = _inverts.begin(); vit != _inverts.end(); vit++)
+      {
+        error = pcomm->get_pstatus(*vit, pstat);MB_CHK_ERR(error);
+        for (int i=0; i<nlevels; i++)
+          {
+            EntityHandle vid = level_mesh[i].verts[*vit-*_inverts.begin()];
+            error = pcomm->set_pstatus_entities(&vid, 1, pstat, false, false, Interface::INTERSECT);MB_CHK_ERR(error);
+          }
+      }
+
+    //Update edges, if any
+    if (_inedges.size() != 0)
+      {
+        for (Range::iterator eit = _inedges.begin(); eit != _inedges.end(); eit++)
+          {
+            error = pcomm->get_pstatus(*eit, pstat);MB_CHK_ERR(error);
+            for (int i=0; i<nlevels; i++)
+              {
+                int d = get_index_from_degree(level_dsequence[i]);
+                int nchild = refTemplates[MBEDGE-1][d].total_new_ents;
+
+
+
+
+
+              }
+          }
+      }
+
+
+    //Update faces, if any
+
+    //Update cells, if any
+
+
+
+
     return MB_SUCCESS;
   }
 
