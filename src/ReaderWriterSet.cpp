@@ -32,7 +32,7 @@
 #include "ReadSmf.hpp"
 #include "ReadTemplate.hpp"
 #include "ReadTxt.hpp"
-#ifdef CGM
+#ifdef MOAB_HAVE_CGM
 #  include "ReadCGM.hpp"
 #endif
 
@@ -44,7 +44,7 @@
 #include "WriteSmf.hpp"
 #include "WriteTemplate.hpp"
 
-#ifdef NETCDF_FILE
+#ifdef MOAB_HAVE_NETCDF
 #  include "ReadNCDF.hpp"
 #  include "WriteNCDF.hpp"
 #  include "WriteNC.hpp"
@@ -53,28 +53,28 @@
 #endif
 
 // 2nd include of ReadNC in case we have pnetcdf and not netcdf
-#ifdef PNETCDF_FILE
+#if defined(MOAB_HAVE_PNETCDF) && !defined(MOAB_HAVE_NETCDF)
 #  include "ReadNC.hpp"
 #endif
 
-#ifdef CGNS_FILE
+#ifdef MOAB_HAVE_CGNS
 #  include "ReadCGNS.hpp"
 #  include "WriteCGNS.hpp"
 #endif
 
-#ifdef CCMIO_FILE
+#ifdef MOAB_HAVE_CCMIO
 #  include "ReadCCMIO.hpp"
 #  include "WriteCCMIO.hpp"
 #endif
 
-#ifdef DAMSEL_FILE
+#ifdef MOAB_HAVE_DAMSEL
 #  include "WriteDamsel.hpp"
 #  include "ReadDamsel.hpp"
 #endif
 
-#ifdef HDF5_FILE
+#ifdef MOAB_HAVE_HDF5
 #  include "ReadHDF5.hpp"
-#  ifdef HDF5_PARALLEL
+#  ifdef MOAB_HAVE_HDF5_PARALLEL
 #    include "WriteHDF5Parallel.hpp"
 #  else
 #    include "WriteHDF5.hpp"
@@ -88,9 +88,9 @@ namespace moab {
 ReaderWriterSet::ReaderWriterSet(Core* mdb)
   : mbCore( mdb )
 {
-#ifdef HDF5_FILE
+#ifdef MOAB_HAVE_HDF5
   const char* hdf5_sufxs[] = { "h5m", "mhdf", NULL };
-#ifdef HDF5_PARALLEL
+#ifdef MOAB_HAVE_HDF5_PARALLEL
   register_factory(  ReadHDF5::factory, WriteHDF5Parallel::factory,
                      "MOAB native (HDF5)", hdf5_sufxs, "MOAB" );
 #else
@@ -99,13 +99,13 @@ ReaderWriterSet::ReaderWriterSet(Core* mdb)
 #endif
 #endif
 
-#ifdef NETCDF_FILE
+#ifdef MOAB_HAVE_NETCDF
   const char* exo_sufxs[] = { "exo", "exoII", "exo2", "g", "gen", NULL };
   register_factory( ReadNCDF::factory, WriteNCDF::factory, "Exodus II", exo_sufxs, "EXODUS" );
   register_factory( ReadNC::factory, WriteNC::factory, "Climate NC", "nc", "NC" );
 #endif
 
-#ifdef CGNS_FILE
+#ifdef MOAB_HAVE_CGNS
   const char* cgns_sufxs[] = { "cgns", NULL };
   register_factory( ReadCGNS::factory, WriteCGNS::factory, "CGNS", cgns_sufxs, "CGNS" );
 #endif
@@ -127,7 +127,7 @@ ReaderWriterSet::ReaderWriterSet(Core* mdb)
 
   register_factory( ReadSmf::factory, WriteSmf::factory , "QSlim format", "smf", "SMF");
 
-#ifdef CGM
+#ifdef MOAB_HAVE_CGM
   const char* acis_sufxs[] = { "sat", "sab", NULL };
   const char* occ_sufxs[] = { "brep", "occ", NULL };
   const char* step_sufxs[] = { "step", "stp", NULL };
@@ -138,16 +138,16 @@ ReaderWriterSet::ReaderWriterSet(Core* mdb)
   register_factory( ReadCGM::factory, NULL, "IGES B-Rep exchange", iges_sufxs, "IGES");
 #endif
 
-#ifdef NETCDF_FILE
+#ifdef MOAB_HAVE_NETCDF
   register_factory( NULL, WriteSLAC::factory, "SLAC", "slac", "SLAC" );
 #endif
 
-#ifdef CCMIO_FILE
+#ifdef MOAB_HAVE_CCMIO
   const char* ccmio_sufxs[] = { "ccm", "ccmg", NULL };
   register_factory( ReadCCMIO::factory, WriteCCMIO::factory, "CCMIO files", ccmio_sufxs, "CCMIO");
 #endif
 
-#ifdef DAMSEL_FILE
+#ifdef MOAB_HAVE_DAMSEL
   const char* damsel_sufxs[] = { "h5", NULL };
   register_factory( ReadDamsel::factory, WriteDamsel::factory, "Damsel files", damsel_sufxs, "DAMSEL");
 #endif

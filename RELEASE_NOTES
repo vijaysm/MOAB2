@@ -1,3 +1,12 @@
+# Version 4.8.1:
+** Fixes
+  * PR #97: Support read and write of point clouds and free nodes in vtk format
+  * PR #103: Add explicitly created skin entities to the passed non-null meshset. Previously, this was only available from root set
+  * GMSH and VTK reader fixes
+  * Several minor compiler warnings removed
+** Enhancement
+  * PR #101: Support computation of surface normals for different entity types
+
 # Version 4.8.0:
 ** Features
   * UMR: Implemented the uniform mesh refinement capabilities for different entity types for degrees (2,3,5). Tools to load a MOAB mesh and uniformly refine it based on user inputs is now available

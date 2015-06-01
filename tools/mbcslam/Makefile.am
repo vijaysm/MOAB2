@@ -41,10 +41,10 @@ cfgdir = $(libdir)
 TESTS = intx_on_sphere_test  intx_in_plane_test spherical_area_test \
          case1_test  arc_intx_tests   
 if PARALLEL
-if HDF5_FILE
+if HAVE_HDF5
    TESTS += intx_mpas linear_remap diffusion
 endif
-if NETCDF_FILE
+if HAVE_NETCDF
    TESTS += IntxRllCssphere_test
 endif
 endif
@@ -74,7 +74,7 @@ linear_remap_SOURCES = linear_remap.cpp
 linear_advection_SOURCES = linear_advection.cpp
 
 if PARALLEL
-if HDF5_FILE
+if HAVE_HDF5
   diffusion_SOURCES = diffusion.cpp
   intx_imesh_SOURCES = intx_imesh.cpp
   intx_imesh_LDADD = libmbcslam.la  $(top_builddir)/itaps/imesh/libiMesh.la $(top_builddir)/src/libMOAB.la

@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <assert.h>
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #  include "moab_mpi.h"
 #else
 #  include "time.h"
@@ -55,7 +55,7 @@ void CxxDebugStream::println( int rank, const char* pfx, const char* str )
 void CxxDebugStream::println( const char* pfx, const char* str )
   { outStr << pfx << str << std::endl; outStr.flush(); }
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   #define CURTIME (MPI_Wtime())
 #else
   #define CURTIME (clock()/(double)CLOCKS_PER_SEC)
@@ -137,7 +137,7 @@ DebugOutput::~DebugOutput()
 void DebugOutput::use_world_rank() 
 {
   mpiRank = 0;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Comm_rank( MPI_COMM_WORLD, &mpiRank );
 #endif
 }   
@@ -169,7 +169,7 @@ void DebugOutput::tprint_real( const std::string& str )
 void DebugOutput::print_real( const char* fmt, va_list args1, va_list args2 )
 {
   size_t idx = lineBuffer.size();
-#ifdef HAVE_VSNPRINTF
+#ifdef MOAB_HAVE_VSNPRINTF
     // try once with remaining space in buffer
   lineBuffer.resize( lineBuffer.capacity() );
   unsigned size = vsnprintf( &lineBuffer[idx], lineBuffer.size() - idx, fmt, args1 );

@@ -29,9 +29,9 @@ add_library( MOABrefiner
   ${MOAB_REFINER_SRCS}
   )
 target_link_libraries( MOABrefiner MOAB )
-if ( MOAB_USE_MPI )
+if ( MOAB_HAVE_MPI )
   target_link_libraries( MOABrefiner ${MPI_LIBRARIES} )
-endif ( MOAB_USE_MPI )
+endif ( MOAB_HAVE_MPI )
 
 enable_testing()
 

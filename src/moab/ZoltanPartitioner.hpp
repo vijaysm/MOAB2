@@ -28,7 +28,7 @@
 #include "moab/Range.hpp"
 #include <time.h>
 
-#ifdef CGM
+#ifdef MOAB_HAVE_CGM
 #include <map>
 #include "GeometryQueryTool.hpp"
 #include "DLIList.hpp"
@@ -89,7 +89,7 @@ using namespace moab;
               const bool use_coords = false,
               int argc = 0, 
               char **argv = NULL
-#ifdef CGM
+#ifdef MOAB_HAVE_CGM
               , GeometryQueryTool *gqt = NULL
 #endif
               );
@@ -132,7 +132,7 @@ using namespace moab;
     ErrorCode repartition(std::vector<double> & x,std::vector<double>&y, std::vector<double> &z, int StartID,
         const char * zmethod, Range & localGIDs);
 
-#ifdef CGM
+#ifdef MOAB_HAVE_CGM
     ErrorCode write_partition(const int nparts,
                               DLIList<RefEntity*> entities,
                               const int *assignment,
@@ -207,7 +207,7 @@ using namespace moab;
                              std::vector<int> &length,
                              Range &elems, bool part_geom = false, const bool spherical_coords=false);
     
-#ifdef CGM
+#ifdef MOAB_HAVE_CGM
     std::map<int, int> body_vertex_map, surf_vertex_map;
 
     ErrorCode assemble_graph(const int dimension, 
@@ -243,7 +243,7 @@ using namespace moab;
                            double *edge_weights = NULL,
                            int *parts = NULL, bool part_geom = false);
 
-#ifdef CGM
+#ifdef MOAB_HAVE_CGM
     GeometryQueryTool *gti;
 #endif
   };

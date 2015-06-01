@@ -630,7 +630,7 @@ DEFINE_TEST_SET( power_32 )
 
 int main( int argc, char* argv[] )
 { 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   int fail = MPI_Init(&argc, &argv);
   if (fail) return fail;
 #endif
@@ -639,7 +639,7 @@ int main( int argc, char* argv[] )
   REGISTER_TEST_SET( x86_32 );
   REGISTER_TEST_SET( power_32 );
   int result = RUN_TESTS( argc, argv );
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   fail = MPI_Finalize();
   if (fail) return fail;
 #endif

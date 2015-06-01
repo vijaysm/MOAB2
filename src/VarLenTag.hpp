@@ -24,7 +24,7 @@ public:
   struct { struct { unsigned size; unsigned char* array; } mPointer; } mData;
 };
 
-#elif !defined(TEMPLATE_SPECIALIZATION)
+#elif !defined(MOAB_TEMPLATE_SPECIALIZATION)
 
 /* A little more advanced data structure for VarLenTag.
  * If the amount of tag data is less than or equal to the

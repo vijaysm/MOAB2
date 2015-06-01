@@ -109,7 +109,7 @@ namespace moab {
          */
       int remote_num_located();
 
-#ifdef USE_MPI      
+#ifdef MOAB_HAVE_MPI      
         /* locate a set of vertices or entity centroids, storing results on TupleList in this class
          * Locate a set of vertices or entity centroids, storing the detailed results in member 
          * variables (TupleList) locTable and parLocTable (see comments on locTable and parLocTable for 
@@ -177,7 +177,7 @@ namespace moab {
         
   private:
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
         /* MPI_ReduceAll source mesh bounding boxes to get global source mesh bounding box
          */
       ErrorCode initialize_intermediate_partition(ParallelComm *pc);
@@ -296,7 +296,7 @@ namespace moab {
       return locate_points(pos, 1, &ent, params, is_inside, rel_iter_tol, abs_iter_tol, inside_tol);
     }
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     inline ErrorCode SpatialLocator::get_point_ijk(const CartVect &point, const double abs_iter_tol, int *ijk) const
     {
       for (int i = 0; i < 3; i++) {

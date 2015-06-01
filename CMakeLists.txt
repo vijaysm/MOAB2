@@ -1,6 +1,6 @@
 cmake_minimum_required( VERSION 2.8.12 )
 SET(PACKAGE_NAME "MOAB")
-SET(PACKAGE_VERSION "4.7.1pre")
+SET(PACKAGE_VERSION "4.8.2pre")
 
 if (NOT WIN32)
   #This all breaks on windows.
@@ -107,29 +107,32 @@ set( MOAB_INSTALL_TARGETS )
 # Options that the user controls
 ################################################################################
 option ( BUILD_SHARED_LIBS   "Should shared or static libraries be created?"   ON  )
-option ( MOAB_USE_SZIP       "Should build with szip support?"                 OFF )
-option ( MOAB_USE_CGM        "Should build with CGM support?"                  OFF )
-option ( MOAB_USE_CGNS       "Should build with CGNS support?"                 OFF )
+option ( ENABLE_SZIP       "Should build with szip support?"                 OFF )
+option ( ENABLE_CGM        "Should build with CGM support?"                  OFF )
+option ( ENABLE_CGNS       "Should build with CGNS support?"                 OFF )
 if ( MPI_DIR )
-  option ( MOAB_USE_MPI        "Should MOAB be compiled with MPI support?"       ON )
+  option ( ENABLE_MPI        "Should MOAB be compiled with MPI support?"       ON )
 else ( MPI_DIR )
-  option ( MOAB_USE_MPI        "Should MOAB be compiled with MPI support?"       OFF )
+  option ( ENABLE_MPI        "Should MOAB be compiled with MPI support?"       OFF )
 endif ( MPI_DIR )
-option ( MOAB_USE_HDF        "Include HDF I/O in the build?"                   OFF )
-option ( MOAB_USE_NETCDF     "Include NetCDF support (ExodusII) in the build?" OFF )
-option ( MOAB_USE_PNETCDF    "Include parallel NetCDF support (ExodusII) in the build?" OFF )
-option ( MOAB_USE_ZOLTAN     "Include Zoltan support for partitioning algorithms?" OFF )
-option ( MOAB_ENABLE_TESTING "Enable Testing"                                  ON  )
+option ( ENABLE_HDF5       "Include HDF I/O interfaces in the build?"                   OFF )
+option ( ENABLE_METIS      "Include Metis partitioning interfaces in the build?"                   OFF )
+option ( ENABLE_PARMETIS   "Include parallel Metis partitioning interfaces in the build?"                   OFF )
+option ( ENABLE_NETCDF     "Include NetCDF support (ExodusII) interfaces in the build?" OFF )
+option ( ENABLE_PNETCDF    "Include parallel NetCDF support (ExodusII) interfaces in the build?" OFF )
+option ( ENABLE_ZOLTAN     "Include Zoltan support for partitioning algorithms?" OFF )
+option ( ENABLE_VTK        "Include VTK I/O interfaces in the build?" OFF )
+option ( ENABLE_TESTING "Enable Testing"                                  ON  )
 option ( MOAB_FORCE_64_BIT_HANDLES "Force MBEntityHandle to be 64 bits (uint64_t)" OFF )
 option ( MOAB_FORCE_32_BIT_HANDLES "Force MBEntityHandle to be 32 bits (uint32_t)" OFF )
 
-option ( ENABLE_IMESH        "Should build IMESH?"       OFF )
+option ( ENABLE_IMESH        "Should build IMESH?"       ON )
 option ( ENABLE_IGEOM        "Should build IGEOM?"       OFF )
 
 mark_as_advanced(
-    MOAB_FORCE_64_BIT_HANDLES
-    MOAB_FORCE_32_BIT_HANDLES
-  )
+  MOAB_FORCE_64_BIT_HANDLES
+  MOAB_FORCE_32_BIT_HANDLES
+)
 
 if ( ENABLE_IMESH OR ENABLE_IGEOM )
   include (${CMAKE_ROOT}/Modules/CMakeDetermineFortranCompiler.cmake)
@@ -144,19 +147,15 @@ check_include_file( stdint.h     MOAB_HAVE_STDINT_H )
 check_include_file( stddef.h     MOAB_HAVE_STDDEF_H )
 check_include_file( stdlib.h     MOAB_HAVE_STDLIB_H )
 check_include_file( sys/types.h  MOAB_HAVE_SYS_TYPES_H )
-check_type_size( size_t SIZE_T)
-check_type_size( ptrdiff_t PTRDIFF_T )
-set( MOAB_HAVE_SIZE_T ${HAVE_SIZE_T} )
-set( MOAB_HAVE_PTRDIFF_T ${HAVE_PTRDIFF_T} )
 set( HAVE_SYS_TYPES_H ${MOAB_HAVE_SYS_TYPES_H} )
 set( HAVE_STDDEF_H    ${MOAB_HAVE_STDDEF_H} )
 set( HAVE_STDINT_H    ${MOAB_HAVE_STDINT_H} )
 set( HAVE_INTTYPES_H    ${MOAB_HAVE_INTTYPES_H} )
 set( HAVE_STDLIB_H    ${MOAB_HAVE_STDLIB_H} )
-check_include_file( memory.h     HAVE_MEMORY_H )
+check_include_file( memory.h     MOAB_HAVE_MEMORY_H )
 
 ################################################################################
-# Interger size Related Settings
+# Integer size Related Settings
 ################################################################################
 if ( MOAB_FORCE_64_BIT_HANDLES AND MOAB_FORCE_32_BIT_HANDLES )
   message( FATAL_ERROR
@@ -172,10 +171,10 @@ if ( NOT MOAB_FORCE_64_BIT_HANDLES AND NOT MOAB_FORCE_32_BIT_HANDLES )
     set ( CMAKE_EXTRA_INCLUDE_FILES "${CMAKE_EXTRA_INCLUDE_FILES};stdlib.h" )
     #set ( CHECK_TYPE_SIZE_PREMAIN "${CHECK_TYPE_SIZE_PREMAIN}\n#include <stdlib.h>\n" )
   endif ( MOAB_HAVE_STDLIB_H )
-  check_type_size(  size_t       HAVE_SIZE_T )
-  check_type_size(  ptrdiff_t    HAVE_PTRDIFF_T )
-  set ( MOAB_HAVE_SIZE_T ${HAVE_SIZE_T} )
-  set ( MOAB_HAVE_PTRDIFF_T ${HAVE_PTRDIFF_T} )
+  check_type_size(  size_t       MOAB_HAVE_SIZE_T )
+  check_type_size(  ptrdiff_t    MOAB_HAVE_PTRDIFF_T )
+  set ( HAVE_SIZE_T ${MOAB_HAVE_SIZE_T} )
+  set ( HAVE_PTRDIFF_T ${MOAB_HAVE_PTRDIFF_T} )
 endif ( NOT MOAB_FORCE_64_BIT_HANDLES AND NOT MOAB_FORCE_32_BIT_HANDLES )
 
 
@@ -193,8 +192,8 @@ endif ( BUILD_SHARED_LIBS EQUAL OFF )
 find_package( verdict REQUIRED )
 
 # check for MPI package
-set(MOAB_HAS_MPI FALSE)
-if ( MOAB_USE_MPI )
+set (MOAB_HAVE_MPI 0 CACHE INTERNAL "Found necessary MPI components. Configure MOAB with it." )
+if ( ENABLE_MPI )
   find_package( MPI REQUIRED )
   # CMake FindMPI script is sorely lacking:
   if ( MPI_LIBRARY AND MPI_INCLUDE_PATH )
@@ -206,44 +205,67 @@ if ( MOAB_USE_MPI )
     set(CMAKE_CXX_COMPILE_FLAGS ${CMAKE_CXX_COMPILE_FLAGS} ${MPI_COMPILE_FLAGS})
     set(CMAKE_CXX_LINK_FLAGS ${CMAKE_CXX_LINK_FLAGS} ${MPI_LINK_FLAGS})
     include_directories(${MPI_INCLUDE_PATH})
-    set( MOAB_HAS_MPI TRUE )
+    set( MOAB_HAVE_MPI 1 )
   endif ( MPI_FOUND )
-endif ( MOAB_USE_MPI )
+endif ( ENABLE_MPI )
 
-if ( MOAB_USE_ZLIB )
+#set (MOAB_HAVE_ZLIB 0 CACHE INTERNAL "Found necessary Zlib components. Configure MOAB with it." )
+if ( ENABLE_ZLIB )
   find_package( ZLIB REQUIRED )
-endif ( )
+  set (MOAB_HAVE_ZLIB 1)
+endif (ENABLE_ZLIB)
 
-if ( MOAB_USE_HDF )
+#set (MOAB_HAVE_HDF5 0 CACHE INTERNAL "Found necessary HDF5 components. Configure MOAB with it." )
+#set (MOAB_HAVE_HDF5_PARALLEL 0 CACHE INTERNAL "Found necessary parallel HDF5 components. Configure MOAB with it." )
+if ( ENABLE_HDF5 )
   find_package( HDF5 REQUIRED )
-  set( MOAB_DEFINES "-DHDF5_FILE ${MOAB_DEFINES}" )
-  if ( HDF5_IS_PARALLEL AND MOAB_USE_MPI )
-    set( MOAB_DEFINES "-DHDF5_PARALLEL ${MOAB_DEFINES}" )
-    set (MOAB_HDF_HAVE_PARALLEL TRUE)
-  endif ( HDF5_IS_PARALLEL AND MOAB_USE_MPI )
+  #set( MOAB_DEFINES "-DHDF5_FILE ${MOAB_DEFINES}" )
+  set (MOAB_HAVE_HDF5 1)
+  # if ( HDF5_IS_PARALLEL AND MOAB_HAVE_MPI )
+  if ( MOAB_HAVE_MPI )
+    #set( MOAB_DEFINES "-DHDF5_PARALLEL ${MOAB_DEFINES}" )
+    set (MOAB_HAVE_HDF5_PARALLEL 1)
+  endif ( )
   set( MOAB_LIBS ${MOAB_LIBS} ${HDF5_LIBRARIES} )
   include_directories( ${HDF5_INCLUDE_DIR} src/io/mhdf/include )
-endif ( MOAB_USE_HDF )
+endif ( ENABLE_HDF5 )
 
-if ( MOAB_USE_NETCDF )
+#set (MOAB_HAVE_NETCDF 0 CACHE INTERNAL "Found necessary NetCDF components. Configure MOAB with it." )
+#set (MOAB_HAVE_PNETCDF 0 CACHE INTERNAL "Found necessary PNetCDF components. Configure MOAB with it." )
+if ( ENABLE_NETCDF )
   find_package( NetCDF REQUIRED )
-  set( MOAB_DEFINES "-DNETCDF_FILE ${MOAB_DEFINES}" )
-  include_directories( ${NetCDF_INCLUDES} ${PNetCDF_INCLUDES} )
-  set( MOAB_LIBS ${MOAB_LIBS} ${NetCDF_LIBRARIES} ${PNetCDF_LIBRARIES} )
-endif ( MOAB_USE_NETCDF )
+  # set( MOAB_DEFINES "-DNETCDF_FILE ${MOAB_DEFINES}" )
+  set (MOAB_HAVE_NETCDF 1)
+  include_directories( ${NETCDF_INCLUDES} )
+  set( MOAB_LIBS ${MOAB_LIBS} ${NETCDF_LIBRARIES} )
+  # 
+  if ( PNETCDF_FOUND )
+    # find_package( PNetCDF REQUIRED )
+    # set( MOAB_DEFINES "-DNETCDF_FILE ${MOAB_DEFINES}" )
+    set (MOAB_HAVE_PNETCDF 1)
+    include_directories( ${PNETCDF_INCLUDES} )
+    set( MOAB_LIBS ${MOAB_LIBS} ${PNETCDF_LIBRARIES} )
+  endif ( PNETCDF_FOUND )
+endif ( ENABLE_NETCDF )
 
-if ( MOAB_USE_ZOLTAN )
+#set (MOAB_HAVE_ZOLTAN 0 CACHE INTERNAL "Found necessary Zoltan components. Configure MOAB with it." )
+if ( ENABLE_ZOLTAN )
   find_package( Zoltan REQUIRED )
-endif ( )
+  set (MOAB_HAVE_ZOLTAN 1)
+endif (ENABLE_ZOLTAN )
 
-if ( MOAB_USE_CGM )
+#set (MOAB_HAVE_CGM 0 CACHE INTERNAL "Found necessary CGM components. Configure MOAB with it." )
+if ( ENABLE_CGM )
    find_package( CGM REQUIRED )
    set( MOAB_DEFINES "${CGM_DEFINES} -DCGM ${MOAB_DEFINES}" )
-endif ()
+   set (MOAB_HAVE_CGM 1)
+endif (ENABLE_CGM)
 
-if (MOAB_USE_CGNS)
+#set (MOAB_HAVE_CGNS 0)
+if (ENABLE_CGNS)
   set( MOABIO_LIBS ${MOABIO_LIBS} ${CGNS_LIBRARIES} )
-endif()
+  set (MOAB_HAVE_CGNS 1)
+endif(ENABLE_CGNS)
 
 ################################################################################
 # Add Directories
@@ -256,7 +278,7 @@ add_subdirectory( tools )
 # Testing Related Settings
 ################################################################################
 #turn on ctest if we want testing
-if ( MOAB_ENABLE_TESTING )
+if ( ENABLE_TESTING )
   enable_testing()
   add_subdirectory( test )
 endif()
@@ -301,17 +323,27 @@ CONFIGURE_FILE(
     "${CMAKE_CURRENT_SOURCE_DIR}/config/cmake_uninstall.cmake.in"
     "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
     IMMEDIATE @ONLY)
+
+# Generate the CMake input header file and then pass it through configuration
+#execute_process( COMMAND cat MOABConfig.h.in COMMAND sed -e "s/#undef /#cmakedefine MOAB_/g"
+#  WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/config
+#  OUTPUT_FILE MOABConfig.cmake.h.in
+#  OUTPUT_STRIP_TRAILING_WHITESPACE
+#  )
+CONFIGURE_FILE(config/MOABConfig.cmake.h.in "${PROJECT_BINARY_DIR}/src/moab/MOABConfig.h" @ONLY)
+#INSTALL( FILES "${PROJECT_BINARY_DIR}/src/moab/MOABConfig.h" DESTINATION include ) 
+
 CONFIGURE_FILE(MOABConfig.new.cmake.in "${PROJECT_BINARY_DIR}/MOABConfig.cmake" @ONLY)
 CONFIGURE_FILE(moab.make.in "${PROJECT_BINARY_DIR}/lib/moab.make" @ONLY)
-if ( ENABLE_IGEOM )
+if ( MOAB_HAVE_IGEOM )
   CONFIGURE_FILE(itaps/igeom/iGeom-Defs.inc.in "${PROJECT_BINARY_DIR}/lib/iGeom-Defs.inc" @ONLY)
   install( FILES "${PROJECT_BINARY_DIR}/lib/iGeom-Defs.inc" DESTINATION lib )
-endif ( ENABLE_IGEOM )
+endif ( MOAB_HAVE_IGEOM )
 
-if ( ENABLE_IMESH )
+if ( MOAB_HAVE_IMESH )
   CONFIGURE_FILE(itaps/imesh/iMesh-Defs.inc.in "${PROJECT_BINARY_DIR}/lib/iMesh-Defs.inc" @ONLY)
   INSTALL( FILES "${PROJECT_BINARY_DIR}/lib/iMesh-Defs.inc" DESTINATION lib )
-endif ( ENABLE_IMESH )
+endif ( MOAB_HAVE_IMESH )
 INSTALL( FILES "${PROJECT_BINARY_DIR}/MOABConfig.cmake" "${PROJECT_BINARY_DIR}/lib/moab.make" DESTINATION lib )
 
 ADD_CUSTOM_TARGET(uninstall

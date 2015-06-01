@@ -69,7 +69,7 @@ void Util::normal(Interface* MB, EntityHandle handle, double& x, double& y, doub
    z = vecs[0][0] * vecs[1][1] - vecs[0][1] * vecs[1][0];
 
    double mag = sqrt(x*x + y*y + z*z);
-   if(mag != std::numeric_limits<double>::epsilon())
+   if(mag > std::numeric_limits<double>::epsilon())
    {
      x /= mag;
      y /= mag;

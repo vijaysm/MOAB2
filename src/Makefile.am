@@ -16,10 +16,6 @@ endif
 SUBDIRS += io LocalDiscretization verdict RefineMesh .
 libMOAB_la_LIBADD += io/libmoabio.la LocalDiscretization/libLocalDiscretization.la verdict/libmoabverdict.la RefineMesh/libRefineMesh.la
 
-if OLD_HEADERS
-  SUBDIRS += oldinc
-endif
-
 BUILT_SOURCES = MBCN_protos.h
 
 # Some variables
@@ -195,6 +191,7 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/Matrix3.hpp \
   moab/MergeMesh.hpp \
   moab/MeshTopoUtil.hpp \
+  moab/MOABConfig.h \
   moab/OrientedBoxTreeTool.hpp \
   moab/ProgOptions.hpp \
   moab/Range.hpp \
@@ -222,6 +219,7 @@ nobase_libMOAB_la_include_HEADERS = \
   MBCN.h \
   MOAB_FCDefs.h \
   MBCN_protos.h \
+  moab/MOABConfig.h \
   MBTagConventions.hpp
 
 if ENABLE_mbpart
@@ -235,14 +233,8 @@ if ENABLE_mbpart
 endif
 
 if HAVE_CGM
-  AM_CPPFLAGS += @CGM_CPPFLAGS@ -DCGM @MOAB_CGM_DEFINES@
+  AM_CPPFLAGS += @CGM_CPPFLAGS@ 
 endif
-
-# if ENABLE_ahf
-  # libMOAB_la_SOURCES += HalfFacetRep.cpp
-  # nobase_libMOAB_la_include_HEADERS += moab/HalfFacetRep.hpp
-#  AM_CPPFLAGS += -DUSE_AHF  
-# endif 
 
 MBCN_protos.h: MBCN.h $(top_srcdir)/itaps/mkprotos.sh
 	$(AM_V_GEN)$(top_srcdir)/itaps/mkprotos.sh MBCN MOAB $< $@ MOAB_FCDefs.h

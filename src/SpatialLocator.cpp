@@ -7,7 +7,7 @@
 // include ScdInterface for box partitioning
 #include "moab/ScdInterface.hpp"
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab/ParallelComm.hpp"
 #endif
 
@@ -59,7 +59,7 @@ namespace moab
       return rval;
     }
     
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     ErrorCode SpatialLocator::initialize_intermediate_partition(ParallelComm *pc) 
     {
       if (!pc) return MB_FAILURE;

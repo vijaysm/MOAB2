@@ -511,7 +511,9 @@ ErrorCode duplicate_model_test(Interface * mb)
     std::cout<<"Can't write output file\n";
     return rval;
   }
-  // do not delete it yet, delay after the next test
+
+  delete newModel; // we are done with the new geom topo tool
+  // do not delete yet the output file, delay after the next test
   /*if (remove_output_file)
   {
     remove(ofile3.c_str());

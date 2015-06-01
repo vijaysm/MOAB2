@@ -1215,7 +1215,7 @@ ErrorCode AEntityFactory::get_up_adjacency_elements(EntityHandle source_entity,
     std::copy(start_ent_td, end_ent_td, range_inserter(target_ents));
     
       // now insert the whole thing into the argument vector
-#ifdef NO_VECTOR_TEMPLATE_INSERT
+#ifdef MOAB_NO_VECTOR_TEMPLATE_INSERT
     std::copy( target_ents.begin(), target_ents.end(), std::back_inserter(target_entities) );
 #else
     target_entities.insert( target_entities.end(), target_ents.begin(), target_ents.end() );

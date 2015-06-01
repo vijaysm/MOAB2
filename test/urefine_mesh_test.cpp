@@ -10,7 +10,7 @@
 #include "../RefineMesh/moab/NestedRefine.hpp"
 #include "TestUtil.hpp"
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab/ParallelComm.hpp"
 #include "MBParallelConventions.h"
 #include "ReadParallel.hpp"
@@ -24,7 +24,7 @@ using namespace moab;
 #define STRINGIFY_(X) #X
 #define STRINGIFY(X) STRINGIFY_(X)
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 std::string read_options;
 #endif
 
@@ -34,7 +34,7 @@ int number_tests_failed = 0;
 void handle_error_code(ErrorCode rv, int &number_failed, int &number_successful)
 {
   if (rv == MB_SUCCESS) {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
       int rank = 0;
       MPI_Comm_rank(MPI_COMM_WORLD, &rank);
       if (rank==0)
@@ -992,7 +992,7 @@ ErrorCode test_mesh(const char* filename, int *level_degrees, int num_levels)
   Interface* mbImpl = &moab;
   ErrorCode error;
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     int procs = 1;
     MPI_Comm_size(MPI_COMM_WORLD, &procs);
 
@@ -1004,7 +1004,7 @@ ErrorCode test_mesh(const char* filename, int *level_degrees, int num_levels)
     else if (procs == 1) {
 #endif
     error = mbImpl->load_file(filename);  CHECK_ERR(error);
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     }
 #endif
 
@@ -1016,7 +1016,7 @@ ErrorCode test_mesh(const char* filename, int *level_degrees, int num_levels)
 
 int main(int argc, char *argv[])
 {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     MPI_Init(&argc, &argv);
 
     int nprocs, rank;
@@ -1058,7 +1058,7 @@ int main(int argc, char *argv[])
         std::cout<<"\n";*/
       }
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     MPI_Finalize();
 #endif
 

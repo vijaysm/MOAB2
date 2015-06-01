@@ -206,7 +206,7 @@ ErrorCode get_file_options(int argc, char **argv,
     std::cout << "Interpolation field name not given, using default of " << interpTag << std::endl;
   }
 
-#ifdef HDF5_FILE
+#ifdef MOAB_HAVE_HDF5
   if (1 == argc) {
     std::cout << "No arguments given; using output file dum.h5m." << std::endl;
     outFile = "dum.h5m";

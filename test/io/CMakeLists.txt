@@ -9,18 +9,18 @@ include_directories(
 set(TEST_COMP_FLAGS "-DMESHDIR=${MOAB_ABSSRC_DIR}/MeshFiles/unittest")
 
 set( TESTS readutil_test.cpp VtkTest.cpp cub_file_test.cc gmsh_test.cc nastran_test.cc ideas_test.cc stl_test.cc smf_test.cc)
-if( MOAB_USE_NETCDF )
+if( MOAB_HAVE_NETCDF )
   set( TESTS ${TESTS} exodus_test.cc )
   set( TESTS ${TESTS} read_nc.cpp )
   set( TESTS ${TESTS} read_ucd_nc.cpp )
   set( TESTS ${TESTS} read_mpas_nc.cpp )
 endif()
 
-if(MOAB_USE_CCMIO)
+if(MOAB_HAVE_CCMIO)
   set( TESTS ${TESTS} ccmio_test.cpp )
 endif()
 
-if( MOAB_USE_CGNS )
+if( MOAB_HAVE_CGNS )
   set( TESTS ${TESTS} cgns_test.cpp )
 endif()
 

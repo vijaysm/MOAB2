@@ -60,7 +60,7 @@ void print_usage()
   std::cerr << "    -meth <method> (0=CONSTANT, 1=LINEAR_FE, 2=QUADRATIC_FE, 3=SPECTRAL)" << std::endl;
 }
 
-#ifdef HDF5_FILE
+#ifdef MOAB_HAVE_HDF5
 
 ErrorCode get_file_options(int argc, char **argv, int rank,
                            std::vector<std::string> &meshFiles,
@@ -485,7 +485,7 @@ ErrorCode get_file_options(int argc, char **argv, int rank,
     std::cout << "Interpolation field name not given, using default of " << interpTag << std::endl;
   }
 
-#ifdef HDF5_FILE
+#ifdef MOAB_HAVE_HDF5
   if (1 == argc) {
     if (0==rank) std::cout << "No arguments given; using output file dum.h5m." << std::endl;
     outFile = "dum.h5m";
