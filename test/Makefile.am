@@ -59,7 +59,8 @@ TESTS = range_test \
         test_boundbox \
         adj_moab_test \
         uref_mesh_test \
-        verdict_test
+        verdict_test \
+	slab_test 
 
 if HDF5_FILE
   TESTS += mbfacet_test \
@@ -156,6 +157,7 @@ lloyd_smoother_test_SOURCES = lloyd_smoother_test.cpp
 
 adj_moab_test_SOURCES = adj_moab_test.cpp
 uref_mesh_test_SOURCES = urefine_mesh_test.cpp
+slab_test_SOURCES = slab_test.cpp
 
 if PARALLEL
 moab_test_CPPFLAGS += -I$(top_srcdir)/src/parallel

@@ -14,11 +14,13 @@ libRefineMesh_la_includedir = $(includedir)
 
 # Conditional sources
 MOAB_LOCALDISCR_SRCS = \
-	NestedRefine.cpp 
+	NestedRefine.cpp \
+	RefineSlabs.cpp
 
 MOAB_LOCALDISCR_HDRS = \
 	moab/NestedRefine.hpp \
-	moab/Templates.hpp 
+	moab/Templates.hpp \
+	moab/RefineSlabs.hpp
 
 # The list of source files, and any header files that do not need to be installed
 libRefineMesh_la_SOURCES = \
