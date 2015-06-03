@@ -5,11 +5,441 @@
 #include <iostream>
 #include <assert.h>
 #include <vector>
+#include <utility>
 #include <limits>
 #include <cmath>
 
 
 namespace moab{
+
+
+  // ======================================================== AHF functions needing to be filled in =============
+
+  ErrorCode RefineSlabs::new_refinement_ahf( size_t /*num_hexes_memory_estimate*/ )
+  {
+    refinement_ahf = new HalfFacetRep(mbImpl /*, num_hexes_memory_estimate*/ ); // AHF todo, make use of the memory estimate
+    if (!ahf)
+      return MB_MEMORY_ALLOCATION_FAILED;
+    return MB_SUCCESS;
+  }
+
+
+  ErrorCode RefineSlabs::create_hex( EntityHandle fine_nodes[8], EntityHandle & new_hex )
+  {
+    ErrorCode error = mbImpl->create_element(MBHEX, fine_nodes, 8, new_hex);    
+    assert( error = MB_SUCCESS );
+    // refinement_AHF
+    // tell AHF about the new hex // AHF todo
+    return error;
+  } 
+
+  ErrorCode RefineSlabs::create_node( EntityHandle node, EntityHandle &new_node )
+  {
+    // get coordinates from node
+    const double *xp, *yp, *zp;
+    ErrorCode error = mbImpl->get_coords( node, xp, yp, zp );
+    assert( error = MB_SUCCESS );
+
+
+    double coord[3];
+    coord[0] = *xp; 
+    coord[1] = *yp;
+    coord[2] = *zp;
+    error = mbImpl->create_vertex(coord, new_node);
+    assert( error = MB_SUCCESS );
+
+
+    // refinement_AHF
+    // tell AHF about the new node // AHF todo
+    return error;
+  } 
+
+  // replace the coarse hexes and quads with the fine hexes and quads in the global database mbImpl
+  // return the new hexes for the caller. The coarse entities no longer exist.
+  ErrorCode RefineSlabs::replace_mesh( Entities &, Entities &, Entities &, Entities& )
+  //  ErrorCode RefineSlabs::replace_mesh( Entities &coarse_hexes, Entities &coarse_quads, Entities &fine_hexes, Entities &fine_quads )
+  {
+    // refinement_ahf elements -> moved into ahf elements
+    // we don't use ahf after this function call, so maybe we don't need to build the ahf, just moab core?
+    // AHF todo
+    // return MB_FAILURE;
+
+    return MB_SUCCESS;
+  }
+  void RefineSlabs::replace_node( EntityHandle, int, EntityHandle )
+  //  void RefineSlabs::replace_node( EntityHandle chex, int node_lid, EntityHandle new_node)
+  {
+    // refinement_ahf
+    // just replace the node in the individual hex, don't worry about updating the hex-to-hex connectivity until later when we call update_AHF_connectivity
+    // AHF todo
+    ;
+  }
+  void RefineSlabs::udpate_AHF_connectivity()
+  {
+    // since we've replaced a lot of nodes in hexes, update the hex-to-hex connectivity in refinement_ahf for traversals
+    // refinement_ahf; 
+    // AHF todo
+  }
+  
+  void RefineSlabs::get_all_hexes( EntityHandle node, Entities &hexes, bool is_coarse )
+  {
+    HalfFacetRep *use_ahf = (is_coarse) ? ahf : refinement_ahf;
+    use_ahf->get_up_adjacencies_vert_3d( node, hexes );
+  }
+  void RefineSlabs::get_all_quads( EntityHandle node, Entities &quads, bool is_coarse )
+  {
+    HalfFacetRep *use_ahf = (is_coarse) ? ahf : refinement_ahf;
+    use_ahf->get_up_adjacencies_vert_2d( node, quads );
+  }
+
+    // given a SlabEdge (edge and vertex) of a hex, find the other two edges sharing that vertex
+  void RefineSlabs::get_adj( const SlabEdge &edge, SlabEdge &adj1, SlabEdge &adj2 )
+  {
+    // todo AHF, move to AHF
+    // this should go into AHF and not be hard-coded here
+
+    adj1.hex = edge.hex;
+    adj2.hex = edge.hex;
+    adj1.head_node = adj2.head_node = edge.head_node;    
+
+    int head_index = get_hex_node_index( edge.hex, edge.head_node );
+    int tail_index = get_hex_node_index( edge.hex, edge.tail_node );
+
+    EntityHandle hex_nodes[8];
+    get_hex_nodes( edge.hex, hex_nodes);
+
+    // todo AHF, move to AHF
+    // 24 different edges and orientations, check for each one
+    switch ( head_index )
+    {
+      case 0:
+      switch( tail_index)
+      {        
+        case 1:
+        adj1.tail_node = hex_nodes[3];  adj1.edge_lid = 3;
+        adj2.tail_node = hex_nodes[4];  adj1.edge_lid = 4;
+        break;
+        case 3:
+        adj1.tail_node = hex_nodes[1];  adj1.edge_lid = 0;
+        adj2.tail_node = hex_nodes[4];  adj1.edge_lid = 4;
+        break;
+        case 4:
+        adj1.tail_node = hex_nodes[3];  adj1.edge_lid = 3;
+        adj2.tail_node = hex_nodes[1];  adj1.edge_lid = 0;
+        break;
+      }
+      break;
+
+      case 1:
+      switch( tail_index)
+      {        
+        case 0:
+        adj1.tail_node = hex_nodes[5];  adj1.edge_lid = 5;
+        adj2.tail_node = hex_nodes[2];  adj1.edge_lid = 1;
+        break;
+        case 5:
+        adj1.tail_node = hex_nodes[0];  adj1.edge_lid = 0;
+        adj2.tail_node = hex_nodes[2];  adj1.edge_lid = 1;
+        break;
+        case 2:
+        adj1.tail_node = hex_nodes[5];  adj1.edge_lid = 5;
+        adj2.tail_node = hex_nodes[0];  adj1.edge_lid = 0;
+        break;
+      }
+      break;
+
+      case 2:
+      switch( tail_index)
+      {        
+        case 1:
+        adj1.tail_node = hex_nodes[6];  adj1.edge_lid = 6;
+        adj2.tail_node = hex_nodes[3];  adj1.edge_lid = 2;
+        break;
+        case 3:
+        adj1.tail_node = hex_nodes[1];  adj1.edge_lid = 1;
+        adj2.tail_node = hex_nodes[6];  adj1.edge_lid = 6;
+        break;
+        case 6:
+        adj1.tail_node = hex_nodes[1];  adj1.edge_lid = 1;
+        adj2.tail_node = hex_nodes[3];  adj1.edge_lid = 2;
+        break;
+      }
+      break;
+
+
+      case 3:
+      switch( tail_index)
+      {        
+        case 2:
+        adj1.tail_node = hex_nodes[0];  adj1.edge_lid = 3;
+        adj2.tail_node = hex_nodes[7];  adj1.edge_lid = 7;
+        break;
+        case 0:
+        adj1.tail_node = hex_nodes[2];  adj1.edge_lid = 2;
+        adj2.tail_node = hex_nodes[7];  adj1.edge_lid = 7;
+        break;
+        case 7:
+        adj1.tail_node = hex_nodes[2];  adj1.edge_lid = 2;
+        adj2.tail_node = hex_nodes[0];  adj1.edge_lid = 3;
+        break;
+      }
+      break;
+
+
+      case 4:
+      switch( tail_index)
+      {        
+        case 0:
+        adj1.tail_node = hex_nodes[5];  adj1.edge_lid = 8;
+        adj2.tail_node = hex_nodes[7];  adj1.edge_lid = 11;
+        break;
+        case 5:
+        adj1.tail_node = hex_nodes[0];  adj1.edge_lid = 4;
+        adj2.tail_node = hex_nodes[7];  adj1.edge_lid = 11;
+        break;
+        case 7:
+        adj1.tail_node = hex_nodes[0];  adj1.edge_lid = 4;
+        adj2.tail_node = hex_nodes[5];  adj1.edge_lid = 8;
+        break;
+      }
+      break;
+
+      case 5:
+      switch( tail_index)
+      {        
+        case 1:
+        adj1.tail_node = hex_nodes[4];  adj1.edge_lid = 8;
+        adj2.tail_node = hex_nodes[6];  adj1.edge_lid = 9;
+        break;
+        case 4:
+        adj1.tail_node = hex_nodes[1];  adj1.edge_lid = 5;
+        adj2.tail_node = hex_nodes[6];  adj1.edge_lid = 9;
+        break;
+        case 6:
+        adj1.tail_node = hex_nodes[1];  adj1.edge_lid = 5;
+        adj2.tail_node = hex_nodes[4];  adj1.edge_lid = 8;
+        break;
+      }
+      break;
+
+
+
+      case 6:
+      switch( tail_index)
+      {        
+        case 2:
+        adj1.tail_node = hex_nodes[5];  adj1.edge_lid = 9;
+        adj2.tail_node = hex_nodes[7];  adj1.edge_lid = 10;
+        break;
+        case 5:
+        adj1.tail_node = hex_nodes[2];  adj1.edge_lid = 6;
+        adj2.tail_node = hex_nodes[7];  adj1.edge_lid = 10;
+        break;
+        case 7:
+        adj1.tail_node = hex_nodes[2];  adj1.edge_lid = 6;
+        adj2.tail_node = hex_nodes[5];  adj1.edge_lid = 9;
+        break;
+      }
+      break;
+
+
+
+      case 7:
+      switch( tail_index)
+      {        
+        case 3:
+        adj1.tail_node = hex_nodes[4];  adj1.edge_lid = 11;
+        adj2.tail_node = hex_nodes[6];  adj1.edge_lid = 10;
+        break;
+        case 4:
+        adj1.tail_node = hex_nodes[3];  adj1.edge_lid = 7;
+        adj2.tail_node = hex_nodes[6];  adj1.edge_lid = 10;
+        break;
+        case 6:
+        adj1.tail_node = hex_nodes[3];  adj1.edge_lid = 7;
+        adj2.tail_node = hex_nodes[4];  adj1.edge_lid = 11;
+        break;
+      }
+      break;
+
+      default: ;
+    }
+  }
+
+  // given a SlabEdge (edge and vertex) of a hex, find the other two edges that are opposite the edge in a quad of the hex
+  void RefineSlabs::get_opp( const SlabEdge &edge, SlabEdge &opp1, SlabEdge &opp2 ) 
+  {
+    // todo AHF, move to AHF
+    // this should go into AHF and not be hard-coded here
+    opp1.hex = edge.hex;
+    opp2.hex = edge.hex;
+
+    int head_index = get_hex_node_index( edge.hex, edge.head_node );
+    int tail_index = get_hex_node_index( edge.hex, edge.tail_node );
+
+    EntityHandle hex_nodes[8];
+    get_hex_nodes( edge.hex, hex_nodes);
+
+    // todo AHF, move to AHF
+    // 24 different edges and orientations, check for each one
+    switch ( head_index )
+    {
+      case 0:
+      switch( tail_index)
+      {        
+        case 1:
+        opp1.head_node = hex_nodes[3];  opp1.tail_node = hex_nodes[2];  opp1.edge_lid = 2;
+        opp2.head_node = hex_nodes[4];  opp2.tail_node = hex_nodes[5];  opp1.edge_lid = 8;
+        break;
+        case 3:
+        opp1.head_node = hex_nodes[1];  opp1.tail_node = hex_nodes[2];  opp1.edge_lid = 1;
+        opp2.head_node = hex_nodes[4];  opp2.tail_node = hex_nodes[7];  opp1.edge_lid = 11;
+        break;
+        case 4:
+        opp1.head_node = hex_nodes[1];  opp1.tail_node = hex_nodes[5];  opp1.edge_lid = 5;
+        opp2.head_node = hex_nodes[3];  opp2.tail_node = hex_nodes[7];  opp1.edge_lid = 7;
+        break;
+      }
+      break;
+
+      case 1:
+      switch( tail_index)
+      {        
+        case 0:
+        opp1.head_node = hex_nodes[2];  opp1.tail_node = hex_nodes[3];  opp1.edge_lid = 2;
+        opp2.head_node = hex_nodes[5];  opp2.tail_node = hex_nodes[4];  opp1.edge_lid = 8;
+        break;
+        case 5:
+        opp1.head_node = hex_nodes[0];  opp1.tail_node = hex_nodes[4];  opp1.edge_lid = 4;
+        opp2.head_node = hex_nodes[2];  opp2.tail_node = hex_nodes[6];  opp1.edge_lid = 6;
+        break;
+        case 2:
+        opp1.head_node = hex_nodes[0];  opp1.tail_node = hex_nodes[3];  opp1.edge_lid = 3;
+        opp2.head_node = hex_nodes[5];  opp2.tail_node = hex_nodes[6];  opp1.edge_lid = 9;
+        break;
+      }
+      break;
+
+      case 2:
+      switch( tail_index)
+      {        
+        case 1:
+        opp1.head_node = hex_nodes[3];  opp1.tail_node = hex_nodes[0];  opp1.edge_lid = 3;
+        opp2.head_node = hex_nodes[6];  opp2.tail_node = hex_nodes[5];  opp1.edge_lid = 9;
+        break;
+        case 3:
+        opp1.head_node = hex_nodes[1];  opp1.tail_node = hex_nodes[0];  opp1.edge_lid = 0;
+        opp2.head_node = hex_nodes[6];  opp2.tail_node = hex_nodes[7];  opp1.edge_lid = 10;
+        break;
+        case 6:
+        opp1.head_node = hex_nodes[1];  opp1.tail_node = hex_nodes[5];  opp1.edge_lid = 5;
+        opp2.head_node = hex_nodes[3];  opp2.tail_node = hex_nodes[7];  opp1.edge_lid = 7;
+        break;
+      }
+      break;
+
+
+      case 3:
+      switch( tail_index)
+      {        
+        case 2:
+        opp1.head_node = hex_nodes[0];  opp1.tail_node = hex_nodes[1];  opp1.edge_lid = 0;
+        opp2.head_node = hex_nodes[7];  opp2.tail_node = hex_nodes[6];  opp1.edge_lid = 10;
+        break;
+        case 0:
+        opp1.head_node = hex_nodes[2];  opp1.tail_node = hex_nodes[1];  opp1.edge_lid = 1;
+        opp2.head_node = hex_nodes[7];  opp2.tail_node = hex_nodes[4];  opp1.edge_lid = 11;
+        break;
+        case 7:
+        opp1.head_node = hex_nodes[0];  opp1.tail_node = hex_nodes[4];  opp1.edge_lid = 4;
+        opp2.head_node = hex_nodes[2];  opp2.tail_node = hex_nodes[6];  opp1.edge_lid = 6;
+        break;
+      }
+      break;
+
+
+      case 4:
+      switch( tail_index)
+      {        
+        case 0:
+        opp1.head_node = hex_nodes[5];  opp1.tail_node = hex_nodes[1];  opp1.edge_lid = 5;
+        opp2.head_node = hex_nodes[7];  opp2.tail_node = hex_nodes[3];  opp1.edge_lid = 7;
+        break;
+        case 5:
+        opp1.head_node = hex_nodes[0];  opp1.tail_node = hex_nodes[1];  opp1.edge_lid = 0;
+        opp2.head_node = hex_nodes[7];  opp2.tail_node = hex_nodes[6];  opp1.edge_lid = 10;
+        break;
+        case 7:
+        opp1.head_node = hex_nodes[0];  opp1.tail_node = hex_nodes[3];  opp1.edge_lid = 3;
+        opp2.head_node = hex_nodes[5];  opp2.tail_node = hex_nodes[6];  opp1.edge_lid = 9;
+        break;
+      }
+      break;
+
+      case 5:
+      switch( tail_index)
+      {        
+        case 1:
+        opp1.head_node = hex_nodes[0];  opp1.tail_node = hex_nodes[4];  opp1.edge_lid = 4;
+        opp2.head_node = hex_nodes[2];  opp2.tail_node = hex_nodes[6];  opp1.edge_lid = 6;
+        break;
+        case 4:
+        opp1.head_node = hex_nodes[1];  opp1.tail_node = hex_nodes[0];  opp1.edge_lid = 0;
+        opp2.head_node = hex_nodes[6];  opp2.tail_node = hex_nodes[7];  opp1.edge_lid = 10;
+        break;
+        case 6:
+        opp1.head_node = hex_nodes[1];  opp1.tail_node = hex_nodes[2];  opp1.edge_lid = 1;
+        opp2.head_node = hex_nodes[4];  opp2.tail_node = hex_nodes[7];  opp1.edge_lid = 11;
+        break;
+      }
+      break;
+
+
+
+      case 6:
+      switch( tail_index)
+      {        
+        case 2:
+        opp1.head_node = hex_nodes[5];  opp1.tail_node = hex_nodes[1];  opp1.edge_lid = 5;
+        opp2.head_node = hex_nodes[7];  opp2.tail_node = hex_nodes[3];  opp1.edge_lid = 7; 
+        break;
+        case 5:
+        opp1.head_node = hex_nodes[2];  opp1.tail_node = hex_nodes[1];  opp1.edge_lid = 1;
+        opp2.head_node = hex_nodes[7];  opp2.tail_node = hex_nodes[4];  opp1.edge_lid = 11;
+        break;
+        case 7:
+        opp1.head_node = hex_nodes[2];  opp1.tail_node = hex_nodes[3];  opp1.edge_lid = 2;
+        opp2.head_node = hex_nodes[5];  opp2.tail_node = hex_nodes[4];  opp1.edge_lid = 8;
+        break;
+      }
+      break;
+
+
+
+      case 7:
+      switch( tail_index)
+      {        
+        case 3:
+        opp1.head_node = hex_nodes[4];  opp1.tail_node = hex_nodes[0];  opp1.edge_lid = 4;
+        opp2.head_node = hex_nodes[6];  opp2.tail_node = hex_nodes[2];  opp1.edge_lid = 6;
+        break;
+        case 4:
+        opp1.head_node = hex_nodes[3];  opp1.tail_node = hex_nodes[0];  opp1.edge_lid = 3;
+        opp2.head_node = hex_nodes[6];  opp2.tail_node = hex_nodes[5];  opp1.edge_lid = 9;
+        break;
+        case 6:
+        opp1.head_node = hex_nodes[3];  opp1.tail_node = hex_nodes[2];  opp1.edge_lid = 2;
+        opp2.head_node = hex_nodes[4];  opp2.tail_node = hex_nodes[5];  opp1.edge_lid = 8;
+        break;
+      }
+      break;
+
+      default: ;
+    }
+  }
+
+
+  // ========================================================
 
   RefineSlabs::RefineSlabs(Core *impl)
   {
@@ -28,7 +458,6 @@ namespace moab{
   RefineSlabs::~RefineSlabs()
   {
     delete ahf;
-    delete refinement_ahf;
   }
 
   ErrorCode RefineSlabs::initialize()
@@ -108,43 +537,24 @@ namespace moab{
     if (err == MB_SUCCESS)
       err = replace_mesh( coarse_hexes, coarse_quads, fine_hexes, fine_quads );
 
+    delete refinement_ahf;
+
+
     return err;
   }
-
-  // replace the coarse hexes and quads with the fine hexes and quads in the global database mbImpl
-  // return the new hexes for the caller. The coarse entities no longer exist.
-  ErrorCode RefineSlabs::replace_mesh( Entities &, Entities &, Entities &, Entities& )
-  //  ErrorCode RefineSlabs::replace_mesh( Entities &coarse_hexes, Entities &coarse_quads, Entities &fine_hexes, Entities &fine_quads )
-  {
-    // AHF todo
-    // return MB_FAILURE;
-
-    return MB_SUCCESS;
-  }
-  void RefineSlabs::replace_node( EntityHandle, int, EntityHandle )
-  //  void RefineSlabs::replace_node( EntityHandle chex, int node_lid, EntityHandle new_node)
-  {
-    // just replace the node in the individual hex, don't worry about updating the hex-to-hex connectivity until later when we call update_AHF_connectivity
-    // AHF todo
-    ;
-  }
-  void RefineSlabs::udpate_AHF_connectivity()
-  {
-    // since we've replaced a lot of nodes in hexes, update the hex-to-hex connectivity in ahf for traversals
-    ; // AHF todo
-  }
-
 
 
   ErrorCode RefineSlabs::initialize_refinement( Entities &coarse_hexes, Entities &/*coarse_quads*/ )
   {
 
     // estimate memory size for AHF
+    // this could be made tighter by considering the quads, and the actual slabs found.
+    size_t memory_estimate = 8 * coarse_hexes.size() + 8 * coarse_hexes.size();
+    //                        refine each hex into 8      transition == outer pillow
 
     // make a new AHF to store the refinement
-    refinement_ahf = new HalfFacetRep(mbImpl);
-    if (!ahf)
-      return MB_MEMORY_ALLOCATION_FAILED;
+    ErrorCode error = new_refinement_ahf( memory_estimate ); 
+    assert( error = MB_SUCCESS );
 
     // copy nodes
     // each node and its copy point to each other
@@ -157,7 +567,7 @@ namespace moab{
 
     // ? anything needed for the quads at this point?
     // should we copy them?
-    return MB_SUCCESS;
+    return error;
 
   }
 
@@ -187,7 +597,8 @@ namespace moab{
   {
     for (int i = 0; i < num_nodes; ++i)
     {
-      fine_nodes[i] = get_fine_node( coarse_nodes[i] );
+      get_fine_node( coarse_nodes[i], fine_nodes[i] );
+      assert( get_fine_node( coarse_nodes[i], fine_nodes[i] ) );
     }
   }
 
@@ -197,16 +608,19 @@ namespace moab{
     for (size_t i = 0; i < coarse_hexes.size(); ++i )
     {
       EntityHandle chex = coarse_hexes[i];
-      EntityHandle coarse_nodes [8], fine_nodes[8]; // todo : generalize to 2nd order hexes with more nodes, etc
+      EntityHandle coarse_nodes [8], fine_nodes[8]; 
+      // todo next level of sophistication
+      // generalize to 2nd order hexes with more nodes, etc
       get_hex_nodes( chex, coarse_nodes);
       get_fine_nodes( coarse_nodes, fine_nodes, 8);
-      EntityHandle fhex = create_hex( fine_nodes ); // AHF todo
+      EntityHandle fhex;
+      create_hex( fine_nodes, fhex );
       add_refined_hex( chex, fhex );
     }
     return MB_SUCCESS;
   }
 
-  ErrorCode RefineSlabs::find_slabs( Entities &coarse_hexes, Entities &coarse_quads, EntitiesVec &slabs )
+  ErrorCode RefineSlabs::find_slabs( Entities &coarse_hexes, Entities &/*coarse_quads*/, EntitiesVec &slabs )
   {
     for ( size_t c = 0; c < coarse_hexes.size(); ++c )
     {
@@ -220,6 +634,7 @@ namespace moab{
         if ( find_seed_edge( hex, edge_lid, slab_edge ) )
         {
           Entities slab;
+          reset_in_slab();
           add_edge( slab_edge, slab );
           extend_slab( slab_edge, slab);
 
@@ -236,14 +651,34 @@ namespace moab{
 
   void RefineSlabs::extend_slab( SlabEdge slab_edge, Entities &slab )
   {
-    // mark the slab and vertex as being in the set 
-    // find the ortho edges
-    // for each one, find the parallel edge
-    //   check if the parallel edge is a good edge, using checks as in find_seed_edge
-    //   if so, add it and recursively expand
+    // enqueue the passed in slab_edge
+    // while the queue is not empty
+    //   pop edge
+    //   if the edge is good, then
+    //      mark it as being in the set 
+    //      enqueue the parallel edges 
 
-    // zzyk todo
-    // extend_slab( next_edge, slab )
+    // enqueue passed-in edge
+    std::vector< SlabEdge > edge_queue;
+    edge_queue.push_back(slab_edge);
+
+    std::vector< SlabEdge > ortho_slab_edges, upper_slab_edges, parallel_slab_edges;
+
+    // while the queue is not empty
+    // note: edge_queue.size() grows inside the loop
+    for( size_t i = 0; i < edge_queue.size(); ++i )
+    {
+      slab_edge = edge_queue[i];
+
+      if ( is_good_slab_edge(slab_edge, ortho_slab_edges, upper_slab_edges, parallel_slab_edges) )
+      {
+        add_edge( slab_edge, slab );
+
+        // enqueue the parallel edges
+        // grow in bfs order, not dfs, in order to get better geometrically shaped slabs
+        edge_queue.insert( edge_queue.end(), parallel_slab_edges.begin(), parallel_slab_edges.end() );
+      }
+    }
   }
 
   void RefineSlabs::add_edge( SlabEdge &slab_edge, Entities &slab )
@@ -251,7 +686,13 @@ namespace moab{
     // find the distinguished vertex
     // get all the (coarse) hexes containing the vertex
     // add them to the slab
-    // zzyk todo    
+
+    EntityHandle star_node = slab_edge.head_node;
+    std::vector<EntityHandle> star_hexes;
+    get_all_hexes( star_node, star_hexes );
+    slab.insert( slab.end(), star_hexes.begin(), star_hexes.end() );
+
+    set_in_slab( slab_edge, true);
   }
 
 
@@ -269,30 +710,46 @@ namespace moab{
     return false;
   }
 
-  bool RefineSlabs::is_good_slab_edge( EntityHandle hex, int edge_lid, int node_01, SlabEdge &slab_edge )
+  bool RefineSlabs::is_good_slab_edge( const SlabEdge &slab_edge )
   {
-    // skip if edge has already been refined
-    if (get_edge_refinement_level(hex, edge_lid) > 0)
-      return false;
+    std::vector< SlabEdge > ortho_slab_edges, upper_slab_edges, parallel_slab_edges;
+    return is_good_slab_edge( slab_edge, ortho_slab_edges, upper_slab_edges, parallel_slab_edges );
+  }
+  
+  bool RefineSlabs::is_good_slab_edge( const SlabEdge &slab_edge, std::vector<SlabEdge> &ortho, std::vector<SlabEdge> &upper, std::vector<SlabEdge> &parallel )
+  {
+    ortho.clear(); 
+    upper.clear();  
+    parallel.clear(); 
 
-    // make SlabEdge from one of the two vertices
-    get_edge( hex, edge_lid, node_01, slab_edge );
+    // skip if edge has already been refined, or in the current set
+    if (get_edge_refinement_level(slab_edge.hex, slab_edge.edge_lid) > 0 || get_in_slab( slab_edge) )
+      return false;
 
     // keep going if a vertex is interior to the volume
     if ( get_geometry_dimension( slab_edge.head_node ) < 3)
       return false;
 
-    // ortho edges are the ones containing the vertex orthogonal to the edge in a hex
-    // upper_slab_edges are the other ones containing the vertex
-    // parallel_slab_edges are the face-opposite to the slab_edge
-    std::vector< SlabEdge > ortho_slab_edges, upper_slab_edges, parallel_slab_edges;
-    get_adjacent_slab_edges( slab_edge, ortho_slab_edges, upper_slab_edges, parallel_slab_edges );
-    // ensure no non-ortho edge is already defined
-    if ( none_refined( upper_slab_edges ) )
+    get_adjacent_slab_edges( slab_edge, ortho, upper, parallel );
+    // ensure no non-ortho edge is already refined
+    if ( !none_refined( upper ) )
     {
-      return true;
+      return false;
     }
-    return false;
+
+    // ensure upper and ortho edges are not already in the current set!
+    if ( any_in_slab(ortho) || any_in_slab(upper) )
+      return false;
+
+    return true;
+  }
+
+  bool RefineSlabs::is_good_slab_edge( EntityHandle hex, int edge_lid, int node_01, SlabEdge &slab_edge )
+  {
+    // make SlabEdge from one of the two vertices
+    get_edge( hex, edge_lid, node_01, slab_edge );
+
+    return is_good_slab_edge( slab_edge );
   }
 
   bool RefineSlabs::none_refined( std::vector<SlabEdge> &slab_edges )
@@ -309,6 +766,10 @@ namespace moab{
   void RefineSlabs::get_adjacent_slab_edges( const SlabEdge &slab_edge, std::vector< SlabEdge > &ortho_slab_edges, 
         std::vector< SlabEdge > &upper_slab_edges, std::vector< SlabEdge > parallel_slab_edges )
   {
+    ortho_slab_edges.clear(); 
+    upper_slab_edges.clear();  
+    parallel_slab_edges.clear(); 
+
     Entities hexes;
     get_all_hexes( slab_edge.head_node, hexes );
     Entities non_sheet_hexes;
@@ -373,348 +834,6 @@ namespace moab{
     }
   }
 
-  // given a SlabEdge (edge and vertex) of a hex, find the other two edges sharing that vertex
-  void RefineSlabs::get_adj( const SlabEdge &edge, SlabEdge &adj1, SlabEdge &adj2 )
-  {
-    adj1.hex = edge.hex;
-    adj2.hex = edge.hex;
-    adj1.head_node = adj2.head_node = edge.head_node;
-
-    // todo AHF : this should go into AHF and not be hard-coded here
-    int head_index = get_hex_node_index( edge.hex, edge.head_node );
-    int tail_index = get_hex_node_index( edge.hex, edge.tail_node );
-
-    EntityHandle hex_nodes[8];
-    get_hex_nodes( edge.hex, hex_nodes);
-
-    // zzyk todo  move to AHF
-    // 24 different edges and orientations, check for each one
-    switch ( head_index )
-    {
-      case 0:
-      switch( tail_index)
-      {        
-        case 1:
-          adj1.tail_node = hex_nodes[3];  adj1.edge_lid = 3;
-          adj2.tail_node = hex_nodes[4];  adj1.edge_lid = 4;
-          break;
-        case 3:
-          adj1.tail_node = hex_nodes[1];  adj1.edge_lid = 0;
-          adj2.tail_node = hex_nodes[4];  adj1.edge_lid = 4;
-          break;
-        case 4:
-          adj1.tail_node = hex_nodes[3];  adj1.edge_lid = 3;
-          adj2.tail_node = hex_nodes[1];  adj1.edge_lid = 0;
-          break;
-      }
-      break;
-
-      case 1:
-      switch( tail_index)
-      {        
-        case 0:
-          adj1.tail_node = hex_nodes[5];  adj1.edge_lid = 5;
-          adj2.tail_node = hex_nodes[2];  adj1.edge_lid = 1;
-          break;
-        case 5:
-          adj1.tail_node = hex_nodes[0];  adj1.edge_lid = 0;
-          adj2.tail_node = hex_nodes[2];  adj1.edge_lid = 1;
-          break;
-        case 2:
-          adj1.tail_node = hex_nodes[5];  adj1.edge_lid = 5;
-          adj2.tail_node = hex_nodes[0];  adj1.edge_lid = 0;
-          break;
-      }
-      break;
-
-      case 2:
-      switch( tail_index)
-      {        
-        case 1:
-          adj1.tail_node = hex_nodes[6];  adj1.edge_lid = 6;
-          adj2.tail_node = hex_nodes[3];  adj1.edge_lid = 2;
-          break;
-        case 3:
-          adj1.tail_node = hex_nodes[1];  adj1.edge_lid = 1;
-          adj2.tail_node = hex_nodes[6];  adj1.edge_lid = 6;
-          break;
-        case 6:
-          adj1.tail_node = hex_nodes[1];  adj1.edge_lid = 1;
-          adj2.tail_node = hex_nodes[3];  adj1.edge_lid = 2;
-          break;
-      }
-      break;
-
-
-      case 3:
-      switch( tail_index)
-      {        
-        case 2:
-          adj1.tail_node = hex_nodes[0];  adj1.edge_lid = 3;
-          adj2.tail_node = hex_nodes[7];  adj1.edge_lid = 7;
-          break;
-        case 0:
-          adj1.tail_node = hex_nodes[2];  adj1.edge_lid = 2;
-          adj2.tail_node = hex_nodes[7];  adj1.edge_lid = 7;
-          break;
-        case 7:
-          adj1.tail_node = hex_nodes[2];  adj1.edge_lid = 2;
-          adj2.tail_node = hex_nodes[0];  adj1.edge_lid = 3;
-          break;
-      }
-      break;
-
-
-      case 4:
-      switch( tail_index)
-      {        
-        case 0:
-          adj1.tail_node = hex_nodes[5];  adj1.edge_lid = 8;
-          adj2.tail_node = hex_nodes[7];  adj1.edge_lid = 11;
-          break;
-        case 5:
-          adj1.tail_node = hex_nodes[0];  adj1.edge_lid = 4;
-          adj2.tail_node = hex_nodes[7];  adj1.edge_lid = 11;
-          break;
-        case 7:
-          adj1.tail_node = hex_nodes[0];  adj1.edge_lid = 4;
-          adj2.tail_node = hex_nodes[5];  adj1.edge_lid = 8;
-          break;
-      }
-      break;
-
-      case 5:
-      switch( tail_index)
-      {        
-        case 1:
-          adj1.tail_node = hex_nodes[4];  adj1.edge_lid = 8;
-          adj2.tail_node = hex_nodes[6];  adj1.edge_lid = 9;
-          break;
-        case 4:
-          adj1.tail_node = hex_nodes[1];  adj1.edge_lid = 5;
-          adj2.tail_node = hex_nodes[6];  adj1.edge_lid = 9;
-          break;
-        case 6:
-          adj1.tail_node = hex_nodes[1];  adj1.edge_lid = 5;
-          adj2.tail_node = hex_nodes[4];  adj1.edge_lid = 8;
-          break;
-      }
-      break;
-
-
-
-      case 6:
-      switch( tail_index)
-      {        
-        case 2:
-          adj1.tail_node = hex_nodes[5];  adj1.edge_lid = 9;
-          adj2.tail_node = hex_nodes[7];  adj1.edge_lid = 10;
-          break;
-        case 5:
-          adj1.tail_node = hex_nodes[2];  adj1.edge_lid = 6;
-          adj2.tail_node = hex_nodes[7];  adj1.edge_lid = 10;
-          break;
-        case 7:
-          adj1.tail_node = hex_nodes[2];  adj1.edge_lid = 6;
-          adj2.tail_node = hex_nodes[5];  adj1.edge_lid = 9;
-          break;
-      }
-      break;
-
-
-
-      case 7:
-      switch( tail_index)
-      {        
-        case 3:
-          adj1.tail_node = hex_nodes[4];  adj1.edge_lid = 11;
-          adj2.tail_node = hex_nodes[6];  adj1.edge_lid = 10;
-          break;
-        case 4:
-          adj1.tail_node = hex_nodes[3];  adj1.edge_lid = 7;
-          adj2.tail_node = hex_nodes[6];  adj1.edge_lid = 10;
-          break;
-        case 6:
-          adj1.tail_node = hex_nodes[3];  adj1.edge_lid = 7;
-          adj2.tail_node = hex_nodes[4];  adj1.edge_lid = 11;
-          break;
-      }
-      break;
-
-      default: ;
-    }
- }
-
-  // given a SlabEdge (edge and vertex) of a hex, find the other two edges that are opposite the edge in a quad of the hex
-  void RefineSlabs::get_opp( const SlabEdge &edge, SlabEdge &opp1, SlabEdge &opp2 ) 
-  {
-    opp1.hex = edge.hex;
-    opp2.hex = edge.hex;
-
-    // todo AHF : this should go into AHF and not be hard-coded here
-    int head_index = get_hex_node_index( edge.hex, edge.head_node );
-    int tail_index = get_hex_node_index( edge.hex, edge.tail_node );
-
-    EntityHandle hex_nodes[8];
-    get_hex_nodes( edge.hex, hex_nodes);
-
-    // zzyk todo  move to AHF
-    // 24 different edges and orientations, check for each one
-    switch ( head_index )
-    {
-      case 0:
-      switch( tail_index)
-      {        
-        case 1:
-          opp1.head_node = hex_nodes[3];  opp1.tail_node = hex_nodes[2];  opp1.edge_lid = 2;
-          opp2.head_node = hex_nodes[4];  opp2.tail_node = hex_nodes[5];  opp1.edge_lid = 8;
-          break;
-        case 3:
-          opp1.head_node = hex_nodes[1];  opp1.tail_node = hex_nodes[2];  opp1.edge_lid = 1;
-          opp2.head_node = hex_nodes[4];  opp2.tail_node = hex_nodes[7];  opp1.edge_lid = 11;
-          break;
-        case 4:
-          opp1.head_node = hex_nodes[1];  opp1.tail_node = hex_nodes[5];  opp1.edge_lid = 5;
-          opp2.head_node = hex_nodes[3];  opp2.tail_node = hex_nodes[7];  opp1.edge_lid = 7;
-          break;
-      }
-      break;
-
-      case 1:
-      switch( tail_index)
-      {        
-        case 0:
-          opp1.head_node = hex_nodes[2];  opp1.tail_node = hex_nodes[3];  opp1.edge_lid = 2;
-          opp2.head_node = hex_nodes[5];  opp2.tail_node = hex_nodes[4];  opp1.edge_lid = 8;
-          break;
-        case 5:
-          opp1.head_node = hex_nodes[0];  opp1.tail_node = hex_nodes[4];  opp1.edge_lid = 4;
-          opp2.head_node = hex_nodes[2];  opp2.tail_node = hex_nodes[6];  opp1.edge_lid = 6;
-          break;
-        case 2:
-          opp1.head_node = hex_nodes[0];  opp1.tail_node = hex_nodes[3];  opp1.edge_lid = 3;
-          opp2.head_node = hex_nodes[5];  opp2.tail_node = hex_nodes[6];  opp1.edge_lid = 9;
-          break;
-      }
-      break;
-
-      case 2:
-      switch( tail_index)
-      {        
-        case 1:
-          opp1.head_node = hex_nodes[3];  opp1.tail_node = hex_nodes[0];  opp1.edge_lid = 3;
-          opp2.head_node = hex_nodes[6];  opp2.tail_node = hex_nodes[5];  opp1.edge_lid = 9;
-          break;
-        case 3:
-          opp1.head_node = hex_nodes[1];  opp1.tail_node = hex_nodes[0];  opp1.edge_lid = 0;
-          opp2.head_node = hex_nodes[6];  opp2.tail_node = hex_nodes[7];  opp1.edge_lid = 10;
-          break;
-        case 6:
-          opp1.head_node = hex_nodes[1];  opp1.tail_node = hex_nodes[5];  opp1.edge_lid = 5;
-          opp2.head_node = hex_nodes[3];  opp2.tail_node = hex_nodes[7];  opp1.edge_lid = 7;
-          break;
-      }
-      break;
-
-
-      case 3:
-      switch( tail_index)
-      {        
-        case 2:
-          opp1.head_node = hex_nodes[0];  opp1.tail_node = hex_nodes[1];  opp1.edge_lid = 0;
-          opp2.head_node = hex_nodes[7];  opp2.tail_node = hex_nodes[6];  opp1.edge_lid = 10;
-          break;
-        case 0:
-          opp1.head_node = hex_nodes[2];  opp1.tail_node = hex_nodes[1];  opp1.edge_lid = 1;
-          opp2.head_node = hex_nodes[7];  opp2.tail_node = hex_nodes[4];  opp1.edge_lid = 11;
-          break;
-        case 7:
-          opp1.head_node = hex_nodes[0];  opp1.tail_node = hex_nodes[4];  opp1.edge_lid = 4;
-          opp2.head_node = hex_nodes[2];  opp2.tail_node = hex_nodes[6];  opp1.edge_lid = 6;
-          break;
-      }
-      break;
-
-
-      case 4:
-      switch( tail_index)
-      {        
-        case 0:
-          opp1.head_node = hex_nodes[5];  opp1.tail_node = hex_nodes[1];  opp1.edge_lid = 5;
-          opp2.head_node = hex_nodes[7];  opp2.tail_node = hex_nodes[3];  opp1.edge_lid = 7;
-          break;
-        case 5:
-          opp1.head_node = hex_nodes[0];  opp1.tail_node = hex_nodes[1];  opp1.edge_lid = 0;
-          opp2.head_node = hex_nodes[7];  opp2.tail_node = hex_nodes[6];  opp1.edge_lid = 10;
-          break;
-        case 7:
-          opp1.head_node = hex_nodes[0];  opp1.tail_node = hex_nodes[3];  opp1.edge_lid = 3;
-          opp2.head_node = hex_nodes[5];  opp2.tail_node = hex_nodes[6];  opp1.edge_lid = 9;
-          break;
-      }
-      break;
-
-      case 5:
-      switch( tail_index)
-      {        
-        case 1:
-          opp1.head_node = hex_nodes[0];  opp1.tail_node = hex_nodes[4];  opp1.edge_lid = 4;
-          opp2.head_node = hex_nodes[2];  opp2.tail_node = hex_nodes[6];  opp1.edge_lid = 6;
-          break;
-        case 4:
-          opp1.head_node = hex_nodes[1];  opp1.tail_node = hex_nodes[0];  opp1.edge_lid = 0;
-          opp2.head_node = hex_nodes[6];  opp2.tail_node = hex_nodes[7];  opp1.edge_lid = 10;
-          break;
-        case 6:
-          opp1.head_node = hex_nodes[1];  opp1.tail_node = hex_nodes[2];  opp1.edge_lid = 1;
-          opp2.head_node = hex_nodes[4];  opp2.tail_node = hex_nodes[7];  opp1.edge_lid = 11;
-          break;
-      }
-      break;
-
-
-
-      case 6:
-      switch( tail_index)
-      {        
-        case 2:
-          opp1.head_node = hex_nodes[5];  opp1.tail_node = hex_nodes[1];  opp1.edge_lid = 5;
-          opp2.head_node = hex_nodes[7];  opp2.tail_node = hex_nodes[3];  opp1.edge_lid = 7; 
-          break;
-        case 5:
-          opp1.head_node = hex_nodes[2];  opp1.tail_node = hex_nodes[1];  opp1.edge_lid = 1;
-          opp2.head_node = hex_nodes[7];  opp2.tail_node = hex_nodes[4];  opp1.edge_lid = 11;
-          break;
-        case 7:
-          opp1.head_node = hex_nodes[2];  opp1.tail_node = hex_nodes[3];  opp1.edge_lid = 2;
-          opp2.head_node = hex_nodes[5];  opp2.tail_node = hex_nodes[4];  opp1.edge_lid = 8;
-          break;
-      }
-      break;
-
-
-
-      case 7:
-      switch( tail_index)
-      {        
-        case 3:
-          opp1.head_node = hex_nodes[4];  opp1.tail_node = hex_nodes[0];  opp1.edge_lid = 4;
-          opp2.head_node = hex_nodes[6];  opp2.tail_node = hex_nodes[2];  opp1.edge_lid = 6;
-          break;
-        case 4:
-          opp1.head_node = hex_nodes[3];  opp1.tail_node = hex_nodes[0];  opp1.edge_lid = 3;
-          opp2.head_node = hex_nodes[6];  opp2.tail_node = hex_nodes[5];  opp1.edge_lid = 9;
-          break;
-        case 6:
-          opp1.head_node = hex_nodes[3];  opp1.tail_node = hex_nodes[2];  opp1.edge_lid = 2;
-          opp2.head_node = hex_nodes[4];  opp2.tail_node = hex_nodes[5];  opp1.edge_lid = 8;
-          break;
-      }
-      break;
-
-      default: ;
-    }
- }
 
   bool RefineSlabs::get_matching_edge( EntityHandle hex, const SlabEdge &slab_edge, SlabEdge &match )
   {
@@ -832,7 +951,7 @@ namespace moab{
 
   void RefineSlabs::shrink_mark_fine_slab( Entities &slab, Entities &shrink_set)
   {
-    // todo
+    // todo next level of sophistication
     // the tricky part is tracking the edges and quads of the fine mesh that are on the coarse mesh quad and hex
     // for now, just put *all* the fine hexes into the set
 
@@ -853,7 +972,8 @@ namespace moab{
       {
         EntityHandle fine_hex = fine_hexes[j];
 
-        // todo, additional containment tests here
+        // todo next level of sophistication
+        // additional containment tests here
         // check the coarse_owner of every fine hex, see if that entity is internal or boundary to the set
 
         shrink_set.push_back( fine_hex );
@@ -866,21 +986,26 @@ namespace moab{
 
   void RefineSlabs::pillow_hexes( Entities &shrink_set, Entities &new_hexes )
   {
+    // shrink set and new hexes are both fine-mesh entities
+
     // split vertices into edges
     // gather boundary entities
     for (size_t i = 0; i < shrink_set.size(); ++i)
     {
       EntityHandle chex = shrink_set[i];
       EntityHandle hex_nodes[8];
-      get_hex_nodes( chex, hex_nodes );
+      // these are fine hexes and nodes
+      get_hex_nodes( chex, hex_nodes ); 
       for ( size_t n = 0; n < 8; ++n )
       {
         EntityHandle node = hex_nodes[n];        
-        if ( get_shrink_membership( node ) == SlabData::BOUNDARY && get_copy( node ) == bad_handle ) 
+        EntityHandle copy; 
+        if ( get_shrink_membership( node ) == SlabData::BOUNDARY && !get_copy( node, copy ) ) 
         {
-          EntityHandle copy = shrink_node( node );
-          // todo: pick some new geometry for the copied node, say partway towards the hex center
-          replace_node( chex, n, copy); // AHF todo
+          copy = shrink_node( node );
+          // todo next level of sophistication
+          // pick some new geometry for the copied node, say partway towards the hex center
+          replace_node( chex, n, copy);
         }
       } 
 
@@ -896,28 +1021,29 @@ namespace moab{
         bool make_hex = true;
         for ( size_t n = 0; n < 4; n++ )
         {
-          EntityHandle copy = get_copy( quad_nodes[n] );
-          if ( copy == bad_handle )
+          EntityHandle copy;
+          if ( get_copy( quad_nodes[n], copy ) )
+            quad_nodes[n+4] = copy;
+          else 
           {
             make_hex = false;
             break;
           }
-          else
-            quad_nodes[n+4] = copy;
         }
         // if all nodes had a copy, make a hex out of the copy and the original
         if ( make_hex )
         {
-          EntityHandle fhex = create_hex( quad_nodes ); // AHF todo
+          EntityHandle fhex;
+          create_hex( quad_nodes, fhex );
           new_hexes.push_back(fhex);
         }
       }
     }
     // need to update the datastructures for traversal from one hex to another
     // either do that above during replace_node and create_hex, or below
-    udpate_AHF_connectivity(); // AHF todo
+    udpate_AHF_connectivity();
   }
-  void RefineSlabs::get_quad_nodes( EntityHandle hex, const EntityHandle hex_nodes[8], int face_lid, EntityHandle* quad_nodes )
+  void RefineSlabs::get_quad_nodes( EntityHandle /*hex*/, const EntityHandle hex_nodes[8], int face_lid, EntityHandle* quad_nodes )
   {
     int face_node_ids[4];
     int num_face_nodes = 4;
@@ -929,10 +1055,25 @@ namespace moab{
     for (size_t i = 0; i < 4; ++i)
       quad_nodes[i] = hex_nodes[ face_node_ids[i] ];
   }
-  void RefineSlabs::get_quad_nodes( EntityHandle quad, EntityHandle quad_nodes[4] )
+
+
+  ErrorCode RefineSlabs::get_quad_nodes( EntityHandle quad, EntityHandle quad_nodes[4] )
   {
-    // AHF todo
+    int num_nodes = 0;
+    const bool corners_only = true;
+    const EntityHandle *const_quad_nodes;
+    ErrorCode error = mbImpl->get_connectivity(quad, const_quad_nodes, num_nodes, corners_only ); MB_CHK_ERR(error);
+    assert(num_nodes == 4);
+
+    // transfer and cast away const
+    for (size_t i = 0; i < 4; ++i)
+    {
+      quad_nodes[i] = *const_cast<EntityHandle*>(&const_quad_nodes[i]);
+    }
+
+    return MB_SUCCESS;
   }
+
 
   ErrorCode RefineSlabs::get_hex_nodes( EntityHandle hex, EntityHandle hex_nodes[8] )
   {
@@ -941,27 +1082,15 @@ namespace moab{
     const EntityHandle *const_hex_nodes;
     ErrorCode error = mbImpl->get_connectivity(hex, const_hex_nodes, num_nodes, corners_only ); MB_CHK_ERR(error);
     assert( num_nodes == 8 );
-    // cast away const, or make hex_nodes const to begin with
-    // for (size_t)
-    // const_cast
 
-    // mbImpl->get_connectivity(hex, hex_conn, hex_nodes); MB_CHK_ERR(error);
+    // transfer and cast away const
+    for (size_t i = 0; i < 8; ++i)
+    {
+      hex_nodes[i] = *const_cast<EntityHandle*>(&const_hex_nodes[i]);
+    }
+
     return MB_SUCCESS;
   }
-
-  void RefineSlabs::get_all_hexes( EntityHandle node, Entities &hexes )
-  {
-    // ahf->get_hexes( node );
-    assert(0);
-    // zzyk, go look up how we're supposed to do that using AHF
-  }
-  void RefineSlabs::get_all_quads( EntityHandle node, Entities &quads )
-  {
-    // ahf->get_quads( node );
-    assert(0);
-    // zzyk, go look up how we're supposed to do that using AHF
-  }
-
 
   void RefineSlabs::get_edge( EntityHandle hex, int edge_lid, int node_01, SlabEdge &slab_edge )
   {
@@ -1136,20 +1265,15 @@ namespace moab{
     return MB_SUCCESS;
   }
 
-  EntityHandle RefineSlabs::create_hex( EntityHandle fine_nodes[8] )
-  {
-    EntityHandle new_hex = bad_handle; // refinement_ahf->create_hex(fine_nodes); // AHF todo
-    return new_hex;
-  } 
-
   EntityHandle RefineSlabs::copy_node( EntityHandle coarse_node )
   {
-    EntityHandle fine_copy = bad_handle; // zzyk refinement_ahf->copy_node(coarse_node); // AHF todo
-    SlabData *slab_data = force_slab_data(coarse_node);
-    slab_data->my_copy = fine_copy;
+    EntityHandle fine_copy;
+    create_node( coarse_node, fine_copy );
+    set_copy( coarse_node, fine_copy );
+    SlabData *slab_data = force_slab_data(coarse_node);    
     SlabData *copy_slab = force_slab_data(fine_copy);
     copy_slab->copy_data( slab_data );
-    copy_slab->my_copy = coarse_node;
+
     if ( slab_data->coarsening )
       copy_slab->coarsening = new HexCoarsening( *slab_data->coarsening );
     return fine_copy;
@@ -1157,17 +1281,47 @@ namespace moab{
 
   EntityHandle RefineSlabs::shrink_node( EntityHandle fine_node )
   {
-    EntityHandle fine_copy = bad_handle; // zzyk refinement_ahf->copy_node(fine_node); // AHF todo
+    EntityHandle fine_copy;
+    create_node( fine_node, fine_copy );
+    set_fine_node( fine_node, fine_copy );
     SlabData *slab_data = force_slab_data(fine_node);
-    slab_data->mini_me = fine_copy;
     SlabData *copy_slab = force_slab_data(fine_copy);
     copy_slab->copy_data( slab_data );
-    copy_slab->mini_me = fine_node;
+
     if ( slab_data->coarsening )
       copy_slab->coarsening = new HexCoarsening( *slab_data->coarsening );
-    // the coarse mesh should still point to the original 
+    // the coarse mesh should still point to the original fine_node, not its copy
     return fine_copy;
   }
+
+  void RefineSlabs::reset_in_slab()
+  {
+    edge_data_map.clear();
+  }
+  bool RefineSlabs::any_in_slab( std::vector< SlabEdge > slab_edges )
+  {      
+    for (size_t i=0; i<slab_edges.size(); ++i )
+    {
+      if ( get_in_slab(slab_edges[i]) )
+      {
+        return true;
+      }
+    }
+    return false;
+  }
+  bool RefineSlabs::get_in_slab( SlabEdge slab_edge )
+  {
+
+    EdgeDataIterator it = edge_data_map.find( std::pair<EntityHandle, EntityHandle>(slab_edge.head_node, slab_edge.tail_node));
+    if ( it == edge_data_map.end() )
+      return false;
+    return it->second;
+  }
+  void RefineSlabs::set_in_slab( SlabEdge slab_edge, bool new_value )
+  {
+    edge_data_map[std::pair<EntityHandle, EntityHandle>(slab_edge.head_node, slab_edge.tail_node)] = new_value;
+  }
+
 
 }//namesapce moab
 
