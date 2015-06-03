@@ -462,6 +462,12 @@ namespace moab{
 
   ErrorCode RefineSlabs::initialize()
   {
+#ifdef USE_AHF
+  std::cout << "macro USE_AHF is defined" << std::endl;
+#else
+  std::cout << "macro USE_AHF is undefined" << std::endl;
+#endif
+
     ErrorCode error;
     ahf = new HalfFacetRep(mbImpl);
     if (!ahf)

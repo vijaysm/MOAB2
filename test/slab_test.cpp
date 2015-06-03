@@ -223,8 +223,8 @@ ErrorCode create_simple_mesh(Interface *mbImpl, EntityType type)
             for ( double x = 0; x < xx; ++x)
             {
               const int hex_id = z * yy * xx + y * xx + x;
-              assert( hex_id == i*8 );
-              if ( hex_id != i*8 )
+              assert( hex_id * 8 == i );
+              if ( hex_id * 8 != i )
                 return MB_FAILURE;
 
               // lowest corner
