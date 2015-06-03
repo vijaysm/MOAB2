@@ -449,7 +449,13 @@ private:
   MapType mData;
 };
 
-inline void *SparseTag::allocate_data(EntityHandle h, MapType::const_iterator iter, bool copy_default) 
+inline void *SparseTag::allocate_data(EntityHandle h,
+#ifdef HAVE_UNORDERED_MAP
+                                      MapType::const_iterator iter,
+#else
+                                      MapType::const_iterator,
+#endif
+                                      bool copy_default) 
 {
   void* new_data = mAllocator.allocate(get_size());
 #ifdef HAVE_UNORDERED_MAP
