@@ -379,7 +379,12 @@ ErrorCode VarLenSparseTag::num_tagged_entities(const SequenceManager*,
   return MB_SUCCESS;
 }
 
-ErrorCode VarLenSparseTag::find_entities_with_value(const SequenceManager* seqman,
+ErrorCode VarLenSparseTag::find_entities_with_value(
+#ifdef HAVE_UNORDERED_MAP
+                                                    const SequenceManager* seqman,
+#else
+                                                    const SequenceManager*,
+#endif
                                                     Error*,
                                                     Range& output_entities,
                                                     const void* value,
