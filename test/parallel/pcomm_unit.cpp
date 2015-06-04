@@ -54,6 +54,8 @@ void test_pack_shared_entities_2d();
 void test_pack_shared_entities_3d();
 /** Test filter_pstatus function*/
 void test_filter_pstatus();
+/** Test creating a new ParallelComm instance in addition to an existing one*/
+void test_new_pcomm_instance();
 
 int main( int argc, char* argv[] )
 {
@@ -79,6 +81,7 @@ int main( int argc, char* argv[] )
   num_err += RUN_TEST( test_pack_shared_entities_2d );
   num_err += RUN_TEST( test_pack_shared_entities_3d );
   num_err += RUN_TEST( test_filter_pstatus );
+  num_err += RUN_TEST( test_new_pcomm_instance );
   
 #ifdef MOAB_HAVE_MPI
   MPI_Finalize();
@@ -1977,4 +1980,31 @@ void test_filter_pstatus()
         tmp_range[1] == verts[4] && tmp_range[2] == verts[5]);
   
   delete pcomm;
+}
+
+void test_new_pcomm_instance()
+{
+#if defined(MOAB_HAVE_MPI) && defined(MOAB_HAVE_HDF5)
+  Core moab;
+  Interface& mb = moab;
+
+  // This parallel read will create a ParallelComm instance implicitly
+#ifdef MESHDIR
+  const char example[] = STRINGIFY(MESHDIR) "/64bricks_1khex.h5m";
+#else
+  const char example[] = "64bricks_1khex.h5m";
+#endif
+  std::string read_options = "PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS";
+  ErrorCode rval = mb.load_file(example, 0, read_options.c_str());
+  CHECK_ERR(rval);
+
+  // It is highly recommended to reuse existing ParallelComm instance with ParallelComm::get_pcomm()
+  // Creating a new ParallelComm instance should still be allowed, anyway
+  ParallelComm* pcomm = new moab::ParallelComm(&moab, MPI_COMM_WORLD);
+
+  // Do something with pcomm
+  // ...
+
+  delete pcomm;
+#endif
 }
