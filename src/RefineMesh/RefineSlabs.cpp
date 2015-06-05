@@ -3,12 +3,17 @@
 #include "moab/HalfFacetRep.hpp"
 #include "moab/ReadUtilIface.hpp"
 #include <iostream>
+
+// turn on debugging asserts - its not working for some reason
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
 #include <assert.h>
+
 #include <vector>
 #include <utility>
 #include <limits>
 #include <cmath>
-
 
 namespace moab{
 
@@ -18,7 +23,7 @@ namespace moab{
   ErrorCode RefineSlabs::new_refinement_ahf( size_t /*num_hexes_memory_estimate*/ )
   {
     refinement_ahf = new HalfFacetRep(mbImpl /*, num_hexes_memory_estimate*/ ); // AHF todo, make use of the memory estimate
-    if (!ahf)
+    if (!refinement_ahf)
       return MB_MEMORY_ALLOCATION_FAILED;
     return MB_SUCCESS;
   }
@@ -33,12 +38,19 @@ namespace moab{
     return error;
   } 
 
+  // get the dimension of the geometric object that this mesh entity lies on
+  // E.g. 3 if inside the volume, 2 if on its surface, 1 if on an edge of the surface, ...
+  int RefineSlabs::get_geometry_dimension( EntityHandle /*entity_handle*/ )
+  {
+    return 3; // zzyk AHF or MOAB or CGM todo
+  }
+
   ErrorCode RefineSlabs::create_node( EntityHandle node, EntityHandle &new_node )
   {
     // get coordinates from node
     const double *xp, *yp, *zp;
     ErrorCode error = mbImpl->get_coords( node, xp, yp, zp );
-    assert( error = MB_SUCCESS );
+    assert( error == MB_SUCCESS );
 
 
     double coord[3];
@@ -83,11 +95,18 @@ namespace moab{
   
   void RefineSlabs::get_all_hexes( EntityHandle node, Entities &hexes, bool is_coarse )
   {
+    // is the node part of the ahf?
+    assert( is_registered_vertex( node ) );
+    if (!is_registered_vertex( node ))
+      std::cout << "bad node" << std::endl;
+    
     HalfFacetRep *use_ahf = (is_coarse) ? ahf : refinement_ahf;
-    use_ahf->get_up_adjacencies_vert_3d( node, hexes );
+    use_ahf->get_up_adjacencies_vert_3d( node, hexes ); // crashes on line 1685. the vidx is beyond the last index of the array
+    // use_ahf->get_up_adjacencies( node, 3, hexes ); // ditto
   }
   void RefineSlabs::get_all_quads( EntityHandle node, Entities &quads, bool is_coarse )
   {
+    assert( is_registered_vertex( node ) );
     HalfFacetRep *use_ahf = (is_coarse) ? ahf : refinement_ahf;
     use_ahf->get_up_adjacencies_vert_2d( node, quads );
   }
@@ -102,8 +121,13 @@ namespace moab{
     adj2.hex = edge.hex;
     adj1.head_node = adj2.head_node = edge.head_node;    
 
+    assert(is_registered_hex(edge.hex));
+    assert(is_registered_vertex(edge.head_node));
+    assert(is_registered_vertex(edge.tail_node));
     int head_index = get_hex_node_index( edge.hex, edge.head_node );
+    assert( head_index >= 0);
     int tail_index = get_hex_node_index( edge.hex, edge.tail_node );
+    assert( tail_index >= 0);
 
     EntityHandle hex_nodes[8];
     get_hex_nodes( edge.hex, hex_nodes);
@@ -127,6 +151,8 @@ namespace moab{
         adj1.tail_node = hex_nodes[3];  adj1.edge_lid = 3;
         adj2.tail_node = hex_nodes[1];  adj1.edge_lid = 0;
         break;
+        default:
+          assert(0);
       }
       break;
 
@@ -145,6 +171,8 @@ namespace moab{
         adj1.tail_node = hex_nodes[5];  adj1.edge_lid = 5;
         adj2.tail_node = hex_nodes[0];  adj1.edge_lid = 0;
         break;
+        default:
+          assert(0);
       }
       break;
 
@@ -163,6 +191,8 @@ namespace moab{
         adj1.tail_node = hex_nodes[1];  adj1.edge_lid = 1;
         adj2.tail_node = hex_nodes[3];  adj1.edge_lid = 2;
         break;
+        default:
+          assert(0);
       }
       break;
 
@@ -182,6 +212,8 @@ namespace moab{
         adj1.tail_node = hex_nodes[2];  adj1.edge_lid = 2;
         adj2.tail_node = hex_nodes[0];  adj1.edge_lid = 3;
         break;
+        default:
+          assert(0);
       }
       break;
 
@@ -201,6 +233,8 @@ namespace moab{
         adj1.tail_node = hex_nodes[0];  adj1.edge_lid = 4;
         adj2.tail_node = hex_nodes[5];  adj1.edge_lid = 8;
         break;
+        default:
+          assert(0);
       }
       break;
 
@@ -219,6 +253,8 @@ namespace moab{
         adj1.tail_node = hex_nodes[1];  adj1.edge_lid = 5;
         adj2.tail_node = hex_nodes[4];  adj1.edge_lid = 8;
         break;
+        default:
+          assert(0);
       }
       break;
 
@@ -239,6 +275,8 @@ namespace moab{
         adj1.tail_node = hex_nodes[2];  adj1.edge_lid = 6;
         adj2.tail_node = hex_nodes[5];  adj1.edge_lid = 9;
         break;
+        default:
+          assert(0);
       }
       break;
 
@@ -259,10 +297,12 @@ namespace moab{
         adj1.tail_node = hex_nodes[3];  adj1.edge_lid = 7;
         adj2.tail_node = hex_nodes[4];  adj1.edge_lid = 11;
         break;
+        default:
+          assert(0);
       }
       break;
-
-      default: ;
+      default:
+        assert(0);
     }
   }
 
@@ -299,6 +339,8 @@ namespace moab{
         opp1.head_node = hex_nodes[1];  opp1.tail_node = hex_nodes[5];  opp1.edge_lid = 5;
         opp2.head_node = hex_nodes[3];  opp2.tail_node = hex_nodes[7];  opp1.edge_lid = 7;
         break;
+        default:
+          assert(0);
       }
       break;
 
@@ -317,6 +359,8 @@ namespace moab{
         opp1.head_node = hex_nodes[0];  opp1.tail_node = hex_nodes[3];  opp1.edge_lid = 3;
         opp2.head_node = hex_nodes[5];  opp2.tail_node = hex_nodes[6];  opp1.edge_lid = 9;
         break;
+        default:
+          assert(0);
       }
       break;
 
@@ -335,6 +379,8 @@ namespace moab{
         opp1.head_node = hex_nodes[1];  opp1.tail_node = hex_nodes[5];  opp1.edge_lid = 5;
         opp2.head_node = hex_nodes[3];  opp2.tail_node = hex_nodes[7];  opp1.edge_lid = 7;
         break;
+        default:
+          assert(0);
       }
       break;
 
@@ -354,6 +400,8 @@ namespace moab{
         opp1.head_node = hex_nodes[0];  opp1.tail_node = hex_nodes[4];  opp1.edge_lid = 4;
         opp2.head_node = hex_nodes[2];  opp2.tail_node = hex_nodes[6];  opp1.edge_lid = 6;
         break;
+        default:
+          assert(0);
       }
       break;
 
@@ -373,6 +421,8 @@ namespace moab{
         opp1.head_node = hex_nodes[0];  opp1.tail_node = hex_nodes[3];  opp1.edge_lid = 3;
         opp2.head_node = hex_nodes[5];  opp2.tail_node = hex_nodes[6];  opp1.edge_lid = 9;
         break;
+        default:
+          assert(0);
       }
       break;
 
@@ -391,6 +441,8 @@ namespace moab{
         opp1.head_node = hex_nodes[1];  opp1.tail_node = hex_nodes[2];  opp1.edge_lid = 1;
         opp2.head_node = hex_nodes[4];  opp2.tail_node = hex_nodes[7];  opp1.edge_lid = 11;
         break;
+        default:
+          assert(0);
       }
       break;
 
@@ -411,6 +463,8 @@ namespace moab{
         opp1.head_node = hex_nodes[2];  opp1.tail_node = hex_nodes[3];  opp1.edge_lid = 2;
         opp2.head_node = hex_nodes[5];  opp2.tail_node = hex_nodes[4];  opp1.edge_lid = 8;
         break;
+        default:
+          assert(0);
       }
       break;
 
@@ -431,15 +485,251 @@ namespace moab{
         opp1.head_node = hex_nodes[3];  opp1.tail_node = hex_nodes[2];  opp1.edge_lid = 2;
         opp2.head_node = hex_nodes[4];  opp2.tail_node = hex_nodes[5];  opp1.edge_lid = 8;
         break;
+        default:
+          assert(0);
       }
       break;
 
-      default: ;
+      default:
+        assert(0);
     }
   }
 
 
   // ========================================================
+  // inlined functions placed here for debugging
+  #ifndef NDEBUG
+  #define MOAB_RefineSlabs_inline inline
+  #else
+  #define MOAB_RefineSlabs_inline
+  #endif
+
+  //==== SlabEntity methods
+  MOAB_RefineSlabs_inline
+  bool RefineSlabs::SlabHex::operator==(const SlabHex& rhs) const
+  {
+    return (entity_handle == rhs.entity_handle);
+  }
+
+  MOAB_RefineSlabs_inline
+  bool RefineSlabs::SlabNode::operator==(const SlabNode& rhs) const
+  {
+    return (entity_handle == rhs.entity_handle);
+  }
+
+
+  MOAB_RefineSlabs_inline
+  bool RefineSlabs::SlabEdge::operator==(const SlabEdge& rhs) const
+  {
+    return (head_node == rhs.head_node) &&
+    (tail_node == rhs.tail_node);
+              // hex and local id need not match
+               // && (hex == rhs.hex);
+  }
+
+  MOAB_RefineSlabs_inline
+  bool RefineSlabs::SlabEdge::nodes_match( const SlabEdge &rhs ) const
+  {
+    return ( head_node == rhs.head_node && tail_node == rhs.tail_node) 
+    || ( head_node == rhs.tail_node && tail_node == rhs.head_node);
+  }
+
+  MOAB_RefineSlabs_inline
+  bool  RefineSlabs::SlabEdge::directions_match( const SlabEdge &rhs ) const
+  {
+    return ( head_node == rhs.head_node && tail_node == rhs.tail_node);
+  }
+
+  MOAB_RefineSlabs_inline
+  void RefineSlabs::SlabEdge::flip()
+  {
+    EntityHandle tmp = head_node;
+    head_node = tail_node;
+    tail_node = tmp;
+  }
+
+  MOAB_RefineSlabs_inline
+  void RefineSlabs::SlabEdge::assignment( const SlabEdge &copy_me )
+  { 
+    edge_lid  = copy_me.edge_lid;
+    head_node = copy_me.head_node;
+    tail_node = copy_me.tail_node;
+    hex       = copy_me.hex;
+  }
+
+  MOAB_RefineSlabs_inline
+  void RefineSlabs::SlabData::copy_data( SlabData *copy_me )
+  {
+    is_coarse = copy_me->is_coarse;
+    membership = copy_me->membership;
+    shrink_membership = copy_me->shrink_membership;
+  }
+
+
+
+  MOAB_RefineSlabs_inline
+  RefineSlabs::HexRefinement *RefineSlabs::get_hex_refinement( EntityHandle coarse_hex )
+  {
+    SlabData *slab_data = get_slab_data( coarse_hex );
+    if ( !slab_data )
+      return 0;
+    return slab_data->refinement;
+  }
+  MOAB_RefineSlabs_inline
+  RefineSlabs::HexRefinement *RefineSlabs::force_hex_refinement( EntityHandle coarse_hex )
+  {
+    SlabData *slab_data = force_slab_data( coarse_hex );
+    assert( slab_data );
+    if ( !slab_data->refinement )
+      slab_data->refinement = new HexRefinement;
+    return slab_data->refinement;
+  }
+  MOAB_RefineSlabs_inline
+  RefineSlabs::HexCoarsening *RefineSlabs::force_hex_coarsening( EntityHandle fine_hex )
+  {
+    SlabData *slab_data = force_slab_data( fine_hex );
+    assert( slab_data );
+    if ( !slab_data->coarsening )
+      slab_data->coarsening = new HexCoarsening(fine_hex);
+    return slab_data->coarsening;
+  }
+
+  MOAB_RefineSlabs_inline
+  void RefineSlabs::add_refined_hex( EntityHandle coarse_hex, EntityHandle fine_hex )
+  {
+    force_hex_refinement( coarse_hex )->fine_hexes.push_back( fine_hex );
+    force_hex_coarsening( fine_hex );
+  }
+
+
+
+  //==== SlabData get/set methods
+  MOAB_RefineSlabs_inline
+  RefineSlabs::SlabData *RefineSlabs::get_slab_data( EntityHandle entity_handle) 
+  { 
+    SlabDataIterator it = slab_data_map.find(entity_handle);
+    if ( it == slab_data_map.end() )
+      return 0;
+    return it->second;
+  }
+  MOAB_RefineSlabs_inline
+  RefineSlabs::SlabData *RefineSlabs::force_slab_data( EntityHandle entity_handle ) 
+  { 
+    SlabData *slab_data = slab_data_map[entity_handle];
+    if ( !slab_data )
+      slab_data = slab_data_map[entity_handle] = new SlabData;
+    return slab_data;
+  }
+
+  MOAB_RefineSlabs_inline
+  RefineSlabs::SlabData* RefineSlabs::set_coarse_entity( EntityHandle entity )
+  {
+    SlabData *slab_data = force_slab_data(entity);
+    slab_data->is_coarse = true;
+    return slab_data;
+  }
+
+  MOAB_RefineSlabs_inline
+  void RefineSlabs::set_copy( EntityHandle entity, EntityHandle copy )
+  {      
+    SlabData *slab_data = force_slab_data( entity );
+    slab_data->my_copy_good = true;
+    slab_data->my_copy = copy;
+
+    SlabData *slab_data_copy = force_slab_data( copy );
+    slab_data_copy->my_copy_good = true;
+    slab_data_copy->my_copy = entity;
+  }
+  MOAB_RefineSlabs_inline
+  bool RefineSlabs::get_copy( EntityHandle entity, EntityHandle &copy )
+  {
+    SlabData * slab_data = get_slab_data( entity );
+    if (slab_data && slab_data->my_copy_good)
+    {
+      copy = slab_data->my_copy;
+      return true;
+    }
+    copy = bad_handle;
+    return false;
+  }
+
+
+  MOAB_RefineSlabs_inline
+  void RefineSlabs::set_fine_node( EntityHandle entity, EntityHandle fine )
+  {
+    SlabData *slab_data = force_slab_data(entity);
+    slab_data->mini_me_good = true;
+    slab_data->mini_me = fine;
+
+    SlabData *fine_slab = force_slab_data(fine);
+    fine_slab->mini_me_good = true;
+    fine_slab->mini_me = fine;
+  }
+
+  MOAB_RefineSlabs_inline
+  bool RefineSlabs::get_fine_node( EntityHandle node, EntityHandle &fine_node )
+  {
+    SlabData *slab_data = get_slab_data(node);
+    if (slab_data && slab_data->mini_me_good)
+    {
+      fine_node = slab_data->mini_me;
+      return true;
+    }
+    fine_node = bad_handle;
+    return false;
+  }
+
+
+  MOAB_RefineSlabs_inline
+  bool RefineSlabs::is_coarse( EntityHandle entity_handle )
+  {
+    SlabData *slab_data = get_slab_data(entity_handle);
+    if (!slab_data)
+      return false;
+    return slab_data->is_coarse;
+  }
+  
+  MOAB_RefineSlabs_inline
+  RefineSlabs::SlabData::Membership RefineSlabs::get_membership( EntityHandle entity_handle )
+  { 
+    SlabData *slab_data = get_slab_data(entity_handle);
+    if (!slab_data)
+      return SlabData::EXTERNAL;
+    return slab_data->membership;
+  }
+  MOAB_RefineSlabs_inline
+  void RefineSlabs::set_membership( EntityHandle entity_handle, SlabData::Membership membership )
+  { 
+    SlabData *slab_data = force_slab_data(entity_handle);
+    slab_data->membership = membership;
+    if (membership == SlabData::EXTERNAL)
+      slab_data->is_coarse = false;
+  }
+
+
+  MOAB_RefineSlabs_inline
+  RefineSlabs::SlabData::Membership RefineSlabs::get_shrink_membership( EntityHandle entity_handle )
+  { 
+    SlabData *slab_data = get_slab_data(entity_handle);
+    if (!slab_data)
+      return SlabData::EXTERNAL;
+    return slab_data->shrink_membership;
+  }
+  MOAB_RefineSlabs_inline
+  void RefineSlabs::set_shrink_membership( EntityHandle entity_handle, SlabData::Membership membership )
+  { 
+    SlabData *slab_data = get_slab_data(entity_handle);
+    assert( slab_data );
+    slab_data->shrink_membership = membership;
+    if (membership == SlabData::EXTERNAL)
+    {
+      slab_data->mini_me_good = false;
+      slab_data->mini_me = bad_handle;
+    }
+  }
+
+  // ========================================================
+  // Main (non-trivial) RefineSlabs functions
 
   RefineSlabs::RefineSlabs(Core *impl)
   {
@@ -516,6 +806,7 @@ namespace moab{
 
   ErrorCode RefineSlabs::refine_mesh(Entities &coarse_hexes, Entities &coarse_quads, Entities &fine_hexes, Entities &fine_quads)
   {
+    std::cout << "RefineSlabs::refine_mesh, set of " << coarse_hexes.size() << " hexes" << std::endl;
     
     // find boundary
     // define which vertices are on the boundary of the coarse_hexes refinement set?
@@ -560,7 +851,7 @@ namespace moab{
 
     // make a new AHF to store the refinement
     ErrorCode error = new_refinement_ahf( memory_estimate ); 
-    assert( error = MB_SUCCESS );
+    assert( error == MB_SUCCESS );
 
     // copy nodes
     // each node and its copy point to each other
@@ -649,13 +940,15 @@ namespace moab{
           slab.erase( std::unique( slab.begin(), slab.end() ), slab.end() );
 
           slabs.push_back( slab );
+          
+          // todo - optimization, use a set to avoid adding the duplicate items in the first place
         }
       }
     }
     return MB_SUCCESS;
   }
 
-  void RefineSlabs::extend_slab( SlabEdge slab_edge, Entities &slab )
+  void RefineSlabs::extend_slab( const SlabEdge &slab_edge, Entities &slab )
   {
     // enqueue the passed in slab_edge
     // while the queue is not empty
@@ -674,11 +967,11 @@ namespace moab{
     // note: edge_queue.size() grows inside the loop
     for( size_t i = 0; i < edge_queue.size(); ++i )
     {
-      slab_edge = edge_queue[i];
+      const SlabEdge se ( edge_queue[i] ); // copy constructor
 
-      if ( is_good_slab_edge(slab_edge, ortho_slab_edges, upper_slab_edges, parallel_slab_edges) )
+      if ( is_good_slab_edge(se, ortho_slab_edges, upper_slab_edges, parallel_slab_edges) )
       {
-        add_edge( slab_edge, slab );
+        add_edge( se, slab );
 
         // enqueue the parallel edges
         // grow in bfs order, not dfs, in order to get better geometrically shaped slabs
@@ -687,7 +980,7 @@ namespace moab{
     }
   }
 
-  void RefineSlabs::add_edge( SlabEdge &slab_edge, Entities &slab )
+  void RefineSlabs::add_edge( const SlabEdge &slab_edge, Entities &slab )
   {
     // find the distinguished vertex
     // get all the (coarse) hexes containing the vertex
@@ -758,11 +1051,11 @@ namespace moab{
     return is_good_slab_edge( slab_edge );
   }
 
-  bool RefineSlabs::none_refined( std::vector<SlabEdge> &slab_edges )
+  bool RefineSlabs::none_refined( std::vector<SlabEdge> slab_edges )
   {
     for (size_t i = 0; i < slab_edges.size(); ++i )
     {
-      SlabEdge &slab_edge = slab_edges[i];
+      const SlabEdge &slab_edge = slab_edges[i];
       if (get_edge_refinement_level(slab_edge.hex, slab_edge.edge_lid) > 0)
         return false;
     }
@@ -770,7 +1063,7 @@ namespace moab{
   }
 
   void RefineSlabs::get_adjacent_slab_edges( const SlabEdge &slab_edge, std::vector< SlabEdge > &ortho_slab_edges, 
-        std::vector< SlabEdge > &upper_slab_edges, std::vector< SlabEdge > parallel_slab_edges )
+        std::vector< SlabEdge > &upper_slab_edges, std::vector< SlabEdge > &parallel_slab_edges )
   {
     ortho_slab_edges.clear(); 
     upper_slab_edges.clear();  
@@ -785,10 +1078,14 @@ namespace moab{
       SlabEdge match;
       if( get_matching_edge( hex, slab_edge, match ) )
       {
+        // make sure the returned slab edge is well defined
+        assert( match.edge_lid >= 0 );
+        assert( match.edge_lid < 12 );
+        
         SlabEdge adj1, adj2, opp1, opp2;
         get_adj( match, adj1, adj2 );
         add_unique( ortho_slab_edges, adj1 );
-        add_unique( ortho_slab_edges, adj2 );
+        add_unique( ortho_slab_edges, adj2 ); // why is this size zero? // why are the edge_lid == -1? 
         get_opp( match, opp1, opp2 );
         add_unique( parallel_slab_edges, opp1 );
         add_unique( parallel_slab_edges, opp2 );
@@ -798,6 +1095,8 @@ namespace moab{
     }
     for (size_t h = 0; h < non_sheet_hexes.size(); ++h )
     {
+      // the ortho slab edges are the edges of the upper hexes containing the head vertex, that are not orthogonal to it
+      // e.g. in a structured mesh, there should be only one such edge
       EntityHandle hex = non_sheet_hexes[h];
       //get_matching_node( slab_edge.head_node, hex, node_lid );
       SlabEdge star[3];
@@ -823,6 +1122,10 @@ namespace moab{
     int i = 0;
     for (size_t e = 0; e < 12; ++e )
     {
+      // array range check
+      assert( i < 3 );
+      assert( i >= 0 );
+
       get_edge( hex, e, 0, star[i] );
       if ( star[i].head_node == node )
       {
@@ -837,7 +1140,12 @@ namespace moab{
         star[i].flip();
         ++i;
       }
+      // all done if we've found all three
+      if ( i == 3 )
+        return;
     }
+    // error if we didn't find all three
+    assert( 0 );
   }
 
 
@@ -855,18 +1163,27 @@ namespace moab{
         return true;
       }
     }
+    match.edge_lid = -1;
+    match.hex = bad_handle;
+    match.head_node = bad_handle;
+    match.tail_node = bad_handle;
     return false;
   }
-  bool RefineSlabs::unique( std::vector< SlabEdge > edges, SlabEdge edge )
+  bool RefineSlabs::unique( const std::vector< SlabEdge > &edges, const SlabEdge &edge )
   {
     for (size_t i = 0; i < edges.size(); ++i )
     {
       if ( edges[i].nodes_match( edge ))
+      {
+        // should we also require directions to match?
+        if ( !edges[i].directions_match( edge ) )
+          std::cout << "SlabEdge nodes match, but not their directions" << std::cout;
         return false;
+      }
     }
    return true;
   }
-  bool RefineSlabs::add_unique( std::vector< SlabEdge > edges, SlabEdge edge )
+  bool RefineSlabs::add_unique( std::vector< SlabEdge > &edges, const SlabEdge &edge )
   {
     if (unique( edges, edge ))
     {
@@ -1100,24 +1417,29 @@ namespace moab{
 
   void RefineSlabs::get_edge( EntityHandle hex, int edge_lid, int node_01, SlabEdge &slab_edge )
   {
+    // get handles of nodes in the hex, correctly ordered
+    EntityHandle hex_nodes [8];
+    get_hex_nodes( hex, hex_nodes );
+
     // CN.hpp
-    EntityType quad_type;
-    int edge_nodes[4];
+    // Use the cannonical connectivity of a hex to get the indices of the vertices in the edge_lid
+    EntityType edge_type;
+    int edge_nodes[2];
     int num_edge_nodes;
-    CN::SubEntityNodeIndices( moab::MBHEX, 8, 2, edge_lid, quad_type, num_edge_nodes, edge_nodes );
-    assert( quad_type == moab::MBQUAD );
-    assert( num_edge_nodes >= 2 );
+    CN::SubEntityNodeIndices( moab::MBHEX, 8, 1, edge_lid, edge_type, num_edge_nodes, edge_nodes );
+    assert( edge_type == moab::MBEDGE );
+    assert( num_edge_nodes == 2 );
     slab_edge.hex = hex;
     slab_edge.edge_lid = edge_lid;
     if (node_01 == 0)
     {
-      slab_edge.head_node = edge_nodes[0];
-      slab_edge.tail_node = edge_nodes[1];
+      slab_edge.head_node = hex_nodes[ edge_nodes[0] ];
+      slab_edge.tail_node = hex_nodes[ edge_nodes[1] ];
     }
     else
     {
-      slab_edge.head_node = edge_nodes[1];
-      slab_edge.tail_node = edge_nodes[0];
+      slab_edge.head_node = hex_nodes[ edge_nodes[1] ];
+      slab_edge.tail_node = hex_nodes[ edge_nodes[0] ];
     }
   }
 
@@ -1193,7 +1515,7 @@ namespace moab{
       {
         EntityHandle node = hex_nodes[j];
         // process each node only once
-        if ( !get_coarse(node) )
+        if ( !is_coarse(node) )
         {
           bool is_internal(true);
 
@@ -1209,7 +1531,7 @@ namespace moab{
             for ( size_t k = 0; k < hexes.size(); ++k )
             {
               EntityHandle h = hexes[k];
-              if ( !get_coarse(h) )
+              if ( !is_coarse(h) )
               {
                 is_internal = false;
                 break;
@@ -1257,7 +1579,7 @@ namespace moab{
           for ( size_t k = 0; k < quads.size(); ++k )
           {
             EntityHandle q = quads[k];
-            if ( (get_geometry_dimension(q)==2) && !get_coarse(q))
+            if ( (get_geometry_dimension(q)==2) && !is_coarse(q))
             {
               // some of its faces are not in the set, so consider it boundary
               is_internal = false;
@@ -1315,7 +1637,7 @@ namespace moab{
     }
     return false;
   }
-  bool RefineSlabs::get_in_slab( SlabEdge slab_edge )
+  bool RefineSlabs::get_in_slab( const SlabEdge &slab_edge )
   {
 
     EdgeDataIterator it = edge_data_map.find( std::pair<EntityHandle, EntityHandle>(slab_edge.head_node, slab_edge.tail_node));
@@ -1323,9 +1645,33 @@ namespace moab{
       return false;
     return it->second;
   }
-  void RefineSlabs::set_in_slab( SlabEdge slab_edge, bool new_value )
+  void RefineSlabs::set_in_slab( const SlabEdge &slab_edge, bool new_value )
   {
     edge_data_map[std::pair<EntityHandle, EntityHandle>(slab_edge.head_node, slab_edge.tail_node)] = new_value;
+  }
+
+  void RefineSlabs::register_entity_handles(EntityHandle *hexes, int num_hexes, EntityHandle *vertices, int num_vertices)
+  {
+    registered_hexes = hexes;
+    registered_vertices = vertices;
+    registered_num_hexes = num_hexes;
+    registered_num_vertices = num_vertices;
+  }
+  bool RefineSlabs::is_registered_hex( EntityHandle hex )
+  {
+    // return std::find( registered_hexes.begin(), registered_hexes.end(), hex );
+    for (int i = 0; i < registered_num_hexes; ++i)
+      if ( registered_hexes[i] == hex )
+        return true;
+    return false;
+  }
+  bool RefineSlabs::is_registered_vertex( EntityHandle vertex )
+  {
+    // return std::find( registered_vertices.begin(), registered_vertices.end(), vertex );
+    for (int i = 0; i < registered_num_vertices; ++i)
+      if ( registered_vertices[i] == vertex )
+        return true;
+    return false;
   }
 
 
