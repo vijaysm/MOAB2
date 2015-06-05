@@ -14,7 +14,7 @@ hid_t open_file( const char* name )
 {
   hid_t handle = H5Fopen( name, H5F_ACC_RDONLY, H5P_DEFAULT );
   if (handle < 0) {
-    fprintf(stderr, "Cannot open file: \"$s\"\n", name );
+    fprintf(stderr, "Cannot open file: \"%s\"\n", name );
     exit (1);
   }
   return handle;
