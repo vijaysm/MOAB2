@@ -246,8 +246,9 @@ void CropToolPopup::CropToolType2_highlighted( int num )
 
 void CropToolPopup::init()
 {
-  cropTool = new CropTool();
-  
+  if (NULL == cropTool)
+    cropTool = new CropTool();
+
     //cropTool->type_activated(0, CropTool::PLANEX);
 }
 
