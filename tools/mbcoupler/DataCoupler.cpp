@@ -51,7 +51,7 @@ DataCoupler::DataCoupler(Interface *impl,
   }
   
   if (-1 == dim && !source_ents.empty()) 
-    dim = mbImpl->dimension_from_handle(*source_ents.rbegin());
+    myDim = mbImpl->dimension_from_handle(*source_ents.rbegin());
 }
 
 /* Destructor
