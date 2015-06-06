@@ -30,6 +30,8 @@ namespace moab
         rval = myTree->get_bounding_box(localBox);
         if (MB_SUCCESS != rval) throw rval;
       }
+
+      regNums[0] = regNums[1] = regNums[2] = 0;
     }
 
     void SpatialLocator::create_tree() 

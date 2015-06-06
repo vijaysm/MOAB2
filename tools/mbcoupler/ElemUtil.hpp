@@ -206,7 +206,7 @@ namespace ElemUtil {
 
     class SpectralHex : public Map {
     public:
-      SpectralHex(const std::vector<CartVect>& vertices) : Map(vertices){};
+      SpectralHex(const std::vector<CartVect>& vertices) : Map(vertices){_xyz[0] = _xyz[1] = _xyz[2] = NULL;};
       SpectralHex(int order, double * x, double * y, double *z) ;
       SpectralHex(int order);
       SpectralHex();
@@ -286,7 +286,7 @@ namespace ElemUtil {
 
     class SpectralQuad : public Map {
       public:
-        SpectralQuad(const std::vector<CartVect>& vertices) : Map(vertices){};
+        SpectralQuad(const std::vector<CartVect>& vertices) : Map(vertices){_xyz[0] = _xyz[1] = _xyz[2] = NULL;};
         SpectralQuad(int order, double * x, double * y, double *z) ;
         SpectralQuad(int order);
         SpectralQuad();
