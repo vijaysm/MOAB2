@@ -314,6 +314,7 @@ int main( int argc, char* argv[] ){
   po.addOpt<int>( "atol,a", "Faceting normal angle tolerance (degrees)", po.add_cancel_opt );
   po.addOpt<void>( "all-warnings", "Verbose warnings about attributes and curve tolerances" );
   po.addOpt<void>( "no-attribs", "Do not actuate CGM attributes" );
+  po.addOpt<void>( "fatal_curves", "Fatal Error when curves cannot be faceted" );
 
   po.addRequiredArg<std::string>( "input_file", "Path to input file for preprocessing", &input_file );
 
@@ -332,6 +333,10 @@ int main( int argc, char* argv[] ){
 
   if( po.numOptSet("no-attribs") ){
     OPTION_APPEND( "CGM_ATTRIBS=no" );
+  }
+
+  if( po.numOptSet("fatal_curves") ){
+    OPTION_APPEND( "FATAL_ON_CURVES" );
   }
 
   if( po.numOptSet("all-warnings" ) ){
