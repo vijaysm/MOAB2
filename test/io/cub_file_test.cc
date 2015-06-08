@@ -624,6 +624,7 @@ void test_geometric_sets()
   Range verts, curves, surfs, vols;
   int dim = 0;
   // Cppcheck warning (false positive): variable dim is assigned a value that is never used
+  // Cppcheck warning (false positive): variable dim is reassigned a value before the old one has been used
   const void* vals[] = {&dim};
   rval = mb.get_entities_by_type_and_tag( 0, MBENTITYSET, &dim_tag, vals, 1, verts );
   CHECK_ERR(rval);

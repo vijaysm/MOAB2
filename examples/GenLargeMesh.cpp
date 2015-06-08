@@ -226,7 +226,7 @@ int main(int argc, char **argv)
   // set global ids
   Tag new_id_tag;
   rval = mb->tag_get_handle("HANDLEID", sizeof(long), MB_TYPE_OPAQUE,
-      new_id_tag, MB_TAG_CREAT|MB_TAG_DENSE);
+      new_id_tag, MB_TAG_CREAT|MB_TAG_DENSE);MB_CHK_SET_ERR(rval, "Can't get handle id tag");
 
   Tag part_tag;
   int dum_id = -1;

@@ -521,6 +521,7 @@ void gather_one_cell_var(int gather_set_rank)
     // Get gather set cells
     Range gather_set_cells;
     rval = mb.get_entities_by_type(gather_set, MBPOLYGON, gather_set_cells);
+    CHECK_ERR(rval);
     CHECK_EQUAL((size_t)642, gather_set_cells.size());
     CHECK_EQUAL((size_t)1, gather_set_cells.psize());
 

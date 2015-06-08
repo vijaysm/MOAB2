@@ -1054,6 +1054,7 @@ void query_elem_to_vert_direct()
 {
   Range all_hexes, all_verts;
   ErrorCode result = gMB->get_entities_by_type(0, MBHEX, all_hexes);
+  assert(MB_SUCCESS == result);
   result = gMB->get_entities_by_type(0, MBVERTEX, all_verts);  RC("query_elem_to_vert_direct");
   EntityHandle *connect;
   int ecount, vcount, vpere;

@@ -115,7 +115,9 @@ int main(int argc, char **argv) {
   double rmatrix[16];
 
   MBresult = MBI->tag_get_data( coord_tag, &root, 1, &coord_sys);
+  assert(moab::MB_SUCCESS == MBresult);
   MBresult = MBI->tag_get_data( rotation_tag, &root, 1, &rmatrix);
+  assert(moab::MB_SUCCESS == MBresult);
 
   build_time = clock() - load_time;
 
@@ -153,14 +155,18 @@ int main(int argc, char **argv) {
 
     moab::Range cfd_verts;
     MBresult = MBI->get_entities_by_type( meshset, moab::MBVERTEX, cfd_verts, true);
+    assert( moab::MB_SUCCESS == MBresult );
     num_pts = cfd_verts.size();
 
     cfd_coords = new double [ 3 * num_pts ];
-    MBresult = MBI->get_coords( cfd_verts , cfd_coords );  
+    MBresult = MBI->get_coords( cfd_verts , cfd_coords );
+    assert( moab::MB_SUCCESS == MBresult );
 
     cfd_iter = cfd_verts.begin();
     MBresult = MBI->tag_get_handle("heating_tag", 1, moab::MB_TYPE_DOUBLE, cfd_heating_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT); 
+    assert( moab::MB_SUCCESS == MBresult );
     MBresult = MBI->tag_get_handle("error_tag", 1, moab::MB_TYPE_DOUBLE, cfd_error_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT);
+    assert( moab::MB_SUCCESS == MBresult );
 
     std::cout << std::endl << "Read in mesh with query points." << std::endl << std::endl;
 
@@ -269,8 +275,10 @@ int main(int argc, char **argv) {
       }
 
       if (moab::ElemUtil::point_in_trilinear_hex(hexverts, testvc, 1.e-6)) {
-    	MBresult = MBI -> tag_get_data( MCNP->tally_tag, &(*rit), 1, &taldata);
-	MBresult = MBI -> tag_get_data( MCNP->relerr_tag, &(*rit), 1, &errdata);
+        MBresult = MBI -> tag_get_data( MCNP->tally_tag, &(*rit), 1, &taldata);
+        assert( moab::MB_SUCCESS == MBresult );
+        MBresult = MBI -> tag_get_data( MCNP->relerr_tag, &(*rit), 1, &errdata);
+        assert( moab::MB_SUCCESS == MBresult );
 
 	outfile <<   n         << ","
 	            << testpt[0] << ","
@@ -281,7 +289,9 @@ int main(int argc, char **argv) {
 
         if (!read_qnv) {
           MBresult = MBI->tag_set_data(cfd_heating_tag, &(*cfd_iter), 1, &taldata);
-	  MBresult = MBI->tag_set_data(cfd_error_tag, &(*cfd_iter), 1, &errdata);
+          assert( moab::MB_SUCCESS == MBresult );
+          MBresult = MBI->tag_set_data(cfd_error_tag, &(*cfd_iter), 1, &errdata);
+          assert( moab::MB_SUCCESS == MBresult );
         }
 
         found = true;
