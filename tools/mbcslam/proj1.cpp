@@ -49,9 +49,7 @@ int main(int argc, char **argv)
   Core moab;
   Interface & mb = moab;
 
-  ErrorCode rval;
-
-  rval = mb.load_mesh(input_mesh1);
+  ErrorCode rval = mb.load_mesh(input_mesh1);
 
   std::cout  << " -R " << radius << " input: " << input_mesh1 <<
       "  output: " << output << "\n";

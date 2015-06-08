@@ -132,12 +132,13 @@ void test_read_eul_onevar()
   CHECK_ERR(rval);
 
   // Check values of tag T0 (first level) at some strategically chosen places below
-  int rank = 0;
-  int procs = 1;
 #ifdef MOAB_HAVE_MPI
   ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
-  rank = pcomm->proc_config().proc_rank();
-  procs = pcomm->proc_config().proc_size();
+  int rank = pcomm->proc_config().proc_rank();
+  int procs = pcomm->proc_config().proc_size();
+#else
+  int rank = 0;
+  int procs = 1;
 #endif
 
   const double eps = 0.0001;
@@ -335,12 +336,13 @@ void test_read_fv_onevar()
   CHECK_ERR(rval);
 
   // Check values of tag T0 (first level) at some strategically chosen places below
-  int rank = 0;
-  int procs = 1;
 #ifdef MOAB_HAVE_MPI
   ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
-  rank = pcomm->proc_config().proc_rank();
-  procs = pcomm->proc_config().proc_size();
+  int rank = pcomm->proc_config().proc_rank();
+  int procs = pcomm->proc_config().proc_size();
+#else
+  int rank = 0;
+  int procs = 1;
 #endif
 
   const double eps = 0.0001;

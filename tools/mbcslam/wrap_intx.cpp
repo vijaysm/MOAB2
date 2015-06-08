@@ -909,6 +909,7 @@ void cleanup_after_intersection(iMesh_Instance instance,
 
   Range polys; // first euler polys
   rval = mb->get_entities_by_dimension((EntityHandle) fine_set, 2, polys);
+  ERRORV(rval, "can't get all polys from fine set");
 
   // add to polys range the lagr polys
   rval = mb->get_entities_by_dimension((EntityHandle) lagr_set, 2, polys); // do not delete lagr set either, with its vertices
