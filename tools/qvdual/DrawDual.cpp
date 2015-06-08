@@ -83,6 +83,7 @@ DrawDual::DrawDual(QLineEdit *pickline1, QLineEdit *pickline2)
   ErrorCode result = MBI->tag_get_handle(DualTool::DUAL_ENTITY_TAG_NAME, 
                                          1, MB_TYPE_HANDLE, dualEntityTagHandle,
                                          MB_TAG_DENSE|MB_TAG_CREAT, &dum);
+  assert(MB_SUCCESS == result);
 
   result = MBI->tag_get_handle(DualTool::DUAL_SURFACE_TAG_NAME, 1, MB_TYPE_HANDLE, dualSurfaceTagHandle);
   assert(MB_SUCCESS == result);
@@ -324,8 +325,10 @@ void DrawDual::print_picked_ents(Range &picked_ents, bool from_return)
     else if (MBI->type_from_handle(picked_ent) == MBEDGE) oss << "1-cell: ";
     else oss << "(unknown):";
     result = MBI->tag_get_data(dualEntityTagHandle, connect, num_connect, primals);
+    assert(MB_SUCCESS == result);
     ids.resize(num_connect);
     result = MBI->tag_get_data(vtkMOABUtils::globalId_tag(), primals, num_connect, &ids[0]);
+    assert(MB_SUCCESS == result);
     for (int i = 0; i < num_connect; i++) {
       if (!first) oss << "-";
       EntityType this_type = MBI->type_from_handle(primals[i]);
@@ -443,7 +446,6 @@ EntityHandle DrawDual::get_picked_cell(EntityHandle cell_set,
 bool DrawDual::print_dual_surfs(Range &dual_surfs,
                                 const bool /*use_offsets*/) 
 {
-  ErrorCode success = MB_SUCCESS;
   int offset = 0;
 
       // create vtkWindowToImageFilter
@@ -457,7 +459,7 @@ bool DrawDual::print_dual_surfs(Range &dual_surfs,
 
   char filename[15];
   std::vector<int> surf_ids(dual_surfs.size());
-  success = vtkMOABUtils::MBI->tag_get_data(vtkMOABUtils::globalId_tag(), 
+  ErrorCode success = vtkMOABUtils::MBI->tag_get_data(vtkMOABUtils::globalId_tag(),
                                             dual_surfs, &surf_ids[0]);
   if (MB_SUCCESS != success) return success;
   Range::iterator rit;

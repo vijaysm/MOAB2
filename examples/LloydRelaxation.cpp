@@ -53,12 +53,12 @@ int main(int argc, char **argv)
   if (NULL == mb)
     return 1;
 
-  int nprocs = 1;
-
 #ifdef MOAB_HAVE_MPI
   // Get the ParallelComm instance
   ParallelComm *pcomm = new ParallelComm(mb, MPI_COMM_WORLD);
-  nprocs = pcomm->size();
+  int nprocs = pcomm->size();
+#else
+  int nprocs = 1;
 #endif
   string options;
   if (nprocs > 1) // If reading in parallel, need to tell it how
@@ -116,11 +116,12 @@ ErrorCode perform_lloyd_relaxation(Interface *mb, Range &verts, Range &faces, Ta
                                    int num_its, int report_its) 
 {
   ErrorCode rval;
-  int nprocs = 1;
 
 #ifdef MOAB_HAVE_MPI
   ParallelComm *pcomm = ParallelComm::get_pcomm(mb, 0);
-  nprocs = pcomm->size();
+  int nprocs = pcomm->size();
+#else
+  int nprocs = 1;
 #endif
 
   // Perform Lloyd relaxation:

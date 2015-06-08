@@ -705,8 +705,6 @@ moab::ErrorCode update_density(moab::Interface * mb, moab::EntityHandle euler_se
 
 //  moab::ParallelComm * parcomm = ParallelComm::get_pcomm(mb, 0);
 
-  ErrorCode rval = MB_SUCCESS;
-
   double R = 1.0;
 
   moab::EntityHandle dum=0;
@@ -715,7 +713,7 @@ moab::ErrorCode update_density(moab::Interface * mb, moab::EntityHandle euler_se
                                              MB_TAG_DENSE, &dum);
 
   moab::Tag gid;
-  rval = mb->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid, MB_TAG_DENSE);
+  ErrorCode rval = mb->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid, MB_TAG_DENSE);
     if (MB_SUCCESS != rval)
       return rval;
 

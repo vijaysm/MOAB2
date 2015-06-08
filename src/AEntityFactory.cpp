@@ -193,8 +193,6 @@ ErrorCode AEntityFactory::get_element(const EntityHandle *vertex_list,
   ErrorCode result;
   const EntityHandle *i_adj, *end_adj;
 
-  target_entity = 0;
-  
   // need vertex adjacencies, so create if necessary
   if(mVertElemAdj == false)
     create_vert_elem_adjacencies();

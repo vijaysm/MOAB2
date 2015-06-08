@@ -57,13 +57,13 @@ int main(int argc, char **argv)
   ErrorCode rval = mb->query_interface(scdiface);MB_CHK_ERR(rval); // Get a ScdInterface object through moab instance
 
   // 1. Decide what the local parameters of the mesh will be, based on parallel/serial and rank.
-  int ilow = 0, ihigh = N;
 #ifdef MOAB_HAVE_MPI
   int rank = 0, nprocs = 1;
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs); MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  ilow = rank*N; ihigh = ilow + N;
+  int ilow = rank * N, ihigh = ilow + N;
 #else
   int rank = 0;
+  int ilow = 0, ihigh = N;
 #endif  
 
   // 2. Create a N^d structured mesh, which includes (N+1)^d vertices and N^d elements.
