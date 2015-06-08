@@ -1010,7 +1010,7 @@ void test_get_by_tag_value( )
   CHECK_EQUAL( arr[1], *i ); ++i;
   CHECK_EQUAL( arr[2], *i ); ++i;
   CHECK_EQUAL( arr[3], *i ); ++i;
-  CHECK_EQUAL( arr[4], *i ); ++i;
+  CHECK_EQUAL( arr[4], *i ); //++i;
   
     // try for mesh set
   found.clear();
@@ -1020,7 +1020,7 @@ void test_get_by_tag_value( )
   i = found.begin();
   CHECK_EQUAL( arr[0], *i ); ++i;
   CHECK_EQUAL( arr[1], *i ); ++i;
-  CHECK_EQUAL( arr[2], *i ); ++i;
+  CHECK_EQUAL( arr[2], *i ); //++i;
 }
 
 void test_get_by_tag_value_dense( )

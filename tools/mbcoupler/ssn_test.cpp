@@ -86,7 +86,9 @@ int main(int argc, char **argv) {
 
   int nprocs, rank;
   err = MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  assert(MPI_SUCCESS == err);
   err = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  assert(MPI_SUCCESS == err);
 
   // Create an ofstream to write output.  One file each for each proc.
   std::stringstream fname;
