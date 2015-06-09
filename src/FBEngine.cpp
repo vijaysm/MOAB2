@@ -1840,8 +1840,8 @@ ErrorCode  FBEngine::create_new_gedge(std::vector<EntityHandle> &nodesAlongPolyl
     if (adjacent.size()>=1)
     {
       // check the orientation
-      const EntityHandle * conn2;
-      int nnodes;
+      const EntityHandle * conn2 = NULL;
+      int nnodes = 0;
       rval = _mbImpl->get_connectivity(adjacent[0], conn2, nnodes);
       MBERRORR(rval, "can't get connectivity");
       if (conn2[0]==nn2[0] && conn2[1]==nn2[1])
@@ -1915,8 +1915,8 @@ ErrorCode  FBEngine::create_new_gedge(std::vector<EntityHandle> &nodesAlongPolyl
 void FBEngine::print_debug_triangle(EntityHandle t)
 {
   std::cout<< " triangle id:" << _mbImpl->id_from_handle(t) << "\n";
-  const EntityHandle * conn3;
-  int nnodes;
+  const EntityHandle * conn3 = NULL;
+  int nnodes = 0;
   _mbImpl->get_connectivity(t, conn3, nnodes);
   // get coords
   CartVect P[3];
@@ -1946,8 +1946,8 @@ ErrorCode FBEngine::BreakTriangle2(EntityHandle tri, EntityHandle e1, EntityHand
 {
   // we have the nodes, we just need to reconnect to form new triangles
   ErrorCode rval;
-  const EntityHandle * conn3;
-  int nnodes;
+  const EntityHandle * conn3 = NULL;
+  int nnodes = 0;
   rval = _mbImpl->get_connectivity(tri, conn3, nnodes);
   MBERRORR(rval, "Failed to get connectivity");
   assert(3 == nnodes);
@@ -2574,7 +2574,7 @@ ErrorCode FBEngine::split_bedge_at_new_mesh_node(EntityHandle edge, EntityHandle
 
   // get this edge connectivity;
   EntityHandle firstEdge=adj_edges[0];
-  const EntityHandle * connActual;
+  const EntityHandle * connActual = NULL;
   rval = _mbImpl->get_connectivity(firstEdge, connActual, len);
   MBERRORR(rval, "Failed to get connectivity of first split edge");
   // if it is the same as conn02, we are happy
@@ -3118,8 +3118,8 @@ ErrorCode FBEngine::divide_triangle(EntityHandle triangle, EntityHandle & newVer
 {
   // 
   _piercedTriangles.insert(triangle);
-  int nnodes;
-  const EntityHandle * conn3;
+  int nnodes = 0;
+  const EntityHandle * conn3 = NULL;
   ErrorCode  rval = _mbImpl->get_connectivity(triangle, conn3, nnodes); 
   MBERRORR(rval, "can't get nodes");
   EntityHandle t1[]={conn3[0], conn3[1], newVertex};
@@ -3659,8 +3659,8 @@ ErrorCode FBEngine::chain_able_edge(EntityHandle edge, double min_dot,
   rval = _mbImpl->get_entities_by_type(edge, MBEDGE, mesh_edges);
   MBERRORR(rval, "can't get mesh edges from edge set");
   EntityHandle lastMeshEdge= mesh_edges[mesh_edges.size()-1];
-  const EntityHandle * conn2;
-  int len;
+  const EntityHandle * conn2 = NULL;
+  int len = 0;
   rval = _mbImpl->get_connectivity(lastMeshEdge, conn2, len);
   MBERRORR(rval, "can't connectivity of last mesh edge");
   // get the coordinates of last edge
