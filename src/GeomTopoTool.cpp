@@ -372,8 +372,8 @@ ErrorCode GeomTopoTool::restore_topology()
       // store surface senses within regions, and edge senses within surfaces
       if (dim == 0)
         continue;
-      const EntityHandle *conn3, *conn2;
-      int len3, len2, err, num, sense, offset;
+      const EntityHandle *conn3 = NULL, *conn2 = NULL;
+      int len3 = 0, len2 = 0, err = 0, num = 0, sense = 0, offset = 0;
       for (size_t i = 0; i < parents.size(); ++i) {
         result = mdbImpl->get_connectivity(dp1ents[i], conn3, len3, true);
         if (MB_SUCCESS != result)

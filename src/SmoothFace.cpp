@@ -326,8 +326,8 @@ ErrorCode SmoothFace::init_bezier_edge(EntityHandle edge, double )
   // we may complicate them afterwards
 
   CartVect ctrl_pts[3];
-  int nnodes;
-  const EntityHandle * conn2;
+  int nnodes = 0;
+  const EntityHandle * conn2 = NULL;
   ErrorCode rval = _mb->get_connectivity(edge, conn2, nnodes);
   assert(rval == MB_SUCCESS);
   if (MB_SUCCESS != rval) return rval;
@@ -466,8 +466,8 @@ ErrorCode SmoothFace::find_edges_orientations(EntityHandle edges[3],
 
     // find the edge connected to both vertices, and then see its orientation
     assert(adjacencies.size() == 1);
-    const EntityHandle * conn2;
-    int nnodes;
+    const EntityHandle * conn2 = NULL;
+    int nnodes = 0;
     rval = _mb->get_connectivity(adjacencies[0], conn2, nnodes);
     assert(rval == MB_SUCCESS);
     assert(2 == nnodes);
@@ -743,8 +743,8 @@ ErrorCode SmoothFace::evaluate_smooth_edge(EntityHandle eh, double &tt,
   if (tt >= 1.0)
     tt = 1.0;
 
-  int nnodes;
-  const EntityHandle * conn2;
+  int nnodes = 0;
+  const EntityHandle * conn2 = NULL;
   ErrorCode rval = _mb->get_connectivity(eh, conn2, nnodes);
   assert(rval == MB_SUCCESS);
   if (MB_SUCCESS != rval) return rval;
@@ -785,8 +785,8 @@ ErrorCode SmoothFace::eval_bezier_patch(EntityHandle tri, CartVect &areacoord,
   ErrorCode rval = _mb->tag_get_data(_facetCtrlTag, &tri, 1, &gctrl_pts[0]);// get all 6 control points
   assert(MB_SUCCESS == rval);
   if (MB_SUCCESS != rval) return rval;
-  const EntityHandle * conn3;
-  int nnodes;
+  const EntityHandle * conn3 = NULL;
+  int nnodes = 0;
   rval = _mb->get_connectivity(tri, conn3, nnodes);
   assert(MB_SUCCESS == rval);
 
@@ -957,8 +957,8 @@ void SmoothFace::facet_area_coordinate(EntityHandle facet,
     CartVect & pt_on_plane, CartVect & areacoord)
 {
 
-  const EntityHandle * conn3;
-  int nnodes;
+  const EntityHandle * conn3 = NULL;
+  int nnodes = 0;
   ErrorCode rval = _mb->get_connectivity(facet, conn3, nnodes);
   assert(MB_SUCCESS == rval);
   if (rval) {} // empty statement to prevent compiler warning
@@ -1577,8 +1577,8 @@ ErrorCode SmoothFace::project_to_facet(EntityHandle facet, CartVect &pt,
     CartVect &areacoord, CartVect &close_point, bool &outside_facet,
     double compare_tol)
 {
-  const EntityHandle * conn3;
-  int nnodes;
+  const EntityHandle * conn3 = NULL;
+  int nnodes = 0;
   _mb->get_connectivity(facet, conn3, nnodes);
   //
   //double coords[9]; // store the coordinates for the nodes
@@ -1613,8 +1613,8 @@ bool SmoothFace::is_at_vertex(EntityHandle facet, // (IN) facet we are evaluatin
   CartVect vert_loc;
   const double actol = 0.1;
   // get coordinates get_coords
-  const EntityHandle * conn3;
-  int nnodes;
+  const EntityHandle * conn3 = NULL;
+  int nnodes = 0;
   _mb->get_connectivity(facet, conn3, nnodes);
   //
   //double coords[9]; // store the coordinates for the nodes
@@ -1748,8 +1748,8 @@ ErrorCode SmoothFace::eval_bezier_patch_normal(EntityHandle facet,
   if (MB_SUCCESS != rval) return rval;
   // _gradientTag
   // get normals at points
-  const EntityHandle * conn3;
-  int nnodes;
+  const EntityHandle * conn3 = NULL;
+  int nnodes = 0;
   rval = _mb->get_connectivity(facet, conn3, nnodes);
   if (MB_SUCCESS != rval) return rval;
 

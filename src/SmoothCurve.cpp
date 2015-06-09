@@ -350,8 +350,8 @@ double SmoothCurve::u_from_position(double x, double y, double z, EntityHandle &
 void SmoothCurve::start_coordinates(double& x, double& y, double& z)
 {
 
-  int nnodes;
-  const EntityHandle * conn2;
+  int nnodes = 0;
+  const EntityHandle * conn2 = NULL;
   _mb->get_connectivity(_entities[0], conn2, nnodes);
   double c[3];
   _mb->get_coords(conn2, 1, c);
@@ -371,8 +371,8 @@ void SmoothCurve::start_coordinates(double& x, double& y, double& z)
 void SmoothCurve::end_coordinates(double& x, double& y, double& z)
 {
 
-  int nnodes;
-  const EntityHandle * conn2;
+  int nnodes = 0;
+  const EntityHandle * conn2 = NULL;
   _mb->get_connectivity(_entities[_entities.size() - 1], conn2, nnodes);
   double c[3];
   // careful, the second node here
@@ -574,8 +574,8 @@ ErrorCode SmoothCurve::evaluate_smooth_edge(EntityHandle eh, double &tt,
   if (tt >= 1.0)
     tt = 1.0;
 
-  int nnodes;
-  const EntityHandle * conn2;
+  int nnodes = 0;
+  const EntityHandle * conn2 = NULL;
   ErrorCode rval = _mb->get_connectivity(eh, conn2, nnodes);
   if (rval != MB_SUCCESS)
     return rval;

@@ -608,8 +608,8 @@ ErrorCode WriteUtil::gather_nodes_from_elements(const Range& elements,
 
       // For each node
       for (int j = 0; j < num_face; j++) {
-        const EntityHandle *face_conn;
-        int face_num_conn;
+        const EntityHandle *face_conn = NULL;
+        int face_num_conn = 0;
         rval = mMB->get_connectivity(conn_array[j], face_conn, face_num_conn, false);
         if (MB_SUCCESS != rval)
           return rval;
