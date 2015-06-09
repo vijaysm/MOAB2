@@ -1155,7 +1155,7 @@ ErrorCode Core::get_connectivity_by_type(const EntityType type,
        this_it != this_range.end();
        ++this_it)
   {
-    const EntityHandle *connect_vec;
+    const EntityHandle *connect_vec = NULL;
     result = get_connectivity(*this_it, connect_vec, num_ents, true);MB_CHK_ERR(result);
     connect.insert(connect.end(), &connect_vec[0], &connect_vec[num_ents]);
   }
@@ -3022,8 +3022,8 @@ ErrorCode Core::side_number(const EntityHandle parent,
                                   int &offset) const
 {
     // get the connectivity of parent and child
-  const EntityHandle *parent_conn, *child_conn;
-  int num_parent_vertices, num_child_vertices;
+  const EntityHandle *parent_conn = NULL, *child_conn = NULL;
+  int num_parent_vertices = 0, num_child_vertices = 0;
   ErrorCode result = get_connectivity(parent, parent_conn, num_parent_vertices, true);
   if (MB_NOT_IMPLEMENTED == result) {
     static std::vector<EntityHandle> tmp_connect(CN::MAX_NODES_PER_ELEMENT);
@@ -3126,8 +3126,8 @@ ErrorCode Core::high_order_node(const EntityHandle parent_handle,
   EntityType parent_type = TYPE_FROM_HANDLE(parent_handle);
 
     // get the parent's connectivity
-  const EntityHandle *parent_conn;
-  int num_parent_vertices;
+  const EntityHandle *parent_conn = NULL;
+  int num_parent_vertices = 0;
   ErrorCode result = get_connectivity(parent_handle, parent_conn,
                                          num_parent_vertices, false);MB_CHK_ERR(result);
 

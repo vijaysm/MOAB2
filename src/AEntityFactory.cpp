@@ -134,8 +134,8 @@ ErrorCode AEntityFactory::get_polyhedron_vertices(const EntityHandle source_enti
                                                     std::vector<EntityHandle> &target_entities) 
 {
     // get the connectivity array pointer
-  const EntityHandle *connect;
-  int num_connect;
+  const EntityHandle *connect = NULL;
+  int num_connect = 0;
   ErrorCode result = thisMB->get_connectivity(source_entity, connect, num_connect);
   if (MB_SUCCESS != result) return result;
   
@@ -299,8 +299,8 @@ bool AEntityFactory::entities_equivalent(const EntityHandle this_entity,
     return false;
   
     // need to compare the actual vertices
-  const EntityHandle *this_vertices;
-  int num_this_vertices;
+  const EntityHandle *this_vertices = NULL;
+  int num_this_vertices = 0;
   std::vector<EntityHandle> storage;
   thisMB->get_connectivity(this_entity, this_vertices, num_this_vertices, false, &storage);
   
@@ -586,7 +586,7 @@ ErrorCode AEntityFactory::get_adjacencies( const EntityHandle source_entity,
   }
   else if (target_dimension == (source_type != MBPOLYHEDRON ? 0 : 2)) {
     std::vector<EntityHandle> tmp_storage;
-    const EntityHandle* conn;
+    const EntityHandle* conn = NULL;
     int len = 0;
     result = thisMB->get_connectivity( source_entity, conn, len, false, &tmp_storage );
     target_entities.insert( target_entities.end(), conn, conn+len );
@@ -716,8 +716,8 @@ ErrorCode AEntityFactory::get_down_adjacency_elements(EntityHandle source_entity
   EntityHandle vertex_array[27];
   ErrorCode temp_result;
 
-  const EntityHandle *vertices;
-  int num_verts;
+  const EntityHandle *vertices = NULL;
+  int num_verts = 0;
   
     // I know there are already vertex adjacencies for this - call
     // another function to get them
@@ -1102,8 +1102,8 @@ ErrorCode AEntityFactory::get_up_adjacency_elements(EntityHandle source_entity,
 
   EntityType source_type = TYPE_FROM_HANDLE(source_entity);
 
-  const EntityHandle *source_vertices;
-  int num_source_vertices;
+  const EntityHandle *source_vertices = NULL;
+  int num_source_vertices = 0;
   std::vector<EntityHandle> conn_storage;
   
     // check to see whether there are any equivalent entities (same verts, different entity);
@@ -1161,8 +1161,8 @@ ErrorCode AEntityFactory::get_up_adjacency_elements(EntityHandle source_entity,
     if (MB_SUCCESS != result) return result;
     
       // now filter according to whether each is adjacent to the polygon
-    const EntityHandle *connect;
-    int num_connect;
+    const EntityHandle *connect = NULL;
+    int num_connect = 0;
     std::vector<EntityHandle> storage;
     for (unsigned int i = 0; i < tmp_vec.size(); i++) {
       result = thisMB->get_connectivity(tmp_vec[i], connect, num_connect, false, &storage);

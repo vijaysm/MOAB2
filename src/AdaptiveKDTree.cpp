@@ -1574,9 +1574,9 @@ namespace moab {
     {
       ErrorCode rval;
       CartVect pos, diff, verts[3];
-      const EntityHandle* conn;
-      int len;
-      
+      const EntityHandle* conn = NULL;
+      int len = 0;
+
       for (Range::iterator i = tris.begin(); i != tris.end(); ++i) {
         rval = moab->get_connectivity( *i, conn, len );
         if (MB_SUCCESS != rval)
