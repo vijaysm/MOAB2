@@ -87,8 +87,8 @@ ErrorCode MeshTopoUtil::get_average_position(const EntityHandle *entities,
 ErrorCode MeshTopoUtil::get_average_position(const EntityHandle entity,
                                                double *avg_position) 
 {
-  const EntityHandle *connect;
-  int num_connect;
+  const EntityHandle *connect = NULL;
+  int num_connect = 0;
   if (MBVERTEX == mbImpl->type_from_handle(entity))
     return mbImpl->get_coords(&entity, 1, avg_position);
     
@@ -607,7 +607,7 @@ ErrorCode MeshTopoUtil::split_entities_manifold(EntityHandle *entities,
 
 #define ITERATE_RANGE(range, it) for (Range::iterator it = range.begin(); it != range.end(); ++it)
 #define GET_CONNECT_DECL(ent, connect, num_connect) \
-  const EntityHandle *connect; int num_connect; \
+  const EntityHandle *connect = NULL; int num_connect = 0; \
   {ErrorCode connect_result = mbImpl->get_connectivity(ent, connect, num_connect); \
    if (MB_SUCCESS != connect_result) return connect_result;}
 #define GET_CONNECT(ent, connect, num_connect) \
@@ -929,8 +929,8 @@ way to do it, if I ever get the time.  Sigh.
 bool MeshTopoUtil::equivalent_entities(const EntityHandle entity,
                                        Range *equiv_ents) 
 {
-  const EntityHandle *connect;
-  int num_connect;
+  const EntityHandle *connect = NULL;
+  int num_connect = 0;
   ErrorCode result = mbImpl->get_connectivity(entity, connect, num_connect);
   if (MB_SUCCESS != result) return false;
 

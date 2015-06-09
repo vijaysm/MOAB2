@@ -222,7 +222,7 @@ ErrorCode time_integrate(Interface *mbi, int method, Tag tag, Range &elems, doub
 {
   inttime = mytime();
   ErrorCode rval;
-  double integral;
+  double integral = 0.0;
   if (ELEMEVAL == method) {
     EvalSet eset;
     ElemEvaluator eeval(mbi);
