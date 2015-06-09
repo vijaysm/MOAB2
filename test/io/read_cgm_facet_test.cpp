@@ -116,7 +116,8 @@ int main(int /* argc */, char** /* argv */)
   int result = 0;
  
   result += RUN_TEST(test_cube_curve_facet);  
+  #ifndef HAVE_OCC_STEP
   result += RUN_TEST(test_cone_curve_facet);  
- 
+  #endif
   return result;
 }
