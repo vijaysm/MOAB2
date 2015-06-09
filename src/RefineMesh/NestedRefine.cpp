@@ -608,7 +608,14 @@ namespace moab{
 
     for (int l = 0; l<num_level; l++)
       {
-        double tstart = tm->wtime();
+        std::cout<<"Starting level = "<<l<<std::endl;
+        double tstart;
+
+#ifdef USE_MPI
+        tstart = MPI_Wtime();
+#else
+        tstart = tm->wtime();
+#endif
 
         // Estimate storage
         int hmest[4] = {0,0,0,0};
@@ -628,7 +635,12 @@ namespace moab{
         //Create the new entities and new vertices
         error = construct_hm_entities(l, level_degrees[l]); MB_CHK_ERR(error);
 
+#ifdef USE_MPI
+        timeall.tm_refine += MPI_Wtime() - tstart;
+#else
         timeall.tm_refine += tm->wtime() - tstart;
+#endif
+        //timeall.tm_refine += tm->wtime() - tstart;
 
         // Go into parallel communication
 #ifdef USE_MPI
@@ -659,7 +671,8 @@ namespace moab{
 
           if (pcomm->size() > 1)
             {
-              double tpstart = tm->wtime();
+             // double tpstart = tm->wtime();
+              double tpstart = MPI_Wtime();
 
               // get all entities on the rootset
               moab::Range vtxs, edgs, facs, elms;
@@ -696,6 +709,7 @@ namespace moab{
               ParallelMergeMesh pm(pcomm, 1e-08);
               error = pm.merge(hm_set[l], true);MB_CHK_ERR(error);
 
+               timeall.tm_presolve += MPI_Wtime() - tpstart;
               //
               // Parallel Communication complete - all entities resolved
               //
@@ -714,7 +728,7 @@ namespace moab{
                 error = pcomm->exchange_tags(gidtag,facs);MB_CHK_ERR(error);
                 error = pcomm->exchange_tags(gidtag,elms);MB_CHK_ERR(error);
               }
-              timeall.tm_presolve += tm->wtime() - tpstart;
+             // timeall.tm_presolve += tm->wtime() - tpstart;
             }
           }
 #endif
@@ -1507,6 +1521,8 @@ namespace moab{
 
     delete [] vbuffer;
 
+    //error = ahf->print_tags(3);
+
     return MB_SUCCESS;
   }
 
@@ -1861,21 +1877,22 @@ ErrorCode NestedRefine::update_local_ahf(int deg, EntityType type, int pat_id, E
       total_new_verts = refTemplates[pat_id][d].total_new_verts;
     }
 
+  std::vector<EntityHandle> ent;
+  std::vector<int> lid;
+
   //Update the vertex to half-facet map
   for (int i=0; i<total_new_verts; i++)
     {
-      EntityHandle ent;
-      int lid;
-
+      ent.clear();lid.clear();
       EntityHandle vid = vbuffer[i+nv];
       error = ahf->get_incident_map(type, vid, ent, lid);  MB_CHK_ERR(error);
 
-      if (ent)
+      if (ent[0])
         continue;
 
       int id = refTemplates[pat_id][d].v2hf[i+nv][0]-1;
-      ent = ent_buffer[id];
-      lid = refTemplates[pat_id][d].v2hf[i+nv][1];
+      ent[0] = ent_buffer[id];
+      lid[0] = refTemplates[pat_id][d].v2hf[i+nv][1];
 
       error = ahf->set_incident_map(type, vid, ent, lid);  MB_CHK_ERR(error);
     }
@@ -1984,39 +2001,41 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
        nents_prev = _inedges.size();
      }
 
+   std::vector<EntityHandle> inci_ent, child_ents;
+   std::vector<int> inci_lid, child_lids;
+
    //Update the vertex to half-facet maps for duplicate vertices
    for (int i=0; i<nverts_prev; i++)
      {
-       //Vertex id in the previous mesh
+       inci_ent.clear(); inci_lid.clear(); child_ents.clear(); child_lids.clear();
+
+       //Vertex id in the previous mesh and the current one
        EntityHandle vid;
        if (cur_level)
          vid = level_mesh[cur_level-1].start_vertex + i;
        else
          vid = _inverts[i];
+       EntityHandle cur_vid = level_mesh[cur_level].start_vertex + i;
 
-       //Get the incident half-vert in the previous mesh
-       EntityHandle inci_ent=0;
-       int inci_lid=0;
-
+       //Get the incident half-vert in the previous mesh     
        error = ahf->get_incident_map(MBEDGE, vid, inci_ent, inci_lid);  MB_CHK_ERR(error);
 
        // Obtain the corresponding incident child in the current mesh
-       int lvid = get_local_vid(vid, inci_ent, cur_level-1);
+       int lvid = get_local_vid(vid, inci_ent[0], cur_level-1);
        int chid = refTemplates[0][d].v2hf[lvid][0]-1;
 
        int pid;
        if (cur_level)
-         pid = inci_ent - level_mesh[cur_level-1].start_edge;
+         pid = inci_ent[0] - level_mesh[cur_level-1].start_edge;
        else
-         pid = inci_ent - *_inedges.begin();
+         pid = inci_ent[0] - *_inedges.begin();
 
        int ind = nchilds*pid;
 
-       EntityHandle child_ent = level_mesh[cur_level].start_edge + ind+chid ;
-       int child_lid = refTemplates[0][d].v2hf[lvid][1];
+       child_ents.push_back(level_mesh[cur_level].start_edge + ind+chid);
+       child_lids.push_back(refTemplates[0][d].v2hf[lvid][1]);
 
-       EntityHandle cur_vid = level_mesh[cur_level].start_vertex + i;
-       error = ahf->set_incident_map(MBEDGE, cur_vid, child_ent, child_lid);  MB_CHK_ERR(error);
+       error = ahf->set_incident_map(MBEDGE, cur_vid, child_ents, child_lids);  MB_CHK_ERR(error);
      }
 
    //Update the sibling half-facet maps across entities
@@ -2117,10 +2136,13 @@ ErrorCode NestedRefine::update_global_ahf_1D_sub(int cur_level, int deg)
       //Set incident hv maps
       conn.clear();
       error = get_connectivity(ent,cur_level,conn); MB_CHK_ERR(error);
+
+      std::vector<EntityHandle> inci_ent, child_ents;
+      std::vector<int> inci_lid, child_lids;
       for (int j=0; j<2; j++)
         {
-          EntityHandle inci_ent=0;
-          int inci_lid=0;
+          inci_ent.clear(); inci_lid.clear(); child_ents.clear(); child_lids.clear();
+
           // Get the entityhandle of the vertex from previous level in the current level
           EntityHandle cur_vid;
           if (cur_level)
@@ -2130,28 +2152,28 @@ ErrorCode NestedRefine::update_global_ahf_1D_sub(int cur_level, int deg)
 
           //Obtain the incident half-facet. If exists, then no need to assign another
           error = ahf->get_incident_map(MBEDGE, cur_vid, inci_ent, inci_lid);  MB_CHK_ERR(error);
-          if (inci_ent != 0)
+          if (inci_ent[0] != 0)
             continue;
 
           //Get the incident half-facet on the old vertex
           error = ahf->get_incident_map(MBEDGE, conn[j], inci_ent, inci_lid);  MB_CHK_ERR(error);
 
           // Obtain the corresponding incident child in the current mesh
-          int lvid = get_local_vid(conn[j], inci_ent, cur_level-1);
+          int lvid = get_local_vid(conn[j], inci_ent[0], cur_level-1);
           int chid = refTemplates[0][d].v2hf[lvid][0]-1;
 
           int pid;
           if (cur_level)
-            pid = inci_ent - level_mesh[cur_level-1].start_edge;
+            pid = inci_ent[0] - level_mesh[cur_level-1].start_edge;
           else
-            pid = inci_ent - *_inedges.begin();
+            pid = inci_ent[0] - *_inedges.begin();
 
           int ind = nchilds*pid;
 
-          EntityHandle child_ent = level_mesh[cur_level].start_edge + ind+chid ;
-          int child_lid = refTemplates[0][d].v2hf[lvid][1];
+          child_ents.push_back(level_mesh[cur_level].start_edge + ind+chid);
+          child_lids.push_back(refTemplates[0][d].v2hf[lvid][1]);
 
-          error = ahf->set_incident_map(MBEDGE, cur_vid, child_ent, child_lid);  MB_CHK_ERR(error);
+          error = ahf->set_incident_map(MBEDGE, cur_vid, child_ents, child_lids);  MB_CHK_ERR(error);
         }
 
       EntityHandle *sib_entids = new EntityHandle[nhf];
@@ -2245,40 +2267,42 @@ ErrorCode NestedRefine::update_ahf_1D(int cur_level)
        nents_prev = _infaces.size();
      }
 
+   std::vector<EntityHandle> inci_ent, child_ents;
+   std::vector<int> inci_lid, child_lids;
+
    //Update the vertex to half-edge maps for old/duplicate vertices
    for (int i=0; i<nverts_prev; i++)
      {
+       inci_ent.clear(); inci_lid.clear(); child_ents.clear(); child_lids.clear();
+
        //Vertex id in the previous mesh
        EntityHandle vid;
        if (cur_level)
          vid = level_mesh[cur_level-1].start_vertex + i;
        else
          vid = _inverts[i];
+       EntityHandle cur_vid = level_mesh[cur_level].start_vertex + i;
 
        //Get the incident half-vert in the previous mesh
-       EntityHandle inci_ent=0;
-       int inci_lid=0;
-
        error = ahf->get_incident_map(type, vid, inci_ent, inci_lid); MB_CHK_ERR(error);
 
        // Obtain the corresponding incident child in the current mesh
-       int lvid = get_local_vid(vid, inci_ent, cur_level-1);
-       int chid = refTemplates[type-1][d].v2hf[lvid][0]-1;
+       for (int j=0; j<(int) inci_ent.size(); j++){
+           int lvid = get_local_vid(vid, inci_ent[j], cur_level-1);
+           int chid = refTemplates[type-1][d].v2hf[lvid][0]-1;
 
-       int pid;
-       if (cur_level)
-         pid = inci_ent - level_mesh[cur_level-1].start_face;
-       else
-         pid = inci_ent - *_infaces.begin();
+           int pid;
+           if (cur_level)
+             pid = inci_ent[j] - level_mesh[cur_level-1].start_face;
+           else
+             pid = inci_ent[j] - *_infaces.begin();
 
-       int ind = nchilds*pid;
+           int ind = nchilds*pid;
 
-       EntityHandle child_ent = level_mesh[cur_level].start_face + ind+chid ;
-       int child_lid = refTemplates[type-1][d].v2hf[lvid][1];
-
-       EntityHandle cur_vid = level_mesh[cur_level].start_vertex + i;
-
-       error = ahf->set_incident_map(type, cur_vid, child_ent, child_lid);  MB_CHK_ERR(error);
+           child_ents.push_back(level_mesh[cur_level].start_face + ind+chid) ;
+           child_lids.push_back(refTemplates[type-1][d].v2hf[lvid][1]);
+         }
+       error = ahf->set_incident_map(type, cur_vid, child_ents, child_lids);  MB_CHK_ERR(error);
      }
 
 
@@ -2407,42 +2431,46 @@ ErrorCode NestedRefine::update_ahf_1D(int cur_level)
        std::vector<EntityHandle> fid_conn;
        error = get_connectivity(ent, cur_level, fid_conn);
        if (MB_SUCCESS != error) return error;
+
+       std::vector<EntityHandle> inci_ent, child_ents;
+       std::vector<int> inci_lid, child_lids;
+
        //Set incident half-edges
        for (int j=0; j<nhf; j++)
          {
+           inci_ent.clear(); inci_lid.clear(); child_ents.clear(); child_lids.clear();
            EntityHandle cur_vid;
            if (cur_level)
              cur_vid = level_mesh[cur_level].start_vertex + (fid_conn[j]-level_mesh[cur_level-1].start_vertex);
            else
              cur_vid = level_mesh[cur_level].start_vertex + (fid_conn[j] - *_inverts.begin());
 
-           EntityHandle inci_ent=0;
-           int inci_lid=0;
-
            //Obtain the incident half-facet. If exists, then no need to assign another
            error = ahf->get_incident_map(type, cur_vid, inci_ent, inci_lid);  MB_CHK_ERR(error);
-           if (inci_ent != 0)
+           if (inci_ent[0] != 0)
              continue;
 
            //Get the incident half-facet on the old vertex
            error = ahf->get_incident_map(type, fid_conn[j], inci_ent, inci_lid); MB_CHK_ERR(error);
 
            // Obtain the corresponding incident child in the current mesh
-           int lvid = get_local_vid(fid_conn[j], inci_ent, cur_level-1);
-           int chid = refTemplates[type-1][d].v2hf[lvid][0]-1;
+           for (int k=0; k<(int)inci_ent.size(); k++){
+               int lvid = get_local_vid(fid_conn[j], inci_ent[k], cur_level-1);
+               int chid = refTemplates[type-1][d].v2hf[lvid][0]-1;
 
-           int pid;
-           if (cur_level)
-             pid = inci_ent - level_mesh[cur_level-1].start_face;
-           else
-             pid = inci_ent - *_infaces.begin();
+               int pid;
+               if (cur_level)
+                 pid = inci_ent[k] - level_mesh[cur_level-1].start_face;
+               else
+                 pid = inci_ent[k] - *_infaces.begin();
 
-           int ind = nchilds*pid;
+               int ind = nchilds*pid;
 
-           EntityHandle child_ent = level_mesh[cur_level].start_face + ind+chid ;
-           int child_lid = refTemplates[type-1][d].v2hf[lvid][1];
+               child_ents.push_back(level_mesh[cur_level].start_face + ind+chid);
+               child_lids.push_back(refTemplates[type-1][d].v2hf[lvid][1]);
+             }
 
-           error = ahf->set_incident_map(type, cur_vid, child_ent, child_lid);  MB_CHK_ERR(error);
+           error = ahf->set_incident_map(type, cur_vid, child_ents, child_lids);  MB_CHK_ERR(error);
          }
 
        //Set sibling half-edges
@@ -2534,13 +2562,15 @@ ErrorCode NestedRefine::update_ahf_1D(int cur_level)
 ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg)
 {
   ErrorCode error;
-  int nhf, nchilds, nverts_prev, nents_prev;
+  int nvpc, ne, nhf, nchilds, nverts_prev, nents_prev;
 
   EntityType type = mbImpl->type_from_handle(*_incells.begin());
   int index = ahf->get_index_in_lmap(*_incells.begin());
   int d = get_index_from_degree(deg);
 
   nhf = ahf->lConnMap3D[index].num_faces_in_cell;
+  ne = ahf->lConnMap3D[index].num_edges_in_cell;
+  nvpc = ahf->lConnMap3D[index].num_verts_in_cell;
   nchilds = refTemplates[type-1][d].total_new_ents;
 
   if (cur_level)
@@ -2554,41 +2584,48 @@ ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg)
       nents_prev = _incells.size();
     }
 
+  std::vector<EntityHandle> inci_ent, child_ents;
+  std::vector<int> inci_lid, child_lids;
+
   //Step 1: Update the V2HF maps for old/duplicate vertices
   for (int i=0; i<nverts_prev; i++)
     {
+      inci_ent.clear(); inci_lid.clear(); child_ents.clear(); child_lids.clear();
+
       //Vertex id in the previous mesh
       EntityHandle vid;
       if (cur_level)
         vid = level_mesh[cur_level-1].start_vertex + i;
       else
         vid = _inverts[i];
+      EntityHandle cur_vid = level_mesh[cur_level].start_vertex + i;
 
       //Get the incident half-vert in the previous mesh
-      EntityHandle inci_ent=0;
-      int inci_lid=0;
-
       error = ahf->get_incident_map(type, vid, inci_ent, inci_lid);  MB_CHK_ERR(error);
 
       // Obtain the corresponding incident child in the current mesh
-      int lvid = get_local_vid(vid, inci_ent, cur_level-1);
-      int chid = refTemplates[type-1][d].v2hf[lvid][0]-1;
+      for (int j=0;j<(int)inci_ent.size(); j++){
+          int lvid = get_local_vid(vid, inci_ent[j], cur_level-1);
+          int chid = refTemplates[type-1][d].v2hf[lvid][0]-1;
 
-      int pid;
-      if (cur_level)
-        pid = inci_ent - level_mesh[cur_level-1].start_cell;
-      else
-        pid = inci_ent - *_incells.begin();
+          int pid;
+          if (cur_level)
+            pid = inci_ent[j] - level_mesh[cur_level-1].start_cell;
+          else
+            pid = inci_ent[j] - *_incells.begin();
 
-      int ind = nchilds*pid;
+          int ind = nchilds*pid;
 
-      EntityHandle child_ent = level_mesh[cur_level].start_cell + ind+chid ;
-      int child_lid = refTemplates[type-1][d].v2hf[lvid][1];
+        //  EntityHandle child_ent = level_mesh[cur_level].start_cell + ind+chid ;
+         // int child_lid = refTemplates[type-1][d].v2hf[lvid][1];
+          child_ents.push_back(level_mesh[cur_level].start_cell + ind+chid);
+          child_lids.push_back(refTemplates[type-1][d].v2hf[lvid][1]);
+        }
 
-      EntityHandle cur_vid = level_mesh[cur_level].start_vertex + i;
-
-      error = ahf->set_incident_map(type, cur_vid, child_ent, child_lid);  MB_CHK_ERR(error);
+      error = ahf->set_incident_map(type, cur_vid, child_ents, child_lids);  MB_CHK_ERR(error);
     }
+
+//  error = ahf->determine_incident_halffaces( level_mesh[cur_level].cells);MB_CHK_ERR(error);
 
   //Step 2: Update SIBHFS maps
   for (int i=0; i< nents_prev; i++)
@@ -2669,10 +2706,151 @@ ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg)
       delete [] sib_entids;
       delete [] sib_lids;
 
+
+      //Loop over edges to check if there are any non-manifold edges. If there are then the v2hfs map should be updated for the new vertices on it.
+      const EntityHandle* conn;
+      error = mbImpl->get_connectivity(ent, conn, nvpc);MB_CHK_ERR(error);
+
+      for (int l=0; l<ne; l++)
+        {
+          id = ahf->lConnMap3D[index].e2v[l][0];
+          EntityHandle v_start = conn[id];
+          id = ahf->lConnMap3D[index].e2v[l][1];
+          EntityHandle v_end = conn[id];
+
+          std::vector<EntityHandle> inci_ent1, inci_ent2, inci_vent;
+          std::vector<int> inci_lid1, inci_lid2, inci_vlid;
+
+          error = ahf->get_incident_map(type, v_start, inci_ent1, inci_lid1);MB_CHK_ERR(error);
+          error = ahf->get_incident_map(type, v_end, inci_ent2, inci_lid2);MB_CHK_ERR(error);
+
+          if (inci_ent1.size() >1 && inci_ent2.size()>1)
+            {
+              std::vector<EntityHandle> cell_comps;
+              std::vector<int> leid_comps, lfid_comps;
+
+              error = ahf->get_half_facet_in_comp(ent, l , cell_comps, leid_comps, lfid_comps);MB_CHK_ERR(error);
+
+              for (int j=0; j<cell_comps.size(); j++)
+                {
+                  std::cout<<"cell_comps["<<j<<"] = "<<cell_comps[j]<<std::endl;
+                  std::cout<<"leid_comps["<<j<<"] = "<<leid_comps[j]<<std::endl;
+                  std::cout<<"lfid_comps["<<j<<"] = "<<lfid_comps[j]<<std::endl;
+                }
+
+              std::cout<<"ncomps = "<<cell_comps.size()<<std::endl;
+
+              int nv =  refTemplates[type-1][d].nv_edge;
+              std::vector<EntityHandle> set_child, everts;
+              std::vector<int> set_chlid;
+              std::vector<int> child_ids, child_lvids;
+
+              //Get all the vertices on the local edge of the first component
+              error = get_lid_inci_child(type, deg, lfid_comps[0], leid_comps[0], child_ids, child_lvids);
+
+
+
+              int ind;
+              if (cur_level)
+                ind = level_mesh[cur_level].cells.index(cell_comps[0]);
+              else
+                ind = _incells.index(cell_comps[0]);
+
+              for (int j=0; j<(int)child_ids.size(); j++)
+                {
+                  EntityHandle cent = level_mesh[cur_level].start_cell + ind*nchilds + child_ids[j];
+                  const EntityHandle* econn;
+                  error = mbImpl->get_connectivity(cent, econn, nvpc);MB_CHK_ERR(error);
+
+                  everts.push_back(econn[child_lvids[j]]);
+                }
+
+              std::sort(everts.begin(), everts.end());
+              std::vector<EntityHandle>::iterator last = std::unique(everts.begin(), everts.end());
+              everts.erase(last, everts.end());
+
+              std::cout<<"everts.size = "<<everts.size()<<std::endl;
+
+              for (int k=0; k< nv; k++)
+                {
+                  set_child.clear(); set_chlid.clear();
+
+                  EntityHandle vid = everts[k];
+
+                  error = ahf->get_incident_map(type, vid, inci_vent, inci_vlid);MB_CHK_ERR(error);
+
+                  if (inci_vent.size() > 1)
+                    continue;
+
+                  for (int c=0; c<(int)cell_comps.size(); c++){
+                      child_ids.clear(); child_lvids.clear();
+                      error = get_lid_inci_child(type, deg, lfid_comps[c], leid_comps[c], child_ids, child_lvids);MB_CHK_ERR(error);
+
+                      if (cur_level)
+                        ind = level_mesh[cur_level].cells.index(cell_comps[c]);
+                      else
+                        ind = _incells.index(cell_comps[c]);
+
+                      for (int j=0; j<(int)child_ids.size(); j++)
+                        {
+                          std::cout<<"child_id = "<<child_ids[j]<<std::endl;
+                          EntityHandle cent = level_mesh[cur_level].start_cell + ind*nchilds + child_ids[j];
+                          std::cout<<"child_entid = "<<cent<<std::endl;
+                          const EntityHandle* econn;
+                          error = mbImpl->get_connectivity(cent, econn, nvpc);MB_CHK_ERR(error);
+
+                          if (econn[child_lvids[j]] == vid)
+                            {
+                              set_child.push_back(cent);
+                              set_chlid.push_back(lfid_comps[c]);
+                              break;
+                            }
+                        }
+                    }
+
+                  std::cout<<"set_size = "<<set_child.size()<<std::endl;
+
+                  error = ahf->set_incident_map(type, vid, set_child, set_chlid);MB_CHK_ERR(error);
+                }
+            }
+        }
     }
 
   return MB_SUCCESS;
 }
+
+ErrorCode NestedRefine::get_lid_inci_child(EntityType type, int deg, int lfid, int leid, std::vector<int> &child_ids, std::vector<int> &child_lvids)
+{
+  int index = ahf->get_index_in_lmap(*_incells.begin());
+  int d = get_index_from_degree(deg);
+
+ // int lv0 = ahf->lConnMap3D[index].e2v[leid][0];
+//  int lv1 = ahf->lConnMap3D[index].e2v[leid][1];
+  int nvpc = ahf->lConnMap3D[index].num_verts_in_cell;
+
+  int nv =  refTemplates[type-1][d].nv_edge;
+  int nch = refTemplates[type-1][d].ents_on_pent[lfid][0];
+
+  for (int i=0; i< nch; i++)
+    {
+      int id = refTemplates[type-1][d].ents_on_pent[lfid][i+1]-1;
+      for (int j=0; j< nvpc; j++)
+        {
+          int lv = refTemplates[type-1][d].ents_conn[id][j];
+          for (int k=0; k<nv; k++)
+            {
+              if (lv == refTemplates[type-1][d].vert_on_edges[leid][k])
+                {
+                  child_ids.push_back(id);
+                  child_lvids.push_back(j);
+                }
+            }
+        }
+    }
+
+  return MB_SUCCESS;
+}
+
 
 ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg, std::vector<int> &pattern_ids)
 {
@@ -2697,41 +2875,48 @@ ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg, std::vector
       nents_prev = _incells.size();
     }
 
+  std::vector<EntityHandle> inci_ent, child_ents;
+  std::vector<int> inci_lid, child_lids;
+
   //Step 1: Update the V2HF maps for old/duplicate vertices
   for (int i=0; i<nverts_prev; i++)
     {
+      inci_ent.clear(); inci_lid.clear(); child_ents.clear(); child_lids.clear();
+
       //Vertex id in the previous mesh
       EntityHandle vid;
       if (cur_level)
         vid = level_mesh[cur_level-1].start_vertex + i;
       else
         vid = _inverts[i];
+      EntityHandle cur_vid = level_mesh[cur_level].start_vertex + i;
 
       //Get the incident half-vert in the previous mesh
-      EntityHandle inci_ent=0;
-      int inci_lid=0;
-
       error = ahf->get_incident_map(type, vid, inci_ent, inci_lid);  MB_CHK_ERR(error);
 
       // Obtain the corresponding incident child in the current mesh
-      int lvid = get_local_vid(vid, inci_ent, cur_level-1);
-      int chid = refTemplates[type-1][d].v2hf[lvid][0]-1;
+      for (int j=0; j<(int)inci_ent.size();j++){
+          int lvid = get_local_vid(vid, inci_ent[j], cur_level-1);
+          int chid = refTemplates[type-1][d].v2hf[lvid][0]-1;
 
-      int pid;
-      if (cur_level)
-        pid = inci_ent - level_mesh[cur_level-1].start_cell;
-      else
-        pid = inci_ent - *_incells.begin();
+          int pid;
+          if (cur_level)
+            pid = inci_ent[j] - level_mesh[cur_level-1].start_cell;
+          else
+            pid = inci_ent[j] - *_incells.begin();
 
-      int ind = nchilds*pid;
+          int ind = nchilds*pid;
 
-      EntityHandle child_ent = level_mesh[cur_level].start_cell + ind+chid ;
-      int child_lid = refTemplates[type-1][d].v2hf[lvid][1];
+          //EntityHandle child_ent = level_mesh[cur_level].start_cell + ind+chid ;
+          //int child_lid = refTemplates[type-1][d].v2hf[lvid][1];
+          child_ents.push_back(level_mesh[cur_level].start_cell + ind+chid);
+          child_lids.push_back(refTemplates[type-1][d].v2hf[lvid][1]);
+        }
 
-      EntityHandle cur_vid = level_mesh[cur_level].start_vertex + i;
-
-      error = ahf->set_incident_map(type, cur_vid, child_ent, child_lid);  MB_CHK_ERR(error);
+      error = ahf->set_incident_map(type, cur_vid, child_ents, child_lids);  MB_CHK_ERR(error);
     }
+
+ //   error = ahf->determine_incident_halffaces( level_mesh[cur_level].cells);MB_CHK_ERR(error);
 
   //Step 2: Update SIBHFS maps
   for (int i=0; i< nents_prev; i++)
@@ -2825,8 +3010,10 @@ ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg, std::vector
 bool NestedRefine::is_vertex_on_boundary(const EntityHandle &vertex)
 {
   ErrorCode error;
-  EntityHandle ent, sibents[27];
-  int lid, siblids[27];
+  EntityHandle sibents[27];
+  int siblids[27];
+  std::vector<EntityHandle> ent;
+  std::vector<int> lid;
 
   int nhf;
   if (elementype == MBEDGE)
@@ -2842,9 +3029,9 @@ bool NestedRefine::is_vertex_on_boundary(const EntityHandle &vertex)
      MB_SET_ERR(MB_FAILURE, "Requesting vertex boundary information for an unsupported entity type");
 
   error = ahf->get_incident_map(elementype, vertex, ent, lid);MB_CHK_ERR(error);
-  error = ahf->get_sibling_map(elementype, ent, &sibents[0], &siblids[0], nhf);MB_CHK_ERR(error);
+  error = ahf->get_sibling_map(elementype, ent[0], &sibents[0], &siblids[0], nhf);MB_CHK_ERR(error);
 
-  return (sibents[lid] == 0);
+  return (sibents[lid[0]] == 0);
 }
 
 bool NestedRefine::is_edge_on_boundary(const EntityHandle &entity)
@@ -3041,8 +3228,11 @@ ErrorCode NestedRefine::update_tracking_verts(EntityHandle cid, int cur_level, i
         continue;
 
       //Add the vertices to the edges of the incident cells
-      for (int k=1; k<(int)inc_cids.size(); k++)
+      for (int k=0; k<(int)inc_cids.size(); k++)
         {
+          if (inc_cids[k] == cid)
+            continue;
+
           int idx = inc_cids[k] - cstart_prev;
 
           if (inc_orient[k]) // Same edge direction as the current edge
@@ -3362,6 +3552,7 @@ int NestedRefine::get_index_from_degree(int degree)
   return d;
 }
 
+/*
 ErrorCode NestedRefine::print_maps_1D(int level)
 {
   ErrorCode error;
@@ -3502,5 +3693,6 @@ ErrorCode NestedRefine::print_maps_3D(int level, EntityType type)
   return MB_SUCCESS;
 }
 
+*/
 }//namesapce moab
 

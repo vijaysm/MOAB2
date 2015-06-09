@@ -415,6 +415,9 @@ public:
 
   void get_memory_use(unsigned long long& entity_total, unsigned long long& memory_total);
 
+  ErrorCode get_half_facet_in_comp(EntityHandle cid, int leid, std::vector<EntityHandle> &ents, std::vector<int> &lids,  std::vector<int> &lfids);
+
+
   /**************************
      *  Interface to AHF maps   *
      **************************/
@@ -436,9 +439,9 @@ public:
 
   ErrorCode set_sibling_map(EntityType type, EntityHandle ent, int lid, EntityHandle &set_entid, int &set_lid);
 
-  ErrorCode get_incident_map(EntityType type, EntityHandle vid, EntityHandle &inci_entid, int &inci_lid);
+  ErrorCode get_incident_map(EntityType type, EntityHandle vid, std::vector<EntityHandle> &inci_entid, std::vector<int> &inci_lid);
 
-  ErrorCode set_incident_map(EntityType type, EntityHandle vid, EntityHandle &set_entid, int &set_lid);
+  ErrorCode set_incident_map(EntityType type, EntityHandle vid, std::vector<EntityHandle> &set_entid, std::vector<int> &set_lid);
 
   /**********************
    *         Local Maps
@@ -508,6 +511,9 @@ protected:
   std::vector<HFacet> sibhvs, v2hv;
   std::vector<HFacet> sibhes, v2he;
   std::vector<HFacet> sibhfs, v2hf;
+
+  //AHF maps for non-manifold vertices 2D, 3D
+  std::multimap<EntityHandle, HFacet> v2hes, v2hfs;
 
   //Auxiliary storage for local searches.
   EntityHandle queue_fid[MAXSIZE], Stkcells[MAXSIZE], cellq[MAXSIZE];
@@ -600,15 +606,21 @@ protected:
                                 EntityHandle *he2_fid,
                                 int *he2_lid);
 
+    ErrorCode mark_halfedges(EntityHandle vid, EntityHandle he_fid, int he_lid, std::vector<bool> &markHEdgs, HFacet &bnd_hf);
+
     //! Collect and compare to find a matching half-edge with the given edge connectivity.
     /** Given edge connectivity, compare to an input list of half-edges to find a matching half-edge
      * and add a list of half-edges belonging to the one-ring neighborhood to a queue till it finds a match.
     */
 
-    bool collect_and_compare(const EntityHandle* edg_vert,
+    bool collect_and_compare(const EntityHandle vid, const EntityHandle* edg_vert,
                              int *qsize, int *count,
                              EntityHandle *he_fid,
                              int *he_lid);
+
+
+    ErrorCode add_cells_of_single_component(EntityHandle vid, EntityHandle curcid, int curlid, std::multimap<EntityHandle, EntityHandle> &comps, HFacet &hf);
+    bool find_cell_in_component(EntityHandle vid, EntityHandle cell, std::multimap<EntityHandle, EntityHandle> &comps);
 
     //! Given an edge, finds a matching local edge in an incident cell.
     /** Find a local edge with the same connectivity as the input edge, belonging to an incident cell.
@@ -618,9 +630,9 @@ protected:
      * \param leid Returns the local id of the edge corresponding to the input edge w.r.t the incident cell.
     */
 
-    bool find_matching_implicit_edge_in_cell( EntityHandle eid,
-                                              EntityHandle *cid,
-                                              int *leid);
+    bool find_matching_implicit_edge_in_cell(EntityHandle eid,
+                                              std::vector<EntityHandle> &cid,
+                                              std::vector<int> &leid);
 
     //! Given a face, finds a matching local face in an incident cell.
     /** Find a local face with the same connectivity as the input face, belonging to an incident cell.

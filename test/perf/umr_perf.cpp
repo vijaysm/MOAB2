@@ -208,9 +208,9 @@ ErrorCode umr_perf_test(Core *mb, int *level_degrees, int num_levels, OUTTYPE ou
     {
       //Get the current mesh level using its meshset
       Range verts, ents;
-      error = mbImpl->get_entities_by_type(set[l], MBVERTEX, verts);
+      error = mbImpl->get_entities_by_type(set[l+1], MBVERTEX, verts);
       CHECK_ERR(error);
-      error = mbImpl->get_entities_by_dimension(set[l], dim, ents);
+      error = mbImpl->get_entities_by_dimension(set[l+1], dim, ents);
       CHECK_ERR(error);
 
       std::cout<<"Mesh size for level "<<l+1<<" :: deg = "<<level_degrees[l]<<" :: NV = "<<verts.size()<<", NE = "<<ents.size()<<std::endl;
@@ -791,7 +791,7 @@ int main(int argc, char *argv[])
             handle_error_code(result, number_tests_failed, number_tests_successful);
             std::cout<<"\n";
 
-         /*   deg[0] = 5; deg[1] = 5; deg[2] = 5;
+          /*  deg[0] = 5; deg[1] = 5; deg[2] = 5;
             result = perf_inmesh(filename, deg, len, output);
             handle_error_code(result, number_tests_failed, number_tests_successful);
             std::cout<<"\n";*/

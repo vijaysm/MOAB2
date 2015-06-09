@@ -56,7 +56,7 @@ ErrorCode ahf_test(const char* filename)
     MeshTopoUtil mtu(mbImpl);
     ErrorCode error;
     EntityHandle fileset;
-    error = mbImpl->create_meshset(moab::MESHSET_SET, fileset); CHECK_ERR(error);
+    error = mbImpl->create_meshset(moab::MESHSET_SET, fileset);CHECK_ERR(error);
 
 #ifdef MOAB_HAVE_MPI
     int procs = 1;
@@ -76,10 +76,10 @@ ErrorCode ahf_test(const char* filename)
 
     /*Create ranges for handles of explicit elements of the mixed mesh*/
     Range verts, edges, faces, cells;
-    error = mbImpl->get_entities_by_dimension( fileset, 0, verts);
-    error = mbImpl->get_entities_by_dimension( fileset, 1, edges);
-    error = mbImpl->get_entities_by_dimension( fileset, 2, faces);
-    error = mbImpl->get_entities_by_dimension( fileset, 3, cells);
+    error = mbImpl->get_entities_by_dimension( fileset, 0, verts);CHECK_ERR(error);
+    error = mbImpl->get_entities_by_dimension( fileset, 1, edges);CHECK_ERR(error);
+    error = mbImpl->get_entities_by_dimension( fileset, 2, faces);CHECK_ERR(error);
+    error = mbImpl->get_entities_by_dimension( fileset, 3, cells);CHECK_ERR(error);
 
     // Create an ahf instance  
 #ifdef USE_MPI
@@ -92,6 +92,8 @@ ErrorCode ahf_test(const char* filename)
     // Call the initialize function which creates the maps for each dimension
     error = ahf.initialize();CHECK_ERR(error);
 
+     std::cout<<"Finished AHF initialization"<<std::endl;
+
     //Perform queries
     std::vector<EntityHandle> adjents;
     Range mbents, ahfents;
@@ -101,11 +103,10 @@ ErrorCode ahf_test(const char* filename)
     if (edges.size()){
         for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
             adjents.clear();
-            error = ahf.get_up_adjacencies( *i, 1, adjents);
-            CHECK_ERR(error);
+            error = ahf.get_up_adjacencies( *i, 1, adjents);CHECK_ERR(error);
             mbents.clear();
-            error = mbImpl->get_adjacencies( &*i, 1, 1, false, mbents );
-            CHECK_ERR(error);
+            error = mbImpl->get_adjacencies( &*i, 1, 1, false, mbents );CHECK_ERR(error);
+
             CHECK_EQUAL(adjents.size(),mbents.size());
             std::sort(adjents.begin(), adjents.end());
             std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
@@ -118,11 +119,10 @@ ErrorCode ahf_test(const char* filename)
     if (edges.size()){
         for (Range::iterator i = edges.begin(); i != edges.end(); ++i) {
             adjents.clear();
-            error = ahf.get_neighbor_adjacencies( *i, adjents);
-            CHECK_ERR(error);
+            error = ahf.get_neighbor_adjacencies( *i, adjents);CHECK_ERR(error);
             mbents.clear();
-            error = mtu.get_bridge_adjacencies( *i, 0, 1, mbents);
-            CHECK_ERR(error);
+            error = mtu.get_bridge_adjacencies( *i, 0, 1, mbents);CHECK_ERR(error);
+
             CHECK_EQUAL(adjents.size(), mbents.size());
             std::sort(adjents.begin(), adjents.end());
             std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
@@ -131,16 +131,16 @@ ErrorCode ahf_test(const char* filename)
           }
       }
 
+    std::cout<<"Finished 1D queries"<<std::endl;
     // 2D Queries
     // IQ21: For every vertex, obtain incident faces
     if (faces.size()){
         for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
             adjents.clear();
-            error = ahf.get_up_adjacencies( *i, 2, adjents);
-            CHECK_ERR(error);
+            error = ahf.get_up_adjacencies( *i, 2, adjents);CHECK_ERR(error);
             mbents.clear();
-            error = mbImpl->get_adjacencies( &*i, 1, 2, false, mbents);
-            CHECK_ERR(error);
+            error = mbImpl->get_adjacencies( &*i, 1, 2, false, mbents);CHECK_ERR(error);
+
             CHECK_EQUAL(adjents.size(), mbents.size());
             std::sort(adjents.begin(), adjents.end());
             std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
@@ -149,15 +149,23 @@ ErrorCode ahf_test(const char* filename)
           }
       }
 
+    std::cout<<"Finished 2D queries: v2f"<<std::endl;
+
     //IQ22: For every edge, obtain incident faces
     if (edges.size() && faces.size()){
         for (Range::iterator i = edges.begin(); i != edges.end(); ++i) {
             adjents.clear();
-            error = ahf.get_up_adjacencies( *i, 2, adjents);
-            CHECK_ERR(error);
+
+            if ((*i-*edges.begin())==159)
+              std::cout<<"Here now"<<std::endl;
+
+            error = ahf.get_up_adjacencies( *i, 2, adjents);CHECK_ERR(error);
             mbents.clear();
-            error = mbImpl->get_adjacencies( &*i, 1, 2, false, mbents);
-            CHECK_ERR(error);
+            error = mbImpl->get_adjacencies( &*i, 1, 2, false, mbents);CHECK_ERR(error);
+
+            if (adjents.size() != mbents.size())
+              std::cout<<"EID = "<<(*i-*edges.begin())<<std::endl;
+
             CHECK_EQUAL(adjents.size(), mbents.size());
             std::sort(adjents.begin(), adjents.end());
             std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
@@ -170,11 +178,10 @@ ErrorCode ahf_test(const char* filename)
     if (faces.size()){
         for (Range::iterator i = faces.begin(); i != faces.end(); ++i) {
             adjents.clear();
-            error = ahf.get_neighbor_adjacencies( *i, adjents);
-            CHECK_ERR(error);
+            error = ahf.get_neighbor_adjacencies( *i, adjents);CHECK_ERR(error);
             mbents.clear();
-            error = mtu.get_bridge_adjacencies( *i, 1, 2, mbents);
-            CHECK_ERR(error);
+            error = mtu.get_bridge_adjacencies( *i, 1, 2, mbents);CHECK_ERR(error);
+
             CHECK_EQUAL(adjents.size(), mbents.size());
             std::sort(adjents.begin(), adjents.end());
             std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
@@ -187,11 +194,10 @@ ErrorCode ahf_test(const char* filename)
     if (edges.size() && faces.size()){
         for (Range::iterator i = faces.begin(); i != faces.end(); ++i) {
             adjents.clear();
-            error = ahf.get_down_adjacencies( *i, 1, adjents);
-            CHECK_ERR(error);
+            error = ahf.get_down_adjacencies( *i, 1, adjents);CHECK_ERR(error);
             mbents.clear();
-            error = mbImpl->get_adjacencies( &*i, 1, 1, false, mbents);
-            CHECK_ERR(error);
+            error = mbImpl->get_adjacencies( &*i, 1, 1, false, mbents);CHECK_ERR(error);
+
             CHECK_EQUAL(adjents.size(), mbents.size());
             std::sort(adjents.begin(), adjents.end());
             std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
@@ -200,16 +206,17 @@ ErrorCode ahf_test(const char* filename)
           }
       }
 
+    std::cout<<"Finished 2D queries: "<<std::endl;
+
     // 3D Queries
     //IQ 31: For every vertex, obtain incident cells
     if (cells.size()){
         for (Range::iterator i = verts.begin(); i != verts.end(); ++i) {
             adjents.clear();
-            error = ahf.get_up_adjacencies( *i, 3, adjents);
-            CHECK_ERR(error);
+            error = ahf.get_up_adjacencies( *i, 3, adjents);CHECK_ERR(error);
             mbents.clear();
-            error = mbImpl->get_adjacencies(&*i, 1, 3, false, mbents);
-            CHECK_ERR(error);
+            error = mbImpl->get_adjacencies(&*i, 1, 3, false, mbents);CHECK_ERR(error);
+
             CHECK_EQUAL(adjents.size(), mbents.size());
             std::sort(adjents.begin(), adjents.end());
             std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
@@ -222,11 +229,32 @@ ErrorCode ahf_test(const char* filename)
     if (edges.size()&&cells.size()){
         for (Range::iterator i = edges.begin(); i != edges.end(); ++i) {
             adjents.clear();
-            error = ahf.get_up_adjacencies( *i, 3, adjents);
-            CHECK_ERR(error);
+
+            if ((*i-*edges.begin())==12)
+              std::cout<<"Here now"<<std::endl;
+
+            error = ahf.get_up_adjacencies( *i, 3, adjents);CHECK_ERR(error);
             mbents.clear();
-            error = mbImpl->get_adjacencies(&*i, 1, 3, false, mbents);
-            CHECK_ERR(error);
+            error = mbImpl->get_adjacencies(&*i, 1, 3, false, mbents);CHECK_ERR(error);
+
+
+
+
+            if (adjents.size() != mbents.size())
+              {
+                std::cout<<"EID = "<<(*i-*edges.begin())<<std::endl;
+                for ( int j=0; j<(int)adjents.size(); j++)
+                  std::cout<<"adjents["<<j<<"] = "<<(adjents[j]-*cells.begin())<<std::endl;
+                for ( int j=0; j<(int)mbents.size(); j++)
+                  {
+                    const EntityHandle* conn;
+                    int nv;
+                    error = mbImpl->get_connectivity(mbents[j], conn, nv);MB_CHK_ERR(error);
+
+                    std::cout<<"mbents["<<j<<"] = "<<(mbents[j]-*cells.begin())<<":: conn = [ "<<conn[0]<<", "<<conn[1]<<", "<<conn[2]<<", "<<conn[3]<<" ]"<<std::endl;
+                  }
+              }
+
             CHECK_EQUAL(adjents.size(), mbents.size());
             std::sort(adjents.begin(), adjents.end());
             std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
@@ -239,11 +267,31 @@ ErrorCode ahf_test(const char* filename)
     if (faces.size() && cells.size()){
         for (Range::iterator i = faces.begin(); i != faces.end(); ++i) {
             adjents.clear();
-            error = ahf.get_up_adjacencies( *i, 3, adjents);
-            CHECK_ERR(error);
+            error = ahf.get_up_adjacencies( *i, 3, adjents);CHECK_ERR(error);
             mbents.clear();
-            error = mbImpl->get_adjacencies(&*i, 1, 3, false, mbents);
-            CHECK_ERR(error);
+            error = mbImpl->get_adjacencies(&*i, 1, 3, false, mbents);CHECK_ERR(error);
+
+            if (adjents.size() != mbents.size())
+              {
+                const EntityHandle* fconn;
+                int nvf;
+                error = mbImpl->get_connectivity(*i, fconn, nvf);MB_CHK_ERR(error);
+
+                std::cout<<"FID = "<<(*i-*faces.begin())<<" :: conn = [ "<<fconn[0]<<", "<<fconn[1]<<", "<<fconn[2]<<" ]"<<std::endl;
+
+                for ( int j=0; j<(int)adjents.size(); j++)
+                  std::cout<<"adjents["<<j<<"] = "<<(adjents[j]-*cells.begin())<<std::endl;
+                for ( int j=0; j<(int)mbents.size(); j++)
+                  {
+                    const EntityHandle* conn;
+                    int nv;
+                    error = mbImpl->get_connectivity(mbents[j], conn, nv);MB_CHK_ERR(error);
+
+                    std::cout<<"mbents["<<j<<"] = "<<(mbents[j]-*cells.begin())<<":: conn = [ "<<conn[0]<<", "<<conn[1]<<", "<<conn[2]<<", "<<conn[3]<<" ]"<<std::endl;
+                  }
+              }
+
+
             CHECK_EQUAL(adjents.size(), mbents.size());
             std::sort(adjents.begin(), adjents.end());
             std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
@@ -256,11 +304,10 @@ ErrorCode ahf_test(const char* filename)
     if (cells.size()){
         for (Range::iterator i = cells.begin(); i != cells.end(); ++i) {
             adjents.clear();
-            error = ahf.get_neighbor_adjacencies( *i, adjents);
-            CHECK_ERR(error);
+            error = ahf.get_neighbor_adjacencies( *i, adjents);CHECK_ERR(error);
             mbents.clear();
-            error = mtu.get_bridge_adjacencies( *i, 2, 3, mbents);
-            CHECK_ERR(error);
+            error = mtu.get_bridge_adjacencies( *i, 2, 3, mbents);CHECK_ERR(error);
+
             CHECK_EQUAL(adjents.size(), mbents.size());
             std::sort(adjents.begin(), adjents.end());
             std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
@@ -274,11 +321,10 @@ ErrorCode ahf_test(const char* filename)
     if (edges.size() && cells.size()){
         for (Range::iterator i = cells.begin(); i != cells.end(); ++i) {
             adjents.clear();
-            error = ahf.get_down_adjacencies( *i, 1, adjents);
-            CHECK_ERR(error);
+            error = ahf.get_down_adjacencies( *i, 1, adjents);CHECK_ERR(error);
             mbents.clear();
-            error = mbImpl->get_adjacencies( &*i, 1, 1, false, mbents);
-            CHECK_ERR(error);
+            error = mbImpl->get_adjacencies( &*i, 1, 1, false, mbents);CHECK_ERR(error);
+
             CHECK_EQUAL(adjents.size(), mbents.size());
             std::sort(adjents.begin(), adjents.end());
             std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
@@ -291,11 +337,10 @@ ErrorCode ahf_test(const char* filename)
     if (faces.size() && cells.size()){
         for (Range::iterator i = cells.begin(); i != cells.end(); ++i) {
             adjents.clear();
-            error = ahf.get_down_adjacencies( *i, 2, adjents);
-            CHECK_ERR(error);
+            error = ahf.get_down_adjacencies( *i, 2, adjents);CHECK_ERR(error);
             mbents.clear();
-            error = mbImpl->get_adjacencies( &*i, 1, 2, false, mbents);
-            CHECK_ERR(error);
+            error = mbImpl->get_adjacencies( &*i, 1, 2, false, mbents);CHECK_ERR(error);
+
             CHECK_EQUAL(adjents.size(), mbents.size());
             std::sort(adjents.begin(), adjents.end());
             std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
@@ -304,6 +349,7 @@ ErrorCode ahf_test(const char* filename)
           }
       }
 
+    std::cout<<"Finished 3D queries"<<std::endl;
    error = ahf.deinitialize();CHECK_ERR(error);
 
     return MB_SUCCESS;

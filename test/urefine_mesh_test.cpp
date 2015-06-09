@@ -384,7 +384,7 @@ ErrorCode refine_entities(Interface *mb,  ParallelComm* pc, EntityHandle fset, i
         prev_ents[i] = ents[i];
 
       //Print out the boundary vertices
-      EntityHandle bnd_set;
+    /*  EntityHandle bnd_set;
       error = mb->create_meshset(MESHSET_SET, bnd_set); MB_CHK_ERR(error);
       std::vector<EntityHandle> vbnd;
 
@@ -411,7 +411,7 @@ ErrorCode refine_entities(Interface *mb,  ParallelComm* pc, EntityHandle fset, i
           const char* output_file = str.c_str();
           char * write_opts = NULL;
           error = mb->write_file(output_file, 0, write_opts, &bnd_set, 1); CHECK_ERR(error);
-        }
+        }*/
 
 
       //Print out the mesh

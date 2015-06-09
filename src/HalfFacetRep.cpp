@@ -19,6 +19,7 @@
 #include <iostream>
 #include <assert.h>
 #include <vector>
+#include <map>
 #include "MBTagConventions.hpp"
 #include "moab/ScdInterface.hpp"
 #ifdef USE_MPI
@@ -925,28 +926,141 @@ namespace moab {
     EntityType ftype = mb->type_from_handle(*faces.begin());
     int nepf = lConnMap2D[ftype-2].num_verts_in_face;
 
-    for (Range::iterator it = faces.begin(); it != faces.end(); ++it){      
-        const EntityHandle* conn;
-        error = mb->get_connectivity(*it, conn, nepf);MB_CHK_ERR(error);
+    std::vector<bool> markEdges(nepf*faces.size(), false);
 
-        int fidx = ID_FROM_HANDLE(*it)-1;
+    for (Range::iterator it = faces.begin(); it != faces.end(); ++it){      
+        EntityHandle fid = *it;
+        int fidx = ID_FROM_HANDLE(fid)-1;
+
+        const EntityHandle* conn;
+        error = mb->get_connectivity(fid, conn, nepf);MB_CHK_ERR(error);
+
         for(int i=0; i<nepf; ++i){
+           /* if (markEdges[nepf*fidx+i])
+              continue;*/
+
             EntityHandle v = conn[i];
             int vidx = ID_FROM_HANDLE(v)-1;
             HFacet hf = v2he[vidx];
-            EntityHandle vfid = fid_from_halfacet(hf, ftype);
+            //EntityHandle vfid = fid_from_halfacet(hf, ftype);
 
-            hf = sibhes[nepf*fidx+i];
+            if (hf == 0 && (v2hes.empty() || (v2hes.find(v) == v2hes.end())))
+              {
+                HFacet nwhf=0;
+                error = mark_halfedges(v, fid, i, markEdges,nwhf);MB_CHK_ERR(error);
+
+                if (nwhf ==0)
+                  nwhf = create_halffacet(fid, i);
+
+                v2he[vidx] = nwhf;
+              }
+            else if (hf != 0 && !markEdges[nepf*fidx+i])
+              {
+                //This is the first time a non-manifold vertex is encountered. Copy the existing he in v2he[v] to the multimap.
+                v2hes.insert(std::pair<EntityHandle,HFacet>(v,hf));
+                HFacet nwhf = 0;
+                error = mark_halfedges(v, fid, i, markEdges, nwhf);MB_CHK_ERR(error);
+
+                if (nwhf == 0)
+                  nwhf = create_halffacet(fid, i);
+
+                v2hes.insert(std::pair<EntityHandle,HFacet>(v, nwhf));
+                v2he[vidx] = 0;
+              }
+            else if (hf == 0 && (!v2hes.empty()) && (v2hes.find(v) != v2hes.end()) && !markEdges[nepf*fidx+i])
+              {
+               // std::cout<<"v = "<<v<<", fid = "<<fid<<", lid = "<<i<<std::endl;
+                //std::cout<<"hf = "<<hf<<", v2hes.empty = " << v2hes.empty()<<", v2hes.find(v) = "<<(v2hes.find(v) != v2hes.end())<<", edge_mark = "<<markEdges[nepf*fidx+i]<<std::endl;
+                HFacet nwhf = 0;
+                error = mark_halfedges(v, fid, i, markEdges, nwhf);MB_CHK_ERR(error);
+
+                if (nwhf == 0)
+                  nwhf = create_halffacet(fid, i);
+
+                v2hes.insert(std::pair<EntityHandle,HFacet>(v, nwhf));
+              }
+
+            /*hf = sibhes[nepf*fidx+i];
             EntityHandle sibfid = fid_from_halfacet(hf, ftype);
 
             if ((vfid==0)||((vfid!=0) && (sibfid==0))){
                 v2he[vidx] = create_halffacet(*it,i);
-              }
+              }*/
           }
       }
 
+   // error = print_tags(2);
+
     return MB_SUCCESS;
   }
+
+  ///////////////////////////////////////////////////////////////////
+  ErrorCode HalfFacetRep::mark_halfedges(EntityHandle vid, EntityHandle he_fid, int he_lid, std::vector<bool> &markHEdgs, HFacet &bnd_hf)
+  {
+    ErrorCode error;
+    EntityType ftype = mb->type_from_handle(he_fid);
+    int nepf = lConnMap2D[ftype-2].num_verts_in_face;
+
+    int qsize = 0, count = -1;
+    int num_qvals = 0;
+
+    error = gather_halfedges(vid, he_fid, he_lid, &qsize, &count);MB_CHK_ERR(error);
+
+    while (num_qvals < qsize)
+      {
+        EntityHandle curfid = queue_fid[num_qvals];
+        int curlid = queue_lid[num_qvals];
+        num_qvals += 1;
+
+        int fidx = ID_FROM_HANDLE(curfid)-1;
+
+        const EntityHandle* conn;
+        error = mb->get_connectivity(curfid, conn, nepf);MB_CHK_ERR(error);
+
+        if (!markHEdgs[nepf*fidx+curlid] && (conn[curlid]==vid)){
+            markHEdgs[nepf*fidx+curlid] = true;
+            HFacet hf = sibhes[nepf*fidx+curlid];
+            EntityHandle sibfid = fid_from_halfacet(hf, ftype);
+            if (sibfid == 0)
+              bnd_hf = create_halffacet(curfid, curlid);
+          }
+
+        EntityHandle he2_fid = 0; int he2_lid = 0;
+        error = another_halfedge(vid, curfid, curlid, &he2_fid, &he2_lid);  MB_CHK_ERR(error);
+
+        if (!markHEdgs[nepf*fidx+he2_lid] && (conn[he2_lid]==vid)){
+            markHEdgs[nepf*fidx+he2_lid] = true;
+            HFacet hf = sibhes[nepf*fidx+he2_lid];
+            EntityHandle sibfid = fid_from_halfacet(hf, ftype);
+            if (sibfid == 0)
+              bnd_hf = create_halffacet(he2_fid, he2_lid);
+          }
+
+        bool val = find_match_in_array(he2_fid, trackfaces, count);
+
+        if (val)
+          continue;
+
+        count += 1;
+        trackfaces[count] = he2_fid;
+
+        error = get_up_adjacencies_2d(he2_fid, he2_lid, &qsize, &count);MB_CHK_ERR(error);
+
+      //  adjents.push_back(he2_fid);
+      }
+
+    //Change the visited faces to false, also empty the queue
+    for (int i = 0; i<=qsize; i++)
+      {
+        queue_fid[i] = 0;
+        queue_lid[i] = 0;
+      }
+
+    for (int i = 0; i<=count; i++)
+      trackfaces[i] = 0;
+    return MB_SUCCESS;
+  }
+
   ///////////////////////////////////////////////////////////////////
   ErrorCode HalfFacetRep::get_up_adjacencies_vert_2d(EntityHandle vid, std::vector<EntityHandle> &adjents)
   {
@@ -955,19 +1069,48 @@ namespace moab {
 
     int vidx = ID_FROM_HANDLE(vid)-1;
     HFacet hf = v2he[vidx];
-    EntityHandle fid = fid_from_halfacet(hf, ftype);
-    int lid = lid_from_halffacet(hf);
 
-    if (!fid)
+    std::vector<EntityHandle> start_fids;
+    std::vector<int> start_lids;
+ //   EntityHandle fid;
+  //  int lid;
+
+    if (hf == 0 && (v2hes.find(vid) != v2hes.end()))
+      {
+        //assert(!v2hes.empty() || (v2hes.empty() && v2hes.find(vid) == v2hes.end()));
+        std::pair <std::multimap<EntityHandle, HFacet>::iterator, std::multimap<EntityHandle, HFacet>::iterator> it_hes;
+        it_hes = v2hes.equal_range(vid);
+
+        for (std::multimap<EntityHandle, HFacet>::iterator it = it_hes.first; it != it_hes.second; ++it)
+          {
+            start_fids.push_back(fid_from_halfacet(it->second, ftype));
+            start_lids.push_back(lid_from_halffacet(it->second));
+          }
+      }
+    else if (hf != 0)
+      {
+        start_fids.push_back( fid_from_halfacet(hf, ftype));
+        start_lids.push_back(lid_from_halffacet(hf));
+      }
+
+    //EntityHandle fid = fid_from_halfacet(hf, ftype);
+    //int lid = lid_from_halffacet(hf);
+
+    //if (!fid)
+    if (start_fids.empty())
       return MB_SUCCESS;
-
-    adjents.reserve(20);
-    adjents.push_back(fid);
 
     int qsize = 0, count = -1;
     int num_qvals = 0;
 
-    error = gather_halfedges(vid, fid, lid, &qsize, &count);MB_CHK_ERR(error);
+    adjents.reserve(20);
+    //adjents.push_back(fid);
+
+    for (int i=0; i<(int)start_fids.size(); i++)
+      {
+      adjents.push_back(start_fids[i]);
+      error = gather_halfedges(vid, start_fids[i], start_lids[i], &qsize, &count);MB_CHK_ERR(error);
+      }
 
     while (num_qvals < qsize)
       {
@@ -1167,8 +1310,25 @@ namespace moab {
     int num_conn = 0;
     error = mb->get_connectivity(eid, conn, num_conn);MB_CHK_ERR(error);
 
+   /* int v1idx = ID_FROM_HANDLE(conn[0])-1;
+    int v2idx = ID_FROM_HANDLE(conn[1])-1;
+    HFacet hf1 = v2he[v1idx], hf2 = v2he[v2idx];
+    if ((hf1 == 0) && (hf2 == 0)) //Either a dangling edge or attached to two non-manifold vertices
+      {
+        return MB_SUCCESS;
+      }*/
+
+    EntityHandle vid = conn[0];
     int vidx = ID_FROM_HANDLE(conn[0])-1;
     HFacet hf = v2he[vidx];
+
+    if (hf == 0)
+      {
+        vidx = ID_FROM_HANDLE(conn[1])-1;
+        hf = v2he[vidx];
+        vid = conn[1];
+      }
+
     EntityHandle fid = fid_from_halfacet(hf, ftype);
     int lid = lid_from_halffacet(hf);
 
@@ -1178,11 +1338,11 @@ namespace moab {
 
         int qsize = 0, count = -1;
 
-        EntityHandle vid = conn[0];
+        //EntityHandle vid = conn[0];
 
         error = gather_halfedges(vid, fid, lid, &qsize, &count);  MB_CHK_ERR(error);
 
-        found =  collect_and_compare(conn, &qsize, &count, hefid, helid);
+        found =  collect_and_compare(vid, conn, &qsize, &count, hefid, helid);
 
         //Change the visited faces to false
         for (int i = 0; i<qsize; i++)
@@ -1251,7 +1411,7 @@ namespace moab {
   }
   
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  bool HalfFacetRep::collect_and_compare(const EntityHandle *edg_vert,
+  bool HalfFacetRep::collect_and_compare(const EntityHandle vid, const EntityHandle *edg_vert,
                                          int *qsize,
                                          int *count,
                                          EntityHandle *he_fid,
@@ -1290,7 +1450,8 @@ namespace moab {
         trackfaces[*count] = curfid;
 
         EntityHandle he2_fid; int he2_lid;
-        error = another_halfedge(edg_vert[0], curfid, curlid, &he2_fid, &he2_lid);   MB_CHK_ERR(error);
+      //  error = another_halfedge(edg_vert[0], curfid, curlid, &he2_fid, &he2_lid);   MB_CHK_ERR(error);
+        error = another_halfedge(vid, curfid, curlid, &he2_fid, &he2_lid);   MB_CHK_ERR(error);
         error = get_up_adjacencies_2d(he2_fid, he2_lid, qsize, count);   MB_CHK_ERR(error);
 
         counter += 1;
@@ -1442,7 +1603,7 @@ namespace moab {
     };
 
   
-  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////
    ErrorCode HalfFacetRep::determine_sibling_halffaces( Range &cells)
   {
     ErrorCode error;
@@ -1598,41 +1759,79 @@ namespace moab {
   ErrorCode HalfFacetRep::determine_incident_halffaces( Range &cells)
   {
     ErrorCode error;
-    EntityType ctype = mb->type_from_handle(*cells.begin());
+ //   EntityType ctype = mb->type_from_handle(*cells.begin());
     int index = get_index_in_lmap(*cells.begin());
     int nvpc = lConnMap3D[index].num_verts_in_cell;
-    int nfpc = lConnMap3D[index].num_faces_in_cell;
+  //  int nfpc = lConnMap3D[index].num_faces_in_cell;
   
+   std::multimap<EntityHandle, EntityHandle> comps;
+   HFacet nwhf;
 
     for (Range::iterator cid = cells.begin(); cid != cells.end(); ++cid){
       EntityHandle cell = *cid;
       const EntityHandle* conn;
       error = mb->get_connectivity(*cid, conn, nvpc);MB_CHK_ERR(error);
 
-      int cidx = ID_FROM_HANDLE(cell)-1;
+     // int cidx = ID_FROM_HANDLE(cell)-1;
       for(int i=0; i<nvpc; ++i){
           EntityHandle v = conn[i];
           int vidx = ID_FROM_HANDLE(v)-1;
           HFacet hf  = v2hf[vidx];
-          EntityHandle vcid = fid_from_halfacet(hf, ctype);
+
+          bool found = find_cell_in_component(v, cell, comps);
+
+          if (hf==0 && !found && (v2hfs.empty() || (v2hfs.find(v) == v2hfs.end())))
+            {
+             //HFacet nwhf=0;
+              nwhf = 0;
+              error = add_cells_of_single_component(v, cell, lConnMap3D[index].v2hf[i][0], comps, nwhf);MB_CHK_ERR(error);
+
+              v2hf[vidx] = nwhf;
+            }
+          else if (hf != 0 && !found)
+            {
+              //HFacet nwhf=0;
+              nwhf = 0;
+              error = add_cells_of_single_component(v, cell, lConnMap3D[index].v2hf[i][0], comps, nwhf);MB_CHK_ERR(error);
+
+              v2hfs.insert(std::pair<EntityHandle, HFacet>(v, hf));
+              v2hfs.insert(std::pair<EntityHandle, HFacet>(v, nwhf));
+              v2hf[vidx] = 0;
+            }
+          else if (hf == 0 &&  !found && (!v2hfs.empty()) && (v2hfs.find(v) != v2hfs.end()))
+            {
+              //HFacet nwhf = 0;
+              nwhf = 0;
+              error = add_cells_of_single_component(v, cell, lConnMap3D[index].v2hf[i][0], comps, nwhf);MB_CHK_ERR(error);
+               v2hfs.insert(std::pair<EntityHandle, HFacet>(v, nwhf));
+            }
+
+      /*    EntityHandle vcid = fid_from_halfacet(hf, ctype);
 
           int nhf_pv = lConnMap3D[index].v2hf_num[i];
 
 	  for (int j=0; j < nhf_pv; ++j){
 	      int ind = lConnMap3D[index].v2hf[i][j];
+
 	      hf = sibhfs[nfpc*cidx+ind];
 	      EntityHandle sib_cid = fid_from_halfacet(hf, ctype);
 
-	      if (vcid==0){
+	      if (vcid==0 ){
 		  v2hf[vidx] = create_halffacet(cell,ind);
 		  break;
 		}
 	      else if ((vcid!=0) && (sib_cid ==0)){
 		  v2hf[vidx] = create_halffacet(cell,ind);
 		}
+
+	      //Mark this half-facet
+	      marked[nfpc*cidx+ind] = true;
 	    }
+	  */
 	}
       }
+
+   // error = print_tags(3);
     
     return MB_SUCCESS;
   }
@@ -1671,6 +1870,107 @@ namespace moab {
 
     return MB_SUCCESS;
   }
+
+  /////////////////////////////////////////////////////////////////////////
+  ErrorCode HalfFacetRep::add_cells_of_single_component(EntityHandle vid, EntityHandle curcid, int curlid, std::multimap<EntityHandle, EntityHandle> &comps, HFacet &hf)
+  {
+    ErrorCode error;
+    EntityType ctype = mb->type_from_handle(curcid);
+    int index = get_index_in_lmap(curcid);
+    int nvpc = lConnMap3D[index].num_verts_in_cell;
+    int nfpc = lConnMap3D[index].num_faces_in_cell;
+
+    int Stksize = 0, count = -1;
+    Stkcells[0] = curcid;
+
+    hf = create_halffacet(curcid, curlid);
+
+    EntityHandle cur_cid;
+    while (Stksize >= 0 ){
+        cur_cid = Stkcells[Stksize];
+        Stksize -= 1 ;
+
+        bool found = find_match_in_array(cur_cid, trackcells, count);
+        if (!found){
+            count += 1;
+            trackcells[count] = cur_cid;
+
+            // Add the current cell
+            comps.insert(std::pair<EntityHandle,EntityHandle>(vid, cur_cid));
+          }
+
+        // Connectivity of the cell
+        const EntityHandle* conn;
+        error = mb->get_connectivity(cur_cid, conn, nvpc);MB_CHK_ERR(error);
+
+        // Local id of vid in the cell and the half-faces incident on it
+        int lv = -1;
+        for (int i = 0; i< nvpc; ++i){
+            if (conn[i] == vid)
+              {
+                lv = i;
+                break;
+              }
+          };
+
+        int nhf_thisv = lConnMap3D[index].v2hf_num[lv];
+        int cidx = ID_FROM_HANDLE(cur_cid)-1;
+
+        // Add new cells into the stack
+        EntityHandle ngb; HFacet hf_ngb;
+        for (int i = 0; i < nhf_thisv; ++i){
+            int ind = lConnMap3D[index].v2hf[lv][i];
+            hf_ngb = sibhfs[nfpc*cidx+ind];
+            ngb = fid_from_halfacet(hf_ngb, ctype);
+
+            if (ngb) {
+                bool found_ent = find_match_in_array(ngb, trackcells, count);
+
+                if (!found_ent){
+                    Stksize += 1;
+                    Stkcells[Stksize] = ngb;
+                  }
+              }
+            else
+              hf = create_halffacet(cur_cid, ind);
+          }
+      }
+
+
+    //Change the visited faces to false
+    for (int i = 0; i<Stksize; i++)
+      Stkcells[i] = 0;
+
+    for (int i = 0; i <= count; i++)
+      trackcells[i] = 0;
+
+    return MB_SUCCESS;
+  }
+
+
+  bool HalfFacetRep::find_cell_in_component(EntityHandle vid, EntityHandle cell, std::multimap<EntityHandle, EntityHandle> &comps)
+  {
+    bool found = false;
+
+    if (comps.empty())
+      return found;
+
+   std::pair <std::multimap<EntityHandle, EntityHandle>::iterator, std::multimap<EntityHandle, EntityHandle>::iterator> rit;
+
+   rit = comps.equal_range(vid);
+
+   for (std::multimap<EntityHandle, EntityHandle>::iterator it = rit.first; it != rit.second; ++it)
+    {
+       if (it->second == cell)
+         {
+           found = true;
+           break;
+         }
+     }
+
+    return found;
+  }
+
   ////////////////////////////////////////////////////////////////////////
   ErrorCode HalfFacetRep::get_up_adjacencies_vert_3d(EntityHandle vid, std::vector<EntityHandle> &adjents)
   {
@@ -1681,16 +1981,40 @@ namespace moab {
       // Obtain a half-face incident on v
       int vidx = ID_FROM_HANDLE(vid)-1;
       HFacet hf = v2hf[vidx];
-      EntityHandle cur_cid = fid_from_halfacet(hf, ctype);
 
+      std::vector<EntityHandle> start_cells;
+      if (hf == 0 && !v2hfs.empty()) //Vertex is non-manifold
+        {
+          std::pair <std::multimap<EntityHandle, HFacet>::iterator, std::multimap<EntityHandle, HFacet>::iterator> it_hes;
+          it_hes = v2hfs.equal_range(vid);
+
+          for (std::multimap<EntityHandle, HFacet>::iterator it = it_hes.first; it != it_hes.second; ++it)
+            {
+              start_cells.push_back(fid_from_halfacet(it->second, ctype));
+            }
+        }
+      else if (hf != 0)
+        start_cells.push_back( fid_from_halfacet(hf, ctype));
+
+      //EntityHandle cur_cid = fid_from_halfacet(hf, ctype);
+      EntityHandle cur_cid;
       // Collect all incident cells
-      if (cur_cid != 0){
-          int index = get_index_in_lmap(cur_cid);
+   //   if (cur_cid != 0){
+      if (!start_cells.empty()){
+          //int index = get_index_in_lmap(cur_cid);
+          int index = get_index_in_lmap(start_cells[0]);
           int nvpc = lConnMap3D[index].num_verts_in_cell;
           int nfpc = lConnMap3D[index].num_faces_in_cell;
 
           int Stksize = 0, count = -1;
-          Stkcells[0] = cur_cid;
+
+          for (int i=0; i<(int)start_cells.size(); i++)
+            {
+              Stkcells[i] = start_cells[i];
+              //Stksize += 1;
+            }
+          Stksize = start_cells.size() - 1;
+          //Stkcells[0] = cur_cid;
 
           while (Stksize >= 0 ){
               cur_cid = Stkcells[Stksize];
@@ -1753,25 +2077,161 @@ namespace moab {
   }
 
 
-  ErrorCode HalfFacetRep::get_up_adjacencies_edg_3d( EntityHandle eid,
+ /* ErrorCode HalfFacetRep::get_up_adjacencies_edg_3d( EntityHandle eid,
                                                      std::vector<EntityHandle> &adjents,
                                                      std::vector<int> * leids)
   {
     ErrorCode error; 
     
-    EntityHandle cid=0;
-    int leid=0;
+   // EntityHandle cid=0;
+  //  int leid=0;
+    EntityHandle *cid;
+    int *leid;
+    int nlocEdg=0;
+    std::vector<EntityHandle> cid(10,0);
+    std::vector<int> leid(10,0);
+
     //Find one incident cell
-    bool found = find_matching_implicit_edge_in_cell(eid, &cid, &leid);
+    bool found = find_matching_implicit_edge_in_cell(eid, cid, leid);
 
     //Find all incident cells     
     if (found)
       {
-        error =get_up_adjacencies_edg_3d(cid, leid, adjents, leids);  MB_CHK_ERR(error);
+        for (int i=0; i<(int)cid.size(); i++){
+            error =get_up_adjacencies_edg_3d(cid[i], leid[i], adjents, leids);  MB_CHK_ERR(error);
+          }
       }
 
     return MB_SUCCESS;
-  }
+  }*/
+
+ErrorCode HalfFacetRep::get_up_adjacencies_edg_3d( EntityHandle eid,
+                                                    std::vector<EntityHandle> &adjents,
+                                                    std::vector<int> * leids)
+{
+  ErrorCode error;
+  EntityType ctype = mb->type_from_handle(*_cells.begin());
+  EntityHandle start_cell = *_cells.begin();
+  int index = get_index_in_lmap(start_cell);
+  int nvpc = lConnMap3D[index].num_verts_in_cell;
+  int nfpc = lConnMap3D[index].num_faces_in_cell;
+
+   adjents.reserve(20);
+   if (leids != NULL)
+     leids->reserve(20);
+
+  // Find the edge vertices
+  const EntityHandle* econn;
+  int num_conn = 0;
+  error = mb->get_connectivity(eid, econn, num_conn);MB_CHK_ERR(error);
+
+  EntityHandle v_start = econn[0], v_end = econn[1];
+  int v1idx = ID_FROM_HANDLE(v_start)-1;
+  int v2idx = ID_FROM_HANDLE(v_end)-1;
+
+  // Find an half-facets incident to each end vertex of the edge
+  std::vector<EntityHandle> start_cells;
+  HFacet hf1 = v2hf[v1idx];
+  HFacet hf2 = v2hf[v2idx];
+
+  if (hf1 == 0 && !v2hfs.empty())
+    {
+      std::pair <std::multimap<EntityHandle, HFacet>::iterator, std::multimap<EntityHandle, HFacet>::iterator> it_hes;
+      it_hes = v2hfs.equal_range(v_start);
+
+      for (std::multimap<EntityHandle, HFacet>::iterator it = it_hes.first; it != it_hes.second; ++it)
+        {
+          start_cells.push_back(fid_from_halfacet(it->second, ctype));
+        }
+    }
+  else if (hf1 != 0)
+    {
+      start_cells.push_back( fid_from_halfacet(hf1, ctype));
+    }
+
+  if (hf2 == 0 && !v2hfs.empty())
+    {
+      std::pair <std::multimap<EntityHandle, HFacet>::iterator, std::multimap<EntityHandle, HFacet>::iterator> it_hes;
+      it_hes = v2hfs.equal_range(v_end);
+
+      for (std::multimap<EntityHandle, HFacet>::iterator it = it_hes.first; it != it_hes.second; ++it)
+        {
+          start_cells.push_back(fid_from_halfacet(it->second, ctype));
+        }
+    }
+  else if (hf2 != 0)
+    {
+      start_cells.push_back( fid_from_halfacet(hf2, ctype));
+    }
+
+  if (start_cells.empty())
+    return MB_SUCCESS;
+
+  std::sort(start_cells.begin(), start_cells.end());
+  std::vector<EntityHandle>::iterator last = std::unique(start_cells.begin(), start_cells.end());
+  start_cells.erase(last, start_cells.end());
+
+  for (int i=0; i<(int)start_cells.size(); i++)
+    cellq[i] = start_cells[i];
+
+  int qsize = start_cells.size();
+  int num_qvals = 0;
+
+  while (num_qvals < qsize){
+      EntityHandle cell_id = cellq[num_qvals];
+      num_qvals += 1;
+
+      const EntityHandle* conn;
+      error = mb->get_connectivity(cell_id, conn, nvpc);MB_CHK_ERR(error);
+
+      int lv0 = -1, lv1 = -1, lv = -1;
+
+      //locate v_origin in poped out tet, check if v_end is in
+      for (int i = 0; i<nvpc; i++){
+          if (v_start == conn[i]){
+              lv0 = i;
+              lv = lv0;
+            }
+          else if (v_end == conn[i]){
+              lv1 = i;
+              lv = lv1;
+            }
+        }
+
+      if ((lv0 >= 0) && (lv1 >= 0))
+        {
+          adjents.push_back(cell_id);
+          if (leids != NULL)
+            leids->push_back( lConnMap3D[index].lookup_leids[lv0][lv1]);
+        }
+
+      //push back new found unchecked incident tets of v_start
+      int cidx = ID_FROM_HANDLE(cell_id)-1;
+      int nhf_thisv = lConnMap3D[index].v2hf_num[lv];
+
+      for (int i = 0; i < nhf_thisv; i++){
+          int ind = lConnMap3D[index].v2hf[lv][i];
+          HFacet hf = sibhfs[nfpc*cidx+ind];
+          EntityHandle ngb = fid_from_halfacet(hf, ctype);
+
+          if (ngb){
+              bool found_ent = find_match_in_array(ngb, &cellq[0], qsize-1);
+
+              if (!found_ent)
+                {
+                  cellq[qsize] = ngb;
+                  qsize += 1;
+                }
+            }
+        }
+    }
+
+  for (int i = 0; i<qsize; i++)
+      cellq[i] = 0;
+
+
+  return MB_SUCCESS;
+}
 
 
   ErrorCode HalfFacetRep::get_up_adjacencies_edg_3d( EntityHandle cid,
@@ -1785,32 +2245,150 @@ namespace moab {
     int index = get_index_in_lmap(cid);
     int nvpc = lConnMap3D[index].num_verts_in_cell;
     int nfpc = lConnMap3D[index].num_faces_in_cell;
-
+    adjents.clear();
     adjents.reserve(20);
-    adjents.push_back(cid);
+    //adjents.push_back(cid);
 
     if (leids != NULL)
       {
+        leids->clear();
         leids->reserve(20);
-        leids->push_back(leid);
+     //   leids->push_back(leid);
       }
     if (adj_orients != NULL)
       {
+        adj_orients->clear();
         adj_orients->reserve(20);
-        adj_orients->push_back(1);
+      //  adj_orients->push_back(1);
       }
 
-    const EntityHandle* conn;
-    error = mb->get_connectivity(cid, conn, nvpc);MB_CHK_ERR(error);
+    const EntityHandle* econn;
+    error = mb->get_connectivity(cid, econn, nvpc);MB_CHK_ERR(error);
 
     // Get the end vertices of the edge <cid,leid>
     int id = lConnMap3D[index].e2v[leid][0];
-    EntityHandle vert0 = conn[id];
+    EntityHandle v_start = econn[id];
     id = lConnMap3D[index].e2v[leid][1];
-    EntityHandle vert1 = conn[id];
+    EntityHandle v_end = econn[id];
+
+    int v1idx = ID_FROM_HANDLE(v_start)-1;
+    int v2idx = ID_FROM_HANDLE(v_end)-1;
+
+    // Find an half-facets incident to each end vertex of the edge
+    std::vector<EntityHandle> start_cells;
+    HFacet hf1 = v2hf[v1idx];
+    HFacet hf2 = v2hf[v2idx];
+
+    if (hf1 == 0 && !v2hfs.empty())
+      {
+        std::pair <std::multimap<EntityHandle, HFacet>::iterator, std::multimap<EntityHandle, HFacet>::iterator> it_hes;
+        it_hes = v2hfs.equal_range(v_start);
+
+        for (std::multimap<EntityHandle, HFacet>::iterator it = it_hes.first; it != it_hes.second; ++it)
+          {
+            start_cells.push_back(fid_from_halfacet(it->second, ctype));
+          }
+      }
+    else if (hf1 != 0)
+      {
+        start_cells.push_back( fid_from_halfacet(hf1, ctype));
+      }
+
+    if (hf2 == 0 && !v2hfs.empty())
+      {
+        std::pair <std::multimap<EntityHandle, HFacet>::iterator, std::multimap<EntityHandle, HFacet>::iterator> it_hes;
+        it_hes = v2hfs.equal_range(v_end);
+
+        for (std::multimap<EntityHandle, HFacet>::iterator it = it_hes.first; it != it_hes.second; ++it)
+          {
+            start_cells.push_back(fid_from_halfacet(it->second, ctype));
+          }
+      }
+    else if (hf2 != 0)
+      {
+        start_cells.push_back( fid_from_halfacet(hf2, ctype));
+      }
+
+    if (start_cells.empty())
+      return MB_SUCCESS;
+
+    std::sort(start_cells.begin(), start_cells.end());
+    std::vector<EntityHandle>::iterator last = std::unique(start_cells.begin(), start_cells.end());
+    start_cells.erase(last, start_cells.end());
+
+    for (int i=0; i<(int)start_cells.size(); i++)
+      cellq[i] = start_cells[i];
+
+    int qsize = start_cells.size();
+    int num_qvals = 0;
+
+    while (num_qvals < qsize){
+        EntityHandle cell_id = cellq[num_qvals];
+        num_qvals += 1;
+
+        const EntityHandle* conn;
+        error = mb->get_connectivity(cell_id, conn, nvpc);MB_CHK_ERR(error);
+
+        int lv0 = -1, lv1 = -1, lv = -1;
+
+        //locate v_origin in poped out tet, check if v_end is in
+        for (int i = 0; i<nvpc; i++){
+            if (v_start == conn[i]){
+                lv0 = i;
+                lv = lv0;
+              }
+            else if (v_end == conn[i]){
+                lv1 = i;
+                lv = lv1;
+              }
+          }
+
+        if ((lv0 >= 0) && (lv1 >= 0))
+          {
+            adjents.push_back(cell_id);
+            if (leids != NULL)
+              leids->push_back( lConnMap3D[index].lookup_leids[lv0][lv1]);
+
+            if (adj_orients != NULL)
+              {
+                int cur_leid = lConnMap3D[index].lookup_leids[lv0][lv1];
+                int id1 =  lConnMap3D[index].e2v[cur_leid][0];
+                int id2 =  lConnMap3D[index].e2v[cur_leid][1];
+                if ((v_start == conn[id1]) && (v_end == conn[id2]))
+                  adj_orients->push_back(1);
+                else if ((v_start == conn[id2]) && (v_end== conn[id1]))
+                  adj_orients->push_back(0);
+              }
+          }
+
+        //push back new found unchecked incident tets of v_start
+        int cidx = ID_FROM_HANDLE(cell_id)-1;
+        int nhf_thisv = lConnMap3D[index].v2hf_num[lv];
+
+        for (int i = 0; i < nhf_thisv; i++){
+            int ind = lConnMap3D[index].v2hf[lv][i];
+            HFacet hf = sibhfs[nfpc*cidx+ind];
+            EntityHandle ngb = fid_from_halfacet(hf, ctype);
+
+            if (ngb){
+                bool found_ent = find_match_in_array(ngb, &cellq[0], qsize-1);
+
+                if (!found_ent)
+                  {
+                    cellq[qsize] = ngb;
+                    qsize += 1;
+                  }
+              }
+          }
+      }
+
+    for (int i = 0; i<qsize; i++)
+        cellq[i] = 0;
+
+ //   std::cout<<"inc_ents.size = "<<adjents.size()<<std::endl;
 
     //Loop over the two incident half-faces on this edge
-    for(int i=0; i<2; i++)
+  /*  for(int i=0; i<2; i++)
       {
         EntityHandle cur_cell = cid;
         int cur_leid = leid;
@@ -1874,6 +2452,7 @@ namespace moab {
 	if (cur_cell != 0)
 	  break;
       }
+    */
     return MB_SUCCESS;
   }
  
@@ -1931,11 +2510,16 @@ namespace moab {
   }
 
  bool HalfFacetRep::find_matching_implicit_edge_in_cell( EntityHandle eid,
-                                                         EntityHandle *cid,
-                                                         int *leid)
+                                                         std::vector<EntityHandle> &cid,
+                                                         std::vector<int> &leid)
   {
     ErrorCode error;
     EntityType ctype = mb->type_from_handle(*_cells.begin());
+    EntityHandle start_cell = *_cells.begin();
+    int index = get_index_in_lmap(start_cell);
+    int nvpc = lConnMap3D[index].num_verts_in_cell;
+    int nfpc = lConnMap3D[index].num_faces_in_cell;
+
     // Find the edge vertices
     const EntityHandle* econn;
     int num_conn = 0;
@@ -1946,7 +2530,57 @@ namespace moab {
     int v2idx = ID_FROM_HANDLE(v_end)-1;
 
     // Find an incident cell to v_start
-    EntityHandle cell2origin, cell2end;
+    std::vector<EntityHandle> start_cells;
+    HFacet hf1 = v2hf[v1idx];
+    HFacet hf2 = v2hf[v2idx];
+
+    int ncomps1=0, ncomps2 = 0, ncomp;
+    if (hf1 == 0 && !v2hfs.empty())
+      {
+        std::pair <std::multimap<EntityHandle, HFacet>::iterator, std::multimap<EntityHandle, HFacet>::iterator> it_hes;
+        it_hes = v2hfs.equal_range(v_start);
+
+        for (std::multimap<EntityHandle, HFacet>::iterator it = it_hes.first; it != it_hes.second; ++it)
+          {
+            start_cells.push_back(fid_from_halfacet(it->second, ctype));
+            ncomps1 += 1;
+          }
+      }
+    else if (hf1 != 0)
+      {
+        start_cells.push_back( fid_from_halfacet(hf1, ctype));
+        ncomps1 += 1;
+      }
+
+    if (hf2 == 0 && !v2hfs.empty())
+      {
+        std::pair <std::multimap<EntityHandle, HFacet>::iterator, std::multimap<EntityHandle, HFacet>::iterator> it_hes;
+        it_hes = v2hfs.equal_range(v_end);
+
+        for (std::multimap<EntityHandle, HFacet>::iterator it = it_hes.first; it != it_hes.second; ++it)
+          {
+            start_cells.push_back(fid_from_halfacet(it->second, ctype));
+            ncomps2 += 1;
+          }
+      }
+    else if (hf2 != 0)
+      {
+        start_cells.push_back( fid_from_halfacet(hf2, ctype));
+        ncomps2 += 1;
+      }
+
+    ncomp = std::min(ncomps1,ncomps2);
+
+    bool found = false;
+    if (start_cells.empty())
+      return found;
+
+    for (int i=0; i<(int)start_cells.size(); i++)
+      cellq[i] = start_cells[i];
+
+    int qsize = start_cells.size();
+  //  nlocEdg = 0;
+    /*EntityHandle cell2origin, cell2end;
     HFacet hf1 = v2hf[v1idx];
     HFacet hf2 = v2hf[v2idx];
     cell2origin = fid_from_halfacet(hf1, ctype);
@@ -1957,15 +2591,12 @@ namespace moab {
       return found;
     }
     
-    EntityHandle start_cell = *_cells.begin();
-    int index = get_index_in_lmap(start_cell);
-    int nvpc = lConnMap3D[index].num_verts_in_cell;
-    int nfpc = lConnMap3D[index].num_faces_in_cell;
 
     cellq[0] = cell2origin;
-    cellq[1] = cell2end;
+    cellq[1] = cell2end;*/
 
-    int qsize = 2, num_qvals = 0;
+ //   int qsize = 2, num_qvals = 0;
+    int num_qvals = 0;
 
     while (num_qvals < qsize){
         EntityHandle cell_id = cellq[num_qvals];
@@ -1991,9 +2622,11 @@ namespace moab {
         if ((lv0 >= 0) && (lv1 >= 0))
           {
             found = true;
-            *cid = cell_id;
-            *leid = lConnMap3D[index].lookup_leids[lv0][lv1];
-            break;
+            cid.push_back(cell_id);
+            leid.push_back(lConnMap3D[index].lookup_leids[lv0][lv1]);
+
+            if ((int)cid.size() == ncomp)
+              break;
           }
 
         //push back new found unchecked incident tets of v_start
@@ -2038,13 +2671,31 @@ namespace moab {
     const EntityHandle* fid_verts;
     error = mb->get_connectivity(fid, fid_verts, nvF);MB_CHK_ERR(error);
 
-    int vidx = ID_FROM_HANDLE(fid_verts[0])-1;
-    HFacet hf = v2hf[vidx];
+    int vidx, locfv0=-1;
+    HFacet hf = 0;
+
+    for (int i=0; i<nvF; i++)
+      {
+        vidx = ID_FROM_HANDLE(fid_verts[i])-1;
+        hf = v2hf[vidx];
+        if (hf != 0)
+          {
+            locfv0 = i;
+            break;
+          }
+      }
+
+    if (hf == 0)
+      return MB_SUCCESS;
+
+//    int vidx = ID_FROM_HANDLE(fid_verts[0])-1;
+ //   HFacet hf = v2hf[vidx];
+
     EntityHandle cur_cid = fid_from_halfacet(hf, ctype);
 
     bool found = false;
 
-    if (cur_cid != 0){
+//    if (cur_cid != 0){
         int Stksize = 0, count = -1;
         Stkcells[0] = cur_cid;
 
@@ -2071,10 +2722,12 @@ namespace moab {
             if (cnt == nvF) //All face verts are part of the cell
               {
                 found = true;
-                int nhf_thisv = lConnMap3D[index].v2hf_num[lv[0]];
+             //   int nhf_thisv = lConnMap3D[index].v2hf_num[lv[0]];
+                int nhf_thisv = lConnMap3D[index].v2hf_num[lv[locfv0]];
                 int lfid=-1;
                 for(int i = 0; i < nhf_thisv; ++i){
-                    lfid = lConnMap3D[index].v2hf[lv[0]][i];
+                 //   lfid = lConnMap3D[index].v2hf[lv[0]][i];
+                    lfid = lConnMap3D[index].v2hf[lv[locfv0]][i];
                     int lcnt = 0;
                     for(int j = 0; j < nvF; ++j){
                         for(int k = 0; k < nvF; ++k){
@@ -2093,13 +2746,15 @@ namespace moab {
             else
               {
                 // Add other cells that are incident on fid_verts[0]
-                int nhf_thisv = lConnMap3D[index].v2hf_num[lv[0]];
+               // int nhf_thisv = lConnMap3D[index].v2hf_num[lv[0]];
+                int nhf_thisv = lConnMap3D[index].v2hf_num[lv[locfv0]];
                 int cidx = ID_FROM_HANDLE(cur_cid)-1;
 
                 // Add new cells into the stack
                 EntityHandle ngb;
                 for (int i = 0; i < nhf_thisv; ++i){
-                    int ind = lConnMap3D[index].v2hf[lv[0]][i];
+                    //int ind = lConnMap3D[index].v2hf[lv[0]][i];
+                    int ind = lConnMap3D[index].v2hf[lv[locfv0]][i];
                     hf = sibhfs[nfpc*cidx+ind];
                     ngb = fid_from_halfacet(hf, ctype);
 
@@ -2124,7 +2779,7 @@ namespace moab {
             trackcells[i] = 0;
 
 
-    }
+ //   }
     return found;
   }
 
@@ -2359,6 +3014,122 @@ namespace moab {
     return found;
   }
 
+  ErrorCode HalfFacetRep::get_half_facet_in_comp(EntityHandle cid, int leid, std::vector<EntityHandle> &ents, std::vector<int> &lids, std::vector<int> &lfids)
+  {
+    ErrorCode error;
+    ents.clear(); lids.clear();
+    EntityType ctype = mb->type_from_handle(cid);
+    int index = get_index_in_lmap(*_cells.begin());
+    int nfpc = lConnMap3D[index].num_faces_in_cell;
+    int nvpc = lConnMap3D[index].num_verts_in_cell;
+
+    //Get all incident cells
+    std::vector<EntityHandle> adjents;
+    std::vector<int> adjlids;
+    error = get_up_adjacencies_edg_3d(cid, leid, adjents, &adjlids);MB_CHK_ERR(error);
+
+    // Get the end vertices of the edge <cid,leid>
+    const EntityHandle* econn;
+    error = mb->get_connectivity(cid, econn, nvpc);MB_CHK_ERR(error);
+    int id = lConnMap3D[index].e2v[leid][0];
+    EntityHandle vstart = econn[id];
+    id = lConnMap3D[index].e2v[leid][1];
+    EntityHandle vend = econn[id];
+
+
+    std::vector<int> mark(adjents.size(), 0);
+    int count = 0;
+
+    for (int k=0; k<(int)adjents.size(); k++){
+
+        if (mark[k] != 0)
+          continue;
+
+        count += 1;
+        mark[k] = count;
+
+        //Loop over each half-face incident on this local edge
+        for (int i =0; i< 2; i++ )
+        {
+            EntityHandle cur_cell = adjents[k];
+            int cur_leid = adjlids[k];
+
+            int lface = i;
+
+            while(true){
+                int cidx = ID_FROM_HANDLE(cur_cell)-1;
+                int lfid =  lConnMap3D[index].e2hf[cur_leid][lface];
+
+                HFacet hf = sibhfs[nfpc*cidx+lfid];
+                cur_cell = fid_from_halfacet(hf, ctype);
+                lfid = lid_from_halffacet(hf);
+
+                //Check if loop reached starting cell or a boundary
+                if ((cur_cell == adjents[k]) || ( cur_cell==0))
+                  break;
+
+                const EntityHandle* sib_conn;
+                error = mb->get_connectivity(cur_cell, sib_conn, nvpc);MB_CHK_ERR(error);
+
+                //Find the local edge id wrt to sibhf
+                int nv_curF = lConnMap3D[index].hf2v_num[lfid];
+                int lv0 = -1, lv1 = -1, idx = -1 ;
+                for (int j = 0; j<nv_curF; j++)
+                  {
+                    idx = lConnMap3D[index].hf2v[lfid][j];
+                    if (vstart== sib_conn[idx])
+                      lv0 = idx;
+                    if (vend == sib_conn[idx])
+                      lv1 = idx;
+                  }
+
+                assert((lv0 >= 0) && (lv1 >= 0));
+                cur_leid = lConnMap3D[index].lookup_leids[lv0][lv1];
+
+                int chk_lfid = lConnMap3D[index].e2hf[cur_leid][0];
+
+                if (lfid == chk_lfid)
+                  lface = 1;
+                else
+                  lface = 0;
+
+                int ind = std::find(adjents.begin(), adjents.end(), cur_cell) - adjents.begin();
+                mark[ind] = count;
+              }
+
+
+           //Loop back
+           if (cur_cell != 0)
+             break;
+         }
+      }
+
+    //Loop over again to find cells on the boundary
+    for (int c = 0; c<count; c++){
+        for (int i=0; i<(int)adjents.size(); i++)
+          {
+            if (mark[i] == c+1) {
+                int cidx = ID_FROM_HANDLE(adjents[i])-1;
+                for (int j=0; j<nfpc; j++){
+                    HFacet hf = sibhfs[nfpc*cidx+j];
+                    EntityHandle  cell = fid_from_halfacet(hf, ctype);
+                    if (cell == 0)
+                      {
+                        ents.push_back(adjents[i]);
+                        lids.push_back(adjlids[i]);
+                        lfids.push_back(j);
+                        break;
+                      }
+                  }
+              }
+          }
+      }
+
+
+
+    return MB_SUCCESS;
+  }
+
   ///////////////////////////////////////////////////////////////////////////////////////////
   ErrorCode HalfFacetRep::resize_hf_maps(EntityHandle start_vert, int nverts, EntityHandle start_edge, int nedges, EntityHandle start_face, int nfaces, EntityHandle start_cell, int ncells)
   {
@@ -2579,43 +3350,105 @@ namespace moab {
     return MB_SUCCESS;
   }
 
-  ErrorCode HalfFacetRep::get_incident_map(EntityType type, EntityHandle vid, EntityHandle &inci_entid, int  &inci_lid)
+  ErrorCode HalfFacetRep::get_incident_map(EntityType type, EntityHandle vid, std::vector<EntityHandle> &inci_entid, std::vector<int> &inci_lid)
   {
+    inci_entid.clear(); inci_lid.clear();
+
     if (type == MBEDGE)
       {   
         HFacet hf = v2hv[ ID_FROM_HANDLE(vid)-1];
-        inci_entid = fid_from_halfacet(hf, type);
-        inci_lid = lid_from_halffacet(hf);
+        inci_entid.push_back(fid_from_halfacet(hf, type));
+        inci_lid.push_back(lid_from_halffacet(hf));
       }
     else if (type == MBTRI || type == MBQUAD)
       {
         HFacet hf = v2he[ID_FROM_HANDLE(vid)-1];
-        inci_entid = fid_from_halfacet(hf, type);
-        inci_lid = lid_from_halffacet(hf);
+        if (hf==0 && (v2hes.find(vid) != v2hes.end()))
+          {
+            std::pair <std::multimap<EntityHandle, HFacet>::iterator, std::multimap<EntityHandle, HFacet>::iterator> it_hes;
+            it_hes = v2hes.equal_range(vid);
+
+            for (std::multimap<EntityHandle, HFacet>::iterator it = it_hes.first; it != it_hes.second; ++it)
+              {
+                inci_entid.push_back(fid_from_halfacet(it->second, type));
+                inci_lid.push_back(lid_from_halffacet(it->second));
+              }
+          }
+        else if (hf != 0){
+            inci_entid.push_back(fid_from_halfacet(hf, type));
+            inci_lid.push_back(lid_from_halffacet(hf));
+          }
+        else if (hf==0 && (v2hes.find(vid) == v2hes.end()))
+          {
+            inci_entid.push_back(fid_from_halfacet(hf, type));
+            inci_lid.push_back(lid_from_halffacet(hf));
+          }
       }
     else
       {
         HFacet hf = v2hf[ID_FROM_HANDLE(vid)-1];
-        inci_entid = fid_from_halfacet(hf, type);
-        inci_lid = lid_from_halffacet(hf);
+        if (hf==0 && (v2hfs.find(vid) != v2hfs.end()))
+          {
+            std::pair <std::multimap<EntityHandle, HFacet>::iterator, std::multimap<EntityHandle, HFacet>::iterator> it_hes;
+            it_hes = v2hfs.equal_range(vid);
+
+            for (std::multimap<EntityHandle, HFacet>::iterator it = it_hes.first; it != it_hes.second; ++it)
+              {
+                inci_entid.push_back(fid_from_halfacet(it->second, type));
+                inci_lid.push_back(lid_from_halffacet(it->second));
+              }
+          }
+        else if (hf != 0){
+            inci_entid.push_back(fid_from_halfacet(hf, type));
+            inci_lid.push_back(lid_from_halffacet(hf));
+          }
+        else if (hf==0 && (v2hfs.find(vid) == v2hfs.end()))
+          {
+            inci_entid.push_back(fid_from_halfacet(hf, type));
+            inci_lid.push_back(lid_from_halffacet(hf));
+          }
       }
 
     return MB_SUCCESS;
   }
 
-  ErrorCode HalfFacetRep::set_incident_map(EntityType type, EntityHandle vid, EntityHandle &set_entid, int &set_lid)
+  ErrorCode HalfFacetRep::set_incident_map(EntityType type, EntityHandle vid, std::vector<EntityHandle> &set_entid, std::vector<int> &set_lid)
   {
     if (type == MBEDGE)
       {
-        v2hv[ID_FROM_HANDLE(vid)-1] = create_halffacet(set_entid, set_lid);
+        v2hv[ID_FROM_HANDLE(vid)-1] = create_halffacet(set_entid[0], set_lid[0]);
       }
     else if (type == MBTRI || type == MBQUAD)
       {
-        v2he[ID_FROM_HANDLE(vid)-1] = create_halffacet(set_entid, set_lid);
+        if (set_entid.size() == 1)
+          v2he[ID_FROM_HANDLE(vid)-1] = create_halffacet(set_entid[0], set_lid[0]);
+        else
+          {
+            HFacet hf = 0;
+            for (int i=0; i<(int)set_entid.size(); i++)
+              {
+                hf = create_halffacet(set_entid[i], set_lid[i]);
+                v2hes.insert(std::pair<EntityHandle, HFacet>(vid, hf));
+              }
+          }
       }
     else
       {
-        v2hf[ID_FROM_HANDLE(vid)-1] = create_halffacet(set_entid, set_lid);
+        if  (set_entid.size() == 1)
+          v2hf[ID_FROM_HANDLE(vid)-1] = create_halffacet(set_entid[0], set_lid[0]);
+        else
+          {
+            HFacet hf = v2hf[ID_FROM_HANDLE(vid)-1];
+            if (hf != 0)
+              {
+                v2hf[ID_FROM_HANDLE(vid)-1] = 0;
+              }
+            for (int i=0; i<(int)set_entid.size(); i++)
+              {
+                hf = create_halffacet(set_entid[i], set_lid[i]);
+                v2hfs.insert(std::pair<EntityHandle, HFacet>(vid, hf));
+              }
+          }
       }
 
     return MB_SUCCESS;
