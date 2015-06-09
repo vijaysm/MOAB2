@@ -56,7 +56,8 @@ void read_file( Interface* moab, bool curve_fatal, const char* input_file, Error
 {
   InitCGMA::initialize_cgma();
   GeometryQueryTool::instance()->delete_geometry();
-  EntityHandle fs;
+  EntityHandle fs = 0;
+
   // set the options
   std::string options;
   #define OPTION_APPEND(X) { if( options.length() ) options += ";"; options += (X); }
