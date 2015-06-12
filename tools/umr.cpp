@@ -170,7 +170,10 @@ int main(int argc, char* argv[])
       if (exchange_ghosts) read_opts.push_back("PARALLEL_GHOSTS=3.0.1");
 
       if (output)
-        write_opts.push_back("PARALLEL=WRITE_PART");
+        {
+          write_opts.push_back("PARALLEL=WRITE_PART");
+          std::cout<<"Here"<<std::endl;
+        }
     }
 
   if (!make_opts_string(  read_opts,  read_options ) || !make_opts_string(  write_opts,  write_options ))
@@ -303,7 +306,9 @@ int main(int argc, char* argv[])
             out <<  "_ML_" <<l+1<<".vtk";
           file = file + out.str();
           const char* output_file = file.c_str();
-          mb->write_file(output_file, 0, write_options.c_str(), &lsets[l+1], 1);
+       //   mb->write_file(output_file, 0, write_options.c_str(), &lsets[l+1], 1);
+          mb->list_entity(lsets[l+1]);
+          mb->write_file(output_file, 0, "PARALLEL=WRITE_PART", &lsets[l+1], 1);
         }
     }
 
