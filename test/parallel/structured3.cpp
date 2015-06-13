@@ -115,7 +115,7 @@ void create_parallel_mesh()
 
   for (int i = 4; i >= 1; i--) times[i] -= times[i-1];
 
-  double tottimes[5];
+  double tottimes[5] = {0.0};
   MPI_Reduce(times+1, tottimes+1, 4, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
   
   if (!pc.rank()) 

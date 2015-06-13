@@ -7618,7 +7618,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
     num_neighbors_out = 0;
     int n, j = 0;
-    int tmp[MAX_SHARING_PROCS], curr[MAX_SHARING_PROCS];
+    int tmp[MAX_SHARING_PROCS] = {0}, curr[MAX_SHARING_PROCS] = {0};
     int *parts[2] = { neighbors_out, tmp };
     for (Range::iterator i = iface.begin(); i != iface.end(); ++i) {
       unsigned char pstat;
