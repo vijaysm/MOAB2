@@ -241,7 +241,7 @@ ErrorCode create_simple_mesh(Interface *mbImpl, EntityType type, int &which_mesh
         std::cout<<"Creating structured " << xx << "x" << yy << "x" << zz << " hex mesh."<<std::endl;
         // vertices
         const int num_vtx1 = (xx+1)*(yy+1)*(zz+1);
-        double *coords1 = new double[num_vtx1];
+        double *coords1 = new double[3*num_vtx1];
         size_t i  = 0;
         for ( double za = 0; za <= zz; ++za)
         {
@@ -295,6 +295,7 @@ ErrorCode create_simple_mesh(Interface *mbImpl, EntityType type, int &which_mesh
               conn1[i++] = c4;
               conn1[i++] = c5;
               conn1[i++] = c6;
+              assert( i < 8 * num_elems1 );
               conn1[i++] = c7;
             }
           }

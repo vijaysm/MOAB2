@@ -192,8 +192,7 @@ namespace moab
     {
     public:
       EntityHandle coarse_hex;
-      EntityHandle coarse_owner;
-      HexCoarsening( EntityHandle chex ) : coarse_hex(chex), coarse_owner(chex) {}
+      HexCoarsening( EntityHandle chex ) : coarse_hex(chex) {}
       // copy constructor used
     };
 
@@ -210,16 +209,19 @@ namespace moab
 
       Membership shrink_membership; // membership wrt the current shrink set
       bool my_copy_good; // true if my_copy has been assigned
-      EntityHandle my_copy; // points from coarse to fine mesh
+      EntityHandle my_copy; // points from coarse to fine mesh, and back
       bool mini_me_good; // true if mini_me has been assigned
-      EntityHandle mini_me; // points from a fine mesh node to its shrunk copy
+      EntityHandle mini_me; // points from a fine mesh node to its shrunk copy, while pillowing some shrink set 
 
-      // todo memory optimization, coarse hexes have a refinement, fine hexes have a coarsening
-      // make two separate derived classes
+      // a coarse hex has a refinement, the hexes that it splits into
+      // fine hexes have a coarsening, the coarse hex they were split from. Multiple hexes point to the same coarsening
+      // fine nodes have a coarsening, the coarse hex they came from. Multiple nodes point to the same coarsening
+      // but coarse nodes do not have a refinement; instead they use my_copy
       HexRefinement *refinement;
       HexCoarsening *coarsening;
 
-      void copy_data( SlabData *copy_me );
+      // copy shrink and boundary membership status
+      void copy_data( SlabData *copy_me ); 
 
       SlabData() : is_coarse(true), membership(INTERNAL), shrink_membership(EXTERNAL), my_copy_good(false), my_copy(bad_handle), mini_me_good(false), mini_me(bad_handle), refinement(0), coarsening(0) {}
     };
@@ -228,7 +230,8 @@ namespace moab
     HexRefinement *get_hex_refinement( EntityHandle coarse_hex );
     // create one if it doesn't exist
     HexRefinement *force_hex_refinement( EntityHandle coarse_hex );
-    HexCoarsening *force_hex_coarsening( EntityHandle fine_hex );
+    HexCoarsening *get_hex_coarsening( EntityHandle fine_entity );
+    HexCoarsening *force_hex_coarsening( EntityHandle fine_entity, EntityHandle coarse_hex );
     // add the fine_hex to the list of hexes that the coarse hex is divided into
     void add_refined_hex( EntityHandle coarse_hex, EntityHandle fine_hex );
 
@@ -245,10 +248,10 @@ namespace moab
     // convert the oriented edge defined by the hex, its local id in the hex, and the starting node, into a SlabEdge
     void get_edge( EntityHandle hex, int edge_lid, int node_01, SlabEdge &slab_edge );
 
-    int get_edge_refinement_level(EntityHandle hex, int edge_lid) 
-    {
-      return force_hex_refinement(hex)->edge_refinement_level[edge_lid]; 
-    }
+    // find all the other SlabEdges, defined by some other hex, that point to the same two nodes as the given slab_edge
+    void find_equivalent_edges( SlabEdge &slab_edge, std::vector<SlabEdge> & equivalent_edges );
+    int get_edge_refinement_level(EntityHandle hex, int edge_lid);
+    int increment_edge_refinement_level(SlabEdge &slab_edge);
     // given a node of a hex, return which node it is. e.g. 0, 1, ...8
     int get_hex_node_index( EntityHandle hex, EntityHandle node );
 
@@ -258,6 +261,7 @@ namespace moab
     bool unique( const std::vector< SlabEdge > &edges, const SlabEdge &edge );
     bool add_unique( std::vector< SlabEdge > &edges, const SlabEdge &edge );
     // given a slab edge, find an equivalent slab edge defined wrt the passed in hex
+    // note the passed in hex might be the same as the one defining the slab_edge, in which case the match is identical
     bool get_matching_edge( EntityHandle hex, const SlabEdge &slab_edge, SlabEdge &match );
       // given a SlabEdge (edge and vertex) of a hex, find the other two edges that are opposite the edge in a quad of the hex
     void get_opp( const SlabEdge &edge, SlabEdge &opp1, SlabEdge &opp2 );
@@ -272,7 +276,8 @@ namespace moab
     // upper_slab_edges are the other ones containing the vertex
     // parallel_slab_edges are the face-opposite to the slab_edge
     void get_adjacent_slab_edges( const SlabEdge &slab_edge, std::vector< SlabEdge > &ortho_slab_edges, 
-        std::vector< SlabEdge > &upper_slab_edges, std::vector< SlabEdge > &parallel_slab_edges );    
+        std::vector< SlabEdge > &upper_slab_edges, std::vector< SlabEdge > &parallel_slab_edges, 
+        std::vector< SlabEdge > &equivalent_slab_edges );    
 
     typedef std::map< std::pair<EntityHandle, EntityHandle>, bool > EdgeDataMap;
     typedef EdgeDataMap::iterator EdgeDataIterator;
@@ -296,10 +301,12 @@ namespace moab
     SlabData *force_slab_data( EntityHandle entity_handle );
     // This is a fine entity. Associate it with the passed-in coarse entity
     SlabData* set_coarse_entity( EntityHandle entity );
-    // The first entity is the original. Associate it with the passed in copy of it.
+    // Points from a coarse entity to a fine entity
+    // The first entity is the coarse original. Associate it with the passed in fine copy of it.
     void set_copy( EntityHandle entity, EntityHandle copy );
     // Get the copy of the original entity
     bool get_copy( EntityHandle entity, EntityHandle &copy );
+    void get_copy_nodes( EntityHandle *coarse_nodes, EntityHandle *fine_nodes, int num_nodes);
 
     // copy the coarse nodes into the fine ahf
     ErrorCode copy_nodes( Entities &coarse_hexes );
@@ -315,12 +322,10 @@ namespace moab
     // copy a fine node into another fine one, for pillowing a shrink set
     EntityHandle shrink_node( EntityHandle fine_node );
 
-    // For a coarse node entity, associate it with the passed in fine node entity
-    void set_fine_node( EntityHandle entity, EntityHandle fine );
-    // For multiple coarse nodes
-    void get_fine_nodes( EntityHandle *coarse_nodes, EntityHandle *fine_nodes, int num_nodes);
+    // For a fine node in a shrink set, set its shrunk node that it splits into
+    void set_shrunk_node( EntityHandle entity, EntityHandle fine );
     // Get of above 
-    bool get_fine_node( EntityHandle node, EntityHandle &fine_node );
+    bool get_shrunk_node( EntityHandle node, EntityHandle &fine_node );
 
     // code clarity (convenience) functions, making explicit the type of entity being dealt with
     void set_coarse_hex( EntityHandle hex )   { set_coarse_entity(hex); }
@@ -348,13 +353,14 @@ namespace moab
 
     // pick some unrefined edge of the hex to start growing a new slab
     bool find_seed_edge( EntityHandle hex, int &edge_lid, SlabEdge &slab_edge );
-    void add_edge( const SlabEdge &slab_edge, Entities &slab );
+    void add_edge( SlabEdge &slab_edge, Entities &slab, std::vector< SlabEdge > &equivalent_edges );
     // traverse the sheet outward from the slab edge, adding hexes to the slab
-    void extend_slab( const SlabEdge &slab_edge, Entities&slab );
+    void extend_slab( SlabEdge &slab_edge, Entities&slab );
     // True if the candidate slab_edge should be added to the slab? No if it is already refined, or already in the slab
     bool is_good_slab_edge( const SlabEdge &slab_edge );
     //   this version passes back the ortho and parallel edges, iff the return value is true
-    bool is_good_slab_edge( const SlabEdge &slab_edge, std::vector<SlabEdge> &ortho, std::vector<SlabEdge> &upper, std::vector<SlabEdge> &parallel );
+    bool is_good_slab_edge( const SlabEdge &slab_edge, std::vector<SlabEdge> &ortho, std::vector<SlabEdge> &upper, 
+                            std::vector<SlabEdge> &parallel, std::vector<SlabEdge> &equivalent );
     //   this version makes the slab_edge out of the hex, its edge, and the orientation (node_01)
     bool is_good_slab_edge( EntityHandle hex, int edge_lid, int node_01, SlabEdge &slab_edge );
     // True if none of the slab edges have already been refined.
