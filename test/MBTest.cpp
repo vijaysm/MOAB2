@@ -264,8 +264,8 @@ ErrorCode mb_vertex_tag_test()
     // put a value in vertex 8: and retrieve
 
   handle = verts[8];
-  double double_input_value = true;
-  double double_output_value = false;
+  double double_input_value = 1.0;
+  double double_output_value = 0.0;
   error = MB->tag_set_data(tag_id, &handle, 1, &double_input_value);
   if (error != MB_SUCCESS) return error;
 
