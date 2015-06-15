@@ -1196,7 +1196,7 @@ int test_get_neighbors( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const
   iMeshP_getNumPartNborsArr( imesh, prtn, &handles[0], handles.size(), iBase_VERTEX,
                              &count_arr, &junk1, &junk2, &ierr );
   PCHECK;
-  assert( count_arr = &count_vect[0] );
+  assert( count_arr == &count_vect[0] );
   assert( junk2 == (int)handles.size() );
   for (size_t i = 0; i < local_parts.size(); ++i) {
     if (count_arr[i] != (int)neighbors[i].size())
@@ -1217,7 +1217,7 @@ int test_get_neighbors( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const
                           &nbor_arr, &junk3, &nbor_size, 
                           &ierr );
   PCHECK;
-  assert( count_arr = &count_vect[0] );
+  assert( count_arr == &count_vect[0] );
   assert( junk2 == (int)handles.size() );
   std::vector<iMeshP_Part> all_nbors( nbor_arr, nbor_arr + nbor_size );
   free( nbor_arr );
