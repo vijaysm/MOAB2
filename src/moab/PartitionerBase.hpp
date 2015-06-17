@@ -38,30 +38,41 @@ using namespace moab;
     PartitionerBase( Interface *impl = NULL,
                       const bool use_coords = false);
     
-    ~PartitionerBase();
+    virtual ~PartitionerBase();
 
-    /*
-    ErrorCode partition_mesh_geom(const int nparts,
-                                  const char *method,
-                                  const int part_dim = 3, 
-                                  const bool write_as_sets = true,
-                                  const bool write_as_tags = false,
-                                  const bool partition_tagged_sets = false,
-                                  const bool partition_tagged_ents = false,
-                                  const char *aggregating_tag = NULL);
-    
-    int get_mesh(std::vector<double> &pts, std::vector<int> &ids,
-                 std::vector<int> &adjs, std::vector<int> &length,
-                 Range &elems);
-    */
+    virtual ErrorCode partition_mesh_and_geometry(const double part_geom_mesh_size,
+                                                  const int nparts,
+                                                  const char *zmethod,
+                                                  const char *other_method,
+                                                  double imbal_tol,
+                                                  const int part_dim = 3,
+                                                  const bool write_as_sets = true,
+                                                  const bool write_as_tags = false,
+                                                  const int obj_weight = 0,
+                                                  const int edge_weight = 0,
+                                                  const bool part_surf = false,
+                                                  const bool ghost = false,
+                                                  const bool spherical_coords = false,
+                                                  const bool print_time = false) = 0;
+
+    virtual ErrorCode partition_mesh( const int nparts,
+                                      const char *method,
+                                      const int part_dim = 3, 
+                                      const bool write_as_sets = true,
+                                      const bool write_as_tags = false,
+                                      const bool partition_tagged_sets = false,
+                                      const bool partition_tagged_ents = false,
+                                      const char *aggregating_tag = NULL,
+                                      const bool print_time = false) = 0;
 
     virtual ErrorCode write_partition(const int nparts, Range &elems, 
                                 const int *assignment,
                                 const bool write_as_sets,
                                 const bool write_as_tags) = 0;
 
-    // virtual ErrorCode write_file(const char *filename, const char *out_file) = 0;
- 
+      // put closure of entities in the part sets too
+    virtual ErrorCode include_closure() = 0;
+
     Range &part_sets() {return partSets;};
     
     const Range &part_sets() const {return partSets;};

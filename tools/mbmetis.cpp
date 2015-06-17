@@ -170,10 +170,10 @@ int main( int argc, char* argv[] )
  
   ReorderTool reorder_tool(&moab);
   t = clock();
-  rval = tool->partition_mesh_geom( num_parts, metis_method.c_str(), part_dim,
+  rval = tool->partition_mesh( num_parts, metis_method.c_str(), part_dim,
                                     write_sets, write_tags, 
-				    partition_tagged_sets, partition_tagged_ents, 
-        			    aggregating_tag.c_str());
+				                            partition_tagged_sets, partition_tagged_ents, 
+        			                      aggregating_tag.c_str(), print_time);
   if (MB_SUCCESS != rval) {
     std::cerr << "Partitioner failed!" << std::endl;
     std::cerr << "  Error code: " << mb.get_error_string(rval) << " (" << rval << ")" << std::endl;

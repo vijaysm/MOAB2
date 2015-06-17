@@ -49,18 +49,19 @@ MetisPartitioner::~MetisPartitioner()
   ;
 }
 
-ErrorCode MetisPartitioner::partition_mesh_geom(const int nparts,
-                                                    const char *method,
-                                                    const int part_dim,
-                                                    const bool write_as_sets,
-                                                    const bool write_as_tags,
-					            const bool partition_tagged_sets,
-					            const bool partition_tagged_ents,
-					            const char *aggregating_tag)
+ErrorCode MetisPartitioner::partition_mesh(const int nparts,
+                                            const char *method,
+                                            const int part_dim,
+                                            const bool write_as_sets,
+                                            const bool write_as_tags,
+                                            const bool partition_tagged_sets,
+                                            const bool partition_tagged_ents,
+                                            const char *aggregating_tag,
+                                            const bool print_time)
 {
     // should only be called in serial
   if (mbpc->proc_config().proc_size() != 1) {
-    std::cout << "MetisPartitioner::partition_mesh_geom must be called in serial." 
+    std::cout << "MetisPartitioner::partition_mesh_and_geometry must be called in serial." 
               << std::endl;
     return MB_FAILURE;
   }
@@ -79,8 +80,9 @@ ErrorCode MetisPartitioner::partition_mesh_geom(const int nparts,
   Range elems;
   // Get a mesh from MOAB and diide it across processors.
 
+  clock_t t = clock();
+  
   ErrorCode result;
-  std::cout << "Assembling graph..." << std::endl;
   if (!partition_tagged_sets && !partition_tagged_ents)
   {
     result = assemble_graph(part_dim, pts, ids, adjs, length, elems);MB_CHK_ERR(result);
@@ -96,7 +98,13 @@ ErrorCode MetisPartitioner::partition_mesh_geom(const int nparts,
   else {
     MB_SET_ERR(MB_FAILURE, "Either partition tags or sets for Metis partitoner");
   }
-  
+
+  if (print_time)
+  {
+    std::cout << " time to assemble graph: " << (clock() - t) / (double) CLOCKS_PER_SEC  << "s. \n";
+    t = clock();
+  }
+
   std::cout << "Computing partition using " << method 
             <<" method for " << nparts << " processors..." << std::endl;
 
@@ -132,6 +140,12 @@ ErrorCode MetisPartitioner::partition_mesh_geom(const int nparts,
   else
     MB_SET_ERR(MB_FAILURE, "Either ML_KWAY or ML_RB needs to be specified for Metis partitioner");
 
+  if (print_time)
+  {
+    std::cout << " time to partition: " << (clock() - t) / (double) CLOCKS_PER_SEC  << "s. \n";
+    t = clock();
+  }
+
     // assign global node ids, starting from one! TODO
   result = mbpc->assign_global_ids(0, 0, 1);MB_CHK_ERR(result);
 
@@ -150,6 +164,11 @@ ErrorCode MetisPartitioner::partition_mesh_geom(const int nparts,
                              write_as_sets, write_as_tags);MB_CHK_ERR(result);
   }
 
+  if (print_time)
+  {
+    std::cout << " time to write partition in memory " <<(clock() - t) / (double) CLOCKS_PER_SEC  << "s. \n";
+    t = clock();
+  }
   free(assign_parts);
 
   return MB_SUCCESS;

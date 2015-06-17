@@ -100,24 +100,30 @@ using namespace moab;
                            const bool write_as_sets = true,
                            const bool write_as_tags = false);
 
-    ErrorCode partition_mesh_geom(const double part_geom_mesh_size,
-                                  const int nparts,
-                                  const char *zmethod,
-                                  const char *other_method,
-                                  double imbal_tol,
-                                  const bool write_as_sets = true,
-                                  const bool write_as_tags = false,
-                                  const int part_dim = 3,
-                                  const int obj_weight = 0,
-                                  const int edge_weight = 0,
-                                  const bool part_surf = false,
-                                  const bool ghost = false,
-                                  const bool print_time = false,
-                                  const bool spherical_coords  = false);
-    
-    int get_mesh(std::vector<double> &pts, std::vector<int> &ids,
-                 std::vector<int> &adjs, std::vector<int> &length,
-                 Range &elems);
+    virtual ErrorCode partition_mesh_and_geometry(const double part_geom_mesh_size,
+                                                  const int nparts,
+                                                  const char *zmethod,
+                                                  const char *other_method,
+                                                  double imbal_tol,
+                                                  const int part_dim = 3,
+                                                  const bool write_as_sets = true,
+                                                  const bool write_as_tags = false,
+                                                  const int obj_weight = 0,
+                                                  const int edge_weight = 0,
+                                                  const bool part_surf = false,
+                                                  const bool ghost = false,
+                                                  const bool spherical_coords = false,
+                                                  const bool print_time = false);
+
+    virtual ErrorCode partition_mesh( const int nparts,
+                                      const char *method,
+                                      const int part_dim = 3, 
+                                      const bool write_as_sets = true,
+                                      const bool write_as_tags = false,
+                                      const bool partition_tagged_sets = false,
+                                      const bool partition_tagged_ents = false,
+                                      const char *aggregating_tag = NULL,
+                                      const bool print_time = false);
 
       // given a processor assignment returned from Zoltan, write that as a
       // processor assignment to MOAB
@@ -233,5 +239,24 @@ using namespace moab;
     GeometryQueryTool *gti;
 #endif
   };
+
+inline
+ErrorCode ZoltanPartitioner::partition_mesh(const int nparts,
+                                            const char *method,
+                                            const int part_dim,
+                                            const bool write_as_sets,
+                                            const bool write_as_tags,
+                                            const bool ,
+                                            const bool ,
+                                            const char *,
+                                            const bool print_time)
+{
+  return partition_mesh_and_geometry(-1.0, nparts, method, NULL, 
+                                      1.03, part_dim, 
+                                      write_as_sets, write_as_tags, 
+                                      0, 0, 
+                                      false, false, 
+                                      false, print_time);
+}
 
 #endif

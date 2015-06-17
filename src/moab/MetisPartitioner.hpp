@@ -42,18 +42,30 @@ using namespace moab;
     
     virtual ~MetisPartitioner();
 
-    ErrorCode partition_mesh_geom(const int nparts,
-                                  const char *method,
-                                  const int part_dim = 3, 
-                                  const bool write_as_sets = true,
-                                  const bool write_as_tags = false,
-                                  const bool partition_tagged_sets = false,
-                                  const bool partition_tagged_ents = false,
-                                  const char *aggregating_tag = NULL);
-    
-    int get_mesh(std::vector<double> &pts, std::vector<int> &ids,
-                 std::vector<int> &adjs, std::vector<int> &length,
-                 Range &elems);
+    virtual ErrorCode partition_mesh_and_geometry(const double part_geom_mesh_size,
+                                                  const int nparts,
+                                                  const char *zmethod,
+                                                  const char *other_method,
+                                                  double imbal_tol,
+                                                  const int part_dim = 3,
+                                                  const bool write_as_sets = true,
+                                                  const bool write_as_tags = false,
+                                                  const int obj_weight = 0,
+                                                  const int edge_weight = 0,
+                                                  const bool part_surf = false,
+                                                  const bool ghost = false,
+                                                  const bool spherical_coords = false,
+                                                  const bool print_time = false);
+
+    virtual ErrorCode partition_mesh( const int nparts,
+                                      const char *method,
+                                      const int part_dim = 3, 
+                                      const bool write_as_sets = true,
+                                      const bool write_as_tags = false,
+                                      const bool partition_tagged_sets = false,
+                                      const bool partition_tagged_ents = false,
+                                      const char *aggregating_tag = NULL,
+                                      const bool print_time=false);
 
     virtual ErrorCode write_partition(const int nparts, Range &elems, 
                                 const int *assignment,
@@ -64,6 +76,9 @@ using namespace moab;
                                              const int *assignment,
                                              const bool write_as_sets,
                                              const bool write_as_tags);
+
+      // put closure of entities in the part sets too
+    virtual ErrorCode include_closure();
 
     // virtual ErrorCode write_file(const char *filename, const char *out_file);
   
@@ -96,6 +111,34 @@ using namespace moab;
                                         Range &elems,
                                         const char *aggregating_tag);
   };
+
+// Inline functions
+
+inline
+ErrorCode MetisPartitioner::partition_mesh_and_geometry(const double ,
+                                                  const int nparts,
+                                                  const char *zmethod,
+                                                  const char *,
+                                                  double ,
+                                                  const int part_dim,
+                                                  const bool write_as_sets,
+                                                  const bool write_as_tags,
+                                                  const int ,
+                                                  const int ,
+                                                  const bool ,
+                                                  const bool ,
+                                                  const bool ,
+                                                  const bool print_time)
+{
+  // Only partition the mesh - no geometric partition available
+  return partition_mesh( nparts, zmethod, part_dim, write_as_sets, write_as_tags, false, false, NULL, print_time);
+}
+
+inline
+ErrorCode MetisPartitioner::include_closure()
+{
+  return MB_NOT_IMPLEMENTED;
+}
 
 #endif
 
