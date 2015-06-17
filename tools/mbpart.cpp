@@ -26,15 +26,15 @@ using namespace moab;
 
 const char DEFAULT_TAGGEDSETS_TAG[] = "PARALLEL_PARTITION";
 
-#ifdef MOAB_HAVE_ZOLTAN
 const char DEFAULT_ZOLTAN_METHOD[] = "RCB";
+#ifdef MOAB_HAVE_ZOLTAN
 const char ZOLTAN_PARMETIS_METHOD[] = "PARMETIS";
 const char ZOLTAN_OCTPART_METHOD[] = "OCTPART";
 #endif
 
+const char METIS_DEFAULT_METHOD[] = "ML_KWAY";
 #ifdef MOAB_HAVE_METIS
 const char METIS_ALTERNATIVE_METHOD[] = "ML_RB";
-const char METIS_DEFAULT_METHOD[] = "ML_KWAY";
 #endif
 
 const char BRIEF_DESC[] = "Use Zoltan or Metis to partition MOAB meshes for use on parallel computers";
@@ -56,8 +56,10 @@ int main(int argc, char* argv[])
 
   LONG_DESC << "This utility invokes the ZoltanPartitioner or MetisPartitioner component of MOAB/CGM"
             "to partition a mesh/geometry." << std::endl
-            << "If no partitioning method is specified, the default is "
-            "the Zoltan \"" << DEFAULT_ZOLTAN_METHOD << "\" method" << std::endl;
+            << "If no partitioning method is specified, the defaults are: "
+            << "for Zoltan=\"" << DEFAULT_ZOLTAN_METHOD 
+            << "\" and Metis=\"" << METIS_DEFAULT_METHOD 
+            << " method" << std::endl;
 
   ProgOptions opts(LONG_DESC.str(), BRIEF_DESC);
 
@@ -65,8 +67,8 @@ int main(int argc, char* argv[])
   opts.addOpt<int>("dimension", "Specify dimension of entities to partition."
                    "  Default is  largest in file.", &part_dim, ProgOptions::int_flag);
 
+  std::string zoltan_method, parm_method, oct_method, metis_method;
 #ifdef MOAB_HAVE_ZOLTAN
-  std::string zoltan_method, parm_method, oct_method;
   opts.addOpt<std::string>("zoltan,z", "(Zoltan) Specify Zoltan partition method.  "
                            "One of RR, RCB, RIB, HFSC, PHG, or Hypergraph (PHG and Hypergraph "
                            "are synonymous).", &zoltan_method);
@@ -77,13 +79,12 @@ int main(int argc, char* argv[])
 
   bool incl_closure = false;
   opts.addOpt<void>("include_closure,c", "Include element closure for part sets.", &incl_closure);
+#endif // MOAB_HAVE_ZOLTAN
 
   double imbal_tol = 1.03;
   opts.addOpt<double>("imbalance,i", "Imbalance tolerance (used in PHG/Hypergraph method)", &imbal_tol);
-#endif // MOAB_HAVE_ZOLTAN
 
 #ifdef MOAB_HAVE_METIS
-  std::string metis_method;
   opts.addOpt<std::string>( "metis,m", "(Metis) Specify Metis partition method. One of ML_RB or ML_KWAY.", &metis_method);
 #endif // MOAB_HAVE_METIS
 
@@ -97,17 +98,15 @@ int main(int argc, char* argv[])
   bool reorder = false;
   opts.addOpt<void>("reorder,R", "Reorder mesh to group entities by partition", &reorder);
 
-#if MOAB_HAVE_ZOLTAN
   double part_geom_mesh_size = -1.0;
+#if MOAB_HAVE_ZOLTAN
   bool part_surf = false;
 #ifdef MOAB_HAVE_CGM
   opts.addOpt<double>("geom,g", "(CGM) If partition geometry, specify mesh size.", &part_geom_mesh_size);
   opts.addOpt<void>("surf,f", "(CGM) Specify if partition geometry surface.", &part_surf);
 #endif // MOAB_HAVE_CGM
-#endif // MOAB_HAVE_ZOLTAN
 
   bool ghost = false;
-  long num_parts;
   opts.addOpt<void>("ghost,H", "Specify if partition ghost geometry body.");
 
   int obj_weight = 0;
@@ -115,6 +114,10 @@ int main(int argc, char* argv[])
 
   int edge_weight = 0;
   opts.addOpt<int>("edge_w,e", "Number of weights associated with an edge.");
+
+#endif // MOAB_HAVE_ZOLTAN
+
+  long num_parts;
   opts.addOpt<std::vector<int> >("set_l,l", "Load material set(s) with specified ids (comma seperated) for partition");
 
   opts.addRequiredArg<int>("#parts", "Number of parts in partition");
