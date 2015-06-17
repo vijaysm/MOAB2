@@ -28,11 +28,9 @@
 #include "moab/ZoltanPartitioner.hpp"
 #include "moab/Interface.hpp"
 #include "Internals.hpp"
-#include "moab/ParallelComm.hpp"
 #include "moab/Range.hpp"
 #include "moab/WriteUtilIface.hpp"
 #include "moab/MeshTopoUtil.hpp"
-#include "moab/ParallelComm.hpp"
 #include "MBTagConventions.hpp"
 #include "moab/CN.hpp"
 
@@ -74,31 +72,20 @@ ZoltanPartitioner::ZoltanPartitioner( Interface *impl,
                     , GeometryQueryTool *gqt
 #endif
 )
-                   : mbImpl(impl),
+                   : PartitionerBase(impl,use_coords),
                      myZZ(NULL),
-                     newMoab(false),
-                     newComm(false),
-                     useCoords(use_coords),
                      argcArg(argc),
                      argvArg(argv)
 #ifdef MOAB_HAVE_CGM
                    , gti(gqt)
 #endif
 {
-  mbpc = ParallelComm::get_pcomm(mbImpl, 0);
-  if (!mbpc) {
-    mbpc = new ParallelComm(impl, MPI_COMM_WORLD, 0);
-    newComm = true;
-  }
 }
 
 ZoltanPartitioner::~ZoltanPartitioner()
 {
   if (NULL != myZZ)
     delete myZZ;
-
-  if (newComm)
-    delete mbpc;
 }
 
 ErrorCode ZoltanPartitioner::balance_mesh(const char *zmethod,
@@ -352,14 +339,14 @@ ErrorCode  ZoltanPartitioner::repartition(std::vector<double> & x,std::vector<do
   return MB_SUCCESS;
 }
 
-ErrorCode ZoltanPartitioner::partition_mesh_geom(const double part_geom_mesh_size,
+ErrorCode ZoltanPartitioner::partition_mesh_and_geometry(const double part_geom_mesh_size,
                                         const int nparts,
                                         const char *zmethod,
                                         const char *other_method,
                                         double imbal_tol,
+                                        const int part_dim,
                                         const bool write_as_sets,
                                         const bool write_as_tags,
-                                        const int part_dim,
                                         const int obj_weight,
                                         const int edge_weight,
 #ifdef MOAB_HAVE_CGM
@@ -368,12 +355,12 @@ ErrorCode ZoltanPartitioner::partition_mesh_geom(const double part_geom_mesh_siz
 #else
                                         const bool, const bool,
 #endif
-                                        const bool print_time,
-                                        const bool spherical_coords)
+                                        const bool spherical_coords,
+                                        const bool print_time)
 {
     // should only be called in serial
   if (mbpc->proc_config().proc_size() != 1) {
-    std::cout << "ZoltanPartitioner::partition_mesh_geom must be called in serial." 
+    std::cout << "ZoltanPartitioner::partition_mesh_and_geometry must be called in serial." 
               << std::endl;
     return MB_FAILURE;
   }

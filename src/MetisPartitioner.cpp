@@ -1,65 +1,67 @@
-// SpaFEDTe, a Template based C++ library for creating 
-// Discontinuous Finite Element Spaces,
-// Copyright (C) 2012 Lorenzo Alessio Botti
+/**
+ * MOAB, a Mesh-Oriented datABase, is a software component for creating,
+ * storing and accessing finite element mesh data.
+ *
+ * Copyright 2004 Sandia Corporation.  Under the terms of Contract
+ * DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government
+ * retains certain rights in this software.
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ */
 
-/* This library is free software; you can redistribute it and/or */
-/* modify it under the terms of the GNU Lesser General Public */ 
-/* License as published by the Free Software Foundation either */ 
-/* version 3.0 of the License, or (at your option) any later version. */
-
-/* This software is distributed in the hope that it will be useful, */
-/* but WITHOUT ANY WARRANTY; without even the implied warranty of */
-/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU */
-/* Lesser General Public License for more details. */
-
-/* You should have received a copy of the GNU Lesser General Public */
-/* License along with this software; if not, a copy of the full */
-/* GNU Lesser General Public License can be found at */
-/* http://www.gnu.org/licenses/ */
-
-// This implementation is mostly borrowed from the mbzoltan MOAB partitioning tool
+// Originally contributed by Lorenzo Alessio Botti (SpaFEDTe)
+// Modified, updated and merged by Vijay Mahadevan
 
 #include <iostream>
 #include <assert.h>
 #include <sstream>
 
+#include "moab/Interface.hpp"
+#include "Internals.hpp"
+#include "moab/Range.hpp"
 #include "moab/MetisPartitioner.hpp"
+#include "moab/WriteUtilIface.hpp"
+#include "moab/MeshTopoUtil.hpp"
+#include "moab/Skinner.hpp"
+#include "MBTagConventions.hpp"
+#include "moab/CN.hpp"
 
 using namespace moab;
 
 const bool debug = false;
 
-MetisMOABPartitioner::MetisMOABPartitioner( Interface *impl, 
+MetisPartitioner::MetisPartitioner( Interface *impl, 
                                             const bool use_coords,
                                             int argc, 
                                             char **argv) 
-                                           : mbImpl(impl), 
-                                             useCoords(use_coords),
+                                           : PartitionerBase(impl,use_coords), 
                                              argcArg(argc), 
                                              argvArg(argv)
 {
-  mbpc = ParallelComm::get_pcomm(mbImpl, 0);
-  if (!mbpc)
-    mbpc = new ParallelComm( impl, MPI_COMM_WORLD, 0 );
 }
 
-MetisMOABPartitioner::~MetisMOABPartitioner() 
+MetisPartitioner::~MetisPartitioner() 
 {
   ;
 }
 
-ErrorCode MetisMOABPartitioner::partition_mesh_geom(const int nparts,
-                                                    const char *method,
-                                                    const int part_dim,
-                                                    const bool write_as_sets,
-                                                    const bool write_as_tags,
-					            const bool partition_tagged_sets,
-					            const bool partition_tagged_ents,
-					            const char *aggregating_tag)
+ErrorCode MetisPartitioner::partition_mesh(const int nparts,
+                                            const char *method,
+                                            const int part_dim,
+                                            const bool write_as_sets,
+                                            const bool write_as_tags,
+                                            const bool partition_tagged_sets,
+                                            const bool partition_tagged_ents,
+                                            const char *aggregating_tag,
+                                            const bool print_time)
 {
     // should only be called in serial
   if (mbpc->proc_config().proc_size() != 1) {
-    std::cout << "MetisMOABPartitioner::partition_mesh_geom must be called in serial." 
+    std::cout << "MetisPartitioner::partition_mesh_and_geometry must be called in serial." 
               << std::endl;
     return MB_FAILURE;
   }
@@ -78,8 +80,9 @@ ErrorCode MetisMOABPartitioner::partition_mesh_geom(const int nparts,
   Range elems;
   // Get a mesh from MOAB and diide it across processors.
 
+  clock_t t = clock();
+  
   ErrorCode result;
-  std::cout << "Assembling graph..." << std::endl;
   if (!partition_tagged_sets && !partition_tagged_ents)
   {
     result = assemble_graph(part_dim, pts, ids, adjs, length, elems);MB_CHK_ERR(result);
@@ -95,7 +98,13 @@ ErrorCode MetisMOABPartitioner::partition_mesh_geom(const int nparts,
   else {
     MB_SET_ERR(MB_FAILURE, "Either partition tags or sets for Metis partitoner");
   }
-  
+
+  if (print_time)
+  {
+    std::cout << " time to assemble graph: " << (clock() - t) / (double) CLOCKS_PER_SEC  << "s. \n";
+    t = clock();
+  }
+
   std::cout << "Computing partition using " << method 
             <<" method for " << nparts << " processors..." << std::endl;
 
@@ -131,6 +140,12 @@ ErrorCode MetisMOABPartitioner::partition_mesh_geom(const int nparts,
   else
     MB_SET_ERR(MB_FAILURE, "Either ML_KWAY or ML_RB needs to be specified for Metis partitioner");
 
+  if (print_time)
+  {
+    std::cout << " time to partition: " << (clock() - t) / (double) CLOCKS_PER_SEC  << "s. \n";
+    t = clock();
+  }
+
     // assign global node ids, starting from one! TODO
   result = mbpc->assign_global_ids(0, 0, 1);MB_CHK_ERR(result);
 
@@ -149,12 +164,17 @@ ErrorCode MetisMOABPartitioner::partition_mesh_geom(const int nparts,
                              write_as_sets, write_as_tags);MB_CHK_ERR(result);
   }
 
+  if (print_time)
+  {
+    std::cout << " time to write partition in memory " <<(clock() - t) / (double) CLOCKS_PER_SEC  << "s. \n";
+    t = clock();
+  }
   free(assign_parts);
 
   return MB_SUCCESS;
 }
 
-ErrorCode MetisMOABPartitioner::assemble_taggedents_graph(const int dimension,
+ErrorCode MetisPartitioner::assemble_taggedents_graph(const int dimension,
                                                           std::vector<double> &coords,
                                                           std::vector<int> &moab_ids,
                                                           std::vector<int> &adjacencies, 
@@ -219,7 +239,7 @@ ErrorCode MetisMOABPartitioner::assemble_taggedents_graph(const int dimension,
   return MB_SUCCESS;
 }
 
-ErrorCode MetisMOABPartitioner::assemble_taggedsets_graph(const int dimension,
+ErrorCode MetisPartitioner::assemble_taggedsets_graph(const int dimension,
                                                           std::vector<double> &coords,
                                                           std::vector<int> &moab_ids,
                                                           std::vector<int> &adjacencies, 
@@ -341,7 +361,7 @@ ErrorCode MetisMOABPartitioner::assemble_taggedsets_graph(const int dimension,
   return MB_SUCCESS;
 }
 
-ErrorCode MetisMOABPartitioner::assemble_graph(const int dimension,
+ErrorCode MetisPartitioner::assemble_graph(const int dimension,
                                                std::vector<double> &coords,
                                                std::vector<int> &moab_ids,
                                                std::vector<int> &adjacencies, 
@@ -420,7 +440,7 @@ ErrorCode MetisMOABPartitioner::assemble_graph(const int dimension,
   return MB_SUCCESS;
 }
 
-ErrorCode MetisMOABPartitioner::write_aggregationtag_partition(const int nparts,
+ErrorCode MetisPartitioner::write_aggregationtag_partition(const int nparts,
                                                                Range &elems, 
                                                                const int *assignment,
                                                                const bool write_as_sets,
@@ -526,7 +546,7 @@ ErrorCode MetisMOABPartitioner::write_aggregationtag_partition(const int nparts,
   return MB_SUCCESS;
 }
 
-ErrorCode MetisMOABPartitioner::write_partition(const int nparts,
+ErrorCode MetisPartitioner::write_partition(const int nparts,
                                                 Range &elems, 
                                                 const int *assignment,
                                                 const bool write_as_sets,

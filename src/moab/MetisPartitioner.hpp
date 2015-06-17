@@ -1,70 +1,73 @@
-// SpaFEDTe, a Template based C++ library for creating 
-// Discontinuous Finite Element Spaces,
-// Copyright (C) 2012 Lorenzo Alessio Botti
+/**
+ * MOAB, a Mesh-Oriented datABase, is a software component for creating,
+ * storing and accessing finite element mesh data.
+ *
+ * Copyright 2004 Sandia Corporation.  Under the terms of Contract
+ * DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government
+ * retains certain rights in this software.
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ */
 
-/* This library is free software; you can redistribute it and/or */
-/* modify it under the terms of the GNU Lesser General Public */ 
-/* License as published by the Free Software Foundation either */ 
-/* version 3.0 of the License, or (at your option) any later version. */
+// Originally contributed by Lorenzo Alessio Botti (SpaFEDTe)
+// Modified, updated and merged by Vijay Mahadevan
 
-/* This software is distributed in the hope that it will be useful, */
-/* but WITHOUT ANY WARRANTY; without even the implied warranty of */
-/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU */
-/* Lesser General Public License for more details. */
-
-/* You should have received a copy of the GNU Lesser General Public */
-/* License along with this software; if not, a copy of the full */
-/* GNU Lesser General Public License can be found at */
-/* http://www.gnu.org/licenses/ */
-
-// This implementation is mostly borrowed from the mbzoltan MOAB partitioning tool
-
-#ifndef __metis_moab_partitioner_hpp__
-#define __metis_moab_partitioner_hpp__
+#ifndef __metispartitioner_hpp__
+#define __metispartitioner_hpp__
 
 #include <stdlib.h>
-#include "moab_mpi.h"
-#include "moab/Range.hpp"
-#include "moab/Interface.hpp"
-#include "moab/ParallelComm.hpp"
-#include "moab/Skinner.hpp"
-#include "moab/WriteUtilIface.hpp"
-#include "moab/MeshTopoUtil.hpp"
-#include "moab/ParallelComm.hpp"
-#include "MBTagConventions.hpp"
-#include "moab/CN.hpp"
-#include <vector>
-#include "moab/Types.hpp"
-
+#include "moab/PartitionerBase.hpp"
 #include "metis.h"
+
+namespace moab {
+
+  class Interface;
+  class Range;
+}
 
 using namespace moab;
 
-  class MetisMOABPartitioner 
+  class MetisPartitioner : public PartitionerBase
   {
 
   public:
-    MetisMOABPartitioner( Interface *impl = NULL,
+    MetisPartitioner( Interface *impl = NULL,
                           const bool use_coords = false,
                           int argc = 0, 
                           char **argv = NULL);
     
-    ~MetisMOABPartitioner();
+    virtual ~MetisPartitioner();
 
-    ErrorCode partition_mesh_geom(const int nparts,
-                                  const char *method,
-                                  const int part_dim = 3, 
-                                  const bool write_as_sets = true,
-                                  const bool write_as_tags = false,
-				  const bool partition_tagged_sets = false,
-				  const bool partition_tagged_ents = false,
-                                  const char *aggregating_tag = NULL);
-    
-    int get_mesh(std::vector<double> &pts, std::vector<int> &ids,
-                 std::vector<int> &adjs, std::vector<int> &length,
-                 Range &elems);
+    virtual ErrorCode partition_mesh_and_geometry(const double part_geom_mesh_size,
+                                                  const int nparts,
+                                                  const char *zmethod,
+                                                  const char *other_method,
+                                                  double imbal_tol,
+                                                  const int part_dim = 3,
+                                                  const bool write_as_sets = true,
+                                                  const bool write_as_tags = false,
+                                                  const int obj_weight = 0,
+                                                  const int edge_weight = 0,
+                                                  const bool part_surf = false,
+                                                  const bool ghost = false,
+                                                  const bool spherical_coords = false,
+                                                  const bool print_time = false);
 
-    ErrorCode write_partition(const int nparts, Range &elems, 
+    virtual ErrorCode partition_mesh( const int nparts,
+                                      const char *method,
+                                      const int part_dim = 3, 
+                                      const bool write_as_sets = true,
+                                      const bool write_as_tags = false,
+                                      const bool partition_tagged_sets = false,
+                                      const bool partition_tagged_ents = false,
+                                      const char *aggregating_tag = NULL,
+                                      const bool print_time=false);
+
+    virtual ErrorCode write_partition(const int nparts, Range &elems, 
                                 const int *assignment,
                                 const bool write_as_sets,
                                 const bool write_as_tags);
@@ -74,19 +77,12 @@ using namespace moab;
                                              const bool write_as_sets,
                                              const bool write_as_tags);
 
-    ErrorCode write_file(const char *filename, const char *out_file);
+      // put closure of entities in the part sets too
+    virtual ErrorCode include_closure();
+
+    // virtual ErrorCode write_file(const char *filename, const char *out_file);
   
   private:
-
-    Interface *mbImpl;
-
-    ParallelComm *mbpc;
-
-    Range partSets;
-  
-    bool useCoords;
-
-    bool write_output;
 
     int argcArg;
     
@@ -116,4 +112,33 @@ using namespace moab;
                                         const char *aggregating_tag);
   };
 
+// Inline functions
+
+inline
+ErrorCode MetisPartitioner::partition_mesh_and_geometry(const double ,
+                                                  const int nparts,
+                                                  const char *zmethod,
+                                                  const char *,
+                                                  double ,
+                                                  const int part_dim,
+                                                  const bool write_as_sets,
+                                                  const bool write_as_tags,
+                                                  const int ,
+                                                  const int ,
+                                                  const bool ,
+                                                  const bool ,
+                                                  const bool ,
+                                                  const bool print_time)
+{
+  // Only partition the mesh - no geometric partition available
+  return partition_mesh( nparts, zmethod, part_dim, write_as_sets, write_as_tags, false, false, NULL, print_time);
+}
+
+inline
+ErrorCode MetisPartitioner::include_closure()
+{
+  return MB_NOT_IMPLEMENTED;
+}
+
 #endif
+

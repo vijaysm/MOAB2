@@ -619,11 +619,14 @@ AC_ARG_WITH([metis],
                  ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS $METIS_LIB_FLAGS"
                  if test -d "$withval/include"; then
                    METIS_INC_FLAGS="-I$withval/include"
+                  if (test -f "$withval/include/metis.h"); then
+                    AC_DEFINE(HAVE_METIS, [1], [Define if configured with Metis partitioner support])
+                  fi
                  else
                    METIS_INC_FLAGS="-I$withval"
-                 fi
-                 if (test -f "$withval/include/metis.h" || test -f "$withval/metis.h"); then
-                   AC_DEFINE(HAVE_METIS, [1], [Define if configured with Metis partitioner support])
+                   # if (test -f "$withval/metis.h"); then # METIS-3.x might not install a header though
+                   #  AC_DEFINE(HAVE_METIS, [1], [Define if configured with Metis partitioner support])
+                   # fi
                  fi
                  ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS $METIS_INC_FLAGS"
                  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-metis=\"${withval}\""
