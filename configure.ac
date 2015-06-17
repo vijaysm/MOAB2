@@ -505,6 +505,7 @@ ZOLTAN_DIR=
 ZOLTAN_ARCH=
 WITH_PARAMETIS=no
 PARMETIS_DIR=
+METIS_DIR=
 SCOTCH_DIR=
 PTSCOTCH_DIR=
 SCOTCH_LIBS=
@@ -578,15 +579,17 @@ AC_ARG_WITH([parmetis],
                  PARMETIS_DIR="$withval"
                  test -d "$withval" || AC_MSG_ERROR([Not a directory: with-parmetis=$withval])
                  if test -d "$withval/lib"; then
-                   ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval/lib"
+                   PARMETIS_LIB_FLAGS="-L$withval/lib"
                  else
-                   ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval"
+                   PARMETIS_LIB_FLAGS="-L$withval"
                  fi
+                 PARMETIS_LIBS="$PARMETIS_LIB_FLAGS -lparmetis"
                  if test -d "$withval/include"; then
-                   ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$withval/include"
+                   PARMETIS_INC_FLAGS="-I$withval/include"
                  else
-                   ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$withval"
+                   PARMETIS_INC_FLAGS="-I$withval"
                  fi
+                 ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS $PARMETIS_INC_FLAGS"
                  if (test -f "$withval/include/parmetis.h" || test -f "$withval/parmetis.h"); then
                    AC_DEFINE(HAVE_PARMETIS, [1], [Define if configured with ParMetis partitioner support])
                  fi
@@ -594,6 +597,8 @@ AC_ARG_WITH([parmetis],
 		 ;;
                esac] )
 AM_CONDITIONAL(ENABLE_parmetis, [test "x" != "x$PARMETIS_DIR"])
+AC_SUBST(PARMETIS_LIBS)
+AC_SUBST(PARMETIS_INC_FLAGS)
 
 # If user specified with-metis, then assume they are trying
 # to add an additional library search directory in which to check
@@ -632,6 +637,8 @@ AC_ARG_WITH([metis],
      ;;
                esac] )
 AM_CONDITIONAL(ENABLE_metis, [test "x" != "x$METIS_DIR"])
+AC_SUBST(METIS_LIBS)
+AC_SUBST(METIS_INC_FLAGS)
 
 # If user specified with-scotch, then assume they are trying
 # to add an additional library search directory in which to check
@@ -794,7 +801,11 @@ MB_OPTIONAL_TOOL([mbtagprop],    [yes], [yes])
 MB_OPTIONAL_TOOL([mbmem],        [yes], [yes])
 MB_OPTIONAL_TOOL([spheredecomp], [yes], [yes])
 MB_OPTIONAL_TOOL([mbsurfplot],   [yes], [yes])
-MB_OPTIONAL_TOOL([mbpart],     [${WITH_ZOLTAN}], [${WITH_ZOLTAN}] )
+if (test "x$WITH_ZOLTAN" != "x" || "x$METIS_LIBS" != "x"); then
+MB_OPTIONAL_TOOL([mbpart],     [yes], [yes] )
+else
+MB_OPTIONAL_TOOL([mbpart],     [no], [no] )
+fi
 MB_OPTIONAL_TOOL([dagmc],        [no], [yes])
 MB_OPTIONAL_TOOL([gsets],        [yes], [yes])
 MB_OPTIONAL_TOOL([mbdepth],      [yes], [yes])
@@ -862,58 +873,62 @@ if test "xyes" = "x$WITH_ZOLTAN"; then
   AC_LANG_PUSH([C++])
   old_CPPFLAGS="$CPPFLAGS"
   CPPFLAGS="$CPPFLAGS $ZOLTAN_INC_FLAGS -DMPICH_IGNORE_CXX_SEEK"
-  AC_CHECK_HEADER([zoltan_cpp.h],,[AC_MSG_ERROR([zoltan_cpp.h: header not found in $ZOLTAN_INC_FLAGS .])],
+  AC_CHECK_HEADER([zoltan_cpp.h],,
+                  [WITH_ZOLTAN=no
+                   AC_MSG_WARN([zoltan_cpp.h: header not found in $ZOLTAN_INC_FLAGS .])],
                   [#include <stdlib.h>])
   CPPFLAGS="$old_CPPFLAGS"
   AC_LANG_POP([C++])
 
+  if test "xyes" = "x$WITH_ZOLTAN"; then
     # Build LDFLAGS for Zoltan
-  found=no
-  if test "x" != "x$ZOLTAN_DIR"; then
-    if test "x" != "x$ZOLTAN_ARCH" && test -d "$ZOLTAN_DIR/Obj_$ZOLTAN_ARCH"; then
-      ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$ZOLTAN_DIR/Obj_$ZOLTAN_ARCH"
-      found=yes
-    elif test -d "$ZOLTAN_DIR/lib"; then
-      ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$ZOLTAN_DIR/lib"
-      found=yes
-    else
-      for d in $ZOLTAN_DIR/Obj_*; do
-        if test -d "$d"; then
-          found=yes
-          ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$d"
-        fi
-      done
+    found=no
+    if test "x" != "x$ZOLTAN_DIR"; then
+      if test "x" != "x$ZOLTAN_ARCH" && test -d "$ZOLTAN_DIR/Obj_$ZOLTAN_ARCH"; then
+        ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$ZOLTAN_DIR/Obj_$ZOLTAN_ARCH"
+        found=yes
+      elif test -d "$ZOLTAN_DIR/lib"; then
+        ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$ZOLTAN_DIR/lib"
+        found=yes
+      else
+        for d in $ZOLTAN_DIR/Obj_*; do
+          if test -d "$d"; then
+            found=yes
+            ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$d"
+          fi
+        done
+      fi
+      if test "no" = "$found"; then
+        ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$ZOLTAN_DIR"
+      fi
     fi
-    if test "no" = "$found"; then
-      ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$ZOLTAN_DIR"
-    fi
-  fi
 
     # Test for Zoltan library, possibly requiring parmetis and scotch
-  old_LDFLAGS="$LDFLAGS"
-  LDFLAGS="$LDFLAGS $ZOLTAN_LIB_FLAGS"
-  AC_CHECK_LIB([zoltan],[Zoltan_LB_Partition],[ZOLTAN_LIBS='-lzoltan'],
-    [unset ac_cv_lib_zoltan_Zoltan_LB_Partition
-     AC_CHECK_LIB([zoltan],[Zoltan_LB_Partition],
-                  [ZOLTAN_LIBS="-lzoltan -lparmetis -lmetis"],
-                  [unset ac_cv_lib_zoltan_Zoltan_LB_Partition
-                   AC_CHECK_LIB([zoltan],[Zoltan_LB_Partition],[ZOLTAN_LIBS="-lzoltan $SCOTCH_LIBS -lparmetis -lmetis"],
-                   [AC_MSG_ERROR([zoltan library not found or not usable.  Perhaps you need to specify --with-parmetis=@<:@DIR@:>@ and --with-scotch=@<:@DIR@:>@?])],
-                   [$SCOTCH_LIBS -lparmetis -lmetis])],
-                  [-lparmetis -lmetis])])
-  LDFLAGS="$old_LDFLAGS"
+    old_LDFLAGS="$LDFLAGS"
+    LDFLAGS="$LDFLAGS $ZOLTAN_LIB_FLAGS"
+    AC_CHECK_LIB([zoltan],[Zoltan_LB_Partition],[ZOLTAN_LIBS='-lzoltan'],
+      [unset ac_cv_lib_zoltan_Zoltan_LB_Partition
+      AC_CHECK_LIB([zoltan],[Zoltan_LB_Partition],
+                    [ZOLTAN_LIBS="-lzoltan $PARMETIS_LIBS $METIS_LIBS"],
+                    [unset ac_cv_lib_zoltan_Zoltan_LB_Partition
+                    AC_CHECK_LIB([zoltan],[Zoltan_LB_Partition],[ZOLTAN_LIBS="-lzoltan $SCOTCH_LIBS $PARMETIS_LIBS $METIS_LIBS"],
+                    [AC_MSG_ERROR([zoltan library not found or not usable.  Perhaps you need to specify --with-parmetis=@<:@DIR@:>@ or --with-metis=@<:@DIR@:>@ and/or --with-scotch=@<:@DIR@:>@?])],
+                    [$SCOTCH_LIBS $PARMETIS_LIBS $METIS_LIBS])],
+                    [$PARMETIS_LIBS $METIS_LIBS])])
+    LDFLAGS="$old_LDFLAGS"
 
-    # Define macro HAVE_ZOLTAN
-  AC_DEFINE([HAVE_ZOLTAN],[1],["Define if configured with Zoltan library partitioning support."])
+      # Define macro HAVE_ZOLTAN
+    AC_DEFINE([HAVE_ZOLTAN],[1],["Define if configured with Zoltan library partitioning support."])
+  fi
 fi
 
+AM_CONDITIONAL( HAVE_ZOLTAN, [test "x$WITH_ZOLTAN" = "xyes"] )
 AC_SUBST(ZOLTAN_LIBS)
 AC_SUBST(ZOLTAN_LIB_FLAGS)
 AC_SUBST(ZOLTAN_INC_FLAGS)
 
 EXPORT_LDFLAGS="$ZOLTAN_LIB_FLAGS $EXPORT_LDFLAGS"
-
-  
+ 
 dnl Define a function that checks for the existence of a library
 dnl and if it exists, prepends the corresponding link flag to a 
 dnl sepecified variable
