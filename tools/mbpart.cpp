@@ -480,6 +480,7 @@ int main(int argc, char* argv[])
         return 2;
       }
     }
+#ifdef MOAB_HAVE_ZOLTAN
 #ifdef MOAB_HAVE_CGM
     else
     {
@@ -508,6 +509,7 @@ int main(int argc, char* argv[])
         return 1;
       }
     }
+#endif
 #endif
 
     if (print_time)
