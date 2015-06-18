@@ -52,7 +52,13 @@ int main(int argc, char* argv[])
   Core moab;
   Interface& mb = moab;
   std::vector<int> set_l;
-  bool moab_use_zoltan=false,moab_use_metis=false;
+
+#ifdef MOAB_HAVE_ZOLTAN
+  bool moab_use_zoltan=false;
+#endif
+#ifdef MOAB_HAVE_METIS
+  bool moab_use_metis=false;
+#endif
 
   LONG_DESC << "This utility invokes the ZoltanPartitioner or MetisPartitioner component of MOAB/CGM"
             "to partition a mesh/geometry." << std::endl
@@ -152,12 +158,17 @@ int main(int argc, char* argv[])
 
   opts.parseCommandLine(argc, argv);
 
-  if (!zoltan_method.empty()) moab_use_zoltan=true;
-  else if (!metis_method.empty()) moab_use_metis=true;
-  else MB_SET_ERR(MB_FAILURE, "Specify either Zoltan or Metis partitioner type");
-
-  std::cout << "moab_use_zoltan = " << moab_use_zoltan << " and moab_use_metis = " << moab_use_metis << std::endl;
-  std::cout << "zoltan_method = " << zoltan_method << " and metis_method = " << metis_method << std::endl;
+#ifdef MOAB_HAVE_ZOLTAN
+  if (!zoltan_method.empty())
+    moab_use_zoltan=true;
+  else
+#endif
+#ifdef MOAB_HAVE_METIS
+    if (!metis_method.empty())
+      moab_use_metis=true;
+    else
+#endif
+  MB_SET_ERR(MB_FAILURE, "Specify either Zoltan or Metis partitioner type");
 
   PartitionerBase *tool = NULL;
 
@@ -485,11 +496,11 @@ int main(int argc, char* argv[])
         return 1;
       }
 
-      int junk;
+      int num_ents_exported=0;
       DLIList<RefEntity*> ref_entity_list;
       CubitStatus status = CubitCompat_export_solid_model(ref_entity_list,
                            tmp_output_file.str().c_str(),
-                           file_type, junk,
+                           file_type, num_ents_exported,
                            CubitString(__FILE__));
       if (CUBIT_SUCCESS != status)
       {
