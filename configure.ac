@@ -990,7 +990,7 @@ else
   MB_OPTIONAL_TOOL([mbpart],     [no], [no] )
 fi
 
-MB_OPTIONAL_TOOL([dagmc],        [${CGM_MISSING}], [${CGM_MISSING}])
+MB_OPTIONAL_TOOL([dagmc],        [no], [yes])
 if test "xyes" = "x$ENABLE_dagmc"; then
    DAGMC_LIBS="-ldagmc"
    AC_SUBST(DAGMC_LIBS)
