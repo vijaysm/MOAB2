@@ -57,6 +57,7 @@ namespace moab
     bool node_ok( bool is_coarse, EntityHandle node );
     bool hex_ok( EntityHandle hex );
 
+    void print_slab( const Entities & slab );
   protected:
 
     // ======= data members
@@ -85,7 +86,7 @@ namespace moab
     ErrorCode mark_surface_nodes(Entities &coarse_quads);
     // find all the slabs, subsets of coarse hexes, that will be pillowed one subset at a time.
     ErrorCode find_slabs( Entities &coarse_hexes, Entities &coarse_quads, EntitiesVec &slabs );
-    // pillow all the slabs
+    // pillow all the slabs    
     ErrorCode pillow_slabs( EntitiesVec &slabs );
     // pillow an individual slab
     ErrorCode pillow_slab( Entities &slab ); 
