@@ -9,6 +9,7 @@
 #define REFINE_SLABS_HPP
 
 #include <map>
+#include <set>
 // #include <unordered_map> // Scott Mitchell's mac compiler version doesn't seem to support this c++11 extention
 
 #include "moab/Range.hpp"
@@ -53,6 +54,8 @@ namespace moab
     void register_entity_handles(EntityHandle *hexes, int num_hexes, EntityHandle *vertices, int num_vertices);
     bool is_registered_hex( EntityHandle hex );
     bool is_registered_vertex( EntityHandle vertex );
+    bool node_ok( bool is_coarse, EntityHandle node );
+    bool hex_ok( EntityHandle hex );
 
   protected:
 
@@ -66,6 +69,8 @@ namespace moab
     // This allows range checking, and also (sometimes) if we passed in the wrong sort of index, since EntityType is a basic type.
     EntityHandle *registered_hexes, *registered_vertices;
     int registered_num_hexes, registered_num_vertices;
+    std::set<EntityHandle> created_fine_hexes; // just debugging
+    std::set<EntityHandle> created_fine_nodes; // just debugging
 
     // main routines
     // setup 
@@ -242,7 +247,7 @@ namespace moab
     ErrorCode get_quad_nodes( EntityHandle quad, EntityHandle quad_nodes[4] );
 
     // get the hexes (quads) of the node, through ahf(true) or refinement_ahf(false)
-    void get_all_hexes( EntityHandle node, Entities &hexes, bool is_coarse = true );
+    void get_all_hexes( EntityHandle node, Entities &hexes, bool is_coarse );
     void get_all_quads( EntityHandle node, Entities &quads, bool is_coarse = true );
 
     // convert the oriented edge defined by the hex, its local id in the hex, and the starting node, into a SlabEdge
@@ -343,10 +348,10 @@ namespace moab
     void set_shrink_membership( EntityHandle entity_handle, SlabData::Membership membership );
 
     // mark the hexes as being in the pillow (shrink) set, determine whether nodes are interior or boundary
-    void shrink_mark_slab( Entities &slab );
+    void shrink_mark_slab( Entities &slab, bool is_coarse );
     void shrink_mark_coarse_slab( Entities &slab );
     void shrink_mark_fine_slab( Entities &slab, Entities &shrink_set);
-    void remove_shrink_mark_slab( Entities &slab );
+    void remove_shrink_mark_slab( Entities &slab, bool is_coarse );
     // get the dimension of the geometric object that this mesh entity lies on. 
     // E.g. 3 if inside the volume, 2 if on its surface, 1 if on an edge of the surface, ...
     int get_geometry_dimension( EntityHandle entity_handle );

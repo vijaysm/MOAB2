@@ -35,7 +35,12 @@ namespace moab{
     assert( MB_SUCCESS == error );
     // refinement_AHF
     // tell AHF about the new hex // AHF todo
-    return error; 
+    // alternatively, as in the pseudocode, AHF can do this once after all the hexes have been created
+    
+    //debug
+    created_fine_hexes.insert(new_hex);
+
+    return error;
   } 
 
   // get the dimension of the geometric object that this mesh entity lies on
@@ -63,6 +68,11 @@ namespace moab{
 
     // refinement_AHF
     // tell AHF about the new node // AHF todo
+    // alternatively, as in the pseudocode, AHF can do this once after all the hexes have been created
+    
+    //debug
+    created_fine_nodes.insert(new_node);
+    
     return error;
   } 
 
@@ -95,18 +105,18 @@ namespace moab{
   
   void RefineSlabs::get_all_hexes( EntityHandle node, Entities &hexes, bool is_coarse )
   {
-    // is the node part of the ahf?
-    assert( is_registered_vertex( node ) ); // zzyk todo:  register fine nodes we create, too
-    if (!is_registered_vertex( node ))
-      std::cout << "bad node" << std::endl;
-    
+    // debug
+    node_ok(is_coarse, node);
+  
     HalfFacetRep *use_ahf = (is_coarse) ? ahf : refinement_ahf;
     use_ahf->get_up_adjacencies_vert_3d( node, hexes ); 
     // use_ahf->get_up_adjacencies( node, 3, hexes ); 
   }
   void RefineSlabs::get_all_quads( EntityHandle node, Entities &quads, bool is_coarse )
   {
-    assert( is_registered_vertex( node ) );
+    // debug
+    node_ok(is_coarse, node);
+
     HalfFacetRep *use_ahf = (is_coarse) ? ahf : refinement_ahf;
     use_ahf->get_up_adjacencies_vert_2d( node, quads );
   }
@@ -121,9 +131,11 @@ namespace moab{
     adj2.hex = edge.hex;
     adj1.head_node = adj2.head_node = edge.head_node;    
 
+    // debug. we just call this with coarse entities
     assert(is_registered_hex(edge.hex));
     assert(is_registered_vertex(edge.head_node));
     assert(is_registered_vertex(edge.tail_node));
+    
     int head_index = get_hex_node_index( edge.hex, edge.head_node );
     assert( head_index >= 0);
     int tail_index = get_hex_node_index( edge.hex, edge.tail_node );
@@ -141,15 +153,15 @@ namespace moab{
       {        
         case 1:
         adj1.tail_node = hex_nodes[3];  adj1.edge_lid = 3;
-        adj2.tail_node = hex_nodes[4];  adj1.edge_lid = 4;
+        adj2.tail_node = hex_nodes[4];  adj2.edge_lid = 4;
         break;
         case 3:
         adj1.tail_node = hex_nodes[1];  adj1.edge_lid = 0;
-        adj2.tail_node = hex_nodes[4];  adj1.edge_lid = 4;
+        adj2.tail_node = hex_nodes[4];  adj2.edge_lid = 4;
         break;
         case 4:
         adj1.tail_node = hex_nodes[3];  adj1.edge_lid = 3;
-        adj2.tail_node = hex_nodes[1];  adj1.edge_lid = 0;
+        adj2.tail_node = hex_nodes[1];  adj2.edge_lid = 0;
         break;
         default:
           assert(0);
@@ -161,15 +173,15 @@ namespace moab{
       {        
         case 0:
         adj1.tail_node = hex_nodes[5];  adj1.edge_lid = 5;
-        adj2.tail_node = hex_nodes[2];  adj1.edge_lid = 1;
+        adj2.tail_node = hex_nodes[2];  adj2.edge_lid = 1;
         break;
         case 5:
         adj1.tail_node = hex_nodes[0];  adj1.edge_lid = 0;
-        adj2.tail_node = hex_nodes[2];  adj1.edge_lid = 1;
+        adj2.tail_node = hex_nodes[2];  adj2.edge_lid = 1;
         break;
         case 2:
         adj1.tail_node = hex_nodes[5];  adj1.edge_lid = 5;
-        adj2.tail_node = hex_nodes[0];  adj1.edge_lid = 0;
+        adj2.tail_node = hex_nodes[0];  adj2.edge_lid = 0;
         break;
         default:
           assert(0);
@@ -181,15 +193,15 @@ namespace moab{
       {        
         case 1:
         adj1.tail_node = hex_nodes[6];  adj1.edge_lid = 6;
-        adj2.tail_node = hex_nodes[3];  adj1.edge_lid = 2;
+        adj2.tail_node = hex_nodes[3];  adj2.edge_lid = 2;
         break;
         case 3:
         adj1.tail_node = hex_nodes[1];  adj1.edge_lid = 1;
-        adj2.tail_node = hex_nodes[6];  adj1.edge_lid = 6;
+        adj2.tail_node = hex_nodes[6];  adj2.edge_lid = 6;
         break;
         case 6:
         adj1.tail_node = hex_nodes[1];  adj1.edge_lid = 1;
-        adj2.tail_node = hex_nodes[3];  adj1.edge_lid = 2;
+        adj2.tail_node = hex_nodes[3];  adj2.edge_lid = 2;
         break;
         default:
           assert(0);
@@ -202,15 +214,15 @@ namespace moab{
       {        
         case 2:
         adj1.tail_node = hex_nodes[0];  adj1.edge_lid = 3;
-        adj2.tail_node = hex_nodes[7];  adj1.edge_lid = 7;
+        adj2.tail_node = hex_nodes[7];  adj2.edge_lid = 7;
         break;
         case 0:
         adj1.tail_node = hex_nodes[2];  adj1.edge_lid = 2;
-        adj2.tail_node = hex_nodes[7];  adj1.edge_lid = 7;
+        adj2.tail_node = hex_nodes[7];  adj2.edge_lid = 7;
         break;
         case 7:
         adj1.tail_node = hex_nodes[2];  adj1.edge_lid = 2;
-        adj2.tail_node = hex_nodes[0];  adj1.edge_lid = 3;
+        adj2.tail_node = hex_nodes[0];  adj2.edge_lid = 3;
         break;
         default:
           assert(0);
@@ -223,15 +235,15 @@ namespace moab{
       {        
         case 0:
         adj1.tail_node = hex_nodes[5];  adj1.edge_lid = 8;
-        adj2.tail_node = hex_nodes[7];  adj1.edge_lid = 11;
+        adj2.tail_node = hex_nodes[7];  adj2.edge_lid = 11;
         break;
         case 5:
         adj1.tail_node = hex_nodes[0];  adj1.edge_lid = 4;
-        adj2.tail_node = hex_nodes[7];  adj1.edge_lid = 11;
+        adj2.tail_node = hex_nodes[7];  adj2.edge_lid = 11;
         break;
         case 7:
         adj1.tail_node = hex_nodes[0];  adj1.edge_lid = 4;
-        adj2.tail_node = hex_nodes[5];  adj1.edge_lid = 8;
+        adj2.tail_node = hex_nodes[5];  adj2.edge_lid = 8;
         break;
         default:
           assert(0);
@@ -243,15 +255,15 @@ namespace moab{
       {        
         case 1:
         adj1.tail_node = hex_nodes[4];  adj1.edge_lid = 8;
-        adj2.tail_node = hex_nodes[6];  adj1.edge_lid = 9;
+        adj2.tail_node = hex_nodes[6];  adj2.edge_lid = 9;
         break;
         case 4:
         adj1.tail_node = hex_nodes[1];  adj1.edge_lid = 5;
-        adj2.tail_node = hex_nodes[6];  adj1.edge_lid = 9;
+        adj2.tail_node = hex_nodes[6];  adj2.edge_lid = 9;
         break;
         case 6:
         adj1.tail_node = hex_nodes[1];  adj1.edge_lid = 5;
-        adj2.tail_node = hex_nodes[4];  adj1.edge_lid = 8;
+        adj2.tail_node = hex_nodes[4];  adj2.edge_lid = 8;
         break;
         default:
           assert(0);
@@ -265,15 +277,15 @@ namespace moab{
       {        
         case 2:
         adj1.tail_node = hex_nodes[5];  adj1.edge_lid = 9;
-        adj2.tail_node = hex_nodes[7];  adj1.edge_lid = 10;
+        adj2.tail_node = hex_nodes[7];  adj2.edge_lid = 10;
         break;
         case 5:
         adj1.tail_node = hex_nodes[2];  adj1.edge_lid = 6;
-        adj2.tail_node = hex_nodes[7];  adj1.edge_lid = 10;
+        adj2.tail_node = hex_nodes[7];  adj2.edge_lid = 10;
         break;
         case 7:
         adj1.tail_node = hex_nodes[2];  adj1.edge_lid = 6;
-        adj2.tail_node = hex_nodes[5];  adj1.edge_lid = 9;
+        adj2.tail_node = hex_nodes[5];  adj2.edge_lid = 9;
         break;
         default:
           assert(0);
@@ -287,15 +299,15 @@ namespace moab{
       {        
         case 3:
         adj1.tail_node = hex_nodes[4];  adj1.edge_lid = 11;
-        adj2.tail_node = hex_nodes[6];  adj1.edge_lid = 10;
+        adj2.tail_node = hex_nodes[6];  adj2.edge_lid = 10;
         break;
         case 4:
         adj1.tail_node = hex_nodes[3];  adj1.edge_lid = 7;
-        adj2.tail_node = hex_nodes[6];  adj1.edge_lid = 10;
+        adj2.tail_node = hex_nodes[6];  adj2.edge_lid = 10;
         break;
         case 6:
         adj1.tail_node = hex_nodes[3];  adj1.edge_lid = 7;
-        adj2.tail_node = hex_nodes[4];  adj1.edge_lid = 11;
+        adj2.tail_node = hex_nodes[4];  adj2.edge_lid = 11;
         break;
         default:
           assert(0);
@@ -329,15 +341,15 @@ namespace moab{
       {        
         case 1:
         opp1.head_node = hex_nodes[3];  opp1.tail_node = hex_nodes[2];  opp1.edge_lid = 2;
-        opp2.head_node = hex_nodes[4];  opp2.tail_node = hex_nodes[5];  opp1.edge_lid = 8;
+        opp2.head_node = hex_nodes[4];  opp2.tail_node = hex_nodes[5];  opp2.edge_lid = 8;
         break;
         case 3:
         opp1.head_node = hex_nodes[1];  opp1.tail_node = hex_nodes[2];  opp1.edge_lid = 1;
-        opp2.head_node = hex_nodes[4];  opp2.tail_node = hex_nodes[7];  opp1.edge_lid = 11;
+        opp2.head_node = hex_nodes[4];  opp2.tail_node = hex_nodes[7];  opp2.edge_lid = 11;
         break;
         case 4:
         opp1.head_node = hex_nodes[1];  opp1.tail_node = hex_nodes[5];  opp1.edge_lid = 5;
-        opp2.head_node = hex_nodes[3];  opp2.tail_node = hex_nodes[7];  opp1.edge_lid = 7;
+        opp2.head_node = hex_nodes[3];  opp2.tail_node = hex_nodes[7];  opp2.edge_lid = 7;
         break;
         default:
           assert(0);
@@ -349,15 +361,15 @@ namespace moab{
       {        
         case 0:
         opp1.head_node = hex_nodes[2];  opp1.tail_node = hex_nodes[3];  opp1.edge_lid = 2;
-        opp2.head_node = hex_nodes[5];  opp2.tail_node = hex_nodes[4];  opp1.edge_lid = 8;
+        opp2.head_node = hex_nodes[5];  opp2.tail_node = hex_nodes[4];  opp2.edge_lid = 8;
         break;
         case 5:
         opp1.head_node = hex_nodes[0];  opp1.tail_node = hex_nodes[4];  opp1.edge_lid = 4;
-        opp2.head_node = hex_nodes[2];  opp2.tail_node = hex_nodes[6];  opp1.edge_lid = 6;
+        opp2.head_node = hex_nodes[2];  opp2.tail_node = hex_nodes[6];  opp2.edge_lid = 6;
         break;
         case 2:
         opp1.head_node = hex_nodes[0];  opp1.tail_node = hex_nodes[3];  opp1.edge_lid = 3;
-        opp2.head_node = hex_nodes[5];  opp2.tail_node = hex_nodes[6];  opp1.edge_lid = 9;
+        opp2.head_node = hex_nodes[5];  opp2.tail_node = hex_nodes[6];  opp2.edge_lid = 9;
         break;
         default:
           assert(0);
@@ -369,15 +381,15 @@ namespace moab{
       {        
         case 1:
         opp1.head_node = hex_nodes[3];  opp1.tail_node = hex_nodes[0];  opp1.edge_lid = 3;
-        opp2.head_node = hex_nodes[6];  opp2.tail_node = hex_nodes[5];  opp1.edge_lid = 9;
+        opp2.head_node = hex_nodes[6];  opp2.tail_node = hex_nodes[5];  opp2.edge_lid = 9;
         break;
         case 3:
         opp1.head_node = hex_nodes[1];  opp1.tail_node = hex_nodes[0];  opp1.edge_lid = 0;
-        opp2.head_node = hex_nodes[6];  opp2.tail_node = hex_nodes[7];  opp1.edge_lid = 10;
+        opp2.head_node = hex_nodes[6];  opp2.tail_node = hex_nodes[7];  opp2.edge_lid = 10;
         break;
         case 6:
         opp1.head_node = hex_nodes[1];  opp1.tail_node = hex_nodes[5];  opp1.edge_lid = 5;
-        opp2.head_node = hex_nodes[3];  opp2.tail_node = hex_nodes[7];  opp1.edge_lid = 7;
+        opp2.head_node = hex_nodes[3];  opp2.tail_node = hex_nodes[7];  opp2.edge_lid = 7;
         break;
         default:
           assert(0);
@@ -390,15 +402,15 @@ namespace moab{
       {        
         case 2:
         opp1.head_node = hex_nodes[0];  opp1.tail_node = hex_nodes[1];  opp1.edge_lid = 0;
-        opp2.head_node = hex_nodes[7];  opp2.tail_node = hex_nodes[6];  opp1.edge_lid = 10;
+        opp2.head_node = hex_nodes[7];  opp2.tail_node = hex_nodes[6];  opp2.edge_lid = 10;
         break;
         case 0:
         opp1.head_node = hex_nodes[2];  opp1.tail_node = hex_nodes[1];  opp1.edge_lid = 1;
-        opp2.head_node = hex_nodes[7];  opp2.tail_node = hex_nodes[4];  opp1.edge_lid = 11;
+        opp2.head_node = hex_nodes[7];  opp2.tail_node = hex_nodes[4];  opp2.edge_lid = 11;
         break;
         case 7:
         opp1.head_node = hex_nodes[0];  opp1.tail_node = hex_nodes[4];  opp1.edge_lid = 4;
-        opp2.head_node = hex_nodes[2];  opp2.tail_node = hex_nodes[6];  opp1.edge_lid = 6;
+        opp2.head_node = hex_nodes[2];  opp2.tail_node = hex_nodes[6];  opp2.edge_lid = 6;
         break;
         default:
           assert(0);
@@ -411,15 +423,15 @@ namespace moab{
       {        
         case 0:
         opp1.head_node = hex_nodes[5];  opp1.tail_node = hex_nodes[1];  opp1.edge_lid = 5;
-        opp2.head_node = hex_nodes[7];  opp2.tail_node = hex_nodes[3];  opp1.edge_lid = 7;
+        opp2.head_node = hex_nodes[7];  opp2.tail_node = hex_nodes[3];  opp2.edge_lid = 7;
         break;
         case 5:
         opp1.head_node = hex_nodes[0];  opp1.tail_node = hex_nodes[1];  opp1.edge_lid = 0;
-        opp2.head_node = hex_nodes[7];  opp2.tail_node = hex_nodes[6];  opp1.edge_lid = 10;
+        opp2.head_node = hex_nodes[7];  opp2.tail_node = hex_nodes[6];  opp2.edge_lid = 10;
         break;
         case 7:
         opp1.head_node = hex_nodes[0];  opp1.tail_node = hex_nodes[3];  opp1.edge_lid = 3;
-        opp2.head_node = hex_nodes[5];  opp2.tail_node = hex_nodes[6];  opp1.edge_lid = 9;
+        opp2.head_node = hex_nodes[5];  opp2.tail_node = hex_nodes[6];  opp2.edge_lid = 9;
         break;
         default:
           assert(0);
@@ -431,15 +443,15 @@ namespace moab{
       {        
         case 1:
         opp1.head_node = hex_nodes[0];  opp1.tail_node = hex_nodes[4];  opp1.edge_lid = 4;
-        opp2.head_node = hex_nodes[2];  opp2.tail_node = hex_nodes[6];  opp1.edge_lid = 6;
+        opp2.head_node = hex_nodes[2];  opp2.tail_node = hex_nodes[6];  opp2.edge_lid = 6;
         break;
         case 4:
         opp1.head_node = hex_nodes[1];  opp1.tail_node = hex_nodes[0];  opp1.edge_lid = 0;
-        opp2.head_node = hex_nodes[6];  opp2.tail_node = hex_nodes[7];  opp1.edge_lid = 10;
+        opp2.head_node = hex_nodes[6];  opp2.tail_node = hex_nodes[7];  opp2.edge_lid = 10;
         break;
         case 6:
         opp1.head_node = hex_nodes[1];  opp1.tail_node = hex_nodes[2];  opp1.edge_lid = 1;
-        opp2.head_node = hex_nodes[4];  opp2.tail_node = hex_nodes[7];  opp1.edge_lid = 11;
+        opp2.head_node = hex_nodes[4];  opp2.tail_node = hex_nodes[7];  opp2.edge_lid = 11;
         break;
         default:
           assert(0);
@@ -453,15 +465,15 @@ namespace moab{
       {        
         case 2:
         opp1.head_node = hex_nodes[5];  opp1.tail_node = hex_nodes[1];  opp1.edge_lid = 5;
-        opp2.head_node = hex_nodes[7];  opp2.tail_node = hex_nodes[3];  opp1.edge_lid = 7; 
+        opp2.head_node = hex_nodes[7];  opp2.tail_node = hex_nodes[3];  opp2.edge_lid = 7; 
         break;
         case 5:
         opp1.head_node = hex_nodes[2];  opp1.tail_node = hex_nodes[1];  opp1.edge_lid = 1;
-        opp2.head_node = hex_nodes[7];  opp2.tail_node = hex_nodes[4];  opp1.edge_lid = 11;
+        opp2.head_node = hex_nodes[7];  opp2.tail_node = hex_nodes[4];  opp2.edge_lid = 11;
         break;
         case 7:
         opp1.head_node = hex_nodes[2];  opp1.tail_node = hex_nodes[3];  opp1.edge_lid = 2;
-        opp2.head_node = hex_nodes[5];  opp2.tail_node = hex_nodes[4];  opp1.edge_lid = 8;
+        opp2.head_node = hex_nodes[5];  opp2.tail_node = hex_nodes[4];  opp2.edge_lid = 8;
         break;
         default:
           assert(0);
@@ -475,15 +487,15 @@ namespace moab{
       {        
         case 3:
         opp1.head_node = hex_nodes[4];  opp1.tail_node = hex_nodes[0];  opp1.edge_lid = 4;
-        opp2.head_node = hex_nodes[6];  opp2.tail_node = hex_nodes[2];  opp1.edge_lid = 6;
+        opp2.head_node = hex_nodes[6];  opp2.tail_node = hex_nodes[2];  opp2.edge_lid = 6;
         break;
         case 4:
         opp1.head_node = hex_nodes[3];  opp1.tail_node = hex_nodes[0];  opp1.edge_lid = 3;
-        opp2.head_node = hex_nodes[6];  opp2.tail_node = hex_nodes[5];  opp1.edge_lid = 9;
+        opp2.head_node = hex_nodes[6];  opp2.tail_node = hex_nodes[5];  opp2.edge_lid = 9;
         break;
         case 6:
         opp1.head_node = hex_nodes[3];  opp1.tail_node = hex_nodes[2];  opp1.edge_lid = 2;
-        opp2.head_node = hex_nodes[4];  opp2.tail_node = hex_nodes[5];  opp1.edge_lid = 8;
+        opp2.head_node = hex_nodes[4];  opp2.tail_node = hex_nodes[5];  opp2.edge_lid = 8;
         break;
         default:
           assert(0);
@@ -1017,7 +1029,7 @@ namespace moab{
 
     EntityHandle star_node = slab_edge.head_node;
     std::vector<EntityHandle> star_hexes;
-    get_all_hexes( star_node, star_hexes );
+    get_all_hexes( star_node, star_hexes, true );
     slab.insert( slab.end(), star_hexes.begin(), star_hexes.end() );
 
     set_in_slab( slab_edge, true);
@@ -1113,7 +1125,7 @@ namespace moab{
     equivalent_slab_edges.clear();
 
     Entities hexes;
-    get_all_hexes( slab_edge.head_node, hexes );
+    get_all_hexes( slab_edge.head_node, hexes, true );
     Entities non_sheet_hexes;
     for (size_t h = 0; h < hexes.size(); ++h )
     {
@@ -1127,8 +1139,10 @@ namespace moab{
         
         SlabEdge adj1, adj2, opp1, opp2;
         get_adj( match, adj1, adj2 );
+        assert( adj1.edge_lid > -1 );
+        assert( adj2.edge_lid > -1 );
         add_unique( ortho_slab_edges, adj1 );
-        add_unique( ortho_slab_edges, adj2 ); // why is this size zero? // why are the edge_lid == -1? 
+        add_unique( ortho_slab_edges, adj2 );
         get_opp( match, opp1, opp2 );
         add_unique( parallel_slab_edges, opp1 );
         add_unique( parallel_slab_edges, opp2 );
@@ -1222,7 +1236,7 @@ namespace moab{
       {
         // should we also require directions to match?
         if ( !edges[i].directions_match( edge ) )
-          std::cout << "SlabEdge nodes match, but not their directions" << std::cout; // zzyk this shouldn't happen
+          std::cout << "SlabEdge nodes match, but not their directions" << std::endl; // zzyk this shouldn't happen, because the caller is careful to orient them the same way
         return false;
       }
     }
@@ -1250,7 +1264,7 @@ namespace moab{
   }
 
 
-  void RefineSlabs::shrink_mark_slab( Entities &slab )
+  void RefineSlabs::shrink_mark_slab( Entities &slab, bool is_coarse )
   { 
     for (size_t i = 0; i < slab.size(); ++i)
     {
@@ -1281,7 +1295,7 @@ namespace moab{
           if (is_internal)
           {
             Entities node_hexes;
-            get_all_hexes( hex_node, node_hexes );
+            get_all_hexes( hex_node, node_hexes, is_coarse );
             for ( size_t k = 0; k < node_hexes.size(); ++k )
             {
               EntityHandle node_hex = node_hexes[k];
@@ -1297,7 +1311,7 @@ namespace moab{
       }
     }
   }
-  void RefineSlabs::remove_shrink_mark_slab( Entities &slab )
+  void RefineSlabs::remove_shrink_mark_slab( Entities &slab, bool /*is_coarse*/ )
   {
     for (size_t i = 0; i < slab.size(); ++i)
     {
@@ -1314,7 +1328,7 @@ namespace moab{
 
   void RefineSlabs::shrink_mark_coarse_slab( Entities &slab )
   { 
-    shrink_mark_slab( slab );
+    shrink_mark_slab( slab, true );
   }
 
   void RefineSlabs::shrink_mark_fine_slab( Entities &slab, Entities &shrink_set)
@@ -1349,7 +1363,7 @@ namespace moab{
     }
 
     // mark the nodes for boundary or internal, as before
-    shrink_mark_slab( shrink_set );
+    shrink_mark_slab( shrink_set, false );
   }
 
   void RefineSlabs::pillow_hexes( Entities &shrink_set, Entities &new_hexes )
@@ -1449,6 +1463,9 @@ namespace moab{
 
   ErrorCode RefineSlabs::get_hex_nodes( EntityHandle hex, EntityHandle hex_nodes[8] )
   {
+    // debug
+    hex_ok( hex );
+    
     int num_nodes = 0;
     const bool corners_only = true;
     const EntityHandle *const_hex_nodes;
@@ -1536,9 +1553,9 @@ namespace moab{
     pillow_hexes( shrink_set, new_hexes );
 
     // cleanup 
-    remove_shrink_mark_slab( slab );
-    remove_shrink_mark_slab( shrink_set );
-    remove_shrink_mark_slab( new_hexes );
+    remove_shrink_mark_slab( slab, true );
+    remove_shrink_mark_slab( shrink_set, false );
+    remove_shrink_mark_slab( new_hexes, false );
 
     return MB_SUCCESS;
   }
@@ -1576,7 +1593,7 @@ namespace moab{
           if (is_internal)
           {
             Entities hexes;
-            get_all_hexes( node, hexes );
+            get_all_hexes( node, hexes, true );
             for ( size_t k = 0; k < hexes.size(); ++k )
             {
               EntityHandle h = hexes[k];
@@ -1727,6 +1744,33 @@ namespace moab{
     return false;
   }
 
+  bool RefineSlabs::node_ok( bool is_coarse, EntityHandle node )
+  {
+    if ( is_coarse && !is_registered_vertex( node ) )
+    {
+      std::cout << "bad coarse node" << std::endl;
+      assert(0);
+      return false;
+    }
+    else if ( !is_coarse && created_fine_nodes.find(node) == created_fine_nodes.end() )
+    {
+      std::cout << "bad fine node" << std::endl;
+      assert(0);
+      return false;
+    }
+    return true;
+  }
+  bool RefineSlabs::hex_ok( EntityHandle hex )
+  {
+    if ( created_fine_hexes.find(hex) != created_fine_hexes.end() || is_registered_hex( hex ) )
+    {
+      return true;
+    }
+    
+    std::cout << "bad hex" << std::endl;
+    assert(0);
+    return false;
+  }
 
 }//namesapce moab
 
