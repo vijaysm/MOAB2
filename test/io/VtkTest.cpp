@@ -165,6 +165,7 @@ int main( int argc, char* argv[] )
   printf("\n");
 
   free(test_indices);
+  free(test_array);
 
   return fail_count;
 }
