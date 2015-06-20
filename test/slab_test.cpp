@@ -377,6 +377,9 @@ ErrorCode test_B()
     default:;
   }  
   refine_slabs.register_entity_handles( hexes, num_hexes, vertices, num_vertices );
+  RefineSlabs::Entities hexvec(hexes, hexes + num_hexes);
+  refine_slabs.write_file_slab( hexvec, "entire_mesh" );
+
   error = refine_slabs.refine_mesh(coarse_hexes, coarse_quads, fine_hexes, fine_quads); CHECK_ERR(error);
 
 

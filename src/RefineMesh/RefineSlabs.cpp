@@ -930,6 +930,7 @@ namespace moab{
   ErrorCode RefineSlabs::refine_mesh(Entities &coarse_hexes, Entities &coarse_quads, Entities &fine_hexes, Entities &fine_quads)
   {
     std::cout << "RefineSlabs::refine_mesh, set of " << coarse_hexes.size() << " hexes" << std::endl;
+    write_file_slab( coarse_hexes, "refinement_set" );
     
     // find boundary
     // define which vertices are on the boundary of the coarse_hexes refinement set?
@@ -1054,10 +1055,7 @@ namespace moab{
         {
           Entities slab;
           reset_in_slab();
-          // extend_slab does all this for us
-//          std::vector<SlabEdge> equivalent_edges;
-//          find_equivalent_edges( slab_edge, equivalent_edges );
-//          add_edge( slab_edge, slab, equivalent_edges );
+
           extend_slab( slab_edge, slab);
 
           // uniquify the slab, removing redundant hexes
@@ -1067,6 +1065,7 @@ namespace moab{
           // debug
           std::cout << slabs.size() << " ";
           print_slab( slab );
+          write_file_slab( slab, "slab", slabs.size() );
 
           slabs.push_back( slab );
           
@@ -1074,7 +1073,7 @@ namespace moab{
         }
       }
     }
-    std::cout << slabs.size() << "slabs total." << std::endl;
+    std::cout << slabs.size() << " slabs total." << std::endl;
 
     return MB_SUCCESS;
   }
@@ -1092,7 +1091,7 @@ namespace moab{
     std::vector< SlabEdge > edge_queue;
     edge_queue.push_back(slab_edge);
 
-    std::vector< SlabEdge > ortho_slab_edges, upper_slab_edges, parallel_slab_edges, equivalent_edges;
+    std::vector< SlabEdge > ortho, upper, parallel, equivalent_edges, equivalent_upper;
 
     // while the queue is not empty
     // note: edge_queue.size() grows inside the loop
@@ -1100,20 +1099,20 @@ namespace moab{
     {
       SlabEdge se ( edge_queue[i] ); // copy constructor
 
-      if ( is_good_slab_edge(se, ortho_slab_edges, upper_slab_edges, parallel_slab_edges, equivalent_edges) )
+      if ( is_good_slab_edge(se, ortho, upper, parallel, equivalent_edges, equivalent_upper) )
       {
-        add_edge( se, slab, equivalent_edges );
+        add_edge( se, slab, equivalent_edges, equivalent_upper );
 
         // enqueue the parallel edges
         // grow in bfs order, not dfs, in order to get better geometrically shaped slabs
-        edge_queue.insert( edge_queue.end(), parallel_slab_edges.begin(), parallel_slab_edges.end() );
+        edge_queue.insert( edge_queue.end(), parallel.begin(), parallel.end() );
       }
     }
   }
 
-  void RefineSlabs::add_edge( SlabEdge &slab_edge, Entities &slab, std::vector< SlabEdge > &equivalent_edges )
+  void RefineSlabs::add_edge( SlabEdge &slab_edge, Entities &slab, std::vector< SlabEdge > &equivalent_edges, std::vector< SlabEdge > &equivalent_upper )
   {
-    // find the distinguished vertex
+    // for the head vertex
     // get all the (coarse) hexes containing the vertex
     // add them to the slab
 
@@ -1124,9 +1123,15 @@ namespace moab{
 
     set_in_slab( slab_edge, true);
 
+    // increment the refinement level of this and all the equivalent edges
     // DO NOT increment_edge_refinement_level(slab_edge); this is already included in the vector below
     for (size_t i = 0; i < equivalent_edges.size(); ++i)
       increment_edge_refinement_level( equivalent_edges[i] );
+
+    // increment the refinement level of the equivalent upper edges
+    for (size_t i = 0; i < equivalent_upper.size(); ++i)
+      increment_edge_refinement_level( equivalent_upper[i] );
+
   }
 
 
@@ -1146,43 +1151,54 @@ namespace moab{
 
   bool RefineSlabs::is_good_slab_edge( const SlabEdge &slab_edge )
   {
-    std::vector< SlabEdge > ortho_slab_edges, upper_slab_edges, parallel_slab_edges, equivalent_slab_edges;
-    return is_good_slab_edge( slab_edge, ortho_slab_edges, upper_slab_edges, parallel_slab_edges, equivalent_slab_edges );
+    std::vector< SlabEdge > ortho, upper, parallel, equivalent, equivalent_upper;
+    return is_good_slab_edge( slab_edge, ortho, upper, parallel, equivalent, equivalent_upper );
   }
   
   bool RefineSlabs::is_good_slab_edge( const SlabEdge &slab_edge, std::vector<SlabEdge> &ortho, std::vector<SlabEdge> &upper, 
-                                       std::vector<SlabEdge> &parallel, std::vector<SlabEdge> &equivalent )
+                                       std::vector<SlabEdge> &parallel, std::vector<SlabEdge> &equivalent, 
+                                       std::vector<SlabEdge> &equivalent_upper )
   {
     ortho.clear(); 
     upper.clear();  
     parallel.clear(); 
     equivalent.clear();
+    equivalent_upper.clear();
+
+    // skip if head is on the boundary of the refinement set (or outside, but it shouldn't be outside)
+    if ( get_membership( slab_edge.head_node ) != SlabData::INTERNAL )
+      return false;
 
     // skip if edge has already been refined, or in the current set
     if (get_edge_refinement_level(slab_edge.hex, slab_edge.edge_lid) > 0 || get_in_slab( slab_edge) )
       return false;
 
-    // keep going if a vertex is interior to the volume
+    // skip if vertex is on the boundary of the geometric volume
     if ( get_geometry_dimension( slab_edge.head_node ) < 3)
       return false;
 
-    get_adjacent_slab_edges( slab_edge, ortho, upper, parallel, equivalent );
+    get_adjacent_slab_edges( slab_edge, ortho, upper, parallel, equivalent, equivalent_upper );
     // ensure no non-ortho edge is already refined
-    if ( !none_refined( upper ) )
+    // ensure upper and ortho edges are not already in the current set!
+    if (
+         !none_refined( upper ) || 
+         any_in_slab(ortho) || any_in_slab(upper)
+       )
     {
+      ortho.clear(); 
+      upper.clear();  
+      parallel.clear(); 
+      equivalent.clear();
+      equivalent_upper.clear();
       return false;
     }
-
-    // ensure upper and ortho edges are not already in the current set!
-    if ( any_in_slab(ortho) || any_in_slab(upper) )
-      return false;
 
     return true;
   }
   void RefineSlabs::find_equivalent_edges( SlabEdge &slab_edge, std::vector<SlabEdge> & equivalent_edges )
   {
-    std::vector< SlabEdge > ortho_slab_edges, upper_slab_edges, parallel_slab_edges;
-    get_adjacent_slab_edges( slab_edge, ortho_slab_edges, upper_slab_edges, parallel_slab_edges, equivalent_edges );
+    std::vector< SlabEdge > ortho, upper, parallel, equivalent_upper;
+    get_adjacent_slab_edges( slab_edge, ortho, upper, parallel, equivalent_edges, equivalent_upper );
   }
 
 
@@ -1205,14 +1221,15 @@ namespace moab{
     return true;
   }
 
-  void RefineSlabs::get_adjacent_slab_edges( const SlabEdge &slab_edge, std::vector< SlabEdge > &ortho_slab_edges, 
-        std::vector< SlabEdge > &upper_slab_edges, std::vector< SlabEdge > &parallel_slab_edges,
-        std::vector< SlabEdge > &equivalent_slab_edges )
+  void RefineSlabs::get_adjacent_slab_edges( const SlabEdge &slab_edge, std::vector< SlabEdge > &ortho, 
+        std::vector< SlabEdge > &upper, std::vector< SlabEdge > &parallel,
+        std::vector< SlabEdge > &equivalent,  std::vector< SlabEdge > &equivalent_upper )
   {
-    ortho_slab_edges.clear(); 
-    upper_slab_edges.clear();  
-    parallel_slab_edges.clear(); 
-    equivalent_slab_edges.clear();
+    ortho.clear(); 
+    upper.clear();  
+    parallel.clear(); 
+    equivalent.clear();
+    equivalent_upper.clear();
 
     Entities hexes;
     get_all_hexes( slab_edge.head_node, hexes, true );
@@ -1231,13 +1248,13 @@ namespace moab{
         get_adj( match, adj1, adj2 );
         assert( adj1.edge_lid > -1 );
         assert( adj2.edge_lid > -1 );
-        add_unique( ortho_slab_edges, adj1 );
-        add_unique( ortho_slab_edges, adj2 );
+        add_unique( ortho, adj1 );
+        add_unique( ortho, adj2 );
         get_opp( match, opp1, opp2 );
-        add_unique( parallel_slab_edges, opp1 );
-        add_unique( parallel_slab_edges, opp2 );
+        add_unique( parallel, opp1 );
+        add_unique( parallel, opp2 );
 
-        equivalent_slab_edges.push_back( match );
+        equivalent.push_back( match );
       }
       else
         non_sheet_hexes.push_back( hex );
@@ -1251,8 +1268,11 @@ namespace moab{
       SlabEdge star[3];
       get_star_edges( hex, slab_edge.head_node, star );
       for ( size_t e = 0; e < 3; ++e )
-        if ( unique( ortho_slab_edges, star[e] ) )
-          add_unique( upper_slab_edges, star[e] );
+        if ( unique( ortho, star[e] ) ) //i.e. if its not an ortho edge
+        {
+          add_unique( upper, star[e] );
+          equivalent_upper.push_back( star[e] );
+        }
     }
   }
 
@@ -1871,6 +1891,64 @@ namespace moab{
       cout << slab[i] << " ";
     }
     cout << endl;
+  }
+
+  ErrorCode RefineSlabs::write_file_slab( Entities &slab, std::string fname, int fname_version )
+  {
+    // see sset.cpp
+    // 
+    // see Interface.hpp
+    // virtual ErrorCode write_file( const char* file_name,
+    //                               const char* file_type = 0,
+    //                               const char* options = 0,
+    //                               const EntityHandle* output_sets = 0,
+    //                               int num_output_sets = 0,
+    //                               const Tag* tag_list = 0,
+    //                               int num_tags = 0 ) = 0;
+    using namespace std;
+
+    const bool write_vtk(true);
+    const bool write_exo(true);
+
+    // Get MOAB instance
+    Interface* mb = mbImpl;
+
+    // file name
+    stringstream ss;
+    ss << fname_version;
+    fname += ss.str();
+
+    // entity handle to a set of mesh elements?
+    EntityHandle newSet;
+    ErrorCode rval = mb->create_meshset(MESHSET_SET, newSet);MB_CHK_ERR(rval);
+
+    Range someElems;
+    std::copy(slab.rbegin(), slab.rend(), range_inserter( someElems ) );
+    rval = mb->add_entities(newSet, someElems);MB_CHK_ERR(rval);
+
+    // write a vtk file
+    if (write_vtk)
+    {
+      string fnamevtk(fname);
+      fnamevtk += ".vtk";
+      mb->write_file(fnamevtk.c_str(), 0, 0, &newSet, 1);
+    }
+
+    // write an exodus file
+    if (write_exo)
+    {
+      string fnameexo(fname);
+      fnameexo += ".exo";
+
+      Tag mtag;
+      rval=mb->tag_get_handle("MATERIAL_SET", mtag);MB_CHK_ERR(rval);
+
+      int val=100;
+      rval = mb->tag_set_data(mtag, &newSet, 1, &val);MB_CHK_ERR(rval);      
+
+      rval = mb->write_file(fnameexo.c_str(), 0, 0, &newSet, 1);MB_CHK_ERR(rval);
+    }
+    return MB_SUCCESS;
   }
 
 }//namesapce moab

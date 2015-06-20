@@ -58,6 +58,7 @@ namespace moab
     bool hex_ok( EntityHandle hex );
 
     void print_slab( const Entities & slab );
+    ErrorCode write_file_slab( Entities &slab, std::string fname = "slab", int fname_version = 0 );
   protected:
 
     // ======= data members
@@ -283,7 +284,7 @@ namespace moab
     // parallel_slab_edges are the face-opposite to the slab_edge
     void get_adjacent_slab_edges( const SlabEdge &slab_edge, std::vector< SlabEdge > &ortho_slab_edges, 
         std::vector< SlabEdge > &upper_slab_edges, std::vector< SlabEdge > &parallel_slab_edges, 
-        std::vector< SlabEdge > &equivalent_slab_edges );    
+        std::vector< SlabEdge > &equivalent_slab_edges, std::vector< SlabEdge > &equivalent_upper_slab_edges );    
 
     typedef std::map< std::pair<EntityHandle, EntityHandle>, bool > EdgeDataMap;
     typedef EdgeDataMap::iterator EdgeDataIterator;
@@ -359,14 +360,14 @@ namespace moab
 
     // pick some unrefined edge of the hex to start growing a new slab
     bool find_seed_edge( EntityHandle hex, int &edge_lid, SlabEdge &slab_edge );
-    void add_edge( SlabEdge &slab_edge, Entities &slab, std::vector< SlabEdge > &equivalent_edges );
+    void add_edge( SlabEdge &slab_edge, Entities &slab, std::vector< SlabEdge > &equivalent_edges, std::vector< SlabEdge > &equivalent_upper );
     // traverse the sheet outward from the slab edge, adding hexes to the slab
     void extend_slab( SlabEdge &slab_edge, Entities&slab );
     // True if the candidate slab_edge should be added to the slab? No if it is already refined, or already in the slab
     bool is_good_slab_edge( const SlabEdge &slab_edge );
     //   this version passes back the ortho and parallel edges, iff the return value is true
     bool is_good_slab_edge( const SlabEdge &slab_edge, std::vector<SlabEdge> &ortho, std::vector<SlabEdge> &upper, 
-                            std::vector<SlabEdge> &parallel, std::vector<SlabEdge> &equivalent );
+                            std::vector<SlabEdge> &parallel, std::vector<SlabEdge> &equivalent, std::vector<SlabEdge> &equivalent_upper );
     //   this version makes the slab_edge out of the hex, its edge, and the orientation (node_01)
     bool is_good_slab_edge( EntityHandle hex, int edge_lid, int node_01, SlabEdge &slab_edge );
     // True if none of the slab edges have already been refined.
