@@ -209,7 +209,10 @@ int main(int argc, char **argv)
   int blockSize1 = q*blockSize + 1; // Used for vertices
   long num_total_verts = (long) NX * NY * (K * C * blockSize + 1);
   if (0 == rank)
+  {
+    cout << "Generate mesh on " << size << " processors \n";
     std::cout << "Total number of vertices: " << num_total_verts << "\n";
+  }
   //int xstride = 1;
   int ystride = blockSize1;
 
@@ -243,7 +246,7 @@ int main(int argc, char **argv)
     rval = mb->tag_get_handle(doubleTagNames[i].c_str(), 1, MB_TYPE_DOUBLE, doubleTags[i],
                               MB_TAG_CREAT | MB_TAG_DENSE, &defval);MB_CHK_SET_ERR(rval, "Can't create double tag");
   }
-
+  Range wsets; // write only part sets
   for (int a = 0; a < A; a++) {
     for (int b = 0; b < B; b++) {
       for (int c = 0; c < C; c++) {
@@ -470,15 +473,11 @@ int main(int argc, char **argv)
 
         int part_num = a + m*A + (b + n*B)*(M*A) + (c + k*C)*(M*A * N*B);
         rval = mb->tag_set_data(part_tag, &part_set, 1, &part_num);MB_CHK_SET_ERR(rval, "Can't set part tag on set");
+        wsets.insert(part_set);
       }
     }
   }
 
-  if (0 == rank) {
-    cout << "generate local mesh: "
-         << (clock() - tt) / (double)CLOCKS_PER_SEC << " seconds" << endl;
-    tt = clock();
-  }
 
   /*
   // Before merge locally
@@ -489,6 +488,15 @@ int main(int argc, char **argv)
   Range all3dcells;
   rval = mb->get_entities_by_dimension(0, 3, all3dcells);MB_CHK_SET_ERR(rval, "Can't get all 3d cells elements");
 
+  if (0 == rank) {
+    cout << "generate local mesh: "
+         << (clock() - tt) / (double)CLOCKS_PER_SEC << " seconds" << endl;
+    tt = clock();
+    cout << "number of elements on rank 0: " << all3dcells.size() << endl;
+    cout << "Total number of elements " << all3dcells.size()*size << endl;
+    cout << "Element type: " << ( tetra ? "MBTET" : "MBHEX") << " order:" << 
+          (quadratic? "quadratic" : "linear" ) << endl;
+  }
   Range verts;
   rval = mb->get_entities_by_dimension(0, 0, verts);MB_CHK_SET_ERR(rval, "Can't get all vertices");
 
@@ -538,7 +546,7 @@ int main(int argc, char **argv)
     }
   }
 
-  rval = mb->write_file(outFileName.c_str(), 0, ";;PARALLEL=WRITE_PART");MB_CHK_SET_ERR(rval, "Can't write in parallel");
+  rval = mb->write_file(outFileName.c_str(), 0, ";;PARALLEL=WRITE_PART", wsets);MB_CHK_SET_ERR(rval, "Can't write in parallel");
 
   if (0 == rank) {
     cout << "write file " << outFileName << " in "
@@ -547,6 +555,7 @@ int main(int argc, char **argv)
   }
 
   mb->delete_mesh();
+  MPI_Barrier(MPI_COMM_WORLD);
 
   if (readb)
   {
