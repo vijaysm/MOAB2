@@ -5,7 +5,13 @@
 #ifndef MEASURE_TIME_HPP
 #define MEASURE_TIME_HPP
 
+#ifdef USE_MPI
+#include <mpi.h>
+#else
 #include <sys/time.h>
+#endif
+
+
 
 namespace moab {
 
@@ -21,9 +27,13 @@ namespace moab {
   double MeasureTime::wtime()
   {
     double y = -1;
+#ifdef USE_MPI
+    y = MPI_Wtime();
+#else
     struct timeval cur_time;
     gettimeofday(&cur_time, NULL);
     y = (double)(cur_time.tv_sec) + (double)(cur_time.tv_usec)*1.e-6;
+#endif
     return (y);
   }
 }

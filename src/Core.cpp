@@ -4253,6 +4253,9 @@ ErrorCode Core::create_scd_sequence(const HomCoord & coord_min,
 					EntityHandle &  first_handle_out,
 					EntitySequence *&  sequence_out )
 {
+  //NR: Previously, the structured element sequences were created via direct call to
+  //the sequence manager instead of using the same from the ScdInterface which
+  //creates the associated scd bounding box after element sequence creation.
 
   if(!scdInterface)
     scdInterface = new ScdInterface(this);
@@ -4265,10 +4268,6 @@ ErrorCode Core::create_scd_sequence(const HomCoord & coord_min,
   else
     first_handle_out = newBox->get_element(coord_min);
   return  sequence_manager()->find( first_handle_out, sequence_out );
-  /*return sequence_manager()->create_scd_sequence(coord_min, coord_max, type,
-						 start_id_hint,
-						 first_handle_out,
-						 sequence_out);*/
 }
 
 ErrorCode Core::add_vsequence(EntitySequence *    vert_seq,
