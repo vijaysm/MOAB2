@@ -606,7 +606,7 @@ protected:
                                 EntityHandle *he2_fid,
                                 int *he2_lid);
 
-    ErrorCode mark_halfedges(EntityHandle vid, EntityHandle he_fid, int he_lid, Range &faces, std::vector<bool> &markHEdgs, HFacet &bnd_hf);
+    ErrorCode mark_halfedges(EntityHandle vid, EntityHandle he_fid, int he_lid, Range &faces, std::vector<char> &markHEdgs, HFacet &bnd_hf);
 
     //! Collect and compare to find a matching half-edge with the given edge connectivity.
     /** Given edge connectivity, compare to an input list of half-edges to find a matching half-edge

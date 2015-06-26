@@ -926,8 +926,8 @@ namespace moab {
     EntityType ftype = mb->type_from_handle(*faces.begin());
     int nepf = lConnMap2D[ftype-2].num_verts_in_face;
 
-    std::vector<bool> markEdges(nepf*faces.size(), false);
-  //  std::vector<char> markEdges(nepf*faces.size(), 0);
+   // std::vector<bool> markEdges(nepf*faces.size(), false);
+    std::vector<char> markEdges(nepf*faces.size(), 0);
 
     for (Range::iterator it = faces.begin(); it != faces.end(); ++it){      
         EntityHandle fid = *it;
@@ -985,7 +985,7 @@ namespace moab {
   }
 
   ///////////////////////////////////////////////////////////////////
-  ErrorCode HalfFacetRep::mark_halfedges(EntityHandle vid, EntityHandle he_fid, int he_lid, Range &faces, std::vector<bool> &markHEdgs, HFacet &bnd_hf)
+  ErrorCode HalfFacetRep::mark_halfedges(EntityHandle vid, EntityHandle he_fid, int he_lid, Range &faces, std::vector<char> &markHEdgs, HFacet &bnd_hf)
   {
     ErrorCode error;
     EntityType ftype = mb->type_from_handle(he_fid);
@@ -1007,9 +1007,9 @@ namespace moab {
         const EntityHandle* conn;
         error = mb->get_connectivity(curfid, conn, nepf);MB_CHK_ERR(error);
 
-        if (!markHEdgs[nepf*fidx+curlid] && (conn[curlid]==vid)){
+        if (!markHEdgs[nepf*faces.index(curfid)+curlid] && (conn[curlid]==vid)){
             //markHEdgs[nepf*fidx+curlid] = true;
-            markHEdgs[nepf*faces.index(curfid)+curlid] = true;
+            markHEdgs[nepf*faces.index(curfid)+curlid] = 1;
             HFacet hf = sibhes[nepf*fidx+curlid];
             EntityHandle sibfid = fid_from_halfacet(hf, ftype);
             if (sibfid == 0)
@@ -1019,9 +1019,9 @@ namespace moab {
         EntityHandle he2_fid = 0; int he2_lid = 0;
         error = another_halfedge(vid, curfid, curlid, &he2_fid, &he2_lid);  MB_CHK_ERR(error);
 
-        if (!markHEdgs[nepf*fidx+he2_lid] && (conn[he2_lid]==vid)){
+        if (!markHEdgs[nepf*faces.index(curfid)+he2_lid] && (conn[he2_lid]==vid)){
            // markHEdgs[nepf*fidx+he2_lid] = true;
-             markHEdgs[nepf*faces.index(curfid)+he2_lid] = true;
+             markHEdgs[nepf*faces.index(curfid)+he2_lid] = 1;
             HFacet hf = sibhes[nepf*fidx+he2_lid];
             EntityHandle sibfid = fid_from_halfacet(hf, ftype);
             if (sibfid == 0)
