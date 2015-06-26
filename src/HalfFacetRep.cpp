@@ -22,7 +22,7 @@
 #include <map>
 #include "MBTagConventions.hpp"
 #include "moab/ScdInterface.hpp"
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab/ParallelComm.hpp"
 #endif
 
@@ -197,7 +197,7 @@ namespace moab {
 
     if (!mInitAHFmaps){
         mInitAHFmaps = true;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
         if (pcomm){
             moab::Range _averts, _aedgs, _afacs, _acels;
             error = mb->get_entities_by_dimension(this->_rset, 0, _averts, true);MB_CHK_ERR(error);
@@ -927,39 +927,37 @@ namespace moab {
     int nepf = lConnMap2D[ftype-2].num_verts_in_face;
 
     std::vector<bool> markEdges(nepf*faces.size(), false);
+  //  std::vector<char> markEdges(nepf*faces.size(), 0);
 
     for (Range::iterator it = faces.begin(); it != faces.end(); ++it){      
         EntityHandle fid = *it;
-        int fidx = ID_FROM_HANDLE(fid)-1;
+      //  int fidx = ID_FROM_HANDLE(fid)-1;
 
         const EntityHandle* conn;
         error = mb->get_connectivity(fid, conn, nepf);MB_CHK_ERR(error);
 
         for(int i=0; i<nepf; ++i){
-           /* if (markEdges[nepf*fidx+i])
-              continue;*/
-
             EntityHandle v = conn[i];
             int vidx = ID_FROM_HANDLE(v)-1;
             HFacet hf = v2he[vidx];
-            //EntityHandle vfid = fid_from_halfacet(hf, ftype);
 
             if (hf == 0 && (v2hes.empty() || (v2hes.find(v) == v2hes.end())))
               {
+                //This is the first time a half-facet is assigned to a vertex.
                 HFacet nwhf=0;
-                error = mark_halfedges(v, fid, i, markEdges,nwhf);MB_CHK_ERR(error);
+                error = mark_halfedges(v, fid, i, faces, markEdges,nwhf);MB_CHK_ERR(error);
 
                 if (nwhf ==0)
                   nwhf = create_halffacet(fid, i);
 
                 v2he[vidx] = nwhf;
               }
-            else if (hf != 0 && !markEdges[nepf*fidx+i])
+            else if (hf != 0 && !markEdges[nepf*faces.index(fid)+i])
               {
                 //This is the first time a non-manifold vertex is encountered. Copy the existing he in v2he[v] to the multimap.
                 v2hes.insert(std::pair<EntityHandle,HFacet>(v,hf));
                 HFacet nwhf = 0;
-                error = mark_halfedges(v, fid, i, markEdges, nwhf);MB_CHK_ERR(error);
+                error = mark_halfedges(v, fid, i, faces, markEdges, nwhf);MB_CHK_ERR(error);
 
                 if (nwhf == 0)
                   nwhf = create_halffacet(fid, i);
@@ -967,25 +965,17 @@ namespace moab {
                 v2hes.insert(std::pair<EntityHandle,HFacet>(v, nwhf));
                 v2he[vidx] = 0;
               }
-            else if (hf == 0 && (!v2hes.empty()) && (v2hes.find(v) != v2hes.end()) && !markEdges[nepf*fidx+i])
+            else if (hf == 0 && (!v2hes.empty()) && (v2hes.find(v) != v2hes.end()) && !markEdges[nepf*faces.index(fid)+i])
               {
-               // std::cout<<"v = "<<v<<", fid = "<<fid<<", lid = "<<i<<std::endl;
-                //std::cout<<"hf = "<<hf<<", v2hes.empty = " << v2hes.empty()<<", v2hes.find(v) = "<<(v2hes.find(v) != v2hes.end())<<", edge_mark = "<<markEdges[nepf*fidx+i]<<std::endl;
+                //This is check if reached if the vertex is non-manifold and has encountered a half-facet to a new component.
                 HFacet nwhf = 0;
-                error = mark_halfedges(v, fid, i, markEdges, nwhf);MB_CHK_ERR(error);
+                error = mark_halfedges(v, fid, i, faces, markEdges, nwhf);MB_CHK_ERR(error);
 
                 if (nwhf == 0)
                   nwhf = create_halffacet(fid, i);
 
                 v2hes.insert(std::pair<EntityHandle,HFacet>(v, nwhf));
               }
-
-            /*hf = sibhes[nepf*fidx+i];
-            EntityHandle sibfid = fid_from_halfacet(hf, ftype);
-
-            if ((vfid==0)||((vfid!=0) && (sibfid==0))){
-                v2he[vidx] = create_halffacet(*it,i);
-              }*/
           }
       }
 
@@ -995,7 +985,7 @@ namespace moab {
   }
 
   ///////////////////////////////////////////////////////////////////
-  ErrorCode HalfFacetRep::mark_halfedges(EntityHandle vid, EntityHandle he_fid, int he_lid, std::vector<bool> &markHEdgs, HFacet &bnd_hf)
+  ErrorCode HalfFacetRep::mark_halfedges(EntityHandle vid, EntityHandle he_fid, int he_lid, Range &faces, std::vector<bool> &markHEdgs, HFacet &bnd_hf)
   {
     ErrorCode error;
     EntityType ftype = mb->type_from_handle(he_fid);
@@ -1018,7 +1008,8 @@ namespace moab {
         error = mb->get_connectivity(curfid, conn, nepf);MB_CHK_ERR(error);
 
         if (!markHEdgs[nepf*fidx+curlid] && (conn[curlid]==vid)){
-            markHEdgs[nepf*fidx+curlid] = true;
+            //markHEdgs[nepf*fidx+curlid] = true;
+            markHEdgs[nepf*faces.index(curfid)+curlid] = true;
             HFacet hf = sibhes[nepf*fidx+curlid];
             EntityHandle sibfid = fid_from_halfacet(hf, ftype);
             if (sibfid == 0)
@@ -1029,7 +1020,8 @@ namespace moab {
         error = another_halfedge(vid, curfid, curlid, &he2_fid, &he2_lid);  MB_CHK_ERR(error);
 
         if (!markHEdgs[nepf*fidx+he2_lid] && (conn[he2_lid]==vid)){
-            markHEdgs[nepf*fidx+he2_lid] = true;
+           // markHEdgs[nepf*fidx+he2_lid] = true;
+             markHEdgs[nepf*faces.index(curfid)+he2_lid] = true;
             HFacet hf = sibhes[nepf*fidx+he2_lid];
             EntityHandle sibfid = fid_from_halfacet(hf, ftype);
             if (sibfid == 0)

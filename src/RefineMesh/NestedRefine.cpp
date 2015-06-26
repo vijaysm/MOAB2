@@ -2740,7 +2740,7 @@ ErrorCode NestedRefine::update_global_ahf_3D(int cur_level, int deg)
 
               error = ahf->get_half_facet_in_comp(ent, l , cell_comps, leid_comps, lfid_comps);MB_CHK_ERR(error);
 
-              for (int j=0; j<cell_comps.size(); j++)
+              for (int j=0; j<(int)cell_comps.size(); j++)
                 {
                   std::cout<<"cell_comps["<<j<<"] = "<<cell_comps[j]<<std::endl;
                   std::cout<<"leid_comps["<<j<<"] = "<<leid_comps[j]<<std::endl;

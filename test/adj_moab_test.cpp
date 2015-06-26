@@ -82,7 +82,7 @@ ErrorCode ahf_test(const char* filename)
     error = mbImpl->get_entities_by_dimension( fileset, 3, cells);CHECK_ERR(error);
 
     // Create an ahf instance  
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     pc = ParallelComm::get_pcomm(mbImpl,0);
     if (!pc)
       pc = new moab::ParallelComm(&moab, MPI_COMM_WORLD);
