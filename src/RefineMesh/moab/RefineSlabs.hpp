@@ -46,8 +46,46 @@ namespace moab
           The mesh database, referenced by impl in the constructor (mbImpl)
       */
     // I considered also moab Range; here a vector seems better
+
+  protected:          
     typedef std::vector<EntityHandle> Entities;
     typedef std::vector<Entities> EntitiesVec;
+    typedef std::set<EntityHandle> EntitySet; 
+    class SlabEdge;
+    typedef std::vector< SlabEdge > SlabEdges;
+
+    typedef std::pair< EntityHandle, EntityHandle > NodePair;
+    typedef std::set< NodePair > EdgeSet;
+    typedef EdgeSet::iterator EdgeSetIterator;
+    class Slab 
+    {
+    public:
+      EdgeSet edge_set; // each unique head-tail node pair
+      EntitySet star_nodes; // head nodes
+
+      void reset();
+      void remove( NodePair &node_pair );
+      void add( SlabEdge &slab_edge );
+
+
+      bool any_in_slab( const SlabEdges &slab_edges );
+      bool get_in_slab( const SlabEdge &slab_edge );
+      bool get_is_star( const EntityHandle node );
+
+      // both need to be called by add/remove
+      void set_in_slab( const SlabEdge &slab_edge, bool new_value = true );
+      void set_is_star( EntityHandle node, bool new_value = true );
+
+    };
+    typedef std::vector<Slab*> Slabs;
+
+    // convert the slab into a set of fine hexes
+    void get_pillow_hexes( const Slab &slab, Entities &pillow_hexes );
+
+
+
+  public:
+
     ErrorCode refine_mesh(Entities &coarse_hexes, Entities &coarse_quads, Entities &fine_hexes, Entities &fine_quads);
 
     // debug
@@ -57,8 +95,7 @@ namespace moab
     bool node_ok( bool is_coarse, EntityHandle node );
     bool hex_ok( EntityHandle hex );
 
-    void print_slab( const Entities & slab );
-    ErrorCode write_file_slab( Entities &slab, std::string fname = "slab", int fname_version = 0 );
+
   protected:
 
     // ======= data members
@@ -71,8 +108,8 @@ namespace moab
     // This allows range checking, and also (sometimes) if we passed in the wrong sort of index, since EntityType is a basic type.
     EntityHandle *registered_hexes, *registered_vertices;
     int registered_num_hexes, registered_num_vertices;
-    std::set<EntityHandle> created_fine_hexes; // just debugging
-    std::set<EntityHandle> created_fine_nodes; // just debugging
+    EntitySet created_fine_hexes; // just debugging
+    EntitySet created_fine_nodes; // just debugging
 
     // main routines
     // setup 
@@ -86,11 +123,12 @@ namespace moab
     // If none are passed in, the surface mesh will not change.
     ErrorCode mark_surface_nodes(Entities &coarse_quads);
     // find all the slabs, subsets of coarse hexes, that will be pillowed one subset at a time.
-    ErrorCode find_slabs( Entities &coarse_hexes, Entities &coarse_quads, EntitiesVec &slabs );
+    ErrorCode find_slabs( Entities &coarse_hexes, Entities &coarse_quads, Slabs &slabs);
+    ErrorCode find_slabs_loc( Entities &coarse_hexes, Entities &coarse_quads, Slabs &slabs, bool tiny_slabs_OK );
     // pillow all the slabs    
-    ErrorCode pillow_slabs( EntitiesVec &slabs );
+    ErrorCode pillow_slabs( Slabs &slabs );
     // pillow an individual slab
-    ErrorCode pillow_slab( Entities &slab ); 
+    ErrorCode pillow_slab( Slab &slab ); 
     // pillow the hexes of an individual slab
     void pillow_hexes( Entities &shrink_set, Entities &new_hexes );
 
@@ -164,6 +202,7 @@ namespace moab
       // assignment operator =, should call the copy constructor
       void assignment( const SlabEdge &copy_me );
     };
+    void make_slab_edge( const NodePair &node_pair, SlabEdge &slab_edge );
 
     // unused
     // class SlabQuad : public SlabEntity
@@ -181,6 +220,13 @@ namespace moab
     // true if m1 and m2 represent the same entity
     bool is_equal( const SlabEntity *m1, const SlabEntity *m2 ) const;
 
+    void delete_slabs( Slabs & slabs );
+    void print_slab( const Slab & slab );
+    void print_slab( const Entities & slab_hexes );
+    ErrorCode write_file_slab( Entities &slab_hexes, std::string fname = "slab", int fname_version = 0 );
+
+    // data on how much a coarse hex is planning to be refined already
+    // pointers between coarse and fine meshes
     class HexRefinement
     {
     public:
@@ -257,16 +303,21 @@ namespace moab
 
     // find all the other SlabEdges, defined by some other hex, that point to the same two nodes as the given slab_edge
     void find_equivalent_edges( SlabEdge &slab_edge, std::vector<SlabEdge> & equivalent_edges );
+
     int get_edge_refinement_level(EntityHandle hex, int edge_lid);
-    int increment_edge_refinement_level(SlabEdge &slab_edge);
+    int get_edge_refinement_level(const SlabEdge &slab_edge);
+    // to increment / decrement, must pass in all equivalent edges
+    int increment_edge_refinement_level(SlabEdges &slab_edges);
+    int decrement_edge_refinement_level(SlabEdges &slab_edges);
     // given a node of a hex, return which node it is. e.g. 0, 1, ...8
     int get_hex_node_index( EntityHandle hex, EntityHandle node );
+    int get_hex_edge_index( int head_index, int tail_index );
 
     // slab edge functions 
 
     // true if edge, and any of its possible representations are not present in edges
-    bool unique( const std::vector< SlabEdge > &edges, const SlabEdge &edge );
-    bool add_unique( std::vector< SlabEdge > &edges, const SlabEdge &edge );
+    bool unique( const SlabEdges &edges, const SlabEdge &edge );
+    bool add_unique( SlabEdges &edges, const SlabEdge &edge );
     // given a slab edge, find an equivalent slab edge defined wrt the passed in hex
     // note the passed in hex might be the same as the one defining the slab_edge, in which case the match is identical
     bool get_matching_edge( EntityHandle hex, const SlabEdge &slab_edge, SlabEdge &match );
@@ -282,17 +333,9 @@ namespace moab
     // ortho edges are the ones containing the vertex orthogonal to the edge in some hex
     // upper_slab_edges are the other ones containing the vertex
     // parallel_slab_edges are the face-opposite to the slab_edge
-    void get_adjacent_slab_edges( const SlabEdge &slab_edge, std::vector< SlabEdge > &ortho_slab_edges, 
-        std::vector< SlabEdge > &upper_slab_edges, std::vector< SlabEdge > &parallel_slab_edges, 
-        std::vector< SlabEdge > &equivalent_slab_edges, std::vector< SlabEdge > &equivalent_upper_slab_edges );    
-
-    typedef std::map< std::pair<EntityHandle, EntityHandle>, bool > EdgeDataMap;
-    typedef EdgeDataMap::iterator EdgeDataIterator;
-    EdgeDataMap edge_data_map;
-    void reset_in_slab();
-    bool any_in_slab( std::vector< SlabEdge > slab_edges );
-    bool get_in_slab( const SlabEdge &slab_edge );
-    void set_in_slab( const SlabEdge &slab_edge, bool new_value = true );
+    void get_adjacent_slab_edges( const SlabEdge &slab_edge, SlabEdges &ortho, 
+        SlabEdges &upper, SlabEdges &parallel, 
+        SlabEdges &equivalent, SlabEdges &equivalent_upper );
 
     // This is how we associate SlabData with specific EntityHandles
     // If efficiency becomes an issue, we could store the SlabData as attributes off of the actual entities
@@ -351,25 +394,27 @@ namespace moab
 
     // mark the hexes as being in the pillow (shrink) set, determine whether nodes are interior or boundary
     void shrink_mark_slab( Entities &slab, bool is_coarse );
-    void shrink_mark_coarse_slab( Entities &slab );
-    void shrink_mark_fine_slab( Entities &slab, Entities &shrink_set);
-    void remove_shrink_mark_slab( Entities &slab, bool is_coarse );
+    void shrink_mark_coarse_slab( Entities &pillow_hexes );
+    void shrink_mark_fine_slab( Entities &pillow_hexes, Entities &shrink_set);
+    void remove_shrink_mark_slab( Entities &pillow_hexes, bool is_coarse );
     // get the dimension of the geometric object that this mesh entity lies on. 
     // E.g. 3 if inside the volume, 2 if on its surface, 1 if on an edge of the surface, ...
     int get_geometry_dimension( EntityHandle entity_handle );
 
     // pick some unrefined edge of the hex to start growing a new slab
     bool find_seed_edge( EntityHandle hex, int &edge_lid, SlabEdge &slab_edge );
-    void add_edge( SlabEdge &slab_edge, Entities &slab, std::vector< SlabEdge > &equivalent_edges, std::vector< SlabEdge > &equivalent_upper );
+    void add_edge( SlabEdge &slab_edge, Slab &slab, SlabEdges &equivalent_edges, SlabEdges &equivalent_upper );
     // traverse the sheet outward from the slab edge, adding hexes to the slab
-    void extend_slab( SlabEdge &slab_edge, Entities&slab );
+    void extend_slab( SlabEdge &slab_edge, Slab &slab );
+    // after extending, check that the ortho edges of the slab are good, and remove redundant hexes from the slab
+    void finalize_slab( Slab &slab );
     // True if the candidate slab_edge should be added to the slab? No if it is already refined, or already in the slab
-    bool is_good_slab_edge( const SlabEdge &slab_edge );
+    bool is_good_slab_edge( const SlabEdge &slab_edge, Slab &slab );
     //   this version passes back the ortho and parallel edges, iff the return value is true
-    bool is_good_slab_edge( const SlabEdge &slab_edge, std::vector<SlabEdge> &ortho, std::vector<SlabEdge> &upper, 
+    bool is_good_slab_edge( const SlabEdge &slab_edge, Slab &slab, std::vector<SlabEdge> &ortho, std::vector<SlabEdge> &upper, 
                             std::vector<SlabEdge> &parallel, std::vector<SlabEdge> &equivalent, std::vector<SlabEdge> &equivalent_upper );
     //   this version makes the slab_edge out of the hex, its edge, and the orientation (node_01)
-    bool is_good_slab_edge( EntityHandle hex, int edge_lid, int node_01, SlabEdge &slab_edge );
+    bool is_good_seed_edge( EntityHandle hex, int edge_lid, int node_01, SlabEdge &slab_edge );
     // True if none of the slab edges have already been refined.
     bool none_refined( std::vector<SlabEdge> slab_edges );
 

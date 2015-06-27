@@ -324,6 +324,101 @@ ErrorCode create_simple_mesh(Interface *mbImpl, EntityType type, int &which_mesh
   return MB_SUCCESS;
 }
 
+ErrorCode load_mesh(std::string fname, Interface *mb,
+                    RefineSlabs::Entities &hexes, RefineSlabs::Entities &vertices, 
+                    RefineSlabs::Entities &coarse_hexes, RefineSlabs::Entities &coarse_quads )
+{
+  // Load the mesh from vtk file
+  using namespace std;
+
+  cout << "Reading mesh file " << fname << std::endl;
+  ErrorCode rval = mb->load_mesh(fname.c_str());MB_CHK_ERR(rval);
+
+    // Get regions, by dimension, so we stay generic to entity type
+  Range elems;
+  rval = mb->get_entities_by_dimension(0, 3, elems);MB_CHK_ERR(rval);
+  cout << "Read number of elements is " << elems.size() << endl;
+  hexes.assign( elems.begin(), elems.end() );
+
+  Range verts;
+  rval = mb->get_entities_by_dimension(0, 0, verts);MB_CHK_ERR(rval);
+  cout << "Read number of vertices is " << verts.size() << endl;
+  vertices.assign( verts.begin(), verts.end() );
+
+  // parse material sets, which we use to define our refinement sets
+
+  Tag mtag;
+  rval=mb->tag_get_handle("MATERIAL_SET", mtag);MB_CHK_ERR(rval);
+
+  Range refine_hex_block;
+  int val=1; // block 1 is the coarse_hexes
+  void *vals[] = {&val};  
+  rval = mb->get_entities_by_type_and_tag(0, MBENTITYSET, 
+                                            &mtag, vals, 1, 
+                                            refine_hex_block, 1, false);
+
+  std::cout << "Refinement hexes, ";
+  std::cout << "sets with material set tag value " << val << " are\n";
+  if (refine_hex_block.empty())
+    std::cout << " EMPTY." << std::endl;
+  else
+  {
+    mb->list_entities(refine_hex_block);
+    // transfer contents of block to coarse_hexes
+    EntityHandle hblock_handle = *refine_hex_block.begin();
+    Range refine_hexes;
+    mb->get_entities_by_handle( hblock_handle, refine_hexes );
+    coarse_hexes.assign( refine_hexes.begin(), refine_hexes.end() );
+  } 
+
+  Range refine_quad_block;
+  val = 2; // block 2 is the coarse_quads
+  rval = mb->get_entities_by_type_and_tag(0, MBENTITYSET, 
+                                            &mtag, vals, 1, 
+                                            refine_quad_block, 1, false);
+  std::cout << "Refinement quads, ";
+  std::cout << "sets with material set tag value " << val << " are\n";
+  if (refine_quad_block.empty())
+    std::cout << " EMPTY." << std::endl;
+  else
+  {
+    mb->list_entities(refine_quad_block);
+    // transfer contents of block to coarse_hexes
+    EntityHandle qblock_handle = *refine_quad_block.begin();
+    Range refine_quads;
+    mb->get_entities_by_handle( qblock_handle, refine_quads );
+    coarse_quads.assign( refine_quads.begin(), refine_quads.end() );
+  }
+
+  return rval;
+}
+
+// maybe put something like this into RefineSlap
+ErrorCode test_C()
+{
+  ErrorCode error;
+  Core mb;
+  Interface* mbImpl = &mb;
+
+  // load a mesh
+  RefineSlabs::Entities hexes, vertices, coarse_hexes, coarse_quads;
+  error = load_mesh("amesh.exo", mbImpl, hexes, vertices, coarse_hexes, coarse_quads ); 
+  if (error != MB_SUCCESS) return error;
+  std::cout<<"Loaded mesh successfully"<<std::endl;
+
+  // refine it 
+  RefineSlabs refine_slabs(&mb);
+  RefineSlabs::Entities fine_hexes, fine_quads;
+
+  refine_slabs.register_entity_handles( &hexes[0], hexes.size(), &vertices[0], vertices.size() );
+  // write it out again to be sure we read it correctly
+  refine_slabs.write_file_slab( hexes, "entire_mesh" );
+
+  error = refine_slabs.refine_mesh(coarse_hexes, coarse_quads, fine_hexes, fine_quads); CHECK_ERR(error);
+
+  return MB_SUCCESS;
+}
+
 ErrorCode test_B()
 {
   ErrorCode error;
@@ -425,7 +520,9 @@ int main(int argc, char *argv[])
     if (argc == 1)
     {
       std::cout << "argc1 Hello there slab refine" << std::endl;
-      result = test_B();
+      // result = test_A();
+      // result = test_B();
+      result = test_C();
       handle_error_code(result, number_tests_failed, number_tests_successful);
       std::cout<<"\n";
 
