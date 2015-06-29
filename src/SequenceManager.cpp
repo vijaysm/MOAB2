@@ -420,7 +420,7 @@ EntityID SequenceManager::new_sequence_size(EntityHandle start,
 #ifdef MOAB_HAVE_MPI
   // If we're compiled parallel, increase requested size by a factor of 1.5, to allow
   // for ghosts; if non-default value used for sequence_size that'll take precedent anyway
-  requested_size *= 1.5;
+  //requested_size *= 1.5;
 #endif
 
   if (sequence_size < (int)requested_size)
