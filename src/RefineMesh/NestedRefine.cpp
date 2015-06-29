@@ -4,7 +4,7 @@
 #include "moab/HalfFacetRep.hpp"
 #include "moab/MeasureTime.hpp"
 #include "moab/ReadUtilIface.hpp"
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab/ParallelComm.hpp"
 #include "moab/ParallelMergeMesh.hpp"
 #include "moab/Skinner.hpp"
@@ -27,7 +27,7 @@ namespace moab{
     ErrorCode error;
     assert(NULL != impl);
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     // Get the Parallel Comm instance to prepare all new sets to work in parallel
     // in case the user did not provide any arguments
     if (!comm)
@@ -43,7 +43,7 @@ namespace moab{
 
   NestedRefine::~NestedRefine()
   {
-#ifdef USE_AHF
+#ifdef MOAB_HAVE_AHF
     ahf = NULL;
 #else
     delete ahf;
@@ -59,7 +59,7 @@ namespace moab{
     if (!tm)
       return MB_MEMORY_ALLOCATION_FAILED;
 
-#ifdef USE_AHF
+#ifdef MOAB_HAVE_AHF
     ahf = mbImpl->a_half_facet_rep();
 #else
     ahf = new HalfFacetRep(mbImpl, pcomm, _rset);
@@ -411,7 +411,7 @@ namespace moab{
       return MB_SUCCESS;
 
     hasghost = true;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     error = pcomm->exchange_ghost_cells(meshdim, 0, num_glayers, 0, true, false);MB_CHK_ERR(error);
 #else
     MB_SET_ERR(MB_FAILURE,"Requesting ghost layers for a serial mesh");
@@ -611,7 +611,7 @@ namespace moab{
         std::cout<<"Starting level = "<<l<<std::endl;
         double tstart;
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
         tstart = MPI_Wtime();
 #else
         tstart = tm->wtime();
@@ -635,7 +635,7 @@ namespace moab{
         //Create the new entities and new vertices
         error = construct_hm_entities(l, level_degrees[l]); MB_CHK_ERR(error);
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
         timeall.tm_refine += MPI_Wtime() - tstart;
 #else
         timeall.tm_refine += tm->wtime() - tstart;
@@ -643,7 +643,7 @@ namespace moab{
         //timeall.tm_refine += tm->wtime() - tstart;
 
         // Go into parallel communication
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
         if (pcomm)
         {
           // TEMP: Add the adjacencies for MOAB-native DS
@@ -697,7 +697,7 @@ namespace moab{
               error = mbImpl->tag_set_data(part_tag, &part_set, 1, &partid);MB_CHK_ERR(error);
 
               error = mbImpl->tag_set_data(part_tag, &hm_set[l], 1, &partid);MB_CHK_ERR(error);
-              mbImpl->list_entities(vtxs);
+              //mbImpl->list_entities(vtxs);
               //mbImpl->list_entity(hm_set[l]);
 
               //
@@ -714,10 +714,10 @@ namespace moab{
               ParallelMergeMesh pm(pcomm, 1e-08);
               error = pm.merge(hm_set[l], true);MB_CHK_ERR(error);
 
-              std::cout<<"Writing level set"<<std::endl;
-              mbImpl->write_file("test.h5m", 0, ";;PARALLEL=WRITE_PART;DEBUG_IO=3", &hm_set[l], 1);
+              // std::cout<<"Writing level set"<<std::endl;
+              // mbImpl->write_file("test.h5m", 0, ";;PARALLEL=WRITE_PART;DEBUG_IO=3", &hm_set[l], 1);
 
-               timeall.tm_presolve += MPI_Wtime() - tpstart;
+              timeall.tm_presolve += MPI_Wtime() - tpstart;
               //
               // Parallel Communication complete - all entities resolved
               //
