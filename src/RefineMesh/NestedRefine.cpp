@@ -4,13 +4,14 @@
 #include "moab/HalfFacetRep.hpp"
 #include "moab/MeasureTime.hpp"
 #include "moab/ReadUtilIface.hpp"
+#include "Internals.hpp"
+#include "MBTagConventions.hpp"
+
 #ifdef MOAB_HAVE_MPI
 #include "moab/ParallelComm.hpp"
 #include "moab/ParallelMergeMesh.hpp"
 #include "moab/Skinner.hpp"
 #endif
-#include "Internals.hpp"
-#include "MBTagConventions.hpp"
 
 #include <iostream>
 #include <assert.h>
@@ -604,18 +605,14 @@ namespace moab{
 
     timeall.tm_total = 0;
     timeall.tm_refine = 0;
-    timeall.tm_presolve = 0;
+    timeall.tm_resolve = 0;
 
     for (int l = 0; l<num_level; l++)
       {
         std::cout<<"Starting level = "<<l<<std::endl;
         double tstart;
 
-#ifdef MOAB_HAVE_MPI
-        tstart = MPI_Wtime();
-#else
         tstart = tm->wtime();
-#endif
 
         // Estimate storage
         int hmest[4] = {0,0,0,0};
@@ -635,12 +632,7 @@ namespace moab{
         //Create the new entities and new vertices
         error = construct_hm_entities(l, level_degrees[l]); MB_CHK_ERR(error);
 
-#ifdef MOAB_HAVE_MPI
-        timeall.tm_refine += MPI_Wtime() - tstart;
-#else
         timeall.tm_refine += tm->wtime() - tstart;
-#endif
-        //timeall.tm_refine += tm->wtime() - tstart;
 
         // Go into parallel communication
 #ifdef MOAB_HAVE_MPI
@@ -671,8 +663,7 @@ namespace moab{
 
           if (pcomm->size() > 1)
             {
-             // double tpstart = tm->wtime();
-              double tpstart = MPI_Wtime();
+              double tpstart = tm->wtime();
 
               // get all entities on the rootset
               moab::Range vtxs, edgs, facs, elms;
@@ -683,18 +674,18 @@ namespace moab{
 
               // set the parallel partition tag data
               moab::Tag part_tag;
-              moab::EntityHandle part_set;
+            //  moab::EntityHandle part_set;
               int partid = pcomm->rank(), dum_id = -1;
               error = mbImpl->tag_get_handle("PARALLEL_PARTITION", 1, moab::MB_TYPE_INTEGER,
                                              part_tag, moab::MB_TAG_CREAT | moab::MB_TAG_SPARSE, &dum_id);MB_CHK_ERR(error);
 
-              error = mbImpl->create_meshset(moab::MESHSET_SET, part_set);MB_CHK_ERR(error);
+              /*error = mbImpl->create_meshset(moab::MESHSET_SET, part_set);MB_CHK_ERR(error);
               error = mbImpl->add_entities(part_set, vtxs);MB_CHK_ERR(error);
               error = mbImpl->add_entities(part_set, edgs);MB_CHK_ERR(error);
               error = mbImpl->add_entities(part_set, facs);MB_CHK_ERR(error);
               error = mbImpl->add_entities(part_set, elms);MB_CHK_ERR(error);
               error = mbImpl->add_entities(hm_set[l],&part_set,1);MB_CHK_ERR(error);
-              error = mbImpl->tag_set_data(part_tag, &part_set, 1, &partid);MB_CHK_ERR(error);
+              error = mbImpl->tag_set_data(part_tag, &part_set, 1, &partid);MB_CHK_ERR(error);*/
 
               error = mbImpl->tag_set_data(part_tag, &hm_set[l], 1, &partid);MB_CHK_ERR(error);
               //mbImpl->list_entities(vtxs);
@@ -717,7 +708,7 @@ namespace moab{
               // std::cout<<"Writing level set"<<std::endl;
               // mbImpl->write_file("test.h5m", 0, ";;PARALLEL=WRITE_PART;DEBUG_IO=3", &hm_set[l], 1);
 
-              timeall.tm_presolve += MPI_Wtime() - tpstart;
+              timeall.tm_resolve += tm->wtime() - tpstart;
               //
               // Parallel Communication complete - all entities resolved
               //
@@ -736,12 +727,12 @@ namespace moab{
                 error = pcomm->exchange_tags(gidtag,facs);MB_CHK_ERR(error);
                 error = pcomm->exchange_tags(gidtag,elms);MB_CHK_ERR(error);
               }
-             // timeall.tm_presolve += tm->wtime() - tpstart;
+             // timeall.tm_resolve += tm->wtime() - tpstart;
             }
           }
 #endif
       }
-    timeall.tm_total = timeall.tm_refine + timeall.tm_presolve;
+    timeall.tm_total = timeall.tm_refine + timeall.tm_resolve;
   //  mbImpl->write_file("test.h5m", 0, ";;PARALLEL=WRITE_PART");
 
     return MB_SUCCESS;

@@ -16,7 +16,7 @@
 #include "../verdict/moab/VerdictWrapper.hpp"
 #include "../RefineMesh/moab/NestedRefine.hpp"
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab_mpi.h"
 #include "moab/ParallelComm.hpp"
 #include "MBParallelConventions.h"
@@ -44,7 +44,7 @@ static void print_usage( const char* name, std::ostream& stream )
          <<"\t-s             - Print out the mesh sizes of each level of the generated hierarchy." << std::endl
          << "\t-o             - Specify true for output files for the mesh levels of the hierarchy." << std::endl
          //<< "\t-O option      - Specify read option." << std::endl
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
          << "\t-p[0|1|2]      - Read in parallel[0], optionally also doing resolve_shared_ents (1) and exchange_ghosts (2)" << std::endl
 #endif
     ;
@@ -54,7 +54,7 @@ static void print_usage( const char* name, std::ostream& stream )
 static void usage_error( const char* name )
 {
   print_usage( name, std::cerr );
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Finalize();
 #endif
   exit(USAGE_ERROR);
@@ -71,7 +71,7 @@ ErrorCode get_max_volume(Core &mb, EntityHandle fileset, int dim, double &vmax);
 int main(int argc, char* argv[])
 {
   int proc_id = 0, size = 1;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Init(&argc,&argv);
   MPI_Comm_rank( MPI_COMM_WORLD, &proc_id );
   MPI_Comm_size( MPI_COMM_WORLD, &size );
@@ -92,7 +92,7 @@ int main(int argc, char* argv[])
     if (!argv[i][0] && 0==proc_id)
       {
         usage_error(argv[0]);
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
         MPI_Finalize();
 #endif
       }
@@ -117,11 +117,11 @@ int main(int argc, char* argv[])
         case 'V': qc_vol = true; cvol = strtod(argv[i+1], NULL); ++i; break;
         case 'q': only_quality = true; break;
         case 'o': output = true; break;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
         case 'p':
             parallel = true;
-            if (argv[i][2] == '1' || argv[i][2] == '2') resolve_shared = true;
-            if (argv[i][2] == '2') exchange_ghosts = true;
+            resolve_shared = true;
+            if (argv[i][1] == '1') exchange_ghosts = true;
             break;
 #endif
         default:
@@ -147,8 +147,9 @@ int main(int argc, char* argv[])
   if (!parselevels)
     exit(USAGE_ERROR);
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   parallel = true;
+  resolve_shared = true;
 #endif
 
   ErrorCode error;
@@ -169,27 +170,28 @@ int main(int argc, char* argv[])
       if (resolve_shared) read_opts.push_back("PARALLEL_RESOLVE_SHARED_ENTS");
       if (exchange_ghosts) read_opts.push_back("PARALLEL_GHOSTS=3.0.1");
 
-      if (output)
+    /*  if (output)
         {
-          write_opts.push_back("PARALLEL=WRITE_PART");
+          write_opts.push_back(";;PARALLEL=WRITE_PART");
           std::cout<<"Here"<<std::endl;
-        }
+        }*/
     }
 
   if (!make_opts_string(  read_opts,  read_options ) || !make_opts_string(  write_opts,  write_options ))
     {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
       MPI_Finalize();
 #endif
       return USAGE_ERROR;
     }
 
   //Load file
+  std::cout<<"READ OPTS="<<(char*)read_options.c_str()<<std::endl;
   error = mb->load_file(infile.c_str(), &fileset, read_options.c_str());MB_CHK_ERR(error);
 
   //Create the nestedrefine instance
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   ParallelComm *pc = new ParallelComm(&moab, MPI_COMM_WORLD);
   NestedRefine uref(&moab,pc,fileset);
 #else
@@ -204,7 +206,7 @@ int main(int argc, char* argv[])
     {
       double vmax;
       error = get_max_volume(moab, fileset, dim, vmax);MB_CHK_ERR(error);
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
       int rank = 0;
       MPI_Comm_rank(MPI_COMM_WORLD, &rank);
       if (rank==0)
@@ -247,7 +249,7 @@ int main(int argc, char* argv[])
       if (parallel)
         {
           std::cout<<"Time taken for refinement "<<uref.timeall.tm_refine<<"  secs"<<std::endl;
-          std::cout<<"Time taken for resolving shared interface "<<uref.timeall.tm_presolve<<"  secs"<<std::endl;
+          std::cout<<"Time taken for resolving shared interface "<<uref.timeall.tm_resolve<<"  secs"<<std::endl;
         }
     }
   else
@@ -306,15 +308,21 @@ int main(int argc, char* argv[])
             out <<  "_ML_" <<l+1<<".vtk";
           file = file + out.str();
           const char* output_file = file.c_str();
-       //   mb->write_file(output_file, 0, write_options.c_str(), &lsets[l+1], 1);
-          mb->list_entity(lsets[l+1]);
-          mb->write_file(output_file, 0, "PARALLEL=WRITE_PART", &lsets[l+1], 1);
+#ifdef MOAB_HAVE_MPI
+          error = mb->write_file(output_file, 0, ";;PARALLEL=WRITE_PART",&lsets[l+1], 1);MB_CHK_ERR(error);
+#else
+          error = mb->write_file(output_file, 0, NULL, &lsets[l+1], 1); MB_CHK_ERR(error);
+#endif
+       //   const char* output_file = file.c_str();
+       //   error =  mb->write_file(output_file, 0, write_options.c_str(), &lsets[l+1], 1);MB_CHK_ERR(error);
+      //    mb->list_entity(lsets[l+1]);
+       //   mb->write_file(output_file, 0, "PARALLEL=WRITE_PART", &lsets[l+1], 1);
         }
     }
 
   delete [] ldeg;
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Finalize();
 #endif
 
@@ -426,7 +434,7 @@ ErrorCode get_max_volume(Core &mb,  EntityHandle fileset, int dim, double &vmax)
   owned = allents.subset_by_dimension(dim);MB_CHK_ERR(error);
 
   //Get all owned entities
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   int size = 1;
   MPI_Comm_size( MPI_COMM_WORLD, &size );
   int mpi_err;
@@ -457,7 +465,7 @@ ErrorCode get_max_volume(Core &mb,  EntityHandle fileset, int dim, double &vmax)
 
   //Get the global maximum
   double vmax_global = vmax_local;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   mpi_err = MPI_Reduce(&vmax_local, &vmax_global, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
   if (mpi_err)
       {

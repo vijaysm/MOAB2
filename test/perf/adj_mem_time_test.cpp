@@ -167,7 +167,7 @@ ErrorCode adj_perf(const char* filename)
 
   //1D Queries
 
-  std::cout<<"1D QUERIES Start"<<std::endl;
+ /* std::cout<<"1D QUERIES Start"<<std::endl;
 
   //IQ1: For every vertex, obtain incident edges
   time_start = mt->wtime();
@@ -204,7 +204,7 @@ ErrorCode adj_perf(const char* filename)
   qtime.edge_to_edges_total = time_total;
   qtime.edge_to_edges_avg = time_avg;
 
-  std::cout<<"1D QUERIES End"<<std::endl;
+  std::cout<<"1D QUERIES End"<<std::endl;*/
 
   // 2D Queries
 
@@ -223,7 +223,7 @@ ErrorCode adj_perf(const char* filename)
   qtime.vertex_to_faces_avg = time_avg;
 
   //IQ22: For every edge, obtain incident faces
-  time_start = mt->wtime();
+/*  time_start = mt->wtime();
   for (Range::iterator i = edges.begin(); i != edges.end(); ++i) {   
     adjents.clear();
     error = mbImpl->get_adjacencies( &*i, 1, 2, false, adjents);
@@ -358,7 +358,7 @@ ErrorCode adj_perf(const char* filename)
   qtime.cell_to_faces_total = time_total;
   qtime.cell_to_faces_avg = time_avg;
 
-   std::cout<<"3D QUERIES End"<<std::endl;
+   std::cout<<"3D QUERIES End"<<std::endl;*/
 
   //Storage Costs after calling ahf deinitialize
   unsigned long long eTotS, eTAS, eES, eAES, eAS, eAAS, eTS, eATS;

@@ -126,7 +126,7 @@ namespace moab
       struct codeperf{
         double tm_total;
         double tm_refine;
-        double tm_presolve;
+        double tm_resolve;
       };
 
       codeperf timeall;

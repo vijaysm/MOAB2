@@ -926,13 +926,10 @@ namespace moab {
     EntityType ftype = mb->type_from_handle(*faces.begin());
     int nepf = lConnMap2D[ftype-2].num_verts_in_face;
 
-   // std::vector<bool> markEdges(nepf*faces.size(), false);
     std::vector<char> markEdges(nepf*faces.size(), 0);
 
     for (Range::iterator it = faces.begin(); it != faces.end(); ++it){      
         EntityHandle fid = *it;
-      //  int fidx = ID_FROM_HANDLE(fid)-1;
-
         const EntityHandle* conn;
         error = mb->get_connectivity(fid, conn, nepf);MB_CHK_ERR(error);
 
@@ -1008,7 +1005,6 @@ namespace moab {
         error = mb->get_connectivity(curfid, conn, nepf);MB_CHK_ERR(error);
 
         if (!markHEdgs[nepf*faces.index(curfid)+curlid] && (conn[curlid]==vid)){
-            //markHEdgs[nepf*fidx+curlid] = true;
             markHEdgs[nepf*faces.index(curfid)+curlid] = 1;
             HFacet hf = sibhes[nepf*fidx+curlid];
             EntityHandle sibfid = fid_from_halfacet(hf, ftype);
@@ -1020,8 +1016,7 @@ namespace moab {
         error = another_halfedge(vid, curfid, curlid, &he2_fid, &he2_lid);  MB_CHK_ERR(error);
 
         if (!markHEdgs[nepf*faces.index(curfid)+he2_lid] && (conn[he2_lid]==vid)){
-           // markHEdgs[nepf*fidx+he2_lid] = true;
-             markHEdgs[nepf*faces.index(curfid)+he2_lid] = 1;
+            markHEdgs[nepf*faces.index(curfid)+he2_lid] = 1;
             HFacet hf = sibhes[nepf*fidx+he2_lid];
             EntityHandle sibfid = fid_from_halfacet(hf, ftype);
             if (sibfid == 0)
@@ -1037,8 +1032,6 @@ namespace moab {
         trackfaces[count] = he2_fid;
 
         error = get_up_adjacencies_2d(he2_fid, he2_lid, &qsize, &count);MB_CHK_ERR(error);
-
-      //  adjents.push_back(he2_fid);
       }
 
     //Change the visited faces to false, also empty the queue
@@ -1064,12 +1057,9 @@ namespace moab {
 
     std::vector<EntityHandle> start_fids;
     std::vector<int> start_lids;
- //   EntityHandle fid;
-  //  int lid;
 
     if (hf == 0 && (v2hes.find(vid) != v2hes.end()))
       {
-        //assert(!v2hes.empty() || (v2hes.empty() && v2hes.find(vid) == v2hes.end()));
         std::pair <std::multimap<EntityHandle, HFacet>::iterator, std::multimap<EntityHandle, HFacet>::iterator> it_hes;
         it_hes = v2hes.equal_range(vid);
 
@@ -1085,34 +1075,28 @@ namespace moab {
         start_lids.push_back(lid_from_halffacet(hf));
       }
 
-    //EntityHandle fid = fid_from_halfacet(hf, ftype);
-    //int lid = lid_from_halffacet(hf);
-
-    //if (!fid)
     if (start_fids.empty())
       return MB_SUCCESS;
 
     int qsize = 0, count = -1;
     int num_qvals = 0;
 
-    adjents.reserve(20);
-    //adjents.push_back(fid);
+    adjents.reserve((int)start_fids.size());
 
     for (int i=0; i<(int)start_fids.size(); i++)
       {
-      adjents.push_back(start_fids[i]);
-      error = gather_halfedges(vid, start_fids[i], start_lids[i], &qsize, &count);MB_CHK_ERR(error);
+        adjents.push_back(start_fids[i]);
+        error = gather_halfedges(vid, start_fids[i], start_lids[i], &qsize, &count);MB_CHK_ERR(error);
       }
 
     while (num_qvals < qsize)
       {
-
         EntityHandle curfid = queue_fid[num_qvals];
         int curlid = queue_lid[num_qvals];
         num_qvals += 1;
 
         EntityHandle he2_fid = 0; int he2_lid = 0;
-        error = another_halfedge(vid, curfid, curlid, &he2_fid, &he2_lid);  MB_CHK_ERR(error);
+        error = another_halfedge(vid, curfid, curlid, &he2_fid, &he2_lid);MB_CHK_ERR(error);
 
         bool val = find_match_in_array(he2_fid, trackfaces, count);
 
@@ -1302,14 +1286,6 @@ namespace moab {
     int num_conn = 0;
     error = mb->get_connectivity(eid, conn, num_conn);MB_CHK_ERR(error);
 
-   /* int v1idx = ID_FROM_HANDLE(conn[0])-1;
-    int v2idx = ID_FROM_HANDLE(conn[1])-1;
-    HFacet hf1 = v2he[v1idx], hf2 = v2he[v2idx];
-    if ((hf1 == 0) && (hf2 == 0)) //Either a dangling edge or attached to two non-manifold vertices
-      {
-        return MB_SUCCESS;
-      }*/
-
     EntityHandle vid = conn[0];
     int vidx = ID_FROM_HANDLE(conn[0])-1;
     HFacet hf = v2he[vidx];
@@ -1318,6 +1294,10 @@ namespace moab {
       {
         vidx = ID_FROM_HANDLE(conn[1])-1;
         hf = v2he[vidx];
+
+        if (hf == 0)//The edge is either a dangling edge or attached to two non-manifold vertices
+          return MB_SUCCESS;
+
         vid = conn[1];
       }
 
@@ -1325,27 +1305,21 @@ namespace moab {
     int lid = lid_from_halffacet(hf);
 
     bool found = false;
+    int qsize = 0, count = -1;
 
-    if (fid!=0){
+    error = gather_halfedges(vid, fid, lid, &qsize, &count);MB_CHK_ERR(error);
 
-        int qsize = 0, count = -1;
+    found =  collect_and_compare(vid, conn, &qsize, &count, hefid, helid);MB_CHK_ERR(error);
 
-        //EntityHandle vid = conn[0];
-
-        error = gather_halfedges(vid, fid, lid, &qsize, &count);  MB_CHK_ERR(error);
-
-        found =  collect_and_compare(vid, conn, &qsize, &count, hefid, helid);
-
-        //Change the visited faces to false
-        for (int i = 0; i<qsize; i++)
-        {
-            queue_fid[i] = 0;
-            queue_lid[i] = 0;
-        }
-
-        for (int i = 0; i<= count; i++)
-            trackfaces[i] = 0;
+    //Change the visited faces to false
+    for (int i = 0; i<qsize; i++)
+      {
+        queue_fid[i] = 0;
+        queue_lid[i] = 0;
       }
+
+    for (int i = 0; i<= count; i++)
+      trackfaces[i] = 0;
 
     return found;
   }
@@ -1442,9 +1416,8 @@ namespace moab {
         trackfaces[*count] = curfid;
 
         EntityHandle he2_fid; int he2_lid;
-      //  error = another_halfedge(edg_vert[0], curfid, curlid, &he2_fid, &he2_lid);   MB_CHK_ERR(error);
-        error = another_halfedge(vid, curfid, curlid, &he2_fid, &he2_lid);   MB_CHK_ERR(error);
-        error = get_up_adjacencies_2d(he2_fid, he2_lid, qsize, count);   MB_CHK_ERR(error);
+        error = another_halfedge(vid, curfid, curlid, &he2_fid, &he2_lid);MB_CHK_ERR(error);
+        error = get_up_adjacencies_2d(he2_fid, he2_lid, qsize, count);MB_CHK_ERR(error);
 
         counter += 1;
     }
@@ -1751,20 +1724,17 @@ namespace moab {
   ErrorCode HalfFacetRep::determine_incident_halffaces( Range &cells)
   {
     ErrorCode error;
- //   EntityType ctype = mb->type_from_handle(*cells.begin());
     int index = get_index_in_lmap(*cells.begin());
     int nvpc = lConnMap3D[index].num_verts_in_cell;
-  //  int nfpc = lConnMap3D[index].num_faces_in_cell;
-  
-   std::multimap<EntityHandle, EntityHandle> comps;
-   HFacet nwhf;
+
+    std::multimap<EntityHandle, EntityHandle> comps;
+    HFacet nwhf;
 
     for (Range::iterator cid = cells.begin(); cid != cells.end(); ++cid){
       EntityHandle cell = *cid;
       const EntityHandle* conn;
       error = mb->get_connectivity(*cid, conn, nvpc);MB_CHK_ERR(error);
 
-     // int cidx = ID_FROM_HANDLE(cell)-1;
       for(int i=0; i<nvpc; ++i){
           EntityHandle v = conn[i];
           int vidx = ID_FROM_HANDLE(v)-1;
@@ -1774,7 +1744,6 @@ namespace moab {
 
           if (hf==0 && !found && (v2hfs.empty() || (v2hfs.find(v) == v2hfs.end())))
             {
-             //HFacet nwhf=0;
               nwhf = 0;
               error = add_cells_of_single_component(v, cell, lConnMap3D[index].v2hf[i][0], comps, nwhf);MB_CHK_ERR(error);
 
@@ -1782,7 +1751,6 @@ namespace moab {
             }
           else if (hf != 0 && !found)
             {
-              //HFacet nwhf=0;
               nwhf = 0;
               error = add_cells_of_single_component(v, cell, lConnMap3D[index].v2hf[i][0], comps, nwhf);MB_CHK_ERR(error);
 
@@ -1792,34 +1760,10 @@ namespace moab {
             }
           else if (hf == 0 &&  !found && (!v2hfs.empty()) && (v2hfs.find(v) != v2hfs.end()))
             {
-              //HFacet nwhf = 0;
               nwhf = 0;
               error = add_cells_of_single_component(v, cell, lConnMap3D[index].v2hf[i][0], comps, nwhf);MB_CHK_ERR(error);
                v2hfs.insert(std::pair<EntityHandle, HFacet>(v, nwhf));
             }
-
-      /*    EntityHandle vcid = fid_from_halfacet(hf, ctype);
-
-          int nhf_pv = lConnMap3D[index].v2hf_num[i];
-
-	  for (int j=0; j < nhf_pv; ++j){
-	      int ind = lConnMap3D[index].v2hf[i][j];
-
-	      hf = sibhfs[nfpc*cidx+ind];
-	      EntityHandle sib_cid = fid_from_halfacet(hf, ctype);
-
-	      if (vcid==0 ){
-		  v2hf[vidx] = create_halffacet(cell,ind);
-		  break;
-		}
-	      else if ((vcid!=0) && (sib_cid ==0)){
-		  v2hf[vidx] = create_halffacet(cell,ind);
-		}
-
-	      //Mark this half-facet
-	      marked[nfpc*cidx+ind] = true;
-	    }
-	  */
 	}
       }
 

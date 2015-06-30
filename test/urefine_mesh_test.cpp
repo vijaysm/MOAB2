@@ -268,10 +268,18 @@ ErrorCode refine_entities(Interface *mb,  ParallelComm* pc, EntityHandle fset, i
     {
     //  int inents = init_ents.size();
       std::stringstream file;
+#ifdef MOAB_HAVE_MPI
+      file <<  "MESH_LEVEL_0.h5m";
+#else
       file <<  "MESH_LEVEL_0.vtk";
+#endif
       std::string str = file.str();
       const char* output_file = str.c_str();
-      error = mb->write_file(output_file); CHECK_ERR(error);
+#ifdef MOAB_HAVE_MPI
+      error = mb->write_file(output_file, 0, ";;PARALLEL=WRITE_PART");CHECK_ERR(error);
+#else
+      error = mb->write_file(output_file, 0, NULL); CHECK_ERR(error);
+#endif
     }
 
   //Create an hm object and generate the hierarchy
@@ -418,11 +426,19 @@ ErrorCode refine_entities(Interface *mb,  ParallelComm* pc, EntityHandle fset, i
       if (output)
         {
           std::stringstream file;
+
+#ifdef MOAB_HAVE_MPI
+          file <<  "MESH_LEVEL_" <<l+1<<".h5m";
+#else
           file <<  "MESH_LEVEL_" <<l+1<<".vtk";
+#endif
           std::string str = file.str();
           const char* output_file = str.c_str();
-          char * write_opts = NULL;
-          error = mb->write_file(output_file, 0, write_opts, &set[l+1], 1); CHECK_ERR(error);
+#ifdef MOAB_HAVE_MPI
+          error = mb->write_file(output_file, 0, ";;PARALLEL=WRITE_PART",&set[l+1], 1);CHECK_ERR(error);
+#else
+          error = mb->write_file(output_file, 0, NULL, &set[l+1], 1); CHECK_ERR(error);
+#endif
         }
     }
 
@@ -446,14 +462,14 @@ ErrorCode refine_entities(Interface *mb,  ParallelComm* pc, EntityHandle fset, i
     }
 
   //Print out the whole hierarchy into a single file
-  if (output)
+ /* if (output)
     {
       std::stringstream file;
       file <<  "MESH_HIERARCHY.vtk";
       std::string str = file.str();
       const char* output_file = str.c_str();
       error = mb->write_file(output_file); CHECK_ERR(error);
-    }
+    }*/
 
   return MB_SUCCESS;
 }
@@ -1178,13 +1194,13 @@ ErrorCode test_mesh(const char* filename, int *level_degrees, int num_levels)
     }
     else if (procs == 1) {
 #endif
-    error = mbImpl->load_file(filename);  CHECK_ERR(error);
+    error = mbImpl->load_file(filename, &fileset);  CHECK_ERR(error);
 #ifdef MOAB_HAVE_MPI
     }
 #endif
 
     //Generate hierarchy
-    error = refine_entities(&moab, pc, fileset, level_degrees, num_levels, false);  CHECK_ERR(error);
+    error = refine_entities(&moab, pc, fileset, level_degrees, num_levels, true);  CHECK_ERR(error);
 
     return MB_SUCCESS;
 }
