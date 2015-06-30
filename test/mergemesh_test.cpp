@@ -29,7 +29,6 @@ int main( int /*argc*/, char**/* argv*/)
 
 void mergesimple_test()
 {
-
   ErrorCode rval;
   Interface* iface = new Core();
   // can be generalized to load user defined input/output file
@@ -40,17 +39,23 @@ void mergesimple_test()
   moab::Range ents;
   iface->get_entities_by_dimension(0, dim, ents);
 
-  MergeMesh mm(iface);
-  double merge_tol = 1e-3;
+  // Make sure that mm is destroyed before deleting iface
+  {
+    MergeMesh mm(iface);
+    double merge_tol = 1e-3;
 
-  rval = mm.merge_entities(ents, merge_tol);
-  CHECK_ERR(rval);
+    rval = mm.merge_entities(ents, merge_tol);
+    CHECK_ERR(rval);
+  }
 
   // Fixed for now
 
   rval = iface->write_file( outfile);
   CHECK_ERR(rval);
-  return ;
+
+  delete iface;
+
+  return;
 }
 
 void merge_with_tag_test()
@@ -68,15 +73,21 @@ void merge_with_tag_test()
   rval = iface->tag_get_handle("IDFTAG", tag_for_merge);
   CHECK_ERR(rval);
 
-  MergeMesh mm(iface);
-  rval = mm.merge_using_integer_tag(verts, tag_for_merge);
-  CHECK_ERR(rval);
+  // Make sure that mm is destroyed before deleting iface
+  {
+    MergeMesh mm(iface);
+    rval = mm.merge_using_integer_tag(verts, tag_for_merge);
+    CHECK_ERR(rval);
+  }
+
   rval = iface->write_file( outfile);
   CHECK_ERR(rval);
 
   verts.clear();
   iface->get_entities_by_dimension(0, dim, verts);
   CHECK_EQUAL( 405, (int)verts.size()) ;
+
+  delete iface;
 
   return;
 }
