@@ -2099,7 +2099,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       }
 
       myDebug->tprintf(4, "Unpacked %d ents of type %s", num_ents2,
-                       CN::EntityTypeName(TYPE_FROM_HANDLE(this_type)));
+                       CN::EntityTypeName(this_type));
     }
 
     myDebug->tprintf(4, "Done unpacking entities.\n");
