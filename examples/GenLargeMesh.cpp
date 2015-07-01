@@ -510,7 +510,9 @@ int main(int argc, char **argv)
     EntityHandle mesh_set;
     rval = mb->create_meshset(MESHSET_SET, mesh_set);MB_CHK_SET_ERR(rval, "Can't create new set");
     mb->add_entities(mesh_set, all3dcells);
+    pcomm->set_debug_verbosity(5); // will print all requests, buffers, etc
     rval = pcomm->resolve_shared_ents(mesh_set, -1, -1, &new_id_tag);MB_CHK_SET_ERR(rval, "Can't resolve shared ents");
+    pcomm->set_debug_verbosity(0); // will print all requests, buffers, etc
 
     if (0 == rank) {
        cout << "resolve shared entities: "
@@ -535,14 +537,14 @@ int main(int argc, char **argv)
     }
   }
 
-  rval = mb->write_file(outFileName.c_str(), 0, ";;PARALLEL=WRITE_PART");MB_CHK_SET_ERR(rval, "Can't write in parallel");
+/*  rval = mb->write_file(outFileName.c_str(), 0, ";;PARALLEL=WRITE_PART");MB_CHK_SET_ERR(rval, "Can't write in parallel");
 
   if (0 == rank) {
     cout << "write file " << outFileName << " in "
          << (clock() - tt) / (double)CLOCKS_PER_SEC << " seconds" << endl;
     tt = clock();
   }
-
+*/
   MPI_Finalize();
 
   return 0;
