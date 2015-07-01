@@ -5228,7 +5228,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       if (done) {
         if (myDebug->get_verbosity() == 4) {
           msgs.resize(msgs.size() + 1);
-          msgs.back() = new Buffer(*remoteOwnedBuffs[ind/2]);
+          msgs.back() = new Buffer(*remoteOwnedBuffs[ind/3]);
         }
 
         // Message completely received - process buffer that was sent
@@ -5293,7 +5293,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 #ifndef NDEBUG
       result = check_sent_ents(allsent);
       if (MB_SUCCESS != result) std::cout << "Failed check." << std::endl;
-      result = check_all_shared_handles(true);
+      //result = check_all_shared_handles(true);
       if (MB_SUCCESS != result) std::cout << "Failed check." << std::endl;
 #endif
 
@@ -5387,7 +5387,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         // Incoming remote handles
         if (myDebug->get_verbosity() == 4) {
           msgs.resize(msgs.size() + 1);
-          msgs.back() = new Buffer(*localOwnedBuffs[ind]);
+          msgs.back() = new Buffer(*localOwnedBuffs[ind/3]);
         }
         localOwnedBuffs[ind/3]->reset_ptr(sizeof(int));
         result = unpack_remote_handles(buffProcs[ind/3],
@@ -5412,7 +5412,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         success = MPI_Barrier(procConfig.proc_comm());
       }
       else {
-        MPI_Status mult_status[2*MAX_SHARING_PROCS];
+        MPI_Status mult_status[3*MAX_SHARING_PROCS];
        /* success = MPI_Waitall(3*buffProcs.size(), &recv_remoteh_reqs[0], mult_status);*/
         success = MPI_Waitall(3*buffProcs.size(), &sendReqs[0], mult_status);
       }
