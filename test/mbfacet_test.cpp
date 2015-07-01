@@ -165,6 +165,10 @@ int main(int argc, char *argv[])
   handle_error_code(rval, number_tests_failed, number_tests_successful);
   std::cout << "\n";
 
+  // pFacet has been deleted in split_test(), so we should mark it as NULL
+  // Setting pFacet (value parameter) to NULL in split_test() does not work
+  pFacet = NULL;
+
   std::cout << " check split: ";
   rval = check_split(mb);
   handle_error_code(rval, number_tests_failed, number_tests_successful);
@@ -551,6 +555,8 @@ ErrorCode split_test(Interface * mb, FBEngine * pFacet)
   delete pFacet;
   pFacet = NULL;// try not to write the obb tree
   rval = mb->write_file(filename_out.c_str(), NULL, NULL, &newRootSet, 1);
+
+  delete duplicate;
 
   return rval;
 }
