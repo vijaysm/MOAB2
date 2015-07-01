@@ -5113,11 +5113,11 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 #endif
 
     // Index reqs the same as buffer/sharing procs indices
-    std::vector<MPI_Request> recv_ent_reqs(2*buffProcs.size(), MPI_REQUEST_NULL),
-      recv_remoteh_reqs(2*buffProcs.size(), MPI_REQUEST_NULL);
+    std::vector<MPI_Request> recv_ent_reqs(3*buffProcs.size(), MPI_REQUEST_NULL),
+      recv_remoteh_reqs(3*buffProcs.size(), MPI_REQUEST_NULL);
     std::vector<unsigned int>::iterator proc_it;
     int ind, p;
-    sendReqs.resize(2*buffProcs.size(), MPI_REQUEST_NULL);
+    sendReqs.resize(3*buffProcs.size(), MPI_REQUEST_NULL);
     for (ind = 0, proc_it = buffProcs.begin(); 
          proc_it != buffProcs.end(); ++proc_it, ind++) {
       incoming1++;
@@ -5127,7 +5127,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       success = MPI_Irecv(remoteOwnedBuffs[ind]->mem_ptr, INITIAL_BUFF_SIZE,
                           MPI_UNSIGNED_CHAR, buffProcs[ind],
                           MB_MESG_ENTS_SIZE, procConfig.proc_comm(),
-                          &recv_ent_reqs[2*ind]);
+                          &recv_ent_reqs[3*ind]);
       if (success != MPI_SUCCESS) {
         MB_SET_ERR(MB_FAILURE, "Failed to post irecv in ghost exchange");
       }
@@ -5168,13 +5168,13 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
       // Send the buffer (size stored in front in send_buffer)
       result = send_buffer(*proc_it, localOwnedBuffs[p],
-                           MB_MESG_ENTS_SIZE, sendReqs[2*p],
-                           recv_ent_reqs[2*p + 1], &dum_ack_buff,
+                           MB_MESG_ENTS_SIZE, sendReqs[3*p],
+                           recv_ent_reqs[3*p + 2], &dum_ack_buff,
                            incoming1,
                            MB_MESG_REMOTEH_SIZE,
-                           (!is_iface && store_remote_handles ?
+                           (!is_iface && store_remote_handles ?  // this used for ghosting only
                             localOwnedBuffs[p] : NULL),
-                           &recv_remoteh_reqs[2*p], &incoming2);MB_CHK_SET_ERR(result, "Failed to Isend in ghost exchange");
+                           &recv_remoteh_reqs[3*p], &incoming2);MB_CHK_SET_ERR(result, "Failed to Isend in ghost exchange");
     }
 
     entprocs.reset();
@@ -5197,7 +5197,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       // b/c some procs may have sent to a 3rd proc ents owned by me;
       PRINT_DEBUG_WAITANY(recv_ent_reqs, MB_MESG_ENTS_SIZE, procConfig.proc_rank());
 
-      success = MPI_Waitany(2*buffProcs.size(), &recv_ent_reqs[0], &ind, &status);
+      success = MPI_Waitany(3*buffProcs.size(), &recv_ent_reqs[0], &ind, &status);
       if (MPI_SUCCESS != success) {
         MB_SET_ERR(MB_FAILURE, "Failed in waitany in ghost exchange");
       }
@@ -5209,17 +5209,20 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       bool done = false;
 
       // In case ind is for ack, we need index of one before it
-      unsigned int base_ind = 2*(ind/2);
+      unsigned int base_ind = 3*(ind/3);
       result = recv_buffer(MB_MESG_ENTS_SIZE,
                            status,
-                           remoteOwnedBuffs[ind/2],
-                           recv_ent_reqs[ind], recv_ent_reqs[ind + 1],
+                           remoteOwnedBuffs[ind/3],
+                           recv_ent_reqs[base_ind + 1],
+                           recv_ent_reqs[base_ind + 2],
                            incoming1,
-                           localOwnedBuffs[ind/2], sendReqs[base_ind], sendReqs[base_ind + 1],
+                           localOwnedBuffs[ind/3],
+                           sendReqs[base_ind + 1],
+                           sendReqs[base_ind + 2],
                            done,
                            (!is_iface && store_remote_handles ?
-                            localOwnedBuffs[ind/2] : NULL),
-                           MB_MESG_REMOTEH_SIZE,
+                            localOwnedBuffs[ind/3] : NULL),
+                           MB_MESG_REMOTEH_SIZE, // maybe base_ind+1?
                            &recv_remoteh_reqs[base_ind], &incoming2);MB_CHK_SET_ERR(result, "Failed to receive buffer");
 
       if (done) {
@@ -5229,43 +5232,43 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         }
 
         // Message completely received - process buffer that was sent
-        remoteOwnedBuffs[ind/2]->reset_ptr(sizeof(int));
-        result = unpack_entities(remoteOwnedBuffs[ind/2]->buff_ptr,
-                                 store_remote_handles, ind/2, is_iface,
+        remoteOwnedBuffs[ind/3]->reset_ptr(sizeof(int));
+        result = unpack_entities(remoteOwnedBuffs[ind/3]->buff_ptr,
+                                 store_remote_handles, ind/3, is_iface,
                                  L1hloc, L1hrem, L1p, L2hloc, L2hrem, L2p, new_ents);
         if (MB_SUCCESS != result) {
           std::cout << "Failed to unpack entities. Buffer contents:" << std::endl;
-          print_buffer(remoteOwnedBuffs[ind/2]->mem_ptr, MB_MESG_ENTS_SIZE, buffProcs[ind/2], false);
+          print_buffer(remoteOwnedBuffs[ind/3]->mem_ptr, MB_MESG_ENTS_SIZE, buffProcs[ind/3], false);
           return result;
         }
 
-        if (recv_ent_reqs.size() != 2*buffProcs.size()) {
+        if (recv_ent_reqs.size() != 3*buffProcs.size()) {
           // Post irecv's for remote handles from new proc; shouldn't be iface,
           // since we know about all procs we share with
           assert(!is_iface);
-          recv_remoteh_reqs.resize(2*buffProcs.size(), MPI_REQUEST_NULL);
-          for (unsigned int i = recv_ent_reqs.size(); i < 2*buffProcs.size(); i += 2) {
-            localOwnedBuffs[i/2]->reset_buffer();
+          recv_remoteh_reqs.resize(3*buffProcs.size(), MPI_REQUEST_NULL);
+          for (unsigned int i = recv_ent_reqs.size(); i < 3*buffProcs.size(); i += 3) {
+            localOwnedBuffs[i/3]->reset_buffer();
             incoming2++;
-            PRINT_DEBUG_IRECV(procConfig.proc_rank(), buffProcs[i/2],
-                              localOwnedBuffs[i/2]->mem_ptr, INITIAL_BUFF_SIZE,
+            PRINT_DEBUG_IRECV(procConfig.proc_rank(), buffProcs[i/3],
+                              localOwnedBuffs[i/3]->mem_ptr, INITIAL_BUFF_SIZE,
                               MB_MESG_REMOTEH_SIZE, incoming2);
-            success = MPI_Irecv(localOwnedBuffs[i/2]->mem_ptr, INITIAL_BUFF_SIZE,
-                                MPI_UNSIGNED_CHAR, buffProcs[i/2],
+            success = MPI_Irecv(localOwnedBuffs[i/3]->mem_ptr, INITIAL_BUFF_SIZE,
+                                MPI_UNSIGNED_CHAR, buffProcs[i/3],
                                 MB_MESG_REMOTEH_SIZE, procConfig.proc_comm(),
                                 &recv_remoteh_reqs[i]);
             if (success != MPI_SUCCESS) {
               MB_SET_ERR(MB_FAILURE, "Failed to post irecv for remote handles in ghost exchange");
             }
           }
-          recv_ent_reqs.resize(2*buffProcs.size(), MPI_REQUEST_NULL);
-          sendReqs.resize(2*buffProcs.size(), MPI_REQUEST_NULL);
+          recv_ent_reqs.resize(3*buffProcs.size(), MPI_REQUEST_NULL);
+          sendReqs.resize(3*buffProcs.size(), MPI_REQUEST_NULL);
         }
       }
     }
 
     // Add requests for any new addl procs
-    if (recv_ent_reqs.size() != 2*buffProcs.size()) {
+    if (recv_ent_reqs.size() != 3*buffProcs.size()) {
       // Shouldn't get here...
       MB_SET_ERR(MB_FAILURE, "Requests length doesn't match proc count in ghost exchange");
     }
@@ -5308,12 +5311,19 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
           success = MPI_Barrier(procConfig.proc_comm());
         }
         else {
-          MPI_Status mult_status[2*MAX_SHARING_PROCS];
-          success = MPI_Waitall(2*buffProcs.size(), &recv_ent_reqs[0], mult_status);
-          success = MPI_Waitall(2*buffProcs.size(), &sendReqs[0], mult_status);
-        }
-        if (MPI_SUCCESS != success) {
-          MB_SET_ERR(MB_FAILURE, "Failed in waitall in ghost exchange");
+          MPI_Status mult_status[3*MAX_SHARING_PROCS];
+          /*success = MPI_Waitall(3*buffProcs.size(), &recv_ent_reqs[0], mult_status);
+          if (MPI_SUCCESS != success) {
+            MB_SET_ERR(MB_FAILURE, "Failed in waitall in ghost exchange");
+          }*/
+          success = MPI_Waitall(3*buffProcs.size(), &sendReqs[0], mult_status);
+          if (MPI_SUCCESS != success) {
+            MB_SET_ERR(MB_FAILURE, "Failed in waitall in ghost exchange");
+          }
+          /*success = MPI_Waitall(3*buffProcs.size(), &recv_remoteh_reqs[0], mult_status);
+          if (MPI_SUCCESS != success) {
+            MB_SET_ERR(MB_FAILURE, "Failed in waitall in ghost exchange");
+          }*/
         }
       }
 
@@ -5343,7 +5353,8 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       }
       result = send_buffer(buffProcs[p], remoteOwnedBuffs[p],
                            MB_MESG_REMOTEH_SIZE,
-                           sendReqs[2*p], recv_remoteh_reqs[2*p + 1],
+                           sendReqs[3*p],
+                           recv_remoteh_reqs[3*p + 2],
                            &dum_ack_buff, incoming2);MB_CHK_SET_ERR(result, "Failed to send remote handles");
     }
 
@@ -5352,7 +5363,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     //===========================================
     while (incoming2) {
       PRINT_DEBUG_WAITANY(recv_remoteh_reqs, MB_MESG_REMOTEH_SIZE, procConfig.proc_rank());
-      success = MPI_Waitany(2*buffProcs.size(), &recv_remoteh_reqs[0], &ind, &status);
+      success = MPI_Waitany(3*buffProcs.size(), &recv_remoteh_reqs[0], &ind, &status);
       if (MPI_SUCCESS != success) {
         MB_SET_ERR(MB_FAILURE, "Failed in waitany in ghost exchange");
       }
@@ -5363,12 +5374,14 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       PRINT_DEBUG_RECD(status);
 
       bool done = false;
-      unsigned int base_ind = 2*(ind/2);
+      unsigned int base_ind = 3*(ind/3);
       result = recv_buffer(MB_MESG_REMOTEH_SIZE, status,
-                           localOwnedBuffs[ind/2],
-                           recv_remoteh_reqs[ind], recv_remoteh_reqs[ind + 1], incoming2,
-                           remoteOwnedBuffs[ind/2],
-                           sendReqs[base_ind], sendReqs[base_ind + 1],
+                           localOwnedBuffs[ind/3],
+                           recv_remoteh_reqs[base_ind+1],
+                           recv_remoteh_reqs[base_ind + 2], incoming2,
+                           remoteOwnedBuffs[ind/3],
+                           sendReqs[base_ind+1],
+                           sendReqs[base_ind + 2],
                            done);MB_CHK_SET_ERR(result, "Failed to receive remote handles");
       if (done) {
         // Incoming remote handles
@@ -5376,9 +5389,9 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
           msgs.resize(msgs.size() + 1);
           msgs.back() = new Buffer(*localOwnedBuffs[ind]);
         }
-        localOwnedBuffs[ind/2]->reset_ptr(sizeof(int));
-        result = unpack_remote_handles(buffProcs[ind/2],
-                                       localOwnedBuffs[ind/2]->buff_ptr,
+        localOwnedBuffs[ind/3]->reset_ptr(sizeof(int));
+        result = unpack_remote_handles(buffProcs[ind/3],
+                                       localOwnedBuffs[ind/3]->buff_ptr,
                                        L2hloc, L2hrem, L2p);MB_CHK_SET_ERR(result, "Failed to unpack remote handles");
       }
     }
@@ -5400,8 +5413,8 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       }
       else {
         MPI_Status mult_status[2*MAX_SHARING_PROCS];
-        success = MPI_Waitall(2*buffProcs.size(), &recv_remoteh_reqs[0], mult_status);
-        success = MPI_Waitall(2*buffProcs.size(), &sendReqs[0], mult_status);
+       /* success = MPI_Waitall(3*buffProcs.size(), &recv_remoteh_reqs[0], mult_status);*/
+        success = MPI_Waitall(3*buffProcs.size(), &sendReqs[0], mult_status);
       }
       if (MPI_SUCCESS != success) {
         MB_SET_ERR(MB_FAILURE, "Failed in waitall in ghost exchange");
