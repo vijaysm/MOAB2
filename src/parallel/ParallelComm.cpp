@@ -5115,6 +5115,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     // Index reqs the same as buffer/sharing procs indices
     std::vector<MPI_Request> recv_ent_reqs(3*buffProcs.size(), MPI_REQUEST_NULL),
       recv_remoteh_reqs(3*buffProcs.size(), MPI_REQUEST_NULL);
+    std::vector<MPI_Request> sendReqsRemote(3*buffProcs.size(), MPI_REQUEST_NULL);
     std::vector<unsigned int>::iterator proc_it;
     int ind, p;
     sendReqs.resize(3*buffProcs.size(), MPI_REQUEST_NULL);
@@ -5223,7 +5224,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                            (!is_iface && store_remote_handles ?
                             localOwnedBuffs[ind/3] : NULL),
                            MB_MESG_REMOTEH_SIZE, // maybe base_ind+1?
-                           &recv_remoteh_reqs[base_ind], &incoming2);MB_CHK_SET_ERR(result, "Failed to receive buffer");
+                           &recv_remoteh_reqs[base_ind+1], &incoming2);MB_CHK_SET_ERR(result, "Failed to receive buffer");
 
       if (done) {
         if (myDebug->get_verbosity() == 4) {
@@ -5353,7 +5354,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       }
       result = send_buffer(buffProcs[p], remoteOwnedBuffs[p],
                            MB_MESG_REMOTEH_SIZE,
-                           sendReqs[3*p],
+                           sendReqsRemote[3*p],
                            recv_remoteh_reqs[3*p + 2],
                            &dum_ack_buff, incoming2);MB_CHK_SET_ERR(result, "Failed to send remote handles");
     }
@@ -5380,8 +5381,8 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
                            recv_remoteh_reqs[base_ind+1],
                            recv_remoteh_reqs[base_ind + 2], incoming2,
                            remoteOwnedBuffs[ind/3],
-                           sendReqs[base_ind+1],
-                           sendReqs[base_ind + 2],
+                           sendReqsRemote[base_ind+1],
+                           sendReqsRemote[base_ind + 2],
                            done);MB_CHK_SET_ERR(result, "Failed to receive remote handles");
       if (done) {
         // Incoming remote handles
@@ -5413,8 +5414,8 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       }
       else {
         MPI_Status mult_status[3*MAX_SHARING_PROCS];
-       /* success = MPI_Waitall(3*buffProcs.size(), &recv_remoteh_reqs[0], mult_status);*/
-        success = MPI_Waitall(3*buffProcs.size(), &sendReqs[0], mult_status);
+        success = MPI_Waitall(3*buffProcs.size(), &recv_remoteh_reqs[0], mult_status);
+        success = MPI_Waitall(3*buffProcs.size(), &sendReqsRemote[0], mult_status);
       }
       if (MPI_SUCCESS != success) {
         MB_SET_ERR(MB_FAILURE, "Failed in waitall in ghost exchange");
@@ -5423,7 +5424,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
 #ifndef NDEBUG
     result = check_sent_ents(allsent);MB_CHK_SET_ERR(result, "Failed check on shared entities");
-    result = check_all_shared_handles(true);MB_CHK_SET_ERR(result, "Failed check on all shared handles");
+    //result = check_all_shared_handles(true);MB_CHK_SET_ERR(result, "Failed check on all shared handles");
 #endif
 
     if (file_set && !new_ents.empty()) {
