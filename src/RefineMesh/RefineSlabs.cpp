@@ -1344,7 +1344,7 @@ namespace moab{
 
     std::cout << slabs.size();
     std::cout << " slabs total." << std::endl;
-    std::cout slabs.size() - start_size << " new slabs, ";
+    std::cout << slabs.size() - start_size << " new slabs, ";
     if (tiny_slabs_OK)
       std::cout << " some could be tiny, a single star node. " << std::endl;
     else
