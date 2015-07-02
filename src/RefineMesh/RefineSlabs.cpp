@@ -119,6 +119,7 @@ namespace moab{
     use_ahf->get_up_adjacencies_vert_3d( node, hexes ); 
     // use_ahf->get_up_adjacencies( node, 3, hexes ); 
   }
+
   void RefineSlabs::get_all_quads( EntityHandle node, Entities &quads, bool is_coarse )
   {
     // debug
@@ -128,73 +129,6 @@ namespace moab{
     HalfFacetRep *use_ahf = (is_coarse) ? ahf : refinement_ahf;
     use_ahf->get_up_adjacencies_vert_2d( node, quads );
   }
-
-  // move to CN
-  int RefineSlabs::get_hex_edge_index( int head_index, int tail_index )
-  {
-    const int small_index = (head_index < tail_index) ? head_index : tail_index;
-    const int   big_index = (head_index < tail_index) ? tail_index : head_index;
-    switch (small_index)
-    {
-      case 0:
-      switch ( big_index )
-      {
-        case 1: return 0;
-        case 3: return 3;
-        case 4: return 4;
-        default: assert(0);
-      }
-      break;
-      case 1:
-      switch ( big_index )
-      {
-        case 2: return 1;
-        case 5: return 5;
-        default: assert(0);       
-      }
-      break;
-      case 2:
-      switch ( big_index )
-      {
-        case 3: return 2;
-        case 6: return 6;
-        default: assert(0);       
-      }
-      break;
-      case 3:
-      switch ( big_index )
-      {
-        case 7: return 7;
-        default: assert(0);       
-      }
-      break;
-      case 4:
-      switch ( big_index )
-      {
-        case 5: return 8;
-        case 7: return 11;
-        default: assert(0);       
-      }
-      break;
-      case 5:
-      switch ( big_index )
-      {
-        case 6: return 9;
-        default: assert(0);       
-      }
-      break;
-      case 6:
-      switch ( big_index )
-      {
-        case 7: return 10;
-        default: assert(0);       
-      }
-      break;
-      default : assert(0);
-    }
-    return -1;
-  }
-
 
     // given a SlabEdge (edge and vertex) of a hex, find the other two edges sharing that vertex
   void RefineSlabs::get_adj( const SlabEdge &edge, SlabEdge &adj1, SlabEdge &adj2 )
@@ -673,6 +607,13 @@ namespace moab{
   #else
   #define MOAB_RefineSlabs_inline
   #endif
+
+  MOAB_RefineSlabs_inline
+  int RefineSlabs::get_hex_edge_index( int a_index, int b_index )
+  {
+    // call function from AHF, see HalfFacetRef.hpp
+    return HalfFacetRep::lConnMap3D[MBHEX].lookup_leids[a_index][b_index];
+  }
 
   //==== SlabEntity methods
   MOAB_RefineSlabs_inline
@@ -1344,7 +1285,7 @@ namespace moab{
 
     std::cout << slabs.size();
     std::cout << " slabs total." << std::endl;
-    std::cout slabs.size() - start_size << " new slabs, ";
+    std::cout << (slabs.size() - start_size) << " new slabs, ";
     if (tiny_slabs_OK)
       std::cout << " some could be tiny, a single star node. " << std::endl;
     else

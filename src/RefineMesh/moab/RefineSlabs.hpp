@@ -328,7 +328,8 @@ namespace moab
     int decrement_edge_refinement_level(SlabEdges &slab_edges);
     // given a node of a hex, return which node it is. e.g. 0, 1, ...8
     int get_hex_node_index( EntityHandle hex, EntityHandle node );
-    int get_hex_edge_index( int head_index, int tail_index );
+    // given two local node indices, return the local index of the edge between them. Both are indices within a hex.
+    int get_hex_edge_index( int a_index, int b_index );
 
     // slab edge functions 
 
