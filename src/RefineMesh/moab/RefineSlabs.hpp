@@ -11,6 +11,7 @@
 #include <map>
 #include <set>
 // #include <unordered_map> // Scott Mitchell's mac compiler version doesn't seem to support this c++11 extention
+#include <deque>
 
 #include "moab/Range.hpp"
 #include "moab/HalfFacetRep.hpp"
@@ -47,16 +48,16 @@ namespace moab
       */
     // I considered also moab Range; here a vector seems better
 
-  protected:          
     typedef std::vector<EntityHandle> Entities;
+    typedef std::pair< EntityHandle, EntityHandle > NodePair;
+    typedef std::set< NodePair > EdgeSet;
+    typedef EdgeSet::iterator EdgeSetIterator;
+  protected:          
     typedef std::vector<Entities> EntitiesVec;
     typedef std::set<EntityHandle> EntitySet; 
     class SlabEdge;
     typedef std::vector< SlabEdge > SlabEdges;
 
-    typedef std::pair< EntityHandle, EntityHandle > NodePair;
-    typedef std::set< NodePair > EdgeSet;
-    typedef EdgeSet::iterator EdgeSetIterator;
     class Slab 
     {
     public:
@@ -68,6 +69,7 @@ namespace moab
       void add( SlabEdge &slab_edge );
 
 
+      bool empty() const;
       bool any_in_slab( const SlabEdges &slab_edges );
       bool get_in_slab( const SlabEdge &slab_edge );
       bool get_is_star( const EntityHandle node );
@@ -87,6 +89,12 @@ namespace moab
   public:
 
     ErrorCode refine_mesh(Entities &coarse_hexes, Entities &coarse_quads, Entities &fine_hexes, Entities &fine_quads);
+    ErrorCode refine_mesh(Entities &coarse_hexes, Entities &coarse_quads, Entities &fine_hexes, Entities &fine_quads, bool is_sweep_edge, NodePair &sweep_edge );
+
+    // for now, this is how we tell RefineSlabs which nodes are on the boundary of the geometry. 
+    // In the future, we may want to do something else. But since this is in MOAB, we don't have real geometry.
+    void register_boundary_nodes( Entities &surface_nodes, Entities &curve_nodes, Entities &vertex_nodes );
+
 
     // debug
     void register_entity_handles(EntityHandle *hexes, int num_hexes, EntityHandle *vertices, int num_vertices);
@@ -101,6 +109,9 @@ namespace moab
     // ======= data members
     Core *mbImpl;
     HalfFacetRep *ahf, *refinement_ahf;
+    int file_sequence;
+    std::map <EntityHandle, int > geometry_map; // map to dimension of owning geometry
+
     ErrorCode new_refinement_ahf( size_t num_hexes_memory_estimate );
 
     // debugging
@@ -123,8 +134,8 @@ namespace moab
     // If none are passed in, the surface mesh will not change.
     ErrorCode mark_surface_nodes(Entities &coarse_quads);
     // find all the slabs, subsets of coarse hexes, that will be pillowed one subset at a time.
-    ErrorCode find_slabs( Entities &coarse_hexes, Entities &coarse_quads, Slabs &slabs);
-    ErrorCode find_slabs_loc( Entities &coarse_hexes, Entities &coarse_quads, Slabs &slabs, bool tiny_slabs_OK );
+    ErrorCode find_slabs( Entities &coarse_hexes, Entities &coarse_quads, bool is_sweep_pair, NodePair &sweep_pair, Slabs &slabs);
+
     // pillow all the slabs    
     ErrorCode pillow_slabs( Slabs &slabs );
     // pillow an individual slab
@@ -175,6 +186,8 @@ namespace moab
       EntityHandle entity_handle;
 
     };
+    // todo cleanup: make NodePair a base class for SlabEdge, replacing head_node and tail_node
+    // upgrade constructor
     class SlabEdge : public SlabEntity
     {
     public:
@@ -203,6 +216,7 @@ namespace moab
       void assignment( const SlabEdge &copy_me );
     };
     void make_slab_edge( const NodePair &node_pair, SlabEdge &slab_edge );
+    void make_node_pair( const SlabEdge &slab_edge, NodePair &node_pair);
 
     // unused
     // class SlabQuad : public SlabEntity
@@ -222,8 +236,11 @@ namespace moab
 
     void delete_slabs( Slabs & slabs );
     void print_slab( const Slab & slab );
+    void print_slab( const EntitySet &star_nodes );
+  public:
     void print_slab( const Entities & slab_hexes );
     ErrorCode write_file_slab( Entities &slab_hexes, std::string fname = "slab", int fname_version = 0 );
+  protected:
 
     // data on how much a coarse hex is planning to be refined already
     // pointers between coarse and fine meshes
@@ -401,13 +418,21 @@ namespace moab
     // E.g. 3 if inside the volume, 2 if on its surface, 1 if on an edge of the surface, ...
     int get_geometry_dimension( EntityHandle entity_handle );
 
+    // building slabs
+    ErrorCode find_slabs_sweep( SlabEdge &sweep_edge, Slabs &slabs );
+    ErrorCode find_slabs_loc( Entities &coarse_hexes, Entities &coarse_quads, Slabs &slabs, bool tiny_slabs_OK );
+    // for getting good layers in the sweep direction
+    void enqueue_beyond_upper( std::deque< NodePair > &candidates, const EdgeSet &edge_set );
+    // recursively extend the slab
+    bool build_slab( SlabEdge &slab_edge, Slabs &slabs,  bool tiny_slabs_OK );
+
     // pick some unrefined edge of the hex to start growing a new slab
     bool find_seed_edge( EntityHandle hex, int &edge_lid, SlabEdge &slab_edge );
     void add_edge( SlabEdge &slab_edge, Slab &slab, SlabEdges &equivalent_edges, SlabEdges &equivalent_upper );
     // traverse the sheet outward from the slab edge, adding hexes to the slab
     void extend_slab( SlabEdge &slab_edge, Slab &slab );
     // after extending, check that the ortho edges of the slab are good, and remove redundant hexes from the slab
-    void finalize_slab( Slab &slab );
+    void finalize_slab( Slab &slab, bool tiny_slabs_OK );
     // True if the candidate slab_edge should be added to the slab? No if it is already refined, or already in the slab
     bool is_good_slab_edge( const SlabEdge &slab_edge, Slab &slab );
     //   this version passes back the ortho and parallel edges, iff the return value is true

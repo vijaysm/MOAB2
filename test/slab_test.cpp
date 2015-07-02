@@ -324,9 +324,33 @@ ErrorCode create_simple_mesh(Interface *mbImpl, EntityType type, int &which_mesh
   return MB_SUCCESS;
 }
 
+
+void list_block( Interface *mb, Range &range, int val )
+{
+  std::cout << "sets with tag value " << val << " are\n";
+  if (range.empty())
+    std::cout << " EMPTY." << std::endl;
+  else
+  {
+    mb->list_entities(range);
+  }
+}
+void block_range_to_vector( Interface *mb, Range &range, RefineSlabs::Entities &entities )
+{
+  if (range.empty())
+    return;
+  EntityHandle block_handle = *range.begin();
+  Range ent_range;
+  mb->get_entities_by_handle( block_handle, ent_range );
+  entities.assign( ent_range.begin(), ent_range.end() );
+}
+
+
 ErrorCode load_mesh(std::string fname, Interface *mb,
                     RefineSlabs::Entities &hexes, RefineSlabs::Entities &vertices, 
-                    RefineSlabs::Entities &coarse_hexes, RefineSlabs::Entities &coarse_quads )
+                    RefineSlabs::Entities &coarse_hexes, RefineSlabs::Entities &coarse_quads,
+                    RefineSlabs::Entities &surface_nodes, RefineSlabs::Entities &curve_nodes, RefineSlabs::Entities &vertex_nodes,
+                    bool &is_sweep_edge, RefineSlabs::NodePair &sweep_edge )
 {
   // Load the mesh from vtk file
   using namespace std;
@@ -346,49 +370,94 @@ ErrorCode load_mesh(std::string fname, Interface *mb,
   vertices.assign( verts.begin(), verts.end() );
 
   // parse material sets, which we use to define our refinement sets
+  // and the geometry boundary
 
   Tag mtag;
   rval=mb->tag_get_handle("MATERIAL_SET", mtag);MB_CHK_ERR(rval);
 
-  Range refine_hex_block;
   int val=1; // block 1 is the coarse_hexes
   void *vals[] = {&val};  
-  rval = mb->get_entities_by_type_and_tag(0, MBENTITYSET, 
-                                            &mtag, vals, 1, 
-                                            refine_hex_block, 1, false);
-
+  Range refine_hex_block;
+  rval = mb->get_entities_by_type_and_tag(0, MBENTITYSET, &mtag, vals, 1, refine_hex_block, 1, false);
   std::cout << "Refinement hexes, ";
-  std::cout << "sets with material set tag value " << val << " are\n";
-  if (refine_hex_block.empty())
-    std::cout << " EMPTY." << std::endl;
-  else
-  {
-    mb->list_entities(refine_hex_block);
-    // transfer contents of block to coarse_hexes
-    EntityHandle hblock_handle = *refine_hex_block.begin();
-    Range refine_hexes;
-    mb->get_entities_by_handle( hblock_handle, refine_hexes );
-    coarse_hexes.assign( refine_hexes.begin(), refine_hexes.end() );
-  } 
+  list_block( mb, refine_hex_block, val );
+  block_range_to_vector( mb, refine_hex_block, coarse_hexes );
 
-  Range refine_quad_block;
   val = 2; // block 2 is the coarse_quads
-  rval = mb->get_entities_by_type_and_tag(0, MBENTITYSET, 
-                                            &mtag, vals, 1, 
-                                            refine_quad_block, 1, false);
+  Range refine_quad_block;
+  rval = mb->get_entities_by_type_and_tag(0, MBENTITYSET, &mtag, vals, 1, refine_quad_block, 1, false);
   std::cout << "Refinement quads, ";
-  std::cout << "sets with material set tag value " << val << " are\n";
-  if (refine_quad_block.empty())
-    std::cout << " EMPTY." << std::endl;
-  else
+  list_block( mb, refine_quad_block, val );
+  block_range_to_vector( mb, refine_quad_block, coarse_quads );
+
+  // // get all Dirichlet sets
+  // dsets.clear();  
+  // rval = mb->get_entities_by_type_and_tag(0, MBENTITYSET, &dtag, 0, 1, dsets, 1, false);
+  // std::cout << "sets with dirichlet set tags are\n";
+  // mb->list_entities(dsets);
+
+  // get a Dirichlet set == cubit's node set  
+  Tag dtag;
+  rval=mb->tag_get_handle("DIRICHLET_SET", dtag);MB_CHK_ERR(rval);
+
+  // example
+  // Range dsets;
+  // rval = mb->get_entities_by_type_and_tag(0, MBENTITYSET, &dtag, vals, 1, dsets, 1, false);
+  // std::cout << "sets with Dirichlet set (node set) tag value " << val << " are\n";
+  // mb->list_entities(dsets);
+
+  
+  val = 10; // block 10 is the nodes on vertices 
+  Range vertex_nodes_range;
+  rval = mb->get_entities_by_type_and_tag(0, MBENTITYSET, &dtag, vals, 1, vertex_nodes_range, 1, false);
+  std::cout << "Vertex nodes, ";
+  list_block( mb, vertex_nodes_range, val );
+  block_range_to_vector( mb, vertex_nodes_range, vertex_nodes );
+
+  val = 11; // block 11 is the nodes on vertices 
+  Range curve_nodes_range;
+  rval = mb->get_entities_by_type_and_tag(0, MBENTITYSET, &dtag, vals, 1, curve_nodes_range, 1, false);
+  std::cout << "Curve nodes, ";
+  list_block( mb, curve_nodes_range, val );
+  block_range_to_vector( mb, curve_nodes_range, curve_nodes );
+
+  val = 12; // block 12 is the nodes on vertices 
+  Range surface_nodes_range;
+  rval = mb->get_entities_by_type_and_tag(0, MBENTITYSET, &dtag, vals, 1, surface_nodes_range, 1, false);
+  std::cout << "Surface nodes, ";
+  list_block( mb, surface_nodes_range, val );
+  block_range_to_vector( mb, surface_nodes_range, surface_nodes );
+
+
+  val = 20; // block 20 is the head node of a sweep-direction edge 
+  is_sweep_edge = false;
+  Range head_nodes_range;
+  RefineSlabs::Entities head_nodes;
+  rval = mb->get_entities_by_type_and_tag(0, MBENTITYSET, &dtag, vals, 1, head_nodes_range, 1, false);
+  std::cout << "Head node, ";
+  list_block( mb, head_nodes_range, val );
+  block_range_to_vector( mb, head_nodes_range, head_nodes );
+  if ( head_nodes.size() == 1 )
   {
-    mb->list_entities(refine_quad_block);
-    // transfer contents of block to coarse_hexes
-    EntityHandle qblock_handle = *refine_quad_block.begin();
-    Range refine_quads;
-    mb->get_entities_by_handle( qblock_handle, refine_quads );
-    coarse_quads.assign( refine_quads.begin(), refine_quads.end() );
+    EntityHandle head_node = head_nodes.front();
+
+    val = 21; // block 21 is the tail node of a sweep-direction edge 
+      Range tail_nodes_range;
+    RefineSlabs::Entities tail_nodes;
+    rval = mb->get_entities_by_type_and_tag(0, MBENTITYSET, &dtag, vals, 1, tail_nodes_range, 1, false);
+    std::cout << "Tail node, ";
+    list_block( mb, tail_nodes_range, val );
+    block_range_to_vector( mb, tail_nodes_range, tail_nodes );
+    if ( tail_nodes.size() == 1 )
+    {
+      EntityHandle tail_node = tail_nodes.front();
+      sweep_edge.first = head_node;
+      sweep_edge.second = tail_node;
+      is_sweep_edge = true;
+    }
   }
+
+
 
   return rval;
 }
@@ -401,8 +470,11 @@ ErrorCode test_C()
   Interface* mbImpl = &mb;
 
   // load a mesh
-  RefineSlabs::Entities hexes, vertices, coarse_hexes, coarse_quads;
-  error = load_mesh("amesh.exo", mbImpl, hexes, vertices, coarse_hexes, coarse_quads ); 
+  RefineSlabs::Entities hexes, vertices, coarse_hexes, coarse_quads, surface_nodes, curve_nodes, vertex_nodes;
+  bool is_sweep_edge;
+  RefineSlabs::NodePair sweep_edge;
+
+  error = load_mesh("amesh.exo", mbImpl, hexes, vertices, coarse_hexes, coarse_quads, surface_nodes, curve_nodes, vertex_nodes, is_sweep_edge, sweep_edge ); 
   if (error != MB_SUCCESS) return error;
   std::cout<<"Loaded mesh successfully"<<std::endl;
 
@@ -411,10 +483,12 @@ ErrorCode test_C()
   RefineSlabs::Entities fine_hexes, fine_quads;
 
   refine_slabs.register_entity_handles( &hexes[0], hexes.size(), &vertices[0], vertices.size() );
+  refine_slabs.register_boundary_nodes( surface_nodes, curve_nodes, vertex_nodes );
+
   // write it out again to be sure we read it correctly
   refine_slabs.write_file_slab( hexes, "entire_mesh" );
 
-  error = refine_slabs.refine_mesh(coarse_hexes, coarse_quads, fine_hexes, fine_quads); CHECK_ERR(error);
+  error = refine_slabs.refine_mesh(coarse_hexes, coarse_quads, fine_hexes, fine_quads, is_sweep_edge, sweep_edge); CHECK_ERR(error);
 
   return MB_SUCCESS;
 }

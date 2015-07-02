@@ -45,9 +45,15 @@ namespace moab{
 
   // get the dimension of the geometric object that this mesh entity lies on
   // E.g. 3 if inside the volume, 2 if on its surface, 1 if on an edge of the surface, ...
-  int RefineSlabs::get_geometry_dimension( EntityHandle /*entity_handle*/ )
+  int RefineSlabs::get_geometry_dimension( EntityHandle entity_handle )
   {
-    return 3; // zzyk AHF or MOAB or CGM todo
+    // geometry_map[ entity_handle ] == dimension
+    // auto it = 
+    std::map< EntityHandle, int >::iterator 
+    it = geometry_map.find( entity_handle );
+    if ( it == geometry_map.end() )
+      return 3; 
+    return it->second;
   }
 
   ErrorCode RefineSlabs::create_node( EntityHandle node, EntityHandle &new_node )
@@ -804,6 +810,12 @@ namespace moab{
       assert( new_val_check == -999 || new_val == new_val_check );
       new_val_check = new_val;
     }
+    //debug
+    if (!slab_edges.empty())
+    {
+      std::cout << "++edge " << slab_edges[0].head_node << ":" << slab_edges[0].tail_node << " refinement " << new_val << ". ";
+      std::cout.flush();
+    }
     return new_val;
   }
   MOAB_RefineSlabs_inline
@@ -815,6 +827,12 @@ namespace moab{
       new_val = --(force_hex_refinement(slab_edges[i].hex)->edge_refinement_level[slab_edges[i].edge_lid]); 
       assert( new_val_check == 999 || new_val == new_val_check );
       new_val_check = new_val;
+    }
+    //debug
+    if (!slab_edges.empty())
+    {
+      std::cout << "--edge " << slab_edges[0].head_node << ":" << slab_edges[0].tail_node << " refinement " << new_val << ". ";
+      std::cout.flush();
     }
     return new_val;
   }
@@ -944,10 +962,18 @@ namespace moab{
     }
   }
 
+
   // ========================================================
   // Main (non-trivial) RefineSlabs functions
 
-  RefineSlabs::RefineSlabs(Core *impl)
+  ErrorCode RefineSlabs::refine_mesh(Entities &coarse_hexes, Entities &coarse_quads, Entities &fine_hexes, Entities &fine_quads)
+  {
+    bool is_sweep_edge = false;
+    NodePair sweep_edge;
+    return refine_mesh(coarse_hexes, coarse_quads, fine_hexes, fine_quads, is_sweep_edge, sweep_edge );
+  }
+
+  RefineSlabs::RefineSlabs(Core *impl) : file_sequence(0)
   {
     assert(NULL != impl);
     mbImpl = impl;
@@ -1020,7 +1046,7 @@ namespace moab{
    *     Interface Functions                                  *
    ************************************************************/
 
-  ErrorCode RefineSlabs::refine_mesh(Entities &coarse_hexes, Entities &coarse_quads, Entities &fine_hexes, Entities &fine_quads)
+  ErrorCode RefineSlabs::refine_mesh(Entities &coarse_hexes, Entities &coarse_quads, Entities &fine_hexes, Entities &fine_quads, bool is_sweep_edge, NodePair &sweep_edge )
   {
     std::cout << "RefineSlabs::refine_mesh, set of " << coarse_hexes.size() << " hexes" << std::endl;
     write_file_slab( coarse_hexes, "refinement_set" );
@@ -1038,7 +1064,7 @@ namespace moab{
     // do a second pass, allowing one-star nodes
     Slabs slabs;
     if (err == MB_SUCCESS)
-      err = find_slabs( coarse_hexes, coarse_quads,  slabs );
+      err = find_slabs( coarse_hexes, coarse_quads, is_sweep_edge, sweep_edge, slabs );
 
     // initialize refinement
     if (err == MB_SUCCESS)
@@ -1069,19 +1095,129 @@ namespace moab{
     slabs.clear();
   }
 
-  ErrorCode RefineSlabs::find_slabs(Entities &coarse_hexes, Entities &coarse_quads, Slabs &slabs )
+  ErrorCode RefineSlabs::find_slabs(Entities &coarse_hexes, Entities &coarse_quads, bool is_sweep_pair, NodePair &sweep_pair, Slabs &slabs )
   {
+    // Slab order strategy:
+    //
+    // start perpendicular to sweep direction, if specified
+    //
     // search for creases
     // search for caps
+    //   march outward from existing seed edges
+    //
     // search for large spots
     // search for remaining small spots
+    
+    // rules:
+    // march by 2 edges in seed edge direction, to avoid jumping around and leaving even-sized gaps of nodes that won't be pillowed
+
+
+    // debug
+    std::cout << "find_slabs_loc round 1, sweep directions" << std::endl;
+    // todo, geometric reasoning to find these, based on caps or somesuch, rather than passed in
+    if (is_sweep_pair)
+    {
+      SlabEdge sweep_edge;
+      make_slab_edge( sweep_pair, sweep_edge );
+      find_slabs_sweep( sweep_edge, slabs );
+    }
+    else
+      std::cout << "skipping sweep" << std::endl;
+    
+    // debug 
+    std::cout << "find_slabs_loc round 2, all edges, no tiny" << std::endl;
+
     ErrorCode 
       err = find_slabs_loc( coarse_hexes, coarse_quads,  slabs, false );
+
     if (err == MB_SUCCESS)
+    {
+      // debug 
+      std::cout << "find_slabs_loc round 3, all edges, tiny ok" << std::endl;
+
       err = find_slabs_loc( coarse_hexes, coarse_quads,  slabs, true );
+    }
     return err;
   }
+  
+  ErrorCode RefineSlabs::find_slabs_sweep( SlabEdge &sweep_edge, Slabs &slabs )
+  {
+    // debug
+    size_t start_size = slabs.size();
+    
+    std::deque< NodePair > candidates;
+    NodePair node_pair;
+    make_node_pair( sweep_edge, node_pair );
+    candidates.push_back( node_pair );
+    
+    while ( !candidates.empty() )
+    {
+      
+      // pop
+      SlabEdge slab_edge;
+      make_slab_edge( candidates.front(), slab_edge );
+      candidates.pop_front();
 
+      bool is_new_slab = build_slab( slab_edge, slabs, false );
+      
+      // enqueue the beyond-upper edges,
+      // including marching from the one used in a failed attempt to build the slab
+      if ( is_new_slab )
+      {
+        assert( !slabs.empty() );
+        Slab *new_slab = slabs.back();
+        enqueue_beyond_upper(candidates, new_slab->edge_set );
+      }
+      else
+      {
+        EdgeSet edge_set;
+        edge_set.insert( NodePair( slab_edge.head_node, slab_edge.tail_node ) );
+        enqueue_beyond_upper(candidates, edge_set );
+      }
+    }
+    
+    // debug
+    size_t end_size = slabs.size();
+    std::cout << (end_size - start_size) << " sweep slabs created: ";
+    if ( end_size > start_size )
+      std::cout << start_size << " to " << end_size - 1;
+    std::cout << std::endl;
+    
+    return MB_SUCCESS;
+  }
+
+  // this only makes sense in the structured sweep direction, structured map direction. It may be at odds with finding creases.
+  void RefineSlabs::enqueue_beyond_upper( std::deque< NodePair > &candidates, const EdgeSet &edge_set )
+  {
+    for (EdgeSet::const_iterator i = edge_set.begin(); i != edge_set.end(); ++i )
+    {
+      SlabEdge slab_edge;
+      make_slab_edge( *i, slab_edge );
+
+      // find_beyond_upper
+      SlabEdges ortho, upper, parallel, equivalent, equivalent_upper;
+      get_adjacent_slab_edges( slab_edge, ortho, upper, parallel, equivalent, equivalent_upper );
+
+      assert( upper.size() < 2 ); // remove assert if we want to experiment with unstructured sets
+      for ( size_t u = 0; u < upper.size(); ++u )
+      {
+        SlabEdge up = upper[u];
+        up.flip();
+        SlabEdges uortho, uupper, uparallel, uequivalent, uequivalent_upper;
+        get_adjacent_slab_edges( up, uortho, uupper, uparallel, uequivalent, uequivalent_upper );
+        assert( uupper.size() < 2 ); // remove assert if we want to experiment with unstructured sets
+        for ( size_t uu = 0; uu < uupper.size(); ++uu )
+        {
+          SlabEdge upup = uupper[uu];
+          upup.flip();
+          NodePair upup_pair;
+          make_node_pair( upup, upup_pair );
+          candidates.push_back( upup_pair );
+        }
+      }
+    }
+  }
+  
   ErrorCode RefineSlabs::initialize_refinement( Entities &coarse_hexes, Entities &/*coarse_quads*/ )
   {
 
@@ -1156,48 +1292,71 @@ namespace moab{
     }
     return MB_SUCCESS;
   }
+  
+  bool RefineSlabs::build_slab( SlabEdge &slab_edge, Slabs &slabs,  bool tiny_slabs_OK )
+  {
+    // recursively extend the slab
+    // the passed in slab_edge starts the queue
+    Slab* slab = new Slab();
+    slab->reset();
+    
+    extend_slab( slab_edge, *slab);
+    
+    finalize_slab( *slab, tiny_slabs_OK );
+    
+    // debug
+    std::cout << "slab file # " << slabs.size() + 2 << std::endl;
+    print_slab( *slab );
+    Entities hexes;
+    get_pillow_hexes( *slab, hexes );
+    write_file_slab( hexes, "slab", hexes.size() );
+    
+    
+    if ( slab->empty() )
+    {
+      delete slab;
+      return false;
+    }
+    //else
+    slabs.push_back( slab );
+    return true;
+  }
+
 
   ErrorCode RefineSlabs::find_slabs_loc( Entities &coarse_hexes, Entities &/*coarse_quads*/, Slabs &slabs, bool tiny_slabs_OK )
   {
+    size_t start_size = slabs.size();
+    
     for ( size_t c = 0; c < coarse_hexes.size(); ++c )
     {
       EntityHandle hex = coarse_hexes[c];
       SlabEdge slab_edge;
       for (int edge_lid = 0; edge_lid < 12; ++edge_lid)
       {
-        // find a seed edge, then
-        // recursively extend the slab
-        // find_seed_edge may increment edge_lid until a good one is found, or 12 is reached
+        // find a seed edge, then recursively extend
+        //   find_seed_edge may increment edge_lid until a good one is found, or 12 is reached
         if ( find_seed_edge( hex, edge_lid, slab_edge ) )
         {
-          Slab* slab = new Slab();
-          slab->reset();
-
-          extend_slab( slab_edge, *slab);
-
-          finalize_slab( *slab );
-
-          // avoid very small slabs, say with one star node
-          if ( !tiny_slabs_OK && slab->star_nodes.size() < 2 )
-          {
-            // zzyk 
-            // decrement refinement levels
-            // discard
-            delete slab;
-          }
-          else
-            slabs.push_back( slab );          
+          build_slab( slab_edge, slabs, tiny_slabs_OK );
         }
       }
     }
 
     std::cout << slabs.size();
-    if (tiny_slabs_OK) 
-      std::cout << " slabs total." << std::endl;
+    std::cout << " slabs total." << std::endl;
+    std::cout slabs.size() - start_size << " new slabs, ";
+    if (tiny_slabs_OK)
+      std::cout << " some could be tiny, a single star node. " << std::endl;
     else
-      std::cout << " big slabs." << std::endl;
+      std::cout << " all big > 1 star node." << std::endl;
 
     return MB_SUCCESS;
+  }
+
+  void RefineSlabs::make_node_pair( const SlabEdge &slab_edge, NodePair &node_pair )
+  {
+    node_pair.first = slab_edge.head_node;
+    node_pair.second = slab_edge.tail_node;
   }
 
   void RefineSlabs::make_slab_edge( const NodePair &node_pair, SlabEdge &slab_edge ) 
@@ -1223,7 +1382,7 @@ namespace moab{
     assert(0);
   }
 
-  void RefineSlabs::finalize_slab( Slab &slab )
+  void RefineSlabs::finalize_slab( Slab &slab, bool tiny_slabs_OK )
   {
     // if any non-internal ortho edge is already refined, take its hexes out of the set
     // beware creating strange, non-convex sets
@@ -1240,15 +1399,20 @@ namespace moab{
         make_slab_edge( *e, slab_edge );
         get_adjacent_slab_edges( slab_edge, ortho, upper, parallel, equivalent, equivalent_upper );
         bool remove_me = false;
-        for ( SlabEdges::iterator o = ortho.begin(); o != ortho.end(); ++o )
         {
-          EntityHandle other_node = o->tail_node;
-          assert( other_node != head_node && o->head_node == head_node );
-          if ( !slab.get_is_star( other_node ) && get_edge_refinement_level( *o ) > 1) //zzyk should this be 0 or 1?
+          for ( SlabEdges::iterator o = ortho.begin(); o != ortho.end(); ++o )
           {
-            remove_me = true;
-            recheck = true;
-            break;
+            EntityHandle other_node = o->tail_node;
+            assert( other_node != head_node && o->head_node == head_node );
+            // debug
+            // std::cout << " is star " << slab.get_is_star( other_node ) << " refinement level " << get_edge_refinement_level( *o ) << std::endl;
+            
+            if ( !slab.get_is_star( other_node ) && get_edge_refinement_level( *o ) > 1) //zzyk should this be 0 or 1?
+            {
+              remove_me = true;
+              recheck = true;
+              break;
+            }
           }
         }
         if (remove_me)
@@ -1258,11 +1422,44 @@ namespace moab{
           // decrement edge refinement levels
           decrement_edge_refinement_level( equivalent );
           decrement_edge_refinement_level( equivalent_upper );
+
+          // I haven't incremented the ortho edge refinement levels, so I don't need to increment them
         }
         else
           e++;
       }
     }
+
+    // additional checks
+    bool delete_me = false; 
+
+    // avoid very small slabs, say with one star node
+    if ( !tiny_slabs_OK && slab.star_nodes.size() < 2 )
+    {
+      delete_me = true;
+    }
+
+    // discard the slab
+    if ( delete_me )
+    {
+      // delete the whole thing
+      for ( EdgeSetIterator e = slab.edge_set.begin(); e != slab.edge_set.end(); /*no increment*/ )
+      {
+        EntityHandle head_node = e->first;
+        assert( slab.get_is_star( head_node ) );
+        SlabEdge slab_edge;
+        make_slab_edge( *e, slab_edge );
+        get_adjacent_slab_edges( slab_edge, ortho, upper, parallel, equivalent, equivalent_upper );
+        slab.edge_set.erase( e++ );
+        slab.set_is_star( head_node, false );
+        // decrement edge refinement levels
+        decrement_edge_refinement_level( equivalent );
+        decrement_edge_refinement_level( equivalent_upper );
+      }
+      return;
+    }
+
+          // I haven't incremented the ortho edge refinement levels, so I don't need to increment them
 
     // increment the refinement level of the non-internal ortho edges
     {
@@ -1287,11 +1484,6 @@ namespace moab{
       }
     }
 
-    // debug
-    print_slab( slab );
-    Entities hexes;
-    get_pillow_hexes( slab, hexes );
-    write_file_slab( hexes, "slab", hexes.size() );
   }
 
 
@@ -1305,7 +1497,7 @@ namespace moab{
     //      enqueue the parallel edges 
 
     // enqueue passed-in edge
-    SlabEdges edge_queue;
+    SlabEdges edge_queue; //todo replace with deque ?
     edge_queue.push_back(slab_edge);
 
     SlabEdges ortho, upper, parallel, equivalent_edges, equivalent_upper;
@@ -1354,7 +1546,11 @@ namespace moab{
     set_is_star( star_node, true );
   }
 
-
+  bool RefineSlabs::Slab::empty() const
+  {
+    assert( star_nodes.size() == edge_set.size() );
+    return star_nodes.empty();
+  }
 
 
   bool RefineSlabs::find_seed_edge( EntityHandle hex, int &edge_lid, SlabEdge &slab_edge )
@@ -1362,6 +1558,9 @@ namespace moab{
     // caller sets initial value of edge_lid
     for ( /*caller initializes edge_lid*/; edge_lid < 12; ++edge_lid)
     {
+      if ( hex == EntityHandle(10376293541461622811ul) && edge_lid == 2 )
+        std::cout << " special edge " << std::endl;
+      
       bool good_edge = 
         is_good_seed_edge( hex, edge_lid, 0, slab_edge ) ||
         is_good_seed_edge( hex, edge_lid, 1, slab_edge );
@@ -1387,22 +1586,23 @@ namespace moab{
     equivalent.clear();
     equivalent_upper.clear();
 
-    // skip if head is already in the current set
-    if ( slab.get_is_star( slab_edge.head_node) )
-      return false;    
-    // skip if we've a twisted sheet and the tail is a star node
-    if ( slab.get_is_star( slab_edge.tail_node ) )
+    if 
+    ( 
+      // skip if head is already in the current set
+      slab.get_is_star( slab_edge.head_node) || 
 
-    // skip if head is on the boundary of the refinement set (or outside, but it shouldn't be outside)
-    if ( get_membership( slab_edge.head_node ) != SlabData::INTERNAL )
-      return false;
+      // skip if we've a twisted sheet and the tail is a star node
+      slab.get_is_star( slab_edge.tail_node ) ||
 
-    // skip if edge has already been refined,
-    if (get_edge_refinement_level(slab_edge) > 0)
-      return false;
+      // skip if head is on the boundary of the refinement set (or outside, but it shouldn't be outside)
+      get_membership( slab_edge.head_node ) != SlabData::INTERNAL ||
 
-    // skip if vertex is on the boundary of the geometric volume
-    if ( get_geometry_dimension( slab_edge.head_node ) < 3)
+      // skip if edge has already been refined,
+      get_edge_refinement_level(slab_edge) > 0 || 
+
+      // skip if vertex is on the boundary of the geometric volume
+      get_geometry_dimension( slab_edge.head_node ) < 3
+    )
       return false;
 
     get_adjacent_slab_edges( slab_edge, ortho, upper, parallel, equivalent, equivalent_upper );
@@ -1575,7 +1775,11 @@ namespace moab{
       {
         // should we also require directions to match?
         if ( !edges[i].directions_match( edge ) )
-          std::cout << "SlabEdge nodes match, but not their directions" << std::endl; // zzyk this shouldn't happen, because the caller is careful to orient them the same way
+        {
+          // this shouldn't happen, because the caller is careful to orient them the same way
+          std::cout << "SlabEdge nodes match, but not their directions" << std::endl; 
+          assert(0);
+        }
         return false;
       }
     }
@@ -1925,7 +2129,7 @@ namespace moab{
     }
 
     // mark selected nodes as being on the boundary of the refinement hex set
-    // a node is internal iff all its hexes are in the set.
+    // a node is internal iff all its hexes are in the set, and the node is internal to the geometric volume
     // geometric-surface nodes are marked as on the boundary in mark_surface_nodes
     for (size_t i = 0; i < coarse_hexes.size(); ++i)
     {
@@ -2103,6 +2307,16 @@ namespace moab{
     }
   }
 
+  void RefineSlabs::register_boundary_nodes( Entities &surface_nodes, Entities &curve_nodes, Entities &vertex_nodes )
+  {
+    for ( size_t i = 0; i < surface_nodes.size(); ++i )
+      geometry_map[ surface_nodes[i] ] = 2;
+    for ( size_t i = 0; i < curve_nodes.size(); ++i )
+      geometry_map[ curve_nodes[i] ] = 1;
+    for ( size_t i = 0; i < vertex_nodes.size(); ++i )
+      geometry_map[ vertex_nodes[i] ] = 0;
+  }
+
 
   void RefineSlabs::register_entity_handles(EntityHandle *hexes, int num_hexes, EntityHandle *vertices, int num_vertices)
   {
@@ -2161,14 +2375,27 @@ namespace moab{
     Entities hexes;
     get_pillow_hexes( slab, hexes );
     print_slab( hexes );
+    print_slab( slab.star_nodes );
+    std::cout << std::endl;
+  }
+  void RefineSlabs::print_slab( const EntitySet &star_nodes )
+  {
+    using namespace std;
+    cout << "Slab with " << star_nodes.size() << " star_nodes: ";
+    for ( EntitySet::const_iterator i = star_nodes.begin(); i != star_nodes.end(); ++i )
+    {
+      cout << mbImpl->id_from_handle( *i ) << " ";
+    }
+    cout << endl;
   }
   void RefineSlabs::print_slab( const Entities & slab_hexes )
   {
     using namespace std;
-    cout << endl << "Slab with " << slab_hexes.size() << " hexes: ";
+    cout << "Slab with " << slab_hexes.size() << " hexes: ";
     for ( size_t i = 0; i < slab_hexes.size(); ++i )
     {
-      cout << slab_hexes[i] << " ";
+      cout << mbImpl->id_from_handle(slab_hexes[i]) << " ";
+      // cout << slab_hexes[i] << " ";
     }
     cout << endl;
   }
@@ -2186,9 +2413,12 @@ namespace moab{
     //                               const Tag* tag_list = 0,
     //                               int num_tags = 0 ) = 0;
 
+    if ( slab_hexes.empty() )
+      return MB_SUCCESS;
+
     using namespace std;
 
-    const bool write_vtk(true);
+    const bool write_vtk(false);
     const bool write_exo(true);
 
     // Get MOAB instance
@@ -2196,8 +2426,12 @@ namespace moab{
 
     // file name
     stringstream ss;
-    ss << fname_version;
-    fname += ss.str();
+    if ( file_sequence < 10 )
+      ss << 0;
+    ss << file_sequence++ << "_";
+    stringstream ss2;
+      ss2 << "_" << fname_version;
+    fname = ss.str() + fname + ss2.str();
 
     // entity handle to a set of mesh elements?
     EntityHandle newSet;
