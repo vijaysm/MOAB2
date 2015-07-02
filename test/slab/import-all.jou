@@ -1,0 +1,51 @@
+import mesh geom '00*'
+import mesh geom '01*'
+import mesh geom '02*'
+import mesh geom '03*'
+import mesh geom '04*'
+import mesh geom '05*'
+import mesh geom '06*'
+import mesh geom '07*'
+import mesh geom '08*'
+import mesh geom '09*'
+
+import mesh geom '10*'
+import mesh geom '11*'
+import mesh geom '12*'
+import mesh geom '13*'
+import mesh geom '14*'
+import mesh geom '15*'
+import mesh geom '16*'
+import mesh geom '17*'
+import mesh geom '18*'
+import mesh geom '19*'
+
+import mesh geom '20*'
+import mesh geom '21*'
+import mesh geom '22*'
+import mesh geom '23*'
+import mesh geom '24*'
+import mesh geom '25*'
+import mesh geom '26*'
+import mesh geom '27*'
+import mesh geom '28*'
+import mesh geom '29*'
+
+import mesh geom '30*'
+import mesh geom '31*'
+import mesh geom '32*'
+import mesh geom '33*'
+import mesh geom '34*'
+import mesh geom '35*'
+import mesh geom '36*'
+import mesh geom '37*'
+import mesh geom '38*'
+import mesh geom '39*'
+
+list body
+# refinement set
+draw body 100
+highlight body 1
+
+# draw body 100
+# highlight body 2

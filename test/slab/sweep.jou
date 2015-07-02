@@ -1,0 +1,34 @@
+
+# make swept mesh
+cylinder rad 10 height 20
+surf 3 scheme pave
+vol 1 int 20
+surf 3 int 60
+mesh vol 1
+draw hex 1 to 170
+block 1 hex 1 to 170
+list block 1
+block 100 hex all
+
+
+# groups 
+# surfaces have nodes that aren't in any curve or vertex, etc.
+group 'surfnodes' equals node in surf all
+group 'curvenodes' equals node in curve all 
+group 'vertexnodes' equals node in vertex all
+group surfnodes subtract curvenodes from surfnodes
+group curvenodes subtract vertexnodes from curvenodes
+nodeset 10 node in vertexnodes
+nodeset 11 node in curvenodes
+nodeset 12 node in surfnodes
+
+# add a sweep seed edge
+# head
+nodeset 20 node 1379
+# tail
+nodeset 21 node  39
+
+
+export mesh 'sweep-nodesets.exo'
+
+
