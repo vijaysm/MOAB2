@@ -45,7 +45,8 @@ examples_DATA = examples/HelloParMOAB.cpp \
                 examples/point_in_elem_search.cpp \
                 examples/structuredmesh.cpp \
                 examples/SetsNTags.cpp \
-                examples/UniformRefinement.cpp
+                examples/UniformRefinement.cpp \
+                examples/makefile
 
 EXTRA_DIST = $(doc_DATA) $(examples_DATA)
 
