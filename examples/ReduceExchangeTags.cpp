@@ -25,9 +25,12 @@
  *
  */
 
+#include "moab/Core.hpp"
+#ifndef MOAB_HAVE_MPI
+#error Example needs MOAB installation configured with MPI
+#endif
 #include "moab/ParallelComm.hpp"
 #include "MBParallelConventions.h"
-#include "moab/Core.hpp"
 #include <iostream>
 #include <string>
 #include <sstream>

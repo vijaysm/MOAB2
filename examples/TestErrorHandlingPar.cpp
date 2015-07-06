@@ -5,7 +5,7 @@
  */
 
 #include "moab/Core.hpp"
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab_mpi.h"
 #endif
 
@@ -22,7 +22,7 @@ ErrorCode TestErrorHandlingPar_1()
   Interface& mb = moab;
 
   string opts = ";;";
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   // Use parallel options
   opts += "PARALLEL=READ_PART;PARTITION_METHOD=SQIJ";
 #endif
@@ -43,7 +43,7 @@ ErrorCode TestErrorHandlingPar_2()
   Interface& mb = moab;
 
   string opts = ";;";
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   // Use parallel options
   opts += "PARALLEL=READ_PART;PARTITION_METHOD=UNKNOWN";
 #endif
@@ -63,7 +63,7 @@ int main(int argc, char** argv)
     return 0;
   }
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
 
@@ -87,7 +87,7 @@ int main(int argc, char** argv)
   // Finalize error handler, optional for this example (using moab instances)
   MBErrorHandler_Finalize();
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Finalize();
 #endif
 

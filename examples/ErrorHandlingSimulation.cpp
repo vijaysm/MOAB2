@@ -7,8 +7,9 @@
  * <b>To run</b>: mpiexec -np 4 ./ErrorHandlingSimulation <test_case_num(1 to 4)> \n
  */
 
+#include "moab/MOABConfig.h"
 #include "moab/ErrorHandler.hpp"
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab_mpi.h"
 #endif
 
@@ -78,7 +79,7 @@ int main(int argc, char** argv)
     return 0;
   }
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
 
@@ -87,7 +88,7 @@ int main(int argc, char** argv)
 
   int test_case_num = atoi(argv[1]);
   int rank = 0;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif
 
@@ -96,7 +97,7 @@ int main(int argc, char** argv)
   // Finalize error handler, required for this example (not using a moab instance)
   MBErrorHandler_Finalize();
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Finalize();
 #endif
 

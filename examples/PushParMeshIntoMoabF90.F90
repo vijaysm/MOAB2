@@ -18,7 +18,6 @@ program PushParMeshIntoMoab
   implicit none
 
 #include "moab/MOABConfig.h"
-
 #ifdef MOAB_HAVE_MPI
 #  include "mpif.h"
 #  include "iMeshP_f.h"
