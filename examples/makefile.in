@@ -11,10 +11,14 @@ MESH_DIR="@abs_top_srcdir@/MeshFiles/unittest"
 EXAMPLES = HelloMOAB GetEntities SetsNTags LoadPartial StructuredMesh StructuredMeshSimple DirectAccessWithHoles DirectAccessNoHoles PointInElementSearch VisTags UniformRefinement
 PAREXAMPLES = HelloParMOAB ReduceExchangeTags LloydRelaxation CrystalRouterExample ReadWriteTest GenLargeMesh
 EXOIIEXAMPLES = TestExodusII
-F90EXAMPLES = DirectAccessNoHolesF90 PushParMeshIntoMoabF90
+F90EXAMPLES = DirectAccessNoHolesF90
+F90PAREXAMPLES = PushParMeshIntoMoabF90
 ERROREXAMPLES = ErrorHandlingSimulation TestErrorHandling TestErrorHandlingPar
 
-default: ${EXAMPLES} ${PAREXAMPLES} ${EXOIIEXAMPLES} ${F90EXAMPLES} ${ERROREXAMPLES}
+serial: ${EXAMPLES} ${EXOIIEXAMPLES} ${F90EXAMPLES} ${ERROREXAMPLES}
+parallel: ${PAREXAMPLES} ${F90PAREXAMPLES}
+default: serial
+all: serial parallel
 
 HelloMOAB: HelloMOAB.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
