@@ -4,6 +4,8 @@
 #include "moab/Core.hpp"
 #include <algorithm>
 
+iMesh_Instance create_mesh();
+
 void test_getEntArrAdj_conn();
 void test_getEntArrAdj_vertex();
 void test_getEntArrAdj_up();
@@ -25,7 +27,15 @@ int main( int argc, char* argv[] )
 #ifdef  MOAB_HAVE_HDF5
   REGISTER_TEST( test_tags_retrieval );
 #endif
-  return RUN_TESTS( argc, argv ); 
+  int result = RUN_TESTS( argc, argv );
+
+  // Delete the static iMesh instance defined in create_mesh()
+  iMesh_Instance mesh = create_mesh();
+  int err;
+  iMesh_dtor(mesh, &err);
+  CHECK_EQUAL(iBase_SUCCESS, err);
+
+  return result;
 }
 
 // INTERVAL x INTERVAL x INTERVAL regular hex mesh with skin faces.
@@ -463,6 +473,10 @@ void test_tags_retrieval()
     free(tag_handles);
   }
   free (contained_set_handles);
+
+  // Delete the iMesh instance
+  iMesh_dtor(mesh, &err);
+  CHECK_EQUAL(iBase_SUCCESS, err);
 
   return;
 }
