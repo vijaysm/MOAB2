@@ -5293,7 +5293,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 #ifndef NDEBUG
       result = check_sent_ents(allsent);
       if (MB_SUCCESS != result) std::cout << "Failed check." << std::endl;
-      //result = check_all_shared_handles(true);
+      result = check_all_shared_handles(true);
       if (MB_SUCCESS != result) std::cout << "Failed check." << std::endl;
 #endif
 
@@ -5436,7 +5436,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
 #ifndef NDEBUG
     result = check_sent_ents(allsent);MB_CHK_SET_ERR(result, "Failed check on shared entities");
-    //result = check_all_shared_handles(true);MB_CHK_SET_ERR(result, "Failed check on all shared handles");
+    result = check_all_shared_handles(true);MB_CHK_SET_ERR(result, "Failed check on all shared handles");
 #endif
 
     if (file_set && !new_ents.empty()) {
@@ -7808,6 +7808,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     const int num_proc = buffProcs.size();
     const std::vector<int> procs(buffProcs.begin(), buffProcs.end());
     std::vector<MPI_Request> recv_req(buffProcs.size(), MPI_REQUEST_NULL);
+    std::vector<MPI_Request> send_req(buffProcs.size(), MPI_REQUEST_NULL);
 
     // Set up to receive sizes
     std::vector<int> sizes_send(num_proc), sizes_recv(num_proc);
@@ -7820,11 +7821,10 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     // Send sizes
     assert(num_proc == (int)send_data.size());
 
-    sendReqs.resize(buffProcs.size(), MPI_REQUEST_NULL);
     result.resize(num_proc);
     for (int i = 0; i < num_proc; i++) {
       sizes_send[i] = send_data[i].size();
-      ierr = MPI_Isend(&sizes_send[i], 1, MPI_INT, buffProcs[i], tag, cm, &sendReqs[i]);
+      ierr = MPI_Isend(&sizes_send[i], 1, MPI_INT, buffProcs[i], tag, cm, &send_req[i]);
       if (ierr) 
         return MB_FILE_WRITE_ERROR;
     }
@@ -7836,7 +7836,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       return MB_FILE_WRITE_ERROR;
 
     // Wait until all sizes are sent (clean up pending req's)
-    ierr = MPI_Waitall(num_proc, &sendReqs[0], &stat[0]);
+    ierr = MPI_Waitall(num_proc, &send_req[0], &stat[0]);
     if (ierr)
       return MB_FILE_WRITE_ERROR;
 
@@ -7856,7 +7856,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       ierr = MPI_Isend(&send_data[i][0],
                        sizeof(SharedEntityData)*sizes_send[i],
                        MPI_UNSIGNED_CHAR,
-                       buffProcs[i], tag, cm, &sendReqs[i]);
+                       buffProcs[i], tag, cm, &send_req[i]);
       if (ierr) 
         return MB_FILE_WRITE_ERROR;
     }
@@ -7867,7 +7867,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       return MB_FILE_WRITE_ERROR;
 
     // Wait until everything is sent to release send buffers
-    ierr = MPI_Waitall(num_proc, &sendReqs[0], &stat[0]);
+    ierr = MPI_Waitall(num_proc, &send_req[0], &stat[0]);
     if (ierr)
       return MB_FILE_WRITE_ERROR;
 
