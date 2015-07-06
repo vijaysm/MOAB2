@@ -36,11 +36,11 @@ examples_DATA = examples/CrystalRouterExample.cpp \
                 examples/HelloParMOAB.cpp \
                 examples/LloydRelaxation.cpp \
                 examples/LoadPartial.cpp \
-                examples/point_in_elem_search.cpp \
+                examples/PointInElementSearch.cpp \
                 examples/PushParMeshIntoMoabF90.F90 \
                 examples/ReadWriteTest.cpp \
                 examples/ReduceExchangeTags.cpp \
-                examples/structuredmesh.cpp \
+                examples/StructuredMesh.cpp \
                 examples/StructuredMeshSimple.cpp \
                 examples/SetsNTags.cpp \
                 examples/TestErrorHandling.cpp \

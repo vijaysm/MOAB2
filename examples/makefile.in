@@ -8,7 +8,7 @@ include ${MOAB_DIR}/lib/iMesh-Defs.inc
 # MESH_DIR is the directory containing mesh files that come with MOAB source
 MESH_DIR="@abs_top_srcdir@/MeshFiles/unittest"
 
-EXAMPLES = HelloMOAB GetEntities SetsNTags LoadPartial structuredmesh StructuredMeshSimple DirectAccessWithHoles DirectAccessNoHoles point_in_elem_search VisTags UniformRefinement
+EXAMPLES = HelloMOAB GetEntities SetsNTags LoadPartial StructuredMesh StructuredMeshSimple DirectAccessWithHoles DirectAccessNoHoles PointInElementSearch VisTags UniformRefinement
 PAREXAMPLES = HelloParMOAB ReduceExchangeTags LloydRelaxation CrystalRouterExample ReadWriteTest GenLargeMesh
 EXOIIEXAMPLES = TestExodusII
 F90EXAMPLES = DirectAccessNoHolesF90 PushParMeshIntoMoabF90
@@ -31,7 +31,7 @@ LloydRelaxation: LloydRelaxation.o ${MOAB_LIBDIR}/libMOAB.la
 LoadPartial: LoadPartial.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} ${MOAB_LIBS_LINK}
 
-structuredmesh: structuredmesh.o ${MOAB_LIBDIR}/libMOAB.la
+StructuredMesh: StructuredMesh.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
 StructuredMeshSimple: StructuredMeshSimple.o ${MOAB_LIBDIR}/libMOAB.la
@@ -58,7 +58,7 @@ CrystalRouterExample: CrystalRouterExample.o ${MOAB_LIBDIR}/libMOAB.la
 TestExodusII: TestExodusII.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
-point_in_elem_search: point_in_elem_search.o ${MOAB_LIBDIR}/libMOAB.la
+PointInElementSearch: PointInElementSearch.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
 PushParMeshIntoMoabF90: PushParMeshIntoMoabF90.o
