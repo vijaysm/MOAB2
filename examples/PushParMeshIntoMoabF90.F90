@@ -3,11 +3,11 @@
 ! This program shows how to push a mesh into MOAB in parallel from Fortran90, with sufficient
 ! information to resolve boundary sharing and exchange a layer of ghost information.
 ! To successfully link this example, you need to specify FCFLAGS that include:
-!    a) -DUSE_MPI, and
+!    a) -DMOAB_HAVE_MPI, and
 !    b) flags required to link Fortran90 MPI programs with the C++ compiler; these flags
 !       can often be found on your system by inspecting the output of 'mpif90 -show'
 ! For example, using gcc, the link line looks like:
-!   make MOAB_DIR=<moab install dir> FCFLAGS="-DUSE_MPI -I/usr/lib/openmpi/include -pthread -I/usr/lib/openmpi/lib -L/usr/lib/openmpi/lib -lmpi_f90 -lmpi_f77 -lmpi -lopen-rte -lopen-pal -ldl -Wl,--export-dynamic -lnsl -lutil -lm -ldl" PushParMeshIntoMoabF90
+!   make MOAB_DIR=<moab install dir> FCFLAGS="-DMOAB_HAVE_MPI -I/usr/lib/openmpi/include -pthread -I/usr/lib/openmpi/lib -L/usr/lib/openmpi/lib -lmpi_f90 -lmpi_f77 -lmpi -lopen-rte -lopen-pal -ldl -Wl,--export-dynamic -lnsl -lutil -lm -ldl" PushParMeshIntoMoabF90
 !
 ! Usage: PushParMeshIntoMoab
 #define ERROR(rval) if (0 .ne. rval) call exit(1)
@@ -17,9 +17,10 @@ program PushParMeshIntoMoab
   use ISO_C_BINDING
   implicit none
 
-#include "mpif.h"
+#include "moab/MOABConfig.h"
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
+#  include "mpif.h"
 #  include "iMeshP_f.h"
 #else
 #  include "iMesh_f.h"
@@ -49,7 +50,7 @@ program PushParMeshIntoMoab
   integer lvpe, ltp ! lvpe = # vertices per entity, ltp = element type
   integer ic, ie, iv, istart, iend, ierr, indv, lnume, rank, sz
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   ! local variables for parallel runs
   iMeshP_PartitionHandle imeshp
 !    integer MPI_COMM_WORLD
@@ -78,7 +79,7 @@ program PushParMeshIntoMoab
      lgids(iv) = iv+1
   end do
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   ! init the parallel partition
   call MPI_INIT(ierr)
   call MPI_COMM_SIZE(MPI_COMM_WORLD, sz, ierr)
@@ -137,7 +138,7 @@ program PushParMeshIntoMoab
   ERROR(ierr)
   iv = 0
   ie = 0
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   call iMeshP_getNumOfTypeAll(%VAL(imesh), %VAL(imeshp), %VAL(root_set), %VAL(iBase_VERTEX), iv, ierr)
   ERROR(ierr)
   call iMeshP_getNumOfTypeAll(%VAL(imesh), %VAL(imeshp), %VAL(root_set), %VAL(iBase_FACE), ie, ierr)
@@ -180,7 +181,7 @@ subroutine create_mesh( &
   use ISO_C_BINDING
   implicit none
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #  include "iMeshP_f.h"
 #  include "mpif.h"
 #else
@@ -192,7 +193,7 @@ subroutine create_mesh( &
   TYPE(C_PTR) :: vertsPtr, entsPtr
   integer numv, nume, nvpe, vgids(0:*), iconn(0:*), ierr, tp
   real*8 posn(0:*)
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   iMeshP_PartitionHandle imeshp
   integer comm
 #endif
@@ -207,7 +208,7 @@ subroutine create_mesh( &
   iBase_EntityHandle, allocatable :: conn(:)
   iBase_EntitySetHandle root_set
   iBase_EntitySetHandle file_set
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   IBASE_HANDLE_T mpi_comm_c
   TYPE(C_PTR) :: partsPtr
   iMeshP_PartHandle, pointer :: parts(:)
@@ -221,7 +222,7 @@ subroutine create_mesh( &
      call iMesh_newMesh("MOAB", imesh, ierr)
   end if
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   if (imeshp .eq. 0) then
      call iMeshP_getCommunicator(%VAL(imesh), MPI_COMM_WORLD, mpi_comm_c, ierr)
      ERROR(ierr)
@@ -263,7 +264,7 @@ subroutine create_mesh( &
   deallocate(stats)
   deallocate(conn)
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   ! take care of parallel stuff
 
   ! add entities to part, using iMesh
