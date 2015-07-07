@@ -414,6 +414,11 @@ namespace moab{
     hasghost = true;
 #ifdef MOAB_HAVE_MPI
     error = pcomm->exchange_ghost_cells(meshdim, 0, num_glayers, 0, true, false);MB_CHK_ERR(error);
+    {
+      Range empty_range;
+      error = pcomm->exchange_tags(GLOBAL_ID_TAG_NAME, empty_range);MB_CHK_ERR(error);
+      // error = pcomm->assign_global_ids(lsets[i], 0, 1, false, true, false);MB_CHK_ERR(error);
+    }
 #else
     MB_SET_ERR(MB_FAILURE,"Requesting ghost layers for a serial mesh");
 #endif
@@ -674,22 +679,10 @@ namespace moab{
 
               // set the parallel partition tag data
               moab::Tag part_tag;
-            //  moab::EntityHandle part_set;
               int partid = pcomm->rank(), dum_id = -1;
               error = mbImpl->tag_get_handle("PARALLEL_PARTITION", 1, moab::MB_TYPE_INTEGER,
                                              part_tag, moab::MB_TAG_CREAT | moab::MB_TAG_SPARSE, &dum_id);MB_CHK_ERR(error);
-
-              /*error = mbImpl->create_meshset(moab::MESHSET_SET, part_set);MB_CHK_ERR(error);
-              error = mbImpl->add_entities(part_set, vtxs);MB_CHK_ERR(error);
-              error = mbImpl->add_entities(part_set, edgs);MB_CHK_ERR(error);
-              error = mbImpl->add_entities(part_set, facs);MB_CHK_ERR(error);
-              error = mbImpl->add_entities(part_set, elms);MB_CHK_ERR(error);
-              error = mbImpl->add_entities(hm_set[l],&part_set,1);MB_CHK_ERR(error);
-              error = mbImpl->tag_set_data(part_tag, &part_set, 1, &partid);MB_CHK_ERR(error);*/
-
               error = mbImpl->tag_set_data(part_tag, &hm_set[l], 1, &partid);MB_CHK_ERR(error);
-              //mbImpl->list_entities(vtxs);
-              //mbImpl->list_entity(hm_set[l]);
 
               //
               // Now that we have the local piece of the mesh refined consistently,
@@ -705,9 +698,6 @@ namespace moab{
               ParallelMergeMesh pm(pcomm, 1e-08);
               error = pm.merge(hm_set[l], true);MB_CHK_ERR(error);
 
-              // std::cout<<"Writing level set"<<std::endl;
-              // mbImpl->write_file("test.h5m", 0, ";;PARALLEL=WRITE_PART;DEBUG_IO=3", &hm_set[l], 1);
-
               timeall.tm_resolve += tm->wtime() - tpstart;
               //
               // Parallel Communication complete - all entities resolved
@@ -716,16 +706,8 @@ namespace moab{
               {
                 // Assign new global IDs for all the entities we just generated to maintain contiguity
                 // Range pents[4] = {vtxs, edgs, facs, elms};
-                // error = pcomm->assign_global_ids(pents, 3, 1, true, true);MB_CHK_ERR(error);
-                // error = pcomm->assign_global_ids(hm_set[l], 0, 1, false, true, false);MB_CHK_ERR(error);
-
-                // Now that we have resolved all shared entities in parallel,
-                // exchange GLOBAL_ID data for all local entities so that we are
-                // up to date on remote changes.
-                error = pcomm->exchange_tags(gidtag,vtxs);MB_CHK_ERR(error);
-                error = pcomm->exchange_tags(gidtag,edgs);MB_CHK_ERR(error);
-                error = pcomm->exchange_tags(gidtag,facs);MB_CHK_ERR(error);
-                error = pcomm->exchange_tags(gidtag,elms);MB_CHK_ERR(error);
+                // error = pcomm->assign_global_ids(pents, 3, 1, true, false);MB_CHK_ERR(error);
+                error = pcomm->assign_global_ids(hm_set[l], 0, 1, false, true, false);MB_CHK_ERR(error);
               }
              // timeall.tm_resolve += tm->wtime() - tpstart;
             }
@@ -733,8 +715,6 @@ namespace moab{
 #endif
       }
     timeall.tm_total = timeall.tm_refine + timeall.tm_resolve;
-  //  mbImpl->write_file("test.h5m", 0, ";;PARALLEL=WRITE_PART");
-
     return MB_SUCCESS;
   }
 
