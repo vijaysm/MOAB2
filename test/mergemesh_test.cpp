@@ -8,6 +8,10 @@
 #error Specify MESHDIR to compile test
 #endif
 
+#ifdef MOAB_HAVE_MPI
+#include "moab_mpi.h"
+#endif
+
 using namespace moab;
 
 const char* meshfile = STRINGIFY(MESHDIR) "/16_unmerged_hex.h5m";
@@ -17,12 +21,24 @@ const char *outfile = "mm_out.h5m";
 void mergesimple_test();
 void merge_with_tag_test();
 
-int main( int /*argc*/, char**/* argv*/)
+#ifdef MOAB_HAVE_MPI
+int main(int argc, char** argv)
+#else
+int main()
+#endif
 {
+#ifdef MOAB_HAVE_MPI
+  MPI_Init(&argc, &argv);
+#endif
+
   int result = 0;
 
   result += RUN_TEST(mergesimple_test);
   result += RUN_TEST(merge_with_tag_test);
+
+#ifdef MOAB_HAVE_MPI
+  MPI_Finalize();
+#endif
 
   return result;
 }
