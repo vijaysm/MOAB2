@@ -3038,7 +3038,7 @@ ErrorCode Core::side_number(const EntityHandle parent,
     if (child_index == num_parent_vertices) {
       sd_number = -1;
       sense = 0;
-      return MB_SUCCESS;
+      return MB_FAILURE;
     }
     else {
       sd_number = child_index;
@@ -3061,7 +3061,7 @@ ErrorCode Core::side_number(const EntityHandle parent,
         parent_conn + num_parent_vertices, child_conn[i] ) - parent_conn;
       if (child_conn_indices[i] >= num_parent_vertices) {
         sd_number = -1;
-        return MB_SUCCESS;
+        return MB_FAILURE;
       }
     }
 
