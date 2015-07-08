@@ -871,7 +871,10 @@ ErrorCode WriteHDF5Parallel::create_tag_tables()
       }
       std::list<ExportSet>::const_iterator ex_iter = exportList.begin();
       for (++i; ex_iter != exportList.end(); ++i, ++ex_iter) {
-        if (check_dense_format_tag(*ex_iter, tagged, prefer_dense)) {
+        // when writing in parallel, on some partitions, some of these element ranges might be empty
+        // so do not turn this tag as sparse, just because of that, leave it dense, if we prefer dense
+        if ( (prefer_dense && ex_iter->range.empty() ) ||
+            check_dense_format_tag(*ex_iter, tagged, prefer_dense)) {
           set_bit(i, iter);
           dbgOut.printf(2, "Can write dense data for \"%s\"/%s\n", n.c_str(),
             ex_iter->name());

@@ -24,8 +24,10 @@ using namespace moab;
 
 #ifdef MESHDIR
 const char* InputFile = STRINGIFY(MESHDIR) "/ptest.cub";
+const char* InputMix = STRINGIFY(MESHDIR) "/io/mix.h5m";
 #else
 const char* InputFile = "ptest.cub";
+const char* InputMix = "io/mix.h5m";
 #endif
 
 void load_and_partition( Interface& moab, const char* filename, bool print_debug = false );
@@ -60,6 +62,7 @@ void test_write_different_element_types();
 void test_write_different_tags();
 void test_write_polygons();
 void test_write_unbalanced();
+void test_write_dense_tags();
 
 const char PARTITION_TAG[] = "PARTITION";
 
@@ -200,6 +203,8 @@ int main( int argc, char* argv[] )
     result += RUN_TEST( test_write_polygons );
     MPI_Barrier(MPI_COMM_WORLD);
     result += RUN_TEST( test_write_unbalanced );
+    MPI_Barrier(MPI_COMM_WORLD);
+    result += RUN_TEST( test_write_dense_tags );
     MPI_Barrier(MPI_COMM_WORLD);
   }
   
@@ -1530,4 +1535,71 @@ void test_write_unbalanced()
   CHECK_ERR(rval);
   CHECK_EQUAL( nquads, entities.size() );
   CHECK_EQUAL( quads, entities );
+}
+
+// this test will load a file that has 2 partitions (mix.h5m)
+// one partition with triangles, and one with triangles and quads
+// a dense tag created on this should be dense in the file
+//
+void test_write_dense_tags()
+{
+  int err, rank, size;
+  ErrorCode rval;
+  err = MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+  CHECK(!err);
+  err = MPI_Comm_size( MPI_COMM_WORLD, &size );
+  CHECK(!err);
+
+  Core moab;
+  rval =  moab.load_file( InputMix, 0,
+      "PARALLEL=READ_PART;"
+      "PARTITION=PARALLEL_PARTITION;"
+      "PARALLEL_RESOLVE_SHARED_ENTS" );
+  CHECK_ERR(rval);
+
+  // create an dense tag, on all elements, then write the output in parallel
+  // load the file again, and test the type of the tag
+  Range elems;
+  moab.get_entities_by_dimension(0, 2, elems);
+
+  const char * tagname = "element_tag";
+  const double defVal = 0.;
+  Tag fieldTag;
+  rval = moab.tag_get_handle(tagname, 1, MB_TYPE_DOUBLE, fieldTag, MB_TAG_DENSE|MB_TAG_CREAT, &defVal);
+  CHECK_ERR(rval);
+
+
+  int numElems = (int)elems.size();
+
+  for(int i=0; i<numElems; i++){
+    EntityHandle elem = elems[i];
+    double xyz[3];
+    moab.get_coords(&elem, 1, xyz);
+    // some value
+    double fieldValue =  sqrt(xyz[0]*xyz[0] + xyz[1]*xyz[1]+xyz[2]*xyz[2]);
+    moab.tag_set_data(fieldTag, &elem, 1, &fieldValue);
+  }
+
+  // write the file in parallel
+  rval = moab.write_file("newfile.h5m", 0 , "PARALLEL=WRITE_PART");
+  CHECK_ERR(rval);
+
+  // now read the new file, in a new instance, and test the tag type
+
+  Core moab2;
+  rval = moab2.load_file( "newfile.h5m",0,
+      "PARALLEL=READ_PART;"
+      "PARTITION=PARALLEL_PARTITION;"
+      "PARALLEL_RESOLVE_SHARED_ENTS" );
+  CHECK_ERR(rval);
+
+  // find the element tag
+  Tag found_tag;
+  rval = moab2.tag_get_handle(tagname, 1, MB_TYPE_DOUBLE, found_tag);
+  CHECK_ERR(rval);
+  TagType tagt;
+  rval = moab2.tag_get_type(found_tag, tagt);
+  CHECK_ERR(rval);
+  CHECK(tagt == MB_TAG_DENSE);
+
 }
