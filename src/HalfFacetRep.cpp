@@ -425,14 +425,33 @@ namespace moab {
            }
 
          std::cout<<"<V2HF_CID, V2HF_LFID>"<<std::endl;
+         EntityHandle cid;
+         int lid;
 
          for (Range::iterator i = _verts.begin(); i != _verts.end(); ++i){
              int vidx = ID_FROM_HANDLE(*i)-1;
              HFacet hf = v2hf[vidx];
-             EntityHandle cid = fid_from_halfacet(hf, ctype);
-             int lid = lid_from_halffacet(hf);
-             std::cout<<"Vertex = "<<*i<<" :: <"<<cid<<","<<lid<<">"<<std::endl;
+
+             if (hf ==0 && (v2hfs.find(*i) != v2hfs.end()))
+               {
+                 std::pair <std::multimap<EntityHandle, HFacet>::iterator, std::multimap<EntityHandle, HFacet>::iterator> it_hfs;
+                 it_hfs = v2hfs.equal_range(*i);
+
+                 for (std::multimap<EntityHandle, HFacet>::iterator it = it_hfs.first; it != it_hfs.second; ++it)
+                   {
+                     cid = fid_from_halfacet(it->second, ctype);
+                     lid = lid_from_halffacet(hf);
+
+                     std::cout<<"Vertex = "<<*i<<" :: <"<<cid<<","<<lid<<">"<<std::endl;
+                   }
+               }
+             else {
+                 cid = fid_from_halfacet(hf, ctype);
+                 lid = lid_from_halffacet(hf);
+                 std::cout<<"Vertex = "<<*i<<" :: <"<<cid<<","<<lid<<">"<<std::endl;
+               }
            }
+
        }
      return MB_SUCCESS;
    }
@@ -1910,136 +1929,93 @@ namespace moab {
   ////////////////////////////////////////////////////////////////////////
   ErrorCode HalfFacetRep::get_up_adjacencies_vert_3d(EntityHandle vid, std::vector<EntityHandle> &adjents)
   {
-      ErrorCode error;
-      adjents.reserve(20);
-      EntityType ctype = mb->type_from_handle(*_cells.begin());
+    ErrorCode error;
+    adjents.reserve(20);
+    EntityType ctype = mb->type_from_handle(*_cells.begin());
 
-      // Obtain a half-face incident on v
-      int vidx = ID_FROM_HANDLE(vid)-1;
-      HFacet hf = v2hf[vidx];
+    // Obtain a half-face/s incident on v
+    int vidx = ID_FROM_HANDLE(vid)-1;
+    HFacet hf = v2hf[vidx];
 
-      std::vector<EntityHandle> start_cells;
-      if (hf == 0 && !v2hfs.empty()) //Vertex is non-manifold
-        {
-          std::pair <std::multimap<EntityHandle, HFacet>::iterator, std::multimap<EntityHandle, HFacet>::iterator> it_hes;
-          it_hes = v2hfs.equal_range(vid);
+    std::vector<EntityHandle> start_cells;
+    if (hf == 0 && (v2hfs.find(vid) != v2hfs.end())) //Vertex is non-manifold
+      {
+        std::pair <std::multimap<EntityHandle, HFacet>::iterator, std::multimap<EntityHandle, HFacet>::iterator> it_hes;
+        it_hes = v2hfs.equal_range(vid);
 
-          for (std::multimap<EntityHandle, HFacet>::iterator it = it_hes.first; it != it_hes.second; ++it)
-            {
-              start_cells.push_back(fid_from_halfacet(it->second, ctype));
-            }
-        }
-      else if (hf != 0)
-        start_cells.push_back( fid_from_halfacet(hf, ctype));
+        for (std::multimap<EntityHandle, HFacet>::iterator it = it_hes.first; it != it_hes.second; ++it)
+          {
+            start_cells.push_back(fid_from_halfacet(it->second, ctype));
+          }
+      }
+    else if (hf != 0)
+      start_cells.push_back( fid_from_halfacet(hf, ctype));
 
-      //EntityHandle cur_cid = fid_from_halfacet(hf, ctype);
-      EntityHandle cur_cid;
-      // Collect all incident cells
-   //   if (cur_cid != 0){
-      if (!start_cells.empty()){
-          //int index = get_index_in_lmap(cur_cid);
-          int index = get_index_in_lmap(start_cells[0]);
-          int nvpc = lConnMap3D[index].num_verts_in_cell;
-          int nfpc = lConnMap3D[index].num_faces_in_cell;
+    if (start_cells.empty())
+      return MB_SUCCESS;
 
-          int Stksize = 0, count = -1;
+    int index = get_index_in_lmap(start_cells[0]);
+    int nvpc = lConnMap3D[index].num_verts_in_cell;
+    int nfpc = lConnMap3D[index].num_faces_in_cell;
 
-          for (int i=0; i<(int)start_cells.size(); i++)
-            {
-              Stkcells[i] = start_cells[i];
-              //Stksize += 1;
-            }
-          Stksize = start_cells.size() - 1;
-          //Stkcells[0] = cur_cid;
+    for (int i=0; i<(int)start_cells.size(); i++)
+      cellq[i] = start_cells[i];
 
-          while (Stksize >= 0 ){
-              cur_cid = Stkcells[Stksize];
-              Stksize -= 1 ;
+    int qsize = start_cells.size();
+    EntityHandle cur_cid;
+    int num_qvals = 0;
 
-              bool found = find_match_in_array(cur_cid, trackcells, count);
-              if (!found){
-                  count += 1;
-                  trackcells[count] = cur_cid;
+    while (num_qvals < qsize){
+        cur_cid = cellq[num_qvals];
+        num_qvals += 1 ;
 
-                  // Add the current cell
-                  adjents.push_back(cur_cid);
+        //Add the current cell to output adj vector
+        adjents.push_back(cur_cid);
+
+        // Connectivity of the cell
+        const EntityHandle* conn;
+        error = mb->get_connectivity(cur_cid, conn, nvpc);MB_CHK_ERR(error);
+
+        // Local id of vid in the cell and the half-faces incident on it
+        int lv = -1;
+        for (int i = 0; i< nvpc; ++i){
+            if (conn[i] == vid)
+              {
+                lv = i;
+                break;
               }
+          };
 
-              // Connectivity of the cell
-              const EntityHandle* conn;
-              error = mb->get_connectivity(cur_cid, conn, nvpc);MB_CHK_ERR(error);
+        //Number of local half-faces incident on the current vertex
+        int nhf_thisv = lConnMap3D[index].v2hf_num[lv];
+        int cidx = ID_FROM_HANDLE(cur_cid)-1;
 
-              // Local id of vid in the cell and the half-faces incident on it
-              int lv = -1;
-              for (int i = 0; i< nvpc; ++i){
-                  if (conn[i] == vid)
-                    {
-                      lv = i;
-                      break;
-                    }
-              };
+        // Add new cells into the stack
+        EntityHandle ngb;
+        for (int i = 0; i < nhf_thisv; ++i){
+            int ind = lConnMap3D[index].v2hf[lv][i];
+            hf = sibhfs[nfpc*cidx+ind];
+            ngb = fid_from_halfacet(hf, ctype);
 
-              int nhf_thisv = lConnMap3D[index].v2hf_num[lv];
-              int cidx = ID_FROM_HANDLE(cur_cid)-1;
+            if (ngb) {
+                bool found_ent = find_match_in_array(ngb, cellq, qsize-1);
 
-              // Add new cells into the stack
-              EntityHandle ngb;
-              for (int i = 0; i < nhf_thisv; ++i){
-                  int ind = lConnMap3D[index].v2hf[lv][i];
-                  hf = sibhfs[nfpc*cidx+ind];
-                  ngb = fid_from_halfacet(hf, ctype);
-
-                  if (ngb) {
-                      bool found_ent = find_match_in_array(ngb, trackcells, count);
-
-                      if (!found_ent){
-                          Stksize += 1;
-                          Stkcells[Stksize] = ngb;
-                      }
+                if (!found_ent){
+                    cellq[qsize] = ngb;
+                    qsize += 1;
                   }
               }
           }
-
-
-          //Change the visited faces to false
-          for (int i = 0; i<Stksize; i++)          
-              Stkcells[i] = 0;         
-
-          for (int i = 0; i <= count; i++)
-              trackcells[i] = 0;
       }
 
-      return MB_SUCCESS;
-  }
 
-
- /* ErrorCode HalfFacetRep::get_up_adjacencies_edg_3d( EntityHandle eid,
-                                                     std::vector<EntityHandle> &adjents,
-                                                     std::vector<int> * leids)
-  {
-    ErrorCode error; 
-    
-   // EntityHandle cid=0;
-  //  int leid=0;
-    EntityHandle *cid;
-    int *leid;
-    int nlocEdg=0;
-    std::vector<EntityHandle> cid(10,0);
-    std::vector<int> leid(10,0);
-
-    //Find one incident cell
-    bool found = find_matching_implicit_edge_in_cell(eid, cid, leid);
-
-    //Find all incident cells     
-    if (found)
-      {
-        for (int i=0; i<(int)cid.size(); i++){
-            error =get_up_adjacencies_edg_3d(cid[i], leid[i], adjents, leids);  MB_CHK_ERR(error);
-          }
-      }
+    //Change the visited faces to false
+    for (int i = 0; i<qsize; i++)
+      cellq[i] = 0;
 
     return MB_SUCCESS;
-  }*/
+
+  }
 
 ErrorCode HalfFacetRep::get_up_adjacencies_edg_3d( EntityHandle eid,
                                                     std::vector<EntityHandle> &adjents,
@@ -2183,19 +2159,16 @@ ErrorCode HalfFacetRep::get_up_adjacencies_edg_3d( EntityHandle eid,
     int nfpc = lConnMap3D[index].num_faces_in_cell;
     adjents.clear();
     adjents.reserve(20);
-    //adjents.push_back(cid);
 
     if (leids != NULL)
       {
         leids->clear();
         leids->reserve(20);
-     //   leids->push_back(leid);
       }
     if (adj_orients != NULL)
       {
         adj_orients->clear();
         adj_orients->reserve(20);
-      //  adj_orients->push_back(1);
       }
 
     const EntityHandle* econn;
@@ -2321,74 +2294,6 @@ ErrorCode HalfFacetRep::get_up_adjacencies_edg_3d( EntityHandle eid,
     for (int i = 0; i<qsize; i++)
         cellq[i] = 0;
 
- //   std::cout<<"inc_ents.size = "<<adjents.size()<<std::endl;
-
-    //Loop over the two incident half-faces on this edge
-  /*  for(int i=0; i<2; i++)
-      {
-        EntityHandle cur_cell = cid;
-        int cur_leid = leid;
-
-        int lface = i;
-
-	while(true){
-	  int lfid = lConnMap3D[index].e2hf[cur_leid][lface];
-	  int cidx = ID_FROM_HANDLE(cur_cell)-1;
-	  HFacet hf = sibhfs[nfpc*cidx+lfid];
-	  cur_cell = fid_from_halfacet(hf, ctype);
-	  lfid = lid_from_halffacet(hf);
-	  
-	  //Check if loop reached starting cell or a boundary
-	  if ((cur_cell == cid) || ( cur_cell==0))
-	    break;
-
-	  const EntityHandle* sib_conn;
-	  error = mb->get_connectivity(cur_cell, sib_conn, nvpc);MB_CHK_ERR(error);
-
-	  //Find the local edge id wrt to sibhf
-	  int nv_curF = lConnMap3D[index].hf2v_num[lfid];
-	  int lv0 = -1, lv1 = -1, idx = -1 ;
-	  for (int j = 0; j<nv_curF; j++)
-	    {
-	      idx = lConnMap3D[index].hf2v[lfid][j];
-	      if (vert0 == sib_conn[idx])
-		lv0 = idx;
-	      if (vert1 == sib_conn[idx])
-		lv1 = idx;
-	    }
-
-          assert((lv0 >= 0) && (lv1 >= 0));
-          cur_leid = lConnMap3D[index].lookup_leids[lv0][lv1];
-
-          int chk_lfid = lConnMap3D[index].e2hf[cur_leid][0];
-
-	  if (lfid == chk_lfid)
-	    lface = 1;
-	  else
-	    lface = 0;
-
-	  //insert new incident cell and local edge ids
-	  adjents.push_back(cur_cell);
-
-	  if (leids != NULL)
-	    leids->push_back(cur_leid);
-
-	  if (adj_orients != NULL)
-	    {
-	      int id1 =  lConnMap3D[index].e2v[cur_leid][0];
-	      int id2 =  lConnMap3D[index].e2v[cur_leid][1];
-	      if ((vert0 == sib_conn[id1]) && (vert1 == sib_conn[id2]))
-		adj_orients->push_back(1);
-	      else if ((vert0 == sib_conn[id2]) && (vert1 == sib_conn[id1]))
-		adj_orients->push_back(0);
-	    }
-	}
-
-	//Loop back
-	if (cur_cell != 0)
-	  break;
-      }
-    */
     return MB_SUCCESS;
   }
  
@@ -2515,23 +2420,6 @@ ErrorCode HalfFacetRep::get_up_adjacencies_edg_3d( EntityHandle eid,
       cellq[i] = start_cells[i];
 
     int qsize = start_cells.size();
-  //  nlocEdg = 0;
-    /*EntityHandle cell2origin, cell2end;
-    HFacet hf1 = v2hf[v1idx];
-    HFacet hf2 = v2hf[v2idx];
-    cell2origin = fid_from_halfacet(hf1, ctype);
-    cell2end = fid_from_halfacet(hf2, ctype);
-    
-    bool found = false;
-    if (cell2origin == 0|| cell2end == 0){
-      return found;
-    }
-    
-
-    cellq[0] = cell2origin;
-    cellq[1] = cell2end;*/
-
- //   int qsize = 2, num_qvals = 0;
     int num_qvals = 0;
 
     while (num_qvals < qsize){
@@ -2594,7 +2482,7 @@ ErrorCode HalfFacetRep::get_up_adjacencies_edg_3d( EntityHandle eid,
  }
 
   bool HalfFacetRep::find_matching_halfface(EntityHandle fid, EntityHandle *cid, int *lid)
-  {
+  {    
     ErrorCode error;
     EntityHandle start_cell = *_cells.begin();
     EntityType ctype = mb->type_from_handle(start_cell);
@@ -2607,6 +2495,7 @@ ErrorCode HalfFacetRep::get_up_adjacencies_edg_3d( EntityHandle eid,
     const EntityHandle* fid_verts;
     error = mb->get_connectivity(fid, fid_verts, nvF);MB_CHK_ERR(error);
 
+    std::vector<EntityHandle> start_cells;
     int vidx, locfv0=-1;
     HFacet hf = 0;
 
@@ -2616,106 +2505,112 @@ ErrorCode HalfFacetRep::get_up_adjacencies_edg_3d( EntityHandle eid,
         hf = v2hf[vidx];
         if (hf != 0)
           {
+            start_cells.push_back(fid_from_halfacet(hf,ctype));
+            locfv0 = i;
+            break;
+          }
+        else if (hf==0 && v2hfs.find(fid_verts[i]) != v2hfs.end())
+          {
+            std::pair <std::multimap<EntityHandle, HFacet>::iterator, std::multimap<EntityHandle, HFacet>::iterator> it_hfs;
+            it_hfs = v2hfs.equal_range(fid_verts[i]);
+
+            for (std::multimap<EntityHandle, HFacet>::iterator it = it_hfs.first; it != it_hfs.second; ++it)
+              {
+                start_cells.push_back(fid_from_halfacet(it->second, ctype));
+              }
             locfv0 = i;
             break;
           }
       }
 
-    if (hf == 0)
-      return MB_SUCCESS;
+    if (start_cells.empty())
+      return false;
 
-//    int vidx = ID_FROM_HANDLE(fid_verts[0])-1;
- //   HFacet hf = v2hf[vidx];
-
-    EntityHandle cur_cid = fid_from_halfacet(hf, ctype);
-
+    EntityHandle cur_cid;
     bool found = false;
 
-//    if (cur_cid != 0){
-        int Stksize = 0, count = -1;
-        Stkcells[0] = cur_cid;
+    int Stksize = 0, count = -1;
 
-        while (Stksize >= 0 ){
-            cur_cid = Stkcells[Stksize];
-            Stksize -= 1 ;
-            count += 1;
-            trackcells[count] = cur_cid;
+    for (int i=0; i<(int)start_cells.size(); i++)
+        Stkcells[i] = start_cells[i];
 
-            const EntityHandle* conn;
-            error = mb->get_connectivity(cur_cid, conn, nvpc);MB_CHK_ERR(error);
+    Stksize = start_cells.size() - 1;
 
-            int lv[4] = {-1,-1,-1,-1};
-            int cnt = 0;
-            for (int i=0; i<nvpc; i++)
-              {
-                for (int j=0; j<nvF; j++)
-                  if (conn[i] == fid_verts[j])
-                    {
-                      lv[j] = i;
-                      cnt += 1;
-                    }
-              }
-            if (cnt == nvF) //All face verts are part of the cell
-              {
-                found = true;
-             //   int nhf_thisv = lConnMap3D[index].v2hf_num[lv[0]];
-                int nhf_thisv = lConnMap3D[index].v2hf_num[lv[locfv0]];
-                int lfid=-1;
-                for(int i = 0; i < nhf_thisv; ++i){
-                 //   lfid = lConnMap3D[index].v2hf[lv[0]][i];
-                    lfid = lConnMap3D[index].v2hf[lv[locfv0]][i];
-                    int lcnt = 0;
-                    for(int j = 0; j < nvF; ++j){
-                        for(int k = 0; k < nvF; ++k){
-                            if ( lv[k] == lConnMap3D[index].hf2v[lfid][j])
-                              lcnt += 1;
-                          }
+    while (Stksize >= 0 ){
+        cur_cid = Stkcells[Stksize];
+        Stksize -= 1 ;
+        count += 1;
+        trackcells[count] = cur_cid;
+
+        const EntityHandle* conn;
+        error = mb->get_connectivity(cur_cid, conn, nvpc);MB_CHK_ERR(error);
+
+        int lv[4] = {-1,-1,-1,-1};
+        int cnt = 0;
+        for (int i=0; i<nvpc; i++)
+          {
+            for (int j=0; j<nvF; j++)
+              if (conn[i] == fid_verts[j])
+                {
+                  lv[j] = i;
+                  cnt += 1;
+                }
+          }
+        if (cnt == nvF) //All face verts are part of the cell
+          {
+            found = true;
+            int nhf_thisv = lConnMap3D[index].v2hf_num[lv[locfv0]];
+            int lfid=-1;
+            for(int i = 0; i < nhf_thisv; ++i){
+                lfid = lConnMap3D[index].v2hf[lv[locfv0]][i];
+                int lcnt = 0;
+                for(int j = 0; j < nvF; ++j){
+                    for(int k = 0; k < nvF; ++k){
+                        if ( lv[k] == lConnMap3D[index].hf2v[lfid][j])
+                          lcnt += 1;
                       }
-                    if (lcnt == nvF)
-                      break;
                   }
-                cid[0] = cur_cid;
-                lid[0] = lfid;
-
-                break;
+                if (lcnt == nvF)
+                  break;
               }
-            else
-              {
-                // Add other cells that are incident on fid_verts[0]
-               // int nhf_thisv = lConnMap3D[index].v2hf_num[lv[0]];
-                int nhf_thisv = lConnMap3D[index].v2hf_num[lv[locfv0]];
-                int cidx = ID_FROM_HANDLE(cur_cid)-1;
+            cid[0] = cur_cid;
+            lid[0] = lfid;
 
-                // Add new cells into the stack
-                EntityHandle ngb;
-                for (int i = 0; i < nhf_thisv; ++i){
-                    //int ind = lConnMap3D[index].v2hf[lv[0]][i];
-                    int ind = lConnMap3D[index].v2hf[lv[locfv0]][i];
-                    hf = sibhfs[nfpc*cidx+ind];
-                    ngb = fid_from_halfacet(hf, ctype);
+            break;
+          }
+        else
+          {
+            // Add other cells that are incident on fid_verts[0]
+            int nhf_thisv = lConnMap3D[index].v2hf_num[lv[locfv0]];
+            int cidx = ID_FROM_HANDLE(cur_cid)-1;
 
-                    if (ngb) {
+            // Add new cells into the stack
+            EntityHandle ngb;
+            for (int i = 0; i < nhf_thisv; ++i){
+                int ind = lConnMap3D[index].v2hf[lv[locfv0]][i];
+                hf = sibhfs[nfpc*cidx+ind];
+                ngb = fid_from_halfacet(hf, ctype);
 
-                        bool found_ent = find_match_in_array(ngb, trackcells, count);
+                if (ngb) {
 
-                        if (!found_ent){
-                            Stksize += 1;
-                            Stkcells[Stksize] = ngb;
-                        }
+                    bool found_ent = find_match_in_array(ngb, trackcells, count);
+
+                    if (!found_ent){
+                        Stksize += 1;
+                        Stkcells[Stksize] = ngb;
                       }
                   }
               }
-        }
+          }
+      }
 
-        //Change the visited faces to false
-        for (int i = 0; i<Stksize; i++)
-            Stkcells[i] = 0;
+    //Change the visited faces to false
+    for (int i = 0; i<Stksize; i++)
+      Stkcells[i] = 0;
 
-        for (int i = 0; i <= count; i++)
-            trackcells[i] = 0;
+    for (int i = 0; i <= count; i++)
+      trackcells[i] = 0;
 
-
- //   }
     return found;
   }
 
