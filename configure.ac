@@ -505,6 +505,7 @@ ZOLTAN_DIR=
 ZOLTAN_ARCH=
 WITH_PARAMETIS=no
 PARMETIS_DIR=
+METIS_DIR=
 SCOTCH_DIR=
 PTSCOTCH_DIR=
 SCOTCH_LIBS=
@@ -578,21 +579,26 @@ AC_ARG_WITH([parmetis],
                  PARMETIS_DIR="$withval"
                  test -d "$withval" || AC_MSG_ERROR([Not a directory: with-parmetis=$withval])
                  if test -d "$withval/lib"; then
-                   ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval/lib"
+                   PARMETIS_LIB_FLAGS="-L$withval/lib"
                  else
-                   ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval"
+                   PARMETIS_LIB_FLAGS="-L$withval"
                  fi
+                 PARMETIS_LIBS="$PARMETIS_LIB_FLAGS -lparmetis"
                  if test -d "$withval/include"; then
-                   ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$withval/include"
+                   PARMETIS_INC_FLAGS="-I$withval/include"
                  else
-                   ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$withval"
+                   PARMETIS_INC_FLAGS="-I$withval"
                  fi
+                 ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS $PARMETIS_INC_FLAGS"
                  if (test -f "$withval/include/parmetis.h" || test -f "$withval/parmetis.h"); then
                    AC_DEFINE(HAVE_PARMETIS, [1], [Define if configured with ParMetis partitioner support])
                  fi
                  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-parmetis=\"${withval}\""
 		 ;;
                esac] )
+AM_CONDITIONAL(ENABLE_parmetis, [test "x" != "x$PARMETIS_DIR"])
+AC_SUBST(PARMETIS_LIBS)
+AC_SUBST(PARMETIS_INC_FLAGS)
 
 # If user specified with-metis, then assume they are trying
 # to add an additional library search directory in which to check
@@ -609,21 +615,30 @@ AC_ARG_WITH([metis],
                  METIS_DIR="$withval"
                  test -d "$withval" || AC_MSG_ERROR([Not a directory: with-metis=$withval])
                  if test -d "$withval/lib"; then
-                   ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval/lib"
+                   METIS_LIB_FLAGS="-L$withval/lib"
                  else
-                   ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$withval"
+                   METIS_LIB_FLAGS="-L$withval"
                  fi
+                 METIS_LIBS="$METIS_LIB_FLAGS -lmetis"
+                 ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS $METIS_LIB_FLAGS"
                  if test -d "$withval/include"; then
-                   ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$withval/include"
+                   METIS_INC_FLAGS="-I$withval/include"
+                  if (test -f "$withval/include/metis.h"); then
+                    AC_DEFINE(HAVE_METIS, [1], [Define if configured with Metis partitioner support])
+                  fi
                  else
-                   ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS -I$withval"
+                   METIS_INC_FLAGS="-I$withval"
+                   # if (test -f "$withval/metis.h"); then # METIS-3.x might not install a header though
+                   #  AC_DEFINE(HAVE_METIS, [1], [Define if configured with Metis partitioner support])
+                   # fi
                  fi
-                 if (test -f "$withval/include/metis.h" || test -f "$withval/metis.h"); then
-                   AC_DEFINE(HAVE_METIS, [1], [Define if configured with Metis partitioner support])
-                 fi
+                 ZOLTAN_INC_FLAGS="$ZOLTAN_INC_FLAGS $METIS_INC_FLAGS"
                  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-metis=\"${withval}\""
      ;;
                esac] )
+AM_CONDITIONAL(ENABLE_metis, [test "x" != "x$METIS_DIR"])
+AC_SUBST(METIS_LIBS)
+AC_SUBST(METIS_INC_FLAGS)
 
 # If user specified with-scotch, then assume they are trying
 # to add an additional library search directory in which to check
@@ -740,6 +755,186 @@ AC_ARG_WITH( [vtk-lib-suffix],
                  ;;
                esac],[VTK_LIB_SUFFIX=] )
 
+################################################################################
+#                           Zoltan - Part 2 of 2
+################################################################################
+
+#if test "xyes" = "x$ENABLE_mbpart"; then
+#  WITH_ZOLTAN=yes
+#else
+#  WITH_ZOLTAN=no
+#fi
+
+# If user requested Zoltan support, verify that we can
+# find the library and headers, and set the necessary
+# build variables.
+if test "xyes" = "x$WITH_ZOLTAN"; then
+  if test "xyes" != "x$enablempi"; then
+    AC_MSG_WARN([Cannot include Zoltan support without MPI (--with-mpi). Disabling Zoltan support.])
+    WITH_ZOLTAN=no
+  fi
+
+  if test "xyes" = "x$WITH_ZOLTAN"; then
+      # Test for zoltan headers
+    AC_LANG_PUSH([C++])
+    old_CPPFLAGS="$CPPFLAGS"
+    CPPFLAGS="$CPPFLAGS $ZOLTAN_INC_FLAGS -DMPICH_IGNORE_CXX_SEEK"
+    AC_CHECK_HEADER([zoltan_cpp.h],,
+                    [WITH_ZOLTAN=no
+                    AC_MSG_WARN([zoltan_cpp.h: header not found in $ZOLTAN_INC_FLAGS .])],
+                    [#include <stdlib.h>])
+    CPPFLAGS="$old_CPPFLAGS"
+    AC_LANG_POP([C++])
+
+    if test "xyes" = "x$WITH_ZOLTAN"; then
+      # Build LDFLAGS for Zoltan
+      found=no
+      if test "x" != "x$ZOLTAN_DIR"; then
+        if test "x" != "x$ZOLTAN_ARCH" && test -d "$ZOLTAN_DIR/Obj_$ZOLTAN_ARCH"; then
+          ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$ZOLTAN_DIR/Obj_$ZOLTAN_ARCH"
+          found=yes
+        elif test -d "$ZOLTAN_DIR/lib"; then
+          ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$ZOLTAN_DIR/lib"
+          found=yes
+        else
+          for d in $ZOLTAN_DIR/Obj_*; do
+            if test -d "$d"; then
+              found=yes
+              ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$d"
+            fi
+          done
+        fi
+        if test "no" = "$found"; then
+          ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$ZOLTAN_DIR"
+        fi
+      fi
+
+      # Test for Zoltan library, possibly requiring parmetis and scotch
+      old_LDFLAGS="$LDFLAGS"
+      LDFLAGS="$LDFLAGS $ZOLTAN_LIB_FLAGS"
+      AC_CHECK_LIB([zoltan],[Zoltan_LB_Partition],[ZOLTAN_LIBS='-lzoltan'],
+        [unset ac_cv_lib_zoltan_Zoltan_LB_Partition
+        AC_CHECK_LIB([zoltan],[Zoltan_LB_Partition],
+                      [ZOLTAN_LIBS="-lzoltan $PARMETIS_LIBS $METIS_LIBS"],
+                      [unset ac_cv_lib_zoltan_Zoltan_LB_Partition
+                      AC_CHECK_LIB([zoltan],[Zoltan_LB_Partition],[ZOLTAN_LIBS="-lzoltan $SCOTCH_LIBS $PARMETIS_LIBS $METIS_LIBS"],
+                      [AC_MSG_ERROR([zoltan library not found or not usable.  Perhaps you need to specify --with-parmetis=@<:@DIR@:>@ or --with-metis=@<:@DIR@:>@ and/or --with-scotch=@<:@DIR@:>@?])],
+                      [$SCOTCH_LIBS $PARMETIS_LIBS $METIS_LIBS])],
+                      [$PARMETIS_LIBS $METIS_LIBS])])
+      LDFLAGS="$old_LDFLAGS"
+
+        # Define macro HAVE_ZOLTAN
+      AC_DEFINE([HAVE_ZOLTAN],[1],["Define if configured with Zoltan library partitioning support."])
+    fi
+  fi
+fi
+
+AM_CONDITIONAL( HAVE_ZOLTAN, [test "x$WITH_ZOLTAN" = "xyes"] )
+AC_SUBST(ZOLTAN_LIBS)
+AC_SUBST(ZOLTAN_LIB_FLAGS)
+AC_SUBST(ZOLTAN_INC_FLAGS)
+EXPORT_LDFLAGS="$ZOLTAN_LIB_FLAGS $EXPORT_LDFLAGS"
+ 
+################################################################################
+#                           CGM
+################################################################################
+AC_ARG_WITH(cgm, 
+[AS_HELP_STRING([--with-cgm=DIR],[Specify directory containing CGM])],
+[CGM_DIR=$withval
+ DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-cgm=\"${withval}\""
+ ], [CGM_DIR=])
+
+case "x$CGM_DIR" in
+  xno|x)
+    CGM_MISSING=yes
+    ;;
+  xyes)
+    AC_MSG_ERROR([--with-cgm requires an argument])
+    ;;
+  *)
+    if ! test -d "$CGM_DIR"; then
+      AC_MSG_ERROR([$CGM_DIR : not a directory.])
+    fi
+    CGM_MISSING=no
+    CGM_MAKE=
+    AC_CHECK_FILE([${CGM_DIR}/lib/cgm.make],
+                  [CGM_MAKE="${CGM_DIR}/lib/cgm.make"],
+                  [AC_CHECK_FILE([${CGM_DIR}/cgm.make],
+                                 [CGM_MAKE="${CGM_DIR}/cgm.make"],
+                                 [AC_MSG_ERROR([$CGM_DIR : not a configured CGM]); 
+                                  CGM_MISSING=yes])
+                  ])
+    ;;
+esac
+
+if test "x$CGM_MISSING" = "xno"; then
+  CGM_CONFIG_OPTIONS="include $CGM_MAKE"
+
+  AC_MSG_CHECKING([Checking for GeometryQueryTool::ray_fire(RefFace*,...)])
+  FATHOM_MAKE_INC_VAR([$CGM_MAKE],[CGM_DEFINES], [CGM_CPPFLAGS="$make_val"])   
+  FATHOM_MAKE_INC_VAR([$CGM_MAKE],[CGM_INCLUDES],[CGM_CPPFLAGS="$CGM_CPPFLAGS $make_val"])   
+  FATHOM_MAKE_INC_VAR([$CGM_MAKE],[CGM_LTFLAGS], [CGM_LTFLAGS="$make_val"])   
+  FATHOM_MAKE_INC_VAR([$CGM_MAKE],[CGM_LDFLAGS], [CGM_LDFLAGS="$make_val"])   
+  FATHOM_MAKE_INC_VAR([$CGM_MAKE],[CGM_LIBS],    [CGM_LIBS="$make_val"])
+
+  AC_LANG_PUSH([C++])
+  old_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CGM_CPPFLAGS $CPPFLAGS"
+  HAVE_CUBIT=no
+  HAVE_OCC=no
+  AC_CHECK_HEADER([OCCPoint.hpp], 
+                   [HAVE_OCC=yes; AC_DEFINE(HAVE_CGM_OCC, [1], [MOAB uses CGM configured with OpenCascade]) ],
+                   [HAVE_CUBIT=yes; AC_DEFINE(HAVE_CGM_CUBIT,  [1], [MOAB uses CGM configured with CUBIT]) ]
+                   )
+  CPPFLAGS="$old_CPPFLAGS"
+  AC_LANG_POP([C++])
+
+  if (test "x$HAVE_CUBIT" != "xno"); then
+    AC_LANG_PUSH([C++])
+    old_CPPFLAGS="$CPPFLAGS"
+    old_LDFLAGS="$LDFLAGS"
+    old_LIBS="$LIBS"
+    CPPFLAGS="$CGM_CPPFLAGS $CPPFLAGS"
+    LDFLAGS="$CGM_LDFLAGS $CPPFLAGS"
+    LIBS="$CGM_LIBS $LIBS"
+    HAVE_CGM_FIRE_RAY=no
+    AC_LINK_IFELSE(
+      [AC_LANG_PROGRAM([#include "GeometryQueryTool.hpp"
+                        #include "CubitVector.hpp"],
+                      [CubitVector a,b;
+                      DLIList<double> c;
+                      GeometryQueryTool::instance()->fire_ray((RefFace*)0, a, b, c );
+                      ])],
+      [HAVE_CGM_FIRE_RAY=yes;
+      
+      AC_MSG_RESULT(yes)],
+      [AC_MSG_RESULT(no)])
+    CPPFLAGS="$old_CPPFLAGS"
+    LDFLAGS="$old_LDFLAGS"
+    LIBS="$old_LIBS"
+#  LDFLAGS="$old_LDFLAGS"
+#  LIBS="$old_LIBS"
+    AC_LANG_POP([C++])
+  fi
+  EXPORT_LDFLAGS="$EXPORT_LDFLAGS $CGM_LDFLAGS"
+  EXPORT_LTFLAGS="$EXPORT_LTFLAGS $CGM_LTFLAGS"
+fi
+
+AC_SUBST(CGM_CPPFLAGS)
+AC_SUBST(CGM_LDFLAGS)
+AC_SUBST(CGM_LTFLAGS)
+AC_SUBST(CGM_LIBS)
+AC_SUBST(CGM_DIR)
+
+AM_CONDITIONAL( HAVE_CGM, [test "x$CGM_MISSING" = "xno"] )
+
+if (test "x$CGM_MISSING" == "xno"); then
+  AC_DEFINE([HAVE_CGM],[1],["Define if configured with CGM support."])
+  if (test "x$HAVE_CGM_FIRE_RAY" != "xno"); then
+    AC_DEFINE([HAVE_CGM_FIRE_RAY],[1],["Define if configured with CGM and Ray fire support."])
+  fi
+fi
+
 
 ###############################################################################
 #                           Optional Tools
@@ -786,8 +981,21 @@ MB_OPTIONAL_TOOL([mbtagprop],    [yes], [yes])
 MB_OPTIONAL_TOOL([mbmem],        [yes], [yes])
 MB_OPTIONAL_TOOL([spheredecomp], [yes], [yes])
 MB_OPTIONAL_TOOL([mbsurfplot],   [yes], [yes])
-MB_OPTIONAL_TOOL([mbpart],     [${WITH_ZOLTAN}], [${WITH_ZOLTAN}] )
+if (test "x$WITH_ZOLTAN" != "xno" || test "x$METIS_DIR" != "x"); then
+  # mbpart_deftools=no
+  # test "x$METIS_DIR" != "x" || mbpart_deftools="yes"
+  # MB_OPTIONAL_TOOL([mbpart],     [${mbpart_deftools}], [yes] )
+  MB_OPTIONAL_TOOL([mbpart],     [yes], [yes] )
+else
+  MB_OPTIONAL_TOOL([mbpart],     [no], [no] )
+fi
+
 MB_OPTIONAL_TOOL([dagmc],        [no], [yes])
+if test "xyes" = "x$ENABLE_dagmc"; then
+   DAGMC_LIBS="-ldagmc"
+   AC_SUBST(DAGMC_LIBS)
+fi
+
 MB_OPTIONAL_TOOL([gsets],        [yes], [yes])
 MB_OPTIONAL_TOOL([mbdepth],      [yes], [yes])
 if test "x$enablempi" != "xno"; then
@@ -804,10 +1012,7 @@ MB_OPTIONAL_TOOL([h5mtools],     [${HAVE_HDF5}], [${HAVE_HDF5}])
 MB_OPTIONAL_TOOL([mbcslam],      [no], [yes])
 MB_OPTIONAL_TOOL([ahf],          [no], [no])
 MB_OPTIONAL_TOOL([mbquality],    [yes], [yes])
-if test "xyes" = "x$ENABLE_dagmc"; then
-   DAGMC_LIBS="-ldagmc"
-   AC_SUBST(DAGMC_LIBS)
-fi
+MB_OPTIONAL_TOOL([mbumr],        [yes], [yes])
 
 if test "xyes" = "x$ENABLE_ahf"; then
   AC_DEFINE([HAVE_AHF],[1],[Enable use of AHF data-structures for querying adjacency information])
@@ -831,81 +1036,6 @@ if test "xyes" = "x$ENABLE_qvdual"; then
   fi
 fi
 
-################################################################################
-#                           Zoltan - Part 2 of 2
-################################################################################
-
-if test "xyes" = "x$ENABLE_mbpart"; then
-  WITH_ZOLTAN=yes
-else
-  WITH_ZOLTAN=no
-fi
-
-# If user requested Zoltan support, verify that we can
-# find the library and headers, and set the necessary
-# build variables.
-if test "xyes" = "x$WITH_ZOLTAN"; then
-
-  if test "xyes" != "x$enablempi"; then
-    AC_MSG_ERROR([Cannot include Zoltan support without MPI.  See --with-mpi])
-  fi
-
-    # Test for zoltan headers
-  AC_LANG_PUSH([C++])
-  old_CPPFLAGS="$CPPFLAGS"
-  CPPFLAGS="$CPPFLAGS $ZOLTAN_INC_FLAGS -DMPICH_IGNORE_CXX_SEEK"
-  AC_CHECK_HEADER([zoltan_cpp.h],,[AC_MSG_ERROR([zoltan_cpp.h: header not found in $ZOLTAN_INC_FLAGS .])],
-                  [#include <stdlib.h>])
-  CPPFLAGS="$old_CPPFLAGS"
-  AC_LANG_POP([C++])
-
-    # Build LDFLAGS for Zoltan
-  found=no
-  if test "x" != "x$ZOLTAN_DIR"; then
-    if test "x" != "x$ZOLTAN_ARCH" && test -d "$ZOLTAN_DIR/Obj_$ZOLTAN_ARCH"; then
-      ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$ZOLTAN_DIR/Obj_$ZOLTAN_ARCH"
-      found=yes
-    elif test -d "$ZOLTAN_DIR/lib"; then
-      ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$ZOLTAN_DIR/lib"
-      found=yes
-    else
-      for d in $ZOLTAN_DIR/Obj_*; do
-        if test -d "$d"; then
-          found=yes
-          ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$d"
-        fi
-      done
-    fi
-    if test "no" = "$found"; then
-      ZOLTAN_LIB_FLAGS="$ZOLTAN_LIB_FLAGS -L$ZOLTAN_DIR"
-    fi
-  fi
-
-    # Test for Zoltan library, possibly requiring parmetis and scotch
-  old_LDFLAGS="$LDFLAGS"
-  LDFLAGS="$LDFLAGS $ZOLTAN_LIB_FLAGS"
-  AC_CHECK_LIB([zoltan],[Zoltan_LB_Partition],[ZOLTAN_LIBS='-lzoltan'],
-    [unset ac_cv_lib_zoltan_Zoltan_LB_Partition
-     AC_CHECK_LIB([zoltan],[Zoltan_LB_Partition],
-                  [ZOLTAN_LIBS="-lzoltan -lparmetis -lmetis"],
-                  [unset ac_cv_lib_zoltan_Zoltan_LB_Partition
-                   AC_CHECK_LIB([zoltan],[Zoltan_LB_Partition],[ZOLTAN_LIBS="-lzoltan $SCOTCH_LIBS -lparmetis -lmetis"],
-                   [AC_MSG_ERROR([zoltan library not found or not usable.  Perhaps you need to specify --with-parmetis=@<:@DIR@:>@ and --with-scotch=@<:@DIR@:>@?])],
-                   [$SCOTCH_LIBS -lparmetis -lmetis])],
-                  [-lparmetis -lmetis])])
-  LDFLAGS="$old_LDFLAGS"
-
-    # Define macro HAVE_ZOLTAN
-  AC_DEFINE([HAVE_ZOLTAN],[1],["Define if configured with Zoltan library partitioning support."])
-fi
-
-AC_SUBST(ZOLTAN_LIBS)
-AC_SUBST(ZOLTAN_LIB_FLAGS)
-AC_SUBST(ZOLTAN_INC_FLAGS)
-
-EXPORT_LDFLAGS="$ZOLTAN_LIB_FLAGS $EXPORT_LDFLAGS"
-
-  
 dnl Define a function that checks for the existence of a library
 dnl and if it exists, prepends the corresponding link flag to a 
 dnl sepecified variable
@@ -1252,89 +1382,6 @@ if test $ENABLE_qvdual = yes; then
   QVDUAL_INCLUDES="$GRAPH_INC_DIR $VTK_INCLUDES $QT_INCLUDES"
   AC_SUBST(QVDUAL_LIBS)
   AC_SUBST(QVDUAL_INCLUDES)
-fi
-
-################################################################################
-#                           CGM
-################################################################################
-AC_ARG_WITH(cgm, 
-[AS_HELP_STRING([--with-cgm=DIR],[Specify directory containing CGM])],
-[CGM_DIR=$withval
- DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-cgm=\"${withval}\""
- ], [CGM_DIR=])
-
-case "x$CGM_DIR" in
-  xno|x)
-    CGM_MISSING=yes
-    ;;
-  xyes)
-    AC_MSG_ERROR([--with-cgm requires an argument])
-    ;;
-  *)
-    if ! test -d "$CGM_DIR"; then
-      AC_MSG_ERROR([$CGM_DIR : not a directory.])
-    fi
-    CGM_MISSING=no
-    CGM_MAKE=
-    AC_CHECK_FILE([${CGM_DIR}/lib/cgm.make],
-                  [CGM_MAKE="${CGM_DIR}/lib/cgm.make"],
-                  [AC_CHECK_FILE([${CGM_DIR}/cgm.make],
-                                 [CGM_MAKE="${CGM_DIR}/cgm.make"],
-                                 [AC_MSG_ERROR([$CGM_DIR : not a configured CGM]); 
-                                  CGM_MISSING=yes])
-                  ])
-    ;;
-esac
-
-if test "x$CGM_MISSING" = "xno"; then
-  CGM_CONFIG_OPTIONS="include $CGM_MAKE"
-
-  AC_MSG_CHECKING([Checking for GeometryQueryTool::ray_fire(RefFace*,...)])
-  FATHOM_MAKE_INC_VAR([$CGM_MAKE],[CGM_DEFINES], [CGM_CPPFLAGS="$make_val"])   
-  FATHOM_MAKE_INC_VAR([$CGM_MAKE],[CGM_INCLUDES],[CGM_CPPFLAGS="$CGM_CPPFLAGS $make_val"])   
-  FATHOM_MAKE_INC_VAR([$CGM_MAKE],[CGM_LTFLAGS], [CGM_LTFLAGS="$make_val"])   
-  FATHOM_MAKE_INC_VAR([$CGM_MAKE],[CGM_LDFLAGS], [CGM_LDFLAGS="$make_val"])   
-  FATHOM_MAKE_INC_VAR([$CGM_MAKE],[CGM_LIBS],    [CGM_LIBS="$make_val"])   
-  AC_LANG_PUSH([C++])
-  old_CPPFLAGS="$CPPFLAGS"
-  old_LDFLAGS="$LDFLAGS"
-  old_LIBS="$LIBS"
-  CPPFLAGS="$CGM_CPPFLAGS $CPPFLAGS"
-  LDFLAGS="$CGM_LTFLAGS $CGM_LDFLAGS $CPPFLAGS"
-  LIBS="$CGM_LIBS $LIBS"
-  HAVE_CGM_FIRE_RAY=no
-  AC_LINK_IFELSE(
-    [AC_LANG_PROGRAM([#include "GeometryQueryTool.hpp"
-                      #include "CubitVector.hpp"],
-                    [CubitVector a,b;
-                     DLIList<double> c;
-                     GeometryQueryTool::instance()->fire_ray((RefFace*)0, a, b, c );
-                    ])],
-    [HAVE_CGM_FIRE_RAY=yes; AC_MSG_RESULT(yes)],
-    [AC_MSG_RESULT(no)])
-  CPPFLAGS="$old_CPPFLAGS"
-  LDFLAGS="$old_LDFLAGS"
-  LIBS="$old_LIBS"
-#  LDFLAGS="$old_LDFLAGS"
-#  LIBS="$old_LIBS"
-  AC_LANG_POP([C++])
-  EXPORT_LDFLAGS="$EXPORT_LDFLAGS $CGM_LDFLAGS"
-  EXPORT_LTFLAGS="$EXPORT_LTFLAGS $CGM_LTFLAGS"
-fi
-
-AC_SUBST(CGM_CPPFLAGS)
-AC_SUBST(CGM_LDFLAGS)
-AC_SUBST(CGM_LTFLAGS)
-AC_SUBST(CGM_LIBS)
-AC_SUBST(CGM_DIR)
-
-AM_CONDITIONAL( HAVE_CGM, [test "x$CGM_MISSING" = "xno"] )
-
-if (test "x$CGM_MISSING" == "xno"); then
-  AC_DEFINE([HAVE_CGM],[1],["Define if configured with CGM support."])
-  if (test "x$HAVE_CGM_FIRE_RAY" != "xno"); then
-    AC_DEFINE([HAVE_CGM_FIRE_RAY],[1],["Define if configured with CGM and Ray fire support."])
-  fi
 fi
 
 ################################################################################

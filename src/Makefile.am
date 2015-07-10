@@ -193,6 +193,7 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/MeshTopoUtil.hpp \
   moab/MOABConfig.h \
   moab/OrientedBoxTreeTool.hpp \
+  moab/PartitionerBase.hpp \
   moab/ProgOptions.hpp \
   moab/Range.hpp \
   moab/RangeMap.hpp \
@@ -222,7 +223,17 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/MOABConfig.h \
   MBTagConventions.hpp
 
-if ENABLE_mbpart
+if ENABLE_metis
+  libMOAB_la_SOURCES += MetisPartitioner.cpp
+  nobase_libMOAB_la_include_HEADERS += moab/MetisPartitioner.hpp
+  AM_CPPFLAGS += $(METIS_INC_FLAGS)
+  # not sure yet if this is needed; will see when linking io reader (MPAS so far)
+  # the tool mbpart needed it, and it just includes MetisPartitioner.hpp; 
+  # so it needs ways to find the libraries zoltan depends on
+  libMOAB_la_LIBADD += $(METIS_LIBS)
+endif
+
+if HAVE_ZOLTAN
   libMOAB_la_SOURCES += ZoltanPartitioner.cpp
   nobase_libMOAB_la_include_HEADERS += moab/ZoltanPartitioner.hpp
   AM_CPPFLAGS += $(ZOLTAN_INC_FLAGS)
