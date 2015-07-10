@@ -4907,6 +4907,85 @@ ErrorCode mb_canon_number_test()
 
   return MB_SUCCESS;
 }
+ErrorCode mb_side_number_test()
+{
+  ErrorCode rval;
+  Core moab;
+  Interface *mb = &moab;
+
+    /* Create faces of a wedge: */
+    /*
+            4
+           /|\
+          / | \
+         /  |  \
+        /   2   \
+       3.../.\...5
+       |  /   \  |
+       | /     \ |
+       |/       \|      6 // off vertex
+       0_________1
+     */
+
+  const double coords[][3] = { { 0, 0, 0 },
+                               { 2, 0, 0 },
+                               { 1, 0, 1 },
+                               { 0, 2, 0 },
+                               { 2, 2, 0 },
+                               { 1, 2, 1 },
+                               { 3, 1, 0 },
+                                };
+  EntityHandle verts[7];
+  for (unsigned i = 0; i < 7; ++i)
+    mb->create_vertex( coords[i], verts[i] );
+
+  EntityHandle faces[6];
+  EntityHandle tri[] = { verts[0], verts[1], verts[2] };
+  EntityHandle tri2[] = { verts[3], verts[4], verts[5] };
+  EntityHandle quad1[] = { verts[0], verts[1], verts[5], verts[3] };
+  EntityHandle quad2[] = { verts[1], verts[5], verts[4], verts[2] };
+  EntityHandle quad3[] = { verts[2], verts[4], verts[3], verts[0] };
+  rval = mb->create_element( MBTRI, tri, 3, faces[0] );MB_CHK_ERR(rval);
+  rval = mb->create_element( MBQUAD, quad1, 4, faces[1] );MB_CHK_ERR(rval);
+  rval = mb->create_element( MBQUAD, quad2, 4, faces[2] );MB_CHK_ERR(rval);
+  rval = mb->create_element( MBQUAD, quad3, 4, faces[3] );MB_CHK_ERR(rval);
+  rval = mb->create_element( MBTRI, tri2, 3, faces[4] );MB_CHK_ERR(rval);
+
+  EntityHandle prism;
+  rval = mb->create_element( MBPRISM, verts, 6, prism);MB_CHK_ERR(rval);
+
+  /*
+   * side_number(const EntityHandle parent,
+                                  const EntityHandle child,
+                                  int &side_number,
+                                  int &sense,
+                                  int &offset)
+   */
+  int side_n, sen, ofs;
+  rval = mb->side_number(prism, faces[0], side_n, sen, ofs);MB_CHK_ERR(rval);
+  CHECK_EQUAL(side_n, 3);
+  CHECK_EQUAL(sen, -1);
+  CHECK_EQUAL(ofs, 0);
+
+  // this diagonal should not be on the prism (not an edge of the prism)
+  EntityHandle diagonal1;
+  EntityHandle diag[] = {  verts[2], verts[3] };
+  rval = mb->create_element( MBEDGE, diag, 2, diagonal1);MB_CHK_ERR(rval);
+  rval = mb->side_number(prism, diagonal1, side_n, sen, ofs);
+  // expected fail
+  if (rval != MB_FAILURE)
+    return MB_FAILURE;
+
+  // create another triangle, connected to the  prism, but not on the side
+  EntityHandle tri3[] = { verts[3], verts[4], verts[6] };
+  rval = mb->create_element( MBTRI, tri3, 3, faces[5] );MB_CHK_ERR(rval);
+  rval = mb->side_number(prism, faces[5], side_n, sen, ofs);
+  // expected fail
+  if (rval != MB_FAILURE)
+    return MB_FAILURE;
+
+  return MB_SUCCESS;
+}
 
 ErrorCode mb_poly_test() 
 {
@@ -8358,6 +8437,7 @@ int main(int argc, char* argv[])
 #endif
   RUN_TEST( mb_forced_adjacencies_test );
   RUN_TEST( mb_canon_number_test );
+  RUN_TEST (mb_side_number_test);
   RUN_TEST( mb_poly_test );
   RUN_TEST( mb_topo_util_test );
   RUN_TEST( mb_split_test );
