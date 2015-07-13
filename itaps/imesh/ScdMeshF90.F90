@@ -74,6 +74,10 @@ call iMesh_createTagWithOptions(%VAL(mesh), "XM1", "moab:TAG_STORAGE_TYPE=DENSE;
 
 call iMesh_tagIterate(%VAL(mesh), %VAL(tagh), %VAL(iter), rpxm1, count, ier); ERROR(ier);
 
+call iMesh_endEntArrIter(%VAL(mesh), %VAL(iter), ier); ERROR(ier);
+
+call iMesh_dtor(%VAL(mesh), ier); ERROR(ier);
+
 do i = 1, 5*64*64
   xm(i) = 1.0
 end do
