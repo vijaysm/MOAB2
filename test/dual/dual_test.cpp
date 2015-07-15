@@ -13,7 +13,7 @@ using namespace moab;
 #ifdef MESHDIR
 const char default_input[] = STRINGIFY(MESHDIR) "/hex01.vtk" ;
 #else
-const char default_input[] = "hex01.vtk" ;
+#error Define MESHDIR to compile unit tests
 #endif
 const char default_output[] = "dual.vtk";
 
@@ -40,7 +40,7 @@ int main(int argc, char* argv[])
   ErrorCode result = gMB->load_mesh(f1);
   if (MB_SUCCESS != result) {
     std::cout << "Problems reading file " << argv[1] << "." << std::endl;
-    return 0;
+    return 1;
   }
 
     // make sure aentities are created
