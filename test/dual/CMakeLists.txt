@@ -1,6 +1,5 @@
 set(TEST_COMP_FLAGS "-DMESHDIR=${MOAB_ABSSRC_DIR}/MeshFiles/unittest")
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/hex001.vtk DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/)
 add_executable( dual_test ${CMAKE_SOURCE_DIR}/test/TestUtil.hpp dual_test.cpp)
 set_target_properties( dual_test PROPERTIES COMPILE_FLAGS "${TEST_COMP_FLAGS} ${MOAB_DEFINES}" )
 target_link_libraries( dual_test MOAB )
-add_test( dual_test ${EXECUTABLE_OUTPUT_PATH}/dual_test ${CMAKE_CURRENT_BINARY_DIR}/hex001.vtk )
+add_test( dual_test ${EXECUTABLE_OUTPUT_PATH}/dual_test )
