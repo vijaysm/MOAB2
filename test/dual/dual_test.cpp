@@ -126,4 +126,6 @@ int main(int argc, char* argv[])
     // write GMV file
   gMB->write_file( f2 );
   delete gMB;
+
+  return 0;
 }
