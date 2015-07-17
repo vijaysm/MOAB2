@@ -396,8 +396,9 @@ ErrorCode ZoltanPartitioner::partition_mesh_and_geometry(const double part_geom_
   if (!strcmp(zmethod, "RR")) {
     if (part_geom_mesh_size < 0.) {
       // get all elements
-      result = mbImpl->get_entities_by_dimension(0, 3, elems); RR;
-
+      result = mbImpl->get_entities_by_dimension(0, part_dim, elems); RR;
+      if(elems.empty())
+         return MB_FAILURE;
       // make a trivial assignment vector
       std::vector<int> assign_vec(elems.size());
       int num_per = elems.size() / nparts;
@@ -492,7 +493,7 @@ ErrorCode ZoltanPartitioner::partition_mesh_and_geometry(const double part_geom_
   else if (!strcmp(zmethod, "HSFC"))
     SetHSFC_Parameters();
   else if (!strcmp(zmethod, "Hypergraph") || !strcmp(zmethod, "PHG")) {
-    if (NULL == other_method)
+    if (NULL == other_method || (other_method[0]=='\0') )
       SetHypergraph_Parameters("auto");
     else
       SetHypergraph_Parameters(other_method);
