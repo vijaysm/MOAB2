@@ -93,15 +93,15 @@
       call iMesh_endEntArrIter(%VAL(mesh), %VAL(iter), ier)
       ERROR(ier)
 
-      call iMesh_dtor(%VAL(mesh), ier)
-      ERROR(ier)
-
       do 20 i = 1, 5*64*64
         xm(i) = 1.0
  20     continue
 
       rsum = reinterpret_ptr(xm, 5, 64, 64)
-      
+
+      call iMesh_dtor(%VAL(mesh), ier)
+      ERROR(ier)
+
       if (rsum .ne. 5*64*64) call exit(1)
       
       call exit(0)
