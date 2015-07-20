@@ -554,11 +554,9 @@ int main(int argc, char **argv)
     tt = clock();
   }
 
-  mb->delete_mesh();
-  MPI_Barrier(MPI_COMM_WORLD);
-
   if (readb)
   {
+    // now recreate a core instance and load the file we just wrote out to verify
     Core mb2;
     rval = mb2.load_file(outFileName.c_str(), 0,
         "PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS");MB_CHK_SET_ERR(rval, "Can't read in parallel");
@@ -567,8 +565,20 @@ int main(int argc, char **argv)
            << (clock() - tt) / (double)CLOCKS_PER_SEC << " seconds" << endl;
       tt = clock();
     }
+    moab::Range nverts, ncells;
+    rval = mb2.get_entities_by_dimension(0, 0, nverts);MB_CHK_SET_ERR(rval, "Can't get all vertices");
+    rval = mb2.get_entities_by_dimension(0, 3, ncells);MB_CHK_SET_ERR(rval, "Can't get all 3d cells elements");
+
+    if (nverts.size() != verts.size() && ncells.size() != all3dcells.size()) {
+      MB_SET_ERR(MB_FAILURE, "Reading back the output file led to inconsistent number of entities.");
+    }
+
+    // delete the mesh that we already have in-memory
+    mb2.delete_mesh();
   }
 
+  // delete the mesh that we already have in-memory
+  mb->delete_mesh();
 
   MPI_Finalize();
 
