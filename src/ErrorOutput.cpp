@@ -9,6 +9,8 @@
 #include "moab_mpi.h"
 #endif
 
+#include "moab/MOABConfig.h"
+
 namespace moab {
 
 class FILEErrorStream : public ErrorOutputStream
@@ -125,8 +127,9 @@ void ErrorOutput::print_real(const char* fmt, va_list args1, va_list args2)
 #else
   // Guess how much space might be required.
   // If every character is a format code then there are len/3 format codes.
-  // Guess a random large value of 81 characters per formatted argument.
-  unsigned exp_size = 27 * strlen(fmt);
+  // Guess a random large value of num_chars characters per formatted argument.
+  const unsigned num_chars = 180;
+  unsigned exp_size = (num_chars / 3) * strlen(fmt);
   lineBuffer.resize(idx + exp_size);
   unsigned size = vsprintf(&lineBuffer[idx], fmt, args1);
   ++size; // trailing null
