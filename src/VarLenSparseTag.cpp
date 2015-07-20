@@ -315,7 +315,7 @@ void get_tagged(const VarLenSparseTag::MapType& mData,
       hint = output_range.insert(hint, iter->first);
   }
   else {
-#ifdef HAVE_UNORDERED_MAP
+#ifdef MOAB_HAVE_UNORDERED_MAP
     for (iter = mData.begin(); iter != mData.end(); ++iter)
       if (TYPE_FROM_HANDLE(iter->first) == type)
         hint = output_range.insert(hint, iter->first);
@@ -380,7 +380,7 @@ ErrorCode VarLenSparseTag::num_tagged_entities(const SequenceManager*,
 }
 
 ErrorCode VarLenSparseTag::find_entities_with_value(
-#ifdef HAVE_UNORDERED_MAP
+#ifdef MOAB_HAVE_UNORDERED_MAP
                                                     const SequenceManager* seqman,
 #else
                                                     const SequenceManager*,
@@ -396,7 +396,7 @@ ErrorCode VarLenSparseTag::find_entities_with_value(
     return MB_INVALID_SIZE;
 
   MapType::const_iterator iter, end;
-#ifdef HAVE_UNORDERED_MAP
+#ifdef MOAB_HAVE_UNORDERED_MAP
   if (intersect_entities) {
     std::pair<Range::iterator, Range::iterator> r;
     if (type == MBMAXTYPE) {
