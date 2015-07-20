@@ -14,6 +14,9 @@ EXOIIEXAMPLES = TestExodusII
 F90EXAMPLES = DirectAccessNoHolesF90
 F90PAREXAMPLES = PushParMeshIntoMoabF90
 ERROREXAMPLES = ErrorHandlingSimulation TestErrorHandling TestErrorHandlingPar
+ALLEXAMPLES = ${EXAMPLES} ${EXOIIEXAMPLES} ${F90EXAMPLES} ${ERROREXAMPLES} ${PAREXAMPLES} ${F90PAREXAMPLES}
+RUNSERIAL = 
+RUNPARALLEL = @MPIEXEC@ @MPIEXEC_NP@ @NP@
 
 serial: ${EXAMPLES} ${EXOIIEXAMPLES} ${F90EXAMPLES} ${ERROREXAMPLES}
 parallel: ${PAREXAMPLES} ${F90PAREXAMPLES}
@@ -22,6 +25,9 @@ all: serial parallel
 
 HelloMOAB: HelloMOAB.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+run-HelloMOAB: HelloMOAB
+	${RUNSERIAL} ./HelloMOAB
 
 GetEntities: GetEntities.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
@@ -56,6 +62,9 @@ ReduceExchangeTags: ReduceExchangeTags.o ${MOAB_LIBDIR}/libMOAB.la
 HelloParMOAB: HelloParMOAB.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
+run-HelloParMOAB: HelloParMOAB
+	${RUNPARALLEL} ./HelloParMOAB
+
 CrystalRouterExample: CrystalRouterExample.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
@@ -77,17 +86,40 @@ ReadWriteTest: ReadWriteTest.o ${MOAB_LIBDIR}/libMOAB.la
 GenLargeMesh: GenLargeMesh.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
+run-GenLargeMesh: GenLargeMesh
+	${RUNSERIAL} ./GenLargeMesh -r
+	${RUNSERIAL} ./GenLargeMesh -A 2 -B 2 -C 5 -r
+	${RUNPARALLEL} ./GenLargeMesh -M @NP@ -N 1 -K 1 -A 1 -B 2 -C 2
+	${RUNPARALLEL} ./GenLargeMesh -M @NP@ -N 1 -K 1 -A 1 -B 2 -C 2 -d 10.0 -b 2 -r
+
 ErrorHandlingSimulation: ErrorHandlingSimulation.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
+run-ErrorHandlingSimulation: ErrorHandlingSimulation
+	${RUNSERIAL} ./ErrorHandlingSimulation 1
+	${RUNSERIAL} ./ErrorHandlingSimulation 2
+	${RUNSERIAL} ./ErrorHandlingSimulation 3
+	${RUNSERIAL} ./ErrorHandlingSimulation 4
+
 TestErrorHandling: TestErrorHandling.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+run-TestErrorHandling: TestErrorHandling
+	${RUNSERIAL} ./TestErrorHandling 1
+	${RUNSERIAL} ./TestErrorHandling 2
+	${RUNSERIAL} ./TestErrorHandling 3
+	${RUNSERIAL} ./TestErrorHandling 4
 
 TestErrorHandlingPar: TestErrorHandlingPar.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} 
 
 UniformRefinement: UniformRefinement.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+run: all
+	@for drivername in $(ALLEXAMPLES) ; do \
+		${MAKE} "run-"$$drivername ; \
+	done
 
 clean:
 	rm -rf *.o *.mod *.h5m ${EXAMPLES} ${PAREXAMPLES} ${EXOIIEXAMPLES} ${F90EXAMPLES} ${ERROREXAMPLES}
