@@ -108,7 +108,6 @@ int main(int argc, char **argv)
 
   // 5. Release the structured mesh interface and destroy the MOAB instance
   mb->release_interface(scdiface); // Tell MOAB we're done with the ScdInterface
-  delete mb;
 
 #ifdef MOAB_HAVE_MPI
   MPI_Finalize();
