@@ -26,6 +26,7 @@
 
 #include <iostream>
 #include "moab/Core.hpp"
+#include "TestUtil.hpp"
 
 #ifndef IS_BUILDING_MB
 #define IS_BUILDING_MB
@@ -60,11 +61,11 @@ int main()
 #endif
 
   ErrorCode err;
-  err =  iface->load_mesh( filename);MB_CHK_ERR(err);
+  err =  iface->load_mesh( filename);CHECK_ERR(err);
 
   Range quads, verts;
-  err = iface->get_entities_by_dimension(0,0,verts);MB_CHK_ERR(err);
-  err = iface->get_entities_by_dimension(0, 2, quads);MB_CHK_ERR(err);
+  err = iface->get_entities_by_dimension(0,0,verts);CHECK_ERR(err);
+  err = iface->get_entities_by_dimension(0, 2, quads);CHECK_ERR(err);
 
   for (Range::iterator it = verts.begin(); it != verts.end(); it++)
     std::cout<<"verts["<<(*it-*verts.begin())<<"] = "<<*it<<std::endl;
@@ -73,7 +74,7 @@ int main()
   for (Range::iterator it = quads.begin(); it != quads.end(); it++)
     {
       conn.clear();
-      err = iface->get_connectivity(&*it, 1, conn);MB_CHK_ERR(err);
+      err = iface->get_connectivity(&*it, 1, conn);CHECK_ERR(err);
       std::cout<<"verts["<<(*it-*quads.begin())<<"] = "<<*it<<" :: conn = ["<<conn[0]<<", "<<conn[1]<<", "<<conn[2]<<", "<<conn[3]<<"]"<<std::endl;
     }
 
@@ -83,14 +84,14 @@ int main()
 
   std::cout<<"h = "<<h<<std::endl;
 
-  err = iface->get_adjacencies( &h, 1, 0, true, nodes);MB_CHK_ERR(err);
+  err = iface->get_adjacencies( &h, 1, 0, true, nodes);CHECK_ERR(err);
 
   for (int i=0; i<(int)nodes.size(); i++)
     std::cout<<"nodes["<<i<<"] = "<<nodes[i]<<" ";
   std::cout<<std::endl;
 
   std::vector<EntityHandle> edgs;
-  err = iface->get_adjacencies( &h, 1, 1, true, edgs);MB_CHK_ERR(err);
+  err = iface->get_adjacencies( &h, 1, 1, true, edgs);CHECK_ERR(err);
 
   for (int i=0; i<(int)edgs.size(); i++)
     std::cout<<"edgs["<<i<<"] = "<<edgs[i]<<" ";
@@ -101,7 +102,7 @@ int main()
   for(unsigned int i=0; i<edgs.size(); i++)
   {
       nodes.clear();
-      err = iface->get_adjacencies( &edgs[i], 1, 0, true, nodes );MB_CHK_ERR(err);
+      err = iface->get_adjacencies( &edgs[i], 1, 0, true, nodes );CHECK_ERR(err);
       std::cout << "edge " << ID_FROM_HANDLE(edgs[i]) << std::endl;
       std::cout << "nodes = ";
       for(unsigned int j=0; j<nodes.size(); j++)
