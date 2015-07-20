@@ -50,13 +50,13 @@ int main()
 #ifdef MOAB_HAVE_HDF5
   filename = STRINGIFY(MESHDIR) "/testquad-cyl.h5m";
 #else
-  filename = STRINGIFY(MESHDIR) "/testquad-cyl.g";
+  filename = STRINGIFY(MESHDIR) "/hexes_mixed.vtk";
 #endif
 #else
 #ifdef MOAB_HAVE_HDF5
   filename = "testquad-cyl.h5m";
 #else
-  filename = "testquad-cyl.g";
+  filename = "hexes_mixed.vtk";
 #endif
 #endif
 
@@ -75,7 +75,7 @@ int main()
     {
       conn.clear();
       err = iface->get_connectivity(&*it, 1, conn);CHECK_ERR(err);
-      std::cout<<"verts["<<(*it-*quads.begin())<<"] = "<<*it<<" :: conn = ["<<conn[0]<<", "<<conn[1]<<", "<<conn[2]<<", "<<conn[3]<<"]"<<std::endl;
+      std::cout<<"quads["<<(*it-*quads.begin())<<"] = "<<*it<<" :: conn = ["<<conn[0]<<", "<<conn[1]<<", "<<conn[2]<<", "<<conn[3]<<"]"<<std::endl;
     }
 
   std::vector<EntityHandle> nodes;
