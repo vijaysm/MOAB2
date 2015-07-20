@@ -22,6 +22,7 @@
 using namespace moab;
 using namespace std;
 
+string test_file_name = string(MESH_DIR) + string("/64bricks_512hex_256part.h5m");
 int main(int argc, char **argv)
 {
   // Get MOAB instance
@@ -35,7 +36,7 @@ int main(int argc, char **argv)
     int set_tag_values[] = {1, 2, 5};
     int num_set_tag_values = 3;
     // This file is in the mesh files directory
-    rval = mb->load_file("../MeshFiles/unittest/64bricks_1khex.h5m",
+    rval = mb->load_file(test_file_name.c_str(),
             0, 0, PARALLEL_PARTITION_TAG_NAME, set_tag_values, num_set_tag_values);MB_CHK_SET_ERR(rval, "Failed to read");
   }
   else {
