@@ -412,6 +412,21 @@ AM_CPPFLAGS="$CCMIO_CPPFLAGS $AM_CPPFLAGS"
 EXPORT_LDFLAGS="$CCMIO_LDFLAGS $EXPORT_LDFLAGS"
 AC_SUBST(CCMIO_LIBS)
 
+################################################################################
+#                             Mesquite OPTIONS
+################################################################################
+
+old_LDFLAGS="$LDFLAGS"
+LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"
+FATHOM_CHECK_MESQUITE
+LDFLAGS="$old_LDFLAGS"
+if test "xno" != "x$HAVE_MESQUITE"; then
+  AC_DEFINE([HAVE_MESQUITE],[1],["Define if configured with MESQUITE support."])
+fi
+AM_CONDITIONAL(HAVE_MESQUITE, [test "xno" != "x$HAVE_MESQUITE"])
+AM_CPPFLAGS="$MESQUITE_CPPFLAGS $AM_CPPFLAGS"
+EXPORT_LDFLAGS="$MESQUITE_LDFLAGS $EXPORT_LDFLAGS"
+AC_SUBST(MESQUITE_LIBS)
 
 ################################################################################
 #                             DAMSEL OPTIONS
@@ -998,6 +1013,7 @@ fi
 
 MB_OPTIONAL_TOOL([gsets],        [yes], [yes])
 MB_OPTIONAL_TOOL([mbdepth],      [yes], [yes])
+MB_OPTIONAL_TOOL([mesquite],      [yes], [yes])
 if test "x$enablempi" != "xno"; then
   MB_OPTIONAL_TOOL([mbcoupler],    [no], [yes] )
   MB_OPTIONAL_TOOL([mcnpmit],      [no], [yes])
