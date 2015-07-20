@@ -21,22 +21,32 @@
 using namespace moab;
 using namespace std;
 
+#ifdef MOAB_HAVE_HDF5
+string test_file_name = string(MESH_DIR) + string("/64bricks_512hex_256part.h5m");
+#else
+string test_file_name = string(MESH_DIR) + string("/mbtest1.vtk");
+#endif
 int main(int argc, char **argv)
 {
   int num_queries = 1000000;
 
-  if (argc < 2 || argc > 3) {
-    cout << "Usage: " << argv[0] << "<filename> [num_queries]" << endl;
+  if (argc > 3) {
+    cout << "Usage: " << argv[0] << " <filename> [num_queries]" << endl;
     return 0;
   }
-  else if (argc == 3)
+  else if (argc == 3) {
+    test_file_name = argv[1];
     num_queries = atoi(argv[2]);
+  }
+  else {
+    num_queries = 100;
+  }
 
   // Instantiate
   Core mb;
 
   // Load the file
-  ErrorCode rval = mb.load_file(argv[1]);MB_CHK_SET_ERR(rval, "Error loading file");
+  ErrorCode rval = mb.load_file(test_file_name.c_str());MB_CHK_SET_ERR(rval, "Error loading file");
 
   // Get all 3d elements in the file
   Range elems;

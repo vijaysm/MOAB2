@@ -31,9 +31,17 @@ int main(int argc, char **argv)
 {
   argv[0] = argv[argc - argc]; // To remove the warnings about unused parameters
   int I, J, K;
-  // ProgOptions?
-  cout << "Enter I, J, K... " << endl;
-  cin >> I >> J >> K;
+
+  // Need option handling here for input filename
+  if (argc == 4) {
+    // User has input a mesh file
+    I=atoi(argv[1]);
+    J=atoi(argv[2]);
+    K=atoi(argv[3]);
+  }
+  else {
+    I = J = K = 5;
+  }
 
   // 0. Instantiate MOAB and get the structured mesh interface
   Interface* mb = new (std::nothrow) Core;

@@ -39,22 +39,27 @@ using namespace std;
 
 int main(int argc, char **argv)
 {
-  if (argc <= 1)
-    return 1;
+  ErrorCode rval;
+  string file_input,file_output;
+  string read_opts, tags; // Tags to write, separated by commas; it is the name of the tag
+  if (argc < 2) {
+    file_input = string(MESH_DIR) + string("/io/gcrm_r3.nc");
+    file_output = "VisTagsOut.vtk";
+  }
+  else {
+    file_input = argv[1];
+    file_output = argv[2];
+  }
+  read_opts = "";
+  tags = "";
 
   // Instantiate
   Interface* mb = new (std::nothrow) Core;
   if (NULL == mb)
     return 1;
 
-  ErrorCode rval;
-
   int dimension = 2;
-  char* file_input = argv[1];
-  char* file_output = argv[2];
-  char* read_opts = NULL;
-  char* tags = NULL; // Tags to write, separated by commas; it is the name of the tag
-  // In moab, it may have index after reading (T0, T1, etc)
+  // In MOAB, it may have index after reading (T0, T1, etc)
   char* levels = NULL; // Levels, separated by commas, no spaces (like 0, 1, 19)
   if (argc > 3) {
     int index = 3;
@@ -81,7 +86,7 @@ int main(int argc, char **argv)
   fo.get_ints_option("LEVELS", levelsArray);
 
   // Load the input file with the specified options
-  rval = mb->load_file(file_input, 0, read_opts);MB_CHK_SET_ERR(rval, "not loading file");
+  rval = mb->load_file(file_input.c_str(), 0, read_opts.c_str());MB_CHK_SET_ERR(rval, "not loading file");
 
   Range ents;
   rval = mb->get_entities_by_dimension(0, dimension, ents);MB_CHK_SET_ERR(rval, "not getting ents");
@@ -162,7 +167,7 @@ int main(int argc, char **argv)
     mb->tag_delete(tagh); // No need for the tag anymore, write it to the new file
   } // for (size_t i = 0; i < tagsNames.size(); i++)
 
-  rval = mb->write_file(file_output);MB_CHK_SET_ERR(rval, "Can't write file " << file_output);
+  rval = mb->write_file(file_output.c_str());MB_CHK_SET_ERR(rval, "Can't write file " << file_output);
   cout << "Successfully wrote file " << file_output << "\n";
 
   delete mb;
