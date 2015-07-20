@@ -20,6 +20,7 @@ EXTRA_DIST = 125hex.g \
              mbtest3.g \
              test.g \
              testquad-cyl.g \
+             testquad-cyl.h5m \
              testquad.g \
              testtet.g \
              ptest.cub \
