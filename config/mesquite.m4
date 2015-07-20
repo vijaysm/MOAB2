@@ -41,7 +41,7 @@ if test "xno" != "x$MESQUITE_ARG"; then
       AC_MSG_ERROR("$MESQUITE_ARG is not a directory.")
     fi
     if test -d "${MESQUITE_ARG}/include"; then
-      MESQUITE_CPPFLAGS="-I${MESQUITE_ARG}/include -stdlib=libc++"
+      MESQUITE_CPPFLAGS="-I${MESQUITE_ARG}/include"
     else
       MESQUITE_CPPFLAGS="-I${MESQUITE_ARG}"
     fi
@@ -53,6 +53,7 @@ if test "xno" != "x$MESQUITE_ARG"; then
   LDFLAGS="$MESQUITE_LDFLAGS $LDFLAGS"
   
    # Check for C library
+  AC_LANG_PUSH([C++])
   AC_CHECK_HEADERS( [MeshInterface.hpp], [], [HAVE_MESQUITE=no] )
   AC_CHECK_HEADERS( [MsqVertex.hpp], [], [HAVE_MESQUITE=no] )
   AC_CHECK_HEADERS( [Mesquite.hpp], [], [HAVE_MESQUITE=no] )

@@ -31,6 +31,12 @@ EXTRA_DIST = README.hexmodops \
              README.mbtagprop \
              README.spheredecomp
 
+if HAVE_MESQUITE
+  AM_CPPFLAGS += -I$(top_srcdir)/itaps/igeom -I$(top_srcdir)/itaps/imesh
+  mbmesquite_DIR = mbmesquite
+else
+  mbmesquite_DIR=
+endif
 
 if ENABLE_mbconvert
   bin_PROGRAMS += mbconvert
@@ -154,7 +160,7 @@ SUBDIRS = . \
           $(qvdual_DIR) \
 	  $(vtkMOABReader_DIR) \
           $(dagmc_DIR) \
-          $(mesquite_DIR)
+          $(mbmesquite_DIR)
 
 mbconvert_SOURCES = convert.cpp
 mbgsets_SOURCES = gsets.cc

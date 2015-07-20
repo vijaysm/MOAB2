@@ -1005,6 +1005,12 @@ else
   MB_OPTIONAL_TOOL([mbpart],     [no], [no] )
 fi
 
+if (test "x$WITH_MESQUITE" != "xno"); then
+  MB_OPTIONAL_TOOL([mbmesquite],     [yes], [yes] )
+else
+  MB_OPTIONAL_TOOL([mbmesquite],     [no], [no] )
+fi
+
 MB_OPTIONAL_TOOL([dagmc],        [no], [yes])
 if test "xyes" = "x$ENABLE_dagmc"; then
    DAGMC_LIBS="-ldagmc"
@@ -1013,7 +1019,7 @@ fi
 
 MB_OPTIONAL_TOOL([gsets],        [yes], [yes])
 MB_OPTIONAL_TOOL([mbdepth],      [yes], [yes])
-MB_OPTIONAL_TOOL([mesquite],      [yes], [yes])
+
 if test "x$enablempi" != "xno"; then
   MB_OPTIONAL_TOOL([mbcoupler],    [no], [yes] )
   MB_OPTIONAL_TOOL([mcnpmit],      [no], [yes])
@@ -1482,6 +1488,7 @@ AC_CONFIG_FILES([Makefile
                  tools/refiner/Makefile
                  tools/mbcoupler/Makefile
                  tools/mbcslam/Makefile
+                 tools/mbmesquite/Makefile
                  tools/mcnpmit/Makefile
                  tools/qvdual/Makefile
                  tools/dagmc/Makefile
