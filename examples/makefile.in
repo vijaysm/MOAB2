@@ -32,32 +32,64 @@ run-HelloMOAB: HelloMOAB
 GetEntities: GetEntities.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
+run-GetEntities: GetEntities
+	${RUNSERIAL} ./GetEntities
+
 SetsNTags: SetsNTags.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+run-SetsNTags: SetsNTags
+	${RUNSERIAL} ./SetsNTags
 
 LloydRelaxation: LloydRelaxation.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
+run-LloydRelaxation: LloydRelaxation
+	${RUNSERIAL} ./LloydRelaxation
+	${RUNPARALLEL} ./LloydRelaxation
+
 LoadPartial: LoadPartial.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} ${MOAB_LIBS_LINK}
+
+run-LoadPartial: LoadPartial
+	${RUNSERIAL} ./LoadPartial
 
 StructuredMesh: StructuredMesh.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
+run-StructuredMesh: StructuredMesh
+	${RUNSERIAL} ./StructuredMesh
+
 StructuredMeshSimple: StructuredMeshSimple.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+run-StructuredMeshSimple: StructuredMeshSimple
+	${RUNSERIAL} ./StructuredMeshSimple -d 3 -n 5
 
 DirectAccessWithHoles: DirectAccessWithHoles.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
+run-DirectAccessWithHoles: DirectAccessWithHoles
+	${RUNSERIAL} ./DirectAccessWithHoles -n 1000 -H 5
+
 DirectAccessNoHoles: DirectAccessNoHoles.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+run-DirectAccessNoHoles: DirectAccessNoHoles
+	${RUNSERIAL} ./DirectAccessNoHoles -n 1000
 
 DirectAccessNoHolesF90: DirectAccessNoHolesF90.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_FC} -o $@ $< ${IMESH_LIBS}
 
+run-DirectAccessNoHolesF90: DirectAccessNoHolesF90
+	${RUNSERIAL} ./DirectAccessNoHolesF90 -n 1000
+
 ReduceExchangeTags: ReduceExchangeTags.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+run-ReduceExchangeTags: ReduceExchangeTags
+	${RUNSERIAL} ./ReduceExchangeTags
+	${RUNPARALLEL} ./ReduceExchangeTags
 
 HelloParMOAB: HelloParMOAB.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
@@ -68,20 +100,42 @@ run-HelloParMOAB: HelloParMOAB
 CrystalRouterExample: CrystalRouterExample.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
+run-CrystalRouterExample: CrystalRouterExample
+	${RUNSERIAL} ./CrystalRouterExample
+	${RUNPARALLEL} ./CrystalRouterExample -n 2 -t 10 -r 0
+
 TestExodusII: TestExodusII.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+run-TestExodusII: TestExodusII
+	${RUNSERIAL} ./TestExodusII
 
 PointInElementSearch: PointInElementSearch.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
+run-PointInElementSearch: PointInElementSearch
+	${RUNSERIAL} ./PointInElementSearch
+	${RUNPARALLEL} ./PointInElementSearch
+
 PushParMeshIntoMoabF90: PushParMeshIntoMoabF90.o
 	${MOAB_FC} -o $@ $< ${IMESH_LIBS}
+
+run-PushParMeshIntoMoabF90: PushParMeshIntoMoabF90
+	${RUNSERIAL} ./PushParMeshIntoMoabF90
+	${RUNPARALLEL} ./PushParMeshIntoMoabF90
 
 VisTags: VisTags.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
+run-VisTags: VisTags
+	${RUNSERIAL} ./VisTags
+
 ReadWriteTest: ReadWriteTest.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+run-ReadWriteTest: ReadWriteTest
+	${RUNSERIAL} ./ReadWriteTest
+	${RUNPARALLEL} ./ReadWriteTest
 
 GenLargeMesh: GenLargeMesh.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
@@ -113,8 +167,18 @@ run-TestErrorHandling: TestErrorHandling
 TestErrorHandlingPar: TestErrorHandlingPar.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} 
 
+run-TestErrorHandlingPar: TestErrorHandlingPar
+	${RUNPARALLEL} ./TestErrorHandlingPar 1
+	${RUNPARALLEL} ./TestErrorHandlingPar 2
+
 UniformRefinement: UniformRefinement.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+run-UniformRefinement: UniformRefinement GenLargeMesh
+ifeq ("$(wildcard GenLargeMesh.h5m)","")
+	${RUNPARALLEL} ./GenLargeMesh -M @NP@ -N 1 -K 1 -A 1 -B 2 -C 2 -b 5
+endif
+	${RUNPARALLEL} ./UniformRefinement GenLargeMesh.h5m
 
 run: all
 	@for drivername in $(ALLEXAMPLES) ; do \
