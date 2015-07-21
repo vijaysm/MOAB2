@@ -1,7 +1,14 @@
 # MOAB_DIR points to top-level install dir, below which MOAB's lib/ and include/ are located
+MOAB_BUILD_DIR := @abs_top_builddir@
 MOAB_DIR := @prefix@
+
+ifneq ($(wildcard ${MOAB_DIR}/lib/moab.make),)
 include ${MOAB_DIR}/lib/moab.make
 include ${MOAB_DIR}/lib/iMesh-Defs.inc
+else
+include ${MOAB_BUILD_DIR}/moab.make
+include ${MOAB_BUILD_DIR}/itaps/imesh/iMesh-Defs.inc
+endif
 
 .SUFFIXES: .o .cpp .F90
 
@@ -180,13 +187,10 @@ ifeq ("$(wildcard GenLargeMesh.h5m)","")
 endif
 	${RUNPARALLEL} ./UniformRefinement GenLargeMesh.h5m
 
-run: all
-	@for drivername in $(ALLEXAMPLES) ; do \
-		${MAKE} "run-"$$drivername ; \
-	done
+run: all $(addprefix run-,$(ALLEXAMPLES))
 
 clean:
-	rm -rf *.o *.mod *.h5m ${EXAMPLES} ${PAREXAMPLES} ${EXOIIEXAMPLES} ${F90EXAMPLES} ${ERROREXAMPLES}
+	rm -rf *.o *.mod *.h5m ${ALLEXAMPLES}
 
 .cpp.o:
 	${MOAB_CXX} ${CXXFLAGS} ${MOAB_CXXFLAGS} ${MOAB_CPPFLAGS} ${MOAB_INCLUDES} -DMESH_DIR=\"${MESH_DIR}\" -c $<
