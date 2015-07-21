@@ -7,5 +7,4 @@ dual_test_SOURCES = dual_test.cpp
 LDADD = $(top_builddir)/src/libMOAB.la
 dual_test_DEPENDENCIES = $(LDADD)
 TESTS = dual_test 
-EXTRA_DIST=hex01.vtk
 MOSTLYCLEANFILES = dual.vtk

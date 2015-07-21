@@ -37,5 +37,6 @@ endforeach()
 add_executable( tqdcfr tqdcfr_test.cpp )
 set_source_files_properties( tqdcfr_test.cpp
     COMPILE_FLAGS "${MOAB_DEFINES}" )
+set_target_properties( tqdcfr PROPERTIES COMPILE_FLAGS "${TEST_COMP_FLAGS} ${MOAB_DEFINES}" )
 target_link_libraries( tqdcfr MOAB )
 add_test( TestTQDCFR ${EXECUTABLE_OUTPUT_PATH}/tqdcfr )
