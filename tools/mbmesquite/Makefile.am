@@ -20,31 +20,25 @@ lib_LTLIBRARIES = libmbmesquite.la
 LDADD = libmbmesquite.la  $(top_builddir)/src/libMOAB.la $(MESQUITE_LIBS)
 AM_CPPFLAGS += $(MESQUITE_INC_FLAGS)
 AM_LDFLAGS += $(MESQUITE_LIB_FLAGS)
-TESTS = imesh_test igeom_test
+TESTS = imesh_mesquite igeom_mesquite
 
 
 if ENABLE_imesh
  LDADD+= $(top_builddir)/itaps/imesh/libiMesh.la
 endif
 
-if HAVE_CGM
-  AM_CPPFLAGS += $(CGM_CPPFLAGS)
-  LDADD+=  ${CGM_DIR}/lib/libcgm.la
-endif
-
-
-
 libmbmesquite_la_SOURCES = \
    MsqIMesh.cpp MsqIMesh.hpp MsqIBase.cpp MsqIBase.hpp
+
+if HAVE_CGM
+  AM_CPPFLAGS += $(CGM_CPPFLAGS)
+  LDADD+=  ${CGM_DIR}/lib/libiGeom.la ${CGM_DIR}/lib/libcgm.la
+  libmbmesquite_la_SOURCES += MsqIGeom.cpp MsqIGeom.hpp
+endif
 
 if PARALLEL
     libmbmesquite_la_SOURCES += MsqIMeshP.cpp MsqIMeshP.hpp
 endif
-
-if HAVE_CGM
-    libmbmesquite_la_SOURCES += MsqIGeom.hpp MsqIGeom.hpp
-endif
-
 
 
 # these will be installed
@@ -60,5 +54,11 @@ cfgdir = $(libdir)
 
 check_PROGRAMS = $(TESTS)
 
-imesh_test_SOURCES = imesh_test.cpp
-igeom_test_SOURCES = igeom_test.cpp
+imesh_mesquite_SOURCES = imesh_mesquite.cpp
+igeom_mesquite_SOURCES = igeom_mesquite.cpp
+
+# Other files to clean up (e.g. output from tests)
+MOSTLYCLEANFILES = smart-laplacian-result.vtk \
+                   feasible-newton-result.vtk \
+                   original.vtk \
+                   test-suite.log

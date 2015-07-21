@@ -35,7 +35,7 @@
 //
 // DESCRIPTION:
 // ============
-/*! \file main.cpp
+/*! \file imesh_mesquite.cpp
 
 describe main.cpp here
 
@@ -52,7 +52,7 @@ describe main.cpp here
 #include "QualityAssessor.hpp"
 #include "PlanarDomain.hpp"
 #include "MeshWriter.hpp"
-#include "TestUtil.hpp"
+#include "../test/TestUtil.hpp"
 
 // algorithms
 #include "IdealWeightInverseMeanRatio.hpp"
@@ -75,11 +75,11 @@ using namespace Mesquite3;
 #error Specify MESHDIR to compile test
 #endif
 
-const char* const default_file_name = STRINGIFY(MESHDIR) "3D/VTK/large_box_hex_1000.vtk";
+const char* const default_file_name = STRINGIFY(MESHDIR) "/large_box_hex_1000.vtk";
 
 void usage()
 {
-  cout << "main [-N] [filename]" << endl;
+  cout << "imesh_mesquite [-N] [filename]" << endl;
   cout << "  -N : Use native representation instead of TSTT implementation\n";
   cout << "  If no file name is specified, will use \"" 
        << default_file_name << '"' << endl;

@@ -37,6 +37,8 @@
 #include "MsqIMesh.hpp"
 #include "ParallelMeshInterface.hpp"
 
+using namespace Mesquite3;
+
 namespace moab {
 
 /**\class MsqIMeshP

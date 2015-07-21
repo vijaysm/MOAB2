@@ -35,7 +35,7 @@
 #include "MsqVertex.hpp"
 #include "QualityAssessor.hpp"
 #include "SphericalDomain.hpp"
-#include "TestUtil.hpp"
+#include "../test/TestUtil.hpp"
 
 #include <memory>
 #include <iostream>
@@ -63,11 +63,11 @@ bool chk_igeom_error( int ierr, const char* file, int line )
   return true;
 }
 
-const char* const default_file_name = STRINGIFY(MESHDIR) "2D/VTK/quads_on_sphere_529.vtk";
+const char* const default_file_name = STRINGIFY(MESHDIR) "/quads_on_sphere_529.vtk";
 
 void usage()
 {
-  std::cout << "main [-N] [filename] [-o <output_file>]" << std::endl;
+  std::cout << "igeom_mesquite [-N] [filename] [-o <output_file>]" << std::endl;
   std::cout << "  -N : Use native representation instead of iGeom implementation\n" << std::endl;
   std::cout << "  If no file name is specified, will use \"" 
        << default_file_name << '"' << std::endl;
