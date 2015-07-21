@@ -1,7 +1,9 @@
 #include "DebugOutput.hpp"
+#include "moab/MOABConfig.h"
 #include "moab/Range.hpp"
 #include "moab/CN.hpp"
 #include "Internals.hpp"
+
 #include <iostream>
 #include <string.h>
 #include <algorithm>
@@ -12,8 +14,6 @@
 #else
 #  include "time.h"
 #endif
-
-#include "moab/MOABConfig.h"
 
 namespace moab {
 

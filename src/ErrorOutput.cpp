@@ -1,4 +1,5 @@
 #include "ErrorOutput.hpp"
+#include "moab/MOABConfig.h"
 
 #include <iostream>
 #include <string.h>
@@ -8,8 +9,6 @@
 #ifdef MOAB_HAVE_MPI
 #include "moab_mpi.h"
 #endif
-
-#include "moab/MOABConfig.h"
 
 namespace moab {
 
