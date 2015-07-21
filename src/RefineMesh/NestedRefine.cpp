@@ -614,9 +614,7 @@ namespace moab{
 
     for (int l = 0; l<num_level; l++)
       {
-        std::cout<<"Starting level = "<<l<<std::endl;
         double tstart;
-
         tstart = tm->wtime();
 
         // Estimate storage
