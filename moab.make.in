@@ -6,7 +6,9 @@ MOAB_INCLUDES = -I@abs_srcdir@/src \
                 -I@abs_builddir@/src \
                 -I@abs_srcdir@/src/oldinc \
                 -I@abs_srcdir@/src/parallel \
-                -I@abs_builddir@/src/parallel
+                -I@abs_builddir@/src/parallel \
+                -I@abs_srcdir@/src/LocalDiscretization \
+                -I@abs_srcdir@/src/RefineMesh
 
 MOAB_INCLUDES += @ZOLTAN_INC_FLAGS@
 
