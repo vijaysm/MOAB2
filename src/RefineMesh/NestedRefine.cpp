@@ -49,6 +49,7 @@ namespace moab{
 #else
     delete ahf;
 #endif
+    delete tm;
 
   }
 

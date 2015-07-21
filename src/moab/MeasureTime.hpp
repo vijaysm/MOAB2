@@ -17,7 +17,7 @@ namespace moab {
   class MeasureTime{
   public:
     MeasureTime() {};
-    ~MeasureTime();
+    ~MeasureTime() {};
 
     double wtime();
 
