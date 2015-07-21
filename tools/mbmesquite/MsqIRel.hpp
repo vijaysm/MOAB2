@@ -37,7 +37,7 @@
 #include "MsqIGeom.hpp"
 #include "iRel.h"
 
-namespace MESQUITE_NS {
+namespace moab {
 
 
 /* General MeshDomain on iGeom & iRel implementation */

@@ -47,7 +47,7 @@
 # define IMESH_VERSION_ATLEAST(MAJOR,MINOR) 0
 #endif
 
-namespace MESQUITE_NS {
+namespace moab {
 
 
 /*************************************************************************
@@ -57,7 +57,7 @@ namespace MESQUITE_NS {
   MsqIMesh::MsqIMesh( iMesh_Instance mesh, 
                       iBase_EntitySetHandle meshset, 
 		      iBase_EntityType type,
-                      MsqError& err,
+		      MsqError& err,
 		      const iBase_TagHandle* fixed_tag,
 		      const iBase_TagHandle* slaved_tag)
   : meshInstance(mesh), 
@@ -75,7 +75,7 @@ namespace MESQUITE_NS {
 
   MsqIMesh::MsqIMesh( iMesh_Instance mesh, 
 		      iBase_EntityType type,
-                      MsqError& err,
+		      MsqError& err,
 		      const iBase_TagHandle* fixed_tag,
 		      const iBase_TagHandle* slaved_tag)
   : meshInstance(mesh), 
@@ -154,7 +154,7 @@ iBase_TagValueType MsqIMesh::check_valid_flag_tag( iBase_TagHandle tag,
 }
 
 void MsqIMesh::init_active_mesh( iMesh_Instance mesh, 
-                                 MsqError& err,
+				 MsqError& err,
 				 const iBase_TagHandle* fixed_tag,
 				 const iBase_TagHandle* slaved_tag )
 {
@@ -166,7 +166,7 @@ void MsqIMesh::init_active_mesh( iMesh_Instance mesh,
   if (mapsize < iMesh_ALL_TOPOLOGIES)
   {
     MSQ_SETERR(err)("MsqIMesh needs to be updated for new iMesh element topologies.",
-		    MsqError::INTERNAL_ERROR);
+                    MsqError::INTERNAL_ERROR);
   }
   
   for (size_t i = 0; i <= iMesh_ALL_TOPOLOGIES; ++i)
@@ -209,7 +209,7 @@ void MsqIMesh::init_active_mesh( iMesh_Instance mesh,
                      &byteTag, &ierr,
                      strlen(VERTEX_BYTE_TAG_NAME) );
     if (iBase_SUCCESS != ierr) {
-      MSQ_SETERR(err)( MsqError::INVALID_STATE, 
+      MSQ_SETERR(err)( MsqError::INVALID_STATE,
 		       "Tag \"%s\" could not be created", 
 		       VERTEX_BYTE_TAG_NAME );
       return;

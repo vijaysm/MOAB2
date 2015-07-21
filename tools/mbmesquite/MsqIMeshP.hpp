@@ -37,7 +37,7 @@
 #include "MsqIMesh.hpp"
 #include "ParallelMeshInterface.hpp"
 
-namespace MESQUITE_NS {
+namespace moab {
 
 /**\class MsqIMeshP
  *\brief Mesquite iMesh Adapter
@@ -56,7 +56,7 @@ public:
 
   MsqIMeshP(iMesh_Instance imesh, iMeshP_PartitionHandle partition,
 	   iBase_EntitySetHandle meshset, iBase_EntityType element_dimension,
-           MsqError& err,
+	   MsqError& err,
 	   const iBase_TagHandle* fixed_tag = 0,
 	   const iBase_TagHandle* slaved_tag= 0 );
   

@@ -45,7 +45,7 @@ to run mesquite by default.
 #include "MsqDebug.hpp"
 #include <stdlib.h>
 
-namespace MESQUITE_NS
+namespace moab
 {
 
   MsqIMeshP::MsqIMeshP( iMesh_Instance mesh, iMeshP_PartitionHandle partition,

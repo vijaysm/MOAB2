@@ -39,7 +39,7 @@
 #include "MsqError.hpp"
 #include "MsqIBase.hpp"
 
-namespace MESQUITE_NS
+namespace moab
 {
 
 

@@ -42,7 +42,7 @@
 
 #include "MsqIBase.hpp"
 
-using namespace Mesquite;
+using namespace Mesquite3;
 
 #ifndef MESHDIR
 #error Specify MESHDIR to compile test
@@ -59,7 +59,7 @@ bool chk_igeom_error( int ierr, const char* file, int line )
 {
   if (iBase_SUCCESS == ierr) return false;
   std::cerr << "iGeom call failed at " << file << ":" << line << std::endl;
-  std::cerr << process_itaps_error(ierr) << std::endl;
+  std::cerr << moab::process_itaps_error(ierr) << std::endl;
   return true;
 }
 
@@ -257,7 +257,7 @@ MeshDomain* get_itaps_domain()
     return 0;
   }
   
-  return new MsqIGeom( igeom, sphere_surf );
+  return new moab::MsqIGeom( igeom, sphere_surf );
 }
 
 MeshDomain* get_mesquite_domain()

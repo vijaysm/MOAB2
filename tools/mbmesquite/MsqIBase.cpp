@@ -37,7 +37,7 @@
 #include "MsqIBase.hpp"
 #include "MsqDebug.hpp"
 
-namespace MESQUITE_NS {
+namespace moab {
 
 std::string process_itaps_error( int ierr )
 {

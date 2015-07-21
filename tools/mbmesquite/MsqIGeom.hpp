@@ -39,7 +39,10 @@
 #include "iGeom.h"
 #include <vector>
 
-namespace MESQUITE_NS
+using namespace Mesquite3;
+
+
+namespace moab
 {
 
 /**\brief Common code for specific implementations of MeshDomain on ITAPS interfaces.

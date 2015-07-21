@@ -69,11 +69,11 @@ using std::endl;
 
 #include "iBase.h"
 
+using namespace Mesquite3;
+
 #ifndef MESHDIR
 #error Specify MESHDIR to compile test
 #endif
-
-using namespace Mesquite;
 
 const char* const default_file_name = STRINGIFY(MESHDIR) "3D/VTK/large_box_hex_1000.vtk";
 
@@ -298,7 +298,7 @@ Mesh* get_imesh_mesh( const char* file_name )
   }
 
   MsqError err;
-  Mesh* result = new Mesquite::MsqIMesh( imesh_mesh, root_set, iBase_REGION, err, &fixed_tag );
+  Mesh* result = new moab::MsqIMesh( imesh_mesh, root_set, iBase_REGION, err, &fixed_tag );
   if (MSQ_CHKERR(err)) {
     delete result;
     cerr << err << endl;

@@ -39,7 +39,9 @@
 #include "Mesquite.hpp"
 #include <string>
 
-namespace MESQUITE_NS {
+using namespace Mesquite3;
+
+namespace moab {
 
 std::string process_itaps_error( int itaps_err );
 

@@ -36,7 +36,9 @@
 #include "MeshInterface.hpp"
 #include "iMesh.h"
 
-namespace MESQUITE_NS {
+using namespace Mesquite3;
+
+namespace moab {
 
 /** The name of the tag (integer) that Mesquite will use
  *  to store internal data
@@ -92,7 +94,7 @@ public:
   MsqIMesh( iMesh_Instance imesh, 
             iBase_EntitySetHandle meshset,
 	    iBase_EntityType element_dimension,
-            MsqError& err,
+	    MsqError& err,
 	    const iBase_TagHandle* fixed_tag = 0,
 	    const iBase_TagHandle* slaved_tag= 0 );
   
@@ -136,7 +138,7 @@ public:
    */
   MsqIMesh( iMesh_Instance imesh, 
 	    iBase_EntityType element_dimension,
-            MsqError& err,
+	    MsqError& err,
 	    const iBase_TagHandle* fixed_tag = 0,
 	    const iBase_TagHandle* slaved_tag= 0 );
     
