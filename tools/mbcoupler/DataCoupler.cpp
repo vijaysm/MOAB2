@@ -58,6 +58,7 @@ DataCoupler::DataCoupler(Interface *impl,
  */
 DataCoupler::~DataCoupler()
 {
+  delete myLocator->elem_eval();
   delete myLocator;
 }
 
