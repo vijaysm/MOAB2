@@ -20,8 +20,8 @@
 
 #define STRINGIFY_(X) #X
 #define STRINGIFY(X) STRINGIFY_(X)
-#ifdef HAVE_UNORDERED_MAP
-# include STRINGIFY(HAVE_UNORDERED_MAP)
+#ifdef MOAB_HAVE_UNORDERED_MAP
+# include STRINGIFY(MOAB_HAVE_UNORDERED_MAP)
 #else
 # include <map>
 #endif
@@ -2485,8 +2485,8 @@ extern "C" {
           // list-type sets. Since MOAB doesn't (and likely will never) work
           // exactly this way, we implement our own algorithm here.
 
-#ifdef HAVE_UNORDERED_MAP
-        typedef UNORDERED_MAP_NS::unordered_map<EntityHandle, size_t> lookup_t;
+#ifdef MOAB_HAVE_UNORDERED_MAP
+        typedef MOAB_UNORDERED_MAP_NS::unordered_map<EntityHandle, size_t> lookup_t;
 #else
         typedef std::map<EntityHandle, size_t> lookup_t;
 #endif
@@ -2500,7 +2500,7 @@ extern "C" {
 
           for (std::vector<EntityHandle>::iterator i = contents2.begin();
                i != contents2.end(); ++i) {
-#ifdef HAVE_UNORDERED_MAP
+#ifdef MOAB_HAVE_UNORDERED_MAP
             lookup_t::iterator j = lookup.find(*i);
 #else
             lookup_t::iterator j = lookup.lower_bound(*i);

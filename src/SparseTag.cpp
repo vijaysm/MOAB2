@@ -72,7 +72,7 @@ ErrorCode SparseTag::release_all_data(SequenceManager*, Error*, bool)
 
 ErrorCode SparseTag::set_data(Error*, EntityHandle entity_handle, const void* data)
 {
-#ifdef HAVE_UNORDERED_MAP
+#ifdef MOAB_HAVE_UNORDERED_MAP
   MapType::iterator iter = mData.find(entity_handle);
 #else
   MapType::iterator iter = mData.lower_bound(entity_handle);
@@ -400,7 +400,7 @@ void get_tagged(const SparseTag::MapType& mData,
       hint = output_range.insert(hint, iter->first);
   }
   else {
-#ifdef HAVE_UNORDERED_MAP
+#ifdef MOAB_HAVE_UNORDERED_MAP
     for (iter = mData.begin(); iter != mData.end(); ++iter)
       if (TYPE_FROM_HANDLE(iter->first) == type)
         hint = output_range.insert(hint, iter->first);
@@ -464,7 +464,12 @@ ErrorCode SparseTag::num_tagged_entities(const SequenceManager*,
   return MB_SUCCESS;
 }
 
-ErrorCode SparseTag::find_entities_with_value(const SequenceManager* seqman,
+ErrorCode SparseTag::find_entities_with_value(
+#ifdef MOAB_HAVE_UNORDERED_MAP
+                                              const SequenceManager* seqman,
+#else
+                                              const SequenceManager*,
+#endif
                                               Error* /* error */,
                                               Range& output_entities,
                                               const void* value,
@@ -477,7 +482,7 @@ ErrorCode SparseTag::find_entities_with_value(const SequenceManager* seqman,
   }
 
   MapType::const_iterator iter, end;
-#ifdef HAVE_UNORDERED_MAP
+#ifdef MOAB_HAVE_UNORDERED_MAP
   if (intersect_entities) {
     std::pair<Range::iterator,Range::iterator> r;
     if (type == MBMAXTYPE) {
