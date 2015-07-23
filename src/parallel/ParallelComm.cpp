@@ -8265,6 +8265,9 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         }
       }
 
+      // Free the receive buffer
+      free(recvbuf);
+
       // If gents has multiple sequences, copy tag data (stored in the temp buffer) to each sequence separately
       if (multiple_sequences) {
         Range::iterator iter = gents.begin();
@@ -8286,6 +8289,9 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         free(gvals);
       }
     }
+
+    // Free the send data
+    free(senddata);
 
     return MB_SUCCESS;
   }
