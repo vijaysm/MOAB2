@@ -344,6 +344,9 @@ void test_gather_onevar()
 
   // Read vertex variable T and create gather set on processor 0
   opts += ";VARIABLE=T;GATHER_SET=0";
+#ifdef MOAB_HAVE_MPI
+  opts += ";PARALLEL_RESOLVE_SHARED_ENTS";
+#endif
   rval = mb.load_file(example, &file_set, opts.c_str());
   CHECK_ERR(rval);
 
