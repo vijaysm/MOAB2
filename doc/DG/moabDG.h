@@ -1,4 +1,4 @@
-/*! \page developerguide Developer's Guide (MOAB 4.7)
+/*! \page developerguide Developer's Guide (MOAB 4.8.2)
  
   \subpage dg-contents
  
