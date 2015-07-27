@@ -105,7 +105,7 @@ int main(int argc, char* argv[])
   opts.addOpt<void>("reorder,R", "Reorder mesh to group entities by partition", &reorder);
 
   double part_geom_mesh_size = -1.0;
-#if MOAB_HAVE_ZOLTAN
+#ifdef MOAB_HAVE_ZOLTAN
   bool part_surf = false;
 #ifdef MOAB_HAVE_CGM
   opts.addOpt<double>("geom,g", "(CGM) If partition geometry, specify mesh size.", &part_geom_mesh_size);
