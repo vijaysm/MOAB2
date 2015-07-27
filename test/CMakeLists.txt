@@ -4,7 +4,7 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/src/io
     ${CMAKE_SOURCE_DIR}/src/LocalDiscretization
-    ${CMAKE_SOURCE_DIR}/verdict
+    ${CMAKE_SOURCE_DIR}/src/verdict
     ${CMAKE_SOURCE_DIR}/itaps
     ${CMAKE_BINARY_DIR}/itaps
     ${CMAKE_SOURCE_DIR}/itaps/imesh
