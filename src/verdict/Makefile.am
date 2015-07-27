@@ -31,7 +31,13 @@ libmoabverdict_la_SOURCES = \
 nobase_libmoabverdict_la_include_HEADERS = \
         moab/verdict.h \
         moab/VerdictWrapper.hpp
+
 # Boilerplate stuff that doesn't depend on what the targets are
 AM_CPPFLAGS += -DIS_BUILDING_MB -DSRCDIR=$(srcdir) \
-               -I$(srcdir)/.. -I.. -I$(srcdir)/../io \
-               -I$(srcdir)/../io/mhdf/include
+               -I$(srcdir)/.. -I..
+
+check_PROGRAMS = verdict_unit_test
+
+verdict_unit_test_SOURCES = verdict_unit_test.cpp
+verdict_unit_test_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_srcdir)/src
+verdict_unit_test_LDFLAGS = libmoabverdict.la $(top_builddir)/src/libMOAB.la
