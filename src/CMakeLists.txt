@@ -217,6 +217,16 @@ if (MOAB_HAVE_ZOLTAN)
   include_directories( ${ZOLTAN_INCLUDES} )
   list(APPEND MOAB_DEP_LIBRARIES ${ZOLTAN_LIBRARIES})
 endif()
+
+if (MOAB_HAVE_METIS)
+  set( MOAB_LIB_SOURCES ${MOAB_LIB_SOURCES}
+        MetisPartitioner.cpp )
+  set( MOAB_INSTALL_HEADERS ${MOAB_INSTALL_HEADERS}
+        moab/MetisPartitioner.hpp )
+  include_directories( ${METIS_INCLUDES} )
+  list(APPEND MOAB_DEP_LIBRARIES ${METIS_LIBRARIES})
+endif()
+
 add_library( MOAB ${MOAB_LIB_SOURCES} ${MOAB_INSTALL_HEADERS} ${MOAB_GENERATED_INSTALL_HEADERS}
                   $<TARGET_OBJECTS:moabio>
                   $<TARGET_OBJECTS:moab_loc_discr>
