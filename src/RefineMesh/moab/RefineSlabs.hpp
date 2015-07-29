@@ -150,7 +150,7 @@ namespace moab
     // This is a hex-by-hex operation, so the connectivity between hexes might be ill-defined, and the AHF might be out of date,
     // while these sorts of operations are taking place. So, when we're done and the connectivity is well-defined again, call the update_AHF_connectivity function.
     void replace_node( EntityHandle chex, int node_lid, EntityHandle new_node); // AHF todo
-    void udpate_AHF_connectivity(); // AHF todo
+    void update_AHF_connectivity(); // AHF todo
 
 
   protected:

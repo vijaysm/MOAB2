@@ -288,6 +288,7 @@ public:
     */
 
   ErrorCode determine_sibling_halffaces( Range &cells);
+  ErrorCode determine_sibling_halffaces(ESet set);
 
   //! Given a range of cells, determines the incident half-faces and stores them into V2HF_CID, V2HF_LFID tags.
   /** Compute a map between a vertex and an incident half-face.
@@ -298,6 +299,7 @@ public:
     */
 
   ErrorCode determine_incident_halffaces( Range &cells);
+  ErrorCode determine_incident_halffaces(ESet set);
 
   //! Given a range of cells, tags all border vertices with a true value.
   /** Tag border vertices by using the sibhf_cid map. All vertices on half-faces with no sibling
@@ -415,6 +417,11 @@ public:
 
   void get_memory_use(unsigned long long& entity_total, unsigned long long& memory_total);
 
+  ErrorCode update_hf_maps(int dim, ESet set);
+
+  ErrorCode update_hf_maps(int dim, ESet setA, ESet setB);
+  ErrorCode update_hf_3dmaps(ESet setA, ESet setB);
+
   /**************************
      *  Interface to AHF maps   *
      **************************/
@@ -427,6 +434,13 @@ public:
   ErrorCode update_entity_ranges(EntityHandle fileset);
 
   ErrorCode resize_hf_maps(EntityHandle start_vert, int nverts, EntityHandle start_edge, int nedges, EntityHandle start_face, int nfaces, EntityHandle start_cell, int ncells);
+
+  ErrorCode resize_hf_maps(int dim, ESet set);
+  ErrorCode resize_hf_maps(int dim, int nverts, int nents);
+
+ // bool check_map_size(ESet set);
+//  bool check_map_size(int dim, ESet set, int estimate[2]);
+//  ErrorCode check_map_size(EntityHandle entity);
 
   ErrorCode get_sibling_map(EntityType type, EntityHandle ent, EntityHandle *sib_entids, int *sib_lids, int num_halffacets);
 
@@ -493,6 +507,12 @@ public:
   MESHTYPE get_mesh_type(int nverts, int nedges, int nfaces, int ncells);
 
   EntityHandle *get_rset() { return &_rset; }
+
+  struct ESet{
+    Range verts;
+    Range entities;
+    //std::vector<int> hfid;
+  };
 
 protected:
 

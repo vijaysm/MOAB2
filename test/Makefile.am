@@ -58,6 +58,7 @@ TESTS = range_test \
         spatial_locator_test \
         test_boundbox \
         adj_moab_test \
+	ahf_dyn_test \
         uref_mesh_test \
         verdict_test \
 	slab_test 
@@ -156,6 +157,7 @@ test_boundbox_SOURCES = test_boundbox.cpp
 lloyd_smoother_test_SOURCES = lloyd_smoother_test.cpp
 
 adj_moab_test_SOURCES = adj_moab_test.cpp
+ahf_dyn_test_SOURCES = ahf_dynamic_test.cpp
 uref_mesh_test_SOURCES = urefine_mesh_test.cpp
 slab_test_SOURCES = slab_test.cpp
 

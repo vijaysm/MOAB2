@@ -21,11 +21,15 @@ namespace moab{
 
   // ======================================================== AHF functions needing to be filled in =============
 
-  ErrorCode RefineSlabs::new_refinement_ahf( size_t /*num_hexes_memory_estimate*/ )
+  ErrorCode RefineSlabs::new_refinement_ahf( size_t num_hexes_memory_estimate )
   {
-    refinement_ahf = new HalfFacetRep(mbImpl /*, num_hexes_memory_estimate*/ ); // AHF todo, make use of the memory estimate
-    if (!refinement_ahf)
-      return MB_MEMORY_ALLOCATION_FAILED;
+    //refinement_ahf = new HalfFacetRep(mbImpl /*, num_hexes_memory_estimate*/ ); // AHF todo, make use of the memory estimate
+    //if (!refinement_ahf)
+     // return MB_MEMORY_ALLOCATION_FAILED;
+
+    ErrorCode error;
+    error = ahf->resize_hf_maps(3, num_hexes_memory_estimate, num_hexes_memory_estimate);MB_CHK_ERR(error);
+
     return MB_SUCCESS;
   }
 
@@ -37,6 +41,7 @@ namespace moab{
     // refinement_AHF
     // tell AHF about the new hex // AHF todo
     // alternatively, as in the pseudocode, AHF can do this once after all the hexes have been created
+    //NR: Don't change anything in AHF here.
     
     //debug
     created_fine_hexes.insert(new_hex);
@@ -103,7 +108,7 @@ namespace moab{
     // AHF todo
     ;
   }
-  void RefineSlabs::udpate_AHF_connectivity()
+  void RefineSlabs::update_AHF_connectivity()
   {
     // since we've replaced a lot of nodes in hexes, update the hex-to-hex connectivity in refinement_ahf for traversals
     // refinement_ahf; 
@@ -116,9 +121,10 @@ namespace moab{
     node_ok(is_coarse, node);
   
     hexes.clear();
-    HalfFacetRep *use_ahf = (is_coarse) ? ahf : refinement_ahf;
-    use_ahf->get_up_adjacencies_vert_3d( node, hexes ); 
+    //HalfFacetRep *use_ahf = (is_coarse) ? ahf : refinement_ahf;
+   // use_ahf->get_up_adjacencies_vert_3d( node, hexes );
     // use_ahf->get_up_adjacencies( node, 3, hexes ); 
+    ErrorCode error = ahf->get_up_adjacencies_vert_3d(node, hexes);MB_CHK_ERR(error);
   }
 
   void RefineSlabs::get_all_quads( EntityHandle node, Entities &quads, bool is_coarse )
@@ -1022,7 +1028,7 @@ namespace moab{
       err = replace_mesh( coarse_hexes, coarse_quads, fine_hexes, fine_quads );
 
     delete_slabs( slabs );
-    delete refinement_ahf;
+   // delete refinement_ahf;
 
 
     return err;
@@ -1928,7 +1934,8 @@ namespace moab{
     }
     // need to update the datastructures for traversal from one hex to another
     // either do that above during replace_node and create_hex, or below
-    udpate_AHF_connectivity();
+    //update_AHF_connectivity();
+    update_AHF_connectivity(shrink_set, new_hexes);
   }
   void RefineSlabs::get_quad_nodes( EntityHandle /*hex*/, const EntityHandle hex_nodes[8], int face_lid, EntityHandle* quad_nodes )
   {

@@ -1672,6 +1672,314 @@ namespace moab {
 
     return MB_SUCCESS;
   }
+
+
+  ErrorCode HalfFacetRep::determine_sibling_halffaces(ESet set)
+  {
+    ErrorCode error;
+
+    EntityHandle start_cell = *set.entities.begin();
+    EntityType ctype = mb->type_from_handle(start_cell);
+    int index = get_index_in_lmap(start_cell);
+    int nvpc = lConnMap3D[index].num_verts_in_cell;
+    int nfpc = lConnMap3D[index].num_faces_in_cell;
+
+    //Step 1: Create an index list storing the starting position for each vertex
+    int nv = set.verts.size();
+    int *is_index = new int[nv+1];
+    for (int i =0; i<nv+1; i++)
+      is_index[i] = 0;
+
+    int vindex;
+
+    for (Range::iterator cid = set.entities.begin(); cid != set.entities.end(); ++cid)
+       {
+        const EntityHandle* conn;
+        error = mb->get_connectivity(*cid, conn, nvpc);MB_CHK_ERR(error);
+
+        for (int i = 0; i<nfpc; ++i)
+          {
+            int nvF = lConnMap3D[index].hf2v_num[i];
+            EntityHandle v = 0;
+            for (int k = 0; k<nvF; k++)
+              {
+                int id = lConnMap3D[index].hf2v[i][k];
+                if (v <= conn[id])
+                  v = conn[id];
+              }
+            vindex = set.verts.index(v);
+            is_index[vindex+1] += 1;
+          }
+      }
+     is_index[0] = 0;
+
+     for (int i=0; i<nv; i++)
+       is_index[i+1] = is_index[i] + is_index[i+1];
+
+     //Step 2: Define four arrays v2hv_eid, v2hv_lvid storing every half-facet on a vertex
+     EntityHandle * v2oe_v1 = new EntityHandle[is_index[nv]];
+     EntityHandle * v2oe_v2 = new EntityHandle[is_index[nv]];
+     EntityHandle * v2hf_map_cid = new EntityHandle[is_index[nv]];
+     int * v2hf_map_lfid = new int[is_index[nv]];
+
+     for (Range::iterator cid = set.entities.begin(); cid !=  set.entities.end(); ++cid)
+       {
+         const EntityHandle* conn;
+         error = mb->get_connectivity(*cid, conn, nvpc);MB_CHK_ERR(error);
+
+         for (int i = 0; i< nfpc; i++)
+           {
+             int nvF = lConnMap3D[index].hf2v_num[i];
+             std::vector<EntityHandle> vs(nvF);
+             EntityHandle vmax = 0;
+             int lv = -1;
+             for (int k = 0; k<nvF; k++)
+               {
+                 int id = lConnMap3D[index].hf2v[i][k];
+                 vs[k] = conn[id];
+                 if (vmax <= conn[id])
+                   {
+                     vmax = conn[id];
+                     lv = k;
+                   }
+               }
+
+             int nidx = lConnMap2D[nvF-3].next[lv];
+             int pidx = lConnMap2D[nvF-3].prev[lv];
+
+             int v = set.verts.index(vmax);
+             v2oe_v1[is_index[v]] = vs[nidx];
+             v2oe_v2[is_index[v]] = vs[pidx];
+             v2hf_map_cid[is_index[v]] = *cid;
+             v2hf_map_lfid[is_index[v]] = i;
+             is_index[v] += 1;
+
+           }
+       }
+
+     for (int i=nv-2; i>=0; i--)
+       is_index[i+1] = is_index[i];
+     is_index[0] = 0;
+
+     //Step 3: Fill up sibling half-verts map
+   for (Range::iterator cid = set.entities.begin(); cid !=  set.entities.end(); ++cid)
+       {
+         const EntityHandle* conn;
+         error = mb->get_connectivity(*cid, conn, nvpc);MB_CHK_ERR(error);
+
+         int cidx = ID_FROM_HANDLE(*cid)-1;
+         for (int i =0; i<nfpc; i++)
+           {
+             HFacet hf = sibhfs[nfpc*cidx+i];
+             EntityHandle sibcid = fid_from_halfacet(hf, ctype);
+
+             if (sibcid != 0)
+               continue;
+
+
+             int nvF = lConnMap3D[index].hf2v_num[i];
+             std::vector<EntityHandle> vs(nvF);
+             EntityHandle vmax = 0;
+             int lv = -1;
+             for (int k = 0; k<nvF; k++)
+               {
+                 int id = lConnMap3D[index].hf2v[i][k];
+                 vs[k] = conn[id];
+                 if (vmax <= conn[id])
+                   {
+                     vmax = conn[id];
+                     lv = k;
+                   }
+               }
+
+             int nidx = lConnMap2D[nvF-3].next[lv];
+             int pidx = lConnMap2D[nvF-3].prev[lv];
+
+             int v = set.verts.index(vmax);
+             EntityHandle v1 = vs[pidx];
+             EntityHandle v2 = vs[nidx];
+
+             for (int ind = is_index[v]; ind <= is_index[v+1]-1; ind++)
+               {
+                 if ((v2oe_v1[ind] == v1)&&(v2oe_v2[ind] == v2))
+                   {
+                     // Map to opposite hf
+                     EntityHandle cur_cid = v2hf_map_cid[ind];
+                     int cur_lfid = v2hf_map_lfid[ind];
+
+                     sibhfs[nfpc*cidx+i] = create_halffacet(cur_cid, cur_lfid);
+
+                     int scidx = ID_FROM_HANDLE(cur_cid)-1;
+                     sibhfs[nfpc*scidx+cur_lfid] = create_halffacet(*cid, i);
+                   }
+               }
+           }
+       }
+
+     delete [] is_index;
+     delete [] v2oe_v1;
+     delete [] v2oe_v2;
+     delete [] v2hf_map_cid;
+     delete [] v2hf_map_lfid;
+
+     return MB_SUCCESS;
+  }
+
+
+  ErrorCode HalfFacetRep::determine_incident_halffaces( ESet set)
+  {
+    ErrorCode error;
+    EntityType ctype = mb->type_from_handle(*set.entities.begin());
+    int index = get_index_in_lmap(*set.entities.begin());
+    int nvpc = lConnMap3D[index].num_verts_in_cell;
+    int nfpc = lConnMap3D[index].num_faces_in_cell;
+
+
+    for (Range::iterator cid = set.entities.begin(); cid !=  set.entities.end(); ++cid)
+      {
+        EntityHandle cell = *cid;
+        const EntityHandle* conn;
+        error = mb->get_connectivity(*cid, conn, nvpc);MB_CHK_ERR(error);
+
+        int cidx = ID_FROM_HANDLE(cell)-1;
+        for(int i=0; i<nvpc; ++i){
+            EntityHandle v = conn[i];
+            int vidx = ID_FROM_HANDLE(v)-1;
+            HFacet hf  = v2hf[vidx];
+            EntityHandle vcid = fid_from_halfacet(hf, ctype);
+
+            int nhf_pv = lConnMap3D[index].v2hf_num[i];
+
+            for (int j=0; j < nhf_pv; ++j){
+                int ind = lConnMap3D[index].v2hf[i][j];
+                hf = sibhfs[nfpc*cidx+ind];
+                EntityHandle sib_cid = fid_from_halfacet(hf, ctype);
+
+                if (vcid==0){
+                    v2hf[vidx] = create_halffacet(cell,ind);
+                    break;
+                  }
+                else if ((vcid!=0) && (sib_cid ==0)){
+                    v2hf[vidx] = create_halffacet(cell,ind);
+                  }
+              }
+          }
+      }
+
+    return MB_SUCCESS;
+  }
+
+  ErrorCode HalfFacetRep::update_hf_maps(int dim, ESet set)
+  {
+    ErrorCode error;
+
+    error = resize_hf_maps(dim, set);MB_CHK_ERR(error);
+
+    if (dim == 3){
+        error = determine_sibling_halffaces(set);MB_CHK_ERR(error);
+        error = determine_incident_halffaces(set);MB_CHK_ERR(error);
+      }
+    else
+      MB_SET_ERR(MB_NOT_IMPLEMENTED, "Updating hf maps not implemented for 1D and 2D");
+
+    return MB_SUCCESS;
+  }
+
+  ErrorCode HalfFacetRep::update_hf_maps(int dim, ESet setA, ESet setB)
+  {
+    ErrorCode error;
+    if (dim == 3){
+        error = update_hf_3dmaps(setA, setB);MB_CHK_ERR(error);
+      }
+    else
+      MB_SET_ERR(MB_NOT_IMPLEMENTED, "Updating hf maps not implemented for 1D and 2D");
+
+    return MB_SUCCESS;
+  }
+
+  ErrorCode HalfFacetRep::update_hf_3dmaps(ESet setA, ESet setB)
+  {
+    //This routine assumes that the maps for each set already exists. Thus, the maps already
+    //have valid handle space. No checks are performed to resize hf maps.
+    // The following algorithm is a brute force one, with O(N^2) complexity. The optimal
+    //algorithm should take advantage of the traversal through local face and should be near O(N).
+    //TODO: Optimized algorithm: Main idea:
+    //1. Find a seed cell in setA. Start with a cell in setA and find an opposite hf in setB.
+    //2. Find the other incident local face on each of the local edge of the seed lface.
+    //3. Match a cell in setB using the same local traversal.
+
+    ErrorCode error;
+
+    EntityHandle start_cell = *setA.entities.begin();
+    int index = get_index_in_lmap(start_cell);
+    int nfpc = lConnMap3D[index].num_faces_in_cell;
+
+    Range faceA, faceB;
+    bool found;
+
+    //Loop over all the entities in setA.
+    for (Range::iterator cidA = setA.entities.begin(); cidA != setA.entities.end(); ++cidA)
+      {
+        const EntityHandle* Aconn;
+        int Anvpc;
+        error = mb->get_connectivity(*cidA, Aconn, Anvpc);MB_CHK_ERR(error);
+
+        for (int lfidA = 0; lfidA < nfpc; lfidA++){
+            found = false;
+            int nvFA = lConnMap3D[index].hf2v_num[lfidA];
+            std::vector<EntityHandle> fconnA(nvFA);
+            for (int k = 0; k<nvFA; k++)
+              {
+                int id = lConnMap3D[index].hf2v[lfidA][k];
+                fconnA[k] = Aconn[id];
+              }
+
+            std::sort(fconnA.begin(), fconnA.end());
+            std::copy(fconnA.begin(), fconnA.end(), range_inserter(faceA));
+
+            //Now loop over all the entities in setB.
+            for (Range::iterator cidB = setB.entities.begin(); cidB != setB.entities.end(); ++cidB)
+              {
+                const EntityHandle* Bconn;
+                int Bnvpc;
+                error = mb->get_connectivity(*cidB, Bconn, Bnvpc);MB_CHK_ERR(error);
+
+                for (int lfidB = 0; lfid < nfpc; lfidB++){
+                    int nvFB = lConnMap3D[index].hf2v_num[lfidB];
+                    std::vector<EntityHandle> fconnB(nvFB);
+                    for (int k = 0; k<nvFB; k++)
+                      {
+                        int id = lConnMap3D[index].hf2v[lfidB][k];
+                        fconnB[k] = conn[id];
+                      }
+
+                    std::sort(fconnB.begin(), fconnB.end());
+                    std::copy(fconnB.begin(), fconnB.end(), range_inserter(faceB));
+
+                    Range rem = subtract(faceA, faceB);
+                    if (rem.empty())
+                      {
+                        int cidxA = ID_FROM_HANDLE(*cidA)-1;
+                        int cidxB = ID_FROM_HANDLE(*cidB)-1;
+
+                        sibhfs[nfpc*cidxA+lfidA] = create_halffacet(cidB, lfidB);
+                        sibhfs[nfpc*cidxB+lfidB] = create_halffacet(cidA, lfidA);
+                        found = true;
+                        break;
+                      }
+                  }
+
+                if (found)
+                  break;
+              }
+          }
+      }
+
+    return MB_SUCCESS;
+  }
+
+
+
   ////////////////////////////////////////////////////////////////////////
   ErrorCode HalfFacetRep::get_up_adjacencies_vert_3d(EntityHandle vid, std::vector<EntityHandle> &adjents)
   {
@@ -2436,6 +2744,94 @@ namespace moab {
    return MB_SUCCESS;
 
   }
+
+  ErrorCode HalfFacetRep::resize_hf_maps(int dim, ESet set)
+  {
+    if (dim==3)
+      {
+        int index = get_incident_map(*_cells.begin());
+        int nfpc = lConnMap3D[index].num_faces_in_cell;
+
+        int nwsz = (*set.entities.end() - *_cells.end() )*nfpc;
+
+        if (nwsz > 0){
+            int insz = sibhfs.size();
+            sibhfs.resize(insz+nwsz, 0);
+          }
+
+        nwsz = (*set.verts.end() - *_verts.end());
+
+        if (nwsz > 0)
+          {
+            insz = v2hf.size();
+            v2hf.resize(insz+nwsz, 0);
+          }
+      }
+    else
+      MB_SET_ERR(MB_NOT_IMPLEMENTED, "Resizing not implemented for 1D and 2D");
+
+    return MB_SUCCESS;
+  }
+
+  ErrorCode HalfFacetRep::resize_hf_maps(int dim, int nverts, int nents)
+  {
+    //ErrorCode error;
+    int nwsz, insz;
+
+    if (dim == 3)
+      {
+        int index = get_index_in_lmap(*_cells.begin());
+        int nfpc = lConnMap3D[index].num_faces_in_cell;
+
+        nwsz = nents*nfpc;
+        insz = sibhfs.size();
+        sibhfs.resize(insz+nwsz,0);
+
+        nwsz = nverts;
+        insz = v2hf.size();
+        v2hf.resize(insz+nwsz,0);
+      }
+    else
+      MB_SET_ERR(MB_NOT_IMPLEMENTED, "Resizing not implemented for 1D and 2D");
+
+    return MB_SUCCESS;
+  }
+
+ /* bool HalfFacetRep::check_map_size(int dim, ESet set, int estimate[2])
+  {
+
+    int nwsz;
+    if (dim == 3)
+      {
+        int index = get_index_in_lmap(*_cells.begin());
+        int nfpc = lConnMap3D[index].num_faces_in_cell;
+
+        //Get vertex estimate
+        int nverts = set.verts.size();
+        EntityHandle start_vert = *set.verts.begin();
+
+        if (ID_FROM_HANDLE(*(_verts.end()-1)+1) != ID_FROM_HANDLE(start_vert))
+          nwsz = ID_FROM_HANDLE(start_vert)-ID_FROM_HANDLE(*_verts.end())+nverts;
+        else
+          nwsz = nverts;
+
+        estimate[0] = mwsz;
+
+        int ncells = set.entities.size();
+        EntityHandle start_cell = *set.entities.begin();
+
+        if (ID_FROM_HANDLE((*(_cells.end()-1)+1)) != ID_FROM_HANDLE(start_cell))
+          nwsz = (ID_FROM_HANDLE(start_cell)-ID_FROM_HANDLE(*_cells.end())+ncells)*nfpc;
+        else
+          nwsz = ncells*nfpc;
+
+        estimate[1] = nwsz;
+      }
+    else
+      MB_SET_ERR(MB_NOT_IMPLEMENTED, "Resizing not implemented for 1D and 2D");
+
+
+  }*/
 
   ErrorCode HalfFacetRep::get_sibling_map(EntityType type, EntityHandle ent, EntityHandle *sib_entids, int *sib_lids,  int num_halffacets)
   {
