@@ -17,6 +17,8 @@
 #ifndef MOAB_AFFINE_XFORM_HPP
 #define MOAB_AFFINE_XFORM_HPP
 
+#include "moab_export.h"
+
 #include "moab/Forward.hpp"
 #include "moab/CartVect.hpp"
 #include "moab/Matrix3.hpp"
@@ -31,7 +33,7 @@ namespace moab {
  * \author Jason Kraftcheck (kraftche@cae.wisc.edu)
  * \date August, 2006
  */
-class AffineXform
+class MOAB_EXPORT AffineXform
 {
   public:
   

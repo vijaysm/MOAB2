@@ -21,6 +21,8 @@
 #ifndef MB_GEOM_UTIL_HPP
 #define MB_GEOM_UTIL_HPP
 
+#include "moab_export.h"
+
 #include "moab/CartVect.hpp"
 #include <cmath>
 
@@ -55,6 +57,7 @@ namespace GeomUtil {
  *                 Note:  seg_start must be less than seg_end
  *\return true if line semgent intersects box, false otherwise.
  */
+MOAB_EXPORT
 bool segment_box_intersect( CartVect box_min,
                             CartVect box_max,
                             const CartVect& seg_pt,
@@ -73,6 +76,7 @@ bool segment_box_intersect( CartVect box_min,
  *                  intersect test.
  *\return true if intersection, false otherwise.
  */
+MOAB_EXPORT
 bool ray_tri_intersect( const CartVect vertices[3],
                         const CartVect& ray_point,
                         const CartVect& ray_unit_direction,
@@ -104,6 +108,7 @@ bool ray_tri_intersect( const CartVect vertices[3],
  *\return true if intersection, false otherwise.
  */
 enum intersection_type {NONE, INTERIOR, NODE0, NODE1, NODE2, EDGE0, EDGE1, EDGE2};
+MOAB_EXPORT
 bool plucker_ray_tri_intersect( const CartVect vertices[3],
                                 const CartVect& ray_point,
                                 const CartVect& ray_unit_direction,
@@ -160,6 +165,7 @@ bool ray_box_intersect( const CartVect& box_min,
  *                    +X, +Y, and +Z sides respectively.
  *\return true if overlap, false otherwise.
  */
+MOAB_EXPORT
 bool box_plane_overlap( const CartVect& plane_normal, 
                         double            plane_coeff,
                         CartVect        box_min_corner, 
@@ -186,6 +192,7 @@ bool box_plane_overlap( const CartVect& plane_normal,
  *                    test.
  *\return true if overlap, false otherwise.
  */
+MOAB_EXPORT
 bool box_tri_overlap( const CartVect  triangle_corners[3],
                       const CartVect& box_min_corner,
                       const CartVect& box_max_corner,
@@ -200,6 +207,7 @@ bool box_tri_overlap( const CartVect  triangle_corners[3],
  *                    box_center to the boundary of the box.
  *\return true if overlap, false otherwise.
  */
+MOAB_EXPORT
 bool box_tri_overlap( const CartVect  triangle_corners[3],
                       const CartVect& box_center,
                       const CartVect& box_half_dims );
@@ -236,6 +244,7 @@ bool box_elem_overlap( const CartVect *elem_corners,
  *\param box_half_dims Half of the width of the box in each axial
  *                     direction.
  */
+MOAB_EXPORT
 bool box_linear_elem_overlap( const CartVect *elem_corners,
                               EntityType elem_type,
                               const CartVect& box_center,
@@ -253,10 +262,12 @@ bool box_linear_elem_overlap( const CartVect *elem_corners,
  *\param box_half_dims Half of the width of the box in each axial
  *                     direction.
  */
+MOAB_EXPORT
 bool box_linear_elem_overlap( const CartVect *elem_corners,
                               EntityType elem_type,
                               const CartVect& box_half_dims ); 
 
+MOAB_EXPORT
 void closest_location_on_box( const CartVect& box_min_corner,
                               const CartVect& box_max_corner,
                               const CartVect& point,
@@ -269,6 +280,7 @@ void closest_location_on_box( const CartVect& box_min_corner,
  *\param vertices  Array of three corner vertex coordinates.
  *\param closest_out Result position 
  */
+MOAB_EXPORT
 void closest_location_on_tri( const CartVect& location,
                               const CartVect* vertices,
                               CartVect& closest_out );
@@ -281,6 +293,7 @@ void closest_location_on_tri( const CartVect& location,
  *\param num_vertices Length of 'vertices' array.
  *\param closest_out Result position 
  */
+MOAB_EXPORT
 void closest_location_on_polygon( const CartVect& location,
                                   const CartVect* vertices,
                                   int num_vertices,
@@ -298,6 +311,7 @@ void closest_location_on_polygon( const CartVect& location,
  *                     3-5 : edge beginning at closest_topo - 3
  *                       6 : triangle interior
  */
+MOAB_EXPORT
 void closest_location_on_tri( const CartVect& location,
                               const CartVect* vertices,
                               double tolerance,
@@ -306,12 +320,14 @@ void closest_location_on_tri( const CartVect& location,
 
 // Finds whether or not a box defined by the center and the half
 // width intersects a trilinear hex defined by its eight vertices.
+MOAB_EXPORT
 bool box_hex_overlap( const CartVect hexv[8],
                       const CartVect& box_center,
                       const CartVect& box_dims);
 
 // Finds whether or not a box defined by the center and the half
 // width intersects a linear tetrahedron defined by its four vertices.
+MOAB_EXPORT
 bool box_tet_overlap( const CartVect tet_corners[4],
                       const CartVect& box_center,
                       const CartVect& box_dims);
@@ -335,6 +351,7 @@ bool bounding_boxes_overlap (const CartVect * list1, int num1, const CartVect * 
 // and checks if each are between +/-1.  If anyone is outside the range
 // the function returns false, otherwise it returns true.
 //
+MOAB_EXPORT
 bool point_in_trilinear_hex(const CartVect *hex, 
                             const CartVect& xyz,
                             double etol);

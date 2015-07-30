@@ -6,6 +6,8 @@
 #ifndef MOAB_ADAPTIVE_KD_TREE_HPP
 #define MOAB_ADAPTIVE_KD_TREE_HPP
 
+#include "moab_export.h"
+
 #include "moab/Types.hpp"
 #include "moab/Tree.hpp"
 
@@ -19,7 +21,7 @@ namespace moab {
     class Interface;
     class Range;
 
-    class AdaptiveKDTree : public Tree
+    class MOAB_EXPORT AdaptiveKDTree : public Tree
     {
   public:
 
@@ -330,7 +332,7 @@ namespace moab {
                     
 
 //! Iterate over leaves of an adapative kD-tree
-    class AdaptiveKDTreeIter
+    class MOAB_EXPORT AdaptiveKDTreeIter
     {
   public:
 

@@ -1,6 +1,8 @@
 #ifndef ENTITY_SEQUENCE_HPP
 #define ENTITY_SEQUENCE_HPP
 
+#include "moab_export.h"
+
 #include "moab/Types.hpp"
 #include "Internals.hpp"
 
@@ -8,7 +10,7 @@ namespace moab {
 
 class SequenceData;
 
-class EntitySequence {
+class MOAB_EXPORT EntitySequence {
 private:
   EntityHandle startHandle, endHandle;
   SequenceData* sequenceData;

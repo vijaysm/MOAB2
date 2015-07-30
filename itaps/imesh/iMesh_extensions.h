@@ -2,6 +2,8 @@
 #define IMESH_REC_CBIND_H__
 
 #include "moab/MOABConfig.h"
+#include "imesh_export.h"
+
 #include "iMesh.h"
 #include "iMesh_extensions_protos.h"
 #ifdef MOAB_HAVE_MPI
@@ -33,6 +35,7 @@ extern "C" {
      * \param *entity_handles_size Pointer to occupied size of entity_handles array
      * \param *err Pointer to error type returned from function
      */
+  IMESH_EXPORT
   void iMesh_getEntitiesRec(iMesh_Instance instance,
                             /*in*/ const iBase_EntitySetHandle entity_set_handle,
                             /*in*/ const int entity_type,
@@ -58,6 +61,7 @@ extern "C" {
      * \param num_type Pointer to number of entities, returned from function
      * \param *err Pointer to error type returned from function
      */
+  IMESH_EXPORT
   void iMesh_getNumOfTypeRec(iMesh_Instance instance,
                              /*in*/ const iBase_EntitySetHandle entity_set_handle,
                              /*in*/ const int entity_type,
@@ -80,6 +84,7 @@ extern "C" {
      * \param num_topo Pointer to number of entities, returned from function
      * \param *err Pointer to error type returned from function
      */
+  IMESH_EXPORT
   void iMesh_getNumOfTopoRec(iMesh_Instance instance,
                              /*in*/ const iBase_EntitySetHandle entity_set_handle,
                              /*in*/ const int entity_topology,
@@ -108,6 +113,7 @@ extern "C" {
      * \param *entity_handles_size Pointer to occupied size of entity_handles array
      * \param *err Pointer to error type returned from function
      */
+  IMESH_EXPORT
   void iMesh_getEntsByTagsRec(iMesh_Instance instance,
                               /*in*/ const iBase_EntitySetHandle entity_set_handle,
                               /*in*/ const int entity_type,
@@ -139,6 +145,7 @@ extern "C" {
      * \param *set_handles_size Pointer to occupied size of entity_handles array
      * \param *err Pointer to error type returned from function
      */
+  IMESH_EXPORT
   void iMesh_getEntSetsByTagsRec(iMesh_Instance instance,
                                  /*in*/ const iBase_EntitySetHandle entity_set_handle,
                                  /*in*/ const iBase_TagHandle *tag_handles,
@@ -159,6 +166,7 @@ extern "C" {
      * \param imesh_entity_topology iMesh_EntityTopology value
      * \param mbcn_type MBEntityType corresponding to entity topology
      */
+  IMESH_EXPORT
   void iMesh_MBCNType(/*in*/ const int imesh_entity_topology,
                       /*out*/ int *mbcn_type);
     
@@ -183,6 +191,7 @@ extern "C" {
    *\code
    *\endcode
    */
+  IMESH_EXPORT
   void iMesh_tagIterate(iMesh_Instance instance,
                           /**< [in] iMesh instance */
                         const iBase_TagHandle tag_handle,
@@ -203,6 +212,7 @@ extern "C" {
    * storage.
    *
    */
+  IMESH_EXPORT
   void iMesh_connectIterate(iMesh_Instance instance,
                               /**< [in] iMesh instance */
                             iBase_EntityArrIterator entArr_iterator, 
@@ -223,6 +233,7 @@ extern "C" {
    * storage.
    *
    */
+  IMESH_EXPORT
   void iMesh_coordsIterate(iMesh_Instance instance,
                              /**< [in] iMesh instance */
                            iBase_EntityArrIterator entArr_iterator, 
@@ -248,6 +259,7 @@ extern "C" {
  * at the end and at_end is returned non-zero; otherwise at_end is returned zero.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_stepEntIter(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -261,6 +273,7 @@ void iMesh_stepEntIter(
         /**< [out] Returned Error status (see iBase_ErrorType) */
 );
 
+IMESH_EXPORT
 void iMesh_stepEntArrIter(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -289,6 +302,7 @@ void iMesh_stepEntArrIter(
  * entities are retrieved recursively through contained (but not child) sets.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_initEntArrIterRec(
     iMesh_Instance instance, 
         /**< [in] iMesh instance handle */
@@ -319,6 +333,7 @@ void iMesh_initEntArrIterRec(
  * Get all the tags associated with the entire interface
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_getAllIfaceTags(iMesh_Instance instance,
                            /*inout*/ iBase_TagHandle **tag_handles,
                            /*inout*/ int *tag_handles_allocated,
@@ -336,6 +351,7 @@ void iMesh_getAllIfaceTags(iMesh_Instance instance,
  * TAG_DEFAULT_VALUE=<value> (data type of value should match tag data type)
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_createTagWithOptions(iMesh_Instance instance,
                                   /**< [in] iMesh instance handle */
                                   /*in*/ const char* tag_name,
@@ -365,6 +381,7 @@ void iMesh_createTagWithOptions(iMesh_Instance instance,
  * global ids, which are used in shared vertex resolution.
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_createStructuredMesh(
         iMesh_Instance instance,
           /**< [in] iMesh instance handle */
@@ -405,6 +422,7 @@ void iMesh_createStructuredMesh(
  *
  ******************************************************************************/
 
+IMESH_EXPORT
 void iMesh_freeMemory(
         iMesh_Instance instance,
           /**< [in] iMesh instance handle */

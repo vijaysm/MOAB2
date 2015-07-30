@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <iostream>
 #include <sstream>
 #include <iomanip>
@@ -959,16 +960,16 @@ void ProgOptions::write_man_page( std::ostream& s )
 /* Ensure g++ instantiates the template types we expect to use */
 
 #define DECLARE_OPTION_TYPE(T)                                 \
-  template void ProgOptions::addOpt<T>( const std::string&, const std::string&, T*, int ); \
-  template bool ProgOptions::getOpt<T>( const std::string&, T* ); 
+  template MOAB_EXPORT void ProgOptions::addOpt<T>( const std::string&, const std::string&, T*, int ); \
+  template MOAB_EXPORT bool ProgOptions::getOpt<T>( const std::string&, T* ); 
 
 #define DECLARE_VALUED_OPTION_TYPE(T)                          \
   DECLARE_OPTION_TYPE(T)                                       \
-  template void ProgOptions::getOptAllArgs<T> (const std::string&, std::vector<T>& ); \
-  template void ProgOptions::addRequiredArg<T>( const std::string&, const std::string&, T*, int ); \
-  template void ProgOptions::addOptionalArgs<T>( unsigned, const std::string&, const std::string&, int ); \
-  template T ProgOptions::getReqArg<T>( const std::string& ); \
-  template void ProgOptions::getArgs<T>( const std::string&, std::vector<T>& );
+  template MOAB_EXPORT void ProgOptions::getOptAllArgs<T> (const std::string&, std::vector<T>& ); \
+  template MOAB_EXPORT void ProgOptions::addRequiredArg<T>( const std::string&, const std::string&, T*, int ); \
+  template MOAB_EXPORT void ProgOptions::addOptionalArgs<T>( unsigned, const std::string&, const std::string&, int ); \
+  template MOAB_EXPORT T ProgOptions::getReqArg<T>( const std::string& ); \
+  template MOAB_EXPORT void ProgOptions::getArgs<T>( const std::string&, std::vector<T>& );
  
 DECLARE_OPTION_TYPE(void)
 DECLARE_VALUED_OPTION_TYPE(int)

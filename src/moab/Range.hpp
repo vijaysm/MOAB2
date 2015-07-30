@@ -164,6 +164,8 @@
 #ifndef MOAB_RANGE_HPP
 #define MOAB_RANGE_HPP
 
+#include "moab_export.h"
+
 #include <iterator>
 #include <iosfwd>
 #include <algorithm>
@@ -184,7 +186,7 @@ struct range_base_iter
 
 
 //! the class Range
-class Range
+class MOAB_EXPORT Range
 {
 public:
 
@@ -194,8 +196,8 @@ public:
   typedef const_iterator iterator;
   typedef const_reverse_iterator reverse_iterator;
  
-  friend Range intersect( const Range&, const Range& );
-  friend Range subtract( const Range&, const Range& );
+  friend MOAB_EXPORT Range intersect( const Range&, const Range& );
+  friend MOAB_EXPORT Range subtract( const Range&, const Range& );
 
     //! just like subtract, but as an operator
   Range &operator-=(const Range &rhs);
@@ -439,12 +441,12 @@ public:
   class const_pair_iterator;
 
   //! a const iterator which iterates over an Range
-  class const_iterator : public range_base_iter
+  class MOAB_EXPORT const_iterator : public range_base_iter
   {
     friend class Range;
     friend class pair_iterator;
     friend class const_pair_iterator;
-    friend EntityID operator-( const const_iterator&, const const_iterator& );
+    friend MOAB_EXPORT EntityID operator-( const const_iterator&, const const_iterator& );
   public:
     //! default constructor - intialize base default constructor
     const_iterator() : mNode(NULL), mValue(0) {}
@@ -701,9 +703,11 @@ public:
 
  
     //! intersect two ranges, placing the results in the return range
+MOAB_EXPORT
 Range intersect( const Range&, const Range& );
 
     //! subtract range2 from this, placing the results in the return range
+MOAB_EXPORT
 Range subtract( const Range& from, const Range& );
 
     //! unite two ranges, placing the results in the return range
@@ -711,22 +715,27 @@ inline Range unite( const Range& r1, const Range& r2 )
   { Range r(r1); r.insert(r2.begin(), r2.end()); return r; }
 
 
+MOAB_EXPORT
 inline Range::const_iterator 
 operator+( const Range::const_iterator& it, EntityID step )
   { Range::const_iterator tmp(it); return tmp += step; }
   
+MOAB_EXPORT
 inline Range::const_iterator 
 operator+( EntityID step, const Range::const_iterator& it )
   { Range::const_iterator tmp(it); return tmp += step; }
   
+MOAB_EXPORT
 inline Range::const_iterator 
 operator-( const Range::const_iterator& it, EntityID step )
   { Range::const_iterator tmp(it); return tmp -= step; }
   
+MOAB_EXPORT
 inline Range::const_iterator 
 operator-( EntityID step, const Range::const_iterator& it )
   { Range::const_iterator tmp(it); return tmp -= step; }
   
+MOAB_EXPORT
 EntityID 
 operator-(  const Range::const_iterator& it1, const Range::const_iterator& it2 );
 
@@ -829,6 +838,7 @@ inline const EntityHandle& Range::back() const
 inline std::ostream& operator<<( std::ostream& s, const Range& r )
   { r.print(s); return s; }
   
+MOAB_EXPORT
 bool operator==( const Range& r1, const Range& r2 );
 inline bool operator!=( const Range& r1, const Range& r2 )
   { return !(r1 == r2); }

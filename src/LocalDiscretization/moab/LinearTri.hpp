@@ -2,13 +2,15 @@
 #define LINEAR_TRI_HPP
   /**\brief Shape function space for trilinear tetrahedron, obtained by a pushforward of the canonical linear (affine) functions. */
 
+#include "moab_export.h"
+
 #include "moab/ElemEvaluator.hpp"
 #include "moab/CN.hpp"
 
 namespace moab 
 {
     
-class LinearTri 
+class MOAB_EXPORT LinearTri 
 {
 public:
     /** \brief Forward-evaluation of field at parametric coordinates */

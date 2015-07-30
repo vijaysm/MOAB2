@@ -17,7 +17,7 @@
 #ifndef MB_INTERNALS_HPP
 #define MB_INTERNALS_HPP
 
-#ifdef WIN32
+#ifdef _MSC_VER
 #pragma warning(disable : 4786)
 #endif
 

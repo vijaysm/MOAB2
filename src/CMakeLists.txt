@@ -13,6 +13,8 @@ if(MOAB_HAVE_MPI AND MPI_FOUND)
   set( MPI_LIBRARIES ${MPI_LIBRARY} ${MPI_EXTRA_LIBRARY} )
 endif()
 
+add_subdirectory(verdict)
+
 #create the FCDefs.h and src/MOAB_FCDefs.h files
 configure_file(FCDefs.h.in "${CMAKE_CURRENT_BINARY_DIR}/FCDefs.h" @ONLY)
 #sed -e "s/FC_FUNC/MOAB_FC_FUNC/" src/FCDefs.h >src/MOAB_FCDefs.h
@@ -189,6 +191,7 @@ set( MOAB_INSTALL_HEADERS
         moab/SpectralMeshTool.hpp
         moab/Tree.hpp
         moab/TreeStats.hpp
+        moab/TupleList.hpp
         moab/Types.hpp
         moab/UnknownInterface.hpp
         moab/Util.hpp
@@ -233,9 +236,18 @@ add_library( MOAB ${MOAB_LIB_SOURCES} ${MOAB_INSTALL_HEADERS} ${MOAB_GENERATED_I
                   $<TARGET_OBJECTS:moabverdict>
                   ${MOABPAR_OBJECTS}
                   ${MDHF_OBJ} )
+set_target_properties( MOAB PROPERTIES DEFINE_SYMBOL "IS_BUILDING_MB_SHARED")
+include(GenerateExportHeader)
+generate_export_header(MOAB)
+list(APPEND MOAB_GENERATED_INSTALL_HEADERS
+  ${CMAKE_CURRENT_BINARY_DIR}/moab_export.h)
 
-target_link_libraries( MOAB ${MOAB_DEP_LIBRARIES} ${MOAB_LIBS} ${MOAB_CGM_LIBS} ${MPI_LIBRARIES} )
+target_link_libraries( MOAB ${MOAB_DEP_LIBRARIES} ${MOAB_LIBS} ${MOABIO_LIBS} ${MOAB_CGM_LIBS} ${MPI_LIBRARIES} )
 set_target_properties( MOAB PROPERTIES COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}")
+target_include_directories(MOAB PUBLIC
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>"
+  "$<INSTALL_INTERFACE:include>")
 
 install(TARGETS MOAB EXPORT MOABTargets
                      RUNTIME DESTINATION bin

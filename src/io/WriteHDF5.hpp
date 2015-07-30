@@ -17,6 +17,8 @@
 #ifndef WRITE_HDF5_HPP
 #define WRITE_HDF5_HPP
 
+#include "moab_export.h"
+
 #include <list>
 #include "moab/MOABConfig.h"
 #ifdef MOAB_HAVE_MPI // include this before HDF5 headers to avoid conflicts
@@ -44,7 +46,7 @@ class IODebugTrack;
  * \author Jason Kraftcheck
  * \date   01 April 2004
  */
-class WriteHDF5 : public WriterIface
+class MOAB_EXPORT WriteHDF5 : public WriterIface
 {
 
 public:

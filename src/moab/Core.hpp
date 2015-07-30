@@ -16,6 +16,8 @@
 #ifndef MOAB_IMPL_GENERAL_HPP
 #define MOAB_IMPL_GENERAL_HPP
 
+#include "moab_export.h"
+
 #include "moab/Interface.hpp"
 #include "moab/ReaderIface.hpp"
 #include <map>
@@ -55,7 +57,7 @@ class HalfFacetRep;
  * on an object of type Core (use Interface instead), unless you really have to access
  * non-API functionality.
  */
-class Core : public Interface 
+class MOAB_EXPORT Core : public Interface 
 {
 
 public:

@@ -43,7 +43,7 @@
 #include "moab/Types.hpp"
 #include "moab/Compiler.hpp"
 
-#ifdef WIN32
+#ifdef _WIN32
 #define VSNPRINTF _vsnprintf
 #else
 #define VSNPRINTF vsnprintf

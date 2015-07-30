@@ -1429,6 +1429,8 @@ AC_ARG_VAR([FC], [FORTRAN compiler command])
 # Prefixes everything in the temporary file with MOAB_, e.g. MOAB_HAVE_MPI
 #AX_PREFIX_CONFIG_H([src/moab/MOABConfig.h],[MOAB],[.MOABConfig.h])
 
+AC_OUTPUT_COMMANDS( [if test -f src/moab_export.h; then true; else echo "#define MOAB_EXPORT" > src/moab_export.h; fi] )
+AC_OUTPUT_COMMANDS( [if test -f itaps/imesh/imesh_export.h; then true; else echo "#define IMESH_EXPORT" > itaps/imesh/imesh_export.h; fi] )
 AC_CONFIG_HEADERS([src/moab/Version.h
                    src/moab/EntityHandle.hpp
                    src/parallel/moab_mpi_config.h

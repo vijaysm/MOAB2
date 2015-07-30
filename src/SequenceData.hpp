@@ -1,6 +1,8 @@
 #ifndef SEQUENCE_DATA_HPP
 #define SEQUENCE_DATA_HPP
 
+#include "moab_export.h"
+
 
 #include "TypeSequenceManager.hpp"
 
@@ -10,7 +12,7 @@
 
 namespace moab {
 
-class SequenceData
+class MOAB_EXPORT SequenceData
 {
 public:
 

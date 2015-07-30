@@ -222,7 +222,8 @@ nobase_libMOAB_la_include_HEADERS = \
   MOAB_FCDefs.h \
   MBCN_protos.h \
   moab/MOABConfig.h \
-  MBTagConventions.hpp
+  MBTagConventions.hpp \
+  moab_export.h
 
 if ENABLE_metis
   libMOAB_la_SOURCES += MetisPartitioner.cpp

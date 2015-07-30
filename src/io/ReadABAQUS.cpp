@@ -13,7 +13,7 @@
  * 
  */
 
-#ifdef WIN32
+#ifdef _MSC_VER
 #pragma warning(disable:4786)
 #endif
 
@@ -99,8 +99,7 @@ void ReadABAQUS::reset()
 ReadABAQUS::~ReadABAQUS() 
 {
   mdbImpl->release_interface(readMeshIface);
-  if (NULL != abFile)
-    abFile.close();
+  abFile.close();
 }
 
 /*
