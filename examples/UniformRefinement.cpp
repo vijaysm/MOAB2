@@ -28,11 +28,11 @@ int main(int argc, char *argv[])
 
   int level_degrees[4] = {2,3,2,3};
   int num_levels = sizeof(level_degrees) / sizeof(int);
-  EntityHandle *set = new EntityHandle[num_levels];
+  std::vector<EntityHandle> set;
 
   std::cout<<"Starting hierarchy generation"<<std::endl;
 
-  error = uref.generate_mesh_hierarchy(level_degrees, num_levels, set); MB_CHK_ERR(error);
+  error = uref.generate_mesh_hierarchy(num_levels, level_degrees, set); MB_CHK_ERR(error);
 
   std::cout<<"Finished hierarchy generation"<<std::endl;
 
@@ -41,8 +41,6 @@ int main(int argc, char *argv[])
   std::string str = file.str();
   const char* output_file = str.c_str();
   error = mbImpl->write_file(output_file); MB_CHK_ERR(error);
-
-  delete [] set;
 
   return 0;
 }

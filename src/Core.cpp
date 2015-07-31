@@ -3998,7 +3998,11 @@ void Core::estimated_memory_use_internal( const Range* ents,
     if (ents)
       aEntityFactory->get_memory_use( *ents, *adjacency_storage, *amortized_adjacency_storage );
     else
+#ifdef MOAB_HAVE_AHF
+      ahfRep->get_memory_use(*adjacency_storage, *amortized_adjacency_storage);
+#else
       aEntityFactory->get_memory_use( *adjacency_storage, *amortized_adjacency_storage );
+#endif
   }
 
     // get storage for requested list of tags
@@ -4249,10 +4253,21 @@ ErrorCode Core::create_scd_sequence(const HomCoord & coord_min,
 					EntityHandle &  first_handle_out,
 					EntitySequence *&  sequence_out )
 {
-  return sequence_manager()->create_scd_sequence(coord_min, coord_max, type,
-						 start_id_hint,
-						 first_handle_out,
-						 sequence_out);
+  //NR: Previously, the structured element sequences were created via direct call to
+  //the sequence manager instead of using the same from the ScdInterface which
+  //creates the associated scd bounding box after element sequence creation.
+
+  if(!scdInterface)
+    scdInterface = new ScdInterface(this);
+  ScdBox * newBox = NULL;
+  ErrorCode rval = scdInterface->create_scd_sequence(coord_min, coord_max, type,
+                              /*starting_id*/    (int)start_id_hint, newBox); MB_CHK_ERR(rval);
+
+  if (MBVERTEX==type)
+    first_handle_out = newBox->get_vertex(coord_min);
+  else
+    first_handle_out = newBox->get_element(coord_min);
+  return  sequence_manager()->find( first_handle_out, sequence_out );
 }
 
 ErrorCode Core::add_vsequence(EntitySequence *    vert_seq,
