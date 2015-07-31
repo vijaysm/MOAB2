@@ -389,6 +389,10 @@ namespace moab
 
     // copy a fine node into another fine one, for pillowing a shrink set
     EntityHandle shrink_node( EntityHandle fine_node );
+    // move the node towards the interior of the shrink set. Heuristic. 
+    // Not always possible as a direction may not exist that provides a location that is in the star-shaped kernel.
+    void move_into_shrinkset( EntityHandle node );
+
 
     // For a fine node in a shrink set, set its shrunk node that it splits into
     void set_shrunk_node( EntityHandle entity, EntityHandle fine );
@@ -443,6 +447,11 @@ namespace moab
     bool is_good_seed_edge( EntityHandle hex, int edge_lid, int node_01, SlabEdge &slab_edge );
     // True if none of the slab edges have already been refined.
     bool none_refined( std::vector<SlabEdge> slab_edges );
+
+    // coordinate arithmatic     
+    void zero_coord( double *coord ); // coord = 0
+    void add_coord( double *coord, double *add ); // coord += add
+    void axpby_coord( double *coord, double a, double *x, double b, double *y ); // c = a*x + b*y
 
 
   };

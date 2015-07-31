@@ -2,6 +2,7 @@
 #include "moab/RefineSlabs.hpp"
 #include "moab/HalfFacetRep.hpp"
 #include "moab/ReadUtilIface.hpp"
+#include "moab/Util.hpp"
 #include <iostream>
 
 // turn on debugging asserts
@@ -1886,10 +1887,11 @@ namespace moab{
           if ( !get_shrunk_node( node, shrunk_node ) ) 
           {
             shrunk_node = shrink_node( node );
-          }
-          assert( shrunk_node );
           // todo next level of sophistication
           // pick some new geometry for the copied node, say partway towards the hex center
+            move_into_shrinkset( node );
+          }
+          assert( shrunk_node );
           replace_node( chex, n, shrunk_node);
         }
       } 
@@ -2191,6 +2193,82 @@ namespace moab{
     // the coarse mesh should still point to the original fine_node, not its copy
     return fine_copy;
   }
+
+  // coord = 0
+  void RefineSlabs::zero_coord( double *coord )
+  {
+    coord[0] = 0;
+    coord[1] = 0;
+    coord[2] = 0;
+  }
+  // coord += add
+  void RefineSlabs::add_coord( double *coord, double *add )
+  {
+    coord[0] += add[0];
+    coord[1] += add[1];
+    coord[2] += add[2];
+  }
+  // c = a*x + b*y
+  void RefineSlabs::axpby_coord( double *coord, double a, double *x, double b, double *y )
+  {
+    coord[0] += a * x[0] + b * y[0];
+    coord[1] += a * x[1] + b * y[1];
+    coord[2] += a * x[2] + b * y[2];
+  }
+
+  void RefineSlabs::move_into_shrinkset( EntityHandle node )
+  {
+    // get the hexes around the node
+    // get an average interior and exterior direction, towards the centers of hexes
+    // Use the interior or the negative of the exterior, depending on which subset had fewer hexes.
+    Entities hexes;
+    get_all_hexes( node, hexes, false );
+    size_t num_int(0), num_ext(0);
+    double ave_int[3], ave_ext[3];
+    zero_coord( ave_int );
+    zero_coord( ave_ext );
+
+    Coord center_coord; // from Util.hpp
+    double center[3];
+    for ( size_t h = 0; h < hexes.size(); ++h )
+    {
+      // get center coordinate of hex
+      EntityHandle hex = hexes[h];
+      Util::centroid( mbImpl, hex, center_coord );
+      center[0] = center_coord.x;
+      center[1] = center_coord.y;
+      center[2] = center_coord.z;
+
+      if ( get_shrink_membership(hex) == SlabData::INTERNAL )
+      {
+        ++num_int;
+        add_coord( ave_int, center );
+      }
+      else
+      {
+        ++num_ext;
+        add_coord( ave_ext, center );
+      }
+    }
+    double new_pos[3], node_pos[3];
+    zero_coord( new_pos );
+    mbImpl->get_coords( &node, 1, node_pos );
+    const double frac = 0.2; // fraction towards average hex center, probably 1/2 an edge length
+    if ( (num_int < num_ext) && num_int )
+    {
+      axpby_coord( new_pos,   1. - frac, node_pos,   frac / num_int, ave_int );
+    }
+    else if ( num_ext )
+    {
+      axpby_coord( new_pos,   1. - frac, node_pos,  -frac / num_ext, ave_ext );
+    }
+    else
+      // no hexes, this shouldn't happen
+      return;
+    mbImpl->set_coords( &node, 1, new_pos );
+  }
+
+
 
   void RefineSlabs::Slab::reset()
   {
