@@ -2254,7 +2254,7 @@ namespace moab{
     zero_coord( new_pos );
     mbImpl->get_coords( &node, 1, node_pos );
     const double frac = 0.2; // fraction towards average hex center, probably 1/2 an edge length
-    if ( (num_int < num_ext) && num_int )
+    if ( (num_int <= num_ext) && num_int )
     {
       axpby_coord( new_pos,   1. - frac, node_pos,   frac / num_int, ave_int );
     }
