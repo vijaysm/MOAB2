@@ -456,7 +456,7 @@ ErrorCode Coupler::locate_points(double *xyz, unsigned int num_points,
 
   // Copy into tl if passed in and storing locally
   if (tl && store_local) {
-    tl = new TupleList(3, 0, 0, 0, num_points);
+    tl->initialize(3, 0, 0, 0, num_points);
     tl->enableWriteAccess();
     memcpy(tl->vi_wr, tl_tmp->vi_rd, 3 * tl_tmp->get_n() * sizeof(int));
     tl->set_n(tl_tmp->get_n());
