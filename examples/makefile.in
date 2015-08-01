@@ -1,92 +1,196 @@
 # MOAB_DIR points to top-level install dir, below which MOAB's lib/ and include/ are located
+MOAB_BUILD_DIR := @abs_top_builddir@
 MOAB_DIR := @prefix@
+
+ifneq ($(wildcard ${MOAB_DIR}/lib/moab.make),)
 include ${MOAB_DIR}/lib/moab.make
 include ${MOAB_DIR}/lib/iMesh-Defs.inc
+else
+include ${MOAB_BUILD_DIR}/moab.make
+include ${MOAB_BUILD_DIR}/itaps/imesh/iMesh-Defs.inc
+endif
 
 .SUFFIXES: .o .cpp .F90
 
 # MESH_DIR is the directory containing mesh files that come with MOAB source
 MESH_DIR="@abs_top_srcdir@/MeshFiles/unittest"
 
-EXAMPLES = HelloMOAB GetEntities SetsNTags LoadPartial structuredmesh StructuredMeshSimple DirectAccessWithHoles DirectAccessNoHoles point_in_elem_search VisTags UniformRefinement
+EXAMPLES = HelloMOAB GetEntities SetsNTags LoadPartial StructuredMesh StructuredMeshSimple DirectAccessWithHoles DirectAccessNoHoles PointInElementSearch VisTags UniformRefinement
 PAREXAMPLES = HelloParMOAB ReduceExchangeTags LloydRelaxation CrystalRouterExample ReadWriteTest GenLargeMesh
 EXOIIEXAMPLES = TestExodusII
-F90EXAMPLES = DirectAccessNoHolesF90 PushParMeshIntoMoabF90
+F90EXAMPLES = DirectAccessNoHolesF90
+F90PAREXAMPLES = PushParMeshIntoMoabF90
 ERROREXAMPLES = ErrorHandlingSimulation TestErrorHandling TestErrorHandlingPar
+ALLEXAMPLES = ${EXAMPLES} ${EXOIIEXAMPLES} ${F90EXAMPLES} ${ERROREXAMPLES} ${PAREXAMPLES} ${F90PAREXAMPLES}
+RUNSERIAL = 
+RUNPARALLEL = @MPIEXEC@ @MPIEXEC_NP@ @NP@
 
-default: ${EXAMPLES} ${PAREXAMPLES} ${EXOIIEXAMPLES} ${F90EXAMPLES} ${ERROREXAMPLES}
+serial: ${EXAMPLES} ${EXOIIEXAMPLES} ${F90EXAMPLES} ${ERROREXAMPLES}
+parallel: ${PAREXAMPLES} ${F90PAREXAMPLES}
+default: serial
+all: serial parallel
 
 HelloMOAB: HelloMOAB.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
+run-HelloMOAB: HelloMOAB
+	${RUNSERIAL} ./HelloMOAB
+
 GetEntities: GetEntities.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+run-GetEntities: GetEntities
+	${RUNSERIAL} ./GetEntities
 
 SetsNTags: SetsNTags.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
+run-SetsNTags: SetsNTags
+	${RUNSERIAL} ./SetsNTags
+
 LloydRelaxation: LloydRelaxation.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+run-LloydRelaxation: LloydRelaxation
+	${RUNSERIAL} ./LloydRelaxation
+	${RUNPARALLEL} ./LloydRelaxation
 
 LoadPartial: LoadPartial.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} ${MOAB_LIBS_LINK}
 
-structuredmesh: structuredmesh.o ${MOAB_LIBDIR}/libMOAB.la
+run-LoadPartial: LoadPartial
+	${RUNSERIAL} ./LoadPartial
+
+StructuredMesh: StructuredMesh.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+run-StructuredMesh: StructuredMesh
+	${RUNSERIAL} ./StructuredMesh
 
 StructuredMeshSimple: StructuredMeshSimple.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
+run-StructuredMeshSimple: StructuredMeshSimple
+	${RUNSERIAL} ./StructuredMeshSimple -d 3 -n 5
+
 DirectAccessWithHoles: DirectAccessWithHoles.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+run-DirectAccessWithHoles: DirectAccessWithHoles
+	${RUNSERIAL} ./DirectAccessWithHoles -n 1000 -H 5
 
 DirectAccessNoHoles: DirectAccessNoHoles.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
+run-DirectAccessNoHoles: DirectAccessNoHoles
+	${RUNSERIAL} ./DirectAccessNoHoles -n 1000
+
 DirectAccessNoHolesF90: DirectAccessNoHolesF90.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_FC} -o $@ $< ${IMESH_LIBS}
+
+run-DirectAccessNoHolesF90: DirectAccessNoHolesF90
+	${RUNSERIAL} ./DirectAccessNoHolesF90 -n 1000
 
 ReduceExchangeTags: ReduceExchangeTags.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
+run-ReduceExchangeTags: ReduceExchangeTags
+	${RUNSERIAL} ./ReduceExchangeTags
+	${RUNPARALLEL} ./ReduceExchangeTags
+
 HelloParMOAB: HelloParMOAB.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+run-HelloParMOAB: HelloParMOAB
+	${RUNPARALLEL} ./HelloParMOAB
 
 CrystalRouterExample: CrystalRouterExample.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
+run-CrystalRouterExample: CrystalRouterExample
+	${RUNSERIAL} ./CrystalRouterExample
+	${RUNPARALLEL} ./CrystalRouterExample -n 2 -t 10 -r 0
+
 TestExodusII: TestExodusII.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
-point_in_elem_search: point_in_elem_search.o ${MOAB_LIBDIR}/libMOAB.la
+run-TestExodusII: TestExodusII
+	${RUNSERIAL} ./TestExodusII
+
+PointInElementSearch: PointInElementSearch.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+run-PointInElementSearch: PointInElementSearch
+	${RUNSERIAL} ./PointInElementSearch
+	${RUNPARALLEL} ./PointInElementSearch
 
 PushParMeshIntoMoabF90: PushParMeshIntoMoabF90.o
 	${MOAB_FC} -o $@ $< ${IMESH_LIBS}
 
+run-PushParMeshIntoMoabF90: PushParMeshIntoMoabF90
+	${RUNSERIAL} ./PushParMeshIntoMoabF90
+	${RUNPARALLEL} ./PushParMeshIntoMoabF90
+
 VisTags: VisTags.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+run-VisTags: VisTags
+	${RUNSERIAL} ./VisTags
 
 ReadWriteTest: ReadWriteTest.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
+run-ReadWriteTest: ReadWriteTest
+	${RUNSERIAL} ./ReadWriteTest
+	${RUNPARALLEL} ./ReadWriteTest
+
 GenLargeMesh: GenLargeMesh.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+run-GenLargeMesh: GenLargeMesh
+	${RUNSERIAL} ./GenLargeMesh -r
+	${RUNSERIAL} ./GenLargeMesh -A 2 -B 2 -C 5 -r
+	${RUNPARALLEL} ./GenLargeMesh -M @NP@ -N 1 -K 1 -A 1 -B 2 -C 2
+	${RUNPARALLEL} ./GenLargeMesh -M @NP@ -N 1 -K 1 -A 1 -B 2 -C 2 -d 10.0 -b 2 -r
 
 ErrorHandlingSimulation: ErrorHandlingSimulation.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
+run-ErrorHandlingSimulation: ErrorHandlingSimulation
+	${RUNSERIAL} ./ErrorHandlingSimulation 1
+	${RUNSERIAL} ./ErrorHandlingSimulation 2
+	${RUNSERIAL} ./ErrorHandlingSimulation 3
+	${RUNSERIAL} ./ErrorHandlingSimulation 4
+
 TestErrorHandling: TestErrorHandling.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+run-TestErrorHandling: TestErrorHandling
+	${RUNSERIAL} ./TestErrorHandling 1
+	${RUNSERIAL} ./TestErrorHandling 2
+	${RUNSERIAL} ./TestErrorHandling 3
+	${RUNSERIAL} ./TestErrorHandling 4
 
 TestErrorHandlingPar: TestErrorHandlingPar.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} 
 
+run-TestErrorHandlingPar: TestErrorHandlingPar
+	${RUNPARALLEL} ./TestErrorHandlingPar 1
+	${RUNPARALLEL} ./TestErrorHandlingPar 2
+
 UniformRefinement: UniformRefinement.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
+run-UniformRefinement: UniformRefinement GenLargeMesh
+ifeq ("$(wildcard GenLargeMesh.h5m)","")
+	${RUNPARALLEL} ./GenLargeMesh -M @NP@ -N 1 -K 1 -A 1 -B 2 -C 2 -b 5
+endif
+	${RUNPARALLEL} ./UniformRefinement GenLargeMesh.h5m
+
+run: all $(addprefix run-,$(ALLEXAMPLES))
+
 clean:
-	rm -rf *.o *.mod *.h5m ${EXAMPLES} ${PAREXAMPLES} ${EXOIIEXAMPLES} ${F90EXAMPLES} ${ERROREXAMPLES}
+	rm -rf *.o *.mod *.h5m ${ALLEXAMPLES}
 
 .cpp.o:
 	${MOAB_CXX} ${CXXFLAGS} ${MOAB_CXXFLAGS} ${MOAB_CPPFLAGS} ${MOAB_INCLUDES} -DMESH_DIR=\"${MESH_DIR}\" -c $<

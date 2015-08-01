@@ -14,11 +14,11 @@
  * in the current directory (H5M format must be used since the file is written in parallel).
  */
 
-#ifdef USE_MPI
+#include "moab/Core.hpp"
+#ifdef MOAB_HAVE_MPI
 #  include "moab/ParallelComm.hpp"
 #  include "MBParallelConventions.h"
 #endif
-#include "moab/Core.hpp"
 #include "moab/Skinner.hpp"
 #include "moab/CN.hpp"
 #include "moab/CartVect.hpp"
@@ -38,7 +38,7 @@ int main(int argc, char **argv)
   int num_its = 10;
   int report_its = 1;
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
 
@@ -55,7 +55,7 @@ int main(int argc, char **argv)
 
   int nprocs = 1;
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   // Get the ParallelComm instance
   ParallelComm *pcomm = new ParallelComm(mb, MPI_COMM_WORLD);
   nprocs = pcomm->size();
@@ -96,7 +96,7 @@ int main(int argc, char **argv)
 
   // Output file, using parallel write
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   options = "PARALLEL=WRITE_PART";
 #endif
 
@@ -105,7 +105,7 @@ int main(int argc, char **argv)
   // Delete MOAB instance
   delete mb;
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Finalize();
 #endif
 
@@ -118,7 +118,7 @@ ErrorCode perform_lloyd_relaxation(Interface *mb, Range &verts, Range &faces, Ta
   ErrorCode rval;
   int nprocs = 1;
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   ParallelComm *pcomm = ParallelComm::get_pcomm(mb, 0);
   nprocs = pcomm->size();
 #endif
@@ -138,7 +138,7 @@ ErrorCode perform_lloyd_relaxation(Interface *mb, Range &verts, Range &faces, Ta
   // Filter verts down to owned ones and get fixed tag for them
   Range owned_verts, shared_owned_verts;
   if (nprocs > 1) {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     rval = pcomm->filter_pstatus(verts, PSTATUS_NOT_OWNED, PSTATUS_NOT, -1, &owned_verts);MB_CHK_ERR(rval);
 #endif
   }
@@ -152,7 +152,7 @@ ErrorCode perform_lloyd_relaxation(Interface *mb, Range &verts, Range &faces, Ta
   vcentroids.resize(3*owned_verts.size());
   rval = mb->tag_get_data(centroid, owned_verts, &vcentroids[0]);MB_CHK_ERR(rval);
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   // Get shared owned verts, for exchanging tags
   rval = pcomm->get_shared_entities(-1, shared_owned_verts, 0, false, true);MB_CHK_ERR(rval);
   // Workaround: if no shared owned verts, put a non-shared one in the list, to prevent exchanging tags
@@ -215,7 +215,7 @@ ErrorCode perform_lloyd_relaxation(Interface *mb, Range &verts, Range &faces, Ta
 
     // 2c. Exchange tags on owned verts
     if (nprocs > 1) {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
       rval = pcomm->exchange_tags(centroid, shared_owned_verts);MB_CHK_ERR(rval);
 #endif
     }
@@ -224,7 +224,7 @@ ErrorCode perform_lloyd_relaxation(Interface *mb, Range &verts, Range &faces, Ta
       // Global reduce for maximum delta, then report it
       double global_max = mxdelta;
       int myrank = 0;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
       if (nprocs > 1)
         MPI_Reduce(&mxdelta, &global_max, 1, MPI_DOUBLE, MPI_MAX, 0, pcomm->comm());
       myrank = pcomm->rank();

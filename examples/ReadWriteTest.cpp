@@ -22,18 +22,28 @@ using namespace std;
 
 int main(int argc, char **argv)
 {
+  string input_file,output_file,read_opts,write_opts;
+
   MPI_Init(&argc, &argv);
 
   string options;
 
   // Need option handling here for input filename
-  if (argc < 3)
-   return 1;
-
-  char* input_file = argv[1];
-  char* output_file = argv[2];
-  char* read_opts = NULL;
-  char* write_opts = NULL; // Tags to write, separated by commas; it is the name of the tag
+  if (argc < 3) {
+#ifdef MOAB_HAVE_NETCDF
+    input_file = string(MESH_DIR) + string("/io/fv3x46x72.t.3.nc");
+    output_file = "ReadWriteTestOut.h5m";
+    read_opts = "PARALLEL=READ_PART;PARTITION_METHOD=SQIJ;PARALLEL_RESOLVE_SHARED_ENTS;VARIABLE=T,U";
+    write_opts = "PARALLEL=WRITE_PART";
+#else
+    cout << "Usage: mpiexec -n $NP ReadWriteTest [input] [output] -O <read_opts> -o <write_opts>\n";
+    return 0;
+#endif
+  }
+  else {
+    input_file = argv[1];
+    output_file = argv[2];
+  }
 
   if (argc > 3) {
     int index = 3;
@@ -66,7 +76,7 @@ int main(int argc, char **argv)
          << "\n on " << nprocs << " processors\n";
 
   // Read the file with the specified options
-  rval = mb->load_file(input_file, &set, read_opts);MB_CHK_ERR(rval);
+  rval = mb->load_file(input_file.c_str(), &set, read_opts.c_str());MB_CHK_ERR(rval);
 
   if (0 == rank) {
     cout << "Time: " << (clock() - tt) / (double) CLOCKS_PER_SEC << " seconds" << endl;
@@ -74,7 +84,7 @@ int main(int argc, char **argv)
   }
 
   // Write back the file with the specified options
-  rval = mb->write_file(output_file, 0, write_opts, &set, 1);MB_CHK_ERR(rval);
+  rval = mb->write_file(output_file.c_str(), 0, write_opts.c_str(), &set, 1);MB_CHK_ERR(rval);
 
   if (0 == rank) {
     cout << "Writing file " << output_file << "\n with options: " << write_opts << endl;

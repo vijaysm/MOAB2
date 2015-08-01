@@ -25,27 +25,31 @@ build-check:
 
 doc_DATA = ANNOUNCE KNOWN_ISSUES LICENSE README README.IO README.IMESH RELEASE_NOTES
 
-examples_DATA = examples/HelloParMOAB.cpp \
-                examples/TestExodusII.cpp \
-                examples/CrystalRouterExample.cpp \
-                examples/LoadPartial.cpp \
-                examples/LloydRelaxation.cpp \
-                examples/StructuredMeshSimple.cpp \
-                examples/ReduceExchangeTags.cpp \
-                examples/GetEntities.cpp \
-                examples/PushParMeshIntoMoabF90.F90 \
-                examples/makefile.in \
-                examples/VisTags.cpp \
+examples_DATA = examples/CrystalRouterExample.cpp \
                 examples/DirectAccessNoHoles.cpp \
-                examples/ReadWriteTest.cpp \
-                examples/HelloMOAB.cpp \
-                examples/GenLargeMesh.cpp \
-                examples/DirectAccessWithHoles.cpp \
                 examples/DirectAccessNoHolesF90.F90 \
-                examples/point_in_elem_search.cpp \
-                examples/structuredmesh.cpp \
+                examples/DirectAccessWithHoles.cpp \
+                examples/ErrorHandlingSimulation.cpp \
+                examples/GenLargeMesh.cpp \
+                examples/GetEntities.cpp \
+                examples/HelloMOAB.cpp \
+                examples/HelloParMOAB.cpp \
+                examples/LloydRelaxation.cpp \
+                examples/LoadPartial.cpp \
+                examples/PointInElementSearch.cpp \
+                examples/PushParMeshIntoMoabF90.F90 \
+                examples/ReadWriteTest.cpp \
+                examples/ReduceExchangeTags.cpp \
+                examples/StructuredMesh.cpp \
+                examples/StructuredMeshSimple.cpp \
                 examples/SetsNTags.cpp \
-                examples/UniformRefinement.cpp
+                examples/TestErrorHandling.cpp \
+                examples/TestErrorHandlingPar.cpp \
+                examples/TestExodusII.cpp \
+                examples/UniformRefinement.cpp \
+                examples/VisTags.cpp \
+                examples/makefile.in \
+                examples/makefile
 
 EXTRA_DIST = $(doc_DATA) $(examples_DATA)
 

@@ -31,6 +31,7 @@
 using namespace moab;
 using namespace std;
 
+string test_file_name = string(MESH_DIR) + string("/mbtest2.g");
 int main(int argc, char **argv)
 {
   // Get MOAB instance
@@ -46,9 +47,9 @@ int main(int argc, char **argv)
 
   // Load a file
   if (argc == 1) {
-    cout << "Running default case, loading ../MeshFiles/unittest/mbtest2.g" << endl;
+    cout << "Running default case, loading " << test_file_name << endl;
     cout << "Usage: " << argv[0] << " <filename>\n" << endl;
-    rval = mb->load_file("../MeshFiles/unittest/mbtest2.g");MB_CHK_ERR(rval);
+    rval = mb->load_file(test_file_name.c_str());MB_CHK_ERR(rval);
   }
   else {
     rval = mb->load_file(argv[argc - 1]);MB_CHK_ERR(rval);
