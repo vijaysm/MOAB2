@@ -26,8 +26,7 @@ using namespace moab;
 const char* InputFile = STRINGIFY(MESHDIR) "/ptest.cub";
 const char* InputMix = STRINGIFY(MESHDIR) "/io/mix.h5m";
 #else
-const char* InputFile = "ptest.cub";
-const char* InputMix = "io/mix.h5m";
+#error Specify MESHDIR to compile test
 #endif
 
 void load_and_partition( Interface& moab, const char* filename, bool print_debug = false );

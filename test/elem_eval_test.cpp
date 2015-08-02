@@ -15,12 +15,6 @@
 #include "moab/CartVect.hpp"
 #include "TestUtil.hpp"
 
-#ifdef MESHDIR
-std::string TestDir( STRINGIFY(MESHDIR) );
-#else
-std::string TestDir(".");
-#endif
-
 using namespace moab;
 
 void test_linear_tri();

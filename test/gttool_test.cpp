@@ -25,7 +25,7 @@
 #ifdef MESHDIR
 std::string TestDir( STRINGIFY(MESHDIR) );
 #else
-std::string TestDir(".");
+#error Specify MESHDIR to compile test
 #endif
 
 #define PROCESS_ERROR(A, B)  {if (A!=MB_SUCCESS) {  std::cout << B << std::endl; return 1; } }

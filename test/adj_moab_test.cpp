@@ -353,11 +353,7 @@ int main(int argc, char *argv[])
     filename = STRINGIFY(MESHDIR) "/hexes_mixed.vtk";
  #endif
 #else
- #ifdef MOAB_HAVE_HDF5
-    filename = "32hex_ef.h5m";
- #else
-    filename = "hexes_mixed.vtk";
- #endif
+#error Specify MESHDIR to compile test
 #endif
 
 

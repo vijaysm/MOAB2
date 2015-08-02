@@ -1992,7 +1992,7 @@ void test_new_pcomm_instance()
 #ifdef MESHDIR
   const char example[] = STRINGIFY(MESHDIR) "/64bricks_1khex.h5m";
 #else
-  const char example[] = "64bricks_1khex.h5m";
+#error Specify MESHDIR to compile test
 #endif
   std::string read_options = "PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS";
   ErrorCode rval = mb.load_file(example, 0, read_options.c_str());

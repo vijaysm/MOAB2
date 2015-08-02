@@ -189,7 +189,7 @@ int main( int argc, char* argv[] )
 #ifdef MESHDIR
     filename = STRINGIFY(MESHDIR) "/64bricks_512hex.h5m";
 #else
-#error Specify MESHDIR during compilation
+#error Specify MESHDIR to compile test
 #endif
   }
 
@@ -197,7 +197,7 @@ int main( int argc, char* argv[] )
   const char* filename2 = STRINGIFY(MESHDIR) "/64bricks_1khex.h5m";
   const char* filename3 = STRINGIFY(MESHDIR) "/twoPolyh.h5m";
 #else
-#error Specify MESHDIR during compilation
+#error Specify MESHDIR to compile test
 #endif
 
   if (pause_proc != -1) {

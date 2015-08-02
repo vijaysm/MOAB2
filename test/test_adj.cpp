@@ -41,7 +41,6 @@ using namespace moab;
 
 int main()
 {
-
   Interface* iface = new Core;
 
   const char* filename = 0;
@@ -53,11 +52,7 @@ int main()
   filename = STRINGIFY(MESHDIR) "/hexes_mixed.vtk";
 #endif
 #else
-#ifdef MOAB_HAVE_HDF5
-  filename = "testquad-cyl.h5m";
-#else
-  filename = "hexes_mixed.vtk";
-#endif
+#error Specify MESHDIR to compile test
 #endif
 
   ErrorCode err;
