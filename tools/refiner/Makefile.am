@@ -36,7 +36,7 @@ libMOABrefiner_la_include_HEADERS =
 
 libMOABrefiner_la_includedir = $(includedir)
 
-EXTRA_DIST = fourVolsBare.cub
+EXTRA_DIST = fourVolsBare.cub moabrefiner_export.h
 
 # Automake doesn't seem to have a directory defined for
 # platform-dependent data (or include) files. So put 

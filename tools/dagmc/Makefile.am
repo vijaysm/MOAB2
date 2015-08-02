@@ -42,6 +42,8 @@ if HAVE_HDF5
 endif
 check_PROGRAMS = $(TESTS) pt_vol_test ray_fire_test
 
+EXTRA_DIST = dagmc_export.h
+
 quads_to_tris_SOURCES = quads_to_tris_driver.cpp quads_to_tris.cpp
 quads_to_tris_LDADD = $(top_builddir)/src/libMOAB.la
 

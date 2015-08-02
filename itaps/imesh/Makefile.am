@@ -17,7 +17,7 @@ if ENABLE_FORTRAN
   check_PROGRAMS += ScdMeshF90 ScdMeshF77 FindAdjacencyF90
 endif
 
-EXTRA_DIST = brick.vtk quad9.cub
+EXTRA_DIST = brick.vtk quad9.cub imesh_export.h
 
 libiMesh_la_SOURCES = \
 	iMesh_MOAB.cpp \
@@ -29,8 +29,8 @@ libiMesh_la_include_HEADERS = iMesh.h \
                               iMesh_extensions_protos.h \
                               iMesh_f.h \
                               iMesh_protos.h \
-			      MBiMesh.hpp \
-			      imesh_export.h
+                              MBiMesh.hpp \
+                              imesh_export.h
 
 if PARALLEL
   libiMesh_la_SOURCES += iMeshP_MOAB.cpp
