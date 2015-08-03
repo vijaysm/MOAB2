@@ -219,10 +219,15 @@ if test "xyes" = "x$enable_debug"; then
   # Add -fstack-protector-all option for g++ in debug mode
   if test "x$GXX" = "xyes"; then
     CXXFLAGS="$CXXFLAGS -fstack-protector-all"
+    LDFLAGS="$LDFLAGS -fstack-protector-all"
   fi
   # Add -fstack-protector-all option for gcc in debug mode
   if test "x$GXX" = "xyes"; then
     CFLAGS="$CFLAGS -fstack-protector-all"
+  fi
+  if (test "x$CHECK_FC" != "xno"); then
+    FCFLAGS="$FCFLAGS -fstack-protector-all"
+    FFLAGS="$FFLAGS -fstack-protector-all"
   fi
   DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-debug=yes"
 else
