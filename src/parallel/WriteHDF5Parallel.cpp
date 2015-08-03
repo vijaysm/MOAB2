@@ -24,6 +24,7 @@
 #include "moab/ParallelComm.hpp"
 #include "moab/CN.hpp"
 #include "moab/Range.hpp"
+#include "moab/CpuTimer.hpp"
 
 #include "WriteHDF5Parallel.hpp"
 
@@ -169,15 +170,6 @@ void VALGRIND_MAKE_VEC_UNDEFINED(std::vector<T>& v) {
      abort();
    }
 #endif
-
-class CpuTimer {
-private:
-  double atBirth, atLast;
-public:
-  CpuTimer() : atBirth(MPI_Wtime()), atLast(MPI_Wtime()) {}
-  double since_birth() { return (atLast = MPI_Wtime()) - atBirth; };
-  double elapsed() { double tmp = atLast; return (atLast = MPI_Wtime()) - tmp; }
-};
 
 static int my_Gatherv(void* sendbuf,
                       int sendcount,
@@ -409,7 +401,7 @@ ErrorCode WriteHDF5Parallel::parallel_create_file(const char* filename,
   if (MB_SUCCESS != rval)
     return error(rval);
   if (times)
-    times[CREATE_NODE_TIME] = timer.elapsed();
+    times[CREATE_NODE_TIME] = timer.time_elapsed();
 
   /**************** Create element tables ***************/
 
@@ -421,7 +413,7 @@ ErrorCode WriteHDF5Parallel::parallel_create_file(const char* filename,
   if (MB_SUCCESS != rval)
     return error(rval);
   if (times)
-    times[NEGOTIATE_TYPES_TIME] = timer.elapsed();
+    times[NEGOTIATE_TYPES_TIME] = timer.time_elapsed();
   dbgOut.tprint(1, "creating element table\n");
   topState.start("creating element tables");
   rval = create_element_tables();
@@ -429,7 +421,7 @@ ErrorCode WriteHDF5Parallel::parallel_create_file(const char* filename,
   if (MB_SUCCESS != rval)
     return error(rval);
   if (times)
-    times[CREATE_ELEM_TIME] = timer.elapsed();
+    times[CREATE_ELEM_TIME] = timer.time_elapsed();
 
   /*************** Exchange file IDs *****************/
 
@@ -441,7 +433,7 @@ ErrorCode WriteHDF5Parallel::parallel_create_file(const char* filename,
   if (MB_SUCCESS != rval)
     return error(rval);
   if (times)
-    times[FILEID_EXCHANGE_TIME] = timer.elapsed();
+    times[FILEID_EXCHANGE_TIME] = timer.time_elapsed();
 
   /**************** Create meshset tables *********************/
 
@@ -453,7 +445,7 @@ ErrorCode WriteHDF5Parallel::parallel_create_file(const char* filename,
   if (MB_SUCCESS != rval)
     return error(rval);
   if (times)
-    times[CREATE_SET_TIME] = timer.elapsed();
+    times[CREATE_SET_TIME] = timer.time_elapsed();
 
   /**************** Create adjacency tables *********************/
 
@@ -465,7 +457,7 @@ ErrorCode WriteHDF5Parallel::parallel_create_file(const char* filename,
   if (MB_SUCCESS != rval)
     return error(rval);
   if (times)
-    times[CREATE_ADJ_TIME] = timer.elapsed();
+    times[CREATE_ADJ_TIME] = timer.time_elapsed();
 
   /**************** Create tag data *********************/
 
@@ -480,7 +472,7 @@ ErrorCode WriteHDF5Parallel::parallel_create_file(const char* filename,
   if (MB_SUCCESS != rval)
     return error(rval);
   if (times)
-    times[CREATE_TAG_TIME] = timer.elapsed();
+    times[CREATE_TAG_TIME] = timer.time_elapsed();
 
   /************** Close serial file and reopen parallel *****************/
 
@@ -2026,23 +2018,23 @@ ErrorCode WriteHDF5Parallel::create_meshset_tables(double* times)
 
   rval = assign_ids(setSet.range, setSet.first_id + setSet.offset);CHECK_MB(rval);
   if (times)
-    times[SET_OFFSET_TIME] = timer.elapsed();
+    times[SET_OFFSET_TIME] = timer.time_elapsed();
 
   // Exchange file IDS for sets between all procs
   rval = communicate_shared_set_ids(owned, remote);CHECK_MB(rval);
   if (times)
-    times[SHARED_SET_IDS] = timer.elapsed();
+    times[SHARED_SET_IDS] = timer.time_elapsed();
 
   // Communicate remote set contents, children, etc.
   rval = communicate_shared_set_data(owned, remote);CHECK_MB(rval);
   if (times)
-    times[SHARED_SET_CONTENTS] = timer.elapsed();
+    times[SHARED_SET_CONTENTS] = timer.time_elapsed();
 
   // Communicate counts for owned sets
   long data_counts[3]; // { #contents, #children, #parents }
   rval = count_set_size(setSet.range, data_counts[0], data_counts[1], data_counts[2]);CHECK_MB(rval);
   if (times)
-    times[SET_OFFSET_TIME] += timer.elapsed();
+    times[SET_OFFSET_TIME] += timer.time_elapsed();
 
   long offsets[3], max_counts[3], totals[3];
   rval = create_dataset(3, data_counts, offsets, max_counts, totals);CHECK_MB(rval);
