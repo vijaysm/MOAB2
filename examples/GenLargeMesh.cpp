@@ -553,6 +553,8 @@ int main(int argc, char **argv)
          << (clock() - tt) / (double)CLOCKS_PER_SEC << " seconds" << endl;
     tt = clock();
   }
+  // delete the mesh that we already have in-memory
+  mb->delete_mesh();
 
   if (readb)
   {
@@ -577,8 +579,6 @@ int main(int argc, char **argv)
     mb2.delete_mesh();
   }
 
-  // delete the mesh that we already have in-memory
-  mb->delete_mesh();
 
   MPI_Finalize();
 
