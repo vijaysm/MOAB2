@@ -554,6 +554,9 @@ int main(int argc, char **argv)
     tt = clock();
   }
   // delete the mesh that we already have in-memory
+  size_t nLocalVerts = verts.size();
+  size_t nLocalCells = all3dcells.size();
+  
   mb->delete_mesh();
 
   if (readb)
@@ -571,7 +574,7 @@ int main(int argc, char **argv)
     rval = mb2.get_entities_by_dimension(0, 0, nverts);MB_CHK_SET_ERR(rval, "Can't get all vertices");
     rval = mb2.get_entities_by_dimension(0, 3, ncells);MB_CHK_SET_ERR(rval, "Can't get all 3d cells elements");
 
-    if (nverts.size() != verts.size() && ncells.size() != all3dcells.size()) {
+    if (nverts.size() != nLocalVerts && ncells.size() != nLocalCells ) {
       MB_SET_ERR(MB_FAILURE, "Reading back the output file led to inconsistent number of entities.");
     }
 
