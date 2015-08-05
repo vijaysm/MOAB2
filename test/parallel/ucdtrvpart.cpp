@@ -9,6 +9,8 @@ using namespace moab;
 
 #ifdef MESHDIR
 static const char example[] = STRINGIFY(MESHDIR) "/io/homme3x3458.t.3.nc";
+#else
+#error Specify MESHDIR to compile test
 #endif
 
 void test_read_parallel_ucd_trivial();

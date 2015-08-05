@@ -68,7 +68,7 @@ using namespace moab;
 #ifdef MESHDIR
 string TestDir( STRINGIFY(MESHDIR) );
 #else
-string TestDir( "." );
+#error Specify MESHDIR to compile test
 #endif
 
 #define CHKERR(A) do { if (MB_SUCCESS != (A)) { \

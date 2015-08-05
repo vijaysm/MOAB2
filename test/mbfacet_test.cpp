@@ -31,7 +31,7 @@
 #ifdef MESHDIR
 std::string TestDir( STRINGIFY(MESHDIR) );
 #else
-std::string TestDir(".");
+#error Specify MESHDIR to compile test
 #endif
 
 std::string filename;
