@@ -767,6 +767,12 @@ ErrorCode ScdInterface::tag_shared_vertices(ParallelComm *pcomm, ScdBox *box)
     incoming--;
   }
 
+  // still need to wait for the send requests
+  std::vector<MPI_Status> mult_status(procs.size());
+  int success = MPI_Waitall(procs.size(), &send_reqs[0], &mult_status[0]);
+  if (MPI_SUCCESS != success) {
+    MB_SET_ERR(MB_FAILURE, "Failed in waitall in ScdInterface::tag_shared_vertices");
+  }
     // sort by local handle
   TupleList::buffer sort_buffer;
   sort_buffer.buffer_init(shared_indices.size()/2);
