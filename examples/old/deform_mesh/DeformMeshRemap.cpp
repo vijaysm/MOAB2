@@ -20,7 +20,7 @@
 #include "MBTagConventions.hpp"
 #include "DataCoupler.hpp"
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab/ParallelComm.hpp"
 #endif
 
@@ -118,7 +118,7 @@ private:
   //! moab interface
   Interface *mbImpl;
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   //! ParallelComm for master, slave meshes
   ParallelComm *pcMaster, *pcSlave;
 #endif
@@ -322,7 +322,7 @@ ErrorCode DeformMeshRemap::execute()
 
   if (debug) {
     string str;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     if (pcMaster && pcMaster->size() > 1) 
       str = "PARALLEL=WRITE_PART";
 #endif
@@ -330,7 +330,7 @@ ErrorCode DeformMeshRemap::execute()
     rval = mbImpl->write_file("smoothed_master.h5m", NULL, str.c_str(), &masterSet, 1);
 
     if (have_slave) {
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
       str.clear();
       if (pcSlave && pcSlave->size() > 1) 
         str = "PARALLEL=WRITE_PART";
@@ -404,7 +404,7 @@ int main(int argc, char **argv)
   mb = new Core();
 
   DeformMeshRemap *dfr;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   ParallelComm *pc = new ParallelComm(mb, MPI_COMM_WORLD);
   dfr = new DeformMeshRemap(mb, pc);
 #else  
@@ -603,7 +603,7 @@ ErrorCode DeformMeshRemap::read_file(int m_or_s, string &fname, EntityHandle &se
   // Create meshset
   ErrorCode rval = mbImpl->create_meshset(0, seth);MB_CHK_SET_ERR(rval, "Couldn't create master/slave set");
   ostringstream options;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   ParallelComm *pc = (m_or_s == MASTER ? pcMaster : pcSlave);
   if (pc && pc->size() > 1) {
     if (debug) options << "DEBUG_IO=1;CPUTIME;";
