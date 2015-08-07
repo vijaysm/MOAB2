@@ -16,10 +16,12 @@
 
 #include "moab/Range.hpp"
 #include "moab/HalfFacetRep.hpp"
-#include "moab/Solvers.hpp"
+
+#ifdef MOAB_HAVE_MPI
+#include "moab/ParallelComm.hpp"
+#endif
 
 #include <vector>
-#include <deque>
 
 namespace moab
 {
@@ -31,7 +33,7 @@ namespace moab
 	{
 		public:
 
-			HiReconstruction(Core *impl, ParallelComm *comm=0, EntityHandle meshIN=0, int minpnts=5, bool recwhole=true);
+			HiReconstruction(Core *impl, ParallelComm *comm=0, EntityHandle meshIn=0, int minpnts=5, bool recwhole=true);
 
 			~HiReconstruction();
 
