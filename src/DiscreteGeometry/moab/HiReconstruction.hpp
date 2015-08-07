@@ -16,6 +16,7 @@
 
 #include "moab/Range.hpp"
 #include "moab/HalfFacetRep.hpp"
+#include "moab/Solvers.hpp"
 
 #include <vector>
 #include <deque>
@@ -213,5 +214,131 @@ namespace moab
 			std::vector<size_t> _vertID2coeffID;
 			std::vector<int> _degree_out;
 			std::vector<bool> _interps;
+
+			//Estimate stencil size
+			int estimate_num_rings(int degree,bool interp);
+
+			//! \brief Get n-ring neighbor vertices, assuming curve/surface mesh, not volume mesh
+			/** Given a vertex, find its n-ring neighbor vertices including itself in _mesrh2rec. 
+				* 1-ring neighbor vertices of a vertex are the vertices connected with this vertex with an edge
+				* n-ring vertices are obtained first get the 1-ring vertices and then get the 1-ring of these vertices, and so on
+				* \param vid EntityHandle, vertex around which to get n-ring vertices
+				* \param ring Integer, number of rings
+				* \param minpnts Integer, number of minimum vertices to obtain, if the input ring could not provide enough vertices, i.e. more than minpnts, then expand the number of rings
+				* \param ngbvs Range, the n-ring vertices of vid, including vid. If too many points found, i.e. more than _MAXPNTS, then terminate early.
+			*/
+			ErrorCode obtain_nring_ngbvs(const EntityHandle vid, int ring, const int minpnts, Range& ngbvs);
+
+			/** Initialize the storage for fitting results over _mesh2rec, curve/surface mesh
+				* Two options are provided: a) use uniform degree for all vertices b) use customized degrees for different vertices
+				* After calling of initializing functions, _initfitting is set to be true, the fitting result could be stored internally
+			*/
+			void initialize_surf_geom(const int degree);
+			void initialize_surf_geom(const size_t npts, const int* degrees);
+			void initialize_3Dcurve_geom(const int degree);
+			void initialize_3Dcurve_geom(const size_t npts, const int* degrees);
+
+			/** Save fitting results of a vertex into internal storage
+				* \param vid EntityHandle, a vertex in _mesh2rec, in _verts2rec
+				* \param coords Pointer to double array, global coordinates of local uvw coordinate system axis directions
+				* \param degree_out Integer, order of polynomial fittings for vid
+				* \param coeffs Pointer to double array, coefficients of local polynomial fittings in monomial basis
+				* \param interp Boolean, true =  interpolation
+			*/
+			ErrorCode set_geom_data_surf(const EntityHandle vid, const double* coords, const double degree_out, const double* coeffs, bool interp);
+			ErrorCode set_geom_data_3Dcurve(const EntityHandle vid, const double* coords, const double degree_out, const double* coeffs, bool interp);
+
+			/** Get fittings results of a vertex, stored internally, results will be writtend to user provided memory
+				* \param vid EntityHandle, a vertex in _verts2rec
+				* \param coords Pointer to double array, preallocated space, global coordinates of local uvw coordinate system axis directions
+				* \param degree_out Integer, preallocated space, order of polynomial fittings for vid
+				* \param coeffs Pointer to double array, preallocated space, coefficients of local polynomial fittings in monomial basis
+				* \param interp Boolean, preallocated space, true =  interpolation
+			*/
+			ErrorCode get_geom_data_surf(const EntityHandle vid, double* coords, double& degree_out, double* coeffs, bool& interp);
+			ErrorCode get_geom_data_3Dcurve(const EntityHandle vid, double* coords, double& degree_out, double* coeffs, bool& interp);
+
+			/** Compute area weighted average vertex normals for given vertex, assuming surface mesh
+				* For arbitrary polygon mesh, use incident two edges of each incident polygon of this vertex to form a triangle, then use 
+				* these incident "triangles" to compute area weighted average vertex normals
+				* \param vid EntityHandle, vertex in _mesh2rec, might be ghost vertex
+				* \param nrm Pointer to 3-doubles array, preallocated by user
+			*/
+			ErrorCode average_vertex_normal(const EntityHandle vid, double* nrm);
+			
+			/** Compute weighted average vertex normals for all vertices in _verts2rec, not including ghost vertices, results
+				* are stored interally in _local_coords
+			*/
+			ErrorCode compute_average_vertex_normals_surf();
+
+			/** Return the normals of given vertices in a Range, writing to preallocated memory
+				* If normals have been computed and stored, just access them
+				* If not, compute on the fly
+				* \param vertsh Range, EntityHandles of vertices
+				* \param nrms Pointer of array of doubles, size = 3*vertsh.size()
+			*/
+			ErrorCode get_normals_surf(const Range& vertsh, double* nrms);
+
+			/** Compute area weighted average vertex tangent vector for given vertex, assuming curve mesh
+				* Use incident two edges of vertex as estimatation of tangent vectors, weighted by length
+				* \param vid EntityHandle, vertex in _mesh2rec, might be ghost vertex
+				* \param tang Pointer to 3-doubles array, preallocated by user
+			*/
+			ErrorCode average_vertex_tangents(const EntityHandle vid, double* tang);
+
+			/** Compute weighted average vertex tangent vectors for all vertices in _verts2rec, not including ghost vertices, results
+				* are stored interally in _local_coords
+			*/
+			ErrorCode compute_average_vertex_tangents_curve();
+
+			/** Return the tangent vectors of given vertices in a Range, writing to preallocated memory
+				* If tangent vectors have been computed and stored, just access them
+				* If not, compute on the fly
+				* \param vertsh Range, EntityHandles of vertices
+				* \param tangs Pointer of array of doubles, size = 3*vertsh.size()
+			*/
+			ErrorCode get_tangents_curve(const Range& vertsh, double* tangs);
+
+			//! \brief Compute local coordinates system of a vertex, and perform vertex based polynomial fittings of local height function
+			/** This function take the first vertex of input as center, and build local uv-plane by estimating vertex normals and tangent planes
+				* Then other vertices forms vectors starting from center and then are projectd onto this uv-plane to form a local height function. Local fitting of this local height function
+				* is performed in WLS sense, according if interpolation required or not.
+				* \param nverts Integer, number of vertices of input
+				* \param ngbcors Pointer to array of doubles, size = 3*nverts, coordinates of input vertices, first will be center
+				* \param ngbnrms Pointer to array of doubles, size = 3*nverts, vertex normals of input vertices
+				* \param degree Integer, user specified fitting degree
+				* \param interp Boolean, user input, interpolation or not
+				* \param safeguard Boolean, true = use safeguarded numerical method in computing
+				* \param ncoords Integer, size of *coords, should be 9, used for check
+				* \param coords Pointer to array of doubles, preallocated memory for storing the glocal coordinates of local uvw axis directions
+				* \param ncoeffs Integer, size of *coeffs, should be (degree+2)(degree+1)/2, used for check
+				* \param coeffs Pointer to array of doubles, preallocated memory for storing coefficients of local fittings in monomial basis
+				* \param degree_out Pointer to integer, order of resulted polynomial of fitting, could be downgraded due to numerical issues
+				* \param degree_pnt Pointer to integer, polynomial fitting order determined by stencil size/number of points
+				* \param degree_qr Pointer to integer, polynomial fitting order determined by Vandermonde system condition number
+			*/
+			void polyfit3d_surf_get_coeff(const int nverts, const double* ngbcors, const double* ngbnrms, int degree, const bool interp, const bool safeguard, const int ncoords, double* coords, const int ncoeffs, double* coeffs, double* degree_out, double* degree_pnt, double* degree_qr);
+			//! \brief Form and solve Vandermonde system of bi-variables 
+			void eval_vander_bivar_cmf(const int npts2fit, const double* us, const int ndim, double* bs, int degree, const double* ws, const bool interp, const bool safeguard, int* degree_out, int* degree_pnt, int* degree_qr);
+
+			//! \brief Compute local single variable coordinate system of a vertex, and perform vertex based polynomial fittings of three global coordinates axis
+			/** This function take the first vertex of input as center, and build local u-line by estimating tangent vector
+				* Then other vertices form vectors originating from center and vectors then are projectd onto this u-plane to form three local height functions, 
+				* one for each coordinates axis. Local fitting of these local height functions are performed in WLS sense, according if interpolation required or not.
+				* \param nverts Integer, number of vertices of input
+				* \param ngbcors Pointer to array of doubles, size = 3*nverts, coordinates of input vertices, first will be center
+				* \param ngbtangs Pointer to array of doubles, size = 3*nverts, vertex tangent vectors of input vertices
+				* \param degree Integer, user specified fitting degree
+				* \param interp Boolean, user input, interpolation or not
+				* \param safeguard Boolean, true = use safeguarded numerical method in computing
+				* \param ncoords Integer, size of *coords, should be 3, used for check
+				* \param coords Pointer to array of doubles, preallocated memory for storing the glocal coordinates of local u axis direction
+				* \param ncoeffs Integer, size of *coeffs, should be 3*(degree+1), used for check
+				* \param coeffs Pointer to array of doubles, preallocated memory for storing coefficients of local fittings in monomial basis
+				* \param degree_out Pointer to integer, order of resulted polynomial of fitting, could be downgraded due to numerical issues
+			*/
+			void polyfit3d_curve_get_coeff(const int nverts, const double* ngbcors, const double* ngbtangs, int degree, const bool interp, const bool safeguard, const int ncoords, double* coords, const int ncoeffs, double* coeffs, double* degree_out);
+			//! \brief Form and solve Vandermonde system of single-variables
+			void eval_vander_univar_cmf(const int npts2fit, const double* us, const int ndim, double* bs, int degree, const double* ws, const bool interp, const bool safeguard, int* degree_out);
 	};//class HiReconstruction
 }//namespace moab
