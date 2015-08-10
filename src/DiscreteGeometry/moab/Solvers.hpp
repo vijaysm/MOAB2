@@ -19,21 +19,21 @@ namespace moab
 
     void backsolve_polyfit_safeguarded();
 
-    void vec_dotprod(const double* a, const double* b, const int len, double* c);
+    void vec_dotprod(const int len, const double* a, const double* b, double* c);
 
-    void vec_scalarprod(const double* a, const int len, const double c, double *b);
+    void vec_scalarprod(const int len, const double* a, const double c, double *b);
 
     void vec_crossprod(const double a[3], const double b[3], double (&c)[3]);
 
-    double vec_innerprod(const double* a, const double* b, const int len);
+    double vec_innerprod(const int len, const double* a, const double* b);
 
-    double vec_2norm(const double* a, const int len);
+    double vec_2norm(const int len, const double* a);
 
-    double vec_normalize(const double* a, const int len, double* b);
+    double vec_normalize(const int len, const double* a, double* b);
 
-    void vec_projoff(const double* a, const double* b, const int len, double* c);
+    void vec_projoff(const int len, const double* a, const double* b, double* c);
 
-      void vec_linear_operation(const double mu, const double* a, const double psi, const double* b, const int len, double* c);
+    void vec_linear_operation(const int len, const double mu, const double* a, const double psi, const double* b, double* c);
 
 
 

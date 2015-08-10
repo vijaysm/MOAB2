@@ -142,14 +142,14 @@ namespace moab {
 
   }
 
-  void Solvers::vec_dotprod(const double* a, const double* b, const int len, double* c)
+  void Solvers::vec_dotprod(const int len, const double* a, const double* b, double* c)
   {
     for(int i=0;i<len;++i){
         c[i] = a[i]*b[i];
       }
   }
 
-  void Solvers::vec_scalarprod(const double* a, const int len, const double c, double *b)
+  void Solvers::vec_scalarprod(const int len, const double* a, const double c, double *b)
   {
     for(int i=0;i<len;++i){
          b[i] = c*a[i];
@@ -163,76 +163,86 @@ namespace moab {
     c[2] =a[0]*b[1]-a[1]*b[0];
   }
 
-  double Solvers::vec_innerprod(const double* a, const double* b, const int len)
+  double Solvers::vec_innerprod(const int len, const double* a, const double* b)
   {
     double ans=0;
-    for(int i=0;i<len;++i)
-      {
+    for(int i=0;i<len;++i){
         ans += a[i]*b[i];
-      }
+    }
     return ans;
   }
 
-  double Solvers::vec_2norm(const double* a, const int len)
+  double Solvers::vec_2norm(const int len, const double* a)
   {
     double w=0, s=0;
     for (int k=0; k<len; k++)
       w = std::max(w, abs(a[k]));
 
-    if (w==0)
-      {
-        for (int k=0; k<len; k++)
-          s += v[k];
-      }
-    else
-      {
-        for (int k=0; k<len; k++)
-          s += (v[k]/w)*(v[k]/w);
-
+    if (w==0){
+        return 0;
+    }else{
+        for (int k=0; k<len; k++){
+          s += (a[k]/w)*(a[k]/w);
+        }
         s=w*sqrt(s);
-      }
+    }
     return s;
   }
 
-  double Solvers::vec_normalize(const double* a, const int len, double* b)
+  double Solvers::vec_normalize(const int len, const double* a, double* b)
   {
     double nrm=0,mx=0;
     for(int i=0;i<len;++i){
         mx = std::max(abs(a[i]),mx);
+    }
+    if(0==mx){
+      for(int i=0;i<len){
+        b[i] = 0;
       }
+      return 0;
+    }
     for(int i=0;i<len;++i){
         nrm += (a[i]/mx)*(a[i]/mx);
-      }
+    }
     nrm = mx*sqrt(nrm);
     if(nrm==0){
-        return nrm; }
+        return nrm;
+    }
     for(int i=0;i<len;++i){
         b[i] = a[i]/nrm;
-      }
+    }
     return nrm;
   }
 
-  void Solvers::vec_projoff(const double* a, const double* b, const int len, double* c)
+  void Solvers::vec_projoff(const int len, const double* a, const double* b, double* c)
   {
     //c = a-<a,b>b/<b,b>;
     double bnrm = vec_2norm(b,len);
     if (bnrm==0){
-        return; }
-    double innerp = vec_innerprod(a,b,len)/bnrm;
+        for(int i=0;i<len;++i){
+          c[i] = a[i];
+        }
+        return; 
+    }
+    double innerp = vec_innerprod(len,a,b)/bnrm;
 
-    if(innerp==0)
+    if(innerp==0){
+      for(int i=0;i<len;++i){
+        c[i] = a[i];
+      }
       return;
+    }
 
     for(int i=0;i<len;++i){
         c[i] = a[i]-innerp*b[i];
-      }
+    }
   }
 
-    void Solvers::vec_linear_operation(const double mu, const double* a, const double psi, const double* b, const int len, double* c)
+    void Solvers::vec_linear_operation(const int len, const double mu, const double* a, const double psi, const double* b, double* c)
     {
       for(int i=0;i<len;++i){
           c[i] = mu*a[i]+psi*b[i];
-        }
+      }
     }
 
 }
