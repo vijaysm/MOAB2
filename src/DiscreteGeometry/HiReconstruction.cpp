@@ -151,4 +151,64 @@ namespace moab
 	 void initialize_3Dcurve_geom(const size_t npts, const int* degrees){
 	 	
 	 }
+
+	 ErrorCode set_geom_data_surf(const EntityHandle vid, const double* coords, const double degree_out, const double* coeffs, bool interp){
+
+	 }
+
+	 ErrorCode set_geom_data_3Dcurve(const EntityHandle vid, const double* coords, const double degree_out, const double* coeffs, bool interp){
+
+	 }
+
+	 ErrorCode get_geom_data_surf(const EntityHandle vid, double* coords, double& degree_out, double* coeffs, bool& interp){
+
+	 }
+
+	 ErrorCode get_geom_data_3Dcurve(const EntityHandle vid, double* coords, double& degree_out, double* coeffs, bool& interp){
+
+	 }
+
+	 ErrorCode average_vertex_normal(const EntityHandle vid, double* nrm){
+
+	 }
+
+	 ErrorCode compute_average_vertex_normals_surf(){
+
+	 }
+
+	 ErrorCode get_normals_surf(const Range& vertsh, double* nrms){
+
+	 }
+
+	 ErrorCode average_vertex_tangents(const EntityHandle vid, double* tang){
+
+	 }
+
+	 ErrorCode compute_average_vertex_tangents_curve(){
+
+	 }
+
+	 ErrorCode get_tangents_curve(const Range& vertsh, double* tangs){
+
+	 }
+
+	 void polyfit3d_surf_get_coeff(const int nverts, const double* ngbcors, const double* ngbnrms, int degree, const bool interp, const bool safeguard, const int ncoords, double* coords, const int ncoeffs, double* coeffs, double* degree_out, double* degree_pnt, double* degree_qr){
+
+	 }
+
+	 void eval_vander_bivar_cmf(const int npts2fit, const double* us, const int ndim, double* bs, int degree, const double* ws, const bool interp, const bool safeguard, int* degree_out, int* degree_pnt, int* degree_qr){
+
+	 }
+
+	 void polyfit3d_curve_get_coeff(const int nverts, const double* ngbcors, const double* ngbtangs, int degree, const bool interp, const bool safeguard, const int ncoords, double* coords, const int ncoeffs, double* coeffs, double* degree_out){
+
+	 }
+
+	 void eval_vander_univar_cmf(const int npts2fit, const double* us, const int ndim, double* bs, int degree, const double* ws, const bool interp, const bool safeguard, int* degree_out){
+
+	 }
+
+	 bool compute_weights(const int nrows, const int ncols, double* us, const int nngbs, double* ngbnrms, const int degree, const double toler){
+	 	
+	 }
 }//namespace moab
