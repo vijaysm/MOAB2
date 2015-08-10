@@ -214,7 +214,7 @@ namespace moab
 			std::vector<double> _local_coords;
 			std::vector<double> _local_fit_coeffs;
 			std::vector<size_t> _vertID2coeffID;
-			std::vector<int> _degree_out;
+			std::vector<int> _degrees_out;
 			std::vector<bool> _interps;
 
 			//Estimate stencil size
@@ -286,7 +286,7 @@ namespace moab
 				* \param vid EntityHandle, vertex in _mesh2rec, might be ghost vertex
 				* \param tang Pointer to 3-doubles array, preallocated by user
 			*/
-			ErrorCode average_vertex_tangents(const EntityHandle vid, double* tang);
+			ErrorCode average_vertex_tangent(const EntityHandle vid, double* tang);
 
 			/** Compute weighted average vertex tangent vectors for all vertices in _verts2rec, not including ghost vertices, results
 				* are stored interally in _local_coords
@@ -342,5 +342,7 @@ namespace moab
 			void polyfit3d_curve_get_coeff(const int nverts, const double* ngbcors, const double* ngbtangs, int degree, const bool interp, const bool safeguard, const int ncoords, double* coords, const int ncoeffs, double* coeffs, double* degree_out);
 			//! \brief Form and solve Vandermonde system of single-variables
 			void eval_vander_univar_cmf(const int npts2fit, const double* us, const int ndim, double* bs, int degree, const double* ws, const bool interp, const bool safeguard, int* degree_out);
+			//! \brief Compute weights for points selected in weighted least square fittigns
+			int compute_weights(const int nrows, const int ncols, double* us, const int nngbs, double* ngbnrms, const int degree, const double toler, double* ws);
 	};//class HiReconstruction
 }//namespace moab
