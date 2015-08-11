@@ -107,7 +107,33 @@ namespace moab
 	}
 
 	ErrorCode HiReconstruction::reconstruct3D_surf_geom(size_t npts, int* degrees, bool* interps, bool safeguard, bool reset){
-
+		assert(_dim==2);
+		if(npts!=_nv2rec){
+			MB_SET_ERR(MB_FAILURE,"Input number of degrees doesn't match number of vertices");
+		}
+		if(_hasfittings&&!reset){
+			return MB_SUCCESS;
+		}else{
+			_initfittings = _hasfittings = false;
+		}
+		//initialization for fitting
+		initialize_surf_geom(npts,degrees);
+		double *coeffs,*coords;
+		int *degree_out;
+		size_t i=0;
+		for(Range::iterator ivert=_verts2rec.begin();ivert!=_verts2rec.end();++ivert,++i){
+			int index = _verts2rec.index(*ivert); assert(-1!=index);
+			size_t istr = _vertID2coeffID[index];
+			coords = &(_local_coords[9*index]);
+			coeffs = &(_local_fit_coeffs[istr]);
+			degree_out = &(_degree_out[index]);
+			_interps[index] = interps[i];
+			error = polyfit3d_walf_surf_vertex(*ivert,interps[i],degrees[i],_MINPNTS,safeguard,coords,degree_out,coeffs);
+			MB_CHK_ERR(error);
+		}
+		_geom = HISURFACE;
+		_hasfittings = true;
+		return error;
 	}
 
 	ErrorCode HiReconstruction::reconstruct3D_curve_geom(int degree, bool interp, bool safeguard, bool reset){
@@ -345,7 +371,23 @@ namespace moab
 	 }
 
 	 void HiReconstruction::initialize_surf_geom(const size_t npts, const int* degrees){
-
+	 	if(!_hasderiv){
+	 		compute_average_vertex_normals_surf();
+	 		_hasderiv = true;
+	 	}
+	 	if(!_initfittings){
+	 		assert(_nv2rec==npts);
+	 		_degrees_out.assign(_nv2rec,0);
+	 		_interps.assign(_nv2rec,false);
+	 		_vertID2coeffID.reserve(_nv2rec);
+	 		size_t index=0;
+	 		for(size_t i=0;i<_nv2rec;++i){
+	 			_vertID2coeffID.push_back(index);
+	 			index += (degrees[i]+2)*(degrees[i]+1)/2;
+	 		}
+	 		_local_fit_coeffs.assign(index,0);
+	 		_initfittings = true;
+	 	}
 	 }
 
 	 void HiReconstruction::initialize_3Dcurve_geom(const int degree){
