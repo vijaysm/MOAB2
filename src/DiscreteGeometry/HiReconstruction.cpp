@@ -78,7 +78,7 @@ namespace moab
 	 *  User Interface for Reconstruction of Geometry  *
 	 ***************************************************/
 
-	ErrorCode reconstruct3D_surf_geom(int degree, bool interp, bool safeguard, bool reset){
+	ErrorCode HiReconstruction::reconstruct3D_surf_geom(int degree, bool interp, bool safeguard, bool reset){
 		assert(2==_dim);
 		if(_hasfittings&&!reset){
 			//This object has precomputed fitting results and user don't want to reset
@@ -106,19 +106,19 @@ namespace moab
 		return error;
 	}
 
-	ErrorCode reconstruct3D_surf_geom(size_t npts, int* degrees, bool* interps, bool safeguard, bool reset){
+	ErrorCode HiReconstruction::reconstruct3D_surf_geom(size_t npts, int* degrees, bool* interps, bool safeguard, bool reset){
 
 	}
 
-	ErrorCode reconstruct3D_curve_geom(int degree, bool interp, bool safeguard, bool reset){
+	ErrorCode HiReconstruction::reconstruct3D_curve_geom(int degree, bool interp, bool safeguard, bool reset){
 
 	}
 
-	ErrorCode reconstruct3D_curve_geom(size_t npts, int* degrees, bool* interps, bool safeguard, bool reset){
+	ErrorCode HiReconstruction::reconstruct3D_curve_geom(size_t npts, int* degrees, bool* interps, bool safeguard, bool reset){
 
 	}
 
-	ErrorCode polyfit3d_walf_surf_vertex(const EntityHandle vid, const bool interp, int degree, int minpnts, const bool safeguard, double* coords, int* degree_out, double* coeffs){
+	ErrorCode HiReconstruction::polyfit3d_walf_surf_vertex(const EntityHandle vid, const bool interp, int degree, int minpnts, const bool safeguard, double* coords, int* degree_out, double* coeffs){
 		assert(_dim==2);
 		ErrorCode error;
 		int ring = estimate_num_rings(degree,interp);
@@ -140,7 +140,7 @@ namespace moab
 		return error;
 	}
 
-	ErrorCode polyfit3d_walf_curve_vertex(const EntityHandle vid, const bool interp, int degree, int minpnts, const bool safeguard, double* coords, int* degree_out, double* coeffs){
+	ErrorCode HiReconstruction::polyfit3d_walf_curve_vertex(const EntityHandle vid, const bool interp, int degree, int minpnts, const bool safeguard, double* coords, int* degree_out, double* coeffs){
 
 	}
 
@@ -148,19 +148,87 @@ namespace moab
 	 *  User Interface for Evaluation via Reconstructed Geometry  *
 	 **************************************************************/
 
-	ErrorCode hiproj_walf_in_element(EntityHandle elem, const int nvpe, const int npts2fit, const double* naturalcoords2fit, double* newcoords){
+	ErrorCode HiReconstruction::hiproj_walf_in_element(EntityHandle elem, const int nvpe, const int npts2fit, const double* naturalcoords2fit, double* newcoords){
+		assert(newcoords);
+		ErrorCode error;
+		if(!_hasfittings){
+			MB_SET_ERR(MB_FAILURE,"There is no existing fitting results");
+		}
+		//check correctness of input
+		for(int i=0;i<npts2fit;++i){
+			if(!check_barycentric_coords(nvpe,naturalcoords2fit+i*nvpe)){
+				MB_SET_ERR(MB_FAILURE,"Wrong barycentric coordinates");
+			}
+		}
+
+		//get connectivity table
+		std::vector<EntityHandle> elemconn;
+		error = mbImpl->get_connectivity(&elem,1,elemconn); MB_CHK_ERR(error);
+		if(nvpe!=elemconn.size()){
+			MB_SET_ERR(MB_FAILURE,"element connectivity table size doesn't match input size");
+		}
+
+		double *elemcoords = new double[nvpe*3];
+		error = mbImpl->get_coords(elemconn,nvpe,elemcoords); MB_CHK_ERR(error);
+
+		double *coords2fit = new double[3*npts2fit]();
+		for(int i=0;i<npts2fit;++i){
+			for(int j=0;j<nvpe;++j){
+				coords2fit[3*i] += naturalcoords2fit[i*nvpe+j]*elemcoords[3*j];
+				coords2fit[3*i+1] += naturalcoords2fit[i*nvpe+j]*elemcoords[3*j+1];
+				coords2fit[3*i+2] += naturalcoords2fit[i*nvpe+j]*elemcoords[3*j+2];
+			}
+		}
+
+		double *hiproj_new = new double[3*npts2fit];
+		//initialize output
+		for(int i=0;i<npts2fit;++i){
+			newcoords[3*i] = newcoords[3*i+1] = newcoords[3*i+2] = 0;
+		}
+		//for each input vertex, call nvpe fittings and take average
+		for(int j=0;j<nvpe;++j){
+			error = hiproj_walf_around_vertex(elemconn[j],npts2fit,coords2fit,hiproj_new); MB_CHK_ERR(error);
+			for(int i=0;i<npts;++i){
+				newcoords[3*i] += naturalcoords2fit[i*nvpe+j]*hiproj_new[3*i];
+				newcoords[3*i+1] += naturalcoords2fit[i*nvpe+j]*hiproj_new[3*i+1];
+				newcoords[3*i+2] += naturalcoords2fit[i*nvpe+j]*hiproj_new[3*i+2];
+			}
+		}
+		delete [] elemcoords; delete [] coords2fit; delete [] hiproj_new;
+	}
+
+	ErrorCode HiReconstruction::hiproj_walf_around_vertex(EntityHandle vid, const int npts2fit, const double* coords2fit, double* hiproj_new){
+		if(!_hasfittings){
+			MB_SET_ERR(MB_FAILURE,"There is no existing fitting results");
+		}
+		//get center of local coordinates system
+		double local_origin[3];
+		error = mbImpl->get_coords(&vid,1,local_origin); MB_CHK_ERR(error);
+		//get local fitting parameters
+		int index = _verts2rec.index(vid);
+		bool interp = _interps[index];
+		int local_deg = _degrees_out[index];
+		double *uvw_coords,*local_coeffs;
+		if(_geom==HISURFACE){
+			uvw_coords = &(_local_coords[9*index]);
+			int ncoeffs = (local_deg+2)*(local_deg+1)>>1;
+			size_t istr = _vertID2coeffID[index];
+			local_coeffs = &(_local_fit_coeffs[istr]);
+			walf3d_surf_vertex_eval(local_origin,uvw_coords,local_deg,local_coeffs,interp,npts2fit,coords2fit,hiproj_new);
+		}else if(_geom==HI3DCURVE){
+			uvw_coords = &(_local_coords[3*index]);
+			size_t istr = _vertID2coeffID[index];
+			local_coeffs = &(_local_fit_coeffs[istr]);
+			walf3d_curve_vertex_eval(local_origin,uvw_coords,local_deg,local_coeffs,interp,npts2fit,coords2fit,hiproj_new);
+		}
+		return error;
+	}
+
+	void HiReconstruction::walf3d_surf_vertex_eval(const double* local_origin, const double* local_coords, const int local_deg, const double* local_coeffs, const bool interp, const int npts2fit, const double* coords2fit, double* hiproj_new){
 
 	}
 
-	ErrorCode hiproj_walf_around_vertex(EntityHandle vid, const int npts2fit, const double* coords2fit, double* hiproj_new){
-
-	}
-
-	void walf3d_surf_vertex_eval(const double* local_origin, const double* local_coords, const int local_deg, const double* local_coeffs, const bool interp, const int npts2fit, const double* coords2fit, double* hiproj_new){
-
-	}
-
-	void walf3d_curve_vertex_eval(const double* local_origin, const double* local_coords, const int local_deg, const double* local_coeffs, const bool interp, const int npts2fit, const double* coords2fit, double* hiproj_new){
+	void HiReconstruction::walf3d_curve_vertex_eval(const double* local_origin, const double* local_coords, const int local_deg, const double* local_coeffs, const bool interp, const int npts2fit, const double* coords2fit, double* hiproj_new){
 
 	}
 
@@ -168,11 +236,11 @@ namespace moab
 	 *  Basic Internal Routines to initialize and set fitting data  *
 	 ****************************************************************/
 
-	 int estimate_num_rings(int degree, bool interp){
+	 int HiReconstruction::estimate_num_rings(int degree, bool interp){
 	 	return interp?(degree+1)/2:(degree+2)/2;
 	 }
 
-	 ErrorCode obtain_nring_ngbvs(const EntityHandle vid, int ring, const int minpnts, Range& ngbvs){
+	 ErrorCode HiReconstruction::obtain_nring_ngbvs(const EntityHandle vid, int ring, const int minpnts, Range& ngbvs){
 	 	ErrorCode error;
 	 	std::deque<EntityHandle> todo;
 	 	todo.push_back(vid); ngbvs.insert(vid);
@@ -221,7 +289,7 @@ namespace moab
 	 	return error;
 	 }
 
-	 void initialize_surf_geom(const int degree){
+	 void HiReconstruction::initialize_surf_geom(const int degree){
 	 	if(!_hasderiv){
 	 		compute_average_vertex_normals_surf();
 	 		_hasderiv = true;
@@ -239,35 +307,35 @@ namespace moab
 	 	}
 	 }
 
-	 void initialize_surf_geom(const size_t npts, const int* degrees){
+	 void HiReconstruction::initialize_surf_geom(const size_t npts, const int* degrees){
 
 	 }
 
-	 void initialize_3Dcurve_geom(const int degree){
+	 void HiReconstruction::initialize_3Dcurve_geom(const int degree){
 
 	 }
 
-	 void initialize_3Dcurve_geom(const size_t npts, const int* degrees){
+	 void HiReconstruction::initialize_3Dcurve_geom(const size_t npts, const int* degrees){
 	 	
 	 }
 
-	 ErrorCode set_geom_data_surf(const EntityHandle vid, const double* coords, const double degree_out, const double* coeffs, bool interp){
+	 ErrorCode HiReconstruction::set_geom_data_surf(const EntityHandle vid, const double* coords, const double degree_out, const double* coeffs, bool interp){
 
 	 }
 
-	 ErrorCode set_geom_data_3Dcurve(const EntityHandle vid, const double* coords, const double degree_out, const double* coeffs, bool interp){
+	 ErrorCode HiReconstruction::set_geom_data_3Dcurve(const EntityHandle vid, const double* coords, const double degree_out, const double* coeffs, bool interp){
 
 	 }
 
-	 ErrorCode get_geom_data_surf(const EntityHandle vid, double* coords, double& degree_out, double* coeffs, bool& interp){
+	 ErrorCode HiReconstruction::get_geom_data_surf(const EntityHandle vid, double* coords, double& degree_out, double* coeffs, bool& interp){
 
 	 }
 
-	 ErrorCode get_geom_data_3Dcurve(const EntityHandle vid, double* coords, double& degree_out, double* coeffs, bool& interp){
+	 ErrorCode HiReconstruction::get_geom_data_3Dcurve(const EntityHandle vid, double* coords, double& degree_out, double* coeffs, bool& interp){
 
 	 }
 
-	 ErrorCode average_vertex_normal(const EntityHandle vid, double* nrm){
+	 ErrorCode HiReconstruction::average_vertex_normal(const EntityHandle vid, double* nrm){
 	 	ErrorCode error;
 	 	std::vector<EntityHandle> adjfaces;
 	 	error = ahf->get_up_adjacencies(vid,2,adjfaces); MB_CHK_ERR(error);
@@ -303,7 +371,7 @@ namespace moab
 	 	return error;
 	 }
 
-	 ErrorCode compute_average_vertex_normals_surf(){
+	 ErrorCode HiReconstruction::compute_average_vertex_normals_surf(){
 	 	if(_hasderiv){
 	 		return MB_SUCCESS;
 	 	}
@@ -316,7 +384,7 @@ namespace moab
 	 	return error;
 	 }
 
-	 ErrorCode get_normals_surf(const Range& vertsh, double* nrms){
+	 ErrorCode HiReconstruction::get_normals_surf(const Range& vertsh, double* nrms){
 	 	ErrorCode error = MB_SUCCESS;
 	 	if(_hasderiv){
 	 		size_t id=0;
@@ -347,7 +415,7 @@ namespace moab
 	 	return error;
 	 }
 
-	 ErrorCode average_vertex_tangent(const EntityHandle vid, double* tang){
+	 ErrorCode HiReconstruction::average_vertex_tangent(const EntityHandle vid, double* tang){
 	 	ErrorCode error;
 	 	std::vector<EntityHandle> adjedges;
 	 	error = ahf->get_up_adjacencies_1d(vid,adjedges); MB_CHK_ERR(error);
@@ -370,7 +438,7 @@ namespace moab
 	 	}
 	 }
 
-	 ErrorCode compute_average_vertex_tangents_curve(){
+	 ErrorCode HiReconstruction::compute_average_vertex_tangents_curve(){
 	 	if(_hasderiv){
 	 		return MB_SUCCESS;
 	 	}
@@ -383,7 +451,7 @@ namespace moab
 	 	return error;
 	 }
 
-	 ErrorCode get_tangents_curve(const Range& vertsh, double* tangs){
+	 ErrorCode HiReconstruction::get_tangents_curve(const Range& vertsh, double* tangs){
 
 	 }
 
@@ -391,7 +459,7 @@ namespace moab
 	*	Internal Routines for local WLS fittings	*
 	*************************************************/
 
-	 void polyfit3d_surf_get_coeff(const int nverts, const double* ngbcors, const double* ngbnrms, int degree, const bool interp, const bool safeguard, const int ncoords, double* coords, const int ncoeffs, double* coeffs, double* degree_out, double* degree_pnt, double* degree_qr){
+	 void HiReconstruction::polyfit3d_surf_get_coeff(const int nverts, const double* ngbcors, const double* ngbnrms, int degree, const bool interp, const bool safeguard, const int ncoords, double* coords, const int ncoeffs, double* coeffs, double* degree_out, double* degree_pnt, double* degree_qr){
 	 	if(nverts<=0){
 	 		return;
 	 	}
@@ -457,7 +525,7 @@ namespace moab
 	 	}
 
 	 	//step 5. fitting
-	 	eval_vander_bivar_cmf(npts2ft,us,1,bs,degree,ws,interp,safeguard,degree_out,degree_pnt,degree_qr);
+	 	eval_vander_bivar_cmf(npts2fit,us,1,bs,degree,ws,interp,safeguard,degree_out,degree_pnt,degree_qr);
 
 	 	//step 6. organize output
 	 	int ncoeffs_out = (*degree_out+2)*(*degree_out+1)/2;
@@ -469,7 +537,7 @@ namespace moab
 	 	delete [] us; delete [] bs; delete [] ws;
 	 }
 
-	 void eval_vander_bivar_cmf(const int npts2fit, const double* us, const int ndim, double* bs, int degree, const double* ws, const bool interp, const bool safeguard, int* degree_out, int* degree_pnt, int* degree_qr){
+	 void HiReconstruction::eval_vander_bivar_cmf(const int npts2fit, const double* us, const int ndim, double* bs, int degree, const double* ws, const bool interp, const bool safeguard, int* degree_out, int* degree_pnt, int* degree_qr){
 	 	//step 1. adjust the degree according to number of points to fit
 	 	int ncols = ((degree+2)*(degree+1))>>1-interp;
 	 	while(1<degree&&npts2fit<ncols){
@@ -551,15 +619,15 @@ namespace moab
 	 	}
 	 }
 
-	 void polyfit3d_curve_get_coeff(const int nverts, const double* ngbcors, const double* ngbtangs, int degree, const bool interp, const bool safeguard, const int ncoords, double* coords, const int ncoeffs, double* coeffs, double* degree_out){
+	 void HiReconstruction::polyfit3d_curve_get_coeff(const int nverts, const double* ngbcors, const double* ngbtangs, int degree, const bool interp, const bool safeguard, const int ncoords, double* coords, const int ncoeffs, double* coeffs, double* degree_out){
 
 	 }
 
-	 void eval_vander_univar_cmf(const int npts2fit, const double* us, const int ndim, double* bs, int degree, const double* ws, const bool interp, const bool safeguard, int* degree_out){
+	 void HiReconstruction::eval_vander_univar_cmf(const int npts2fit, const double* us, const int ndim, double* bs, int degree, const double* ws, const bool interp, const bool safeguard, int* degree_out){
 
 	 }
 
-	 int compute_weights(const int nrows, const int ncols, double* us, const int nngbs, double* ngbnrms, const int degree, const double toler, double* ws){
+	 int HiReconstruction::compute_weights(const int nrows, const int ncols, double* us, const int nngbs, double* ngbnrms, const int degree, const double toler, double* ws){
 	 	assert(nrows<=_MAXPNTS)&&ws;
 	 	bool interp=false;
 	 	if(nngbs!=nrows){
@@ -593,4 +661,18 @@ namespace moab
 	 	}
 	 	return nzeros;
 	 }
+	 bool HiReconstruction::check_barycentric_coords(const int nws, const double* naturalcoords){
+		double sum=0;
+		for(int i=0;i<nws;++i){
+			if(naturalcoords[i]<0){
+				return false;
+			}
+			sum += naturalcoords[i];
+		}
+		if(abs(1-sum)>_MINEPS){
+			return false;
+		}else{
+			return true;
+		}
+	}
 }//namespace moab
