@@ -225,7 +225,44 @@ namespace moab
 	}
 
 	void HiReconstruction::walf3d_surf_vertex_eval(const double* local_origin, const double* local_coords, const int local_deg, const double* local_coeffs, const bool interp, const int npts2fit, const double* coords2fit, double* hiproj_new){
-
+		double xaxis[3], yaxis[3], zaxis[3];
+		for(int i=0;i<3;++i){
+			xaxis[i] = local_coords[i];
+			yaxis[i] = local_coords[3+i];
+			zaxis[i] = local_coords[6+i];
+		}
+		//double *basis = new double[(local_deg+2)*(local_deg+1)/2-1];
+		std::vector<double> basis((local_deg+2)*(local_deg+1)/2-1);
+		for(int i=0;i<npts2fit;++i){
+			double local_pos[3];
+			for(int j=0;j<3;++j){
+				local_pos[j] = coords2fit[3*i+j]-local_origin[j];
+			}
+			double u,v,height=0;
+			u = Solvers::vec_dotprod(3,local_pos,xaxis);
+			v = Solvers::vec_dotprod(3,local_pos,yaxis);
+			basis[0] = u;
+			basis[1] = v;
+			int l=1;
+			for(int k=2;k<=local_deg;++k){
+				++l;
+				basis[l] = u*basis[l-k];
+				for(int id=0;id<k;++id){
+					++l;
+					basis[l] = basis[l-k-1]*v;
+				}
+			}
+			if(!interp){
+				height = local_coeffs[0];
+			}
+			for(int p=0;p<l;++p){
+				height += local_coeffs[p+1]*basis[p];
+			}
+			hiproj_new[3*i] = local_origin[0]+u*xaxis[0]+v*yaxis[0]+height*zaxis[0];
+			hiproj_new[3*i+1] = local_origin[1]+u*xaxis[1]+v*yaxis[1]+height*zaxis[1];
+			hiproj_new[3*i+2] = local_origin[2]+u*xaxis[2]+v*yaxis[2]+height*zaxis[2];
+		}
+		//delete [] basis;
 	}
 
 	void HiReconstruction::walf3d_curve_vertex_eval(const double* local_origin, const double* local_coords, const int local_deg, const double* local_coeffs, const bool interp, const int npts2fit, const double* coords2fit, double* hiproj_new){
@@ -361,12 +398,12 @@ namespace moab
 	 			error = mbImpl->get_coords(&pre,1,a); MB_CHK_ERR(error);
 	 			error = mbImpl->get_coords(&vid,1,b); MB_CHK_ERR(error);
 	 			error = mbImpl->get_coords(&nxt,1,c); MB_CHK_ERR(error);
-	 			vec_linear_operation(3,1,c,-1,b,v1);
-	 			vec_linear_operation(3,1,a,-1,b,v2);
-	 			vec_crossprod(v1,v2,v3);
-	 			vec_linear_operation(3,1,nrm,1,v3,nrm);
+	 			Solvers::vec_linear_operation(3,1,c,-1,b,v1);
+	 			Solvers::vec_linear_operation(3,1,a,-1,b,v2);
+	 			Solvers::vec_crossprod(v1,v2,v3);
+	 			Solvers::vec_linear_operation(3,1,nrm,1,v3,nrm);
 	 		}
-	 		double len=vec_normalize(3,nrm,nrm); assert(len);
+	 		double len=Solvers::vec_normalize(3,nrm,nrm); assert(len);
 	 	}
 	 	return error;
 	 }
@@ -431,10 +468,10 @@ namespace moab
 	 			double istr[3],iend[3],t[3];
 	 			error = mbImpl->get_coords(&(edgeconn[0]),1,istr);
 	 			error = mbImpl->get_coords(&(edgeconn[1]),1,iend);
-	 			vec_linear_operation(3,1,iend,-1,istr,t);
-	 			vec_linear_operation(3,1,tang,1,t,tang);
+	 			Solvers::vec_linear_operation(3,1,iend,-1,istr,t);
+	 			Solvers::vec_linear_operation(3,1,tang,1,t,tang);
 	 		}
-	 		double len=vec_normalize(3,tang,tang); assert(len);
+	 		double len=Solvers::vec_normalize(3,tang,tang); assert(len);
 	 	}
 	 }
 
@@ -471,9 +508,9 @@ namespace moab
 	 		tang1[0] = 1.0;
 	 	}
 
-	 	vec_projoff(3,tang1,nrm,tang1);
-	 	double len1 = vec_normalize(3,tang1,tang1); assert(len1);
-	 	vec_crossprod(nrm,tang1,tang2);
+	 	Solvers::vec_projoff(3,tang1,nrm,tang1);
+	 	double len1 = Solvers::vec_normalize(3,tang1,tang1); assert(len1);
+	 	Solvers::vec_crossprod(nrm,tang1,tang2);
 	 	if(9==ncoords&&coords){
 	 		coords[0] = tang1[0]; coords[1] = tang1[1]; coords[2] = tang1[2];
 	 		coords[3] = tang2[0]; coords[4] = tang2[1]; coords[5] = tang2[2];
@@ -492,9 +529,9 @@ namespace moab
 	 	for(int i=interp;i<nverts;++i){
 	 		int k = i-interp;
 	 		double uu[3];
-	 		vec_linear_operation(3,1,ngbcoords[3*i],-1,ngbcoords[0],uu);
-	 		us[k*2] = vec_innerprod(3,tang1,uu); us[k*2+1] = vec_innerprod(3,tang2,uu);
-	 		bs[k] = vec_innerprod(3,nrm,uu);
+	 		Solvers::vec_linear_operation(3,1,ngbcoords[3*i],-1,ngbcoords[0],uu);
+	 		us[k*2] = Solvers::vec_innerprod(3,tang1,uu); us[k*2+1] = Solvers::vec_innerprod(3,tang2,uu);
+	 		bs[k] = Solvers::vec_innerprod(3,nrm,uu);
 	 	}
 
 	 	//step 3. compute weights
@@ -638,7 +675,7 @@ namespace moab
 
 	 	//First, compute squared distance from each input piont to the center
 	 	for(int i=0;i<nrows;++i){
-	 		ws[i] = vec_2norm(ncols,us+i*ncols);
+	 		ws[i] = Solvers::vec_2norm(ncols,us+i*ncols);
 	 	}
 
 	 	//Second, compute a small correction termt o guard against zero
@@ -651,7 +688,7 @@ namespace moab
 	 	//Finally, compute the weights for each vertex
 	 	int nzeros = 0;
 	 	for(int i=0;i<nrows;++i){
-	 		double costheta = vec_innerprod(3,ngbnrms,ngbnrms+i+interp);
+	 		double costheta = Solvers::vec_innerprod(3,ngbnrms,ngbnrms+i+interp);
 	 		if(costheta>toler){
 	 			ws[i] = costheta*pow(ws[i]/h+epsilon,-1*(double) degree/2.0);
 	 		}else{
