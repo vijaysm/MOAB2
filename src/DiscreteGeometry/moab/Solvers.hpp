@@ -11,6 +11,8 @@ namespace moab
 
     void rescale_matrix(int mrows, int ncols, double *V, double *ts);
 
+    void gen_vander_bivar(const int npts,const double* us, const int degree, double* V);
+
     void compute_qtransposeB(int mrows, int ncols, const double *Q, int bncols, double *bs);
 
     void qr_polyfit_safeguarded(double *V, int mrows, int ncols, double *D, int &rank);
