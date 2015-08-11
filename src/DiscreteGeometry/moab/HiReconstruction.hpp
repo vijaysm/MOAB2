@@ -347,5 +347,7 @@ namespace moab
 			void eval_vander_univar_cmf(const int npts2fit, const double* us, const int ndim, double* bs, int degree, const double* ws, const bool interp, const bool safeguard, int* degree_out);
 			//! \brief Compute weights for points selected in weighted least square fittigns
 			int compute_weights(const int nrows, const int ncols, double* us, const int nngbs, double* ngbnrms, const int degree, const double toler, double* ws);
+			//! \brief Check the correctness of barycentric coordination, wi>=0 and sum(wi)=1
+			bool check_barycentric_coords(const int nws, const double* naturalcoords);
 	};//class HiReconstruction
 }//namespace moab
