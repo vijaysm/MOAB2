@@ -441,19 +441,19 @@ namespace moab
 	 			return;
 	 		}
 	 		int index=0;
-	 		double *us_temp = new double[(npts2fit-nzeros)*2];
-	 		double *bs_temp = new double[npts2fit-nzeros];
-	 		double *ws_temp = new double[nptsfit-nzeros];
 	 		for(int i=0;i<npts2fit;++i){
 	 			if(ws[i]){
-	 				us_temp[index*2] = us[i*2]; us_temp[index*2+1] = us[i*2+1];
-	 				bs_temp[index] = bs[i]; ws_temp[index] = ws[i];
+	 				if(i>index){
+	 					us[index*2] = us[i*2]; us[index*2+1] = us[i*2+1];
+	 					bs[index] = bs[i]; ws[index] = ws[i];
+	 				}
 	 				++index;
 	 			}
 	 		}
-	 		std::swap(us,us_temp); std::swap(bs,bs_temp); std::swap(ws,ws_temp);
-	 		npts2fit -= nzeros;
-	 		delete [] us_temp; delete [] bs_temp; delete [] ws_temp; 
+	 		npts2fit -= nzeros; assert(index==npts2fit);
+	 		/*us = realloc(us,npts2fit*2*sizeof(double));
+	 		bs = realloc(bs,npts2fit*sizeof(double));
+	 		ws = realloc(ws,npts2fit*sizeof(double));*/
 	 	}
 
 	 	//step 5. fitting
@@ -470,7 +470,85 @@ namespace moab
 	 }
 
 	 void eval_vander_bivar_cmf(const int npts2fit, const double* us, const int ndim, double* bs, int degree, const double* ws, const bool interp, const bool safeguard, int* degree_out, int* degree_pnt, int* degree_qr){
+	 	//step 1. adjust the degree according to number of points to fit
+	 	int ncols = ((degree+2)*(degree+1))>>1-interp;
+	 	while(1<degree&&npts2fit<ncols){
+	 		--degree;
+	 		ncols = ((degree+2)*(degree+1))>>1-interp;
+	 	}
+	 	*degree_out = degree;
 
+	 	//step 2. construct Vandermonde matrix, stored in columnwise
+	 	double *V_init = new double[npts2fit*(ncols+interp)];
+	 	gen_vander_bivar(npts2fit,us,degree,V_init);
+	 	//remove the first column of 1s if interpolation
+	 	double* V;
+	 	if(interp){
+	 		V = new double[npts2fit*ncols];
+	 		std::memcpy(V,V_init+npts2fit,ncols*npts2fit*sizeof(double));
+	 		delete [] V_init; V_init = 0;
+	 	}else{
+	 		V = V_init;
+	 	}
+
+	 	//step 3. Scale rows to assign different weights to different points
+	 	for(int i=0;i<npts2fit;++i){
+	 		for(int j=o;j<ncols;++j){
+	 			V[j*npts2fit+i] *= ws[i];
+	 		}
+	 		for(int k=0;k<ndim;++k){
+	 			bs[k*npts2fit+i] *= ws[i];
+	 		}
+	 	}
+
+	 	//step 4. scale columns to reduce condition number
+	 	double *ts = new double[ncols];
+	 	rescale_matrix(npts2fit,ncols,V,ts);
+
+	 	//step 5. Perform Householder QR factorization
+	 	double *D = new double[ncols];
+	 	int rank;
+	 	qr_polyfit_safeguarded(V,npts2fit,ncols,D,rank);
+
+	 	//step 6. adjust degree of fitting according to rank of Vandermonde matrix
+	 	int ncols_sub = ncols;
+	 	while(rank<ncols_sub){
+	 		--degree;
+	 		if(degree==0){
+	 			//surface is flat, return 0
+	 			*degree_out = *degree_qr = degree;
+	 			for(int i=0;i<npts2fit;++i){
+	 				for(int k=0;k<ndim;++k){
+	 					bs[k*npts2fit+i] = 0;
+	 				}
+	 			}
+	 			return;
+	 		}else{
+	 			ncols_sub = ((degree+2)*(degree+1))>>1-interp;
+	 		}
+	 	}
+	 	*degree_qr = degree;
+
+	 	//step 7. compute Q'b
+	 	compute_qtransposeB(npts2fit,ncols_sub,V,ndim,bs);
+
+	 	//step 8. perform backward substitution and scale the solution
+	 	for(int i=0;i<ncols_sub;++i){
+	 		V[i*npts2fit+i] = D[i];
+	 	}
+
+	 	//backsolve
+	 	if(safeguard){
+	 		backsolve_polyfit_safeguarded();
+	 	}else{
+	 		backsolve(npt2fit,ncols_sub,V,1,bs,ts);
+	 		*degree_out = degree;
+	 	}
+	 	if(V_init){
+	 		delete [] V_init;
+	 	}else{
+	 		delete [] V;
+	 	}
 	 }
 
 	 void polyfit3d_curve_get_coeff(const int nverts, const double* ngbcors, const double* ngbtangs, int degree, const bool interp, const bool safeguard, const int ncoords, double* coords, const int ncoeffs, double* coeffs, double* degree_out){
