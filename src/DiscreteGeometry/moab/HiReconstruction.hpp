@@ -192,6 +192,9 @@ namespace moab
 			Core *mbImpl;
 			ParallelComm *pcomm;
 			HalfFaceRep *ahf;
+			//prevent copying
+			HiReconstruction(const HiReconstruction& source);
+			HiReconstruction& operator= (const HiReconstruction& right);
 
 			//mesh on which to perform reconstruction
 			EntityHandle _mesh2rec;
