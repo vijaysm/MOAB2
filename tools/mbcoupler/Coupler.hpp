@@ -28,8 +28,13 @@
 #include "moab/Interface.hpp"
 #include "moab/CartVect.hpp"
 #include "moab/TupleList.hpp"
+#include "moab/Error.hpp"
+#include "moab/BoundBox.hpp"
 
 #include <sstream>
+
+#include <vector>
+#include <iostream>
 
 namespace moab {
 
@@ -414,6 +419,34 @@ public:
    */
   ErrorCode get_gl_points_on_elements(Range &targ_elems, std::vector<double> &vpos, int &numPointsOfInterest);
 
+// author: Sevag Donikian //////////////////////////////////////////
+// 28 June, 2013 ///////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////
+
+// this function computes the IDs of the regions which contain each corner of the
+// global boudning box
+// result is set in reg_upper_front_left, reg_upper_front_right, etc...
+ErrorCode computeCornerIDs();
+
+
+//this function sets up registration messages in TLreg_o and sends
+//to processor responsible for forwarding to the local proc
+ErrorCode registerWithForwarders();
+
+//this function receives registration messages
+//and adds to the list of procs to forward to
+ErrorCode serviceRegistrations();
+
+ErrorCode locate_points_withForwarding(double *xyz, int num_points,
+					  double re_eps=0.0,
+		  double abs_eps=0.0,
+		  TupleList *tl=NULL,
+		  bool store_local=true);
+//end of author: Sevag Donikian ////////////////////////////////////
+////////////////////////////////////////////////////////////////////
+
+
+
     /* Get functions */
 
   inline Interface *mb_impl() const { return mbImpl; }
@@ -426,6 +459,25 @@ public:
   inline const Range &my_range() const { return myRange; }
   inline TupleList *mapped_pts() const { return mappedPts; }
   inline int num_its() const { return numIts; }
+
+
+// author: Sevag Donikian ////////////////////////////////////////////
+// 28 June, 2013 /////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
+inline int getRegionID(double X, double Y, double Z) {
+ int ans = (int(Z/regDeltaZ))*regNumX*regNumY + (int(Y/regDeltaY))*regNumX + int(X/regDeltaX);
+ return ans/(regNumX*regNumX); //a dirty patch:
+} 				        //the global box is divided into np^3 boxes (np=number of procs), need to map back to np IDs
+					//this function actually returns the ID of the proc responsible of the region the point is in
+
+
+ErrorCode test_local_boxWithForwarding(double *xyz,
+					int from_proc, int remote_index, int /*index*/,
+			bool &point_located,
+			double rel_eps, double abs_eps,
+			TupleList *tl);
+//end of author: Sevag Donikian //////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
 
 private:
 
@@ -520,6 +572,42 @@ private:
   void * _spectralTarget;
   moab::Tag _xm1Tag, _ym1Tag, _zm1Tag;
   int _ntot;
+
+
+//author: Sevag Donikian//////////////////////////////////////////////
+//28 June, 2013         //////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
+
+//global bounding box
+BoundBox globalBox;
+//TUpleList used for communication 
+TupleList TLreg_o;   //TLregister_outbound
+TupleList TLquery_o; //TLquery_outbound
+TupleList TLforward_o; //TLforward_outbound
+TupleList TLsearch_results_o; //TLsearch_results_outbound
+
+//list of procs to forward to
+
+int forwProcSize;
+std::vector < std::vector <double> > forwProcBox; //list of bounding boxes and proc IDs of the processors to forward to
+//region related variables
+//the regionID in which the corners of local bounding box are located
+int reg_upper_front_left;    //region ID that contains the upper front left corner of the box
+int reg_upper_front_right;   //same as above...
+int reg_lower_front_left;
+int reg_lower_front_right;
+int reg_upper_back_left;
+int reg_upper_back_right;
+int reg_lower_back_left;
+int reg_lower_back_right;
+
+//size of a region
+double regDeltaX, regDeltaY, regDeltaZ;
+//Number of regions in each dimension
+int regNumX, regNumY, regNumZ;
+//end of author: Sevag Donikian///////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
+
 };
 
 inline ErrorCode Coupler::interpolate(Coupler::Method method,

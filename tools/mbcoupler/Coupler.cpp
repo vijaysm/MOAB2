@@ -40,9 +40,29 @@ Coupler::Coupler(Interface *impl,
   myRange = local_elems;
   myTree = NULL;
 
+  //initialization of forwarding algorithm
+  //step 1 and 2 done in initialize_tree();
   // Now initialize the tree
   if (init_tree)
     initialize_tree();
+  //step 3 - compute the IDs of the regions which contain each corner of local box
+  ErrorCode rval = computeCornerIDs();
+  if (rval != MB_SUCCESS) throw(rval);
+
+  //step 4 - set up TLreg_o
+  rval = registerWithForwarders();
+  if (rval != MB_SUCCESS) throw(rval);
+
+  //step 5 - send TLreg_o
+  //send TLreg_o, receive TLrequests_i
+  if (myPc){
+  	(myPc->proc_config().crystal_router())->gs_transfer(1, TLreg_o, 0);
+  }
+  //step 6
+  //service registration requests
+  rval = serviceRegistrations();
+  if (rval != MB_SUCCESS) throw(rval);
+  //end of initialization of forwarding algorithm
 
   // Initialize tuple lists to indicate not initialized
   mappedPts = NULL;
@@ -62,6 +82,7 @@ Coupler::~Coupler()
   delete mappedPts;
 }
 
+//initialize tree modified by Sevag Donikian for forwarding algorithm
 ErrorCode Coupler::initialize_tree()
 {
   Range local_ents;
@@ -101,17 +122,14 @@ ErrorCode Coupler::initialize_tree()
       break; // Get out of tree building
   }
 
+  //step 1
   // Get the bounding box for local tree
-  if (myPc)
-    allBoxes.resize(6*myPc->proc_config().proc_size());
-  else
-    allBoxes.resize(6);
-
   unsigned int my_rank = (myPc ? myPc->proc_config().proc_rank() : 0);
   BoundBox box;
   result = myTree->get_bounding_box(box, &localRoot);
   if (MB_SUCCESS != result)
     return result;
+#if 0 
   box.bMin.get(&allBoxes[6*my_rank]);
   box.bMax.get(&allBoxes[6*my_rank + 3]);
 
@@ -135,11 +153,41 @@ ErrorCode Coupler::initialize_tree()
     if (MPI_SUCCESS != mpi_err)
       return MB_FAILURE;
   }
-
+#endif 
   /*  std::ostringstream blah;
   for(int i = 0; i < allBoxes.size(); i++)
   blah << allBoxes[i] << " ";
   std::cout << blah.str() << "\n";*/
+
+  //step 2
+  // get the global bounding box
+  double sendbuffer[6];
+  double rcvbuffer[6];
+
+  box.bMax.get(&sendbuffer[0]); //fill sendbuffer with local box, max values in [0:2]
+  box.bMin.get(&sendbuffer[3]); //min values in [3:5]
+  sendbuffer[3] *= -1;
+  sendbuffer[4] *= -1; //negate Xmin,Ymin,Zmin to get their minimum using MPI_MAX
+  sendbuffer[5] *= -1; //to avoid calling MPI_Allreduce again with MPI_MIN
+
+  if (myPc) {
+	int mpi_err = MPI_Allreduce(sendbuffer, rcvbuffer, 6, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+	if (MPI_SUCCESS != mpi_err)	return MB_FAILURE;
+  }
+
+  rcvbuffer[3] *= -1;
+  rcvbuffer[4] *= -1;  //negate Xmin,Ymin,Zmin again to get original values
+  rcvbuffer[5] *= -1;
+
+  globalBox.update_max(&rcvbuffer[0]); //saving values in globalBox
+  globalBox.update_min(&rcvbuffer[3]);
+
+  int np = myPc->proc_config().proc_size();
+  regNumX = regNumY = regNumZ = np; //number of regions in each dimension, np^3 regions in total.
+
+  regDeltaX = (globalBox.bMax[0] - globalBox.bMin[0])/double(regNumX); //size of each region
+  regDeltaY = (globalBox.bMax[1] - globalBox.bMin[1])/double(regNumY); //they are divided equally
+  regDeltaZ = (globalBox.bMax[2] - globalBox.bMin[2])/double(regNumZ);
 
 #ifndef NDEBUG
   double min[3] = {0, 0, 0}, max[3] = {0, 0, 0};
@@ -1792,6 +1840,343 @@ ErrorCode Coupler::get_gl_points_on_elements(Range &targ_elems, std::vector<doub
 
   return MB_SUCCESS;
 }
+
+// author: Sevag Donikian //////////////////////////////////////////
+// 28 June, 2013 ///////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////
+
+//this function computes the IDs of the regions which contain the corners of the local box
+//the results are set in reg_upper_front_left, reg_upper_front_right, etc...
+//having the IDs of the corners, can iterate over all regions overlapping with the local box
+ErrorCode Coupler::computeCornerIDs() {
+
+	BoundBox box;
+	ErrorCode rval = myTree->get_bounding_box(box, &localRoot);
+	if (rval != MB_SUCCESS) return rval;
+
+	reg_upper_front_left = getRegionID(box.bMin[0], box.bMin[1], box.bMin[2]);
+
+	reg_upper_front_right = getRegionID(box.bMax[0], box.bMin[1], box.bMin[2]);
+
+	reg_lower_front_left = getRegionID(box.bMin[0], box.bMax[1], box.bMin[2]);
+
+	reg_lower_front_right = getRegionID(box.bMax[0], box.bMax[1], box.bMin[2]);
+
+	reg_upper_back_left = getRegionID(box.bMin[0], box.bMin[1], box.bMax[2]);
+
+	reg_upper_back_right = getRegionID(box.bMax[0], box.bMin[1], box.bMax[2]);
+
+	reg_lower_back_left = getRegionID(box.bMin[0], box.bMax[1], box.bMax[2]);
+
+	reg_lower_back_right = getRegionID(box.bMax[0], box.bMax[1], box.bMax[2]);
+
+	return MB_SUCCESS;
+}
+
+//this function sets up the TupleList TLreg_o containing the registration messages
+// and sends it
+ErrorCode Coupler::registerWithForwarders() {
+
+	//step 4
+	//set up TLreg_o
+	int YLoopLimit = abs(reg_upper_front_left - reg_lower_front_left);
+	int ZLoopLimit = abs(reg_upper_front_left - reg_upper_back_left);
+
+	TLreg_o.initialize(1,0,0,6,0);
+	// TLreg_o (int destProc, real Xmin, Ymin, Zmin, Xmax, Ymax, Zmax)
+	int dest[1];
+	double boxtosend[6];
+
+	BoundBox box;
+	ErrorCode result = myTree->get_bounding_box(box, &localRoot);
+	if (result != MB_SUCCESS)
+		return result;
+
+	box.bMin.get(&boxtosend[0]);
+	box.bMax.get(&boxtosend[3]);
+
+	//iterate over all regions overlapping with my bounding box using the computerd corner IDs
+	for (int i=reg_upper_front_left; i <= reg_upper_front_right; i++){
+		for (int j=i; j <= i+YLoopLimit; j += regNumX){
+			for (int p=j; p <= j+ ZLoopLimit; p++){
+				dest[0] = p;
+				TLreg_o.push_back(dest, NULL, NULL, boxtosend);
+			}
+		}
+	}
+
+	//step 5
+	//send TLreg_o, receive TLrequests_i
+	if (myPc){
+		(myPc->proc_config().crystal_router())->gs_transfer(1, TLreg_o, 0);
+	}
+
+	//done
+	return MB_SUCCESS;
+}
+
+
+//this function receives registration messages and 
+//adds to the list of procs to forward to
+ErrorCode Coupler::serviceRegistrations() {
+
+	//step 6
+	//Read registration requests from TLreg_o and add to list of procs to forward to
+	//get number of tuples sent to me
+	int NN = TLreg_o.get_n();
+
+	//initialize data structures
+	forwProcSize = NN;
+	forwProcBox.resize(NN);
+
+	//read tuples and fill processor list;
+	for (unsigned int i=0; i < NN; i++){
+		//TLreg_o is now TLrequests_i
+		forwProcBox[i].resize(7);
+		forwProcBox[i][6] = TLreg_o.vi_rd[i]; 
+
+		forwProcBox[i][0] = TLreg_o.vr_rd[6*i];	  //read Xmin
+		forwProcBox[i][1] = TLreg_o.vr_rd[6*i+1]; //read Ymin
+		forwProcBox[i][2] = TLreg_o.vr_rd[6*i+2]; //read Zmin
+		forwProcBox[i][3] = TLreg_o.vr_rd[6*i+3]; //read Xmax
+		forwProcBox[i][4] = TLreg_o.vr_rd[6*i+4]; //read Ymax
+		forwProcBox[i][5] = TLreg_o.vr_rd[6*i+5]; //read Zmax		
+	}
+
+	std::sort(forwProcBox.begin(), forwProcBox.end());
+	//done
+	return MB_SUCCESS;
+}
+
+
+
+ErrorCode Coupler::locate_points_withForwarding(double *xyz, int num_points,
+ 						double rel_eps,
+						double abs_eps,
+						TupleList *tl,
+						bool store_local)
+{
+	ErrorCode result;
+	bool point_located;
+
+	// target_pts: TL(to_proc, tgt_index, x, y, z): tuples sent to source mesh procs representing pts to be located
+	// source_pts: TL(from_proc, tgt_index, src_index): results of source mesh proc point location, ready to send
+	//             back to tgt procs; src_index of -1 indicates point not located (arguably not useful...)
+
+	TupleList target_pts;
+	target_pts.initialize(2, 0, 0, 3, num_points);
+	target_pts.enableWriteAccess();
+ 
+	TupleList source_pts;
+	mappedPts = new TupleList(0, 0, 1, 3, target_pts.get_max());
+	mappedPts->enableWriteAccess();
+
+	source_pts.initialize(3, 0, 0, 0, target_pts.get_max());
+	source_pts.enableWriteAccess();
+	 
+	mappedPts->set_n(0);
+	source_pts.set_n(0);
+
+	unsigned int my_rank = (myPc? myPc->proc_config().proc_rank() : 0);
+
+	//TLquery_o: Tuples sent to forwarder proc 
+	//TL (toProc, OriginalSourceProc, targetIndex, X,Y,Z)
+	//TLforw_req_i: Tuples to forward to corresponding procs (forwarding requests)
+	//TL (sourceProc, OriginalSourceProc, targetIndex, X,Y,Z)
+
+	TLquery_o.initialize(3,0,0,3,0);
+
+	int args[3];
+	double coords[3];
+
+	for (int pnt=0; pnt < 3*num_points; pnt+=3)
+	{
+		int forwID = getRegionID(xyz[pnt], xyz[pnt+1], xyz[pnt+2]); //get ID of proc resonsible of the region the proc is in
+
+		args[0] = forwID; 	//toProc
+		args[1] = my_rank; 	//originalSourceProc
+		args[2] = pnt/3;    	//targetIndex 	
+		coords[0] = xyz[pnt];  	//X        
+		coords[1] = xyz[pnt+1]; //Y
+		coords[2] = xyz[pnt+2]; //Z
+
+		TLquery_o.push_back(args, NULL, NULL, coords);
+	}
+
+	//send point search queries to forwarders
+	if (myPc)
+		(myPc->proc_config().crystal_router())->gs_transfer(1, TLquery_o, 0);
+
+	//now read forwarding requests and forward to corresponding procs
+	//TLquery_o is now TLforw_req_i
+
+	//TLforward_o: query messages forwarded to corresponding procs
+	//TL (toProc, OriginalSourceProc, targetIndex, X,Y,Z)
+
+	TLforward_o.initialize(3,0,0,3,0);
+
+	int NN = TLquery_o.get_n();
+	BoundBox tempBox;
+
+	for (unsigned int i=0; i < NN; i++) {
+		args[1] = TLquery_o.vi_rd[3*i+1];	//get OriginalSourceProc
+		args[2] = TLquery_o.vi_rd[3*i+2];	//targetIndex
+		coords[0] = TLquery_o.vr_rd[3*i];	//X
+		coords[1] = TLquery_o.vr_rd[3*i+1];	//Y
+		coords[2] = TLquery_o.vr_rd[3*i+2];	//Z
+
+		//compare coordinates to list of bounding boxes
+		for (int bx=0; bx < forwProcSize; bx++) {
+			tempBox.bMin[0]=forwProcBox[bx][0]; //create a box to use the contains_point function
+			tempBox.bMin[1]=forwProcBox[bx][1];
+			tempBox.bMin[2]=forwProcBox[bx][2];
+			tempBox.bMax[0]=forwProcBox[bx][3];
+			tempBox.bMax[1]=forwProcBox[bx][4];
+			tempBox.bMax[2]=forwProcBox[bx][5];
+			if(tempBox.contains_point(coords, abs_eps) ) {
+				args[0] = forwProcBox[bx][6]; //set dest Proc ID
+				TLforward_o.push_back(args, NULL, NULL, coords);
+			}
+		}
+	}
+
+	if (myPc)
+		(myPc->proc_config().crystal_router())->gs_transfer(1, TLforward_o, 0);
+
+	//step 12
+	//now read Point Search requests
+	//TLforward_o is now TLsearch_req_i
+	//TLsearch_req_i: (sourceProc, OriginalSourceProc, targetIndex, X,Y,Z)
+
+	NN = TLforward_o.get_n();
+	//TLsearch_results_o
+	//TL: (OriginalSourceProc, targetIndex, sourceIndex, U,V,W);
+        TLsearch_results_o.initialize(3,0,0,3,0);
+
+	for (unsigned int i=0; i < NN; i++)
+	{
+		result = test_local_boxWithForwarding(TLforward_o.vr_rd+3*i,	//xyz coords
+						TLforward_o.vi_rd[3*i+1], 	//fromProc
+	 				        TLforward_o.vi_rd[3*i+2], 	//remote_index
+						i, point_located,		//index
+						rel_eps, abs_eps,   		//relative eps, absolute
+						&TLsearch_results_o);		//*tl
+	}
+
+	//step 13 is done in test_local_box
+	//step 14: send TLsearch_results_o and receive TLloc_i
+	if (myPc)
+		(myPc->proc_config().crystal_router())->gs_transfer(1, TLsearch_results_o, 0);
+
+	// store proc/index tuples in targetPts, and/or pass back to application;
+	// the tuple this gets stored to looks like:
+	// tl.set_n( # mapped points );
+	// tl.vi_wr[3*i] = remote proc mapping point
+	// tl.vi_wr[3*i+1] = local index of mapped point
+	// tl.vi_wr[3*i+2] = remote index of mapped point
+	//
+	// Local index is mapped into either myRange, holding the handles of
+	// local mapped entities, or myXyz, holding locations of mapped pts
+	// store information about located points
+	TupleList *tl_tmp;
+	if  (!store_local)
+	tl_tmp = tl;
+	else {
+		targetPts = new TupleList();
+		tl_tmp = targetPts;
+	}
+	
+	tl_tmp->initialize(3, 0, 0, 0, 0);
+ 
+	//now fill in targetPts
+	for (int i=0; i < TLsearch_results_o.get_n(); i++) {
+		if (TLsearch_results_o.vi_rd[3*i+2]!=-1){
+			args[0] = TLsearch_results_o.vi_rd[3*i];
+			args[1] = TLsearch_results_o.vi_rd[3*i+1];
+			args[2] = TLsearch_results_o.vi_rd[3*i+2];	
+			targetPts->push_back(args, NULL, NULL, NULL);
+		}
+	}
+	assert( targetPts->get_n() == num_points ); //checking that all points are found	
+
+	//Done
+	return MB_SUCCESS;
+}
+
+ErrorCode Coupler::test_local_boxWithForwarding(double *xyz,
+				int from_proc, int remote_index, int /*index*/,
+				bool &point_located,
+				double rel_eps, double abs_eps,
+				TupleList *tl)
+{
+	std::vector<EntityHandle> entities;
+	std::vector<CartVect> nat_coords;
+	bool canWrite;
+
+	if (tl) {
+		canWrite = tl->get_writeEnabled();
+		if (!canWrite) tl->enableWriteAccess();
+	}
+
+	if (rel_eps && !abs_eps){
+		//relative epsilon given, translate to absolute epsilon using box dimensions
+		BoundBox box;
+		myTree->get_bounding_box(box, &localRoot);
+		abs_eps = rel_eps * box.diagonal_length();
+	}
+
+	ErrorCode result = nat_param(xyz, entities, nat_coords, abs_eps);
+
+	// if we didn't find any ents and we're looking locally, nothing more to do
+	if (entities.empty())
+	{
+		if (tl->get_n() == tl->get_max())
+			tl->resize(std::max(10.0, 1.5*tl->get_max()));
+		tl->vi_wr[3*tl->get_n()] = from_proc; //this is OriginalSourceProc
+		tl->vi_wr[3*tl->get_n()+1] = remote_index; //targetIndex;
+		tl->vi_wr[3*tl->get_n()+2] = -1;	   //sourceIndex;
+		tl->inc_n();
+		point_located = false;
+		//done
+		return MB_SUCCESS;
+	}
+
+	//grow if we know we'll exceed size
+	if (mappedPts->get_n()+entities.size() >= mappedPts->get_max())  
+		mappedPts->resize(std::max(10.0, 1.5*mappedPts->get_max())); 
+			
+	std::vector<EntityHandle>::iterator eit = entities.begin();
+	std::vector<CartVect>::iterator ncit = nat_coords.begin();
+
+	mappedPts->enableWriteAccess();
+	for (; eit != entities.end(); eit++, ncit++) {
+		// store in tuple mappedPts
+		mappedPts->vr_wr[3*mappedPts->get_n()] = (*ncit)[0];
+		mappedPts->vr_wr[3*mappedPts->get_n()] = (*ncit)[1];
+		mappedPts->vr_wr[3*mappedPts->get_n()] = (*ncit)[2];
+		mappedPts->vul_wr[mappedPts->get_n()] = *eit;
+		mappedPts->inc_n();
+
+		//also store local point, mapped point indices
+		if (tl->get_n() == tl->get_max())
+			tl->resize(std::max(10.0, 1.5*tl->get_max())); 
+
+		//set up TL_search_results_o
+		tl->vi_wr[3*tl->get_n()] = from_proc;			//OriginalSourceProc
+		tl->vi_wr[3*tl->get_n()+1] = remote_index;		//targetIndex
+		tl->vi_wr[3*tl->get_n()+2] = mappedPts->get_n()-1;	//sourceIndex
+		tl->vr_wr[3*tl->get_n()] = (*ncit)[0];			//U
+		tl->vr_wr[3*tl->get_n()+1] = (*ncit)[1];		//V
+		tl->vr_wr[3*tl->get_n()+2] = (*ncit)[2];		//W
+		tl->inc_n();
+	}
+
+	point_located = true;
+	if (tl && !canWrite) tl->disableWriteAccess();
+	return MB_SUCCESS;
+}
+// end of author: Sevag Donikian ////////////////////////////////////
+/////////////////////////////////////////////////////////////////////
 
 } // namespace_moab
 

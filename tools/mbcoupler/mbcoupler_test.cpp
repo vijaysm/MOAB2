@@ -564,7 +564,7 @@ ErrorCode test_interpolation(Interface *mbImpl,
 
   // Locate those points in the source mesh
   std::cout<<"rank "<< pcs[0]->proc_config().proc_rank() << " points of interest: " << numPointsOfInterest << "\n";
-  result = mbc.locate_points(&vpos[0], numPointsOfInterest, 0, toler);MB_CHK_ERR(result);
+  result = mbc.locate_points_withForwarding(&vpos[0], numPointsOfInterest, 0, toler);MB_CHK_ERR(result);
 
   pointloc_time = MPI_Wtime();
 
