@@ -32,6 +32,8 @@
 using namespace moab;
 using namespace std;
 
+// #define WRITE_DEBUG_FILES
+
 #ifdef MESH_DIR
 string test_file_name = string(MESH_DIR) + string("/surfrandomtris-4part.h5m");
 #else
@@ -243,12 +245,14 @@ ErrorCode perform_laplacian_smoothing(Core *mb, Range &verts, int dim, Tag fixed
     memcpy( &verts_acc3[0], &verts_o[0], nbytes );
   }
 
+#ifdef WRITE_DEBUG_FILES
   {
     // output file, using parallel write
     std::stringstream sstr;
     sstr << "LaplacianSmootherIterate_0.vtk";
     rval = mb->write_file(sstr.str().c_str()); RC;
   }
+#endif
 
   double mxdelta = 0.0, global_max = 0.0;
   // 2. for num_its iterations:
@@ -278,9 +282,7 @@ ErrorCode perform_laplacian_smoothing(Core *mb, Range &verts, int dim, Tag fixed
         rat_theta = std::abs( rat_alpha / rat_alphaprev - 1.0 );
 
         if (rat_theta < 1.0) {
-          // dbgprint ( " Alpha_i+1 " << rat_alpha << " Alpha_i = " << rat_alphaprev << " Theta = " << rat_theta );
 
-          // http://onlinelibrary.wiley.com/doi/10.1002/cnm.1630020409/pdf
           if (acc_method == 1) { /* Method 2 from ACCELERATION OF VECTOR SEQUENCES: http://onlinelibrary.wiley.com/doi/10.1002/cnm.1630020409/pdf */
             double vnorm = 0.0, den, acc_alpha = 0.0, acc_gamma = 0.0;
             for(unsigned i=0; i < verts_n.size(); ++i) {
@@ -331,10 +333,6 @@ ErrorCode perform_laplacian_smoothing(Core *mb, Range &verts, int dim, Tag fixed
             int offset=0;
             for (Range::const_iterator vit = verts.begin(); vit != verts.end(); ++vit, offset+=3)
             {
-              // verts_acc1[offset+0] = verts_acc2[offset+0]; verts_acc1[offset+1] = verts_acc2[offset+1]; verts_acc1[offset+2] = verts_acc2[offset+2];
-              // verts_acc2[offset+0] = verts_acc3[offset+0]; verts_acc2[offset+1] = verts_acc3[offset+1]; verts_acc2[offset+2] = verts_acc3[offset+2];
-              // verts_acc3[offset+0] = verts_n[offset+0]; verts_acc3[offset+1] = verts_n[offset+1]; verts_acc3[offset+2] = verts_n[offset+2];
-
               // if !fixed
               if (fix_tag[offset/3]) continue;
 
@@ -343,8 +341,6 @@ ErrorCode perform_laplacian_smoothing(Core *mb, Range &verts, int dim, Tag fixed
 
               num1.scale(num2);
               const double mu = num1.length_squared() / num2.length_squared();
-
-              // dbgprint ( "Element " << *vit << " num = " << num << " mu = " << mu );
 
               verts_n[offset+0] = verts_acc3[offset+0] + mu * (verts_acc2[offset+0] - verts_acc3[offset+0]);
               verts_n[offset+1] = verts_acc3[offset+1] + mu * (verts_acc2[offset+1] - verts_acc3[offset+1]);
@@ -367,7 +363,6 @@ ErrorCode perform_laplacian_smoothing(Core *mb, Range &verts, int dim, Tag fixed
       double delta = (CartVect(&verts_n[3*v])-CartVect(&verts_o[3*v])).length();
       mxdelta = std::max(delta, mxdelta);
       EntityHandle vh = verts[v];
-      // dbgprint( "\t\tError " << vh << ": Max delta = " << mxdelta << "." );
       rval = mb->tag_set_data(errt, &vh, 1, &mxdelta); RC;
     }
 
@@ -382,14 +377,16 @@ ErrorCode perform_laplacian_smoothing(Core *mb, Range &verts, int dim, Tag fixed
       dbgprint( "\tIterate " << nit << ": Global Max delta = " << global_max << "." );
     }
 
+#ifdef WRITE_DEBUG_FILES
     {
       // write the tag back onto vertex coordinates
       rval = mb->set_coords(verts, &verts_n[0]); RC;
-      // output file, using parallel write
+      // output VTK file for debugging purposes
       std::stringstream sstr;
       sstr << "LaplacianSmootherIterate_" << nit+1 << ".vtk";
       rval = mb->write_file(sstr.str().c_str()); RC;
     }
+#endif
 
     if (global_max < rel_eps) break;
     else {
@@ -428,9 +425,7 @@ ErrorCode laplacianFilter(Core* mb, moab::Range& verts, int dim, Tag fixed, std:
   for (Range::const_iterator vit = verts.begin(); vit != verts.end(); ++vit, index+=3)
   {
     // if !fixed
-    if (fix_tag[index/3]) {
-      continue;
-    }
+    if (fix_tag[index/3]) continue;
 
     moab::Range adjverts, adjelems;
     // Find the neighboring vertices (1-ring neighborhood)
@@ -455,11 +450,6 @@ ErrorCode laplacianFilter(Core* mb, moab::Range& verts, int dim, Tag fixed, std:
       verts_n[index+0] = delta[0] / nadjs;
       verts_n[index+1] = delta[1] / nadjs;
       verts_n[index+2] = delta[2] / nadjs;
-      
-      // dbgprint( "-- Element = " << index/3 << " adjacencies = " << nadjs );
-      // dbgprint( "\t Old_Coords = " << verts_o[index] << ", New_Coords = " << verts_n[index]  );
-      // dbgprint( "\t Old_Coords = " << verts_o[index+1] << ", New_Coords = " << verts_n[index+1]  );
-      // dbgprint( "\t Old_Coords = " << verts_o[index+2] << ", New_Coords = " << verts_n[index+2]  );
     }
   }
 
@@ -492,22 +482,13 @@ ErrorCode hcFilter(Core* mb, moab::Range& verts, int dim, Tag fixed, std::vector
   for (index = 0; index < verts_o.size(); ++index)
   {
     verts_hc[index] = verts_n[index] - (alpha * verts_o[index] + ( 1.0 - alpha ) * verts_o[index] );
-    // const int offset = index*3;
-    // verts_hc[offset+0] = verts_n[offset+0] - (alpha * verts_o[offset+0] + ( 1 - alpha ) * verts_o[offset+0] );
-    // verts_hc[offset+1] = verts_n[offset+1] - (alpha * verts_o[offset+1] + ( 1 - alpha ) * verts_o[offset+1] );
-    // verts_hc[offset+2] = verts_n[offset+2] - (alpha * verts_o[offset+2] + ( 1 - alpha ) * verts_o[offset+2] );
   }
 
   index=0;
   for (Range::const_iterator vit = verts.begin(); vit != verts.end(); ++vit, index+=3)
   {
     // if !fixed
-    if (fix_tag[index/3]) {
-      // verts_n[index+0] = verts_o[index+0];
-      // verts_n[index+1] = verts_o[index+1];
-      // verts_n[index+2] = verts_o[index+2];
-      continue;
-    }
+    if (fix_tag[index/3]) continue;
 
     moab::Range adjverts, adjelems;
     // Find the neighboring vertices (1-ring neighborhood)
