@@ -53,12 +53,12 @@ ErrorCode hcFilter(Core* mb, moab::Range& verts, int dim, Tag fixed,
                     double alpha, double beta);
 
 ErrorCode laplacianFilter(Core* mb, moab::Range& verts, int dim, Tag fixed,
-                            std::vector<double>& verts_o, std::vector<double>& verts_n);
+                            std::vector<double>& verts_o, std::vector<double>& verts_n, bool use_updated=true);
 
 int main(int argc, char **argv)
 {
   int num_its = 10;
-  int num_ref = 1;
+  int num_ref = 0;
   int num_dim = 2;
   int report_its = 1;
   int num_degree = 2;
@@ -202,6 +202,7 @@ ErrorCode perform_laplacian_smoothing(Core *mb, Range &verts, int dim, Tag fixed
 {
   ErrorCode rval;
   int global_rank = 0, global_size = 1;
+  int nacc = 2, nacc_method = 2; /* nacc_method: 1 = Method 2 from [1], 2 = Method 3 from [1] */
   std::vector<double> verts_acc1, verts_acc2, verts_acc3;
 
 #ifdef MOAB_HAVE_MPI
@@ -235,6 +236,13 @@ ErrorCode perform_laplacian_smoothing(Core *mb, Range &verts, int dim, Tag fixed
     memcpy( &verts_acc3[0], &verts_o[0], nbytes );
   }
 
+  {
+    // output file, using parallel write
+    std::stringstream sstr;
+    sstr << "LaplacianSmootherIterate_0.vtk";
+    rval = mb->write_file(sstr.str().c_str()); RC;
+  }
+
   double mxdelta = 0.0, global_max = 0.0;
   // 2. for num_its iterations:
   for (int nit = 0; nit < num_its; nit++) {
@@ -251,21 +259,42 @@ ErrorCode perform_laplacian_smoothing(Core *mb, Range &verts, int dim, Tag fixed
 
     if (use_acc) {
 
-      if ( nit > 10 ) {
-        for(unsigned i=0; i < verts_n.size(); ++i) {
+      if ( nit > 1 && (nit % nacc) ) {
 
-          verts_acc1[i] = verts_acc2[i];
-          verts_acc2[i] = verts_acc3[i];
-          verts_acc3[i] = verts_n[i];
+        // http://onlinelibrary.wiley.com/doi/10.1002/cnm.1630020409/pdf
+        if (nacc_method == 1) {
+          double vnorm = 0.0, den, acc_alpha = 0.0, acc_gamma = 0.0;
+          for(unsigned i=0; i < verts_n.size(); ++i) {
+            verts_acc1[i] = verts_acc2[i];
+            verts_acc2[i] = verts_acc3[i];
+            verts_acc3[i] = verts_n[i];
 
-          double num = ( verts_acc3[i] * verts_acc1[i] - verts_acc2[i] * verts_acc2[i] );
-          double den = ( verts_acc3[i] - 2.0 * verts_acc2[i] + verts_acc1[i] );
-          verts_n[i] = (den > 1e-8 ?  num / den : verts_n[i]);
-
-          // double num = ( verts_acc2[i] - verts_acc1[i] );
-          // double den = ( verts_acc3[i] - 2.0 * verts_acc2[i] + verts_acc1[i] );
-          // verts_n[i] = ( den > 1e-8 ? verts_acc1[i] - num * num / den : verts_n[i] );
+            den = ( verts_acc3[i] - 2.0 * verts_acc2[i] + verts_acc1[i] );
+            vnorm += den*den;
+            acc_alpha += (verts_acc3[i] - verts_acc2[i]) * (verts_acc3[i] - verts_acc2[i]);
+            acc_gamma += (verts_acc2[i] - verts_acc1[i]) * (verts_acc2[i] - verts_acc1[i]);
+          }
+          for(unsigned i=0; i < verts_n.size(); ++i) {
+            verts_n[i] = verts_acc2[i] + ( acc_gamma * (verts_acc3[i] - verts_acc2[i]) - acc_alpha * (verts_acc2[i] - verts_acc1[i]) ) / vnorm;
+          }
         }
+        else {
+          double vnorm = 0.0, num = 0.0, den = 0.0, mu = 0.0;
+          for(unsigned i=0; i < verts_n.size(); ++i) {
+            verts_acc1[i] = verts_acc2[i];
+            verts_acc2[i] = verts_acc3[i];
+            verts_acc3[i] = verts_n[i];
+
+            num += ( verts_acc3[i] - verts_acc2[i] ) * ( verts_acc3[i] - 2.0 * verts_acc2[i] + verts_acc1[i] );
+            den = ( verts_acc3[i] - 2.0 * verts_acc2[i] + verts_acc1[i] );
+            vnorm += den*den;
+          }
+          mu = num / vnorm;
+          for(unsigned i=0; i < verts_n.size(); ++i) {
+            verts_n[i] = verts_acc3[i] + mu * ( verts_acc2[i] - verts_acc3[i] );
+          }
+        }
+        
       }
       else {
         memcpy( &verts_acc1[0], &verts_acc2[0], nbytes );
@@ -294,6 +323,15 @@ ErrorCode perform_laplacian_smoothing(Core *mb, Range &verts, int dim, Tag fixed
       dbgprint( "\tIterate " << nit << ": Global Max delta = " << global_max << "." );
     }
 
+    {
+      // write the tag back onto vertex coordinates
+      rval = mb->set_coords(verts, &verts_n[0]); RC;
+      // output file, using parallel write
+      std::stringstream sstr;
+      sstr << "LaplacianSmootherIterate_" << nit+1 << ".vtk";
+      rval = mb->write_file(sstr.str().c_str()); RC;
+    }
+
     if (global_max < rel_eps) break;
     else {
       verts_o.swap(verts_n);
@@ -312,13 +350,12 @@ ErrorCode perform_laplacian_smoothing(Core *mb, Range &verts, int dim, Tag fixed
 
   Additional references: http://www.doc.ic.ac.uk/~gr409/thesis-MSc.pdf
 */
-ErrorCode laplacianFilter(Core* mb, moab::Range& verts, int dim, Tag fixed, std::vector<double>& verts_o, std::vector<double>& verts_n)
+ErrorCode laplacianFilter(Core* mb, moab::Range& verts, int dim, Tag fixed, std::vector<double>& verts_o, std::vector<double>& verts_n, bool use_updated)
 {
   ErrorCode rval;
   int index=0;
   std::vector<int> fix_tag(verts.size());
   double *data;
-  bool use_updated=true;
 
   memcpy( &verts_n[0], &verts_o[0], sizeof(double)*verts_o.size() );
 
