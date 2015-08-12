@@ -181,7 +181,7 @@ int main(int argc, char **argv)
     
     // output file, using parallel write
     sstr.str("");
-    sstr << "output/LaplacianSmoother_" << iref << ".h5m";
+    sstr << "LaplacianSmoother_" << iref << ".h5m";
     rval = mb->write_file(sstr.str().c_str(), "H5M", woptions.c_str(), &currset, 1); RC;
 
     // delete fixed tag, since we created it here
