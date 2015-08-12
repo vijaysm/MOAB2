@@ -45,7 +45,7 @@ string test_file_name = string("input/surfrandomtris-4part.h5m");
   } while(false)
 
 ErrorCode perform_laplacian_smoothing(Core *mb, Range &verts, int dim, Tag fixed, 
-                                   bool use_hc=false, bool use_acc=false, int num_its=10, 
+                                   bool use_hc=false, bool use_acc=false, int acc_method=1, int num_its=10, 
                                    double rel_eps=1e-5, double alpha=0.0, double beta=0.5, int report_its=1);
 
 ErrorCode hcFilter(Core* mb, moab::Range& verts, int dim, Tag fixed, 
@@ -64,6 +64,7 @@ int main(int argc, char **argv)
   int num_degree = 2;
   bool use_hc=false;
   bool use_acc=false;
+  int acc_method=1;
   double alpha = 0.5, beta = 0.0;
   double rel_eps = 1e-5;
   const int nghostrings = 1;
@@ -80,9 +81,9 @@ int main(int argc, char **argv)
       std::string("Number of Laplacian smoothing iterations (default=10)"), &num_its);
   opts.addOpt<double>(std::string("eps,e"),
       std::string("Tolerance for the Laplacian smoothing error (default=1e-5)"), &rel_eps);
-  opts.addOpt<double>(std::string("alpha,a"),
+  opts.addOpt<double>(std::string("alpha"),
       std::string("Tolerance for the Laplacian smoothing error (default=0.0)"), &alpha);
-  opts.addOpt<double>(std::string("beta,b"),
+  opts.addOpt<double>(std::string("beta"),
       std::string("Tolerance for the Laplacian smoothing error (default=0.5)"), &beta);
   opts.addOpt<int>(std::string("dim,d"),
       std::string("Topological dimension of the mesh (default=2)"), &num_dim);
@@ -96,6 +97,8 @@ int main(int argc, char **argv)
       std::string("Use Humphrey’s Classes algorithm to reduce shrinkage of Laplacian smoother (default=false)"), &use_hc);
   opts.addOpt<void>(std::string("aitken,d"),
       std::string("Use Aitken \\delta^2 acceleration to improve convergence of Lapalace smoothing algorithm (default=false)"), &use_acc);
+  opts.addOpt<int>(std::string("acc,a"),
+      std::string("Type of vector Aitken process to use for acceleration (default=1)"), &acc_method);
 
   opts.parseCommandLine(argc, argv);
 
@@ -177,7 +180,7 @@ int main(int argc, char **argv)
     }
 
     // now perform the Laplacian relaxation
-    rval = perform_laplacian_smoothing(mb, verts, num_dim, fixed, use_hc, use_acc, num_its, rel_eps, alpha, beta, report_its); RC;
+    rval = perform_laplacian_smoothing(mb, verts, num_dim, fixed, use_hc, use_acc, acc_method, num_its, rel_eps, alpha, beta, report_its); RC;
     
     // output file, using parallel write
     sstr.str("");
@@ -197,13 +200,17 @@ int main(int argc, char **argv)
 }
 
 ErrorCode perform_laplacian_smoothing(Core *mb, Range &verts, int dim, Tag fixed, 
-                                       bool use_hc, bool use_acc, int num_its, double rel_eps, 
+                                       bool use_hc, bool use_acc, int acc_method,
+                                       int num_its, double rel_eps, 
                                        double alpha, double beta, int report_its) 
 {
   ErrorCode rval;
   int global_rank = 0, global_size = 1;
-  int nacc = 2, nacc_method = 2; /* nacc_method: 1 = Method 2 from [1], 2 = Method 3 from [1] */
+  int nacc = 2; /* nacc_method: 1 = Method 2 from [1], 2 = Method 3 from [1] */
   std::vector<double> verts_acc1, verts_acc2, verts_acc3;
+  double rat_theta=rel_eps, rat_alpha=rel_eps, rat_alphaprev=rel_eps;
+  std::vector<int> fix_tag(verts.size());
+  rval = mb->tag_get_data(fixed, verts, &fix_tag[0]); RC;
 
 #ifdef MOAB_HAVE_MPI
   ParallelComm *pcomm = ParallelComm::get_pcomm(mb, 0);
@@ -259,42 +266,94 @@ ErrorCode perform_laplacian_smoothing(Core *mb, Range &verts, int dim, Tag fixed
 
     if (use_acc) {
 
-      if ( nit > 1 && (nit % nacc) ) {
+      if ( nit > 2 && (nit % nacc) ) {
 
-        // http://onlinelibrary.wiley.com/doi/10.1002/cnm.1630020409/pdf
-        if (nacc_method == 1) {
-          double vnorm = 0.0, den, acc_alpha = 0.0, acc_gamma = 0.0;
-          for(unsigned i=0; i < verts_n.size(); ++i) {
-            verts_acc1[i] = verts_acc2[i];
-            verts_acc2[i] = verts_acc3[i];
-            verts_acc3[i] = verts_n[i];
-
-            den = ( verts_acc3[i] - 2.0 * verts_acc2[i] + verts_acc1[i] );
-            vnorm += den*den;
-            acc_alpha += (verts_acc3[i] - verts_acc2[i]) * (verts_acc3[i] - verts_acc2[i]);
-            acc_gamma += (verts_acc2[i] - verts_acc1[i]) * (verts_acc2[i] - verts_acc1[i]);
-          }
-          for(unsigned i=0; i < verts_n.size(); ++i) {
-            verts_n[i] = verts_acc2[i] + ( acc_gamma * (verts_acc3[i] - verts_acc2[i]) - acc_alpha * (verts_acc2[i] - verts_acc1[i]) ) / vnorm;
-          }
+        rat_alphaprev = rat_alpha;
+        for(unsigned i=0; i < verts_n.size(); ++i) {
+          verts_acc1[i] = verts_acc2[i];
+          verts_acc2[i] = verts_acc3[i];
+          verts_acc3[i] = verts_n[i];
+          rat_alpha = std::max( rat_alpha, std::abs( (verts_acc3[i] - verts_acc2[i]) * (verts_acc2[i] - verts_acc1[i]) )/ ( (verts_acc2[i] - verts_acc1[i]) * (verts_acc2[i] - verts_acc1[i]) ) );
         }
-        else {
-          double vnorm = 0.0, num = 0.0, den = 0.0, mu = 0.0;
-          for(unsigned i=0; i < verts_n.size(); ++i) {
-            verts_acc1[i] = verts_acc2[i];
-            verts_acc2[i] = verts_acc3[i];
-            verts_acc3[i] = verts_n[i];
+        rat_theta = std::abs( rat_alpha / rat_alphaprev - 1.0 );
 
-            num += ( verts_acc3[i] - verts_acc2[i] ) * ( verts_acc3[i] - 2.0 * verts_acc2[i] + verts_acc1[i] );
-            den = ( verts_acc3[i] - 2.0 * verts_acc2[i] + verts_acc1[i] );
-            vnorm += den*den;
+        if (rat_theta < 1.0) {
+          // dbgprint ( " Alpha_i+1 " << rat_alpha << " Alpha_i = " << rat_alphaprev << " Theta = " << rat_theta );
+
+          // http://onlinelibrary.wiley.com/doi/10.1002/cnm.1630020409/pdf
+          if (acc_method == 1) { /* Method 2 from ACCELERATION OF VECTOR SEQUENCES: http://onlinelibrary.wiley.com/doi/10.1002/cnm.1630020409/pdf */
+            double vnorm = 0.0, den, acc_alpha = 0.0, acc_gamma = 0.0;
+            for(unsigned i=0; i < verts_n.size(); ++i) {
+              den = ( verts_acc3[i] - 2.0 * verts_acc2[i] + verts_acc1[i] );
+              vnorm += den*den;
+              acc_alpha += (verts_acc3[i] - verts_acc2[i]) * (verts_acc3[i] - verts_acc2[i]);
+              acc_gamma += (verts_acc2[i] - verts_acc1[i]) * (verts_acc2[i] - verts_acc1[i]);
+            }
+            for(unsigned i=0; i < verts_n.size(); ++i) {
+              verts_n[i] = verts_acc2[i] + ( acc_gamma * (verts_acc3[i] - verts_acc2[i]) - acc_alpha * (verts_acc2[i] - verts_acc1[i]) ) / vnorm;
+            }
           }
-          mu = num / vnorm;
-          for(unsigned i=0; i < verts_n.size(); ++i) {
-            verts_n[i] = verts_acc3[i] + mu * ( verts_acc2[i] - verts_acc3[i] );
+          else if (acc_method == 2) { /* Method 3 from ACCELERATION OF VECTOR SEQUENCES: http://onlinelibrary.wiley.com/doi/10.1002/cnm.1630020409/pdf */
+            double vnorm = 0.0, num = 0.0, den = 0.0, mu = 0.0;
+            for(unsigned i=0; i < verts_n.size(); ++i) {
+              num += ( verts_acc3[i] - verts_acc2[i] ) * ( verts_acc3[i] - 2.0 * verts_acc2[i] + verts_acc1[i] );
+              den = ( verts_acc3[i] - 2.0 * verts_acc2[i] + verts_acc1[i] );
+              vnorm += den*den;
+            }
+            mu = num / vnorm;
+            for(unsigned i=0; i < verts_n.size(); ++i) {
+              verts_n[i] = verts_acc3[i] + mu * ( verts_acc2[i] - verts_acc3[i] );
+            }
           }
+          else if (acc_method == 3) { /* Method 5 from ACCELERATION OF VECTOR SEQUENCES: http://onlinelibrary.wiley.com/doi/10.1002/cnm.1630020409/pdf */
+            double num = 0.0, den = 0.0, mu = 0.0;
+            for(unsigned i=0; i < verts_n.size(); ++i) {
+              num += ( verts_acc3[i] - verts_acc2[i] ) * ( verts_acc2[i] - verts_acc1[i] );
+              den += ( verts_acc2[i] - verts_acc1[i] ) * ( verts_acc3[i] - 2.0 * verts_acc2[i] + verts_acc1[i] );
+            }
+            mu = num / den;
+            for(unsigned i=0; i < verts_n.size(); ++i) {
+              verts_n[i] = verts_acc3[i] - mu * ( verts_acc3[i] - verts_acc2[i] );
+            }
+          }
+          else if (acc_method == 4) { /* Method 8 from ACCELERATION OF VECTOR SEQUENCES: http://onlinelibrary.wiley.com/doi/10.1002/cnm.1630020409/pdf */
+            double num = 0.0, den = 0.0, lambda = 0.0;
+            for(unsigned i=0; i < verts_n.size(); ++i) {
+              num += ( verts_acc3[i] - verts_acc2[i] ) * ( verts_acc3[i] - verts_acc2[i] );
+              den += ( verts_acc2[i] - verts_acc1[i] ) * ( verts_acc2[i] - verts_acc1[i] );
+            }
+            lambda = std::sqrt(num / den);
+            for(unsigned i=0; i < verts_n.size(); ++i) {
+              verts_n[i] = verts_acc3[i] - lambda / (lambda - 1.0) * ( verts_acc3[i] - verts_acc2[i] );
+            }
+          }
+          else {
+            int offset=0;
+            for (Range::const_iterator vit = verts.begin(); vit != verts.end(); ++vit, offset+=3)
+            {
+              // verts_acc1[offset+0] = verts_acc2[offset+0]; verts_acc1[offset+1] = verts_acc2[offset+1]; verts_acc1[offset+2] = verts_acc2[offset+2];
+              // verts_acc2[offset+0] = verts_acc3[offset+0]; verts_acc2[offset+1] = verts_acc3[offset+1]; verts_acc2[offset+2] = verts_acc3[offset+2];
+              // verts_acc3[offset+0] = verts_n[offset+0]; verts_acc3[offset+1] = verts_n[offset+1]; verts_acc3[offset+2] = verts_n[offset+2];
+
+              // if !fixed
+              if (fix_tag[offset/3]) continue;
+
+              CartVect num1 = ( CartVect(&verts_acc3[offset]) - CartVect(&verts_acc2[offset]) );
+              CartVect num2 = ( CartVect(&verts_acc3[offset]) - 2.0 * CartVect(&verts_acc2[offset]) + CartVect(&verts_acc1[offset]) );
+
+              num1.scale(num2);
+              const double mu = num1.length_squared() / num2.length_squared();
+
+              // dbgprint ( "Element " << *vit << " num = " << num << " mu = " << mu );
+
+              verts_n[offset+0] = verts_acc3[offset+0] + mu * (verts_acc2[offset+0] - verts_acc3[offset+0]);
+              verts_n[offset+1] = verts_acc3[offset+1] + mu * (verts_acc2[offset+1] - verts_acc3[offset+1]);
+              verts_n[offset+2] = verts_acc3[offset+2] + mu * (verts_acc2[offset+2] - verts_acc3[offset+2]);
+            }
+          }
+
         }
-        
+
       }
       else {
         memcpy( &verts_acc1[0], &verts_acc2[0], nbytes );
