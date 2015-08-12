@@ -15,7 +15,7 @@ endif
 # MESH_DIR is the directory containing mesh files that come with MOAB source
 MESH_DIR="@abs_top_srcdir@/MeshFiles/unittest"
 
-EXAMPLES = HelloMOAB GetEntities SetsNTags LoadPartial StructuredMesh StructuredMeshSimple DirectAccessWithHoles DirectAccessNoHoles PointInElementSearch VisTags UniformRefinement
+EXAMPLES = HelloMOAB GetEntities SetsNTags LoadPartial StructuredMesh StructuredMeshSimple DirectAccessWithHoles DirectAccessNoHoles PointInElementSearch NearestNeighborSearch VisTags UniformRefinement
 PAREXAMPLES = HelloParMOAB ReduceExchangeTags LloydRelaxation CrystalRouterExample ReadWriteTest GenLargeMesh
 EXOIIEXAMPLES = TestExodusII
 F90EXAMPLES = DirectAccessNoHolesF90
@@ -123,6 +123,13 @@ PointInElementSearch: PointInElementSearch.o ${MOAB_LIBDIR}/libMOAB.la
 run-PointInElementSearch: PointInElementSearch
 	${RUNSERIAL} ./PointInElementSearch
 	${RUNPARALLEL} ./PointInElementSearch
+
+NearestNeighborSearch: NearestNeighborSearch.o ${MOAB_LIBDIR}/libMOAB.la
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+run-NearestNeighborSearch: NearestNeighborSearch
+	${RUNSERIAL} ./NearestNeighborSearch
+	${RUNPARALLEL} ./NearestNeighborSearch
 
 PushParMeshIntoMoabF90: PushParMeshIntoMoabF90.o
 	${MOAB_FC} -o $@ $< ${IMESH_LIBS}

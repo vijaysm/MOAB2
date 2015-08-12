@@ -36,6 +36,7 @@ examples_DATA = examples/CrystalRouterExample.cpp \
                 examples/HelloParMOAB.cpp \
                 examples/LloydRelaxation.cpp \
                 examples/LoadPartial.cpp \
+                examples/NearestNeighborSearch.cpp \
                 examples/PointInElementSearch.cpp \
                 examples/PushParMeshIntoMoabF90.F90 \
                 examples/ReadWriteTest.cpp \
