@@ -28,7 +28,6 @@
 #include "moab/ProgOptions.hpp"
 #include "moab/CartVect.hpp"
 #include "moab/NestedRefine.hpp"
-#include "MBExamples.hpp"
 
 using namespace moab;
 using namespace std;
@@ -40,6 +39,10 @@ string test_file_name = string("input/surfrandomtris-4part.h5m");
 #endif
 
 #define RC MB_CHK_ERR(rval)
+#define dbgprint(MSG)                                     \
+  do {                                                    \
+      if (!global_rank) std::cerr << MSG << std::endl;    \
+  } while(false)
 
 ErrorCode perform_laplacian_smoothing(Core *mb, Range &verts, int dim, Tag fixed, 
                                    bool use_hc=false, bool use_acc=false, int num_its=10, 
