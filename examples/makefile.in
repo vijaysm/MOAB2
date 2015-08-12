@@ -16,7 +16,7 @@ endif
 MESH_DIR="@abs_top_srcdir@/MeshFiles/unittest"
 
 EXAMPLES = HelloMOAB GetEntities SetsNTags LoadPartial StructuredMesh StructuredMeshSimple DirectAccessWithHoles DirectAccessNoHoles PointInElementSearch VisTags UniformRefinement
-PAREXAMPLES = HelloParMOAB ReduceExchangeTags LloydRelaxation CrystalRouterExample ReadWriteTest GenLargeMesh
+PAREXAMPLES = HelloParMOAB ReduceExchangeTags LloydRelaxation LaplacianSmoother CrystalRouterExample ReadWriteTest GenLargeMesh
 EXOIIEXAMPLES = TestExodusII
 F90EXAMPLES = DirectAccessNoHolesF90
 F90PAREXAMPLES = PushParMeshIntoMoabF90
@@ -54,6 +54,13 @@ LloydRelaxation: LloydRelaxation.o ${MOAB_LIBDIR}/libMOAB.la
 run-LloydRelaxation: LloydRelaxation
 	${RUNSERIAL} ./LloydRelaxation
 	${RUNPARALLEL} ./LloydRelaxation
+
+LaplacianSmoother: LaplacianSmoother.o ${MOAB_LIBDIR}/libMOAB.la
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+run-LaplacianSmoother: LaplacianSmoother
+	${RUNSERIAL} ./LaplacianSmoother
+	${RUNPARALLEL} ./LaplacianSmoother -r 2 -n 30 -e 1e-5
 
 LoadPartial: LoadPartial.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} ${MOAB_LIBS_LINK}

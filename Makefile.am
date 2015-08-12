@@ -34,6 +34,7 @@ examples_DATA = examples/CrystalRouterExample.cpp \
                 examples/GetEntities.cpp \
                 examples/HelloMOAB.cpp \
                 examples/HelloParMOAB.cpp \
+                examples/LaplacianSmoother.cpp \
                 examples/LloydRelaxation.cpp \
                 examples/LoadPartial.cpp \
                 examples/PointInElementSearch.cpp \
