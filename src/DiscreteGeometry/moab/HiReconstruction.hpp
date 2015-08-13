@@ -111,7 +111,7 @@ namespace moab
 				* \param degree_out Pointer to integer, used to store the degree of resulted fitting
 				* \param coeffs, Pointer to double, preallocated memory for coefficients of local fittings, should have at least (degree+2)(degree+1)/2 doubles.
 			*/
-			ErrorCode polyfit3d_walf_surf_vertex(const EntityHandle vid, const bool interp, int degree, int minpnts, const bool safeguard, double* coords, int* degree_out, double* coeffs);
+			ErrorCode polyfit3d_walf_surf_vertex(const EntityHandle vid, const bool interp, int degree, int minpnts, const bool safeguard, const int ncoords, double* coords, int* degree_out, const int ncoeffs, double* coeffs);
 
 			//! \brief Construct vertex based polynomial fitting on a curve mesh
 			/** Given a vertex on a curve mesh, construct three one-parameter local fittings for each coordinates axis around
@@ -129,7 +129,7 @@ namespace moab
 				* \param degree_out Pointer to integer, used to store the degree of resulted fitting
 				* \param coeffs, Pointer to double, preallocated memory for coefficients of local fittings, should have at least 3*(degree+1) doubles.
 			*/
-			ErrorCode polyfit3d_walf_curve_vertex(const EntityHandle vid, const bool interp, int degree, int minpnts, const bool safeguard, double* coords, int* degree_out, double* coeffs);
+			ErrorCode polyfit3d_walf_curve_vertex(const EntityHandle vid, const bool interp, int degree, int minpnts, const bool safeguard, const int ncoords, double* coords, int* degree_out, const int ncoeffs, double* coeffs);
 
 			//! \brief Perform high order projection of points in an element, using estimated geometry by reconstruction class
 			/** Given an element on the input mesh, and new points in this element, represented as natural coordinates in element, 
@@ -188,6 +188,12 @@ namespace moab
 				* \param hiproj_new Pointer to array of doubles, size=3*npts2fit, memory preallocated by user to store the fitting/estimated positions of input points.
 			*/
 			void walf3d_curve_vertex_eval(const double* local_origin, const double* local_coords, const int local_deg, const double* local_coeffs, const bool interp, const int npts2fit, const double* coords2fit, double* hiproj_new);
+
+			//Helper function: estimate require number of ghost layers in parallel setting
+			static int estimate_num_ghost_layers(int degree,bool interp){
+				return 1+interp?(degree+1)/2:(degree+2)/2;
+			};
+
 		protected:
 			Core *mbImpl;
 			ParallelComm *pcomm;
