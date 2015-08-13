@@ -356,7 +356,26 @@ namespace moab
 	}
 
 	void HiReconstruction::walf3d_curve_vertex_eval(const double* local_origin, const double* local_coords, const int local_deg, const double* local_coeffs, const bool interp, const int npts2fit, const double* coords2fit, double* hiproj_new){
-?degree_out and degree different, stored in columnwise
+		assert(local_origin&&lcoal_coords&&local_coeffs);
+		int ncoeffspvpd = local_deg+1;
+		for(int i=0;i<npts2fit;++i){
+			//get the vector from center to current point, project to tangent line
+			double vec[3],ans[3]={0,0,0};
+			Solvers::vec_linear_operation(3,1,coords2fit+3*i,-1,local_origin,vec);
+			double u = Solvers::vec_innerprod(3,local_coords,vec);
+			//evaluate polynomials
+			if(!interp){
+				ans[0] = local_coeffs[0]; ans[1] = local_coeffs[ncoeffspvpd]; ans[2] = local_coeffs[2*ncoeffspvpd];
+			}
+			double uk=1;//degree_out and degree different, stored in columnwise contiguously
+			for(int j=1;j<ncoeffspvpd;++j){
+				uk *= u;
+				ans[0] += uk*local_coeffs[j]; ans[1] += uk*local_coeffs[j+ncoeffspvpd]; ans[2] += uk*local_coeffs[j+2*ncoeffspvpd];
+			}
+			hiproj_new[3*i] = ans[0]+local_origin[0];
+			hiproj_new[3*i+1] = ans[1]+local_origin[1];
+			hiproj_new[3*i+2] = ans[2]+local_origin[2];
+		}		
 	}
 
 	/****************************************************************
