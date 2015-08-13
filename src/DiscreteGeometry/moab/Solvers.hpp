@@ -15,7 +15,7 @@ namespace moab
 
     static void compute_qtransposeB(int mrows, int ncols, const double *Q, int bncols, double *bs);
 
-    static void qr_polyfit_safeguarded(double *V, int mrows, int ncols, double *D, int &rank);
+    static void qr_polyfit_safeguarded(int mrows, int ncols, double *V, double *D, int *rank);
 
     static void backsolve(int mrows, int ncols, double *R, int bncols, double *bs, double *ws);
 
@@ -23,7 +23,7 @@ namespace moab
 
     static void vec_dotprod(const int len, const double* a, const double* b, double* c);
 
-    static void vec_scalarprod(const int len, const double* a, const double c, double *b);
+    static void vec_scalarprod(const int len, const double* a, const double c, double* b);
 
     static void vec_crossprod(const double a[3], const double b[3], double (&c)[3]);
 
@@ -36,8 +36,6 @@ namespace moab
     static void vec_projoff(const int len, const double* a, const double* b, double* c);
 
     static void vec_linear_operation(const int len, const double mu, const double* a, const double psi, const double* b, double* c);
-
-
 
   };
 

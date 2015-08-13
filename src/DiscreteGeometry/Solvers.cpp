@@ -54,10 +54,10 @@ namespace moab {
       }
   }
 
-  void Solvers::qr_polyfit_safeguarded(double *V, int mrows, int ncols, double *D, int &rank)
+  void Solvers::qr_polyfit_safeguarded(int mrows, int ncols, double *V, double *D, int *rank)
   {
     double tol = 1e-8;
-    rank = ncols;
+    *rank = ncols;
     double *v = new double[mrows];
 
     for (int k=0; k<ncols; k++)
@@ -107,9 +107,9 @@ namespace moab {
         for (int i=0; i<nv; i++)
             A[mrows*k+(i+k-1)] = v[i];
 
-        if ((abs(D[k])) < tol && (rank == ncols))
+        if ((abs(D[k])) < tol && (*rank == ncols))
           {
-            rank = k-1;
+            *rank = k-1;
             break;
           }
       }
