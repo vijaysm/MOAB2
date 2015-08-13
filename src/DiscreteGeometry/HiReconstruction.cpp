@@ -164,7 +164,34 @@ namespace moab
 	}
 
 	ErrorCode HiReconstruction::reconstruct3D_curve_geom(size_t npts, int* degrees, bool* interps, bool safeguard, bool reset){
-
+		assert(_dim==1);
+		ErrorCode error;
+		if(npts!=_nv2rec){
+			MB_SET_ERR(MB_FAILURE,"Input number of degrees doesn't match the number of vertices");
+		}
+		if(_hasfittings&&!reset){
+			return MB_SUCCESS;
+		}else{
+			_initfittings = _hasfittings = false;
+		}
+		//initialize
+		initialize_3Dcurve_geom(npts,degrees);
+		double *coords=0,*coeffs;
+		int *degree_out;
+		size_t i=0;
+		for(Range::iterator ivert=_verts2rec.begin();ivert!=_verts2rec.end();++ivert,++i){
+			int index = _verts2rec.index(*ivert);
+			size_t istr = _vertID2coeffID[index];
+			coeffs = &(_local_fit_coeffs[istr]);
+			degree_out = &(_degrees_out[index]);
+			_interps[index] = interps[i];
+			int ncoeffs = 3*(degrees[i]+1);
+			error = polyfit3d_walf_curve_vertex(*ivert,interps[i],degrees[i],_MINPNTS,safeguard,0,coords,degree_out,nceoffs,coeffs);
+			MB_CHK_ERR(error);
+		}
+		_geom = HI3DCURVE;
+		_hasfittings = true;
+		return error;
 	}
 
 	ErrorCode HiReconstruction::polyfit3d_walf_surf_vertex(const EntityHandle vid, const bool interp, int degree, int minpnts, const bool safeguard, const int ncoords, double* coords, int* degree_out, const int ncoeffs, double* coeffs){
@@ -446,7 +473,23 @@ namespace moab
 	 }
 
 	 void HiReconstruction::initialize_3Dcurve_geom(const size_t npts, const int* degrees){
-	 	
+	 	if(!_hasderiv){
+	 		compute_average_vertex_tangents_curve();
+	 		_hasderiv = true;
+	 	}
+	 	if(!_hasfittings){
+	 		assert(_nv2rec==npts);
+	 		_degrees_out.assign(_nv2rec,0);
+	 		_interps.assing(_nv2rec,false);
+	 		_vertID2coeffID.reserve(_nv2rec);
+	 		size_t index=0;
+	 		for(size_t i=0;i<_nv2rec;++i){
+	 			_vertID2coeffID.push_back(index);
+	 			index += 3*(degress[i]+1);
+	 		}
+	 		_local_fit_coeffs.assign(index,0);
+	 		_initfittings = true;
+	 	}
 	 }
 
 	 ErrorCode HiReconstruction::set_geom_data_surf(const EntityHandle vid, const double* coords, const double degree_out, const double* coeffs, bool interp){
@@ -630,7 +673,7 @@ namespace moab
 	 	Solvers::vec_projoff(3,tang1,nrm,tang1);
 	 	double len1 = Solvers::vec_normalize(3,tang1,tang1); assert(len1);
 	 	Solvers::vec_crossprod(nrm,tang1,tang2);
-	 	if(9==ncoords&&coords){
+	 	if(9<=ncoords&&coords){
 	 		coords[0] = tang1[0]; coords[1] = tang1[1]; coords[2] = tang1[2];
 	 		coords[3] = tang2[0]; coords[4] = tang2[1]; coords[5] = tang2[2];
 	 		coords[6] = nrm[0]; coords[7] = nrm[1]; coords[8] = nrm[2];
@@ -797,7 +840,7 @@ namespace moab
 	 	}
 	 	//step 1. compute local coordinates system
 	 	double tang[3] = {ngbtangs[0],ngbtangs[1],ngbtangs[2]};
-	 	if(!coords&&ncoords>2){
+	 	if(coords&&ncoords>2){
 	 		coords[0] = tang[0]; coords[1] = tang[1]; coords[2] = tang[2];
 	 	}
 	 	if(!coeffs||!ncoeffs){
