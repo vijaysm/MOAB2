@@ -378,6 +378,33 @@ namespace moab
 		}		
 	}
 
+	bool get_fittings_data(EntityHandle vid, GEOMTYPE& geomtype, std::vector<double>& coords, int& degree_out, std::vector<double>& coeffs, bool& interp){
+		if(!_hasfittings){
+			return false;
+		}else{
+			int index = _verts2rec.index(vid);
+			if(-1==index){
+				std::cout << "Input vertex is not locally hosted vertex in this mesh set" << std::endl;
+				return false;
+			}
+			geomtype = _geom;
+			if(HISURFACE==_geom){
+				coords.insert(coords.end(),_local_coords.begin()+9*index,_local_coords.begin()+9*index+9);
+				degree_out = _degrees_out[index]; interp = _interps[index];
+				int ncoeffs = (degree_out+2)*(degree-out+1)>>1;
+				size_t istr = _vertID2coeffID[index];
+				coeffs.insert(coeffs.end(),_local_fit_coeffs.begin()+istr,_local_fit_coeffs.begin()+istr+ncoeffs);
+			}else if(HI3DCURVE==_geom){
+				coords.insert(coords.end(),_local_coords.begin()+3*index,_local_coords.begin()+3*index+3);
+				degree_out = _degrees_out[index]; interp = _interps[index];
+				int ncoeffs = 3*(degree_out+1);
+				size_t istr = _vertID2coeffID[index];
+				coeffs.insert(coeffs.end(),_local_fit_coeffs.begin()+istr,_local_fit_coeffs.begin()+istr+ncoeffs);
+			}
+			return true;
+		}
+	}
+
 	/****************************************************************
 	 *  Basic Internal Routines to initialize and set fitting data  *
 	 ****************************************************************/
@@ -519,11 +546,11 @@ namespace moab
 
 	 }
 
-	 ErrorCode HiReconstruction::get_geom_data_surf(const EntityHandle vid, double* coords, double& degree_out, double* coeffs, bool& interp){
+	 ErrorCode HiReconstruction::get_fittings_data_surf(const EntityHandle vid, double* coords, double& degree_out, double* coeffs, bool& interp){
 
 	 }
 
-	 ErrorCode HiReconstruction::get_geom_data_3Dcurve(const EntityHandle vid, double* coords, double& degree_out, double* coeffs, bool& interp){
+	 ErrorCode HiReconstruction::get_fittings_data_3Dcurve(const EntityHandle vid, double* coords, double& degree_out, double* coeffs, bool& interp){
 
 	 }
 

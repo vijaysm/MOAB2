@@ -25,6 +25,8 @@
 
 namespace moab
 {
+	enum GEOMTYPE{ HISURFACE, HI3DCURVE, HI2DCURVE};
+
 	class Core;
 	class HalfFaceRep;
 	class ParallelComm;
@@ -189,6 +191,10 @@ namespace moab
 			*/
 			void walf3d_curve_vertex_eval(const double* local_origin, const double* local_coords, const int local_deg, const double* local_coeffs, const bool interp, const int npts2fit, const double* coords2fit, double* hiproj_new);
 
+
+			//! \brief Get interally stored fitting results
+			bool get_fittings_data(EntityHandle vid, GEOMTYPE& geomtype, std::vector<double>& coords, int& degree_out, std::vector<double>& coeffs, bool& interp);
+
 			//Helper function: estimate require number of ghost layers in parallel setting
 			static int estimate_num_ghost_layers(int degree,bool interp){
 				return 1+interp?(degree+1)/2:(degree+2)/2;
@@ -215,7 +221,6 @@ namespace moab
 			//in surface mesh, _hasderiv=true means vertex normals have been computed over _verts2rec
 			bool _hasderiv;
 
-			enum GEOMTYPE{ HISURFACE, HI3DCURVE, HI2DCURVE};
 			GEOMTYPE _geom;
 			int _dim=0;
 			bool _hasfittings = false;
@@ -266,8 +271,8 @@ namespace moab
 				* \param coeffs Pointer to double array, preallocated space, coefficients of local polynomial fittings in monomial basis
 				* \param interp Boolean, preallocated space, true =  interpolation
 			*/
-			ErrorCode get_geom_data_surf(const EntityHandle vid, double* coords, double& degree_out, double* coeffs, bool& interp);
-			ErrorCode get_geom_data_3Dcurve(const EntityHandle vid, double* coords, double& degree_out, double* coeffs, bool& interp);
+			ErrorCode get_fittings_data_surf(const EntityHandle vid, double* coords, double& degree_out, double* coeffs, bool& interp);
+			ErrorCode get_fittings_data_3Dcurve(const EntityHandle vid, double* coords, double& degree_out, double* coeffs, bool& interp);
 
 			/** Compute area weighted average vertex normals for given vertex, assuming surface mesh
 				* For arbitrary polygon mesh, use incident two edges of each incident polygon of this vertex to form a triangle, then use 
