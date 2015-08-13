@@ -50,11 +50,11 @@ ErrorCode perform_laplacian_smoothing(Core *mb, Range &verts, int dim, Tag fixed
                                    bool use_hc=false, bool use_acc=false, int acc_method=1, int num_its=10, 
                                    double rel_eps=1e-5, double alpha=0.0, double beta=0.5, int report_its=1);
 
-ErrorCode hcFilter(Core* mb, moab::Range& verts, int dim, Tag fixed, 
+ErrorCode hcFilter(Core* mb, moab::ParallelComm* pcomm, moab::Range& verts, int dim, Tag fixed, 
                     std::vector<double>& verts_o, std::vector<double>& verts_n, 
                     double alpha, double beta);
 
-ErrorCode laplacianFilter(Core* mb, moab::Range& verts, int dim, Tag fixed,
+ErrorCode laplacianFilter(Core* mb, moab::ParallelComm* pcomm, moab::Range& verts, int dim, Tag fixed,
                             std::vector<double>& verts_o, std::vector<double>& verts_n, bool use_updated=true);
 
 int main(int argc, char **argv)
@@ -219,7 +219,7 @@ ErrorCode perform_laplacian_smoothing(Core *mb, Range &verts, int dim, Tag fixed
   global_rank = pcomm->rank();
   global_size = pcomm->size();
 #endif
-  
+
   dbgprint ( "-- Starting smoothing cycle --" );
   // perform Laplacian relaxation:
   // 1. setup: set vertex centroids from vertex coords; filter to owned verts; get fixed tags
@@ -227,14 +227,20 @@ ErrorCode perform_laplacian_smoothing(Core *mb, Range &verts, int dim, Tag fixed
   // get all verts coords into tag; don't need to worry about filtering out fixed verts, 
   // we'll just be setting to their fixed coords
   std::vector<double> verts_o, verts_n;
-  verts_o.resize(3*verts.size());
-  verts_n.resize(3*verts.size());
+  verts_o.resize(3*verts.size(), 0.0);
+  verts_n.resize(3*verts.size(), 0.0);
+  // std::vector<const void*> vdata(1);
+  // vdata[0] = &verts_n[0];
+  // const int vdatasize = verts_n.size();
+  void* vdata = &verts_n[0];
   rval = mb->get_coords(verts, &verts_o[0]); RC;
   const int nbytes = sizeof(double)*verts_o.size();
 
-  Tag errt;
-  double def_val = 0.0;
-  rval = mb->tag_get_handle("error", 1, MB_TYPE_DOUBLE, errt, MB_TAG_CREAT | MB_TAG_DENSE, &def_val); RC;
+  Tag errt,vpost;
+  double def_val[3] = {0.0,0.0,0.0};
+  rval = mb->tag_get_handle("error", 1, MB_TYPE_DOUBLE, errt, MB_TAG_CREAT | MB_TAG_DENSE, def_val); RC;
+  rval = mb->tag_get_handle("vpos", 3, MB_TYPE_DOUBLE, vpost, MB_TAG_CREAT | MB_TAG_DENSE, def_val); RC;
+  // rval = mb->tag_set_by_ptr(vpost, verts, vdata); RC;
 
   if (use_acc) {
     verts_acc1.resize( verts_o.size(), 0.0 );
@@ -262,99 +268,98 @@ ErrorCode perform_laplacian_smoothing(Core *mb, Range &verts, int dim, Tag fixed
 
     // 2a. Apply Laplacian Smoothing Filter to Mesh
     if (use_hc) {
-      rval = hcFilter(mb, verts, dim, fixed, verts_o, verts_n, alpha, beta); RC;
+      rval = hcFilter(mb, pcomm, verts, dim, fixed, verts_o, verts_n, alpha, beta); RC;
     }
     else {
-      rval = laplacianFilter(mb, verts, dim, fixed, verts_o, verts_n); RC;
+      rval = laplacianFilter(mb, pcomm, verts, dim, fixed, verts_o, verts_n); RC;
     }
 
     if (use_acc) {
 
-      if ( nit > 2 && (nit % nacc) ) {
+      memcpy( &verts_acc1[0], &verts_acc2[0], nbytes );
+      memcpy( &verts_acc2[0], &verts_acc3[0], nbytes );
+      memcpy( &verts_acc3[0], &verts_n[0],    nbytes );
 
-        rat_alphaprev = rat_alpha;
-        for(unsigned i=0; i < verts_n.size(); ++i) {
-          verts_acc1[i] = verts_acc2[i];
-          verts_acc2[i] = verts_acc3[i];
-          verts_acc3[i] = verts_n[i];
-          rat_alpha = std::max( rat_alpha, std::abs( (verts_acc3[i] - verts_acc2[i]) * (verts_acc2[i] - verts_acc1[i]) )/ ( (verts_acc2[i] - verts_acc1[i]) * (verts_acc2[i] - verts_acc1[i]) ) );
-        }
-        rat_theta = std::abs( rat_alpha / rat_alphaprev - 1.0 );
-
-        if (rat_theta < 1.0) {
-
-          if (acc_method == 1) { /* Method 2 from ACCELERATION OF VECTOR SEQUENCES: http://onlinelibrary.wiley.com/doi/10.1002/cnm.1630020409/pdf */
-            double vnorm = 0.0, den, acc_alpha = 0.0, acc_gamma = 0.0;
-            for(unsigned i=0; i < verts_n.size(); ++i) {
-              den = ( verts_acc3[i] - 2.0 * verts_acc2[i] + verts_acc1[i] );
-              vnorm += den*den;
-              acc_alpha += (verts_acc3[i] - verts_acc2[i]) * (verts_acc3[i] - verts_acc2[i]);
-              acc_gamma += (verts_acc2[i] - verts_acc1[i]) * (verts_acc2[i] - verts_acc1[i]);
-            }
-            for(unsigned i=0; i < verts_n.size(); ++i) {
-              verts_n[i] = verts_acc2[i] + ( acc_gamma * (verts_acc3[i] - verts_acc2[i]) - acc_alpha * (verts_acc2[i] - verts_acc1[i]) ) / vnorm;
-            }
-          }
-          else if (acc_method == 2) { /* Method 3 from ACCELERATION OF VECTOR SEQUENCES: http://onlinelibrary.wiley.com/doi/10.1002/cnm.1630020409/pdf */
-            double vnorm = 0.0, num = 0.0, den = 0.0, mu = 0.0;
-            for(unsigned i=0; i < verts_n.size(); ++i) {
-              num += ( verts_acc3[i] - verts_acc2[i] ) * ( verts_acc3[i] - 2.0 * verts_acc2[i] + verts_acc1[i] );
-              den = ( verts_acc3[i] - 2.0 * verts_acc2[i] + verts_acc1[i] );
-              vnorm += den*den;
-            }
-            mu = num / vnorm;
-            for(unsigned i=0; i < verts_n.size(); ++i) {
-              verts_n[i] = verts_acc3[i] + mu * ( verts_acc2[i] - verts_acc3[i] );
-            }
-          }
-          else if (acc_method == 3) { /* Method 5 from ACCELERATION OF VECTOR SEQUENCES: http://onlinelibrary.wiley.com/doi/10.1002/cnm.1630020409/pdf */
-            double num = 0.0, den = 0.0, mu = 0.0;
-            for(unsigned i=0; i < verts_n.size(); ++i) {
-              num += ( verts_acc3[i] - verts_acc2[i] ) * ( verts_acc2[i] - verts_acc1[i] );
-              den += ( verts_acc2[i] - verts_acc1[i] ) * ( verts_acc3[i] - 2.0 * verts_acc2[i] + verts_acc1[i] );
-            }
-            mu = num / den;
-            for(unsigned i=0; i < verts_n.size(); ++i) {
-              verts_n[i] = verts_acc3[i] - mu * ( verts_acc3[i] - verts_acc2[i] );
-            }
-          }
-          else if (acc_method == 4) { /* Method 8 from ACCELERATION OF VECTOR SEQUENCES: http://onlinelibrary.wiley.com/doi/10.1002/cnm.1630020409/pdf */
-            double num = 0.0, den = 0.0, lambda = 0.0;
-            for(unsigned i=0; i < verts_n.size(); ++i) {
-              num += ( verts_acc3[i] - verts_acc2[i] ) * ( verts_acc3[i] - verts_acc2[i] );
-              den += ( verts_acc2[i] - verts_acc1[i] ) * ( verts_acc2[i] - verts_acc1[i] );
-            }
-            lambda = std::sqrt(num / den);
-            for(unsigned i=0; i < verts_n.size(); ++i) {
-              verts_n[i] = verts_acc3[i] - lambda / (lambda - 1.0) * ( verts_acc3[i] - verts_acc2[i] );
-            }
-          }
-          else {
-            int offset=0;
-            for (Range::const_iterator vit = verts.begin(); vit != verts.end(); ++vit, offset+=3)
-            {
-              // if !fixed
-              if (fix_tag[offset/3]) continue;
-
-              CartVect num1 = ( CartVect(&verts_acc3[offset]) - CartVect(&verts_acc2[offset]) );
-              CartVect num2 = ( CartVect(&verts_acc3[offset]) - 2.0 * CartVect(&verts_acc2[offset]) + CartVect(&verts_acc1[offset]) );
-
-              num1.scale(num2);
-              const double mu = num1.length_squared() / num2.length_squared();
-
-              verts_n[offset+0] = verts_acc3[offset+0] + mu * (verts_acc2[offset+0] - verts_acc3[offset+0]);
-              verts_n[offset+1] = verts_acc3[offset+1] + mu * (verts_acc2[offset+1] - verts_acc3[offset+1]);
-              verts_n[offset+2] = verts_acc3[offset+2] + mu * (verts_acc2[offset+2] - verts_acc3[offset+2]);
-            }
-          }
-
-        }
-
+      rat_alphaprev = rat_alpha;
+      for(unsigned i=0; i < verts_n.size(); ++i) {
+        rat_alpha = std::max( rat_alpha, std::abs( (verts_acc3[i] - verts_acc2[i]) * (verts_acc2[i] - verts_acc1[i]) )/ ( (verts_acc2[i] - verts_acc1[i]) * (verts_acc2[i] - verts_acc1[i]) ) );
       }
-      else {
-        memcpy( &verts_acc1[0], &verts_acc2[0], nbytes );
-        memcpy( &verts_acc2[0], &verts_acc3[0], nbytes );
-        memcpy( &verts_acc3[0], &verts_n[0],    nbytes );
+      rat_theta = std::abs( rat_alpha / rat_alphaprev - 1.0 );
+
+      if ( nit > 2 && (nit % nacc) && rat_theta < 1.0 ) {
+
+        if (acc_method == 1) { /* Method 2 from ACCELERATION OF VECTOR SEQUENCES: http://onlinelibrary.wiley.com/doi/10.1002/cnm.1630020409/pdf */
+          double vnorm = 0.0, den, acc_alpha = 0.0, acc_gamma = 0.0;
+          for(unsigned i=0; i < verts_n.size(); ++i) {
+            den = ( verts_acc3[i] - 2.0 * verts_acc2[i] + verts_acc1[i] );
+            vnorm += den*den;
+            acc_alpha += (verts_acc3[i] - verts_acc2[i]) * (verts_acc3[i] - verts_acc2[i]);
+            acc_gamma += (verts_acc2[i] - verts_acc1[i]) * (verts_acc2[i] - verts_acc1[i]);
+          }
+          for(unsigned i=0; i < verts_n.size(); ++i) {
+            verts_n[i] = verts_acc2[i] + ( acc_gamma * (verts_acc3[i] - verts_acc2[i]) - acc_alpha * (verts_acc2[i] - verts_acc1[i]) ) / vnorm;
+          }
+        }
+        else if (acc_method == 2) { /* Method 3 from ACCELERATION OF VECTOR SEQUENCES: http://onlinelibrary.wiley.com/doi/10.1002/cnm.1630020409/pdf */
+          double vnorm = 0.0, num = 0.0, den = 0.0, mu = 0.0;
+          for(unsigned i=0; i < verts_n.size(); ++i) {
+            num += ( verts_acc3[i] - verts_acc2[i] ) * ( verts_acc3[i] - 2.0 * verts_acc2[i] + verts_acc1[i] );
+            den = ( verts_acc3[i] - 2.0 * verts_acc2[i] + verts_acc1[i] );
+            vnorm += den*den;
+          }
+          mu = num / vnorm;
+          for(unsigned i=0; i < verts_n.size(); ++i) {
+            verts_n[i] = verts_acc3[i] + mu * ( verts_acc2[i] - verts_acc3[i] );
+          }
+        }
+        else if (acc_method == 3) { /* Method 5 from ACCELERATION OF VECTOR SEQUENCES: http://onlinelibrary.wiley.com/doi/10.1002/cnm.1630020409/pdf */
+          double num = 0.0, den = 0.0, mu = 0.0;
+          for(unsigned i=0; i < verts_n.size(); ++i) {
+            num += ( verts_acc3[i] - verts_acc2[i] ) * ( verts_acc2[i] - verts_acc1[i] );
+            den += ( verts_acc2[i] - verts_acc1[i] ) * ( verts_acc3[i] - 2.0 * verts_acc2[i] + verts_acc1[i] );
+          }
+          mu = num / den;
+          for(unsigned i=0; i < verts_n.size(); ++i) {
+            verts_n[i] = verts_acc3[i] - mu * ( verts_acc3[i] - verts_acc2[i] );
+          }
+        }
+        else if (acc_method == 4) { /* Method 8 from ACCELERATION OF VECTOR SEQUENCES: http://onlinelibrary.wiley.com/doi/10.1002/cnm.1630020409/pdf */
+          double num = 0.0, den = 0.0, lambda = 0.0;
+          for(unsigned i=0; i < verts_n.size(); ++i) {
+            num += ( verts_acc3[i] - verts_acc2[i] ) * ( verts_acc3[i] - verts_acc2[i] );
+            den += ( verts_acc2[i] - verts_acc1[i] ) * ( verts_acc2[i] - verts_acc1[i] );
+          }
+          lambda = std::sqrt(num / den);
+          for(unsigned i=0; i < verts_n.size(); ++i) {
+            verts_n[i] = verts_acc3[i] - lambda / (lambda - 1.0) * ( verts_acc3[i] - verts_acc2[i] );
+          }
+        }
+        else if (acc_method = 5) { /* Minimum polynomial extrapolation of vector sequenes : https://en.wikipedia.org/wiki/Minimum_polynomial_extrapolation */
+          /* Pseudo-code 
+                U=x(:,2:end-1)-x(:,1:end-2);
+                c=-pinv(U)*(x(:,end)-x(:,end-1));
+                c(end+1,1)=1;
+                s=(x(:,2:end)*c)/sum(c);
+          */ 
+        }
+        else {
+          int offset=0;
+          for (Range::const_iterator vit = verts.begin(); vit != verts.end(); ++vit, offset+=3)
+          {
+            // if !fixed
+            if (fix_tag[offset/3]) continue;
+
+            CartVect num1 = ( CartVect(&verts_acc3[offset]) - CartVect(&verts_acc2[offset]) );
+            CartVect num2 = ( CartVect(&verts_acc3[offset]) - 2.0 * CartVect(&verts_acc2[offset]) + CartVect(&verts_acc1[offset]) );
+
+            num1.scale(num2);
+            const double mu = num1.length_squared() / num2.length_squared();
+
+            verts_n[offset+0] = verts_acc3[offset+0] + mu * (verts_acc2[offset+0] - verts_acc3[offset+0]);
+            verts_n[offset+1] = verts_acc3[offset+1] + mu * (verts_acc2[offset+1] - verts_acc3[offset+1]);
+            verts_n[offset+2] = verts_acc3[offset+2] + mu * (verts_acc2[offset+2] - verts_acc3[offset+2]);
+          }
+        }
       }
     }
 
@@ -388,9 +393,19 @@ ErrorCode perform_laplacian_smoothing(Core *mb, Range &verts, int dim, Tag fixed
     }
 #endif
 
+#ifdef MOAB_HAVE_MPI
+      // 2c. exchange tags on owned verts
+    if (global_size > 1) {
+      rval = mb->tag_set_data(vpost, verts, vdata); RC;
+      rval = pcomm->exchange_tags(vpost, verts); RC;
+      rval = mb->tag_get_data(vpost, verts, vdata); RC;
+    }
+#endif
+
     if (global_max < rel_eps) break;
     else {
-      verts_o.swap(verts_n);
+      std::copy(verts_n.begin(), verts_n.end(), verts_o.begin());
+      // verts_o.swap(verts_n);
     }
   }
 
@@ -406,10 +421,9 @@ ErrorCode perform_laplacian_smoothing(Core *mb, Range &verts, int dim, Tag fixed
 
   Additional references: http://www.doc.ic.ac.uk/~gr409/thesis-MSc.pdf
 */
-ErrorCode laplacianFilter(Core* mb, moab::Range& verts, int dim, Tag fixed, std::vector<double>& verts_o, std::vector<double>& verts_n, bool use_updated)
+ErrorCode laplacianFilter(Core* mb, moab::ParallelComm* pcomm, moab::Range& verts, int dim, Tag fixed, std::vector<double>& verts_o, std::vector<double>& verts_n, bool use_updated)
 {
   ErrorCode rval;
-  int index=0;
   std::vector<int> fix_tag(verts.size());
   double *data;
 
@@ -420,12 +434,26 @@ ErrorCode laplacianFilter(Core* mb, moab::Range& verts, int dim, Tag fixed, std:
   else
     data = &verts_o[0];
 
-  rval = mb->tag_get_data(fixed, verts, &fix_tag[0]); RC;
+    // filter verts down to owned ones and get fixed tag for them
+  Range owned_verts;
+  if (pcomm->size() > 1) {
+#ifdef MOAB_HAVE_MPI
+    rval = pcomm->filter_pstatus(verts, PSTATUS_NOT_OWNED, PSTATUS_NOT, -1, &owned_verts);
+    if (rval != MB_SUCCESS) return rval;
+#endif
+  }
+  else
+    owned_verts = verts;
 
-  for (Range::const_iterator vit = verts.begin(); vit != verts.end(); ++vit, index+=3)
+  rval = mb->tag_get_data(fixed, owned_verts, &fix_tag[0]); RC;
+
+  int vindex=0;
+  for (Range::const_iterator vit = owned_verts.begin(); vit != owned_verts.end(); ++vit, vindex++)
   {
     // if !fixed
-    if (fix_tag[index/3]) continue;
+    if (fix_tag[vindex]) continue;
+
+    const int index = verts.index(*vit) * 3;
 
     moab::Range adjverts, adjelems;
     // Find the neighboring vertices (1-ring neighborhood)
@@ -466,29 +494,41 @@ ErrorCode laplacianFilter(Core* mb, moab::Range& verts, int dim, Tag fixed, std:
       alpha [0..1] influences previous points pv, e.g. 0
       beta  [0..1] e.g. > 0.5
 */
-ErrorCode hcFilter(Core* mb, moab::Range& verts, int dim, Tag fixed, std::vector<double>& verts_o, std::vector<double>& verts_n, double alpha, double beta)
+ErrorCode hcFilter(Core* mb, moab::ParallelComm* pcomm, moab::Range& verts, int dim, Tag fixed, std::vector<double>& verts_o, std::vector<double>& verts_n, double alpha, double beta)
 {
   ErrorCode rval;
   std::vector<double> verts_hc(verts_o.size());
   std::vector<int> fix_tag(verts.size());
 
-  rval = mb->tag_get_data(fixed, verts, &fix_tag[0]); RC;
-
   // Perform Laplacian Smooth
-  rval = laplacianFilter(mb, verts, dim, fixed, verts_o, verts_n); RC;
+  rval = laplacianFilter(mb, pcomm, verts, dim, fixed, verts_o, verts_n); RC;
 
   // Compute Differences
-  unsigned index=0;
-  for (index = 0; index < verts_o.size(); ++index)
+  for (unsigned index = 0; index < verts_o.size(); ++index)
   {
-    verts_hc[index] = verts_n[index] - (alpha * verts_o[index] + ( 1.0 - alpha ) * verts_o[index] );
+    verts_hc[index] = verts_n[index] - (alpha * verts_n[index] + ( 1.0 - alpha ) * verts_o[index] );
   }
 
-  index=0;
-  for (Range::const_iterator vit = verts.begin(); vit != verts.end(); ++vit, index+=3)
+    // filter verts down to owned ones and get fixed tag for them
+  Range owned_verts;
+#ifdef MOAB_HAVE_MPI
+  if (pcomm->size() > 1) {
+    rval = pcomm->filter_pstatus(verts, PSTATUS_NOT_OWNED, PSTATUS_NOT, -1, &owned_verts);
+    if (rval != MB_SUCCESS) return rval;
+  }
+  else
+#endif
+    owned_verts = verts;
+
+  rval = mb->tag_get_data(fixed, owned_verts, &fix_tag[0]); RC;
+
+  int vindex=0;
+  for (Range::const_iterator vit = owned_verts.begin(); vit != owned_verts.end(); ++vit, vindex++)
   {
     // if !fixed
-    if (fix_tag[index/3]) continue;
+    if (fix_tag[vindex]) continue;
+
+    const int index = verts.index(*vit) * 3;
 
     moab::Range adjverts, adjelems;
     // Find the neighboring vertices (1-ring neighborhood)
