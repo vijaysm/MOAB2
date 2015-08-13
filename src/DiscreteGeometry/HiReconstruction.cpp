@@ -91,6 +91,7 @@ namespace moab
 		ErrorCode error;
 		double *coeffs,*coords;
 		int *degree_out;
+		int ncoeffs = (degree+2)*(degree+1)/2;
 		for(Range::iterator ivert=_verts2rec.begin();ivert!=_verts2rec.end();++ivert){
 			int index = _verts2rec.index(*ivert);
 			size_t istr = _vertID2coeffID[index];
@@ -98,7 +99,7 @@ namespace moab
 			coeffs = &(_local_fit_coeffs[istr]);
 			degree_out = &(_degrees_out[index]);
 			_interps[index] = interp;
-			error  = polyfit3d_walf_surf_vertex(*ivert,interp,degree,_MINPNTS,safeguard,coords,degree_out,coeffs);
+			error  = polyfit3d_walf_surf_vertex(*ivert,interp,degree,_MINPNTS,safeguard,9,coords,degree_out,ncoeffs,coeffs);
 			MB_CHK_ERR(error);
 		}
 		_geom = HISURFACE;
@@ -128,7 +129,8 @@ namespace moab
 			coeffs = &(_local_fit_coeffs[istr]);
 			degree_out = &(_degree_out[index]);
 			_interps[index] = interps[i];
-			error = polyfit3d_walf_surf_vertex(*ivert,interps[i],degrees[i],_MINPNTS,safeguard,coords,degree_out,coeffs);
+			int ncoeffs = (degrees[i]+2)*(degrees[i]+1)/2;
+			error = polyfit3d_walf_surf_vertex(*ivert,interps[i],degrees[i],_MINPNTS,safeguard,9,coords,degree_out,ncoeffs,coeffs);
 			MB_CHK_ERR(error);
 		}
 		_geom = HISURFACE;
@@ -137,20 +139,41 @@ namespace moab
 	}
 
 	ErrorCode HiReconstruction::reconstruct3D_curve_geom(int degree, bool interp, bool safeguard, bool reset){
-
+		assert(_dim==1);
+		if(!_hasfittings&&!reset){
+			return MB_SUCCESS;
+		}else{
+			_initfittings = _hasfittings = false;
+		}
+		initialize_3Dcurve_geom(degree);
+		ErrorCode error;
+		double *coords=0,*coeffs;
+		int *degree_out;
+		int ncoeffs = 3*(degree+1);
+		for(Range::iterator ivert=_verts2rec.begin();ivert!=_verts2rec.end();++ivert){
+			int index = _verts2rec.index(*ivert); assert(index!=-1);
+			size_t istr = _vertID2coeffID[index];
+			coeffs = &(_local_fit_coeffs[istr]);
+			degree_out = &(_degrees_out[index]);
+			_interps[index] = interp;
+			error = polyfit3d_walf_curve_vertex(*ivert,interp,degree,_MINPNTS,safeguard,0,coords,degree_out,ncoeffs,coeffs); MB_CHK_ERR(error);
+		}
+		_geom = HI3DCURVE;
+		_hasfittings = true;
+		return error;
 	}
 
 	ErrorCode HiReconstruction::reconstruct3D_curve_geom(size_t npts, int* degrees, bool* interps, bool safeguard, bool reset){
 
 	}
 
-	ErrorCode HiReconstruction::polyfit3d_walf_surf_vertex(const EntityHandle vid, const bool interp, int degree, int minpnts, const bool safeguard, double* coords, int* degree_out, double* coeffs){
+	ErrorCode HiReconstruction::polyfit3d_walf_surf_vertex(const EntityHandle vid, const bool interp, int degree, int minpnts, const bool safeguard, const int ncoords, double* coords, int* degree_out, const int ncoeffs, double* coeffs){
 		assert(_dim==2);
 		ErrorCode error;
 		int ring = estimate_num_rings(degree,interp);
 		//get n-ring neighbors
 		Range ngbvs;
-		error = obtain_nring_ngbvs(vid,ring,minpnts,ngbvs);
+		error = obtain_nring_ngbvs(vid,ring,minpnts,ngbvs); MB_CHK_ERR(error);
 		//get coordinates;
 		int nverts = ngbvs.size(); assert(nverts);
 		double *ngbcoords = new double[nverts*3];
@@ -159,15 +182,29 @@ namespace moab
 		double *ngbnrms = new double[nverts*3];
 		error = get_normals_surf(ngbvs,ngbnrms); MB_CHK_ERR(error);
 		//local WLS fitting
-		int ncoeffspv = (degree+2)*(degree+1)/2;
-		int degree_pnt,degree_qr;
-		polyfit3d_surf_get_coeff(nverts,ngbcoords,ngbnrms,degree,interp,safeguard,9,coords,nceoffspv,coeffs,degree_out,&degree_pnt,&degree_qr);
+		int degree_pnt,degree_qr;		
+		polyfit3d_surf_get_coeff(nverts,ngbcoords,ngbnrms,degree,interp,safeguard,ncoords,coords,ncoeffs,coeffs,degree_out,&degree_pnt,&degree_qr);
 		delete [] ngbcoords; delete [] ngbnrms;
 		return error;
 	}
 
-	ErrorCode HiReconstruction::polyfit3d_walf_curve_vertex(const EntityHandle vid, const bool interp, int degree, int minpnts, const bool safeguard, double* coords, int* degree_out, double* coeffs){
-
+	ErrorCode HiReconstruction::polyfit3d_walf_curve_vertex(const EntityHandle vid, const bool interp, int degree, int minpnts, const bool safeguard, const int ncoords, double* coords, int* degree_out, const int ncoeffs, double* coeffs){
+		ErrorCode error;
+		int ring = estimate_num_rings(degree,interp);
+		//get n-ring neighbors
+		Range ngbvs;
+		error = obtain_nring_ngbvs(vid,ring,minpnts,ngbvs); MB_CHK_ERR(error);
+		//get coordinates
+		int nverts = ngbvs.size(); assert(nverts);
+		double *ngbcoords = new double[nverts*3];
+		error = mbImpl->get_coords(ngbvs,ngbcoords); MB_CHK_ERR(error);
+		//get tangent vectors
+		double *ngbtangs = new double[nverts*3];
+		error = get_tangents_curve(ngbvs,ngbtangs); MB_CHK_ERR(error);
+		//local WLS fittings
+		polyfit3d_curve_get_coeff(nverts,ngbcoords,ngbtangs,degree,interp,safeguard,ncoords,coords,ncoeffs,coeffs,degree_out); 
+		delete [] ngbcoords; delete [] ngbtangs;
+		return error;
 	}
 
 	/**************************************************************
@@ -292,7 +329,7 @@ namespace moab
 	}
 
 	void HiReconstruction::walf3d_curve_vertex_eval(const double* local_origin, const double* local_coords, const int local_deg, const double* local_coeffs, const bool interp, const int npts2fit, const double* coords2fit, double* hiproj_new){
-
+?degree_out and degree different, stored in columnwise
 	}
 
 	/****************************************************************
@@ -391,7 +428,21 @@ namespace moab
 	 }
 
 	 void HiReconstruction::initialize_3Dcurve_geom(const int degree){
-
+	 	if(!_hasderiv){
+	 		compute_average_vertex_tangents_curve();
+	 		_hasderiv = true;
+	 	}
+	 	if(!_initfittings){
+	 		int ncoeffspvpd = degree+1;
+	 		_degrees_out.assign(_nv2rec,0);
+	 		_interps.assign(_nv2rec,false);
+	 		_vertID2coeffID.reserve(_nv2rec);
+	 		_local_fit_coeffs.assign(_nv2rec*ncoeffspvpd*3,0);
+	 		for(size_t i=0;i<_nv2rec;++i){
+	 			_vertID2coeffID.push_back(i*ncoeffspvpd*3);
+	 		}
+	 		_initfittings = true;
+	 	}
 	 }
 
 	 void HiReconstruction::initialize_3Dcurve_geom(const size_t npts, const int* degrees){
@@ -531,7 +582,33 @@ namespace moab
 	 }
 
 	 ErrorCode HiReconstruction::get_tangents_curve(const Range& vertsh, double* tangs){
-
+	 	ErrorCode error=MB_SUCCESS;
+	 	if(_hasderiv){
+	 		size_t id=0;
+	 		for(Range::iterator ivert=vertsh.begin();ivert!=vertsh.end();++ivert,++id){
+	 			int index = _verts2rec.index(*ivert);
+	 		#ifdef MOAB_HAVE_MPI
+	 			if(-1!=index){
+	 				tangs[3*id] = _local_coords[3*index];
+	 				tangs[3*id+1] = _local_coords[3*index+1];
+	 				tangs[3*id+2] = _local_coords[3*index+2];
+	 			}else{
+	 				error = average_vertex_tangent(*ivert,tangs+3*id); MB_CHK_ERR(error);
+	 			}
+	 		#else
+	 			assert(-1!=index);
+	 			tangs[3*id] = _local_coords[3*index];
+	 			tangs[3*id+1] = _local_coords[3*index+1];
+	 			tangs[3*id+2] = _local_coords[3*index+2];
+	 		#endif
+	 		}
+	 	}else{
+	 		size_t id=0;
+	 		for(Range::iterator ivert=vertsh.begin();ivert!=vertsh.end();++ivert,++id){
+	 			error = average_vertex_tangent(*ivert,tangs+3*id); MB_CHK_ERR(error);
+	 		}
+	 	}
+	 	return error;
 	 }
 
 	/************************************************
@@ -558,12 +635,20 @@ namespace moab
 	 		coords[3] = tang2[0]; coords[4] = tang2[1]; coords[5] = tang2[2];
 	 		coords[6] = nrm[0]; coords[7] = nrm[1]; coords[8] = nrm[2];
 	 	}
+	 	if(!ncoeffs||!coeffs){
+	 		return;
+	 	}else{
+	 		assert(ncoeffs>=(degree+2)*(degree+1)/2);
+	 	}
 
 	 	//step 2. project onto local coordinates system
 	 	int npts2fit = nverts-interp;
 	 	if(0==npts2fit){
 	 		*degree_out = *degree_pnt = *degree_qr = 0;
-	 		coeffs[0] = 0;
+	 		for(int i=0;i<ncoeffs;++i){
+	 			coeffs[i] = 0;
+	 		}
+	 		//coeffs[0] = 0;
 	 		return;
 	 	}
 	 	double *us = new double[npts2fit*2];
@@ -584,7 +669,10 @@ namespace moab
 	 	if(nzeros){
 	 		if(nzeros==npts2fit){
 	 			*degree_out = *degree_pnt = *degree_qr = 0;
-	 			coeffs[0] = 0;
+	 			for(int i=0;i<ncoeffs;++i){
+	 				coeffs[i] = 0;
+	 			}
+	 			//coeffs[0] = 0;
 	 			return;
 	 		}
 	 		int index=0;
@@ -623,7 +711,7 @@ namespace moab
 	 		--degree;
 	 		ncols = ((degree+2)*(degree+1))>>1-interp;
 	 	}
-	 	*degree_out = degree;
+	 	*degree_pnt = degree;
 
 	 	//step 2. construct Vandermonde matrix, stored in columnwise
 	 	double *V_init = new double[npts2fit*(ncols+interp)];
@@ -655,7 +743,7 @@ namespace moab
 	 	//step 5. Perform Householder QR factorization
 	 	double *D = new double[ncols];
 	 	int rank;
-	 	qr_polyfit_safeguarded(V,npts2fit,ncols,D,rank);
+	 	qr_polyfit_safeguarded(npts2fit,ncols,V,D,&rank);
 
 	 	//step 6. adjust degree of fitting according to rank of Vandermonde matrix
 	 	int ncols_sub = ncols;
@@ -699,11 +787,151 @@ namespace moab
 	 }
 
 	 void HiReconstruction::polyfit3d_curve_get_coeff(const int nverts, const double* ngbcors, const double* ngbtangs, int degree, const bool interp, const bool safeguard, const int ncoords, double* coords, const int ncoeffs, double* coeffs, double* degree_out){
+	 	if(!nverts){
+	 		return;
+	 	}
+	 	//step 1. compute local coordinates system
+	 	double tang[3] = {ngbtangs[0],ngbtangs[1],ngbtangs[2]};
+	 	if(!coords&&ncoords>2){
+	 		coords[0] = tang[0]; coords[1] = tang[1]; coords[2] = tang[2];
+	 	}
+	 	if(!coeffs||!ncoeffs){
+	 		return;
+	 	}else{
+	 		assert(ncoeffs>=3*(degree+1));
+	 	}
+	 	//step 2. project onto local coordinate system
+	 	int npts2fit = nverts-interp;
+	 	if(!npts2fit){
+	 		*degree_out = 0;
+	 		for(int i=0;i<ncoeffs;++i){
+	 			coeffs[0] = 0;
+	 		}
+	 		return;
+	 	}
+	 	std::vector<double> us(npts2fit); //double *us = new double[npts2fit];
+	 	std::vector<double> bs(npts2fit*3); //double *bs = new double[npts2fit*3];
+	 	double uu[3];
+	 	for(int i=interp;i<nverts;++i){
+	 		int k=i-interp;
+	 		Solvers::vec_linear_operation(3,1,ngbcors+3*i,1,ngbcors,uu);
+	 		us[k] = Solvers::vec_innerprod(3,uu,tang);
+	 		bs[k] = uu[0]; bs[npts2fit+k] = uu[1]; bs[2*npts2fit+k] = uu[2];
+	 	}
 
+	 	//step 3. copmute weights
+	 	std::vector<double> ws(npts2fit);
+	 	int nzeros = compute_weights(npts2fit,2,&(us[0]),nverts,ngbtangs,degree,_MINEPS,&(ws[0])); assert(nzeros<=npts2fit);
+
+	 	//step 4. adjust according to number of zero-weights 
+	 	if(nzeros){
+	 		if(nzeros==npts2fit){
+	 			//singular case
+	 			*degree_out = 0;
+	 			for(int i=0;i<ncoefss;++i){
+	 				coeffs[i] =0;
+	 			}
+	 			return;
+	 		}
+	 		int npts_new = npts2fit-nzeros;
+	 		std::vector<double> bs_temp(3*npts_new);
+	 		int index=0;
+	 		for(int i=0;i<npts2fit;++i){
+	 			if(ws[i]){
+	 				if(i>index){
+	 					us[index] = us[i]; ws[index] = ws[i];
+	 				}
+	 				bs_temp[index] = bs[i]; bs_temp[index+npts_new] = bs[i+npts2fit]; bs_temp[index+2*npts_new] = bs[i+2*npts2fit];
+	 				++index;
+	 			}
+	 		}
+	 		assert(index==npts_new);
+	 		npts2fit = npts_new;
+	 		us.resize(index); ws.resize(index); bs = bs_temp;
+	 		//destroy bs_temp;
+	 		std::vector<double>().swap(bs_temp);
+	 	}
+
+	 	//step 5. fitting
+	 	eval_vander_univar_cmf(npts2fit,&(us[0]),3,&(bs[0]),degree,&(ws[0]),interp,safeguard,degree_out);
+	 	//step 6. write results to output pointers
+	 	int ncoeffs_out_pvpd = *degree_out+1, ncoeffspvpd = degree+1;
+	 	assert(ncoeffs>=3*ncoeffs_out_pvpd);
+	 	//write to coeffs consecutively, bs's size is not changed by eval_vander_univar_cmf
+	 	coeffs[0] = coeffs[ncoeffs_out_pvpd] = coeffs[2*ncoeffs_out_pvpd] = 0;
+	 	for(int i=0;i<ncoeffs_out_pvpd-interp;++i){
+	 		coeffs[i+interp] = bs[i];
+	 		coeffs[i+interp+ncoeffs_out_pvpd] = bs[i+npts2fit];
+	 		coeffs[i+interp+2*ncoeffs_out_pvpd] = bs[i+2*npts2fit];
+	 	}
 	 }
 
 	 void HiReconstruction::eval_vander_univar_cmf(const int npts2fit, const double* us, const int ndim, double* bs, int degree, const double* ws, const bool interp, const bool safeguard, int* degree_out){
+	 	//step 1. determine degree of polynomials to fit according to number of points
+	 	int ncols = degree+1-interp;
+	 	while(npts2fit<ncols&&degree>1){
+	 		--degree;
+	 		ncols = degree+1-interp;
+	 	}
 
+	 	//step 2. construct Vandermonde matrix
+	 	std::vector<double> V(npts2fit*(ncols+interp));
+	 	gen_vander_univar(npts2fit,1,us,degree,&(V[0]));
+
+	 	if(interp){
+	 		V.erase(V.begin(),V.begin()+npts2fit);
+	 	}
+
+	 	//step 3. scale rows with respect to weights
+	 	for(int i=0;i<npts2fit;++i){
+	 		for(int j=0;j<ncols;++j){
+	 			V[j*ncols+i] *= ws[i];
+	 		}
+	 		for(int k=0;k<ndim;++k){
+	 			bs[k*npts2fit+i] *= ws[i];
+	 		}
+	 	}
+
+	 	//step 4. scale columns to reduce condition number
+	 	std::vector<double> ts(ncols);
+	 	rescale_matrix(npts2fit,ncols,&(V[0]),&(ts[0]));
+
+	 	//step 5. perform Householder QR factorization
+	 	std::vector<double> D(ncols);
+	 	int rank;
+	 	qr_polyfit_safeguarded(npts2fit,ncols,&(V[0]),&(D[0]),&rank);
+
+	 	//step 6. adjust degree of fitting
+	 	int ncols_sub = ncols;
+	 	while(rank<ncols_sub){
+	 		--degree;
+	 		if(!degree){
+	 			//matrix is singular, consider curve on flat plane passing center and orthogonal to tangent line
+	 			*degree_out = 0;
+	 			for(int i=0;i<npts2fit;++i){
+	 				for(int k=0;k<ndim;++k){
+	 					bs[k*npts2fit+i] = 0;
+	 				}
+	 			}
+	 		}
+	 		ncols_sub = degree+1-interp;
+	 	}
+
+	 	//step 7. compute Q'*bs
+	 	compute_qtransposeB(npts2fit,ncols_sub,&(V[0]),bs);
+
+	 	//step 8. perform backward substitution and scale solutions
+	 	//assign diagonals of V
+	 	for(int i=0;i<ncols_sub;++i){
+	 		V[i*npts2fit+i] = D[i];
+	 	}
+	 	//backsolve
+	 	if(safeguard){
+	 		backsolve_polyfit_safeguarded();
+	 	}else{
+	 		backsolve(npts2fit,ncols_sub,&(V[0]),ndim,bs,ts);
+	 		*degree_out = degree;
+	 	}
 	 }
 
 	 int HiReconstruction::compute_weights(const int nrows, const int ncols, double* us, const int nngbs, double* ngbnrms, const int degree, const double toler, double* ws){
