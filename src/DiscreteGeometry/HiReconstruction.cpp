@@ -651,8 +651,8 @@ namespace moab
 	 		//coeffs[0] = 0;
 	 		return;
 	 	}
-	 	double *us = new double[npts2fit*2];
-	 	double *bs = new double[npts2fit];
+	 	std::vector<double> us(npts2fit*2); //double *us = new double[npts2fit*2];
+	 	std::vector<double> bs(npts2fit); //double *bs = new double[npts2fit];
 	 	for(int i=interp;i<nverts;++i){
 	 		int k = i-interp;
 	 		double uu[3];
@@ -662,8 +662,8 @@ namespace moab
 	 	}
 
 	 	//step 3. compute weights
-	 	double *ws = new double[npts2fit];
-	 	int nzeros = compute_weights(npts2fit,2,us,nverts,ngbnrms,degree,_MINEPS,ws);
+	 	std::vector<double> ws(npts2fit); //double *ws = new double[npts2fit];
+	 	int nzeros = compute_weights(npts2fit,2,&(us[0]),nverts,ngbnrms,degree,_MINEPS,&(ws[0]));
 
 	 	//step 4. adjust according to zero-weights
 	 	if(nzeros){
@@ -686,13 +686,14 @@ namespace moab
 	 			}
 	 		}
 	 		npts2fit -= nzeros; assert(index==npts2fit);
+	 		us.resize(npts2fit*2); bs.resize(npts2fit); ws.resize(npts2fit);
 	 		/*us = realloc(us,npts2fit*2*sizeof(double));
 	 		bs = realloc(bs,npts2fit*sizeof(double));
 	 		ws = realloc(ws,npts2fit*sizeof(double));*/
 	 	}
 
 	 	//step 5. fitting
-	 	eval_vander_bivar_cmf(npts2fit,us,1,bs,degree,ws,interp,safeguard,degree_out,degree_pnt,degree_qr);
+	 	eval_vander_bivar_cmf(npts2fit,&(us[0]),1,&(bs[0]),degree,&(ws[0]),interp,safeguard,degree_out,degree_pnt,degree_qr);
 
 	 	//step 6. organize output
 	 	int ncoeffs_out = (*degree_out+2)*(*degree_out+1)/2;
@@ -701,7 +702,7 @@ namespace moab
 	 	for(int j=0;j<ncoeffs_out-interp;++j){
 	 		coeffs[j+interp] =  bs[j];
 	 	}
-	 	delete [] us; delete [] bs; delete [] ws;
+	 	//delete [] us; delete [] bs; delete [] ws;
 	 }
 
 	 void HiReconstruction::eval_vander_bivar_cmf(const int npts2fit, const double* us, const int ndim, double* bs, int degree, const double* ws, const bool interp, const bool safeguard, int* degree_out, int* degree_pnt, int* degree_qr){
@@ -714,17 +715,20 @@ namespace moab
 	 	*degree_pnt = degree;
 
 	 	//step 2. construct Vandermonde matrix, stored in columnwise
-	 	double *V_init = new double[npts2fit*(ncols+interp)];
-	 	gen_vander_bivar(npts2fit,us,degree,V_init);
+	 	std::vector<double> V(npts2fit*(ncols+interp)); //double *V_init = new double[npts2fit*(ncols+interp)];
+	 	gen_vander_bivar(npts2fit,us,degree,&(V[0]));
 	 	//remove the first column of 1s if interpolation
-	 	double* V;
+	 	if(interp){
+	 		V.erase(V.begin(),V.begin()+npts2fit);
+	 	}
+	 	/*double* V;
 	 	if(interp){
 	 		V = new double[npts2fit*ncols];
 	 		std::memcpy(V,V_init+npts2fit,ncols*npts2fit*sizeof(double));
 	 		delete [] V_init; V_init = 0;
 	 	}else{
 	 		V = V_init;
-	 	}
+	 	}*/
 
 	 	//step 3. Scale rows to assign different weights to different points
 	 	for(int i=0;i<npts2fit;++i){
@@ -737,13 +741,13 @@ namespace moab
 	 	}
 
 	 	//step 4. scale columns to reduce condition number
-	 	double *ts = new double[ncols];
-	 	rescale_matrix(npts2fit,ncols,V,ts);
+	 	std::vector<double> ts(ncols); //double *ts = new double[ncols];
+	 	rescale_matrix(npts2fit,ncols,&(V[0]),&(ts[0]);
 
 	 	//step 5. Perform Householder QR factorization
-	 	double *D = new double[ncols];
+	 	std::vector<double> D(ncols); //double *D = new double[ncols];
 	 	int rank;
-	 	qr_polyfit_safeguarded(npts2fit,ncols,V,D,&rank);
+	 	qr_polyfit_safeguarded(npts2fit,ncols,&(V[0]),&(D[0]),&rank);
 
 	 	//step 6. adjust degree of fitting according to rank of Vandermonde matrix
 	 	int ncols_sub = ncols;
@@ -765,9 +769,10 @@ namespace moab
 	 	*degree_qr = degree;
 
 	 	//step 7. compute Q'b
-	 	compute_qtransposeB(npts2fit,ncols_sub,V,ndim,bs);
+	 	compute_qtransposeB(npts2fit,ncols_sub,&(V[0]),ndim,bs);
 
 	 	//step 8. perform backward substitution and scale the solution
+	 	//assign diagonals of V
 	 	for(int i=0;i<ncols_sub;++i){
 	 		V[i*npts2fit+i] = D[i];
 	 	}
@@ -776,14 +781,14 @@ namespace moab
 	 	if(safeguard){
 	 		backsolve_polyfit_safeguarded();
 	 	}else{
-	 		backsolve(npt2fit,ncols_sub,V,1,bs,ts);
+	 		backsolve(npt2fit,ncols_sub,&(V[0]),1,bs,&(ts[0]));
 	 		*degree_out = degree;
 	 	}
-	 	if(V_init){
+	 	/*if(V_init){
 	 		delete [] V_init;
 	 	}else{
 	 		delete [] V;
-	 	}
+	 	}*/
 	 }
 
 	 void HiReconstruction::polyfit3d_curve_get_coeff(const int nverts, const double* ngbcors, const double* ngbtangs, int degree, const bool interp, const bool safeguard, const int ncoords, double* coords, const int ncoeffs, double* coeffs, double* degree_out){
@@ -929,7 +934,7 @@ namespace moab
 	 	if(safeguard){
 	 		backsolve_polyfit_safeguarded();
 	 	}else{
-	 		backsolve(npts2fit,ncols_sub,&(V[0]),ndim,bs,ts);
+	 		backsolve(npts2fit,ncols_sub,&(V[0]),ndim,bs,&(ts[0]));
 	 		*degree_out = degree;
 	 	}
 	 }
