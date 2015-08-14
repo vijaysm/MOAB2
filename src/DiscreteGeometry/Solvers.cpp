@@ -45,6 +45,34 @@ namespace moab {
     return mcols;
   }
 
+  void Solvers::gen_multivar_monomial_basis(const int kvars,const double* vars, const int degree, std::vector<double>& basis){
+    unsigned int len = compute_numcols_vander_multivar(kvars,degree);
+    basis.reserve(len-basis.capacity()+basis.size());
+    size_t iend = basis.size(),istr = basis.size();
+    basis.push_back(1); ++iend;
+    if(!degree){
+      return;
+    }
+    std::vector<size_t> varspos(kvars);
+    //degree 1
+    for(int ivar=0;ivar<kvars;++ivar){
+      basis.push_back(vars[ivar]);
+      varspos[ivar] = iend++;
+    }
+    //degree 2 to degree
+    for(int ideg=2;ideg<=degree;++ideg){
+      size_t preend = iend;
+      for(int ivar=0;ivar<kvars;++ivar){
+        size_t varpreend = iend;
+        for(size_t ilast=varspos[ivar];ilast<preend;++ilast){
+          basis.push_back(vars[ivar]*basis[ilast]); ++iend;
+        }
+        varspos[ivar] = varpreend;
+      }
+    }
+    assert(len==iend-istr);
+  }
+
   void Solvers::rescale_matrix(int mrows, int ncols, double *V, double *ts)
   {
     //This function rescales the input matrix using the norm of each column.

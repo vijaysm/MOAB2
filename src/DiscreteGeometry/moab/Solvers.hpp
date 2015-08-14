@@ -1,5 +1,6 @@
 #ifndef SOLVERS_HPP
 #define SOLVERS_HPP
+#include <vector>
 
 namespace moab
 {
@@ -15,7 +16,9 @@ public:
 
     static unsigned int compute_numcols_vander_multivar(unsigned int kvars,unsigned int degree);
 
-    static void gen_vander_multivar(const int npts,const int kvars, const double* us, const int degree, std::vector<double> V);
+    static void gen_multivar_monomial_basis(const int kvars,const double* vars, const int degree, std::vector<double>& basis);
+
+    static void gen_vander_multivar(const int npts,const int kvars, const double* us, const int degree, std::vector<double>& V);
 
     static void rescale_matrix(int mrows, int ncols, double *V, double *ts);
 
