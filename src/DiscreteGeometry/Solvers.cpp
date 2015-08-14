@@ -4,6 +4,7 @@
 #include <vector>
 #include <limits>
 #include <cmath>
+#include <algorithm>
 
 namespace moab {
 
@@ -12,6 +13,37 @@ namespace moab {
    * the first mrows values of V is the first column, and so on. This assumption is made because most of the
    *  operations are column-based in the current scenario.
    * */
+
+  unsigned int Solvers::nchoosek(unsigned int n, unsigned int k){
+    if(k>n){
+      return 0;
+    }
+    unsigned long long ans=1;
+    if(k>(n>>1)){
+      k = n-k;
+    }
+    for(unsigned int i=1;i<=k;++i){
+      ans *= n--;
+      ans /= i;
+      if(ans>std::numeric_limits<unsigned int>::max()){
+        return 0;
+      }
+    }
+    return ans;
+  }
+
+  unsigned int Solvers::compute_numcols_vander_multivar(unsigned int kvars,unsigned int degree){
+    unsigned int mcols=0;
+    for(unsigned int i=0;i<=degree;++i){
+      unsigned int temp = nchoosek(kvars-1+i,kvars-1);
+      if(!temp){
+        std::cout << "overflow to compute nchoosek n= " << kvars-1+i << " k= " << kvars-1 << std::endl;
+        return 0;
+      }
+      mcols += temp;
+    }
+    return mcols;
+  }
 
   void Solvers::rescale_matrix(int mrows, int ncols, double *V, double *ts)
   {
@@ -23,7 +55,7 @@ namespace moab {
           v[j] = V[mrows*i+j];
 
         //Compute norm of the column vector
-        double w = vec_2norm(v, mrows);
+        double w = vec_2norm(mrows,v);
 
         if (abs(w)==0)
           ts[i] = 1;
@@ -44,17 +76,17 @@ namespace moab {
         for (int j=0; j<bncols; j++)
           {
             double t2 = 0;
-            for (int i=k; i<nrows; i++)
+            for (int i=k; i<mrows; i++)
               t2 += Q[mrows*k+i]*bs[mrows*j+i];
             t2 = t2 + t2;
 
-            for (int i=k; i<nrows; i++)
+            for (int i=k; i<mrows; i++)
               bs[mrows*j+i] -= t2*Q[mrows*k+i];
           }
       }
   }
 
-  void Solvers::qr_polyfit_safeguarded(int mrows, int ncols, double *V, double *D, int *rank)
+  void Solvers::qr_polyfit_safeguarded(int mrows, int ncols, double *A, double *D, int *rank)
   {
     double tol = 1e-8;
     *rank = ncols;
@@ -62,7 +94,7 @@ namespace moab {
 
     for (int k=0; k<ncols; k++)
       {
-        int nv = nrows-k+1;
+        int nv = mrows-k+1;
 
         for (int j=0; j<nv; j++)
           v[j] = A[mrows*k + (j+k-1)];
@@ -176,7 +208,7 @@ namespace moab {
   {
     double w=0, s=0;
     for (int k=0; k<len; k++)
-      w = std::max(w, abs(a[k]));
+      w = std::max(w, fabs(a[k]));
 
     if (w==0){
         return 0;
@@ -193,10 +225,10 @@ namespace moab {
   {
     double nrm=0,mx=0;
     for(int i=0;i<len;++i){
-        mx = std::max(abs(a[i]),mx);
+        mx = std::max(fabs(a[i]),mx);
     }
     if(0==mx){
-      for(int i=0;i<len){
+      for(int i=0;i<len;++i){
         b[i] = 0;
       }
       return 0;
@@ -217,7 +249,7 @@ namespace moab {
   void Solvers::vec_projoff(const int len, const double* a, const double* b, double* c)
   {
     //c = a-<a,b>b/<b,b>;
-    double bnrm = vec_2norm(b,len);
+    double bnrm = vec_2norm(len,b);
     if (bnrm==0){
         for(int i=0;i<len;++i){
           c[i] = a[i];

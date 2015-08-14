@@ -8,10 +8,16 @@ namespace moab
   {
     Solvers() {};
     ~Solvers() {};
+public:
+    //compute combinational number, n choose k, maximum output is std::numeric_limits<unsigned int>::max();
+    //If overflows, return 0
+    static unsigned int nchoosek(unsigned int n, unsigned int k);
+
+    static unsigned int compute_numcols_vander_multivar(unsigned int kvars,unsigned int degree);
+
+    static void gen_vander_multivar(const int npts,const int kvars, const double* us, const int degree, std::vector<double> V);
 
     static void rescale_matrix(int mrows, int ncols, double *V, double *ts);
-
-    static void gen_vander_bivar(const int npts,const double* us, const int degree, double* V);
 
     static void compute_qtransposeB(int mrows, int ncols, const double *Q, int bncols, double *bs);
 
