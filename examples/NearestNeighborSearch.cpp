@@ -16,6 +16,7 @@
 #include "moab/AdaptiveKDTree.hpp"
 #include "moab/CN.hpp"
 #include "moab/SpatialLocator.hpp"
+#include "moab/ProgOptions.hpp"
 
 #include "nanoflann.hpp"
 
@@ -109,27 +110,26 @@ void generateRandomPointCloud(std::vector<T> &point, const size_t N, const T max
 }
 
 template <typename num_t>
-ErrorCode moab_get_coordinates(Core* mb, std::vector<num_t>& cloud)
+ErrorCode moab_get_coordinates(Core* mb, const int dim, std::vector<num_t>& cloud)
 {
   ErrorCode rval;
   // Get all 3d elements in the file
   Range verts;
   std::vector<double> coords;
-  rval = mb->get_entities_by_dimension(0, 3, verts);MB_CHK_SET_ERR(rval, "Error getting 3d elements");
-  //rval = mb->get_entities_by_dimension(0, 0, verts);MB_CHK_SET_ERR(rval, "Error getting vertices");
+  rval = mb->get_entities_by_dimension(0, dim, verts);MB_CHK_SET_ERR(rval, "Error getting 3d elements");
   cloud.resize(verts.size()*3);
   rval = mb->get_coords(verts, &cloud[0]);MB_CHK_SET_ERR(rval, "Error getting coordinates");
   return MB_SUCCESS;
 }
 
 template <>
-ErrorCode moab_get_coordinates<float>(Core* mb, std::vector<float>& cloud)
+ErrorCode moab_get_coordinates<float>(Core* mb, const int dim, std::vector<float>& cloud)
 {
   ErrorCode rval;
   // Get all 3d elements in the file
   Range verts;
   std::vector<double> coords;
-  rval = mb->get_entities_by_dimension(0, 0, verts);MB_CHK_SET_ERR(rval, "Error getting vertices");
+  rval = mb->get_entities_by_dimension(0, dim, verts);MB_CHK_SET_ERR(rval, "Error getting vertices");
   cloud.resize(verts.size()*3);
   coords.resize(verts.size()*3);
   rval = mb->get_coords(verts, &coords[0]);MB_CHK_SET_ERR(rval, "Error getting coordinates");
@@ -139,7 +139,7 @@ ErrorCode moab_get_coordinates<float>(Core* mb, std::vector<float>& cloud)
 }
 
 template <typename num_t>
-ErrorCode kdtree_demo(const size_t N, Core* mb=NULL, moab::ParallelComm* pcomm=NULL, bool use_reference=false)
+ErrorCode kdtree_demo(const int dim, const size_t N, Core* mb=NULL, moab::ParallelComm* pcomm=NULL, bool use_reference=false)
 {
   std::vector<num_t> cloud;
   ErrorCode rval;
@@ -150,7 +150,7 @@ ErrorCode kdtree_demo(const size_t N, Core* mb=NULL, moab::ParallelComm* pcomm=N
   }
   else {
     // Get all 3d elements in the file
-    rval = moab_get_coordinates(mb, cloud);MB_CHK_SET_ERR(rval, "Error getting coordinates");
+    rval = moab_get_coordinates(mb, 0 /*dim*/, cloud);MB_CHK_SET_ERR(rval, "Error getting coordinates");
   }
   
   int rank = pcomm->rank();
@@ -161,7 +161,7 @@ ErrorCode kdtree_demo(const size_t N, Core* mb=NULL, moab::ParallelComm* pcomm=N
   if (use_reference)
   {
     Range elems;
-    rval = mb->get_entities_by_dimension(0, 3, elems);MB_CHK_SET_ERR(rval, "Error getting vertices");
+    rval = mb->get_entities_by_dimension(0, dim, elems);MB_CHK_SET_ERR(rval, "Error getting vertices");
     // Code for MB KDtree here
     // Create a tree to use for the location service
     AdaptiveKDTree tree(mb);
@@ -222,7 +222,7 @@ ErrorCode kdtree_demo(const size_t N, Core* mb=NULL, moab::ParallelComm* pcomm=N
 
       dump_mem_usage();
 
-      my_kd_tree_t   index(3 /*dim*/, pc2kd, KDTreeSingleIndexAdaptorParams(30 /* max leaf */) );
+      my_kd_tree_t   index(dim /*dim*/, pc2kd, KDTreeSingleIndexAdaptorParams(30 /* max leaf */) );
       index.buildIndex();
       dump_mem_usage();
 
@@ -362,24 +362,18 @@ int main(int argc, char **argv)
 {
   ErrorCode rval;
   const int nghostrings = 1;
-  const int num_dim = 3;
   int num_queries = 100;
+  int num_dim = 3;
   std::stringstream sstr;
 
-  if (argc > 3) {
-    cout << "Usage: " << argv[0] << " <filename> [num_queries]" << endl;
-    return 0;
-  }
-  else if (argc == 3) {
-    test_file_name = argv[1];
-    num_queries = atoi(argv[2]);
-  }
-  else if (argc == 2) {
-    num_queries = atoi(argv[1]);
-  }
-  else {
-    num_queries = 100;
-  }
+  ProgOptions opts;
+
+  opts.addOpt<string>(string("file,f"),
+      string("Name of the input file to query (default=64bricks_512hex_256part.h5m)"), &test_file_name);
+  opts.addOpt<int>(string("dim,d"),
+      string("Dimension of the problem being solved (default=3)"), &num_dim);
+  opts.addOpt<int>("queries,q", "Number of queries to perform (default=100)", &num_queries);
+  opts.parseCommandLine(argc, argv);
 
   // Instantiate
   Core mb;
@@ -402,13 +396,24 @@ int main(int argc, char **argv)
   // Load the file
   rval = mb.load_file(test_file_name.c_str(), &fileset, roptions.c_str());MB_CHK_SET_ERR(rval, "Error loading file");
 
-  // NanoFLANN based queries  
-  //rval = kdtree_demo<float>(num_queries);MB_CHK_SET_ERR(rval, "Error with Kdtree demo with float type");
-  //rval = kdtree_demo<double>(num_queries);MB_CHK_SET_ERR(rval, "Error with Kdtree demo with double type");
+  for (int idim = 3; idim >= 0; --idim) {
+    Range ents;
+    rval = mb.get_entities_by_dimension(0, idim, ents);MB_CHK_SET_ERR(rval, "Error getting vertices");
+    if (ents.size()) {
+      sstr.str("");
+      sstr << "Invalid dimension specified for file. Actual topological dimension is " << idim << ".\n";
+      if (num_dim != idim) MB_SET_ERR(MB_FAILURE, sstr.str().c_str());
+      break;
+    }
+  }
 
-  rval = kdtree_demo<double>(num_queries, &mb, pcomm, false);MB_CHK_SET_ERR(rval, "Error with Kdtree demo with MOAB Instance");
+  // NanoFLANN based queries  
+  //rval = kdtree_demo<float>(num_dim, num_queries);MB_CHK_SET_ERR(rval, "Error with Kdtree demo with float type");
+  //rval = kdtree_demo<double>(num_dim, num_queries);MB_CHK_SET_ERR(rval, "Error with Kdtree demo with double type");
+
+  rval = kdtree_demo<double>(num_dim, num_queries, &mb, pcomm, false);MB_CHK_SET_ERR(rval, "Error with Kdtree demo with MOAB Instance");
   // MOAB AdaptiveKDTree based queries
-  //rval = kdtree_demo<double>(num_queries, &mb, true);MB_CHK_SET_ERR(rval, "Error with Kdtree demo with MOAB Instance");
+  //rval = kdtree_demo<double>(num_dim, num_queries, &mb, true);MB_CHK_SET_ERR(rval, "Error with Kdtree demo with MOAB Instance");
 
   return 0;
 }
