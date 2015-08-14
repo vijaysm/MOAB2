@@ -73,6 +73,43 @@ namespace moab {
     assert(len==iend-istr);
   }
 
+  void gen_vander_multivar(const int mrows,const int kvars, const double* us, const int degree, std::vector<double>& V){
+    unsigned int ncols = compute_numcols_vander_multivar(kvars,degree);
+    V.reserve(mrows*ncols-basis.capacity()+basis.size());
+    size_t istr=basis.size(),icol=0;
+    //add ones, V is stored in an single array, elements placed in columnwise order
+    for(int irow=0;irow<mrows;++irow){
+      V.push_back(1);
+    }
+    ++icol;
+    if(!degree){
+      return;
+    }
+    std::vector<size_t> varpos(kvars);
+    //degree 1
+    for(int ivar=0;ivar<kvars;++ivar){
+      for(int irow=0;irow<mrows;++irow){
+        V.push_back(us[irow*kvars+ivar]);//us stored in row-wise
+      }
+      varpos[ivar] = icol++;
+    }
+    //from 2 to degree
+    for(int ideg=2;ideg<=degree;++ideg){
+      size_t preendcol = icol;
+      for(int ivar=0;ivar<kvars;++ivar){
+        size_t varpreend = icol;
+        for(size_t ilast=varspos[ivar];ilast<preendcol;++ilast){
+          for(int irow=0;irow<mrows;++irow){
+            V.push_back(us[irow*kvars+ivar]*V[istr+irow+ilast*mrows]);
+          }
+          ++icol;
+        }
+        varspos[ivar] = varpreend;
+      }
+    }
+    assert(icol==ncols);
+  }
+
   void Solvers::rescale_matrix(int mrows, int ncols, double *V, double *ts)
   {
     //This function rescales the input matrix using the norm of each column.
