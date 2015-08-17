@@ -13,8 +13,8 @@ if PARALLEL
   AM_CPPFLAGS += -I$(srcdir)/parallel
 endif
 
-SUBDIRS += io LocalDiscretization verdict RefineMesh .
-libMOAB_la_LIBADD += io/libmoabio.la LocalDiscretization/libLocalDiscretization.la verdict/libmoabverdict.la RefineMesh/libRefineMesh.la
+SUBDIRS += io LocalDiscretization verdict RefineMesh DiscreteGeometry .
+libMOAB_la_LIBADD += io/libmoabio.la LocalDiscretization/libLocalDiscretization.la verdict/libmoabverdict.la RefineMesh/libRefineMesh.la DiscreteGeometry/libDGM.la
 
 BUILT_SOURCES = MBCN_protos.h
 
@@ -27,7 +27,8 @@ AM_CPPFLAGS += -DIS_BUILDING_MB \
                -I$(srcdir)/parallel \
                -I$(srcdir)/LocalDiscretization \
                -I$(srcdir)/verdict \
-               -I$(srcdir)/RefineMesh
+               -I$(srcdir)/RefineMesh \
+               -I$(srcdir)/DiscreteGeometry
 
 # The directory in which to install headers
 libMOAB_la_includedir = $(includedir)

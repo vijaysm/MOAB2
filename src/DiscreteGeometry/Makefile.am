@@ -14,10 +14,12 @@ libDGM_la_includedir = $(includedir)
 
 # Conditional sources
 MOAB_LOCALDISCR_SRCS = \
-	Solvers.cpp 
+	Solvers.cpp  \
+	HiReconstruction.cpp
 
 MOAB_LOCALDISCR_HDRS = \
-	moab/Solvers.hpp 
+	moab/Solvers.hpp \
+	moab/HiReconstruction.hpp
 
 # The list of source files, and any header files that do not need to be installed
 libDGM_la_SOURCES = \
