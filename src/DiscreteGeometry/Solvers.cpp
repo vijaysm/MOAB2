@@ -241,6 +241,10 @@ namespace moab {
 
   void Solvers::vec_dotprod(const int len, const double* a, const double* b, double* c)
   {
+    if(!a||!b||!c){
+      std::cerr << __FILE__ << ":" << __LINE__ << "\nNULL Pointer" << std::endl;
+      return;
+    }
     for(int i=0;i<len;++i){
         c[i] = a[i]*b[i];
       }
@@ -248,6 +252,10 @@ namespace moab {
 
   void Solvers::vec_scalarprod(const int len, const double* a, const double c, double *b)
   {
+    if(!a||!b){
+      std::cerr << __FILE__ << ":" << __LINE__ << "\nNULL Pointer" << std::endl;
+      return;
+    }
     for(int i=0;i<len;++i){
          b[i] = c*a[i];
       }
@@ -262,6 +270,10 @@ namespace moab {
 
   double Solvers::vec_innerprod(const int len, const double* a, const double* b)
   {
+    if(!a||!b){
+      std::cerr << __FILE__ << ":" << __LINE__ << "\nNULL Pointer" << std::endl;
+      return 0;
+    }
     double ans=0;
     for(int i=0;i<len;++i){
         ans += a[i]*b[i];
@@ -271,11 +283,15 @@ namespace moab {
 
   double Solvers::vec_2norm(const int len, const double* a)
   {
+    if(!a){
+      std::cerr << __FILE__ << ":" << __LINE__ << "\nNULL Pointer" << std::endl;
+      return 0;
+    }
     double w=0, s=0;
     for (int k=0; k<len; k++)
       w = std::max(w, fabs(a[k]));
 
-    if (w==0){
+    if(w==0){
         return 0;
     }else{
         for (int k=0; k<len; k++){
@@ -288,11 +304,15 @@ namespace moab {
 
   double Solvers::vec_normalize(const int len, const double* a, double* b)
   {
+    if(!a||!b){
+      std::cerr << __FILE__ << ":" << __LINE__ << "\nNULL Pointer" << std::endl;
+      return 0;
+    }
     double nrm=0,mx=0;
     for(int i=0;i<len;++i){
         mx = std::max(fabs(a[i]),mx);
     }
-    if(0==mx){
+    if(mx==0){
       for(int i=0;i<len;++i){
         b[i] = 0;
       }
@@ -313,15 +333,19 @@ namespace moab {
 
   void Solvers::vec_projoff(const int len, const double* a, const double* b, double* c)
   {
+    if(!a||!b||!c){
+      std::cerr << __FILE__ << ":" << __LINE__ << "\nNULL Pointer" << std::endl;
+      return;
+    }
     //c = a-<a,b>b/<b,b>;
-    double bnrm = vec_2norm(len,b);
+    double bnrm = vec_2normalize(len,b,c);
     if (bnrm==0){
         for(int i=0;i<len;++i){
           c[i] = a[i];
         }
         return; 
     }
-    double innerp = vec_innerprod(len,a,b)/bnrm;
+    double innerp = vec_innerprod(len,a,c);
 
     if(innerp==0){
       for(int i=0;i<len;++i){
@@ -331,12 +355,16 @@ namespace moab {
     }
 
     for(int i=0;i<len;++i){
-        c[i] = a[i]-innerp*b[i];
+        c[i] = a[i]-innerp*b[i]/bnrm;
     }
   }
 
     void Solvers::vec_linear_operation(const int len, const double mu, const double* a, const double psi, const double* b, double* c)
     {
+      if(!a||!b||!c){
+        std::cerr << __FILE__ << ":" << __LINE__ << "\nNULL Pointer" << std::endl;
+        return;
+      }
       for(int i=0;i<len;++i){
           c[i] = mu*a[i]+psi*b[i];
       }
