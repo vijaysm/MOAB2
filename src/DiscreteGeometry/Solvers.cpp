@@ -355,7 +355,7 @@ namespace moab {
     }
 
     for(int i=0;i<len;++i){
-        c[i] = a[i]-innerp*b[i]/bnrm;
+        c[i] = a[i]-innerp*c[i];
     }
   }
 

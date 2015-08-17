@@ -546,14 +546,9 @@ namespace moab
 
 	 }
 
-	 ErrorCode HiReconstruction::get_fittings_data_surf(const EntityHandle vid, double* coords, double& degree_out, double* coeffs, bool& interp){
-
-	 }
-
-	 ErrorCode HiReconstruction::get_fittings_data_3Dcurve(const EntityHandle vid, double* coords, double& degree_out, double* coeffs, bool& interp){
-
-	 }
-
+   /*********************************************************
+	* Routines for vertex normal/tangent vector estimation	*
+	*********************************************************/
 	 ErrorCode HiReconstruction::average_vertex_normal(const EntityHandle vid, double* nrm){
 	 	ErrorCode error;
 	 	std::vector<EntityHandle> adjfaces;
@@ -804,8 +799,8 @@ namespace moab
 	 	*degree_pnt = degree;
 
 	 	//step 2. construct Vandermonde matrix, stored in columnwise
-	 	std::vector<double> V(npts2fit*(ncols+interp)); //double *V_init = new double[npts2fit*(ncols+interp)];
-	 	gen_vander_bivar(npts2fit,us,degree,&(V[0]));
+	 	std::vector<double> V;//V(npts2fit*(ncols+interp)); //double *V_init = new double[npts2fit*(ncols+interp)];
+	 	gen_vander_multivar(npts2fit,2,us,degree,V);
 	 	//remove the first column of 1s if interpolation
 	 	if(interp){
 	 		V.erase(V.begin(),V.begin()+npts2fit);
@@ -969,8 +964,8 @@ namespace moab
 	 	}
 
 	 	//step 2. construct Vandermonde matrix
-	 	std::vector<double> V(npts2fit*(ncols+interp));
-	 	gen_vander_univar(npts2fit,1,us,degree,&(V[0]));
+	 	std::vector<double> V;//V(npts2fit*(ncols+interp));
+	 	gen_vander_multivar(npts2fit,1,us,degree,V);
 
 	 	if(interp){
 	 		V.erase(V.begin(),V.begin()+npts2fit);

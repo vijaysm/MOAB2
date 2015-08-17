@@ -193,6 +193,14 @@ namespace moab
 
 
 			//! \brief Get interally stored fitting results
+			/** Get fittings results of a vertex, stored internally, results will be writtend to user provided memory
+				* \param vid EntityHandle, a vertex in _verts2rec
+				* \param geomtype GEOMTYPE, one of HISURFACE,HI3DCURVE,HI2DCURVE
+				* \param coords vector, global coordinates of local uvw coordinate system axis directions will be appended to the end of coords
+				* \param degree_out Reference to Integer, order of polynomial fittings for vid
+				* \param coeffs vector, coefficients of local polynomial fittings in monomial basis will be appended to the end of coeffs
+				* \param interp Reference to Boolean, true =  interpolation
+			*/
 			bool get_fittings_data(EntityHandle vid, GEOMTYPE& geomtype, std::vector<double>& coords, int& degree_out, std::vector<double>& coeffs, bool& interp);
 
 			//Helper function: estimate require number of ghost layers in parallel setting
@@ -263,16 +271,6 @@ namespace moab
 			*/
 			ErrorCode set_geom_data_surf(const EntityHandle vid, const double* coords, const double degree_out, const double* coeffs, bool interp);
 			ErrorCode set_geom_data_3Dcurve(const EntityHandle vid, const double* coords, const double degree_out, const double* coeffs, bool interp);
-
-			/** Get fittings results of a vertex, stored internally, results will be writtend to user provided memory
-				* \param vid EntityHandle, a vertex in _verts2rec
-				* \param coords Pointer to double array, preallocated space, global coordinates of local uvw coordinate system axis directions
-				* \param degree_out Integer, preallocated space, order of polynomial fittings for vid
-				* \param coeffs Pointer to double array, preallocated space, coefficients of local polynomial fittings in monomial basis
-				* \param interp Boolean, preallocated space, true =  interpolation
-			*/
-			ErrorCode get_fittings_data_surf(const EntityHandle vid, double* coords, double& degree_out, double* coeffs, bool& interp);
-			ErrorCode get_fittings_data_3Dcurve(const EntityHandle vid, double* coords, double& degree_out, double* coeffs, bool& interp);
 
 			/** Compute area weighted average vertex normals for given vertex, assuming surface mesh
 				* For arbitrary polygon mesh, use incident two edges of each incident polygon of this vertex to form a triangle, then use 
