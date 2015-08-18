@@ -185,5 +185,45 @@ int  borderPointsOfCSinRLL(CartVect * redc, double * red2dc, int nsRed, CartVect
 ErrorCode  deep_copy_set(Interface * mb, EntityHandle source, EntityHandle dest);
 // used only by homme
 ErrorCode  deep_copy_set_with_quads(Interface * mb, EntityHandle source_set, EntityHandle dest_set);
+
+
+// utils from Kara's linear tracer remapping
+void get_barycenters(moab::Interface * mb, moab::EntityHandle set, moab::Tag &planeTag, moab::Tag &cellIntTag,
+                     moab::Tag &barycenterTag);
+
+void get_centers_of_mass(moab::Interface * mb, moab::EntityHandle set, moab::Tag &planeTag, moab::Tag &rhoCoefTag,
+                         moab::Tag &cellIntTag, moab::Tag &centerOfMassTag);
+
+void get_eul_cell_integrals(moab::Interface * mb, moab::EntityHandle set, moab::Tag &planeTag, moab::Tag &areaTag, moab::Tag &cellIntTag);
+
+void get_gnomonic_plane(moab::Interface * mb, moab::EntityHandle set, moab::Tag &planeTag);
+
+void get_linear_reconstruction(moab::Interface * mb, moab::EntityHandle set, moab::Tag &cellValTag, moab::Tag &planeTag,
+                               moab::Tag &centerTag, moab::Tag &linearCoefTag,  Range * filter = NULL);
+
+void get_neighborhood_bounds(moab::Interface * mb, moab::EntityHandle set, moab::Tag &cellValTag, moab::Tag &boundsTag,
+    Range * filter = NULL);
+
+void limit_linear_reconstruction(moab::Interface * mb, moab::EntityHandle set, moab::Tag &cellValTag, moab::Tag &planeTag,
+                                 moab::Tag &boundsTag, moab::Tag &centerTag, moab::Tag &linearCoefTag);
+
+// compute only 3 intersection integrals here
+void get_intersection_weights3(moab::Interface * mb, moab::EntityHandle euler_set, moab::EntityHandle lagr_set,
+                              moab::EntityHandle intx_set, moab::Tag &planeTag, moab::Tag &weightsTag);
+
+void get_intersection_weights(moab::Interface * mb, moab::EntityHandle euler_set,
+                              moab::EntityHandle intx_set, moab::Tag &planeTag, moab::Tag &weightsTag);
+
+void set_initial_values(moab::Interface * mb, moab::EntityHandle euler_set, moab::Tag & centerTag,
+                        moab::Tag & valTag, int field_type);
+
+void set_density(moab::Interface * mb, moab::EntityHandle euler_set, moab::Tag & barycenterTag,
+                 moab::Tag & rhoTag, int field_type);
+
+// functions to compute departure point locations
+void departure_point_swirl(moab::CartVect & arrival_point, double t, double T, double delta_t, moab::CartVect & departure_point);
+void departure_point_swirl_rot(moab::CartVect & arrival_point, double t, double T, double delta_t, moab::CartVect & departure_point);
+void departure_point_rotation(moab::CartVect & arrival_point, double t, double delta_t, moab::CartVect & departure_point);
+
 }
 #endif /* CSLAMUTILS_HPP_ */

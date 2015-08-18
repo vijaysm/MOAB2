@@ -10,7 +10,6 @@
 #ifdef MOAB_HAVE_MPI
 #include "moab/ParallelComm.hpp"
 #endif
-
 namespace moab {
 
 
@@ -632,4 +631,249 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
 #endif
   return MB_SUCCESS;
 }
+
+// tauTag will be of length number of tracers
+ErrorCode Intx2MeshOnSphere::update_density_and_tracers(Tag & rhoTag, Tag & areaTag, Tag & rhoCoefTag,
+      Tag & tauTag, Tag & tauCoefTag, Tag & weightsTag, Tag & planeTag)
+{
+
+  ErrorCode rval = MB_SUCCESS;
+
+  //double R = 1.0;
+
+  EntityHandle dum=0;
+  Tag corrTag;
+  mb->tag_get_handle(CORRTAGNAME, 1, MB_TYPE_HANDLE, corrTag,
+                                             MB_TAG_DENSE, &dum);
+
+  Tag gid;
+  rval = mb->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER, gid, MB_TAG_DENSE);
+    if (MB_SUCCESS != rval)
+      return rval;
+
+  // get all polygons out of out_set; then see where are they coming from
+  moab::Range polys;
+  rval = mb->get_entities_by_dimension(outSet, 2, polys); MB_CHK_ERR(rval);
+
+  // get gnomonic plane for Eulerian cells
+  std::vector<int>  planeArr(rs2.size());
+  rval = mb->tag_get_data(planeTag, rs2, &planeArr[0]); MB_CHK_ERR(rval);
+
+  // get Eulerian cell reconstruction coefficients
+  std::vector<double>  rhoCoefs(3*rs2.size());
+  rval = mb->tag_get_data(rhoCoefTag, rs2, &rhoCoefs[0]); MB_CHK_ERR(rval);
+
+  // start copy from above
+  // tagElem will have multiple tracers
+  int numTracers = 0;
+  rval = mb->tag_get_length(tauTag, numTracers);
+  ERRORR(rval, "can't get number of tracers in simulation");
+  if (numTracers < 1)
+    ERRORR(MB_FAILURE, "no tracers data");
+  // these will be updated, with new values
+  /*std::vector<double>  currentVals(rs2.size()*numTracers, 0.);
+  rval = mb->tag_get_data(tagTau, rs2, &currentVals[0]);
+  ERRORR(rval, "can't get existing tracers values");*/
+
+  // create new tuple list for tracers to other processors, from remote_cells
+  #ifdef MOAB_HAVE_MPI
+  if (remote_cells)
+  {
+    int n = remote_cells->get_n();
+    if (n>0) {
+      remote_cells_with_tracers = new TupleList();
+      remote_cells_with_tracers->initialize(2, 0, 1, numTracers+1, n); // tracers and densities adds are in these tuples
+      remote_cells_with_tracers->enableWriteAccess();
+      for (int i=0; i<n; i++)
+      {
+        remote_cells_with_tracers->vi_wr[2*i]=remote_cells->vi_wr[2*i];
+        remote_cells_with_tracers->vi_wr[2*i+1]=remote_cells->vi_wr[2*i+1];
+        //    remote_cells->vr_wr[i] = 0.; will have a different tuple for communication
+        remote_cells_with_tracers->vul_wr[i]=   remote_cells->vul_wr[i];// this is the corresponding red cell (arrival)
+        for (int k=0; k<numTracers+1; k++) // first will be for density, from 1 to numTracers+1 will be for
+          remote_cells_with_tracers->vr_wr[(numTracers+1)*i+k] = 0; // initialize tracers to be transported
+        remote_cells_with_tracers->inc_n();
+      }
+    }
+    delete remote_cells;
+    remote_cells = NULL;
+  }
+#endif
+  // for each polygon, we have 2 indices: red and blue parents
+  // we need index blue to update index red
+  // get Eulerian cell reconstruction coefficients
+  std::vector<double>  tauCoefs(3*rs2.size()*numTracers); // will be of size 3 * numTracers
+  rval = mb->tag_get_data(tauCoefTag, rs2, &tauCoefs[0]);  MB_CHK_ERR(rval);
+
+  // get intersection weights; these are 6 per poly, do not depend on tracers
+  std::vector<double>  weights(6*polys.size());
+  rval = mb->tag_get_data(weightsTag, polys, &weights[0]); MB_CHK_ERR(rval);
+
+  // Initialize the new values
+  std::vector<double> newMass(rs2.size(), 0.);// initialize with 0  \int rho dV
+  std::vector<double> newValues(rs2.size() * numTracers, 0.);// initialize with 0  \int rho*tau dV
+  // area of the polygon * conc on red (old) current quantity
+  // finaly, divide by the area of the red
+  double check_intx_area=0.;
+  int polyIndex = 0; // iterator in polygons
+  for (Range::iterator it= polys.begin(); it!=polys.end(); it++, polyIndex++)
+  {
+    EntityHandle poly=*it;
+    int blueIndex, redIndex;
+    rval =  mb->tag_get_data(blueParentTag, &poly, 1, &blueIndex);
+    ERRORR(rval, "can't get blue tag");
+    EntityHandle blue = rs1[blueIndex];
+    rval =  mb->tag_get_data(redParentTag, &poly, 1, &redIndex);
+    ERRORR(rval, "can't get red tag");
+    //EntityHandle red = rs2[redIndex];
+    // big assumption here, red and blue are "parallel" ;we should have an index from
+    // blue to red (so a deformed blue corresponds to an arrival red)
+    // compute the integrals over polygon
+    int index3 = redIndex*3;
+    double rhoDA= rhoCoefs[index3]*weights[polyIndex*6] + rhoCoefs[index3+1]*weights[polyIndex*6+1]
+                                    + rhoCoefs[index3+2]*weights[polyIndex*6+2];
+    std::vector<double> taurhoDA(numTracers);
+
+    int indexTau3 = redIndex*3*numTracers;
+    for (int k=0; k<numTracers; k++)
+    {
+      int itau0 = indexTau3+3*k;
+      int itau1 = itau0 + 1;
+      int itau2 = itau1 + 1; //
+      double A = rhoCoefs[index3]*tauCoefs[itau0];
+      double B = rhoCoefs[index3+1]*tauCoefs[itau0] + rhoCoefs[index3]*tauCoefs[itau1];
+      double C = rhoCoefs[index3+2]*tauCoefs[itau0] + rhoCoefs[redIndex*3]*tauCoefs[itau2];
+      double D = rhoCoefs[index3+1]*tauCoefs[itau1];
+      double E = rhoCoefs[index3+2]*tauCoefs[itau2];
+      double F = rhoCoefs[index3+1]*tauCoefs[itau2] + rhoCoefs[index3+2]*tauCoefs[itau1];
+      taurhoDA[k] = A*weights[polyIndex*6] + B*weights[polyIndex*6+1] + C*weights[polyIndex*6+2]
+                                  + D*weights[polyIndex*6+3] + E*weights[polyIndex*6+4] + F*weights[polyIndex*6+5];
+    }
+    double areap = weights[6*polyIndex];
+    check_intx_area+=areap;
+    // so the departure cell at time t (blueIndex) covers a portion of a redCell
+    // that quantity will be transported to the redCell at time t+dt
+    // the blue corresponds to a red arrival
+    EntityHandle redArr;
+    rval = mb->tag_get_data(corrTag, &blue, 1, &redArr);
+    if (0==redArr || MB_TAG_NOT_FOUND==rval)
+    {
+#ifdef MOAB_HAVE_MPI
+      if (!remote_cells_with_tracers)
+        ERRORR( MB_FAILURE, "no remote cells, failure\n");
+      // maybe the element is remote, from another processor
+      int global_id_blue;
+      rval = mb->tag_get_data(gid, &blue, 1, &global_id_blue);
+      ERRORR(rval, "can't get arrival red for corresponding blue gid");
+      // find the
+      int index_in_remote = remote_cells_with_tracers->find(1, global_id_blue);
+      if (index_in_remote==-1)
+        ERRORR( MB_FAILURE, "can't find the global id element in remote cells\n");
+
+      // update density \int rho dA
+      remote_cells_with_tracers->vr_wr[index_in_remote*(numTracers+1)] += rhoDA;
+      // update tracer  \int (tau * rho) dA
+      for (int k=0; k<numTracers; k++)
+        remote_cells_with_tracers->vr_wr[index_in_remote*(numTracers+1)+k+1] +=
+            taurhoDA[k];
+#endif
+    }
+    else if (MB_SUCCESS==rval)
+    {
+      int arrRedIndex = rs2.index(redArr);
+      if (-1 == arrRedIndex)
+        ERRORR(MB_FAILURE, "can't find the red arrival index");
+      newMass[arrRedIndex] += rhoDA;
+      for (int k=0; k<numTracers; k++)
+        newValues[numTracers*arrRedIndex+k] += taurhoDA[k];
+    }
+
+    else
+      ERRORR(rval, "can't get arrival red for corresponding ");
+  }
+  // now, send back the remote_cells_with_tracers to the processors they came from, with the updated values for
+  // the tracer masses and density in a cell
+#ifdef MOAB_HAVE_MPI
+  if (remote_cells_with_tracers)
+  {
+    // so this means that some cells will be sent back with tracer info to the procs they were sent from
+    (parcomm->proc_config().crystal_router())->gs_transfer(1, *remote_cells_with_tracers, 0);
+    // now, look at the global id, find the proper "red" cell with that index and update its mass
+    //remote_cells->print("remote cells after routing");
+    int n = remote_cells_with_tracers->get_n();
+    for (int j=0; j<n; j++)
+    {
+      EntityHandle redCell = remote_cells_with_tracers->vul_rd[j];// entity handle sent back
+      int arrRedIndex = rs2.index(redCell);
+      if (-1 == arrRedIndex)
+        ERRORR(MB_FAILURE, "can't find the red arrival index");
+      newMass[arrRedIndex] += remote_cells_with_tracers->vr_rd[j*(numTracers+1)];
+      for (int k=0; k<numTracers; k++)
+        newValues[arrRedIndex*numTracers+k] += remote_cells_with_tracers->vr_rd[j*(numTracers+1)+k+1];
+    }
+  }
+#endif /* MOAB_HAVE_MPI */
+  // now divide by red area (current) for density, and with newMass for tracers
+
+  std::vector<double> areas(rs2.size() );
+  rval = mb->tag_get_data(areaTag, rs2, &areas[0]); MB_CHK_ERR(rval);
+
+  std::vector<double> total_tracer_local(numTracers, 0.);
+  double total_mass_local = 0;
+  for (int i=0; i<(int) rs2.size(); i++)
+  {
+    total_mass_local+=newMass[i];
+    for (int k=0; k<numTracers; k++)
+    {
+      total_tracer_local[k] += newValues[i*numTracers+k];
+    }
+    if (newMass[i]>1.0e-12)
+    {
+       for (int k=0; k<numTracers; k++)
+         newValues[i*numTracers+k]/= newMass[i];
+    }
+    else
+    {
+      for (int k=0; k<numTracers; k++)
+         newValues[i*numTracers+k] = 0.0;
+    }
+    newMass[i]/= areas[i]; // density now
+  }
+  rval = mb->tag_set_data(rhoTag, rs2, &newMass[0]); MB_CHK_ERR(rval);
+  rval = mb->tag_set_data(tauTag, rs2, &newValues[0]); MB_CHK_ERR(rval);// will have numTracers
+
+#ifndef NDEBUG
+
+#ifdef MOAB_HAVE_MPI
+  std::vector<double> total_tracer(numTracers,0.);
+  double total_intx_area =0;
+  int mpi_err = MPI_Reduce(&total_tracer_local[0], &total_tracer[0], numTracers, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  if (MPI_SUCCESS != mpi_err) return MB_FAILURE;
+  // now reduce total area
+  mpi_err = MPI_Reduce(&check_intx_area, &total_intx_area, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  if (MPI_SUCCESS != mpi_err) return MB_FAILURE;
+  if (my_rank==0)
+  {
+    for (int k=0; k<numTracers; k++)
+      std::cout <<"total tracer k=" << k+1<<" "  << total_tracer[k] << "\n";
+    std::cout <<"check: total intersection area: (4 * M_PI * R^2): " << 4 * M_PI * R*R << " " << total_intx_area << "\n";
+  }
+
+  if (remote_cells_with_tracers)
+  {
+    delete remote_cells_with_tracers;
+    remote_cells_with_tracers=NULL;
+  }
+#else
+  for (int k=0; k<numTracers; k++)
+        std::cout <<"total mass now tracer k=" << k+1<<" "  << total_mass_local[k] << "\n";
+  std::cout <<"check: total intersection area: (4 * M_PI * R^2): " << 4 * M_PI * R*R << " " << check_intx_area << "\n";
+#endif
+
+#endif
+
+  // end copy
+  return MB_SUCCESS;
+}
+
 } /* namespace moab */

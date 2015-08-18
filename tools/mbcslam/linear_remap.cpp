@@ -28,19 +28,6 @@ std::string TestDir(".");
 
 using namespace moab;
 
-// computes cell barycenters in Cartesian X,Y,Z coordinates
-void get_barycenters(moab::Interface * mb, moab::EntityHandle set,
-    moab::Tag &planeTag, moab::Tag &barycenterTag);
-
-// computes gnomonic plane for each cell of the Eulerian mesh 
-void get_gnomonic_plane(moab::Interface * mb, moab::EntityHandle set,
-    moab::Tag &planeTag);
-
-// computes coefficients (A,B,C) for linear reconstruction in gnomonic coordinates: rho(x,y) = Ax + By + C
-void get_linear_reconstruction(moab::Interface * mb, moab::EntityHandle set,
-    moab::Tag &rhoTag, moab::Tag &planeTag, moab::Tag &barycenterTag,
-    moab::Tag &linearCoefTag);
-
 // evaluates the integral of rho(x,y) over cell, should be equal to cell average rho
 void test_linear_reconstruction(moab::Interface * mb, moab::EntityHandle set,
     moab::Tag &rhoTag, moab::Tag &planeTag, moab::Tag &barycenterTag,
@@ -110,6 +97,12 @@ int main(int /*argc*/, char **/*argv[]*/) {
   moab::Tag planeTag = 0;
   rval = mb.tag_get_handle("gnomonicPlane", 1, moab::MB_TYPE_INTEGER, planeTag,
       moab::MB_TAG_CREAT | moab::MB_TAG_DENSE);
+
+  // Create tag for integrals of (x, y, x^2, y^2, xy) over Eulerian cells
+  moab::Tag cellIntTag = 0;
+  rval = mb.tag_get_handle("CellIntegral", 6, moab::MB_TYPE_DOUBLE, cellIntTag,
+      moab::MB_TAG_CREAT | moab::MB_TAG_DENSE);
+
   CHECK_ERR(rval);
   // Set density distributions
   rval = add_field_value(&mb, euler_set, rank, rhoNodeTag, rhoTag, areaTag, 2);
@@ -117,8 +110,11 @@ int main(int /*argc*/, char **/*argv[]*/) {
   // get cell plane
   get_gnomonic_plane(&mb, euler_set, planeTag);
 
+  // get Eulerian cell integrals over x, y, x^2, y^2, xy (and cell area)
+  get_eul_cell_integrals(&mb, euler_set, planeTag, areaTag, cellIntTag);
+
   // get cell barycenters
-  get_barycenters(&mb, euler_set, planeTag, barycenterTag);
+  get_barycenters(&mb, euler_set, planeTag, cellIntTag, barycenterTag);
 
   // get linear reconstruction
   get_linear_reconstruction(&mb, euler_set, rhoTag, planeTag, barycenterTag,
@@ -131,266 +127,6 @@ int main(int /*argc*/, char **/*argv[]*/) {
   return 0;
 }
 
-void get_gnomonic_plane(moab::Interface * mb, moab::EntityHandle set,
-    moab::Tag &planeTag) {
-  // get all entities of dimension 2
-  // then get the connectivity, etc
-  moab::Range cells;
-  ErrorCode rval = mb->get_entities_by_dimension(set, 2, cells);
-  if (MB_SUCCESS != rval)
-    return;
-
-  for (Range::iterator it = cells.begin(); it != cells.end(); it++) {
-    moab::EntityHandle icell = *it;
-    // get the nodes, then the coordinates
-    const moab::EntityHandle * verts;
-    int num_nodes;
-    rval = mb->get_connectivity(icell, verts, num_nodes);
-    if (MB_SUCCESS != rval)
-      return;
-
-    std::vector<double> coords(3 * num_nodes);
-    // get coordinates
-    rval = mb->get_coords(verts, num_nodes, &coords[0]);
-    if (MB_SUCCESS != rval)
-      return;
-
-    double centerx = 0;
-    double centery = 0;
-    double centerz = 0;
-    for (int inode = 0; inode < num_nodes; inode++) {
-      centerx += coords[inode * 3] / num_nodes;
-      centery += coords[inode * 3 + 1] / num_nodes;
-      centerz += coords[inode * 3 + 2] / num_nodes;
-    }
-    double R = std::sqrt(
-        centerx * centerx + centery * centery + centerz * centerz);
-    centerx = centerx / R;
-    centery = centery / R;
-    centerz = centerz / R;
-    moab::CartVect center(centerx, centery, centerz);
-    R = 1.0;
-
-    int plane = 0;
-    decide_gnomonic_plane(center, plane);
-    //decide_gnomonic_plane_test(center,plane);
-
-    rval = mb->tag_set_data(planeTag, &icell, 1, &plane);
-  }
-  return;
-}
-
-void get_barycenters(moab::Interface * mb, moab::EntityHandle set,
-    moab::Tag &planeTag, moab::Tag &barycenterTag) {
-  // get all entities of dimension 2
-  moab::Range cells;
-  ErrorCode rval = mb->get_entities_by_dimension(set, 2, cells);
-  if (MB_SUCCESS != rval)
-    return;
-
-  // set sphere radius to 1 
-  double R = 1.0;
-
-  for (Range::iterator it = cells.begin(); it != cells.end(); it++) {
-    moab::EntityHandle icell = *it;
-
-    // get the nodes
-    const moab::EntityHandle * verts;
-    int num_nodes;
-    rval = mb->get_connectivity(icell, verts, num_nodes);
-    if (MB_SUCCESS != rval)
-      return;
-
-    // get coordinates
-    std::vector<double> coords(3 * num_nodes);
-    rval = mb->get_coords(verts, num_nodes, &coords[0]);
-    if (MB_SUCCESS != rval)
-      return;
-
-    // get plane for cell
-    int plane = 0;
-    rval = mb->tag_get_data(planeTag, &icell, 1, &plane);
-    if (MB_SUCCESS != rval)
-      return;
-    std::vector<double> x(num_nodes);
-    std::vector<double> y(num_nodes);
-    double area = 0;
-    double bary_x = 0;
-    double bary_y = 0;
-    for (int inode = 0; inode < num_nodes; inode++) {
-      // radius should be 1.0, but divide by it just in case for now
-      double rad = sqrt(
-          coords[inode * 3] * coords[inode * 3]
-              + coords[inode * 3 + 1] * coords[inode * 3 + 1]
-              + coords[inode * 3 + 2] * coords[inode * 3 + 2]);
-      CartVect xyzcoord(coords[inode * 3] / rad, coords[inode * 3 + 1] / rad,
-          coords[inode * 3 + 2] / rad);
-      gnomonic_projection(xyzcoord, R, plane, x[inode], y[inode]);
-      // int dum = gnomonic_projection_test(xyzcoord, R, plane, x[inode],y[inode]);
-
-    }
-
-    for (int inode = 0; inode < num_nodes; inode++) {
-      int inode2 = inode + 1;
-      if (inode2 >= num_nodes)
-        inode2 = 0;
-      double xmid = 0.5 * (x[inode] + x[inode2]);
-      double ymid = 0.5 * (y[inode] + y[inode2]);
-      double r1 = sqrt(1 + x[inode] * x[inode] + y[inode] * y[inode]);
-      double rm = sqrt(1 + xmid * xmid + ymid * ymid);
-      double r2 = sqrt(1 + x[inode2] * x[inode2] + y[inode2] * y[inode2]);
-      double hx = x[inode2] - x[inode];
-
-      area += hx
-          * (y[inode] / (r1 * (1 + x[inode] * x[inode]))
-              + 4.0 * ymid / (rm * (1 + xmid * xmid))
-              + y[inode2] / (r2 * (1 + x[inode2] * x[inode2]))) / 6.0;
-
-      bary_x += hx
-          * (x[inode] * y[inode] / (r1 * (1 + x[inode] * x[inode]))
-              + 4.0 * xmid * ymid / (rm * (1 + xmid * xmid))
-              + x[inode2] * y[inode2] / (r2 * (1 + x[inode2] * x[inode2])))
-          / 6.0;
-
-      bary_y += -hx * (1.0 / r1 + 4.0 / rm + 1.0 / r2) / 6.0;
-    }
-
-    bary_x = bary_x / area;
-    bary_y = bary_y / area;
-
-    moab::CartVect barycent;
-    reverse_gnomonic_projection(bary_x, bary_y, R, plane, barycent);
-    // reverse_gnomonic_projection_test(bary_x, bary_y, R, plane, barycent);
-    std::vector<double> barycenter(3);
-    barycenter[0] = barycent[0];
-    barycenter[1] = barycent[1];
-    barycenter[2] = barycent[2];
-
-    rval = mb->tag_set_data(barycenterTag, &icell, 1, &barycenter[0]);
-
-  }
-  return;
-}
-
-void get_linear_reconstruction(moab::Interface * mb, moab::EntityHandle set,
-    moab::Tag &rhoTag, moab::Tag &planeTag, moab::Tag &barycenterTag,
-    moab::Tag &linearCoefTag) {
-  // get all entities of dimension 2
-  Range cells;
-  ErrorCode rval = mb->get_entities_by_dimension(set, 2, cells);
-  if (MB_SUCCESS != rval)
-    return;
-
-  // set sphere radius to 1 
-  double R = 1;
-
-  // Get coefficients of reconstruction (in cubed-sphere coordinates)
-  // rho(x,y) = Ax + By + C
-  for (Range::iterator it = cells.begin(); it != cells.end(); it++) {
-    moab::EntityHandle icell = *it;
-
-    // get the nodes, then the coordinates
-    const moab::EntityHandle * verts;
-    int num_nodes;
-    rval = mb->get_connectivity(icell, verts, num_nodes);
-    if (MB_SUCCESS != rval)
-      return;
-
-    moab::Range adjacentEdges;
-    rval = mb->get_adjacencies(&icell, 1, 1, true, adjacentEdges);
-    //int num_edges = adjacentEdges.size();
-
-    // get adjacent cells from edges
-    moab::Range adjacentCells;
-    rval = mb->get_adjacencies(adjacentEdges, 2, true, adjacentCells,
-        Interface::UNION);
-    if (MB_SUCCESS != rval)
-        return;
-    // get plane for cell
-    int plane = 0;
-    rval = mb->tag_get_data(planeTag, &icell, 1, &plane);
-
-    std::vector<double> dx(adjacentCells.size() - 1);
-    std::vector<double> dy(adjacentCells.size() - 1);
-    std::vector<double> dr(adjacentCells.size() - 1);
-    double bary_x;
-    double bary_y;
-
-    // get barycenter of cell where reconstruction occurs
-    std::vector<double> barycent(3);
-    rval = mb->tag_get_data(barycenterTag, &icell, 1, &barycent[0]);
-    CartVect barycenter(barycent[0], barycent[1], barycent[2]);
-    double cellbaryx = 0;
-    double cellbaryy = 0;
-    gnomonic_projection(barycenter, R, plane, cellbaryx, cellbaryy);
-    // int rc = gnomonic_projection_test(barycenter, R, plane, cellbaryx, cellbaryy);
-
-    // get density value
-    double rhocell = 0;
-    rval = mb->tag_get_data(rhoTag, &icell, 1, &rhocell);
-
-    // get barycenters of surrounding cells 
-    std::vector<double> cell_barys(3 * adjacentCells.size());
-    rval = mb->tag_get_data(barycenterTag, adjacentCells, &cell_barys[0]);
-
-    // get density of surrounding cells 
-    std::vector<double> rho_vals(adjacentCells.size());
-    rval = mb->tag_get_data(rhoTag, adjacentCells, &rho_vals[0]);
-
-    std::size_t jind = 0;
-    for (std::size_t i = 0; i < adjacentCells.size(); i++) {
-
-      if (adjacentCells[i] != icell) {
-        CartVect bary_xyz(cell_barys[i * 3], cell_barys[i * 3 + 1],
-            cell_barys[i * 3 + 2]);
-        gnomonic_projection(bary_xyz, R, plane, bary_x, bary_y);
-        // rc = gnomonic_projection_test(bary_xyz, R, plane, bary_x, bary_y);
-
-        dx[jind] = bary_x - cellbaryx;
-        dy[jind] = bary_y - cellbaryy;
-        dr[jind] = rho_vals[i] - rhocell;
-
-        jind++;
-      }
-    }
-
-    std::vector<double> linearCoef(3);
-    if (adjacentCells.size() == 5) {
-
-      // compute normal equations matrix
-      double N11 = dx[1] * dx[1] + dx[2] * dx[2] + dx[3] * dx[3]
-          + dx[0] * dx[0];
-      double N22 = dy[1] * dy[1] + dy[2] * dy[2] + dy[3] * dy[3]
-          + dy[0] * dy[0];
-      double N12 = dx[1] * dy[1] + dx[2] * dy[2] + dx[3] * dy[3]
-          + dx[0] * dy[0];
-
-      // rhs
-      double Rx = dx[1] * dr[1] + dx[2] * dr[2] + dx[3] * dr[3] + dx[0] * dr[0];
-      double Ry = dy[1] * dr[1] + dy[2] * dr[2] + dy[3] * dr[3] + dy[0] * dr[0];
-
-      // determinant
-      double Det = N11 * N22 - N12 * N12;
-
-      // solution
-      linearCoef[0] = (Rx * N22 - Ry * N12) / Det;
-      linearCoef[1] = (Ry * N11 - Rx * N12) / Det;
-      linearCoef[2] = rhocell - linearCoef[0] * cellbaryx
-          - linearCoef[1] * cellbaryy;
-
-    } else {
-      // default to first order
-      linearCoef[0] = 0.0;
-      linearCoef[1] = 0.0;
-      linearCoef[2] = rhocell;
-      std::cout << "Need 4 adjacent cells for linear reconstruction! \n";
-    }
-
-    rval = mb->tag_set_data(linearCoefTag, &icell, 1, &linearCoef[0]);
-
-  }
-  return;
-}
 
 void test_linear_reconstruction(moab::Interface * mb, moab::EntityHandle set,
     moab::Tag &rhoTag, moab::Tag &planeTag, moab::Tag &barycenterTag,
