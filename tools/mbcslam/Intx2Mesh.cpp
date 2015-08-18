@@ -16,7 +16,6 @@
 #include <queue>
 #include <sstream>
 #include "moab/GeomUtil.hpp"
-
 namespace moab {
 
 Intx2Mesh::Intx2Mesh(Interface * mbimpl): mb(mbimpl)
@@ -179,12 +178,14 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
                  // advance ; rs2 is needed for marking the polygon to the red parent
   while (!rs22.empty())
   {
+#ifndef NDEBUG
     if (rs22.size()<rs2.size())
     {
       std::stringstream fff;
-      fff << "file0" <<  counting<< ".vtk";
+      fff << "file0" << my_rank << "_0" <<  counting<< ".vtk";
       mb->write_mesh(fff.str().c_str(), &outputSet, 1);
     }
+#endif
     for (Range::iterator it = rs1.begin(); it != rs1.end(); it++)
     {
       startBlue = *it;
@@ -233,7 +234,11 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
       EntityHandle currentRed = redQueue.front();
       redQueue.pop();
       int nsidesRed; // will be initialized now
+#ifndef NDEBUG
       double areaRedCell = setup_red_cell(currentRed, nsidesRed); // this is the area in the gnomonic plane
+#else
+      setup_red_cell(currentRed, nsidesRed); // this is the area in the gnomonic plane
+#endif
       double recoveredArea = 0;
       // get the neighbors of red, and if they are solved already, do not bother with that side of red
       EntityHandle redNeighbors[MAXEDGES];
@@ -281,8 +286,9 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
       //mb2->set_tag_data
       std::queue<EntityHandle> localBlue;
       localBlue.push(currentBlue);
+#ifndef NDEBUG
       int countingStart = counting;
-
+#endif
       while (!localBlue.empty())
       {
         //
@@ -358,11 +364,13 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
               << mb->id_from_handle(blueT) << "\n";
         }
       } // end while (!localBlue.empty())
+#ifndef NDEBUG
       double redRecovery=fabs((recoveredArea-areaRedCell)/areaRedCell); // 0 means everything got recovered
       if ( redRecovery > epsilon_1)
       {
         std::cout << " red area: " << areaRedCell << " recovered :" <<recoveredArea << " redID: " << mb->id_from_handle(currentRed) << " countingStart:" << countingStart <<  "\n";
       }
+#endif
       // here, we are finished with redCurrent, take it out of the rs22 range (red, arrival mesh)
       rs22.erase(currentRed);
       // also, look at its neighbors, and add to the seeds a next one
@@ -665,8 +673,9 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
   int sizeTuple = 2+max_edges; // determined earlier
   TLq.initialize(2+max_edges, 0, 1, 0, numq); // to proc, elem GLOBAL ID, connectivity[10] (global ID v), local eh
   TLq.enableWriteAccess();
+#ifndef NDEBUG
   std::cout << "from proc " << my_rank << " send " << numv << " vertices and " << numq << " elements\n";
-
+#endif
   for (int to_proc=0; to_proc<numprocs; to_proc++)
   {
     if (to_proc==(int)my_rank)
@@ -978,9 +987,10 @@ ErrorCode Intx2Mesh::create_departure_mesh_3rd_alg(EntityHandle & lagr_set,
   TLq.initialize(2+max_edges, 0, 1, 0, numq); // to proc, elem GLOBAL ID, connectivity[max_edges] (global ID v)
   // send also the corresponding red cell it will come to
   TLq.enableWriteAccess();
+#ifndef NDEBUG
   std::cout << "from proc " << my_rank << " send " << numv << " vertices and "
       << numq << " elements\n";
-
+#endif
   for (int to_proc = 0; to_proc < numprocs; to_proc++)
   {
     if (to_proc == (int) my_rank)
@@ -1069,6 +1079,7 @@ ErrorCode Intx2Mesh::create_departure_mesh_3rd_alg(EntityHandle & lagr_set,
       rval = mb->create_vertex(dp_pos, new_vert);
       ERRORR(rval, "can't create new vertex ");
       globalID_to_handle[globalId] = new_vert;
+      // this is mostly for debugging purposes
     }
   }
 
