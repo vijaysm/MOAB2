@@ -28,6 +28,7 @@
 #include "moab/ProgOptions.hpp"
 #include "moab/CartVect.hpp"
 #include "moab/NestedRefine.hpp"
+#include "moab/VerdictWrapper.hpp"
 
 using namespace moab;
 using namespace std;
@@ -46,7 +47,7 @@ string test_file_name = string("input/surfrandomtris-4part.h5m");
       if (!global_rank) std::cerr << MSG << std::endl;    \
   } while(false)
 
-ErrorCode perform_laplacian_smoothing(Core *mb, Range &verts, int dim, Tag fixed, 
+ErrorCode perform_laplacian_smoothing(Core *mb, Range& cells, Range &verts, int dim, Tag fixed, 
                                    bool use_hc=false, bool use_acc=false, int acc_method=1, int num_its=10, 
                                    double rel_eps=1e-5, double alpha=0.0, double beta=0.5, int report_its=1);
 
@@ -90,7 +91,7 @@ int main(int argc, char **argv)
   opts.addOpt<int>(std::string("dim,d"),
       std::string("Topological dimension of the mesh (default=2)"), &num_dim);
   opts.addOpt<std::string>(std::string("file,f"),
-      std::string("Input mesh file to smoothen (default=input/surfrandomtris-4part.h5m)"), &test_file_name);
+      std::string("Input mesh file to smoothen (default=surfrandomtris-4part.h5m)"), &test_file_name);
   opts.addOpt<int>(std::string("nrefine,r"),
       std::string("Number of uniform refinements to perform and apply smoothing cycles (default=1)"), &num_ref);
   opts.addOpt<int>(std::string("ndegree,p"),
@@ -159,18 +160,18 @@ int main(int argc, char **argv)
     int def_val = 0;
     rval = mb->tag_get_handle("fixed", 1, MB_TYPE_INTEGER, fixed, MB_TAG_CREAT | MB_TAG_DENSE, &def_val); RC;
 
-    // get all vertices and faces
-    Range verts, faces, skin_verts;
+    // get all vertices and cells
+    Range verts, cells, skin_verts;
     rval = mb->get_entities_by_type(currset, MBVERTEX, verts); RC;
-    rval = mb->get_entities_by_dimension(currset, num_dim, faces); RC;
-    dbgprint ( "Found " << verts.size() << " vertices and " << faces.size() << " elements" );
+    rval = mb->get_entities_by_dimension(currset, num_dim, cells); RC;
+    dbgprint ( "Found " << verts.size() << " vertices and " << cells.size() << " elements" );
     
-    // get the skin vertices of those faces and mark them as fixed; we don't want to fix the vertices on a
-    // part boundary, but since we exchanged a layer of ghost faces, those vertices aren't on the skin locally
+    // get the skin vertices of those cells and mark them as fixed; we don't want to fix the vertices on a
+    // part boundary, but since we exchanged a layer of ghost cells, those vertices aren't on the skin locally
     // ok to mark non-owned skin vertices too, I won't move those anyway
     // use MOAB's skinner class to find the skin
     Skinner skinner(mb);
-    rval = skinner.find_skin(currset, faces, true, skin_verts); RC; // 'true' param indicates we want vertices back, not faces
+    rval = skinner.find_skin(currset, cells, true, skin_verts); RC; // 'true' param indicates we want vertices back, not cells
 
     std::vector<int> fix_tag(skin_verts.size(), 1); // initialized to 1 to indicate fixed
     rval = mb->tag_set_data(fixed, skin_verts, &fix_tag[0]); RC;
@@ -182,7 +183,7 @@ int main(int argc, char **argv)
     }
 
     // now perform the Laplacian relaxation
-    rval = perform_laplacian_smoothing(mb, verts, num_dim, fixed, use_hc, use_acc, acc_method, num_its, rel_eps, alpha, beta, report_its); RC;
+    rval = perform_laplacian_smoothing(mb, cells, verts, num_dim, fixed, use_hc, use_acc, acc_method, num_its, rel_eps, alpha, beta, report_its); RC;
     
     // output file, using parallel write
     sstr.str("");
@@ -201,7 +202,7 @@ int main(int argc, char **argv)
   return 0;
 }
 
-ErrorCode perform_laplacian_smoothing(Core *mb, Range &verts, int dim, Tag fixed, 
+ErrorCode perform_laplacian_smoothing(Core *mb, Range& cells, Range &verts, int dim, Tag fixed, 
                                        bool use_hc, bool use_acc, int acc_method,
                                        int num_its, double rel_eps, 
                                        double alpha, double beta, int report_its) 
@@ -260,6 +261,10 @@ ErrorCode perform_laplacian_smoothing(Core *mb, Range &verts, int dim, Tag fixed
   }
 #endif
 
+  bool check_metrics = true;
+  VerdictWrapper vw(mb);
+  vw.set_size(1.); // for relative size measures; maybe it should be user input
+
   double mxdelta = 0.0, global_max = 0.0;
   // 2. for num_its iterations:
   for (int nit = 0; nit < num_its; nit++) {
@@ -272,6 +277,37 @@ ErrorCode perform_laplacian_smoothing(Core *mb, Range &verts, int dim, Tag fixed
     }
     else {
       rval = laplacianFilter(mb, pcomm, verts, dim, fixed, verts_o, verts_n); RC;
+    }
+
+    if (check_metrics) {
+      bool smooth_success = true;
+      std::vector<double> coords;
+      double jac = 0.0;
+      int num_nodes = 0;
+      for (unsigned ic=0; ic < cells.size(); ++ic) {
+        EntityHandle ecell = cells[ic];
+        EntityType etype = mb->type_from_handle(ecell);
+        Range everts;
+        rval = mb->get_connectivity(&ecell, 1, everts, num_nodes); RC;
+        coords.resize(num_nodes*3, 0.0);
+        for (int iv=0; iv < num_nodes; ++iv) {
+          const int offset = mb->id_from_handle(everts[iv])*3;
+          for (int ii=0; ii < 3; ++ii)
+            coords[iv*3+ii] = verts_n[offset+ii];
+        }
+        rval = vw.quality_measure(ecell, MB_SHAPE, jac, num_nodes, etype, &coords[0]); RC;
+        if (jac < 1e-8) {
+          dbgprint ( "Inverted element " << ic << " with jacobian = " << jac << "." ) ;
+          smooth_success = false;
+          break;
+        }
+      }
+
+      if (!smooth_success) {
+        verts_o.swap(verts_n);
+        dbgprint ( "Found element inversions during smoothing. Stopping iterations." ) ;
+        break;
+      }
     }
 
     if (use_acc) {
@@ -405,7 +441,6 @@ ErrorCode perform_laplacian_smoothing(Core *mb, Range &verts, int dim, Tag fixed
     if (global_max < rel_eps) break;
     else {
       std::copy(verts_n.begin(), verts_n.end(), verts_o.begin());
-      // verts_o.swap(verts_n);
     }
   }
 
