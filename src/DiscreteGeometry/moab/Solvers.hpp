@@ -13,11 +13,11 @@ namespace moab
 
     void compute_qtransposeB(int mrows, int ncols, const double *Q, int bncols, double *bs);
 
-    void qr_polyfit_safeguarded(double *V, int mrows, int ncols, double *D, int &rank);
+    void qr_polyfit_safeguarded(int mrows, int ncols, double *V, double *D, int &rank);
 
     void backsolve(int mrows, int ncols, double *R, int bncols, double *bs, double *ws);
 
-    void backsolve_polyfit_safeguarded();
+    void backsolve_polyfit_safeguarded(int dim, int degree, bool interp, int mrows, int ncols, double *R, int bncols, double *bs, double *ws, double *degree_out);
 
     void vec_dotprod(const double* a, const double* b, const int len, double* c);
 
