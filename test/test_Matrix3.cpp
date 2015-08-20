@@ -78,5 +78,12 @@ void test_EigenDecomp()
   CHECK_REAL_EQUAL( vectors[2][1], vec2_check[1], tol );
   CHECK_REAL_EQUAL( vectors[2][2], vec2_check[2], tol );
 
+  //another check to ensure the result is valid (AM-kM = 0)
+  unsigned int i;
+  for(i=0; i<3; i++){
+    moab::CartVect v = moab::Matrix::matrix_vector(mat, vectors[i])-lamda[i]*vectors[i];
+    CHECK_REAL_EQUAL( v.length(), 0, tol );
+  }
+  
   return;
 }
