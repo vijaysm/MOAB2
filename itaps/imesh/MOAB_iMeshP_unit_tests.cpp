@@ -288,6 +288,7 @@ int get_local_parts( iMesh_Instance instance,
   CHKERR;
   handles.resize( size );
   std::copy( arr, arr + size, handles.begin() );
+  free(arr);
   if (!ids)
     return iBase_SUCCESS;
   
@@ -1625,6 +1626,7 @@ int test_part_boundary_iter( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, 
                                      shared_verts.size(), other_id, &aiter, &ierr );
       if (ierr != iBase_SUCCESS) {
         array_error.push_back( part_pair );
+        iMesh_endEntArrIter( imesh, aiter, &ierr );
         continue;
       }
       iBase_EntityHandle results[5], *ptr = results;
@@ -1632,8 +1634,10 @@ int test_part_boundary_iter( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, 
       iMesh_getNextEntArrIter( imesh, aiter, &ptr, &junk, &count, &has_data, &ierr );
       if (ierr != iBase_SUCCESS || !has_data) {
         array_step_error.push_back( part_pair );
+        iMesh_endEntArrIter( imesh, aiter, &ierr );
         continue;
       }
+      iMesh_endEntArrIter( imesh, aiter, &ierr );
       assert(count <= 5);
       assert(ptr == results);
       std::sort(ptr, ptr + count);
