@@ -1159,6 +1159,8 @@ ErrorCode Intx2Mesh::create_departure_mesh_3rd_alg(EntityHandle & lagr_set,
   sort_buffer.buffer_init(n);
   remote_cells->sort(1, &sort_buffer);
   sort_buffer.reset();
+  TLv.reset();
+  TLq.reset();
   return MB_SUCCESS;
   //end copy
 }
