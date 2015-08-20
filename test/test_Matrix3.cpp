@@ -6,8 +6,6 @@
 #include "moab/CartVect.hpp"
 #include "TestUtil.hpp"
 
-//#include <armadillo>
-
 using namespace moab;
 
 
