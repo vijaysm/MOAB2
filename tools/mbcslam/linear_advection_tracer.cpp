@@ -383,6 +383,12 @@ int main(int argc, char *argv[]) {
     MB_CHK_ERR(rval);
     rval = mb.delete_entities(todeleteVerts);
     MB_CHK_ERR(rval);
+    if (pcomm.size() >1)
+    {
+      // covering set was created inside this loop, need to clear it and delete it
+      rval = mb.clear_meshset(&covering_set, 1);  MB_CHK_ERR(rval);
+      rval = mb.delete_entities(&covering_set, 1);  MB_CHK_ERR(rval);
+    }
     if (rank == 0)
       std::cout << " step: " << ts << "\n";
     // temporary, stop here

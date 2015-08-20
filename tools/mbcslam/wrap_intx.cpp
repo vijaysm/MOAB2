@@ -57,6 +57,7 @@ Tag rhoBoundsTag = 0;
 Tag weightsTag = 0;
 Tag gid = 0;
 ParallelComm *pcomm = NULL;
+EntityHandle covering_set; // take it out of loop; empty it when done
 // for printing, debug style
 int num_update_calls=0;
 int nlev = 4;
@@ -1137,7 +1138,6 @@ void intersection_at_level(iMesh_Instance instance,
   // it should be done earlier
   pworker->SetRadius(radius);
 
-  EntityHandle covering_set;
   rval = pworker->create_departure_mesh_3rd_alg(lagrMeshSet, covering_set);
   ERRORV(rval, "can't compute covering set ");
 
@@ -1202,6 +1202,13 @@ void cleanup_after_intersection(iMesh_Instance instance,
   ERRORV(rval, "delete intx elements");
   rval = mb->delete_entities(todeleteVerts);
   ERRORV(rval, "failed to delete intx vertices");
+  if (pcomm->size()>1)
+  {
+    // we are in parallel, we created and populated the covering set
+    // clean it up
+    rval = mb->clear_meshset(&covering_set, 1); ERRORV(rval, "clear covering set");
+    rval = mb->delete_entities(&covering_set, 1); ERRORV(rval, "delete covering set");
+  }
 
   *ierr = 0;
   return;
