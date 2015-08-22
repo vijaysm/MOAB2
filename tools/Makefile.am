@@ -3,8 +3,7 @@ AM_CPPFLAGS += -I$(top_srcdir)/src \
                -I$(top_builddir)/src \
                -I$(top_srcdir)/src/parallel \
 	       -I$(top_srcdir)/itaps \
-	       -I$(top_builddir)/itaps/imesh \
-               -I$(top_builddir)/src/parallel
+               -I$(top_builddir)/itaps/imesh
 
 LDADD = $(top_builddir)/src/libMOAB.la
 if ENABLE_imesh
@@ -148,6 +147,11 @@ if ENABLE_mbumr
   bin_PROGRAMS += mbumr
 endif
 
+if ENABLE_mbmerge
+  bin_PROGRAMS += mbmerge
+endif
+
+
 noinst_PROGRAMS = $(parread)
 
 SUBDIRS = . \
@@ -161,6 +165,7 @@ SUBDIRS = . \
           $(dagmc_DIR) 
 
 mbconvert_SOURCES = convert.cpp
+mbmerge_SOURCES = merge.cpp
 mbgsets_SOURCES = gsets.cc
 hexmodops_SOURCES = makeops.cpp
 mbsize_SOURCES = measure.cpp measure.hpp size.cpp

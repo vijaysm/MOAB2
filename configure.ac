@@ -997,6 +997,7 @@ if test "xyes" = "x$ENABLE_dagmc"; then
 fi
 
 MB_OPTIONAL_TOOL([gsets],        [yes], [yes])
+MB_OPTIONAL_TOOL([mbmerge],        [yes], [yes])
 MB_OPTIONAL_TOOL([mbdepth],      [yes], [yes])
 if test "x$enablempi" != "xno"; then
   MB_OPTIONAL_TOOL([mbcoupler],    [no], [yes] )
