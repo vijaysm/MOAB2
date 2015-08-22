@@ -12,10 +12,12 @@ using namespace moab;
 
 const char* meshfile = STRINGIFY(MESHDIR) "/16_unmerged_hex.h5m";
 const char* meshfile2 = STRINGIFY(MESHDIR) "/merge_with_tag.h5m";
+const char* meshfile3 = STRINGIFY(MESHDIR) "/triangles.h5m";
 const char *outfile = "mm_out.h5m";
 
 void mergesimple_test();
 void merge_with_tag_test();
+void merge_all_test();
 
 int main( int /*argc*/, char**/* argv*/)
 {
@@ -23,6 +25,7 @@ int main( int /*argc*/, char**/* argv*/)
 
   result += RUN_TEST(mergesimple_test);
   result += RUN_TEST(merge_with_tag_test);
+  result += RUN_TEST(merge_all_test);
 
   return result;
 }
@@ -31,7 +34,8 @@ void mergesimple_test()
 {
 
   ErrorCode rval;
-  Interface* iface = new Core();
+  Core mb;
+  Interface* iface = &mb;
   // can be generalized to load user defined input/output file
 
   rval = iface->load_mesh(meshfile);
@@ -50,13 +54,15 @@ void mergesimple_test()
 
   rval = iface->write_file( outfile);
   CHECK_ERR(rval);
+
   return ;
 }
 
 void merge_with_tag_test()
 {
   ErrorCode rval;
-  Interface* iface = new Core();
+  Core mb;
+  Interface* iface = &mb;
   // can be generalized to load user defined input/output file
 
   rval = iface->load_mesh(meshfile2);
@@ -80,3 +86,23 @@ void merge_with_tag_test()
 
   return;
 }
+void merge_all_test()
+{
+
+  ErrorCode rval;
+  Core mb;
+  Interface* iface = &mb;
+
+  rval = iface->load_mesh(meshfile3);
+  CHECK_ERR(rval);
+
+  MergeMesh mm(iface);
+  double merge_tol = 1e-3;
+  rval = mm.merge_all(0, merge_tol); // root set
+  CHECK_ERR(rval);
+  rval = iface->write_file( outfile);
+  CHECK_ERR(rval);
+
+  return;
+}
+
