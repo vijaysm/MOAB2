@@ -18,6 +18,19 @@
 
 namespace moab {
 
+MergeMesh::MergeMesh(Interface *impl, bool printErrorIn) :
+    mbImpl(impl), mbMergeTag(0), mergeTol(0.001), mergeTolSq(0.000001), printError(printErrorIn)
+{
+}
+
+MergeMesh::~MergeMesh()
+{
+  if (mbMergeTag)
+    mbImpl->tag_delete(mbMergeTag);
+  mbMergeTag=NULL;
+}
+
+
 ErrorCode MergeMesh::merge_entities(EntityHandle *elems,
     int elems_size, const double merge_tol, const int do_merge,
     const int update_sets, Tag merge_tag, bool do_higher_dim)

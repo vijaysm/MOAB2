@@ -66,18 +66,6 @@ private:
   bool printError;
 };
 
-inline MergeMesh::MergeMesh(Interface *impl, bool printErrorIn) :
-    mbImpl(impl), mbMergeTag(0), mergeTol(0.001), mergeTolSq(0.000001), printError(printErrorIn)
-{
-}
-
-inline MergeMesh::~MergeMesh()
-{
-  if (mbMergeTag)
-    mbImpl->tag_delete(mbMergeTag);
-  mbMergeTag=NULL;
-}
-
 }
 
 #endif
