@@ -26,7 +26,8 @@ AM_CPPFLAGS += -DIS_BUILDING_MB \
                -I$(top_srcdir)/src  \
                -I$(top_srcdir)/src/LocalDiscretization \
                -I$(top_srcdir)/src/verdict \
-               -I$(top_srcdir)/src/RefineMesh
+               -I$(top_srcdir)/src/RefineMesh \
+               -I$(top_srcdir)/src/DiscreteGeometry
 
 if PARALLEL
   AM_CPPFLAGS += -I$(top_srcdir)/src/parallel
@@ -59,7 +60,8 @@ TESTS = range_test \
         test_boundbox \
         adj_moab_test \
         uref_mesh_test \
-        verdict_test
+        verdict_test \
+        hireconst_test
 
 if HAVE_HDF5
   TESTS += mbfacet_test \
@@ -156,6 +158,7 @@ lloyd_smoother_test_SOURCES = lloyd_smoother_test.cpp
 
 adj_moab_test_SOURCES = adj_moab_test.cpp
 uref_mesh_test_SOURCES = urefine_mesh_test.cpp
+hireconst_test_SOURCES = hireconst_test.cpp
 
 if PARALLEL
 moab_test_CPPFLAGS += -I$(top_srcdir)/src/parallel
