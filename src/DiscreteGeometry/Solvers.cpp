@@ -73,7 +73,7 @@ namespace moab {
     assert(len==iend-istr);
   }
 
-  void gen_vander_multivar(const int mrows,const int kvars, const double* us, const int degree, std::vector<double>& V){
+  void Solvers::gen_vander_multivar(const int mrows,const int kvars, const double* us, const int degree, std::vector<double>& V){
     unsigned int ncols = compute_numcols_vander_multivar(kvars,degree);
     V.reserve(mrows*ncols-V.capacity()+V.size());
     size_t istr=V.size(),icol=0;
@@ -338,7 +338,7 @@ namespace moab {
       return;
     }
     //c = a-<a,b>b/<b,b>;
-    double bnrm = vec_2normalize(len,b,c);
+    double bnrm = vec_normalize(len,b,c);
     if (bnrm==0){
         for(int i=0;i<len;++i){
           c[i] = a[i];

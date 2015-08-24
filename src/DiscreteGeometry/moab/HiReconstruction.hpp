@@ -211,7 +211,7 @@ namespace moab
 		protected:
 			Core *mbImpl;
 			ParallelComm *pcomm;
-			HalfFaceRep *ahf;
+			HalfFacetRep *ahf;
 			//prevent copying
 			HiReconstruction(const HiReconstruction& source);
 			HiReconstruction& operator= (const HiReconstruction& right);
@@ -223,16 +223,16 @@ namespace moab
 			size_t _nv2rec;//size of _verts2rec
 
 			int _MAXPNTS,_MINPNTS;
-			double _MINEPS=1e-12;
+			double _MINEPS;
 
 			//in curve mesh, _hasderiv=true means vertex tangent vectors have been computed over _verts2rec
 			//in surface mesh, _hasderiv=true means vertex normals have been computed over _verts2rec
 			bool _hasderiv;
 
 			GEOMTYPE _geom;
-			int _dim=0;
-			bool _hasfittings = false;
-			bool _initfittings = false;
+			int _dim;
+			bool _hasfittings;
+			bool _initfittings;
 			std::vector<double> _local_coords;
 			std::vector<double> _local_fit_coeffs;
 			std::vector<size_t> _vertID2coeffID;
@@ -331,7 +331,7 @@ namespace moab
 				* \param degree_pnt Pointer to integer, polynomial fitting order determined by stencil size/number of points
 				* \param degree_qr Pointer to integer, polynomial fitting order determined by Vandermonde system condition number
 			*/
-			void polyfit3d_surf_get_coeff(const int nverts, const double* ngbcors, const double* ngbnrms, int degree, const bool interp, const bool safeguard, const int ncoords, double* coords, const int ncoeffs, double* coeffs, double* degree_out, double* degree_pnt, double* degree_qr);
+			void polyfit3d_surf_get_coeff(const int nverts, const double* ngbcors, const double* ngbnrms, int degree, const bool interp, const bool safeguard, const int ncoords, double* coords, const int ncoeffs, double* coeffs, int* degree_out, int* degree_pnt, int* degree_qr);
 			//! \brief Form and solve Vandermonde system of bi-variables 
 			void eval_vander_bivar_cmf(const int npts2fit, const double* us, const int ndim, double* bs, int degree, const double* ws, const bool interp, const bool safeguard, int* degree_out, int* degree_pnt, int* degree_qr);
 
@@ -351,12 +351,13 @@ namespace moab
 				* \param coeffs Pointer to array of doubles, preallocated memory for storing coefficients of local fittings in monomial basis
 				* \param degree_out Pointer to integer, order of resulted polynomial of fitting, could be downgraded due to numerical issues
 			*/
-			void polyfit3d_curve_get_coeff(const int nverts, const double* ngbcors, const double* ngbtangs, int degree, const bool interp, const bool safeguard, const int ncoords, double* coords, const int ncoeffs, double* coeffs, double* degree_out);
+			void polyfit3d_curve_get_coeff(const int nverts, const double* ngbcors, const double* ngbtangs, int degree, const bool interp, const bool safeguard, const int ncoords, double* coords, const int ncoeffs, double* coeffs, int* degree_out);
 			//! \brief Form and solve Vandermonde system of single-variables
 			void eval_vander_univar_cmf(const int npts2fit, const double* us, const int ndim, double* bs, int degree, const double* ws, const bool interp, const bool safeguard, int* degree_out);
 			//! \brief Compute weights for points selected in weighted least square fittigns
-			int compute_weights(const int nrows, const int ncols, double* us, const int nngbs, double* ngbnrms, const int degree, const double toler, double* ws);
+			int compute_weights(const int nrows, const int ncols, const double* us, const int nngbs, const double* ngbnrms, const int degree, const double toler, double* ws);
 			//! \brief Check the correctness of barycentric coordination, wi>=0 and sum(wi)=1
 			bool check_barycentric_coords(const int nws, const double* naturalcoords);
 	};//class HiReconstruction
 }//namespace moab
+#endif
