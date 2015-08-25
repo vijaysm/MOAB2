@@ -48,5 +48,8 @@ EXTRA_DIST = 125hex.g \
              hex_2048.vtk \
              quad_1000.h5m \
              quad_1000.vtk \
-             spectral.h5m
-
+             spectral.h5m \
+             sphere_quads_5.vtk \
+             sphere_quads_20.vtk \
+             sphere_tris_5.vtk \
+             sphere_tris_20.vtk

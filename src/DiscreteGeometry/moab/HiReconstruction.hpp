@@ -204,7 +204,7 @@ namespace moab
 			bool get_fittings_data(EntityHandle vid, GEOMTYPE& geomtype, std::vector<double>& coords, int& degree_out, std::vector<double>& coeffs, bool& interp);
 
 			//Helper function: estimate require number of ghost layers in parallel setting
-			static int estimate_num_ghost_layers(int degree,bool interp){
+			static int estimate_num_ghost_layers(int degree,bool interp=false){
 				return 1+interp?(degree+1)/2:(degree+2)/2;
 			};
 
