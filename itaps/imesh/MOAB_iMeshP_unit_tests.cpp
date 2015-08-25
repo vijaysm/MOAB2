@@ -1809,7 +1809,7 @@ int test_entity_owner( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const 
       ++invalid_count;
   }
   ASSERT(0 == invalid_count);
-  
+
     // get lists for all entities
   std::vector<iBase_EntityHandle> all_entities(all_verts);
   std::copy( all_quads.begin(), all_quads.end(), std::back_inserter(all_entities) );
@@ -1852,7 +1852,6 @@ int test_entity_owner( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const 
   }
   PCHECK;
   ASSERT(0 == invalid_count);
-  
     
     // check globally consistent owners for all vertices
   
@@ -1869,24 +1868,25 @@ int test_entity_owner( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const 
   for (size_t i = 0; i < all_verts.size(); ++i) {
     int x = (int)round(coords[3*i  ]);
     int y = (int)round(coords[3*i+1]);
-    vtxdata[2*i  ] = (x << 2) | y;
+    vtxdata[2*i  ] = (x << 3) | y;
     vtxdata[2*i+1] = vert_owners[i];
   }
-  
+
     // collect all data on root procesor
   std::vector<int> all_data( 2*global_count );
   std::vector<int> displ(size), counts(size);
-  if (1 == size) {
-    std::copy(vtxdata.begin(), vtxdata.end(), all_data.begin());
-    counts[0] = vtxdata.size();
-    displ[0] = 0;
+  for (int i =0; i< size; i++)
+  {
+    counts[i] = vtxdata.size();
+    displ[i] = i*vtxdata.size();
   }
-  else {
-    ierr = MPI_Gatherv( &vtxdata[0], vtxdata.size(), MPI_INT,
-                        &all_data[0], &counts[0], &displ[0], MPI_INT, 
-                        0, MPI_COMM_WORLD );
-    CHKERR;
-  }
+
+  // we could have used a simple gather, because all sequences are the same
+  ierr = MPI_Gatherv( &vtxdata[0], vtxdata.size(), MPI_INT,
+                      &all_data[0], &counts[0], &displ[0], MPI_INT,
+                      0, MPI_COMM_WORLD );
+  CHKERR;
+
   if (rank == 0) {
       // map from vertex tag to indices into data
     std::multimap<int,int> data_map; 
@@ -1922,6 +1922,7 @@ int test_entity_owner( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const 
       }
     }
   }
+
   return ierr;
 }
 
