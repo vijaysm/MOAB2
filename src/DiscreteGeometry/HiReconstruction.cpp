@@ -63,7 +63,11 @@ namespace moab
 
 		//get locally hosted vertices by filtering pstatus
 	#ifdef MOAB_HAVE_MPI
-		error = pcomm->filter_pstatus(_inverts,PSTATUS_GHOST,PSTATUS_NOT,-1,&_verts2rec); MB_CHK_ERR(error);
+		if(pcomm){
+			error = pcomm->filter_pstatus(_inverts,PSTATUS_GHOST,PSTATUS_NOT,-1,&_verts2rec); MB_CHK_ERR(error);
+		}else{
+			_verts2rec = _inverts;
+		}
 	#else
 		_verts2rec = _inverts;
 	#endif
@@ -212,7 +216,7 @@ namespace moab
 		Range ngbvs;
 		error = obtain_nring_ngbvs(vid,ring,minpnts,ngbvs); MB_CHK_ERR(error);
 		//get coordinates;
-		int nverts = ngbvs.size(); assert(nverts);
+		size_t nverts = ngbvs.size(); assert(nverts);
 		double *ngbcoords = new double[nverts*3];
 		error = mbImpl->get_coords(ngbvs,ngbcoords); MB_CHK_ERR(error);
 		//get normals
@@ -232,7 +236,7 @@ namespace moab
 		Range ngbvs;
 		error = obtain_nring_ngbvs(vid,ring,minpnts,ngbvs); MB_CHK_ERR(error);
 		//get coordinates
-		int nverts = ngbvs.size(); assert(nverts);
+		size_t nverts = ngbvs.size(); assert(nverts);
 		double *ngbcoords = new double[nverts*3];
 		error = mbImpl->get_coords(ngbvs,ngbcoords); MB_CHK_ERR(error);
 		//get tangent vectors
@@ -437,7 +441,7 @@ namespace moab
 	 			todo.pop_front(); --count;
 	 			std::vector<EntityHandle> adjents;
 	 			error = ahf->get_up_adjacencies(center,_dim,adjents); MB_CHK_ERR(error);
-	 			for(int j=0;j<adjents.size();++j){
+	 			for(size_t j=0;j<adjents.size();++j){
 	 				std::vector<EntityHandle> elemconn;
 	 				error = mbImpl->get_connectivity(&adjents[j],1,elemconn); MB_CHK_ERR(error);
 	 				int nvpe = elemconn.size();
@@ -570,6 +574,7 @@ namespace moab
 	 		MB_SET_ERR(MB_FAILURE,"Vertex has no incident 2D entities");
 	 	}else{
 	 		double v1[3],v2[3],v3[3],a[3],b[3],c[3];
+	 		nrm[0] = nrm[1] = nrm[2] = 0;
 	 		for(int i=0;i<npolys;++i){
 	 			//get incident "triangles"
 	 			std::vector<EntityHandle> elemconn;
@@ -1047,7 +1052,7 @@ namespace moab
 
 	 	//First, compute squared distance from each input piont to the center
 	 	for(int i=0;i<nrows;++i){
-	 		ws[i] = Solvers::vec_2norm(ncols,us+i*ncols);
+	 		ws[i] = Solvers::vec_innerprod(ncols,us+i*ncols,us+i*ncols);
 	 	}
 
 	 	//Second, compute a small correction termt o guard against zero
@@ -1060,7 +1065,7 @@ namespace moab
 	 	//Finally, compute the weights for each vertex
 	 	int nzeros = 0;
 	 	for(int i=0;i<nrows;++i){
-	 		double costheta = Solvers::vec_innerprod(3,ngbnrms,ngbnrms+i+interp);
+	 		double costheta = Solvers::vec_innerprod(3,ngbnrms,ngbnrms+3*(i+interp));
 	 		if(costheta>toler){
 	 			ws[i] = costheta*pow(ws[i]/h+epsilon,-1*(double) degree/2.0);
 	 		}else{

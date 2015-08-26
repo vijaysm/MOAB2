@@ -331,7 +331,7 @@ namespace moab {
     return nrm;
   }
 
-  double vec_distance(const int len, const double* a, const double*b){
+  double Solvers::vec_distance(const int len, const double* a, const double*b){
     double res=0;
     for(int i=0;i<len;++i){
       res += (a[i]-b[i])*(a[i]-b[i]);
@@ -347,24 +347,26 @@ namespace moab {
       return;
     }
     //c = a-<a,b>b/<b,b>;
-    double bnrm = vec_normalize(len,b,c);
+    double bnrm = vec_2norm(len,b);
     if (bnrm==0){
         for(int i=0;i<len;++i){
           c[i] = a[i];
         }
         return; 
     }
-    double innerp = vec_innerprod(len,a,c);
+    double innerp = vec_innerprod(len,a,b)/bnrm;
 
     if(innerp==0){
-      for(int i=0;i<len;++i){
-        c[i] = a[i];
+      if(c!=a){
+        for(int i=0;i<len;++i){
+          c[i] = a[i];
+        }
       }
       return;
     }
 
     for(int i=0;i<len;++i){
-        c[i] = a[i]-innerp*c[i];
+        c[i] = a[i]-innerp*b[i]/bnrm;
     }
   }
 
