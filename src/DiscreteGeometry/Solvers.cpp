@@ -331,6 +331,15 @@ namespace moab {
     return nrm;
   }
 
+  double vec_distance(const int len, const double* a, const double*b){
+    double res=0;
+    for(int i=0;i<len;++i){
+      res += (a[i]-b[i])*(a[i]-b[i]);
+    }
+    return sqrt(res);
+  }
+
+
   void Solvers::vec_projoff(const int len, const double* a, const double* b, double* c)
   {
     if(!a||!b||!c){

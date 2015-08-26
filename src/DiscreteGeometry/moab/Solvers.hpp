@@ -70,6 +70,8 @@ public:
 
     static double vec_normalize(const int len, const double* a, double* b);
 
+    static double vec_distance(const int len, const double* a, const double*b);
+
     static void vec_projoff(const int len, const double* a, const double* b, double* c);
 
     static void vec_linear_operation(const int len, const double mu, const double* a, const double psi, const double* b, double* c);
