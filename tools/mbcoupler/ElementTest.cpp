@@ -7,9 +7,6 @@
 #ifndef MESHDIR
 #error Specify MESHDIR to compile test
 #endif
-#ifndef SRCDIR
-#error Specify SRCDIR to compile test
-#endif
 
 using namespace moab;
 
@@ -225,7 +222,7 @@ void test_spectral_quad()
   // first load a model that has spectral elements
   moab::Core *mb = new moab::Core();
   // use the grid on Sphere from mbcslam folder
-  std::string meshFile = STRINGIFY(SRCDIR) "/../mbcslam/eulerHomme.vtk";
+  std::string meshFile = STRINGIFY(MESHDIR) "/mbcslam/eulerHomme.vtk";
   moab::ErrorCode rval = mb->load_mesh(meshFile.c_str());
   if (moab::MB_SUCCESS != rval) return ;
 

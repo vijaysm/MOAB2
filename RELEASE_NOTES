@@ -1,3 +1,16 @@
+# Version 4.8.2:
+** Fixes
+  * PR #106: Ghosting polyhedra elements
+  * PR #107: AHF polyhedra fix (triggered when configured with --enable-ahf)
+  * PR #110: To fix attribute warning when loading an h5m file
+  * PR #108: Addresses issues raised by faceting on models that have point curves
+  * PR #113: Fix a ParallelComm issue in PGI optimization build
+  * PR #117: Side number should return failure when side is -1
+** Enhancement
+  * PR #89: Writing Dense tags in parallel (minor)
+  * PR #104: Install configuration header to decipher dependencies (major)
+  * PR #115: Partitioning with Metis (major)
+
 # Version 4.8.1:
 ** Fixes
   * PR #97: Support read and write of point clouds and free nodes in vtk format

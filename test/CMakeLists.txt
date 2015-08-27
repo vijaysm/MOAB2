@@ -4,6 +4,7 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/src/io
     ${CMAKE_SOURCE_DIR}/src/LocalDiscretization
+    ${CMAKE_SOURCE_DIR}/src/verdict
     ${CMAKE_SOURCE_DIR}/itaps
     ${CMAKE_BINARY_DIR}/itaps
     ${CMAKE_SOURCE_DIR}/itaps/imesh
@@ -22,6 +23,7 @@ add_subdirectory(perf)
 set(TEST_COMP_FLAGS "-DMESHDIR=${MOAB_ABSSRC_DIR}/MeshFiles/unittest")
 
 set( TESTS range_test.cpp
+           verdict_test.cpp
            scdseq_test.cpp
            scd_test_partn.cpp
            test_adj.cpp

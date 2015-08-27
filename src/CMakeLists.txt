@@ -5,6 +5,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}
                     io io/mhdf
                     ${MOAB_BINARY_DIR}/src/parallel )
 
+add_subdirectory(verdict)
 if(MOAB_HAVE_MPI AND MPI_FOUND)
   add_subdirectory(parallel)
   set( MOAB_MPI moabpar )
@@ -216,9 +217,20 @@ if (MOAB_HAVE_ZOLTAN)
   include_directories( ${ZOLTAN_INCLUDES} )
   list(APPEND MOAB_DEP_LIBRARIES ${ZOLTAN_LIBRARIES})
 endif()
+
+if (MOAB_HAVE_METIS)
+  set( MOAB_LIB_SOURCES ${MOAB_LIB_SOURCES}
+        MetisPartitioner.cpp )
+  set( MOAB_INSTALL_HEADERS ${MOAB_INSTALL_HEADERS}
+        moab/MetisPartitioner.hpp )
+  include_directories( ${METIS_INCLUDES} )
+  list(APPEND MOAB_DEP_LIBRARIES ${METIS_LIBRARIES})
+endif()
+
 add_library( MOAB ${MOAB_LIB_SOURCES} ${MOAB_INSTALL_HEADERS} ${MOAB_GENERATED_INSTALL_HEADERS}
                   $<TARGET_OBJECTS:moabio>
                   $<TARGET_OBJECTS:moab_loc_discr>
+                  $<TARGET_OBJECTS:moabverdict>
                   ${MOABPAR_OBJECTS}
                   ${MDHF_OBJ} )
 

@@ -123,17 +123,17 @@ if ( MOAB_BUILD_DAGMC )
 endif( )
 
 # Zoltan
-if ( MOAB_BUILD_MBPART AND MOAB_HAVE_ZOLTAN )
+if ( MOAB_BUILD_MBPART AND ( MOAB_HAVE_ZOLTAN OR MOAB_HAVE_METIS ) )
   # Build the mbpart executable
   add_executable( mbpart mbpart.cpp )
-  include_directories( ${ZOLTAN_INCLUDES} )
+  include_directories( ${ZOLTAN_INCLUDES} ${PARMETIS_INCLUDES} ${METIS_INCLUDES} )
   set_source_files_properties( mbpart.cpp COMPILE_FLAGS "${MOAB_DEFINES}" )
-  target_link_libraries( mbpart MOAB ${ZOLTAN_LIBRARIES} )
+  target_link_libraries( mbpart MOAB ${ZOLTAN_LIBRARIES} ${PARMETIS_LIBRARIES} ${METIS_LIBRARIES} )
   set( MOAB_HAVE_MBPART 1 )
   install(TARGETS mbpart  RUNTIME DESTINATION bin
                           LIBRARY DESTINATION lib
                           ARCHIVE DESTINATION lib )
-endif( MOAB_BUILD_MBPART AND MOAB_HAVE_ZOLTAN )
+endif ( MOAB_BUILD_MBPART AND ( MOAB_HAVE_ZOLTAN OR MOAB_HAVE_METIS ) )
 
 # QVDual
 if ( MOAB_BUILD_QVDUAL )

@@ -25,14 +25,16 @@ namespace moab
 
   class Core;
   class HalfFacetRep;
+  class ParallelComm;
+  class MeasureTime;
 
   class NestedRefine
   {
     
   public:
 
-    NestedRefine(Core *impl);
-    
+    NestedRefine(Core *impl,  ParallelComm *comm=0, EntityHandle rset=0);
+
     ~NestedRefine();
     
     ErrorCode initialize();
@@ -44,10 +46,10 @@ namespace moab
        *  These handles can be used to work with a specific mesh level.
        * \param level_degrees Integer array storing the degrees used in each level.
        * \param num_level The total number of levels in the hierarchy.
-       * \param hm_set EntityHandle array that returns the handles of the sets created for each mesh level.
+       * \param hm_set EntityHandle STL vector that returns the handles of the sets created for each mesh level.
       */
 
-    ErrorCode generate_mesh_hierarchy(int *level_degrees, int num_level, EntityHandle *hm_set);
+    ErrorCode generate_mesh_hierarchy( int num_level, int *level_degrees,  std::vector<EntityHandle>& level_sets);
 
     //! Given an entity and its level, return its connectivity.
     /** Given an entity at a certain level, it finds the connectivity via direct access to a stored internal pointer to the memory to connectivity sequence for the given level.
@@ -113,14 +115,36 @@ namespace moab
 
     ErrorCode vertex_to_entities(EntityHandle vertex, int level, std::vector<EntityHandle> &incident_entities);
 
+    /** Given an entity at a certain level, it returns a boolean value true if it lies on the domain boundary.
+        * \param entity
+      */
+
+      bool is_entity_on_boundary(const EntityHandle &entity);
+
+      ErrorCode exchange_ghosts(std::vector<EntityHandle> &lsets, int num_glayers);
+
+      struct codeperf{
+        double tm_total;
+        double tm_refine;
+        double tm_resolve;
+      };
+
+      codeperf timeall;
+
   protected:
     Core *mbImpl;
+    ParallelComm *pcomm;
     HalfFacetRep *ahf;
+    MeasureTime *tm;
 
+    EntityHandle _rset;
     Range _inverts, _inedges, _infaces, _incells;
+
+    EntityType elementype;
     int meshdim;
     int level_dsequence[MAX_LEVELS];
     std::map<int,int> deg_index;
+    bool hasghost;
 
     /*! \struct refPatterns
      * Refinement patterns w.r.t the reference element. It consists of a locally indexed vertex list along with their natural coordinates, the connectivity of the subdivided entities with local indices, their local AHF maps along with other helper fields to aid in general book keeping such as avoiding vertex duplication during refinement. The entity and degree specific values are stored in the Templates.hpp.
@@ -160,6 +184,15 @@ namespace moab
 
     static const refPatterns refTemplates[9][MAX_DEGREE];
 
+    //! Helper
+    struct intFEdge{
+      //! Number of edges interior to a face
+      short int nie;
+      //! Local connectivity of the interior edges
+      int ieconn[12][2];
+    };
+    static const intFEdge intFacEdg[2][2];
+
     int get_index_from_degree(int degree);
 
     // HM Storage Helper
@@ -183,7 +216,9 @@ namespace moab
     ErrorCode generate_hm(int *level_degrees, int num_level, EntityHandle *hm_set);
     ErrorCode construct_hm_entities(int cur_level, int deg);
     ErrorCode construct_hm_1D(int cur_level, int deg);
+    ErrorCode construct_hm_1D(int cur_level, int deg, EntityType type, std::vector<EntityHandle> &trackverts);
     ErrorCode construct_hm_2D(int cur_level, int deg);
+    ErrorCode construct_hm_2D(int cur_level, int deg, EntityType type, std::vector<EntityHandle> &trackvertsC_edg, std::vector<EntityHandle> &trackvertsF);
     ErrorCode construct_hm_3D(int cur_level, int deg);
 
     ErrorCode subdivide_cells(EntityType type,int cur_level, int deg);
@@ -199,11 +234,15 @@ namespace moab
     // Book-keeping functions
     ErrorCode update_tracking_verts(EntityHandle cid, int cur_level, int deg, std::vector<EntityHandle> &trackvertsC_edg, std::vector<EntityHandle> &trackvertsC_face, EntityHandle *vbuffer);
     ErrorCode reorder_indices(int cur_level, int deg, EntityHandle cell, int lfid, EntityHandle sib_cell, int sib_lfid, int index, int *id_sib);
+    ErrorCode reorder_indices(int deg, EntityHandle *face1_conn, EntityHandle *face2_conn, int nvF, std::vector<int> &lemap, std::vector<int> &vidx, int *leorient=NULL);
+    ErrorCode get_lid_inci_child(EntityType type, int deg, int lfid, int leid, std::vector<int> &child_ids, std::vector<int> &child_lvids);
 
     //Permutation matrices
     struct pmat{
       short int num_comb; // Number of combinations
       int comb[MAX_HE][MAX_HE]; //Combinations
+      int lemap[MAX_HE][MAX_HE]; //Local edge map
+      int orient[MAX_HE]; //Orientation
       int porder2[MAX_HE][MAX_HE]; // Permuted order degree 2
       int porder3[MAX_HE][MAX_HE]; // Permuted order degree 3
     };
@@ -211,9 +250,9 @@ namespace moab
     static const pmat permutation[2];
 
     // Print functions
-    ErrorCode print_tags_1D(int level);
-    ErrorCode print_tags_2D(int level, EntityType type);
-    ErrorCode print_tags_3D(int level, EntityType type);
+    ErrorCode print_maps_1D(int level);
+    ErrorCode print_maps_2D(int level, EntityType type);
+    ErrorCode print_maps_3D(int level, EntityType type);
 
     // Coordinates
     ErrorCode compute_coordinates(int cur_level, int deg, EntityType type, EntityHandle *vbuffer, int vtotal, double *corner_coords, std::vector<int> &vflag, int nverts_prev);
@@ -230,11 +269,29 @@ namespace moab
 
     ErrorCode update_global_ahf_1D(int cur_level, int deg);
 
+    ErrorCode update_global_ahf_1D_sub(int cur_level, int deg);
+
+    ErrorCode update_ahf_1D(int cur_level);
+
     ErrorCode update_global_ahf_2D(int cur_level, int deg);
+
+    ErrorCode update_global_ahf_2D_sub(int cur_level, int deg);
 
     ErrorCode update_global_ahf_3D(int cur_level, int deg);
 
     ErrorCode update_global_ahf_3D(int cur_level, int deg, std::vector<int> &pattern_ids);
+
+    /** Boundary extraction functions
+        * Given a vertex at a certain level, it returns a boolean value true if it lies on the domain boundary.
+        * Note: This is a specialization of the NestedRefine::is_entity_on_boundary function and applies only to vertex queries.
+        * \param entity
+      */
+    bool is_vertex_on_boundary(const EntityHandle& entity);
+    bool is_edge_on_boundary(const EntityHandle& entity);
+    bool is_face_on_boundary(const EntityHandle& entity);
+    bool is_cell_on_boundary(const EntityHandle& entity);
+
+    //ErrorCode find_skin_faces(EntityHandle set, int level, int nskinF);
 
   };
 } //name space moab

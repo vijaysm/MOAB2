@@ -25,11 +25,11 @@
 #pragma warning(disable : 4786)
 #endif
 
-
+#include "moab/MOABConfig.h"
 #define STRINGIFY_(X) #X
 #define STRINGIFY(X) STRINGIFY_(X)
-#ifdef HAVE_UNORDERED_MAP
-# include STRINGIFY(HAVE_UNORDERED_MAP)
+#ifdef MOAB_HAVE_UNORDERED_MAP
+# include STRINGIFY(MOAB_HAVE_UNORDERED_MAP)
 #else
 # include <map>
 #endif
@@ -394,8 +394,8 @@ public:
 
 
   //! map of entity id and tag data
-#ifdef HAVE_UNORDERED_MAP
-  typedef UNORDERED_MAP_NS::unordered_map<EntityHandle,VarLenTag> MapType;
+#ifdef MOAB_HAVE_UNORDERED_MAP
+  typedef MOAB_UNORDERED_MAP_NS::unordered_map<EntityHandle,VarLenTag> MapType;
 #else
   typedef std::map<EntityHandle,VarLenTag> MapType;
 #endif

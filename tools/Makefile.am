@@ -98,6 +98,14 @@ if ENABLE_mbpart
   AM_LDFLAGS += $(ZOLTAN_LIB_FLAGS)
   mbpart_SOURCES = mbpart.cpp
   mbpart_LDADD = $(top_builddir)/src/libMOAB.la $(ZOLTAN_LIBS)
+else
+if ENABLE_metis
+  bin_PROGRAMS += mbpart
+  AM_CPPFLAGS += $(METIS_IN_FLAGS)
+  AM_LDFLAGS += $(METIS_LIB_FLAGS)
+  mbpart_SOURCES = mbpart.cpp
+  mbpart_LDADD = $(top_builddir)/src/libMOAB.la $(METIS_LIBS)
+endif
 endif
 
 if ENABLE_qvdual
@@ -133,7 +141,12 @@ endif
 if ENABLE_mbquality
   AM_CPPFLAGS += -I$(top_srcdir)/src/verdict
   bin_PROGRAMS += mbquality
-endif 
+endif
+
+if ENABLE_mbumr
+  AM_CPPFLAGS += -I$(top_srcdir)/src/RefineMesh
+  bin_PROGRAMS += mbumr
+endif
 
 noinst_PROGRAMS = $(parread)
 
@@ -159,5 +172,5 @@ mbtagprop_SOURCES = parse.cpp parse.hpp propagate_tags.cpp
 mbmem_SOURCES = mbmem.cpp
 parread_SOURCES = parread.cpp
 mbquality_SOURCES = quality.cpp
-
+mbumr_SOURCES = umr.cpp
 

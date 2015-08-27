@@ -25,7 +25,7 @@
 #include "moab/ScdInterface.hpp"
 #include "moab/ProgOptions.hpp"
 #include "moab/CN.hpp"
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
 #include "moab_mpi.h"
 #endif
 #include <iostream>
@@ -38,7 +38,7 @@ int main(int argc, char **argv)
 {
   int N = 10, dim = 3;
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
 
@@ -59,7 +59,7 @@ int main(int argc, char **argv)
   // 1. Decide what the local parameters of the mesh will be, based on parallel/serial and rank.
   int ilow = 0, ihigh = N;
   int rank = 0, nprocs = 1;
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs); MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   ilow = rank*N; ihigh = ilow + N;
 #endif  
@@ -80,7 +80,7 @@ int main(int argc, char **argv)
 #define MYSTREAM(a) if (!rank) cout << a << endl
 
   if (pow(N, dim) == (int) elems.size() && pow(N+1, dim) == (int) verts.size()) { // Expected #e and #v are N^d and (N+1)^d, resp.
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
     MYSTREAM("Proc 0: ");
 #endif
     MYSTREAM("Created " << elems.size() << " " << CN::EntityTypeName(mb->type_from_handle(*elems.begin())) 
@@ -108,9 +108,8 @@ int main(int argc, char **argv)
 
   // 5. Release the structured mesh interface and destroy the MOAB instance
   mb->release_interface(scdiface); // Tell MOAB we're done with the ScdInterface
-  delete mb;
 
-#ifdef USE_MPI
+#ifdef MOAB_HAVE_MPI
   MPI_Finalize();
 #endif
 

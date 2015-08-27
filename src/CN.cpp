@@ -355,8 +355,8 @@ short int CN::SideNumber( const EntityType parent_type,
     // if we've gotten here, we don't match
   side_no = -1;
 
-    // return value is still success, we didn't have any fatal errors or anything
-  return 0;
+    // return value is no success
+  return 1;
 }
 
   //! return the dimension and index of the opposite side, given parent entity type and child 

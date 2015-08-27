@@ -187,11 +187,11 @@ ErrorCode umr_perf_test(Core *mb, int *level_degrees, int num_levels, OUTTYPE ou
   //Create an hm object and generate the hierarchy
   std::cout<<"Creating a hm object"<<std::endl;
   NestedRefine uref(mb);
-  EntityHandle *set = new EntityHandle[num_levels];
+  std::vector<EntityHandle> set;
 
   std::cout<<"Starting hierarchy generation"<<std::endl;
   time_start = wtime();
-  error = uref.generate_mesh_hierarchy(level_degrees, num_levels, set);
+  error = uref.generate_mesh_hierarchy(num_levels, level_degrees, set);
   CHECK_ERR(error);
 
   time_total = wtime() - time_start;
@@ -208,9 +208,9 @@ ErrorCode umr_perf_test(Core *mb, int *level_degrees, int num_levels, OUTTYPE ou
     {
       //Get the current mesh level using its meshset
       Range verts, ents;
-      error = mbImpl->get_entities_by_type(set[l], MBVERTEX, verts);
+      error = mbImpl->get_entities_by_type(set[l+1], MBVERTEX, verts);
       CHECK_ERR(error);
-      error = mbImpl->get_entities_by_dimension(set[l], dim, ents);
+      error = mbImpl->get_entities_by_dimension(set[l+1], dim, ents);
       CHECK_ERR(error);
 
       std::cout<<"Mesh size for level "<<l+1<<" :: deg = "<<level_degrees[l]<<" :: NV = "<<verts.size()<<", NE = "<<ents.size()<<std::endl;
@@ -791,7 +791,7 @@ int main(int argc, char *argv[])
             handle_error_code(result, number_tests_failed, number_tests_successful);
             std::cout<<"\n";
 
-         /*   deg[0] = 5; deg[1] = 5; deg[2] = 5;
+          /*  deg[0] = 5; deg[1] = 5; deg[2] = 5;
             result = perf_inmesh(filename, deg, len, output);
             handle_error_code(result, number_tests_failed, number_tests_successful);
             std::cout<<"\n";*/

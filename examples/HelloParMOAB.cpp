@@ -58,8 +58,10 @@ int main(int argc, char **argv)
   ParallelComm* pcomm = new ParallelComm(mb, comm);
   int nprocs = pcomm->proc_config().proc_size();
   int rank = pcomm->proc_config().proc_rank();
+#ifndef NDEBUG
   MPI_Comm rcomm = pcomm->proc_config().proc_comm();
   assert(rcomm == comm);
+#endif
   if (0 == global_rank)
     cout << " global rank:" << global_rank << " color:" << color << " rank:" << rank << " of " << nprocs << " processors\n";
 
