@@ -881,7 +881,7 @@ namespace moab
 
 	 	//backsolve
 	 	if(safeguard){
-	 		Solvers::backsolve_polyfit_safeguarded();
+	 		Solvers::backsolve_polyfit_safeguarded(2,degree,interp,npts2fit,ncols,&(V[0]),ndim,bs,ws,degree_out);
 	 	}else{
 	 		Solvers::backsolve(npts2fit,ncols_sub,&(V[0]),1,bs,&(ts[0]));
 	 		*degree_out = degree;
@@ -1034,7 +1034,7 @@ namespace moab
 	 	}
 	 	//backsolve
 	 	if(safeguard){
-	 		Solvers::backsolve_polyfit_safeguarded();
+	 		Solvers::backsolve_polyfit_safeguarded(1,degree,interp,npts2fit,ncols,&(V[0]),ndim,bs,ws,degree_out);
 	 	}else{
 	 		Solvers::backsolve(npts2fit,ncols_sub,&(V[0]),ndim,bs,&(ts[0]));
 	 		*degree_out = degree;
