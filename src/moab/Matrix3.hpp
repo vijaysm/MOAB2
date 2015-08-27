@@ -27,7 +27,7 @@
 //#include "moab/EigenDecomp.hpp"
 #include <iostream>
 #include "moab/CartVect.hpp"
-
+#include <vector>
 #include <iosfwd>
 #include <limits>
 #include <float.h>
