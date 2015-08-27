@@ -4,6 +4,7 @@
 #include <vector>
 #include <limits>
 #include <cmath>
+#include <algorithm>
 
 namespace moab {
 
@@ -44,11 +45,11 @@ namespace moab {
         for (int j=0; j<bncols; j++)
           {
             double t2 = 0;
-            for (int i=k; i<nrows; i++)
+            for (int i=k; i<mrows; i++)
               t2 += Q[mrows*k+i]*bs[mrows*j+i];
             t2 = t2 + t2;
 
-            for (int i=k; i<nrows; i++)
+            for (int i=k; i<mrows; i++)
               bs[mrows*j+i] -= t2*Q[mrows*k+i];
           }
       }
@@ -125,7 +126,7 @@ namespace moab {
       {
         for (int j=ncols-1; j>=0; j--)
           {
-            for (int i=j+1; j<ncols; j++)
+            for (int i=j-1; j<ncols-1; j++)
               bs[mrows*k+j] = bs[mrows*k+j] - R[mrows*i+j]*bs[mrows*k+i];
 
             assert(R[mrows*j+j] != 0);
@@ -134,14 +135,16 @@ namespace moab {
           }
       }
 
-    for (int j=1; j<ncols; j++)
-      bs[mrows*k+j] = bs[mrows*k+j]/ws[j];
+    for (int k=0; k< bncols; k++){
+        for (int j=1; j<ncols; j++)
+          bs[mrows*k+j] = bs[mrows*k+j]/ws[j];
+      }
   }
 
   void Solvers::backsolve_polyfit_safeguarded(int dim, int degree, bool interp, int mrows, int ncols, double *R, int bncols, double *bs, double *ws, double *degree_out)
   {
 
-    int deg, numcols;
+/*    int deg, numcols;
 
     for (int k=0; k< bncols; k++)
       {
@@ -256,7 +259,7 @@ namespace moab {
 
         delete [] bs_bak;
       }
-
+*/
   }
 
   void Solvers::vec_dotprod(const double* a, const double* b, const int len, double* c)
@@ -294,17 +297,17 @@ namespace moab {
   {
     double w=0, s=0;
     for (int k=0; k<len; k++)
-      w = std::max(w, abs(a[k]));
+      w = std::max(w, fabs(a[k]));
 
     if (w==0)
       {
         for (int k=0; k<len; k++)
-          s += v[k];
+          s += a[k];
       }
     else
       {
         for (int k=0; k<len; k++)
-          s += (v[k]/w)*(v[k]/w);
+          s += (a[k]/w)*(a[k]/w);
 
         s=w*sqrt(s);
       }
@@ -315,7 +318,7 @@ namespace moab {
   {
     double nrm=0,mx=0;
     for(int i=0;i<len;++i){
-        mx = std::max(abs(a[i]),mx);
+        mx = std::max(fabs(a[i]),mx);
       }
     for(int i=0;i<len;++i){
         nrm += (a[i]/mx)*(a[i]/mx);
