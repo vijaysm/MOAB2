@@ -4,6 +4,10 @@
 #include <iostream>
 #include "TestUtil.hpp"
 
+#ifdef MOAB_HAVE_MPI
+#include "moab_mpi.h"
+#endif
+
 #ifndef MESHDIR
 #error Specify MESHDIR to compile test
 #endif
@@ -21,12 +25,20 @@ void merge_all_test();
 
 int main( int /*argc*/, char**/* argv*/)
 {
+#ifdef MOAB_HAVE_MPI
+  int fail = MPI_Init(0, 0);
+  if (fail) return fail;
+#endif
   int result = 0;
 
   result += RUN_TEST(mergesimple_test);
   result += RUN_TEST(merge_with_tag_test);
   result += RUN_TEST(merge_all_test);
 
+#ifdef MOAB_HAVE_MPI
+  fail = MPI_Finalize();
+  if (fail) return fail;
+#endif
   return result;
 }
 
