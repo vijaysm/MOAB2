@@ -260,6 +260,9 @@ namespace moab{
       count++;
       toProcs.clear();
     }
+    delete [] x;
+    delete [] y;
+    delete [] z;
     if(!canWrite) myTup.disableWriteAccess();
     return MB_SUCCESS;
   }

@@ -28,7 +28,7 @@ void test_tag_iterate()
   CHECK_EQUAL( iBase_SUCCESS, err );
 
   iBase_EntityHandle *verts = 0;
-  int verts_alloc, verts_size;
+  int verts_alloc = 0, verts_size = 0;
   double coords[] = { 0,0,0, 1,1,1, 2,2,2, 3,3,3, 4,4,4, 5,5,5 };
   iMesh_createVtxArr(mesh,6,iBase_INTERLEAVED,coords,18,&verts,&verts_alloc,
                      &verts_size,&err);
@@ -90,6 +90,8 @@ void test_tag_iterate()
 
   iMesh_dtor(mesh,&err);
   CHECK_EQUAL( iBase_SUCCESS, err );
+
+  free(verts);
 }
 
 void test_step_iter()
@@ -104,7 +106,7 @@ void test_step_iter()
   CHECK_EQUAL( iBase_SUCCESS, err );
 
   iBase_EntityHandle *verts = 0;
-  int verts_alloc, verts_size;
+  int verts_alloc = 0, verts_size = 0;
   double coords[] = { 0,0,0, 1,1,1, 2,2,2, 3,3,3, 4,4,4, 5,5,5 };
   iMesh_createVtxArr(mesh,6,iBase_INTERLEAVED,coords,18,&verts,&verts_alloc,
                      &verts_size,&err);
@@ -147,4 +149,6 @@ void test_step_iter()
 
   iMesh_dtor(mesh,&err);
   CHECK_EQUAL( iBase_SUCCESS, err );
+
+  free(verts);
 }

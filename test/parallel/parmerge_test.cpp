@@ -36,6 +36,8 @@ int main(int argc, char* argv[])
   if (rval!=MB_SUCCESS)
   {
     std::cout << "fail to load file\n";
+    delete pc;
+    delete mb;
     MPI_Finalize();
     return 1;
   }
@@ -44,6 +46,8 @@ int main(int argc, char* argv[])
   if (rval!=MB_SUCCESS)
   {
     std::cout << "fail to merge in parallel \n";
+    delete pc;
+    delete mb;
     MPI_Finalize();
     return 1;
   }
@@ -52,6 +56,8 @@ int main(int argc, char* argv[])
     // Get entities shared with all other processors
   rval = pc->get_shared_entities(-1, shared_ents);
   if (rval != MB_SUCCESS) {
+    delete pc;
+    delete mb;
     MPI_Finalize();
     return 1;
   }
@@ -64,6 +70,8 @@ int main(int argc, char* argv[])
   {
     std::cout << " wrong number of shared entities on proc "<< rank << " v:" << numV << " e:" << numE
         << " f:" << numF << "\n";
+    delete pc;
+    delete mb;
     MPI_Finalize();
     return 1;
   }
@@ -72,9 +80,15 @@ int main(int argc, char* argv[])
   if (rval!=MB_SUCCESS)
   {
     std::cout << "fail to write output file \n";
+    delete pc;
+    delete mb;
     MPI_Finalize();
     return 1;
   }
+
+  delete pc;
+  delete mb;
+
   MPI_Finalize();
   return 0;
 }

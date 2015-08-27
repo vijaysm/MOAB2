@@ -8,6 +8,15 @@
 !  by default, this test is run on 2 processors
 #define ERROR(rval) if (0 .ne. rval) call exit(1)
 
+module freem
+  interface
+     subroutine c_free(ptr) bind(C, name='free')
+       use ISO_C_BINDING
+       type(C_ptr), value, intent(in) :: ptr
+     end subroutine c_free
+  end interface
+end module freem
+
 program imeshp_test
 
   use ISO_C_BINDING
@@ -164,6 +173,11 @@ program imeshp_test
      call exit(1)
   endif
 
+  call iMesh_dtor(%VAL(imesh), ierr);
+  ERROR(ierr);
+  call iMesh_dtor(%VAL(imesh2), ierr);
+  ERROR(ierr);
+
   call MPI_FINALIZE(ierr)
   stop
 end program imeshp_test
@@ -185,6 +199,7 @@ subroutine create_mesh( &
   !
 
   use ISO_C_BINDING
+  use freem
   implicit none
 
 #ifdef MOAB_HAVE_MPI
@@ -289,6 +304,9 @@ subroutine create_mesh( &
 
   call iMeshP_createGhostEntsAll(%VAL(imesh), %VAL(imeshp), %VAL(2), %VAL(1), %VAL(1), %VAL(0), ierr)
   ERROR(ierr)
+
+  call c_free(vertsPtr)
+  call c_free(entsPtr)
 
   return
 end subroutine create_mesh
