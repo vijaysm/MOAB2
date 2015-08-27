@@ -16,7 +16,7 @@
 
 static void usage_error( const char* name )
 {
-  std::cerr << "Usauge: " << name << 
+  std::cerr << "Usage: " << name <<
     " [-g|-p] <Surface_ID> <input_file>" << std::endl
     << "\t-g           -  Write GNU Plot data file (default)." << std::endl
     << "\t-p           -  Write encapsulated postscript file"  << std::endl
