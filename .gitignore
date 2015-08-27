@@ -264,6 +264,7 @@ tools/dagmc/test_geom
 tools/dagmc/update_coords
 tools/hexmodops
 tools/mbconvert
+tools/mbmerge
 tools/mbcoupler/*.h5m
 tools/mbcoupler/*.g
 tools/mbcoupler/parcoupler_test
