@@ -1,6 +1,7 @@
 #include <iostream>
 #include <moab/Core.hpp>
 #include "moab/MergeMesh.hpp"
+#include "moab/ProgOptions.hpp"
 
 #ifdef MOAB_HAVE_MPI
 #include "moab_mpi.h"
@@ -10,84 +11,145 @@
 
 using namespace moab;
 
-const char usage[] = "[-a|-t|-f|-h] <input filename> <output filename> <tolerance>";
+const char BRIEF_DESC[] = "Merge mesh files or entities in a mesh file. Use available options as desired.";
+std::ostringstream LONG_DESC;
 
-void error( const char* argv0, int rank )
-{
-  if (rank == 0){
-      std::cerr << "Invalid arguments" << std::endl;
-      std::cerr << "Usage: " << argv0 << " " << usage << std::endl;
-    }
-#ifdef MOAB_HAVE_MPI
-  MPI_Finalize();
-#endif
-  exit(0);
-}
-
-void help( const char* argv0 ) {
-  std::cout << argv0 << " " << usage << std::endl
-            << "-a         Default option, will try to merge internal and skin vertices" << std::endl
-            << "-f         Use true parallel read (default)" << std::endl
-            << "-g         Set debug output level" << std::endl;
-  exit(0);
-}
 int main( int argc, char* argv[] )
 {
   int myID = 0, numprocs = 1;
-#ifdef MOAB_HAVE_MPI
   MPI_Init(&argc,&argv);
   MPI_Comm_rank( MPI_COMM_WORLD, &myID );
   MPI_Comm_size( MPI_COMM_WORLD, &numprocs );
-#endif
-  if (argc<2)
-    {
-      error(argv[0], myID);
-    }
 
-  bool fdo = true, ftag = false, ffile, fall, fhelp = false, first_pass = true;
-  double epsilon;
-  std::string outfile, inputfile;
-  for (int i = 1; i < argc; i++)
-    {
-      if (!argv[i][0])
-        error(argv[0], myID);
+  bool fdo = true, fsimple = false, ftag = false, ffile = true, fall = false;
+  std::string input_file, output_file;
+  double merge_tol = 1.0e-4;
 
-      if (fdo && argv[i][0] == '-')
-        {
-          if (!argv[i][1] || (argv[i][1] != 'H' && argv[i][2]))
-            error(argv[0], myID);
+  LONG_DESC << "mbmerge tool has the ability to merge nodes in a mesh. For skin-based merge with multiple"
+               "files parallel options is also supported." << std::endl
+            << "If no method is specified, the default is file-based merge"
+            << std::endl;
 
-          switch ( argv[i][1] )
-            {
-            case '-': fdo = false;       break;
-            case 't': ftag = true;       break;
-            case 'f': ffile = true;      break;
-            case 'a': fall = true;       break;
-            case 'h': fhelp = true;      break;
-            default: std::cerr << "[" << myID << "]" << "Invalid option: " << argv[i] << std::endl;
-            }
-        }
-      else if(argv[i]){
-          //check if first pass - this is input file name
-          if (first_pass){
-              inputfile = (std::string)argv[i];
-              first_pass = false;
-            }
-          else if (i < (argc-1)){ // any other string is output file
-              outfile = (std::string)argv[i];
-            }
-          if(i==(argc-1)){ // last variable is always epsilon
-              if(!(std::istringstream(argv[i])>>epsilon)){
-                  std::cerr<<"Unable to parse tolerance"<<std::endl;
-                  error(argv[0], myID);
-                  return 1;
-                }
-            }
-        }
-    }
+  ProgOptions opts(LONG_DESC.str(), BRIEF_DESC);
+
+  opts.addOpt<void>("file,f", "files based merge using skin for individual meshes.", &ffile);
+  opts.addOpt<void>("all,a", "merge all including interior.", &fall);
+  opts.addOpt<void>("tag,t", "merge with specific tag specified by user.", &ftag);
+  opts.addOpt<void>("simple,s", "simple merge.", &fsimple);
+  opts.addRequiredArg<std::string>("input_file", "Mesh/geometry to partition", &input_file);
+  opts.addRequiredArg<std::string>("output_file", "File to which to write partitioned mesh/geometry", &output_file);
+  opts.addOpt<double>("mergetolerance,e", "merge tolerance, default is 1e-4", &merge_tol);
+
+  opts.parseCommandLine(argc, argv);
+
+  moab::Core *mb = new moab::Core();
+  moab::ErrorCode rval;
 
   if(fdo == true && ftag == true){
+      rval = mb->load_mesh(input_file.c_str());
+      if(rval != moab::MB_SUCCESS){
+          std::cerr<<"Error Opening Mesh File "<< input_file << std::endl;
+          MPI_Abort(MPI_COMM_WORLD,1);
+          return 1;
+        }
+      else{
+          std::cout << "Read input mesh file: " << input_file << std::endl;
+        }
+      int dim = 0;
+      moab::Range verts;
+      mb->get_entities_by_dimension(0, dim, verts);
+      if(rval != moab::MB_SUCCESS){
+          std::cerr<< "failed to get entities by dimension" << std::endl;
+          MPI_Abort(MPI_COMM_WORLD,1);
+          return 1;
+        }
+      Tag  tag_for_merge;
+      rval = mb->tag_get_handle("IDFTAG", tag_for_merge);
+      if(rval != moab::MB_SUCCESS){
+          std::cerr<< "unable to get IDFTAG" << std::endl;
+          MPI_Abort(MPI_COMM_WORLD,1);
+          return 1;
+        }
+      MergeMesh mm(mb);
+      rval = mm.merge_using_integer_tag(verts, tag_for_merge);
+      if(rval != moab::MB_SUCCESS){
+          std::cerr<< "error in routine merge using integer tag" << std::endl;
+          MPI_Abort(MPI_COMM_WORLD,1);
+          return 1;
+        }
+      rval = mb->write_file( output_file.c_str());
+      if(rval != moab::MB_SUCCESS){
+          std::cerr<<"Error Writing Mesh File "<< output_file << std::endl;
+          MPI_Abort(MPI_COMM_WORLD,1);
+          return 1;
+        }
+      else{
+          std::cout << "Wrote output mesh file: " << output_file << std::endl;
+        }
+    }
 
+  else if(fdo == true && fall == true){
+
+      rval = mb->load_mesh(input_file.c_str());
+      if(rval != moab::MB_SUCCESS){
+          std::cerr<<"Error Opening Mesh File "<< input_file << std::endl;
+          MPI_Abort(MPI_COMM_WORLD,1);
+          return 1;
+        }
+      else{
+          std::cout << "Read input mesh file: " << input_file << std::endl;
+        }
+      MergeMesh mm(mb);
+      rval = mm.merge_all(0, merge_tol); // root set
+      if(rval != moab::MB_SUCCESS){
+          std::cerr<< "error in merge_all routine" << std::endl;
+          MPI_Abort(MPI_COMM_WORLD,1);
+          return 1;
+        }
+      rval = mb->write_file( output_file.c_str());
+      if(rval != moab::MB_SUCCESS){
+          std::cerr<<"Error Writing Mesh File "<< output_file << std::endl;
+          MPI_Abort(MPI_COMM_WORLD,1);
+          return 1;
+        }
+      else{
+          std::cout << "Wrote output mesh file: " << output_file << std::endl;
+        }
+    }
+  else if(fsimple ==true && fdo == true){
+      rval = mb->load_mesh(input_file.c_str());
+      if(rval != moab::MB_SUCCESS){
+          std::cerr<<"Error Opening Mesh File "<< input_file << std::endl;
+          MPI_Abort(MPI_COMM_WORLD,1);
+          return 1;
+        }
+      else{
+          std::cout << "Read input mesh file: " << input_file << std::endl;
+        }
+      int dim = 3;
+      moab::Range ents;
+      mb->get_entities_by_dimension(0, dim, ents);
+      if(rval != moab::MB_SUCCESS){
+          std::cerr<< "error getting entities by dimension" << std::endl;
+          MPI_Abort(MPI_COMM_WORLD,1);
+          return 1;
+        }
+      MergeMesh mm(mb);
+      rval = mm.merge_entities(ents, merge_tol);
+      if(rval != moab::MB_SUCCESS){
+          std::cerr<< "error in merge entities routine" << std::endl;
+          MPI_Abort(MPI_COMM_WORLD,1);
+          return 1;
+        }
+      rval = mb->write_file( output_file.c_str());
+      if(rval != moab::MB_SUCCESS){
+          std::cerr<<"   Writing Mesh File "<< output_file << std::endl;
+          MPI_Abort(MPI_COMM_WORLD,1);
+          return 1;
+        }
+      else{
+          std::cout << "Wrote output mesh file: " << output_file << std::endl;
+        }
     }
   else if(fdo == true && ffile == true){
       /*
@@ -96,7 +158,7 @@ int main( int argc, char* argv[] )
           This is a driver for ParallelMergeMesh
           Does not currently work if #procs > #meshfiles
 
-          <inputfile> is text file containing each mesh file on a line
+          <input_file> is text file containing each mesh file on a line
           i.e.
 
           /my/path/file1
@@ -104,19 +166,17 @@ int main( int argc, char* argv[] )
           ...
           /my/path/fileN
 
-          <outputfile> file is a single file where the entire mesh is written to
+          <output_file> file is a single file where the entire mesh is written to
           It must be of type ".h5m"
 
           <tolerance> is the merging tolerance
 
           Typical usage of:
-          mpirun -n <#procs> parmerge <inputfile> <outputfile> <tolerance>
+          mpirun -n <#procs> parmerge <input_file> <output_file> <tolerance>
       */
       //Read in files from input files
       //Round robin distribution of reading meshes
-      moab::Core *mb = new moab::Core();
-      moab::ErrorCode rval;
-      std::ifstream file(inputfile.c_str());
+      std::ifstream file(input_file.c_str());
       if(file.is_open()){
           std::string line;
           int count = 0;
@@ -125,13 +185,15 @@ int main( int argc, char* argv[] )
               getline(file,line);
               if(myID == count && line != ""){
                   //Read in the file
-                  std::cout << line << std::endl;
                   rval = mb->load_mesh(line.c_str());
                   if(rval != moab::MB_SUCCESS){
-                      std::cerr<<"Error Opening Mesh File "<< line <<std::endl;
+                      std::cerr<<"Error Opening Mesh File "<< line << std::endl;
                       MPI_Abort(MPI_COMM_WORLD,1);
                       file.close();
                       return 1;
+                    }
+                  else{
+                      std::cout << "Read input mesh file: " << line << std::endl;
                     }
                 }
               count = (count+1)%numprocs;
@@ -139,7 +201,7 @@ int main( int argc, char* argv[] )
           file.close();
         }
       else{
-          std::cerr<<"Error Opening Input File "<< argv[1]<<std::endl;
+          std::cerr<<"Error Opening Input File "<< input_file  << std::endl;
           MPI_Abort(MPI_COMM_WORLD,1);
           return 1;
         }
@@ -148,25 +210,26 @@ int main( int argc, char* argv[] )
       moab::ParallelComm *pc = new moab::ParallelComm(mb, MPI_COMM_WORLD);
 
       //Call the resolve parallel function
-      moab::ParallelMergeMesh pm(pc,epsilon);
+      moab::ParallelMergeMesh pm(pc,merge_tol);
       rval = pm.merge();
-      std::cout <<"Writing ouewtput file failed. Code:" << std::endl;
-
       if(rval != moab::MB_SUCCESS){
-          std::cerr<<"Merge Failed"<<std::endl;
+          std::cerr<<"Merge Failed"<< std::endl;
           MPI_Abort(MPI_COMM_WORLD,1);
           return 1;
         }
 
       //Write out the file
-      rval = mb->write_file(outfile.c_str() , 0,"PARALLEL=WRITE_PART");
+      rval = mb->write_file(output_file.c_str() , 0,"PARALLEL=WRITE_PART");
       if(rval != moab::MB_SUCCESS){
           std::cerr<<"Writing output file failed. Code:";
           //Temporary File error info.
-          std::cerr<<mb->get_error_string(rval)<<std::endl;
+          std::cerr<<mb->get_error_string(rval)<< std::endl;
           std::string foo = ""; mb->get_last_error(foo);
-          std::cerr<<"File Error: "<<foo<<std::endl;
+          std::cerr<<"File Error: "<<foo<< std::endl;
           return 1;
+        }
+      else if(myID == 0){
+          std::cout << "Wrote output mesh file: " << output_file << std::endl;
         }
 
       //The barrier may be necessary to stop items from being deleted when needed
@@ -174,21 +237,14 @@ int main( int argc, char* argv[] )
       MPI_Barrier(MPI_COMM_WORLD);
 
       delete pc;
-      delete mb;
-    }
-  else if(fdo == true && fall == true){
-
-    }
-  else if(fdo == true && fhelp == true ){
-      if(myID == 0)
-        help(argv[0]);
     }
   else{
-
+      std::cerr<<" Unhandled option "<< std::endl;
+      MPI_Abort(MPI_COMM_WORLD,1);
+      return 1;
     }
 
-#ifdef MOAB_HAVE_MPI
+  delete mb;
   MPI_Finalize();
-#endif
-  return 1;
+  return 0;
 }
