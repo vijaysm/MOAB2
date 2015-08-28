@@ -18,6 +18,19 @@
 
 namespace moab {
 
+MergeMesh::MergeMesh(Interface *impl, bool printErrorIn) :
+    mbImpl(impl), mbMergeTag(0), mergeTol(0.001), mergeTolSq(0.000001), printError(printErrorIn)
+{
+}
+
+MergeMesh::~MergeMesh()
+{
+  if (mbMergeTag)
+    mbImpl->tag_delete(mbMergeTag);
+  mbMergeTag=NULL;
+}
+
+
 ErrorCode MergeMesh::merge_entities(EntityHandle *elems,
     int elems_size, const double merge_tol, const int do_merge,
     const int update_sets, Tag merge_tag, bool do_higher_dim)
@@ -104,6 +117,46 @@ ErrorCode MergeMesh::merge_entities(Range &elems,
   return MB_SUCCESS;
 }
 
+ErrorCode MergeMesh::merge_all(EntityHandle meshset, const double merge_tol)
+{
+  ErrorCode rval;
+  if (0 == mbMergeTag)
+  {
+    EntityHandle def_val = 0;
+    rval = mbImpl->tag_get_handle("__merge_tag", 1, MB_TYPE_HANDLE,
+        mbMergeTag, MB_TAG_DENSE | MB_TAG_EXCL, &def_val);MB_CHK_ERR(rval);
+  }
+  // get all entities;
+  // get all vertices connected
+  // build a kdtree
+  // find merged to
+  mergeTol = merge_tol;
+  mergeTolSq = merge_tol * merge_tol;
+
+  // get all vertices
+  Range entities;
+  rval = mbImpl->get_entities_by_handle(meshset, entities, /*recursive*/ true);MB_CHK_ERR(rval);
+  Range sets= entities.subset_by_type(MBENTITYSET);
+  entities=subtract(entities, sets);
+  Range verts;
+  rval = mbImpl->get_connectivity(entities, verts); MB_CHK_ERR(rval);
+
+  // build a kd tree with the vertices
+  AdaptiveKDTree kd(mbImpl);
+  EntityHandle tree_root;
+  rval = kd.build_tree(verts, &tree_root);MB_CHK_ERR(rval);
+
+  // find matching vertices, mark them
+  rval = find_merged_to(tree_root, kd, mbMergeTag); MB_CHK_ERR(rval);
+
+  rval = perform_merge(mbMergeTag); MB_CHK_ERR(rval);
+
+  if ( deadEnts.size() != 0)
+  {
+    rval = merge_higher_dimensions(entities);MB_CHK_ERR(rval);
+  }
+  return MB_SUCCESS;
+}
 ErrorCode MergeMesh::perform_merge(Tag merge_tag)
 {
   // we start with an empty range of vertices that are "merged to"
