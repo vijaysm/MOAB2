@@ -75,7 +75,6 @@ void mergesimple_test()
   rval = iface->write_file( outfile);
   CHECK_ERR(rval);
 
-  delete iface;
   return;
 }
 
@@ -108,8 +107,6 @@ void merge_with_tag_test()
   verts.clear();
   iface->get_entities_by_dimension(0, dim, verts);
   CHECK_EQUAL( 405, (int)verts.size()) ;
-
-  delete iface;
 
   return;
 }
