@@ -170,6 +170,7 @@ test/io/nastran_test
 test/io/*.nc
 test/io/read_cgm_basic_test
 test/io/read_cgm_connectivity_test
+test/io/read_cgm_facet_test
 test/io/read_cgm_group_test
 test/io/read_cgm_load_test
 test/io/read_cgm_senses_test
