@@ -56,10 +56,10 @@ int main(int argc, char *argv[]){
 	bool interp = false;
 	ErrorCode error;
 	if(argc==1){
+		error = test_unitcircle(); MB_CHK_ERR(error);
 		error = test_unitsq_tris(); MB_CHK_ERR(error);
 		error = test_unitsq_quads(); MB_CHK_ERR(error);
 		error = test_unitsphere(); MB_CHK_ERR(error);
-		error = test_unitcircle(); MB_CHK_ERR(error);
 		return 0;
 	}else{
 		infile = argv[1]; bool hasdim=false;
@@ -109,7 +109,8 @@ ErrorCode load_meshset_hirec(const char* infile, Interface* mbimpl, EntityHandle
 	MPI_Comm_rank(comm,&rank);
 	EntityHandle partnset;
 	error = mbimpl->create_meshset(moab::MESHSET_SET,partnset); MB_CHK_ERR(error);
-	pc = moab::ParallelComm::get_pcomm(mbimpl,partnset,&comm);
+	if(nprocs>1)
+		pc = moab::ParallelComm::get_pcomm(mbimpl,partnset,&comm);
 
 	if(nprocs>1){
 		int nghlayers = degree>0?HiReconstruction::estimate_num_ghost_layers(degree,true):0;
@@ -146,11 +147,17 @@ ErrorCode test_mesh(const char* infile,const int degree, const bool interp, cons
 	error = load_meshset_hirec(infile,mbimpl,meshset,pc,degree,dim); MB_CHK_ERR(error);
 	//initialize
 	HiReconstruction hirec(dynamic_cast<Core*>(mbimpl),pc,meshset);
-	//reconstruction
-	error = hirec.reconstruct3D_surf_geom(degree, interp, false); MB_CHK_ERR(error);
-	//fitting
 	Range elems;
 	error = mbimpl->get_entities_by_dimension(meshset,dim,elems);
+	int nelems = elems.size();
+	std::cout << "Mesh has " << nelems << " elements" << std::endl;
+	//reconstruction
+	if(dim==2){
+		error = hirec.reconstruct3D_surf_geom(degree, interp, false); MB_CHK_ERR(error);
+	}else if(dim==1){
+		error = hirec.reconstruct3D_curve_geom(degree, interp, false); MB_CHK_ERR(error);
+	}	
+	//fitting
 	double mxdist=0;
 	for(Range::iterator ielem=elems.begin();ielem!=elems.end();++ielem){
 		int nvpe; const EntityHandle* conn;
@@ -246,8 +253,8 @@ ErrorCode test_unitsq_tris(){
 				compute_linear_coords(nvpe,coords,naturalcoords2fit,linearcoords);
 				mxdist = std::max(mxdist,Solvers::vec_distance(3,newcoords,linearcoords));
 			}
-			std::cout << "triangulated unit square n= " << n << " degree= " << degree << "interpolation:\n";
-			std::cout << "maximum projection list is " << mxdist << std::endl;
+			std::cout << "triangulated unit square n= " << n << " degree= " << degree << " interpolation:\n";
+			std::cout << "maximum projection lift is " << mxdist << std::endl;
 			mxdist = 0;
 			//reconstruct geometry, least square fitting
 			hirec.reconstruct3D_surf_geom(degree, false, false, true);
@@ -263,8 +270,8 @@ ErrorCode test_unitsq_tris(){
 				compute_linear_coords(nvpe,coords,naturalcoords2fit,linearcoords);
 				mxdist = std::max(mxdist,Solvers::vec_distance(3,newcoords,linearcoords));
 			}
-			std::cout << "unit square n= " << n << " degree= " << degree << "least square:\n";
-			std::cout << "maximum projection list is " << mxdist << std::endl;
+			std::cout << "unit square n= " << n << " degree= " << degree << " least square:\n";
+			std::cout << "maximum projection lift is " << mxdist << std::endl;
 		}
 	}
 	return error;
@@ -305,8 +312,8 @@ ErrorCode test_unitsq_quads(){
 				compute_linear_coords(nvpe,coords,naturalcoords2fit,linearcoords);
 				mxdist = std::max(mxdist,Solvers::vec_distance(3,newcoords,linearcoords));
 			}
-			std::cout << "quadrilateral unit square n= " << n << " degree= " << degree << "interpolation:\n";
-			std::cout << "maximum projection list is " << mxdist << std::endl;
+			std::cout << "quadrilateral unit square n= " << n << " degree= " << degree << " interpolation:\n";
+			std::cout << "maximum projection lift is " << mxdist << std::endl;
 			mxdist = 0;
 			//reconstruct geometry, least square fitting
 			hirec.reconstruct3D_surf_geom(degree, false, false, true);
@@ -322,8 +329,8 @@ ErrorCode test_unitsq_quads(){
 				compute_linear_coords(nvpe,coords,naturalcoords2fit,linearcoords);
 				mxdist = std::max(mxdist,Solvers::vec_distance(3,newcoords,linearcoords));
 			}
-			std::cout << "quadrilateral unit square n= " << n << " degree= " << degree << "least square:\n";
-			std::cout << "maximum projection list is " << mxdist << std::endl;
+			std::cout << "quadrilateral unit square n= " << n << " degree= " << degree << " least square:\n";
+			std::cout << "maximum projection lift is " << mxdist << std::endl;
 		}
 	}
 	return error;
@@ -368,8 +375,8 @@ ErrorCode test_unitsphere(){
 				mxdist = std::max(mxdist,Solvers::vec_distance(3,newcoords,linearcoords));
 				mxerr = std::max(mxerr,fabs(Solvers::vec_2norm(3,newcoords)-1));
 			}
-			std::cout << filenames[ifile] << ": unit sphere" << " degree= " << degree << "interpolation:\n";
-			std::cout << "maximum projection list is " << mxdist << ", maximum error is " << mxerr << std::endl;
+			std::cout << filenames[ifile] << ": unit sphere" << " degree= " << degree << " interpolation:\n";
+			std::cout << "maximum projection lift is " << mxdist << ", maximum error is " << mxerr << std::endl;
 			mxdist = 0; mxerr = 0;
 			hirec.reconstruct3D_surf_geom(degree, false, false, true);
 			//fitting
@@ -386,8 +393,8 @@ ErrorCode test_unitsphere(){
 				mxdist = std::max(mxdist,Solvers::vec_distance(3,newcoords,linearcoords));
 				mxerr = std::max(mxerr,fabs(Solvers::vec_2norm(3,newcoords)-1));
 			}
-			std::cout << filenames[ifile] << ": unit sphere" << " degree= " << degree << "least square:\n";
-			std::cout << "maximum projection list is " << mxdist << ", maximum error is " << mxerr << std::endl;
+			std::cout << filenames[ifile] << ": unit sphere" << " degree= " << degree << " least square:\n";
+			std::cout << "maximum projection lift is " << mxdist << ", maximum error is " << mxerr << std::endl;
 		}
 	}
 	return error;
@@ -406,14 +413,15 @@ ErrorCode test_unitcircle(){
 	for(int ifile=0;ifile<nfiles;++ifile){
 		Core moab;
 		Interface* mbimpl=&moab;
-		ParallelComm *pc=NULL;
+		ParallelComm *pc=0;
 		EntityHandle meshset;
+		int dim=1;
 		//load file
-		error = load_meshset_hirec(filenames[ifile],mbimpl,meshset,pc,maxdeg,1); MB_CHK_ERR(error);
+		error = load_meshset_hirec(filenames[ifile],mbimpl,meshset,pc,maxdeg,dim); MB_CHK_ERR(error);
 		//initialize
 		HiReconstruction hirec(&moab,pc,meshset);
 		Range edges;
-		error = mbimpl->get_entities_by_dimension(meshset,2,edges);
+		error = mbimpl->get_entities_by_dimension(meshset,dim,edges);
 		//reconstruction
 		for(int degree=1;degree<=maxdeg;++degree){
 			hirec.reconstruct3D_curve_geom(degree, true, false, true);
@@ -432,8 +440,8 @@ ErrorCode test_unitcircle(){
 				mxdist = std::max(mxdist,Solvers::vec_distance(3,newcoords,linearcoords));
 				mxerr = std::max(mxerr,fabs(Solvers::vec_2norm(3,newcoords)-1));
 			}
-			std::cout << filenames[ifile] << ": unit circle" << " degree= " << degree << "interpolation:\n";
-			std::cout << "maximum projection list is " << mxdist << ", maximum error is " << mxerr << std::endl;
+			std::cout << filenames[ifile] << ": unit circle" << " degree= " << degree << " interpolation:\n";
+			std::cout << "maximum projection lift is " << mxdist << ", maximum error is " << mxerr << std::endl;
 			mxdist = 0; mxerr = 0;
 			hirec.reconstruct3D_curve_geom(degree, false, false, true);
 			//fitting
@@ -450,8 +458,8 @@ ErrorCode test_unitcircle(){
 				mxdist = std::max(mxdist,Solvers::vec_distance(3,newcoords,linearcoords));
 				mxerr = std::max(mxerr,fabs(Solvers::vec_2norm(3,newcoords)-1));
 			}
-			std::cout << filenames[ifile] << ": unit circle" << " degree= " << degree << "least square:\n";
-			std::cout << "maximum projection list is " << mxdist << ", maximum error is " << mxerr << std::endl;
+			std::cout << filenames[ifile] << ": unit circle" << " degree= " << degree << " least square:\n";
+			std::cout << "maximum projection lift is " << mxdist << ", maximum error is " << mxerr << std::endl;
 		}
 	}
 	return error;

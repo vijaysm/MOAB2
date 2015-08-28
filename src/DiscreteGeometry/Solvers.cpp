@@ -224,7 +224,7 @@ namespace moab {
       {
         for (int j=ncols-1; j>=0; j--)
           {
-            for (int i=j+1; j<ncols; ++i)
+            for (int i=j+1; i<ncols; ++i)
               bs[mrows*k+j] = bs[mrows*k+j] - R[mrows*i+j]*bs[mrows*k+i];
 
             assert(R[mrows*j+j] != 0);

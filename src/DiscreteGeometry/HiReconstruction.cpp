@@ -154,7 +154,7 @@ namespace moab
 
 	ErrorCode HiReconstruction::reconstruct3D_curve_geom(int degree, bool interp, bool safeguard, bool reset){
 		assert(_dim==1);
-		if(!_hasfittings&&!reset){
+		if(_hasfittings&&!reset){
 			return MB_SUCCESS;
 		}else{
 			_initfittings = _hasfittings = false;
@@ -222,6 +222,10 @@ namespace moab
 		//get normals
 		double *ngbnrms = new double[nverts*3];
 		error = get_normals_surf(ngbvs,ngbnrms); MB_CHK_ERR(error);
+		//switch vid to first one
+		int index = ngbvs.index(vid);
+		std::swap(ngbcoords[0],ngbcoords[3*index]);std::swap(ngbcoords[1],ngbcoords[3*index+1]);std::swap(ngbcoords[2],ngbcoords[3*index+2]);
+		std::swap(ngbnrms[0],ngbnrms[3*index]);std::swap(ngbnrms[1],ngbnrms[3*index+1]);std::swap(ngbnrms[2],ngbnrms[3*index+2]);
 		//local WLS fitting
 		int degree_pnt,degree_qr;		
 		polyfit3d_surf_get_coeff(nverts,ngbcoords,ngbnrms,degree,interp,safeguard,ncoords,coords,ncoeffs,coeffs,degree_out,&degree_pnt,&degree_qr);
