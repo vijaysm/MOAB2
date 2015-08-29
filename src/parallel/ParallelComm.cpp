@@ -326,17 +326,6 @@ namespace moab {
     sequenceManager = core->sequence_manager();
     mbImpl->query_interface(errorHandler);
 
-    // Initialize MPI, if necessary
-    int flag = 1;
-    int retval = MPI_Initialized(&flag);
-    if (MPI_SUCCESS != retval || !flag) {
-      int argc = 0;
-      char **argv = NULL;
-
-      // mpi not initialized yet - initialize here
-      retval = MPI_Init(&argc, &argv);
-    }
-
     // Reserve space for vectors
     buffProcs.reserve(MAX_SHARING_PROCS);
     localOwnedBuffs.reserve(MAX_SHARING_PROCS);

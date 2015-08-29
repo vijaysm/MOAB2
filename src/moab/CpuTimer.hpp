@@ -37,15 +37,17 @@ public:
 #if defined(_MSC_VER) || defined(__MINGW32__)
       return (double)clock() / CLOCKS_PER_SEC;
 #elif defined(MOAB_HAVE_MPI)
-      return MPI_Wtime();
+      int flag=0;
+      if (MPI_SUCCESS==MPI_Initialized(&flag) && flag)
+      {
+        return MPI_Wtime();
+      }
+      else
+      {
+        return (double)clock() / CLOCKS_PER_SEC;
+      }
 #else      
-      struct rusage r_usage;
-      getrusage(RUSAGE_SELF, &r_usage);
-      double utime = (double)r_usage.ru_utime.tv_sec +
-          ((double)r_usage.ru_utime.tv_usec/1.e6);
-      double stime = (double)r_usage.ru_stime.tv_sec +
-          ((double)r_usage.ru_stime.tv_usec/1.e6);
-      return utime + stime;
+      return (double)clock() / CLOCKS_PER_SEC;
 #endif
     }
 

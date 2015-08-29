@@ -58,48 +58,56 @@ void CxxDebugStream::println( const char* pfx, const char* str )
   { outStr << pfx << str << std::endl; outStr.flush(); }
 
 #ifdef MOAB_HAVE_MPI
-  #define CURTIME (MPI_Wtime())
+  double CURTIME() {
+    int flag;
+    if (MPI_SUCCESS==MPI_Initialized(&flag) && flag)
+    {
+      return MPI_Wtime();
+    }
+    else
+      return (clock()/(double)CLOCKS_PER_SEC);
+  }
 #else
-  #define CURTIME (clock()/(double)CLOCKS_PER_SEC)
+  double CURTIME() { return  (clock()/(double)CLOCKS_PER_SEC) ;}
 #endif
 
 
 DebugOutput::DebugOutput( DebugOutputStream* impl, unsigned verbosity )
-  : outputImpl(impl), mpiRank(-1), verbosityLimit(verbosity), initTime(CURTIME)
+  : outputImpl(impl), mpiRank(-1), verbosityLimit(verbosity), initTime(CURTIME())
     { impl->referenceCount++; assert(impl->referenceCount > 1); }
 DebugOutput::DebugOutput( DebugOutputStream* impl, int rank, unsigned verbosity )
-  : outputImpl(impl), mpiRank(rank), verbosityLimit(verbosity), initTime(CURTIME)
+  : outputImpl(impl), mpiRank(rank), verbosityLimit(verbosity), initTime(CURTIME())
     { impl->referenceCount++; assert(impl->referenceCount > 1); }
 DebugOutput::DebugOutput( FILE* impl, unsigned verbosity )
   : outputImpl(new FILEDebugStream(impl)),
-    mpiRank(-1), verbosityLimit(verbosity), initTime(CURTIME) {}
+    mpiRank(-1), verbosityLimit(verbosity), initTime(CURTIME()) {}
 DebugOutput::DebugOutput( FILE* impl, int rank, unsigned verbosity )
   : outputImpl(new FILEDebugStream(impl)),
-    mpiRank(rank), verbosityLimit(verbosity), initTime(CURTIME) {}
+    mpiRank(rank), verbosityLimit(verbosity), initTime(CURTIME()) {}
 DebugOutput::DebugOutput( std::ostream& str, unsigned verbosity )
   : outputImpl(new CxxDebugStream(str)),
-    mpiRank(-1), verbosityLimit(verbosity), initTime(CURTIME) {}
+    mpiRank(-1), verbosityLimit(verbosity), initTime(CURTIME()) {}
 DebugOutput::DebugOutput( std::ostream& str, int rank, unsigned verbosity )
   : outputImpl(new CxxDebugStream(str)),
-    mpiRank(rank), verbosityLimit(verbosity), initTime(CURTIME) {}
+    mpiRank(rank), verbosityLimit(verbosity), initTime(CURTIME()) {}
 DebugOutput::DebugOutput( const char* pfx, DebugOutputStream* impl, unsigned verbosity )
-  : linePfx(pfx), outputImpl(impl), mpiRank(-1), verbosityLimit(verbosity) , initTime(CURTIME)
+  : linePfx(pfx), outputImpl(impl), mpiRank(-1), verbosityLimit(verbosity) , initTime(CURTIME())
   { impl->referenceCount++; assert(impl->referenceCount > 1); }
 DebugOutput::DebugOutput( const char* pfx, DebugOutputStream* impl, int rank, unsigned verbosity )
-  : linePfx(pfx), outputImpl(impl), mpiRank(rank), verbosityLimit(verbosity), initTime(CURTIME)
+  : linePfx(pfx), outputImpl(impl), mpiRank(rank), verbosityLimit(verbosity), initTime(CURTIME())
   { impl->referenceCount++; assert(impl->referenceCount > 1); }
 DebugOutput::DebugOutput( const char* pfx, FILE* impl, unsigned verbosity )
   : linePfx(pfx), outputImpl(new FILEDebugStream(impl)),
-    mpiRank(-1), verbosityLimit(verbosity), initTime(CURTIME) {}
+    mpiRank(-1), verbosityLimit(verbosity), initTime(CURTIME()) {}
 DebugOutput::DebugOutput( const char* pfx, FILE* impl, int rank, unsigned verbosity )
   : linePfx(pfx), outputImpl(new FILEDebugStream(impl)),
-    mpiRank(rank), verbosityLimit(verbosity), initTime(CURTIME) {}
+    mpiRank(rank), verbosityLimit(verbosity), initTime(CURTIME()) {}
 DebugOutput::DebugOutput( const char* pfx, std::ostream& str, unsigned verbosity )
   : linePfx(pfx), outputImpl(new CxxDebugStream(str)),
-    mpiRank(-1), verbosityLimit(verbosity), initTime(CURTIME) {}
+    mpiRank(-1), verbosityLimit(verbosity), initTime(CURTIME()) {}
 DebugOutput::DebugOutput( const char* pfx, std::ostream& str, int rank, unsigned verbosity )
   : linePfx(pfx), outputImpl(new CxxDebugStream(str)),
-    mpiRank(rank), verbosityLimit(verbosity), initTime(CURTIME) {}
+    mpiRank(rank), verbosityLimit(verbosity), initTime(CURTIME()) {}
 
 DebugOutput::DebugOutput( const DebugOutput& copy )
   : linePfx(copy.linePfx), 
@@ -140,7 +148,9 @@ void DebugOutput::use_world_rank()
 {
   mpiRank = 0;
 #ifdef MOAB_HAVE_MPI
-  MPI_Comm_rank( MPI_COMM_WORLD, &mpiRank );
+  int flag=0;
+  if (MPI_SUCCESS==MPI_Initialized(&flag) && flag)
+      MPI_Comm_rank( MPI_COMM_WORLD, &mpiRank );
 #endif
 }   
 
@@ -330,7 +340,7 @@ void DebugOutput::tprint()
 {
   size_t s = lineBuffer.size();
   lineBuffer.resize( s + 64 );
-  size_t ss = sprintf(&lineBuffer[s],"(%.2f s) ", CURTIME-initTime );
+  size_t ss = sprintf(&lineBuffer[s],"(%.2f s) ", CURTIME()-initTime );
   lineBuffer.resize( s + ss );
 }
 

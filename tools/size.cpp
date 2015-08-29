@@ -655,9 +655,7 @@ int main( int argc, char* argv[] )
   
   int proc_id = 0;
 #ifdef MOAB_HAVE_MPI
-  int initd = 0;
-  MPI_Initialized(&initd);
-  if (!initd) MPI_Init(&argc,&argv);
+  MPI_Init(&argc,&argv);
   MPI_Comm_rank( MPI_COMM_WORLD, &proc_id );
 #endif
 

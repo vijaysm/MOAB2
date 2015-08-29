@@ -227,17 +227,11 @@ ErrorCode Core::initialize()
 #ifdef MOAB_HAVE_MPI
   int flag;
   if (MPI_SUCCESS == MPI_Initialized(&flag)) {
-    mpiFinalize = !flag;
-    if (mpiFinalize) {
-      char argv0[] = "MOAB";
-      int one = 1;
-      char* argv[] = { argv0, 0 };
-      char** ptr = argv;
-      MPI_Init( &one, &ptr );
+    if (flag){
+      writeMPELog = ! MPE_Initialized_logging();
+      if (writeMPELog)
+        (void)MPE_Init_log();
     }
-    writeMPELog = ! MPE_Initialized_logging();
-    if (writeMPELog)
-      (void)MPE_Init_log();
   }
 #endif
 
@@ -343,8 +337,6 @@ void Core::deinitialize()
       logfile = default_log;
     MPE_Finish_log( logfile );
   }
-  if (mpiFinalize)
-    MPI_Finalize();
 #endif
 
   if (initErrorHandlerInCore)
