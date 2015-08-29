@@ -223,7 +223,7 @@ namespace moab
 		double *ngbnrms = new double[nverts*3];
 		error = get_normals_surf(ngbvs,ngbnrms); MB_CHK_ERR(error);
 		//switch vid to first one
-		int index = ngbvs.index(vid);
+		int index = ngbvs.index(vid); assert(index!=-1);
 		std::swap(ngbcoords[0],ngbcoords[3*index]);std::swap(ngbcoords[1],ngbcoords[3*index+1]);std::swap(ngbcoords[2],ngbcoords[3*index+2]);
 		std::swap(ngbnrms[0],ngbnrms[3*index]);std::swap(ngbnrms[1],ngbnrms[3*index+1]);std::swap(ngbnrms[2],ngbnrms[3*index+2]);
 		//local WLS fitting
@@ -246,6 +246,10 @@ namespace moab
 		//get tangent vectors
 		double *ngbtangs = new double[nverts*3];
 		error = get_tangents_curve(ngbvs,ngbtangs); MB_CHK_ERR(error);
+		//switch vid to first one
+		int index = ngbvs.index(vid); assert(index!=-1);
+		std::swap(ngbcoords[0],ngbcoords[3*index]);std::swap(ngbcoords[1],ngbcoords[3*index+1]);std::swap(ngbcoords[2],ngbcoords[3*index+2]);
+		std::swap(ngbtangs[0],ngbtangs[3*index]);std::swap(ngbtangs[1],ngbtangs[3*index+1]);std::swap(ngbtangs[2],ngbtangs[3*index+2]);
 		//local WLS fittings
 		polyfit3d_curve_get_coeff(nverts,ngbcoords,ngbtangs,degree,interp,safeguard,ncoords,coords,ncoeffs,coeffs,degree_out); 
 		delete [] ngbcoords; delete [] ngbtangs;
@@ -491,10 +495,10 @@ namespace moab
 	 		int ncoeffspv = (degree+2)*(degree+1)/2;
 	 		_degrees_out.assign(_nv2rec,0);
 	 		_interps.assign(_nv2rec,false);
-	 		_vertID2coeffID.reserve(_nv2rec);
+	 		_vertID2coeffID.resize(_nv2rec);
 	 		_local_fit_coeffs.assign(_nv2rec*ncoeffspv,0);
 	 		for(size_t i=0;i<_nv2rec;++i){
-	 			_vertID2coeffID.push_back(i*ncoeffspv);
+	 			_vertID2coeffID[i] = i*ncoeffspv;
 	 		}
 	 		_initfittings = true;
 	 	}
@@ -509,10 +513,10 @@ namespace moab
 	 		assert(_nv2rec==npts);
 	 		_degrees_out.assign(_nv2rec,0);
 	 		_interps.assign(_nv2rec,false);
-	 		_vertID2coeffID.reserve(_nv2rec);
+	 		_vertID2coeffID.resize(_nv2rec);
 	 		size_t index=0;
 	 		for(size_t i=0;i<_nv2rec;++i){
-	 			_vertID2coeffID.push_back(index);
+	 			_vertID2coeffID[i] = index;
 	 			index += (degrees[i]+2)*(degrees[i]+1)/2;
 	 		}
 	 		_local_fit_coeffs.assign(index,0);
@@ -529,10 +533,10 @@ namespace moab
 	 		int ncoeffspvpd = degree+1;
 	 		_degrees_out.assign(_nv2rec,0);
 	 		_interps.assign(_nv2rec,false);
-	 		_vertID2coeffID.reserve(_nv2rec);
+	 		_vertID2coeffID.resize(_nv2rec);
 	 		_local_fit_coeffs.assign(_nv2rec*ncoeffspvpd*3,0);
 	 		for(size_t i=0;i<_nv2rec;++i){
-	 			_vertID2coeffID.push_back(i*ncoeffspvpd*3);
+	 			_vertID2coeffID[i] = i*ncoeffspvpd*3;
 	 		}
 	 		_initfittings = true;
 	 	}
@@ -550,7 +554,7 @@ namespace moab
 	 		_vertID2coeffID.reserve(_nv2rec);
 	 		size_t index=0;
 	 		for(size_t i=0;i<_nv2rec;++i){
-	 			_vertID2coeffID.push_back(index);
+	 			_vertID2coeffID[i] = index;
 	 			index += 3*(degrees[i]+1);
 	 		}
 	 		_local_fit_coeffs.assign(index,0);
@@ -925,14 +929,14 @@ namespace moab
 	 	double uu[3];
 	 	for(int i=interp;i<nverts;++i){
 	 		int k=i-interp;
-	 		Solvers::vec_linear_operation(3,1,ngbcors+3*i,1,ngbcors,uu);
+	 		Solvers::vec_linear_operation(3,1,ngbcors+3*i,-1,ngbcors,uu);
 	 		us[k] = Solvers::vec_innerprod(3,uu,tang);
 	 		bs[k] = uu[0]; bs[npts2fit+k] = uu[1]; bs[2*npts2fit+k] = uu[2];
 	 	}
 
 	 	//step 3. copmute weights
 	 	std::vector<double> ws(npts2fit);
-	 	int nzeros = compute_weights(npts2fit,2,&(us[0]),nverts,ngbtangs,degree,_MINEPS,&(ws[0])); assert(nzeros<=npts2fit);
+	 	int nzeros = compute_weights(npts2fit,1,&(us[0]),nverts,ngbtangs,degree,_MINEPS,&(ws[0])); assert(nzeros<=npts2fit);
 
 	 	//step 4. adjust according to number of zero-weights 
 	 	if(nzeros){
@@ -980,11 +984,24 @@ namespace moab
 	 void HiReconstruction::eval_vander_univar_cmf(const int npts2fit, const double* us, const int ndim, double* bs, int degree, const double* ws, const bool interp, const bool safeguard, int* degree_out){
 	 	//step 1. determine degree of polynomials to fit according to number of points
 	 	int ncols = degree+1-interp;
-	 	while(npts2fit<ncols&&degree>1){
+	 	while(npts2fit<ncols&&degree>=1){
 	 		--degree;
 	 		ncols = degree+1-interp;
 	 	}
-
+	 	if(!degree){
+	 		if(interp){
+	 			for(int icol=0;icol<ndim;++icol){
+	 				bs[icol*npts2fit] = 0;
+	 			}
+	 		}
+	 		for(int irow=1;irow<npts2fit;++irow){
+	 			for(int icol=0;icol<ndim;++icol){
+	 				bs[icol*npts2fit+irow] = 0;
+	 			}
+	 		}
+	 		*degree_out = 0;
+	 		return;
+	 	}
 	 	//step 2. construct Vandermonde matrix
 	 	std::vector<double> V;//V(npts2fit*(ncols+interp));
 	 	Solvers::gen_vander_multivar(npts2fit,1,us,degree,V);
@@ -996,7 +1013,7 @@ namespace moab
 	 	//step 3. scale rows with respect to weights
 	 	for(int i=0;i<npts2fit;++i){
 	 		for(int j=0;j<ncols;++j){
-	 			V[j*ncols+i] *= ws[i];
+	 			V[j*npts2fit+i] *= ws[i];
 	 		}
 	 		for(int k=0;k<ndim;++k){
 	 			bs[k*npts2fit+i] *= ws[i];
