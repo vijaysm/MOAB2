@@ -920,7 +920,9 @@ int main( int argc, char* argv[] )
     else
       print_stats( total_stats );
   }
-  
+#ifdef MOAB_HAVE_MPI
+  MPI_Finalize();
+#endif
   return 0;
 }
 
