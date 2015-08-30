@@ -12,8 +12,14 @@ if ( CGM_FOUND )
   include_directories( ${CGM_INCLUDE_DIRECTORIES} )
 endif( )
 
-add_library( dagmc DagMC.hpp DagMC.cpp )
-target_link_libraries( dagmc  MOAB)
+add_library(dagmc DagMC.hpp DagMC.cpp)
+target_link_libraries(dagmc  MOAB)
+set_target_properties(
+  dagmc
+  PROPERTIES
+  VERSION ${MOAB_VERSION}
+  SOVERSION ${MOAB_VERSION_MAJOR}
+  )
 install(
   TARGETS dagmc
   EXPORT MOABTargets

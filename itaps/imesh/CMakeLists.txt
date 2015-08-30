@@ -84,6 +84,13 @@ add_library(
 
 target_link_libraries( iMesh MOAB )
 
+set_target_properties(
+  iMesh
+  PROPERTIES
+  VERSION ${MOAB_VERSION}
+  SOVERSION ${MOAB_VERSION_MAJOR}
+  )
+
 install(
   TARGETS iMesh
   EXPORT MOABTargets

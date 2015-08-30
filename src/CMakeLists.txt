@@ -227,15 +227,27 @@ if (MOAB_HAVE_METIS)
   list(APPEND MOAB_DEP_LIBRARIES ${METIS_LIBRARIES})
 endif()
 
-add_library( MOAB ${MOAB_LIB_SOURCES} ${MOAB_INSTALL_HEADERS} ${MOAB_GENERATED_INSTALL_HEADERS}
-                  $<TARGET_OBJECTS:moabio>
-                  $<TARGET_OBJECTS:moab_loc_discr>
-                  $<TARGET_OBJECTS:moabverdict>
-                  ${MOABPAR_OBJECTS}
-                  ${MDHF_OBJ} )
+add_library(
+  MOAB
+  ${MOAB_LIB_SOURCES} ${MOAB_INSTALL_HEADERS} ${MOAB_GENERATED_INSTALL_HEADERS}
+  $<TARGET_OBJECTS:moabio>
+  $<TARGET_OBJECTS:moab_loc_discr>
+  $<TARGET_OBJECTS:moabverdict>
+  ${MOABPAR_OBJECTS}
+  ${MDHF_OBJ}
+  )
 
-target_link_libraries( MOAB ${MOAB_DEP_LIBRARIES} ${MOAB_LIBS} ${MOAB_CGM_LIBS} ${MPI_LIBRARIES} )
-set_target_properties( MOAB PROPERTIES COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}")
+target_link_libraries(
+  MOAB
+  ${MOAB_DEP_LIBRARIES} ${MOAB_LIBS} ${MOAB_CGM_LIBS} ${MPI_LIBRARIES}
+  )
+set_target_properties(
+  MOAB
+  PROPERTIES
+  COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}"
+  VERSION ${MOAB_VERSION}
+  SOVERSION ${MOAB_VERSION_MAJOR}
+  )
 
 install(
   TARGETS MOAB
