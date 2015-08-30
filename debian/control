@@ -1,7 +1,13 @@
 Source: moab
 Priority: extra
 Maintainer: Jason Kraftcheck <kraftche@cae.wisc.edu>
-Build-Depends: debhelper (>= 7.0.50~), autotools-dev, dh-autoreconf, doxygen, g++, libhdf5-dev, libnetcdf-dev
+Build-Depends: debhelper (>= 9),
+  cmake (>= 2.8.12),
+  g++ (>= 4.0.0),
+  libopenmpi-dev,
+  doxygen,
+  libhdf5-dev,
+  libnetcdf-dev
 Standards-Version: 3.8.4
 Section: libs
 Homepage: http://trac.mcs.anl.gov/projects/ITAPS/wiki/MOAB
