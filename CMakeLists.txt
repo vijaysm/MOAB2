@@ -35,6 +35,8 @@ endif()
 
 project( MOAB )
 
+include(GNUInstallDirs)
+
 #Add our Cmake directory to the module search path
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/config ${CMAKE_MODULE_PATH})
 ################################################################################
@@ -298,9 +300,14 @@ endif()
 ###############################################################################
 #
 ###############################################################################
-export(TARGETS ${MOAB_INSTALL_TARGETS}
-              FILE "${PROJECT_BINARY_DIR}/MOABTargets.cmake")
-install(EXPORT MOABTargets DESTINATION lib)
+export(
+  TARGETS ${MOAB_INSTALL_TARGETS}
+  FILE "${PROJECT_BINARY_DIR}/MOABTargets.cmake"
+  )
+install(
+  EXPORT MOABTargets
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/
+  )
 
 # Create some custom command
 
@@ -334,7 +341,8 @@ ENDIF (CMAKE_BUILD_TYPE MATCHES "Debug")
 CONFIGURE_FILE(
     "${CMAKE_CURRENT_SOURCE_DIR}/config/cmake_uninstall.cmake.in"
     "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
-    IMMEDIATE @ONLY)
+    IMMEDIATE @ONLY
+    )
 
 # Generate the CMake input header file and then pass it through configuration
 #execute_process( COMMAND cat MOABConfig.h.in COMMAND sed -e "s/#undef /#cmakedefine MOAB_/g"
@@ -343,22 +351,37 @@ CONFIGURE_FILE(
 #  OUTPUT_STRIP_TRAILING_WHITESPACE
 #  )
 CONFIGURE_FILE(config/MOABConfig.cmake.h.in "${PROJECT_BINARY_DIR}/src/moab/MOABConfig.h" @ONLY)
-#INSTALL( FILES "${PROJECT_BINARY_DIR}/src/moab/MOABConfig.h" DESTINATION include ) 
+# INSTALL(
+#   FILES "${PROJECT_BINARY_DIR}/src/moab/MOABConfig.h"
+#   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+#   )
 
 CONFIGURE_FILE(MOABConfig.new.cmake.in "${PROJECT_BINARY_DIR}/MOABConfig.cmake" @ONLY)
 CONFIGURE_FILE(moab.make.in "${PROJECT_BINARY_DIR}/lib/moab.make" @ONLY)
 if ( MOAB_HAVE_IGEOM )
   CONFIGURE_FILE(itaps/igeom/iGeom-Defs.inc.in "${PROJECT_BINARY_DIR}/lib/iGeom-Defs.inc" @ONLY)
-  install( FILES "${PROJECT_BINARY_DIR}/lib/iGeom-Defs.inc" DESTINATION lib )
+  install(
+    FILES "${PROJECT_BINARY_DIR}/lib/iGeom-Defs.inc"
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    )
 endif ( MOAB_HAVE_IGEOM )
 
 if ( MOAB_HAVE_IMESH )
   CONFIGURE_FILE(itaps/imesh/iMesh-Defs.inc.in "${PROJECT_BINARY_DIR}/lib/iMesh-Defs.inc" @ONLY)
-  INSTALL( FILES "${PROJECT_BINARY_DIR}/lib/iMesh-Defs.inc" DESTINATION lib )
+  INSTALL(
+    FILES "${PROJECT_BINARY_DIR}/lib/iMesh-Defs.inc"
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    )
 endif ( MOAB_HAVE_IMESH )
-INSTALL( FILES "${PROJECT_BINARY_DIR}/MOABConfig.cmake" "${PROJECT_BINARY_DIR}/lib/moab.make" DESTINATION lib )
+INSTALL(
+  FILES "${PROJECT_BINARY_DIR}/MOABConfig.cmake"
+  "${PROJECT_BINARY_DIR}/lib/moab.make"
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/
+  )
 
-ADD_CUSTOM_TARGET(uninstall
-    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
+ADD_CUSTOM_TARGET(
+  uninstall
+  COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake
+  )
 
 # All done.

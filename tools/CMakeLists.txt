@@ -35,9 +35,12 @@ if ( MOAB_BUILD_MBSIZE )
   set_source_files_properties( size.cpp measure.cpp COMPILE_FLAGS "${MOAB_DEFINES}" )
   target_link_libraries( mbsize MOAB )
   set( MOAB_HAVE_MBSIZE 1 )
-  install(TARGETS mbsize RUNTIME DESTINATION bin
-                         LIBRARY DESTINATION lib
-                         ARCHIVE DESTINATION lib )
+  install(
+    TARGETS mbsize
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    )
 endif ( )
 
 # MBMEM
@@ -46,9 +49,12 @@ if ( MOAB_BUILD_MBMEM )
   set_source_files_properties( mbmem.cpp COMPILE_FLAGS "${MOAB_DEFINES}" )
   target_link_libraries( mbmem MOAB )
   set( MOAB_HAVE_MBMEM 1 )
-  install(TARGETS mbmem RUNTIME DESTINATION bin
-                         LIBRARY DESTINATION lib
-                         ARCHIVE DESTINATION lib )
+  install(
+    TARGETS mbmem
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    )
 endif ( )
 
 # MBCONVERT
@@ -57,9 +63,12 @@ if ( MOAB_BUILD_MBCONVERT )
   set_source_files_properties( convert.cpp COMPILE_FLAGS "${MOAB_DEFINES}" )
   target_link_libraries( mbconvert MOAB )
   set( MOAB_HAVE_MBCONVERT 1 )
-  install(TARGETS mbconvert RUNTIME DESTINATION bin
-                            LIBRARY DESTINATION lib
-                            ARCHIVE DESTINATION lib )
+  install(
+    TARGETS mbconvert
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    )
 endif ( )
 
 # MBDEPTH
@@ -68,9 +77,12 @@ if ( MOAB_BUILD_MBDEPTH )
   set_source_files_properties( depth.cpp COMPILE_FLAGS "${MOAB_DEFINES}" )
   target_link_libraries( mbdepth MOAB )
   set( MOAB_HAVE_MBDEPTH 1 )
-  install(TARGETS mbdepth RUNTIME DESTINATION bin
-                          LIBRARY DESTINATION lib
-                          ARCHIVE DESTINATION lib )
+  install(
+    TARGETS mbdepth
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    )
 endif ( )
 
 # MBSKIN
@@ -79,9 +91,12 @@ if ( MOAB_BUILD_MBSKIN )
   set_source_files_properties( skin.cpp COMPILE_FLAGS "${MOAB_DEFINES}" )
   target_link_libraries( mbskin MOAB )
   set( MOAB_HAVE_MBSKIN 1 )
-  install(TARGETS mbskin RUNTIME DESTINATION bin
-                         LIBRARY DESTINATION lib
-                         ARCHIVE DESTINATION lib )
+  install(
+    TARGETS mbskin
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    )
 endif ( )
 
 # MBSURFPLOT
@@ -90,9 +105,12 @@ if ( MOAB_BUILD_MBSURFPLOT )
   set_source_files_properties( surfplot.cpp COMPILE_FLAGS "${MOAB_DEFINES}" )
   target_link_libraries( mbsurfplot MOAB )
   set( MOAB_HAVE_MBSURFPLOT 1 )
-  install(TARGETS mbsurfplot RUNTIME DESTINATION bin
-                             LIBRARY DESTINATION lib
-                             ARCHIVE DESTINATION lib )
+  install(
+    TARGETS mbsurfplot
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    )
 endif ( )
 
 # MBTAGPROP
@@ -101,9 +119,12 @@ if ( MOAB_BUILD_MBTAGPROP )
   set_source_files_properties( parse.cpp propagate_tags.cpp COMPILE_FLAGS "${MOAB_DEFINES}" )
   target_link_libraries( mbtagprop MOAB )
   set( MOAB_HAVE_MBTAGPROP 1 )
-  install(TARGETS mbtagprop RUNTIME DESTINATION bin
-                            LIBRARY DESTINATION lib
-                            ARCHIVE DESTINATION lib )
+  install(
+    TARGETS mbtagprop
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    )
 endif ( )
 
 # MBGSETS
@@ -112,9 +133,12 @@ if ( MOAB_BUILD_MBGSETS )
   set_source_files_properties( gsets.cc COMPILE_FLAGS "${MOAB_DEFINES}" )
   target_link_libraries( mbgsets MOAB )
   set( MOAB_HAVE_MBGSETS 1 )
-  install(TARGETS mbgsets RUNTIME DESTINATION bin
-                          LIBRARY DESTINATION lib
-                          ARCHIVE DESTINATION lib )
+  install(
+    TARGETS mbgsets
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    )
 endif( )
 
 # CGM + DagMC
@@ -130,9 +154,12 @@ if ( MOAB_BUILD_MBPART AND ( MOAB_HAVE_ZOLTAN OR MOAB_HAVE_METIS ) )
   set_source_files_properties( mbpart.cpp COMPILE_FLAGS "${MOAB_DEFINES}" )
   target_link_libraries( mbpart MOAB ${ZOLTAN_LIBRARIES} ${PARMETIS_LIBRARIES} ${METIS_LIBRARIES} )
   set( MOAB_HAVE_MBPART 1 )
-  install(TARGETS mbpart  RUNTIME DESTINATION bin
-                          LIBRARY DESTINATION lib
-                          ARCHIVE DESTINATION lib )
+  install(
+    TARGETS mbpart
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    )
 endif ( MOAB_BUILD_MBPART AND ( MOAB_HAVE_ZOLTAN OR MOAB_HAVE_METIS ) )
 
 # QVDual
@@ -150,7 +177,10 @@ if( MOAB_BUILD_HEXMODOPS )
   add_executable( hexmodops makeops.cpp )
   target_link_libraries( hexmodops MOAB )
   set( MOAB_HAVE_HEXMODOPS 1 )
-  install(TARGETS hexmodops RUNTIME DESTINATION bin
-                            LIBRARY DESTINATION lib
-                            ARCHIVE DESTINATION lib )
+  install(
+    TARGETS hexmodops
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    )
 endif()

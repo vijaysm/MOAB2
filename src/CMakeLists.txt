@@ -237,15 +237,21 @@ add_library( MOAB ${MOAB_LIB_SOURCES} ${MOAB_INSTALL_HEADERS} ${MOAB_GENERATED_I
 target_link_libraries( MOAB ${MOAB_DEP_LIBRARIES} ${MOAB_LIBS} ${MOAB_CGM_LIBS} ${MPI_LIBRARIES} )
 set_target_properties( MOAB PROPERTIES COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}")
 
-install(TARGETS MOAB EXPORT MOABTargets
-                     RUNTIME DESTINATION bin
-                     LIBRARY DESTINATION lib
-                     ARCHIVE DESTINATION lib )
-set( MOAB_INSTALL_TARGETS ${MOAB_INSTALL_TARGETS} MOAB)
+install(
+  TARGETS MOAB
+  EXPORT MOABTargets
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  )
+list(APPEND MOAB_INSTALL_TARGETS  MOAB)
 include(AutoconfHeader)
 moab_install_headers(${MOAB_INSTALL_HEADERS})
 foreach (header ${MOAB_GENERATED_INSTALL_HEADERS})
     STRING(REGEX REPLACE "^${CMAKE_CURRENT_BINARY_DIR}/" "" relative ${header})
     string(REGEX MATCH "(.*)/" DIR ${relative})
-    install(FILES ${header} DESTINATION include/${DIR})
+    install(
+      FILES ${header}
+      DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${DIR}
+      )
 endforeach()

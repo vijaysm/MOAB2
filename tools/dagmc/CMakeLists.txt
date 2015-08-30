@@ -14,23 +14,33 @@ endif( )
 
 add_library( dagmc DagMC.hpp DagMC.cpp )
 target_link_libraries( dagmc  MOAB)
-install(TARGETS dagmc EXPORT MOABTargets
-                      RUNTIME DESTINATION bin
-                      LIBRARY DESTINATION lib
-                      ARCHIVE DESTINATION lib )
+install(
+  TARGETS dagmc
+  EXPORT MOABTargets
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  )
 set( MOAB_INSTALL_TARGETS ${MOAB_INSTALL_TARGETS} dagmc)
-install( FILES DagMC.hpp DESTINATION include )
+install(
+  FILES DagMC.hpp
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  )
 
-
-
-add_executable( dagmc_preproc dagmc_preproc.cpp 
-                              obb_analysis.cpp 
-                              dagmc_preproc.hpp )
+add_executable(
+  dagmc_preproc
+  dagmc_preproc.cpp
+  obb_analysis.cpp
+  dagmc_preproc.hpp
+  )
 target_link_libraries( dagmc_preproc MOAB dagmc )
 set( MOAB_HAVE_DAGMC 1 )
-install(TARGETS dagmc_preproc RUNTIME DESTINATION bin
-                              LIBRARY DESTINATION lib
-                              ARCHIVE DESTINATION lib )
+install(
+  TARGETS dagmc_preproc
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  )
 
 if ( MOAB_ENABLE_TESTING )
   add_executable( test_geom test_geom.cc )
@@ -50,8 +60,11 @@ if ( MOAB_HAVE_CGM )
     target_link_libraries( cgm2moab
                            dagmc
                            ${CGM_LIBRARIES} )
-    install(TARGETS cgm2moab RUNTIME DESTINATION bin
-                             LIBRARY DESTINATION lib
-                             ARCHIVE DESTINATION lib )
+    install(
+      TARGETS cgm2moab
+      RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+      LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+      ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+      )
   endif()
 endif( )
