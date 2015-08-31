@@ -14,4 +14,7 @@ if(ENABLE_IGEOM )
   add_subdirectory(igeom)
 endif()
 
-install(FILES ${BASE_INCLUDE_HEADERS} DESTINATION include )
+install(
+  FILES ${BASE_INCLUDE_HEADERS}
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  )
