@@ -11,3 +11,11 @@
 
 %:
 	dh $@ --buildsystem=cmake --parallel
+
+# install src, tools, itaps separately
+override_dh_auto_install: auto_install-stamp
+auto_install-stamp:
+	for i in src tools itaps; do \
+	  $(MAKE) -C $(BUILDDIR)/$$i install DESTDIR=$(CURDIR)/debian/tmp_$$i || exit 1; \
+	done
+	touch $@
