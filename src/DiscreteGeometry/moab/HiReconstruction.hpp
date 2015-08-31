@@ -205,7 +205,7 @@ namespace moab
 
 			//Helper function: estimate require number of ghost layers in parallel setting
 			static int estimate_num_ghost_layers(int degree,bool interp=false){
-				return 1+interp?(degree+1)/2:(degree+2)/2;
+				return 1+interp?((degree+1)>>1)+((degree+1)&1):((degree+2)>>1)+((degree+2)&1);
 			};
 
 		protected:
