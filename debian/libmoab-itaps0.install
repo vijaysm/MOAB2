@@ -1,1 +1,1 @@
-usr/lib/libi*.so.*
+usr/lib/*/libi*.so.*
