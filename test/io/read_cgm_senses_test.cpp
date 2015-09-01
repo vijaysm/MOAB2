@@ -65,8 +65,8 @@ int main(int /* argc */, char** /* argv */)
 {
   int result = 0;
 
-  result += RUN_TEST(read_cylcube_curve_senses_test);  
   result += RUN_TEST(read_cylcube_surf_senses_test);  
+  result += RUN_TEST(read_cylcube_curve_senses_test);  
  
   return result;
 }
@@ -196,6 +196,8 @@ void check_sense_data( Interface* moab, std::vector<EntityHandle> wrt_ents, std:
           // remove it from the list
           wrt_ent_ids.erase( wrt_ent_ids.begin()+i );
           senses.erase( senses.begin()+i );
+          --i;
+          break;
          }
      }
   }
@@ -298,62 +300,62 @@ ErrorCode load_stp_curve_sense_data( Interface* moab, EntityHandle curve, std::v
   {
     case 1:
           surf_ids_out.push_back(1); surf_ids_out.push_back(6);
-          senses_out.push_back(SENSE_FORWARD); senses_out.push_back(SENSE_REVERSE);
+          senses_out.push_back(SENSE_FORWARD); senses_out.push_back(SENSE_FORWARD);
           break;
 
     case 2:
           surf_ids_out.push_back(1); surf_ids_out.push_back(5);
-          senses_out.push_back(SENSE_FORWARD); senses_out.push_back(SENSE_REVERSE);
+          senses_out.push_back(SENSE_FORWARD); senses_out.push_back(SENSE_FORWARD);
           break;
 
     case 3:
           surf_ids_out.push_back(1); surf_ids_out.push_back(4);
-          senses_out.push_back(SENSE_FORWARD); senses_out.push_back(SENSE_REVERSE);
+          senses_out.push_back(SENSE_FORWARD); senses_out.push_back(SENSE_FORWARD);
           break;
 
     case 4:
           surf_ids_out.push_back(1); surf_ids_out.push_back(3);
-          senses_out.push_back(SENSE_FORWARD); senses_out.push_back(SENSE_REVERSE);
+          senses_out.push_back(SENSE_FORWARD); senses_out.push_back(SENSE_FORWARD);
           break;
 
     case 5:
           surf_ids_out.push_back(2); surf_ids_out.push_back(6);
-          senses_out.push_back(SENSE_FORWARD); senses_out.push_back(SENSE_REVERSE);
+          senses_out.push_back(SENSE_REVERSE); senses_out.push_back(SENSE_FORWARD);
           break;
 
     case 6:
-          surf_ids_out.push_back(2); surf_ids_out.push_back(3);
-          senses_out.push_back(SENSE_FORWARD); senses_out.push_back(SENSE_REVERSE);
+          surf_ids_out.push_back(2); surf_ids_out.push_back(5);
+          senses_out.push_back(SENSE_REVERSE); senses_out.push_back(SENSE_FORWARD);
           break;
 
     case 7:
           surf_ids_out.push_back(2); surf_ids_out.push_back(4);
-          senses_out.push_back(SENSE_FORWARD); senses_out.push_back(SENSE_REVERSE);
+          senses_out.push_back(SENSE_REVERSE); senses_out.push_back(SENSE_FORWARD);
           break;
 
     case 8:
-          surf_ids_out.push_back(2); surf_ids_out.push_back(5);
-          senses_out.push_back(SENSE_FORWARD); senses_out.push_back(SENSE_REVERSE);
+          surf_ids_out.push_back(2); surf_ids_out.push_back(3);
+          senses_out.push_back(SENSE_REVERSE); senses_out.push_back(SENSE_FORWARD);
           break;
 
     case 9:
           surf_ids_out.push_back(3); surf_ids_out.push_back(4);
-          senses_out.push_back(SENSE_FORWARD); senses_out.push_back(SENSE_REVERSE);
+          senses_out.push_back(SENSE_REVERSE); senses_out.push_back(SENSE_FORWARD);
           break;
 
     case 10:
           surf_ids_out.push_back(3); surf_ids_out.push_back(6);
-          senses_out.push_back(SENSE_REVERSE); senses_out.push_back(SENSE_FORWARD);
+          senses_out.push_back(SENSE_FORWARD); senses_out.push_back(SENSE_REVERSE);
           break;
 
     case 11:
           surf_ids_out.push_back(4); surf_ids_out.push_back(5);
-          senses_out.push_back(SENSE_FORWARD); senses_out.push_back(SENSE_REVERSE);
+          senses_out.push_back(SENSE_REVERSE); senses_out.push_back(SENSE_FORWARD);
           break;
 
     case 12:
           surf_ids_out.push_back(5); surf_ids_out.push_back(6);
-          senses_out.push_back(SENSE_FORWARD); senses_out.push_back(SENSE_REVERSE);
+          senses_out.push_back(SENSE_REVERSE); senses_out.push_back(SENSE_FORWARD);
           break;
 
     case 13:
@@ -533,27 +535,27 @@ ErrorCode load_stp_surf_sense_data( Interface* moab, EntityHandle surf, std::vec
 
     case 2:
           vol_ids_out.push_back(1);
-          senses_out.push_back(SENSE_FORWARD); 
+          senses_out.push_back(SENSE_REVERSE); 
           break;
 
     case 3:
           vol_ids_out.push_back(1);
-          senses_out.push_back(SENSE_FORWARD); 
+          senses_out.push_back(SENSE_REVERSE); 
           break;
 
     case 4:
           vol_ids_out.push_back(1);
-          senses_out.push_back(SENSE_FORWARD); 
+          senses_out.push_back(SENSE_REVERSE); 
           break;
 
     case 5:
           vol_ids_out.push_back(1);
-          senses_out.push_back(SENSE_FORWARD); 
+          senses_out.push_back(SENSE_REVERSE); 
           break;
 
     case 6:
           vol_ids_out.push_back(1);
-          senses_out.push_back(SENSE_FORWARD); 
+          senses_out.push_back(SENSE_REVERSE); 
           break;
 
     case 7:
