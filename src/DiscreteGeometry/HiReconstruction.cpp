@@ -434,7 +434,7 @@ namespace moab
 	 ****************************************************************/
 
 	 int HiReconstruction::estimate_num_rings(int degree, bool interp){
-	 	return interp?((degree+1)>>1)+((degree+1)&1):(degree+2)>>1+((degree+2)&1);
+	 	return interp?((degree+1)>>1)+((degree+1)&1):((degree+2)>>1)+((degree+2)&1);
 	 }
 
 	 ErrorCode HiReconstruction::obtain_nring_ngbvs(const EntityHandle vid, int ring, const int minpnts, Range& ngbvs){
