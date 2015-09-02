@@ -11,6 +11,7 @@
 #include "moab/GeomTopoTool.hpp"
 #include "InitCGMA.hpp"
 #include "GeometryQueryTool.hpp"
+#include "cgm_version.h"
 
 #define SENSE_FORWARD 1
 #define SENSE_REVERSE -1 
@@ -44,8 +45,10 @@ void read_file( Interface* moab, const char* input_file );
 // Functions containing known sense data
 ErrorCode load_sat_curve_sense_data( Interface* moab, EntityHandle curve,  std::vector<int>& surf_ids_out, std::vector<int>& senses_out );
 ErrorCode load_stp_curve_sense_data( Interface* moab, EntityHandle curve,  std::vector<int>& surf_ids_out, std::vector<int>& senses_out );
+ErrorCode load_precgm14_stp_curve_sense_data( Interface* moab, EntityHandle curve,  std::vector<int>& surf_ids_out, std::vector<int>& senses_out );
 ErrorCode load_sat_surf_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out );
 ErrorCode load_stp_surf_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out );
+ErrorCode load_precgm14_stp_surf_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out );
 
 // Functions used to compare sense information found in 
 // the model to reference information
@@ -65,8 +68,8 @@ int main(int /* argc */, char** /* argv */)
 {
   int result = 0;
 
-  result += RUN_TEST(read_cylcube_curve_senses_test);  
   result += RUN_TEST(read_cylcube_surf_senses_test);  
+  result += RUN_TEST(read_cylcube_curve_senses_test);  
  
   return result;
 }
@@ -144,7 +147,14 @@ for(unsigned int i = 0; i < curves.size() ; i++)
    known_senses.clear();
    //Load known curve-sense ID data
 #ifdef HAVE_OCC_STEP
-   rval = load_stp_curve_sense_data( mb, curves[i], known_surf_ids, known_senses );
+   if (CGM_MAJOR_VERSION >= 14)
+   {
+     rval = load_stp_curve_sense_data( mb, curves[i], known_surf_ids, known_senses );
+   }
+   else
+   {
+     rval = load_precgm14_stp_curve_sense_data( mb, curves[i], known_surf_ids, known_senses );
+   }
    CHECK_ERR(rval);
 #else
    rval = load_sat_curve_sense_data( mb, curves[i], known_surf_ids, known_senses );
@@ -196,6 +206,8 @@ void check_sense_data( Interface* moab, std::vector<EntityHandle> wrt_ents, std:
           // remove it from the list
           wrt_ent_ids.erase( wrt_ent_ids.begin()+i );
           senses.erase( senses.begin()+i );
+          --i;
+          break;
          }
      }
   }
@@ -291,6 +303,104 @@ ErrorCode load_sat_curve_sense_data( Interface* moab, EntityHandle curve, std::v
 
 //Loads two vectors with reference curve and curve_sense data
 ErrorCode load_stp_curve_sense_data( Interface* moab, EntityHandle curve, std::vector<int>& surf_ids_out, std::vector<int>& senses_out )
+{
+
+  int curve_id = geom_id_by_handle( moab, curve );
+  switch(curve_id)
+  {
+    case 1:
+          surf_ids_out.push_back(1); surf_ids_out.push_back(6);
+          senses_out.push_back(SENSE_FORWARD); senses_out.push_back(SENSE_FORWARD);
+          break;
+
+    case 2:
+          surf_ids_out.push_back(1); surf_ids_out.push_back(5);
+          senses_out.push_back(SENSE_FORWARD); senses_out.push_back(SENSE_FORWARD);
+          break;
+
+    case 3:
+          surf_ids_out.push_back(1); surf_ids_out.push_back(4);
+          senses_out.push_back(SENSE_FORWARD); senses_out.push_back(SENSE_FORWARD);
+          break;
+
+    case 4:
+          surf_ids_out.push_back(1); surf_ids_out.push_back(3);
+          senses_out.push_back(SENSE_FORWARD); senses_out.push_back(SENSE_FORWARD);
+          break;
+
+    case 5:
+          surf_ids_out.push_back(2); surf_ids_out.push_back(6);
+          senses_out.push_back(SENSE_REVERSE); senses_out.push_back(SENSE_FORWARD);
+          break;
+
+    case 6:
+          surf_ids_out.push_back(2); surf_ids_out.push_back(5);
+          senses_out.push_back(SENSE_REVERSE); senses_out.push_back(SENSE_FORWARD);
+          break;
+
+    case 7:
+          surf_ids_out.push_back(2); surf_ids_out.push_back(4);
+          senses_out.push_back(SENSE_REVERSE); senses_out.push_back(SENSE_FORWARD);
+          break;
+
+    case 8:
+          surf_ids_out.push_back(2); surf_ids_out.push_back(3);
+          senses_out.push_back(SENSE_REVERSE); senses_out.push_back(SENSE_FORWARD);
+          break;
+
+    case 9:
+          surf_ids_out.push_back(3); surf_ids_out.push_back(4);
+          senses_out.push_back(SENSE_REVERSE); senses_out.push_back(SENSE_FORWARD);
+          break;
+
+    case 10:
+          surf_ids_out.push_back(3); surf_ids_out.push_back(6);
+          senses_out.push_back(SENSE_FORWARD); senses_out.push_back(SENSE_REVERSE);
+          break;
+
+    case 11:
+          surf_ids_out.push_back(4); surf_ids_out.push_back(5);
+          senses_out.push_back(SENSE_REVERSE); senses_out.push_back(SENSE_FORWARD);
+          break;
+
+    case 12:
+          surf_ids_out.push_back(5); surf_ids_out.push_back(6);
+          senses_out.push_back(SENSE_REVERSE); senses_out.push_back(SENSE_FORWARD);
+          break;
+
+    case 13:
+      surf_ids_out.push_back(7); surf_ids_out.push_back(8);
+      senses_out.push_back(SENSE_REVERSE); senses_out.push_back(SENSE_FORWARD);
+      break;
+
+    case 14:
+      surf_ids_out.push_back(7); surf_ids_out.push_back(9);
+      senses_out.push_back(SENSE_REVERSE); senses_out.push_back(SENSE_FORWARD);
+      break;
+    case 15:
+      surf_ids_out.push_back(7); surf_ids_out.push_back(8);
+      senses_out.push_back(SENSE_REVERSE); senses_out.push_back(SENSE_FORWARD);
+      break;
+    case 16:
+      surf_ids_out.push_back(7); surf_ids_out.push_back(10);
+      senses_out.push_back(SENSE_REVERSE); senses_out.push_back(SENSE_FORWARD);
+      break;
+    case 17:
+      surf_ids_out.push_back(8); surf_ids_out.push_back(10);
+      senses_out.push_back(SENSE_REVERSE); senses_out.push_back(SENSE_FORWARD);
+      break;
+    case 18:
+      surf_ids_out.push_back(8); surf_ids_out.push_back(9);
+      senses_out.push_back(SENSE_REVERSE); senses_out.push_back(SENSE_FORWARD);
+      break;
+    default:
+          return MB_FAILURE;
+
+  } 
+  return MB_SUCCESS;
+}
+
+ErrorCode load_precgm14_stp_curve_sense_data( Interface* moab, EntityHandle curve, std::vector<int>& surf_ids_out, std::vector<int>& senses_out )
 {
 
   int curve_id = geom_id_by_handle( moab, curve );
@@ -449,7 +559,14 @@ for(unsigned int i = 0; i < surfs.size(); i++)
    // Load known surface-volume data 
    // for this surface and check that it's correct
 #ifdef HAVE_OCC_STEP
-   rval = load_stp_surf_sense_data( mb, surfs[i], known_vol_ids, known_senses );
+   if (CGM_MAJOR_VERSION >= 14)
+   {
+     rval = load_stp_surf_sense_data( mb, surfs[i], known_vol_ids, known_senses );
+   }
+   else
+   {
+     rval = load_precgm14_stp_surf_sense_data( mb, surfs[i], known_vol_ids, known_senses );
+   }
    CHECK_ERR(rval);
 #else
    rval = load_sat_surf_sense_data( mb, surfs[i], known_vol_ids, known_senses );
@@ -533,27 +650,27 @@ ErrorCode load_stp_surf_sense_data( Interface* moab, EntityHandle surf, std::vec
 
     case 2:
           vol_ids_out.push_back(1);
-          senses_out.push_back(SENSE_FORWARD); 
+          senses_out.push_back(SENSE_REVERSE); 
           break;
 
     case 3:
           vol_ids_out.push_back(1);
-          senses_out.push_back(SENSE_FORWARD); 
+          senses_out.push_back(SENSE_REVERSE); 
           break;
 
     case 4:
           vol_ids_out.push_back(1);
-          senses_out.push_back(SENSE_FORWARD); 
+          senses_out.push_back(SENSE_REVERSE); 
           break;
 
     case 5:
           vol_ids_out.push_back(1);
-          senses_out.push_back(SENSE_FORWARD); 
+          senses_out.push_back(SENSE_REVERSE); 
           break;
 
     case 6:
           vol_ids_out.push_back(1);
-          senses_out.push_back(SENSE_FORWARD); 
+          senses_out.push_back(SENSE_REVERSE); 
           break;
 
     case 7:
@@ -582,3 +699,33 @@ ErrorCode load_stp_surf_sense_data( Interface* moab, EntityHandle surf, std::vec
   return MB_SUCCESS;
 }
 
+//Loads reference surface to volume sense data into the reference vectors
+ErrorCode load_precgm14_stp_surf_sense_data( Interface* moab, EntityHandle surf, std::vector<int>& vol_ids_out, std::vector<int>& senses_out ){
+
+  int surf_id = geom_id_by_handle( moab, surf );
+  switch(surf_id)
+  {
+    case 1:
+    case 2:
+    case 3:
+    case 4:
+    case 5:
+    case 6:
+          vol_ids_out.push_back(1);
+          senses_out.push_back(SENSE_FORWARD); 
+          break;
+
+    case 7:
+    case 8:
+    case 9:
+    case 10:
+          vol_ids_out.push_back(2);
+          senses_out.push_back(SENSE_FORWARD);
+          break;
+  
+    default:
+      std::cout << "Failure to find surface sense reference data. Returning failure..." << std::endl;
+          return MB_FAILURE;
+   }
+  return MB_SUCCESS;
+}

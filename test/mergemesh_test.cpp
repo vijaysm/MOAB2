@@ -23,11 +23,14 @@ void mergesimple_test();
 void merge_with_tag_test();
 void merge_all_test();
 
-int main( int /*argc*/, char**/* argv*/)
+#ifdef MOAB_HAVE_MPI
+int main(int argc, char** argv)
+#else
+int main()
+#endif
 {
 #ifdef MOAB_HAVE_MPI
-  int fail = MPI_Init(0, 0);
-  if (fail) return fail;
+  MPI_Init(&argc, &argv);
 #endif
   int result = 0;
 
@@ -36,8 +39,7 @@ int main( int /*argc*/, char**/* argv*/)
   result += RUN_TEST(merge_all_test);
 
 #ifdef MOAB_HAVE_MPI
-  fail = MPI_Finalize();
-  if (fail) return fail;
+  MPI_Finalize();
 #endif
   return result;
 }

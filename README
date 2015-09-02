@@ -21,6 +21,6 @@ The only MOAB file format that can represent the entire MOAB data model is MOAB'
 # Bugs, Correspondence, Contributing
 MOAB is LGPL code, and we encourage users to submit bug reports (and, if desired, fixes) to moab-dev@mcs.anl.gov. Users are encouraged to check [SIGMA-MOAB] documentation pages often for news and updates. Please submit pull requests (PR) with a Bitbucket fork or send us patches that you would like merged upstream.
 
-[NetCDF]: http://www.unidata.ucar.edu/packages/netcdf
-[HDF5]: http://hdf.ncsa.uiuc.edu/HDF5
+[NetCDF]: http://www.unidata.ucar.edu/software/netcdf/
+[HDF5]: https://www.hdfgroup.org/HDF5/
 [SIGMA-MOAB]:http://sigma.mcs.anl.gov/moab-library
