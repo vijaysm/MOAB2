@@ -4,6 +4,8 @@
 #include "moab/MOABConfig.h"
 #ifdef MOAB_HAVE_MPI
 #  include "moab_mpi.h"
+/* it is needed if MPI is not initialized */
+#  include <time.h>
 #else
 #  if defined(_MSC_VER)
 #    include <time.h>
