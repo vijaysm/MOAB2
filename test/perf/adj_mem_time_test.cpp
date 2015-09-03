@@ -3,12 +3,6 @@
 #include <assert.h>
 #include <time.h>
 #include <vector>
-#include "moab/Core.hpp"
-#include "moab/Range.hpp"
-#include "moab/MeshTopoUtil.hpp"
-#include "moab/HalfFacetRep.hpp"
-#include "../TestUtil.hpp"
-#include "moab/MeasureTime.hpp"
 
 #ifdef MOAB_HAVE_MPI
 #include "moab/ParallelComm.hpp"
@@ -17,6 +11,12 @@
 #include "MBTagConventions.hpp"
 #include "moab_mpi.h"
 #endif
+#include "moab/Core.hpp"
+#include "moab/Range.hpp"
+#include "moab/MeshTopoUtil.hpp"
+#include "moab/HalfFacetRep.hpp"
+#include "../TestUtil.hpp"
+#include "moab/MeasureTime.hpp"
 
 using namespace moab;
 
