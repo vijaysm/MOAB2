@@ -11,9 +11,8 @@
 
 #ifdef MOAB_HAVE_MPI
 #  include "moab_mpi.h"
-#else
-#  include "time.h"
 #endif
+#  include "time.h"
 
 namespace moab {
 
