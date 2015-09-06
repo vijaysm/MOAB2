@@ -9,13 +9,24 @@ ADD_CUSTOM_COMMAND(
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/iMesh.h )
 
 set( FBiGEOM_SOURCE FBiGeom_MOAB.hpp FBiGeom_MOAB.cpp )
-set( FBiGEOM_INCLUDE_HEADERS FBiGeom.h
-                             ${CMAKE_CURRENT_BINARY_DIR}/FBiGeom_protos.h
-	                           FBiGeom_f.h )
+set(
+  FBiGEOM_INCLUDE_HEADERS
+  FBiGeom.h
+  ${CMAKE_CURRENT_BINARY_DIR}/FBiGeom_protos.h
+  FBiGeom_f.h
+  )
 
-add_library( FBiGeomMOAB
+add_library(
+  FBiGeomMOAB
   ${FBiGEOM_SOURCE}
-  ${FBiGEOM_INCLUDE_HEADERS} )
+  ${FBiGEOM_INCLUDE_HEADERS}
+  )
 
 target_link_libraries( FBiGeomMOAB MOAB )
 
+set_target_properties(
+  FBiGeomMOAB
+  PROPERTIES
+  VERSION ${MOAB_VERSION}
+  SOVERSION ${MOAB_VERSION_MAJOR}
+  )

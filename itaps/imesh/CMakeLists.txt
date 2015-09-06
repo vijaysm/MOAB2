@@ -58,29 +58,49 @@ if ( MOAB_HAVE_MPI )
           ${CMAKE_CURRENT_BINARY_DIR}/iMeshP_extensions_protos.h )
 endif()
 
-include_directories( ${CMAKE_CURRENT_SOURCE_DIR}
-                     ${CMAKE_CURRENT_BINARY_DIR}
-                     ${CMAKE_BINARY_DIR}/src
-                     ${CMAKE_SOURCE_DIR}/src
-                     ${CMAKE_SOURCE_DIR}/itaps
-                     ${CMAKE_BINARY_DIR}/itaps )
+include_directories(
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${CMAKE_CURRENT_BINARY_DIR}
+  ${CMAKE_BINARY_DIR}/src
+  ${CMAKE_SOURCE_DIR}/src
+  ${CMAKE_SOURCE_DIR}/itaps
+  ${CMAKE_BINARY_DIR}/itaps
+  )
 
 if ( MOAB_HAVE_HDF5 AND HDF5_FOUND )
   include_directories( ${HDF5_INCLUDE_DIRECTORIES}
                        ${CMAKE_SOURCE_DIR}/src/io/mhdf/include )
 endif( )
 
-set_source_files_properties( ${MOAB_IMESH_SRCS} COMPILE_FLAGS "${MOAB_DEFINES}" )
+set_source_files_properties(
+  ${MOAB_IMESH_SRCS} COMPILE_FLAGS "${MOAB_DEFINES}"
+  )
 
-add_library( iMesh ${MOAB_IMESH_SRCS}
-                   ${MOAB_IMESH_LIB_INCLUDES} )
+add_library(
+  iMesh
+  ${MOAB_IMESH_SRCS}
+  ${MOAB_IMESH_LIB_INCLUDES}
+  )
 
 target_link_libraries( iMesh MOAB )
 
-install(TARGETS iMesh EXPORT MOABTargets
-                      RUNTIME DESTINATION bin
-                      LIBRARY DESTINATION lib
-                      ARCHIVE DESTINATION lib )
+set_target_properties(
+  iMesh
+  PROPERTIES
+  VERSION ${MOAB_VERSION}
+  SOVERSION ${MOAB_VERSION_MAJOR}
+  )
+
+install(
+  TARGETS iMesh
+  EXPORT MOABTargets
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  )
 set( MOAB_INSTALL_TARGETS ${MOAB_INSTALL_TARGETS} iMesh)
 
-install(FILES ${MOAB_IMESH_LIB_INCLUDES} DESTINATION include)
+install(
+  FILES ${MOAB_IMESH_LIB_INCLUDES}
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  )
