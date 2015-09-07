@@ -741,8 +741,22 @@ void test_set_pointers_dense()
                  MB_TAG_DENSE, MB_TYPE_OPAQUE,
                  data, num_val/2, defaultval, 
                  POINTER, false );
-}
+
+  const double dbldata[3] = {1.0, 2.0, 3.0};
+  const int dbl_num_val = sizeof(dbldata)/sizeof(double);
   
+  test_get_set( "dense_double_ptr", 3, 
+                 MB_TAG_DENSE, MB_TYPE_DOUBLE,
+                 dbldata, dbl_num_val, 0, 
+                 POINTER, false );
+  
+  const double dbldefaultval[3] = {0.0,0.0,0.0};
+  test_get_set( "dense_byte_ptr_def", 3, 
+                 MB_TAG_DENSE, MB_TYPE_DOUBLE,
+                 dbldata, dbl_num_val, dbldefaultval, 
+                 POINTER, false );
+}
+ 
 void test_clear_dense()
 {
   const int int_val = 0xcab;
