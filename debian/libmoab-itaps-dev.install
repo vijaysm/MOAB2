@@ -1,4 +1,0 @@
-usr/include/i*.h
-usr/lib/*/libi*.so
-usr/lib/*/i*-Defs.inc
-
