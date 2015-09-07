@@ -2,7 +2,7 @@ cmake_minimum_required( VERSION 2.8.12 )
 SET(PACKAGE_NAME "MOAB")
 SET(PACKAGE_VERSION "4.9.1pre")
 
-if (NOT WIN32)
+if (NOT WIN32 AND FALSE)
   #This all breaks on windows.
   SET(CMAKE_Fortran_COMPILER_INIT ${CMAKE_GENERATOR_FC})
   SET(CMAKE_CXX_FLAGS_INIT "-fPIC -DPIC")
