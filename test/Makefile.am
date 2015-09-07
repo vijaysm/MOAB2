@@ -59,7 +59,8 @@ TESTS = range_test \
         test_boundbox \
         adj_moab_test \
         uref_mesh_test \
-        verdict_test
+        verdict_test \
+        test_Matrix3
 
 if HAVE_HDF5
   TESTS += mbfacet_test \
@@ -94,6 +95,7 @@ MOSTLYCLEANFILES = mb_write.g \
 
 # Tests and such
 
+test_Matrix3_SOURCES = test_Matrix3.cpp
 verdict_test_SOURCES = verdict_test.cpp
 range_test_SOURCES = range_test.cpp
 moab_test_SOURCES = MBTest.cpp

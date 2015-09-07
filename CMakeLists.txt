@@ -306,7 +306,7 @@ export(
   )
 install(
   EXPORT MOABTargets
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/MOAB/
   )
 
 # Create some custom command
@@ -376,7 +376,7 @@ endif ( MOAB_HAVE_IMESH )
 INSTALL(
   FILES "${PROJECT_BINARY_DIR}/MOABConfig.cmake"
   "${PROJECT_BINARY_DIR}/lib/moab.make"
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/MOAB/
   )
 
 ADD_CUSTOM_TARGET(
