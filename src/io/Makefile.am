@@ -170,6 +170,6 @@ libmoabio_la_SOURCES = \
 
 libmoabio_la_includedir = $(includedir)
 nobase_libmoabio_la_include_HEADERS = moab/ExoIIInterface.hpp
-if HDF5_FILE
+if HAVE_HDF5
   nobase_libmoabio_la_include_HEADERS += moab/H5MInterface.hpp
 endif
