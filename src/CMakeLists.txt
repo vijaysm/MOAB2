@@ -255,6 +255,16 @@ set_target_properties(
   SOVERSION ${MOAB_VERSION_MAJOR}
   DEFINE_SYMBOL "IS_BUILDING_MB_SHARED"
   )
+
+# On OS X, set the directory included as part of the installed library's path.
+# We only do this to libraries we plan on installing.
+if (BUILD_SHARED_LIBS)
+  set_target_properties(MOAB
+    PROPERTIES
+    INSTALL_NAME_DIR "${CMAKE_INSTALL_PREFIX}/lib"
+    )
+endif ()
+
 target_include_directories(MOAB PUBLIC
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>"
