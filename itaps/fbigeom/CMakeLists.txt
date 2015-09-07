@@ -5,7 +5,7 @@ ADD_CUSTOM_COMMAND(
           -Dinput_file:STRING=${CMAKE_CURRENT_SOURCE_DIR}/FBiGeom.h
           -Doutput_file:STRING=${CMAKE_CURRENT_BINARY_DIR}/FBiGeom_protos.h
           -Dprefix:STRING=FBiGeom
-          -P ${CMAKE_SOURCE_DIR}/config/ITAPSFortranMangling.cmake
+          -P ${MOAB_SOURCE_DIR}/config/ITAPSFortranMangling.cmake
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/FBiGeom.h )
 
 set( FBiGEOM_SOURCE FBiGeom_MOAB.hpp FBiGeom_MOAB.cpp )
@@ -34,8 +34,8 @@ include_directories(
  )
 
 if ( MOAB_HAVE_MPI )
-  include_directories( ${CMAKE_SOURCE_DIR}/src/parallel
-                       ${CMAKE_BINARY_DIR}/src/parallel)
+  include_directories( ${MOAB_SOURCE_DIR}/src/parallel
+                       ${MOAB_BINARY_DIR}/src/parallel)
 endif ()
 
 target_link_libraries( FBiGeomMOAB MOAB iMesh )

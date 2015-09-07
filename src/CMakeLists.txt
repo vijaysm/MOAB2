@@ -41,7 +41,7 @@ ADD_CUSTOM_COMMAND(
           -Dinput_file:STRING=${CMAKE_CURRENT_SOURCE_DIR}/MBCN.h
           -Doutput_file:STRING=${CMAKE_CURRENT_BINARY_DIR}/MBCN_protos.h
           -Dprefix:STRING=MBCN
-          -P ${CMAKE_SOURCE_DIR}/config/ITAPSFortranMangling.cmake
+          -P ${MOAB_SOURCE_DIR}/config/ITAPSFortranMangling.cmake
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/MBCN.h )
 
 if( MOAB_HAVE_HDF5 )

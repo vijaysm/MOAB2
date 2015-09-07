@@ -26,7 +26,8 @@ project( MOAB )
 include(GNUInstallDirs)
 
 #Add our Cmake directory to the module search path
-set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/config ${CMAKE_MODULE_PATH})
+set(CMAKE_MODULE_PATH ${MOAB_SOURCE_DIR}/config ${CMAKE_MODULE_PATH})
+
 ################################################################################
 # Set up version info
 ################################################################################
