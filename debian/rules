@@ -1,42 +1,8 @@
 #!/usr/bin/make -f
 # -*- makefile -*-
-# Sample debian/rules that uses debhelper.
-# This file was originally written by Joey Hess and Craig Small.
-# As a special exception, when this file is copied by dh-make into a
-# dh-make output file, you may use that output file without restriction.
-# This special exception was added by Craig Small in version 0.37 of dh-make.
 
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
 
 %:
 	dh $@ --buildsystem=cmake --parallel
-
-#ARCH=$(shell arch)
-#BUILDDIR=obj-$(ARCH)-linux-gnu
-#
-## install src, tools, itaps separately
-#override_dh_auto_install: auto_install-stamp
-#auto_install-stamp:
-#	ls src/
-#	ls $(BUILDDIR)/$$i
-#	for i in src tools itaps; do \
-#	  $(MAKE) -C $(BUILDDIR)/$$i install DESTDIR=$(CURDIR)/debian/tmp_$$i || exit 1; \
-#	done
-#	touch $@
-#
-#override_dh_install: install-stamp
-#install-stamp: SHELL=/bin/bash
-#install-stamp: auto_install-stamp
-#	@for i in src tools itaps; do \
-#	  echo "dh_install --sourcedir=debian/tmp_$$i usr/lib/*/*.so.*"; \
-#	  dh_install --sourcedir=debian/tmp_$$i usr/lib/*/*.so.* || exit 1; \
-#	  echo "dh_install --sourcedir=debian/tmp_$$i --autodest usr/include usr/lib/*/*.so usr/lib/*/cmake"; \
-#	  dh_install --sourcedir=debian/tmp_$$i --autodest usr/include usr/lib/*/*.so usr/lib/*/cmake || exit 1; \
-#	  if grep -q "^lib$$i\>" debian/lintian-override; then \
-#	    install -d debian/lib$${i/2/2-}$(SOVERSION)/usr/share/lintian/overrides; \
-#	    grep "^lib$${i/2/2-}%V\>" debian/lintian-override |\
-#		   sed -e 's/%V/$(SOVERSION)/g' > debian/lib$${i/2/2-}$(SOVERSION)/usr/share/lintian/overrides/lib$${i/2/2-}$(SOVERSION); \
-#	  fi \
-#	done
-#	touch $@
