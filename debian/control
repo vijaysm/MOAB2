@@ -10,12 +10,12 @@ Build-Depends: debhelper (>= 9),
   libnetcdf-dev
 Standards-Version: 3.8.4
 Section: libs
-Homepage: http://trac.mcs.anl.gov/projects/ITAPS/wiki/MOAB
+Homepage: http://sigma.mcs.anl.gov/moab-library/
 
 Package: libmoab-dev
 Section: libdevel
 Architecture: any
-Depends: libmoab0 (= ${binary:Version})
+Depends: libmoab0 (= ${binary:Version}), ${misc:Depends}
 Description: Mesh-Oriented datABase development files
   MOAB is a component for representing and evaluating mesh data. 
   MOAB can store structured and unstructured mesh, consisting of 
@@ -25,22 +25,22 @@ Description: Mesh-Oriented datABase development files
   mesh. MOAB is optimized for efficiency in space and time, based 
   on access to mesh in chunks rather than through individual
   entities, while also versatile enough to support individual 
-  entity access. 
+  entity access.
 
-Package: libmoab-itaps-dev
-Section: libdevel
-Architecture: any
-Depends: libmoab-itaps0 (= ${binary:Version})
-Description: Mesh-Oriented datABase iMesh API development files
-  MOAB is a component for representing and evaluating mesh data. 
-  MOAB can store structured and unstructured mesh, consisting of 
-  elements in the finite element "zoo". The functional 
-  interface to MOAB is simple yet powerful, allowing the 
-  representation of many types of metadata commonly found on the 
-  mesh. MOAB is optimized for efficiency in space and time, based 
-  on access to mesh in chunks rather than through individual
-  entities, while also versatile enough to support individual 
-  entity access. 
+#Package: libmoab-itaps-dev
+#Section: libdevel
+#Architecture: any
+#Depends: libmoab-itaps0 (= ${binary:Version})
+#Description: Mesh-Oriented datABase iMesh API development files
+#  MOAB is a component for representing and evaluating mesh data. 
+#  MOAB can store structured and unstructured mesh, consisting of 
+#  elements in the finite element "zoo". The functional 
+#  interface to MOAB is simple yet powerful, allowing the 
+#  representation of many types of metadata commonly found on the 
+#  mesh. MOAB is optimized for efficiency in space and time, based 
+#  on access to mesh in chunks rather than through individual
+#  entities, while also versatile enough to support individual 
+#  entity access.
 
 Package: libmoab0
 Section: libs
@@ -55,27 +55,27 @@ Description: Mesh-Oriented datABase libraries
   mesh. MOAB is optimized for efficiency in space and time, based 
   on access to mesh in chunks rather than through individual
   entities, while also versatile enough to support individual 
-  entity access. 
+  entity access.
 
-Package: libmoab-itaps0
+#Package: libmoab-itaps0
+#Section: libs
+#Architecture: any
+#Depends: libmoab0
+#Description: Mesh-Oriented datABase iMesh API libraries
+#  MOAB is a component for representing and evaluating mesh data. 
+#  MOAB can store structured and unstructured mesh, consisting of 
+#  elements in the finite element "zoo". The functional 
+#  interface to MOAB is simple yet powerful, allowing the 
+#  representation of many types of metadata commonly found on the 
+#  mesh. MOAB is optimized for efficiency in space and time, based 
+#  on access to mesh in chunks rather than through individual
+#  entities, while also versatile enough to support individual 
+#  entity access.
+
+Package: moab-bin
 Section: libs
 Architecture: any
-Depends: libmoab0
-Description: Mesh-Oriented datABase iMesh API libraries
-  MOAB is a component for representing and evaluating mesh data. 
-  MOAB can store structured and unstructured mesh, consisting of 
-  elements in the finite element "zoo". The functional 
-  interface to MOAB is simple yet powerful, allowing the 
-  representation of many types of metadata commonly found on the 
-  mesh. MOAB is optimized for efficiency in space and time, based 
-  on access to mesh in chunks rather than through individual
-  entities, while also versatile enough to support individual 
-  entity access. 
-
-Package: moab-utils
-Section: libs
-Architecture: any
-Depends: libmoab0
+Depends: libmoab0, ${misc:Depends}
 Description: Mesh-Oriented datABase utilities
   MOAB is a component for representing and evaluating mesh data. 
   MOAB can store structured and unstructured mesh, consisting of 
@@ -85,4 +85,4 @@ Description: Mesh-Oriented datABase utilities
   mesh. MOAB is optimized for efficiency in space and time, based 
   on access to mesh in chunks rather than through individual
   entities, while also versatile enough to support individual 
-  entity access. 
+  entity access.
