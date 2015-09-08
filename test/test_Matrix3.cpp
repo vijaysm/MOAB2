@@ -50,8 +50,8 @@ void test_EigenDecomp()
 
   // check to ensure that the eigenvalues are ordered from highest to lowest
   CHECK( lamda[0] >= lamda[1]);
-  CHACK( lamda[1] >= lamda[2]);
-  
+  CHECK( lamda[1] >= lamda[2]);
+  double tol = 1.e-5;
   // check to ensure the result is valid (AM-kM = 0)
   for(unsigned i=0; i<3; ++i) {
     moab::CartVect v = moab::Matrix::matrix_vector(mat, vectors[i])-lamda[i]*vectors[i];
