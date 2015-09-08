@@ -7,16 +7,16 @@ ACLOCAL_AMFLAGS = -I config
 # Subdirectories to build
 SUBDIRS = src MeshFiles $(itaps_dir) tools test 
 
-if ENABLE_igeom
-  itaps_dir_igeom = itaps
+if ENABLE_fbigeom
+  itaps_dir_fbigeom = itaps
 else
-  itaps_dir_igeom =
+  itaps_dir_fbigeom =
 endif
 
 if ENABLE_imesh
   itaps_dir = itaps
 else
-  itaps_dir = $(itaps_dir_igeom)
+  itaps_dir = $(itaps_dir_fbigeom)
 endif
 
 # Utility target: build but don't run tests
