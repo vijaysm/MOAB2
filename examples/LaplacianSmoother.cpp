@@ -29,6 +29,7 @@
 #include "moab/CartVect.hpp"
 #include "moab/NestedRefine.hpp"
 #include "moab/VerdictWrapper.hpp"
+#include "matrix.h"
 
 using namespace moab;
 using namespace std;
@@ -312,9 +313,11 @@ ErrorCode perform_laplacian_smoothing(Core *mb, Range& cells, Range &verts, int 
 
     if (use_acc) {
 
-      memcpy( &verts_acc1[0], &verts_acc2[0], nbytes );
-      memcpy( &verts_acc2[0], &verts_acc3[0], nbytes );
-      memcpy( &verts_acc3[0], &verts_n[0],    nbytes );
+      // if (acc_method < 5 || nit <= 3) {
+      //   memcpy( &verts_acc1[0], &verts_acc2[0], nbytes );
+      //   memcpy( &verts_acc2[0], &verts_acc3[0], nbytes );
+      //   memcpy( &verts_acc3[0], &verts_n[0],    nbytes );
+      // }
 
       rat_alphaprev = rat_alpha;
       for(unsigned i=0; i < verts_n.size(); ++i) {
@@ -322,7 +325,7 @@ ErrorCode perform_laplacian_smoothing(Core *mb, Range& cells, Range &verts, int 
       }
       rat_theta = std::abs( rat_alpha / rat_alphaprev - 1.0 );
 
-      if ( nit > 2 && (nit % nacc) && rat_theta < 1.0 ) {
+      if ( nit > 3 && (nit % nacc) && rat_theta < 1.0 ) {
 
         if (acc_method == 1) { /* Method 2 from ACCELERATION OF VECTOR SEQUENCES: http://onlinelibrary.wiley.com/doi/10.1002/cnm.1630020409/pdf */
           double vnorm = 0.0, den, acc_alpha = 0.0, acc_gamma = 0.0;
@@ -370,13 +373,32 @@ ErrorCode perform_laplacian_smoothing(Core *mb, Range& cells, Range &verts, int 
             verts_n[i] = verts_acc3[i] - lambda / (lambda - 1.0) * ( verts_acc3[i] - verts_acc2[i] );
           }
         }
-        else if (acc_method = 5) { /* Minimum polynomial extrapolation of vector sequenes : https://en.wikipedia.org/wiki/Minimum_polynomial_extrapolation */
+        else if (acc_method == 5) { /* Minimum polynomial extrapolation of vector sequenes : https://en.wikipedia.org/wiki/Minimum_polynomial_extrapolation */
           /* Pseudo-code 
                 U=x(:,2:end-1)-x(:,1:end-2);
                 c=-pinv(U)*(x(:,end)-x(:,end-1));
                 c(end+1,1)=1;
                 s=(x(:,2:end)*c)/sum(c);
-          */ 
+          */
+          Matrix U(verts_n.size(), 2);
+          Vector res(verts_n.size());
+          for (unsigned ir=0; ir < verts_n.size(); ir++) {
+            U(ir,0) = verts_acc2[ir]-verts_acc1[ir];
+            U(ir,1) = verts_acc3[ir]-verts_acc2[ir];
+            res[ir] = -(verts_n[ir]-verts_acc3[ir]);
+          }
+          // U.print();
+          // Vector acc = QR(U).solve(res);
+          Vector acc = solve(U,res);
+          double accsum = acc[0]+acc[1]+1.0;
+          for (unsigned ir=0; ir < verts_n.size(); ir++) {
+            verts_n[ir] = (verts_acc1[ir]*acc[0] + verts_acc2[ir]*acc[1] + verts_acc3[ir]) / accsum;
+          }
+
+          memcpy( &verts_acc1[0], &verts_acc2[0], nbytes );
+          memcpy( &verts_acc2[0], &verts_acc3[0], nbytes );
+          memcpy( &verts_acc3[0], &verts_n[0],    nbytes );
+
         }
         else {
           int offset=0;
@@ -397,7 +419,12 @@ ErrorCode perform_laplacian_smoothing(Core *mb, Range& cells, Range &verts, int 
           }
         }
       }
+      memcpy( &verts_acc1[0], &verts_acc2[0], nbytes );
+      memcpy( &verts_acc2[0], &verts_acc3[0], nbytes );
+      memcpy( &verts_acc3[0], &verts_n[0],    nbytes );
     }
+
+
 
     // 2b. foreach owned vertex: compute change in coordinate norm
     for (unsigned v = 0; v < verts.size(); ++v) {
