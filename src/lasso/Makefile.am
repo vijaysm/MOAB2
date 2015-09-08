@@ -3,7 +3,7 @@
 @FBIGEOM_CONFIG_OPTIONS@
 
 AUTOMAKE_OPTIONS = foreign subdir-objects
-BUILT_SOURCES = itaps/irel/iRel_protos.h
+BUILT_SOURCES = $(top_srcdir)/itaps/irel/iRel_protos.h
 
 AM_CPPFLAGS = -DSRCDIR=$(srcdir)
 
@@ -17,20 +17,20 @@ DEFS += $(DEFINES)
 LIBS =
 
 libiRel_la_SOURCES = \
-	src/lasso/ArrayManager.hpp \
-	src/AssocPair.cpp \
-	src/lasso/AssocPair.hpp \
-	src/lasso/AssocPairSide.hpp \
-	src/iRel_Lasso.cpp \
-	src/lasso/iRel_Lasso.hpp \
-	src/Lasso.cpp \
-	src/lasso/Lasso.hpp
+	ArrayManager.hpp \
+	AssocPair.cpp \
+	AssocPair.hpp \
+	AssocPairSide.hpp \
+	iRel_Lasso.cpp \
+	iRel_Lasso.hpp \
+	Lasso.cpp \
+	Lasso.hpp
 
 libiRel_la_include_HEADERS = \
-	itaps/irel/iRel.h \
-	itaps/irel/iRel_f.h \
-	itaps/irel/iRel_protos.h \
-	itaps/irel/iRel_FCDefs.h
+	$(top_srcdir)/itaps/irel/iRel.h \
+	$(top_srcdir)/itaps/irel/iRel_f.h \
+	$(top_srcdir)/itaps/irel/iRel_protos.h \
+	$(top_srcdir)/itaps/irel/iRel_FCDefs.h
 
 # The directory in which to install headers
 libiRel_la_includedir = $(includedir)
@@ -41,8 +41,8 @@ lib_LTLIBRARIES = libiRel.la
 if ENABLE_IGEOM
     AM_CPPFLAGS += -DENABLE_IGEOM -I${IGEOM_DIR}/include
     libiRel_la_SOURCES += \
-        src/GeomAssocPairSide.cpp \
-        src/lasso/GeomAssocPairSide.hpp
+        GeomAssocPairSide.cpp \
+        GeomAssocPairSide.hpp
     libiRel_la_LIBADD += \
         ${IGEOM_LTFLAGS} ${IGEOM_LDFLAGS} ${IGEOM_DIR}/lib/libiGeom.la
     LIBS += ${IGEOM_LIBS}
@@ -51,8 +51,8 @@ endif
 if ENABLE_FBIGEOM
     AM_CPPFLAGS += -DENABLE_FBIGEOM -I${FBIGEOM_DIR}/include
     libiRel_la_SOURCES += \
-        src/FBGeomAssocPairSide.cpp \
-        src/lasso/FBGeomAssocPairSide.hpp
+        FBGeomAssocPairSide.cpp \
+        FBGeomAssocPairSide.hpp
     libiRel_la_LIBADD += \
         ${FBIGEOM_LTFLAGS} ${FBIGEOM_LDFLAGS} ${FBIGEOM_DIR}/lib/libFBiGeomMOAB.la
     LIBS += ${FBIGEOM_LIBS}
@@ -61,8 +61,8 @@ endif
 if ENABLE_IMESH
     AM_CPPFLAGS += -DENABLE_IMESH -I${IMESH_DIR}/include
     libiRel_la_SOURCES += \
-        src/MeshAssocPairSide.cpp \
-        src/lasso/MeshAssocPairSide.hpp
+        MeshAssocPairSide.cpp \
+        MeshAssocPairSide.hpp
     libiRel_la_LIBADD += \
         ${IMESH_LTFLAGS} ${IMESH_LDFLAGS} ${IMESH_DIR}/lib/libiMesh.la
     LIBS += ${IMESH_LIBS}
@@ -84,11 +84,11 @@ install-data-hook:
 	echo "IREL_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iRel-Defs.inc
 	echo "IREL_INCLUDEDIR=${includedir}" >> $(DESTDIR)$(cfgdir)/iRel-Defs.inc
 
-CLEANFILES=itaps/irel/iRel_protos.h
+CLEANFILES=$(top_builddir)/itaps/irel/iRel_protos.h
 FPFX=iRel
 SEDEXPR = 's/^[[:space:]]*void[[:space:]][[:space:]]*$(FPFX)_\([a-z][_a-zA-Z0-9]*\)[[:space:]]*(.*$$/$(FPFX)_\1/p'
-itaps/irel/iRel_protos.h: itaps/irel/iRel.h
-	echo '#include "iRel_FCDefs.h"' > $@
+$(top_builddir)/itaps/irel/iRel_protos.h: $(top_srcdir)/itaps/irel/iRel.h
+	echo '#include "moab/MOABConfig.h"' > $@
 	echo '#ifdef IREL_FC_FUNC_' >> $@
 	echo >> $@
 	for func in `$(SED) -n $(SEDEXPR) $<`; do \
@@ -99,7 +99,7 @@ itaps/irel/iRel_protos.h: itaps/irel/iRel.h
 	echo >> $@
 	echo "#endif" >> $@
 
-itaps/irel/iRel_FCDefs.h: itaps/iBase_FCDefs.h
-	./config.status itaps/irel/iRel_FCDefs.h
+#itaps/irel/iRel_FCDefs.h: itaps/iBase_FCDefs.h
+#	./config.status itaps/irel/iRel_FCDefs.h
 
-DISTCLEANFILES = itaps/irel/iRel_FCDefs.h
+# DISTCLEANFILES = $(top_srcdir)/itaps/irel/iRel_FCDefs.h
