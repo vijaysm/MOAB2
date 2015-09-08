@@ -188,7 +188,7 @@ else
 fi
 
 ################################################################################
-#                           iGeom Part 1 of 2
+#                           FBiGeom Part 1 of 2
 ################################################################################
 AC_ARG_ENABLE( [fbigeom],
 [AS_HELP_STRING([--enable-fbigeom],[Build mesh-based (facets) iGeom implementation])],
@@ -228,6 +228,7 @@ if test "x$ENABLE_fbigeom" = "xyes"; then
     AC_MSG_ERROR([Cannot build FBiGeom API with sizeof(EntityHandle) != sizeof(void*)])
   fi
   AC_DEFINE([HAVE_FBIGEOM],[1],[Define if configured with FBiGeom interfaces.])
+  
 fi
 
 AC_MSG_CHECKING([if iMesh support is to be built])
@@ -239,6 +240,21 @@ if test "x$ENABLE_imesh" = "xyes"; then
   fi
   AC_DEFINE([HAVE_IMESH],[1],[Define if configured with iMesh interfaces.])
 fi
+
+################################################################################
+#                           iRel/Lasso Part 1 of 2
+################################################################################
+AC_ARG_ENABLE( [irel],
+[AS_HELP_STRING([--enable-irel],[Build relational geometry-mesh query interface implementation])],
+[enable_irel=$enableval],[enable_irel=no] )
+
+if (test "xyes" != "x$enable_irel" && test "xno" != "x$enable_irel"); then
+  AC_MSG_ERROR([Unknown argument --enable-irel=$enableval])
+else
+  ENABLE_irel=$enable_irel
+  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-irel=$enable_irel"
+fi
+
 
 ################################################################################
 #                              Version Stuff
@@ -933,6 +949,33 @@ if (test "x$CGM_MISSING" == "xno"); then
   if (test "x$HAVE_CGM_FIRE_RAY" != "xno"); then
     AC_DEFINE([HAVE_CGM_FIRE_RAY],[1],["Define if configured with CGM and Ray fire support."])
   fi
+fi
+
+
+################################################################################
+#                           iRel/Lasso Part 2 of 2
+################################################################################
+
+AC_MSG_CHECKING([if iRel support is to be built])
+AC_MSG_RESULT([$ENABLE_irel])
+AM_CONDITIONAL([ENABLE_irel],[test "xyes" = "x$ENABLE_irel"])
+if test "x$ENABLE_irel" = "xyes"; then
+  if (test "x$ENABLE_imesh" != "xyes" || test "x$CGM_MISSING" != "xno"); then
+    AC_MSG_ERROR([Cannot build iRel API. Enable both iGeom (CGM) and iMesh implementations.])
+  fi
+  AC_DEFINE([HAVE_IREL],[1],[Define if configured with iRel interfaces.])
+  
+  AC_CHECK_FILE([${CGM_DIR}/lib/iGeom-Defs.inc],
+              [IGEOM_CONFIG_OPTIONS="include ${CGM_DIR}/lib/iGeom-Defs.inc";
+               FATHOM_MAKE_INC_VAR([${CGM_DIR}/lib/iGeom-Defs.inc],[IGEOM_DEFINES], [IGEOM_DEFINES="$make_val"],
+                  [IGEOM_DEFINES=]) ],
+              [AC_CHECK_FILE([${CGM_DIR}/iGeom-Defs.inc],
+                             [IGEOM_CONFIG_OPTIONS="include ${CGM_DIR}/iGeom-Defs.inc"],
+                             [AC_MSG_WARN([$CGM_DIR : not a configured iGeom])]
+                            )
+              ])
+  AC_SUBST(IGEOM_DEFINES)
+  AC_SUBST(IGEOM_CONFIG_OPTIONS)
 fi
 
 

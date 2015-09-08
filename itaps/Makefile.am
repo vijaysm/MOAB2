@@ -11,8 +11,14 @@ else
   fbigeom_DIR = 
 endif 
 
+if ENABLE_irel
+	irel_DIR = irel
+else
+	irel_DIR =
+endif
+
 include_HEADERS = iBase.h iBase_f.h
 
-SUBDIRS = $(imesh_DIR) $(fbigeom_DIR)
+SUBDIRS = $(imesh_DIR) $(fbigeom_DIR) $(irel_DIR)
 
 EXTRA_DIST = mkprotos.sh

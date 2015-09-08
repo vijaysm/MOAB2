@@ -1,6 +1,4 @@
 @IGEOM_CONFIG_OPTIONS@
-@IMESH_CONFIG_OPTIONS@
-@FBIGEOM_CONFIG_OPTIONS@
 
 AUTOMAKE_OPTIONS = foreign subdir-objects
 BUILT_SOURCES = $(top_srcdir)/itaps/irel/iRel_protos.h
@@ -12,8 +10,8 @@ ACLOCAL_AMFLAGS = -I m4
 
 SUBDIRS = test
 
-AM_CPPFLAGS += -I$(top_srcdir)/src -I$(top_srcdir)/itaps/irel -I$(top_builddir)/itaps/irel -I$(top_builddir) -I$(top_srcdir)/src/lasso
-DEFS += $(DEFINES)
+AM_CPPFLAGS += -I$(top_srcdir)/src -I$(top_srcdir)/itaps/irel -I$(top_builddir)/itaps/irel -I$(top_builddir) 
+DEFS += $(IGEOM_DEFINES)
 LIBS =
 
 libiRel_la_SOURCES = \
@@ -38,33 +36,31 @@ libiRel_la_LIBADD =
 
 lib_LTLIBRARIES = libiRel.la
 
-if ENABLE_IGEOM
+if HAVE_CGM
     AM_CPPFLAGS += -DENABLE_IGEOM -I${IGEOM_DIR}/include
     libiRel_la_SOURCES += \
         GeomAssocPairSide.cpp \
         GeomAssocPairSide.hpp
     libiRel_la_LIBADD += \
         ${IGEOM_LTFLAGS} ${IGEOM_LDFLAGS} ${IGEOM_DIR}/lib/libiGeom.la
-    LIBS += ${IGEOM_LIBS}
+    LIBS += ${CGM_LIBS}
 endif
 
-if ENABLE_FBIGEOM
-    AM_CPPFLAGS += -DENABLE_FBIGEOM -I${FBIGEOM_DIR}/include
+if ENABLE_fbigeom
+    AM_CPPFLAGS += -DENABLE_FBIGEOM -I$(top_srcdir)/itaps/fbigeom
     libiRel_la_SOURCES += \
         FBGeomAssocPairSide.cpp \
         FBGeomAssocPairSide.hpp
-    libiRel_la_LIBADD += \
-        ${FBIGEOM_LTFLAGS} ${FBIGEOM_LDFLAGS} ${FBIGEOM_DIR}/lib/libFBiGeomMOAB.la
+    libiRel_la_LIBADD += $(top_builddir)/itaps/fbigeom/libFBiGeomMOAB.la
     LIBS += ${FBIGEOM_LIBS}
 endif
 
-if ENABLE_IMESH
-    AM_CPPFLAGS += -DENABLE_IMESH -I${IMESH_DIR}/include
+if ENABLE_imesh
+    AM_CPPFLAGS += -DENABLE_IMESH -I$(top_srcdir)/itaps/imesh
     libiRel_la_SOURCES += \
         MeshAssocPairSide.cpp \
         MeshAssocPairSide.hpp
-    libiRel_la_LIBADD += \
-        ${IMESH_LTFLAGS} ${IMESH_LDFLAGS} ${IMESH_DIR}/lib/libiMesh.la
+    libiRel_la_LIBADD += $(top_builddir)/itaps/imesh/libiMesh.la
     LIBS += ${IMESH_LIBS}
 endif
 
