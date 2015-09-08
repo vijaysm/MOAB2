@@ -45,6 +45,8 @@ void test_EigenDecomp()
   moab::CartVect vectors[3];
   moab::ErrorCode rval = moab::Matrix::EigenDecomp( mat, lamda, vectors);
   CHECK_ERR(rval);
+  for (int i=0; i < 3; ++i)
+    vectors[i].normalize();
 
   //Hardcoded check values for the results
   double lamda_check[3];
@@ -52,10 +54,13 @@ void test_EigenDecomp()
 
   moab::CartVect vec0_check(0.5, -0.707107, 0.5);
   moab::CartVect vec1_check(0.707107, 3.37748e-17, -0.707107);
-  moab::CartVect vec2_check(0.5, 0.707107, 0.5); 
-  
+  moab::CartVect vec2_check(0.5, 0.707107, 0.5);
+
   //now verfy that the returns Eigenvalues and Eigenvectors are correct (within some tolerance)
-  double tol = 1e-04; 
+  double tol = 1e-04;
+  vec0_check.normalize();
+  vec1_check.normalize();
+  vec2_check.normalize();
 
   //check that the correct Eigenvalues are returned correctly (in order)
   CHECK_REAL_EQUAL( lamda[0], lamda_check[0], tol);
@@ -64,23 +69,16 @@ void test_EigenDecomp()
 
   //check the Eigenvector values (order should correspond to the Eigenvalues)
   //first vector
-  CHECK_REAL_EQUAL( vectors[0][0], vec0_check[0], tol );
-  CHECK_REAL_EQUAL( vectors[0][1], vec0_check[1], tol );
-  CHECK_REAL_EQUAL( vectors[0][2], vec0_check[2], tol );
+  CHECK_EIGVECREAL_EQUAL( vectors[0], vec0_check, tol );
   
   //sceond vector
-  CHECK_REAL_EQUAL( vectors[1][0], vec1_check[0], tol );
-  CHECK_REAL_EQUAL( vectors[1][1], vec1_check[1], tol );
-  CHECK_REAL_EQUAL( vectors[1][2], vec1_check[2], tol );
+  CHECK_EIGVECREAL_EQUAL( vectors[1], vec1_check, tol );
 
   //third vector
-  CHECK_REAL_EQUAL( vectors[2][0], vec2_check[0], tol );
-  CHECK_REAL_EQUAL( vectors[2][1], vec2_check[1], tol );
-  CHECK_REAL_EQUAL( vectors[2][2], vec2_check[2], tol );
+  CHECK_EIGVECREAL_EQUAL( vectors[2], vec2_check, tol );
 
   //another check to ensure the result is valid (AM-kM = 0)
-  unsigned int i;
-  for(i=0; i<3; i++){
+  for(unsigned i=0; i<3; ++i) {
     moab::CartVect v = moab::Matrix::matrix_vector(mat, vectors[i])-lamda[i]*vectors[i];
     CHECK_REAL_EQUAL( v.length(), 0, tol );
   }
