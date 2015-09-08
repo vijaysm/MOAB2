@@ -318,7 +318,9 @@ INPUT                  = @top_srcdir@/src \
                          @top_srcdir@/src/parallel/MBParallelConventions.h \
                          @top_srcdir@/tools/ @top_srcdir@/tools/mbcoupler \
                          @top_srcdir@/tools/dagmc/DagMC.hpp \
-                         @top_srcdir@/itaps @top_srcdir@/itaps/imesh \
+                         @top_srcdir@/lasso/src \
+                         @top_srcdir@/lasso/src/lasso \
+                         @top_srcdir@/itaps @top_srcdir@/itaps/imesh @top_srcdir@/itaps/irel \
                          @top_srcdir@/examples
 
 # If the value of the INPUT tag contains directories, you can use the 
