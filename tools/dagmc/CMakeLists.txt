@@ -1,6 +1,3 @@
-# Find CGM directory
-find_package( CGM )
-
 include_directories(
   ${CMAKE_CURRENT_BINARY_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}
@@ -8,8 +5,8 @@ include_directories(
   ${CMAKE_SOURCE_DIR}/src
   ${CMAKE_BINARY_DIR}/src )
 
-if ( CGM_FOUND )
-  include_directories( ${CGM_INCLUDE_DIRECTORIES} )
+if ( MOAB_HAVE_CGM )
+  include_directories( ${CGM_INCLUDE_DIRS} )
 endif( )
 
 add_library(dagmc DagMC.hpp DagMC.cpp)
