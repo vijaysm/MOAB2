@@ -12,6 +12,7 @@
  *
  */
 #include "FBiGeom.h"
+#include "FBiGeom_MOAB.hpp"
 #include "iMesh.h"
 #include <iostream>
 #include <set>
@@ -48,7 +49,8 @@ typedef iBase_EntitySetHandle GentitysetHandle;
 extern void FBiGeom_newGeomFromMesh( iMesh_Instance mesh, iBase_EntitySetHandle set,
                           const char *options, FBiGeom_Instance *geom,
                           int *err, int options_len);
-
+// the second destructor
+extern void FBiGeom_dtor2(FBiGeom_Instance instance, int* err);
 /* Frees allocated arrays for us */
 template<typename T> class SimpleArray {
 private:
@@ -127,7 +129,7 @@ bool construct_test(FBiGeom_Instance geom);
 bool primitives_test(FBiGeom_Instance geom);
 bool transforms_test(FBiGeom_Instance geom);
 bool booleans_test(FBiGeom_Instance geom);
-bool shutdown_test(FBiGeom_Instance geom, std::string &engine_opt);
+bool shutdown_test2(FBiGeom_Instance geom, std::string &engine_opt);
 bool save_entset_test(FBiGeom_Instance geom);
 bool mesh_size_test(FBiGeom_Instance geom);
 bool normals_test(FBiGeom_Instance geom);
@@ -308,12 +310,15 @@ int main(int argc, char *argv[]) {
    // shutdown test
    std::cout << "   shutdown: ";
    std::string engine_opt;
-   result = shutdown_test(geom, engine_opt);
+   result = shutdown_test2(geom, engine_opt);
    handle_error_code(result, number_tests_failed, number_tests_not_implemented,
          number_tests_successful);
    number_tests++;
    std::cout << "\n";
 
+   // shutdown imesh instance too
+   iMesh_dtor(mesh, &err);
+   CHECK( "shutdown imesh error" );
    // summary
 
    std::cout << "\nTSTT TEST SUMMARY: \n" << "   Number Tests:           "
@@ -1575,18 +1580,18 @@ bool mesh_size_test(FBiGeom_Instance geom) {
    return true;
 }
 
-bool shutdown_test(FBiGeom_Instance geom, std::string &engine_opt) {
+bool shutdown_test2(FBiGeom_Instance geom, std::string &/*engine_opt*/) {
    int err;
 
-   // test shutdown & startup of interface
-   FBiGeom_dtor(geom, &err);
+   // test shutdown2
+   FBiGeom_dtor2(geom, &err);
    CHECK( "Interface destruction didn't work properly." );
 
-   FBiGeom_newGeom(engine_opt.c_str(), &geom, &err, engine_opt.length());
-   CHECK( "Interface re-construction didn't work properly." );
-
-   FBiGeom_dtor(geom, &err);
-   CHECK( "2nd Interface destruction didn't work properly." );
+//   FBiGeom_newGeom(engine_opt.c_str(), &geom, &err, engine_opt.length());
+//   CHECK( "Interface re-construction didn't work properly." );
+//
+//   FBiGeom_dtor(geom, &err);
+//   CHECK( "2nd Interface destruction didn't work properly." );
 
    return true;
 }

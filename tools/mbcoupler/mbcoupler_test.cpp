@@ -205,6 +205,8 @@ int main(int argc, char **argv)
     }
   }
 
+  free(roots);
+
   for (unsigned int i = 0; i < meshFiles.size(); i++)
     delete pcs[i];
 

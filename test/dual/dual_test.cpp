@@ -40,6 +40,7 @@ int main(int argc, char* argv[])
   ErrorCode result = gMB->load_mesh(f1);
   if (MB_SUCCESS != result) {
     std::cout << "Problems reading file " << argv[1] << "." << std::endl;
+    delete gMB;
     return 1;
   }
 
