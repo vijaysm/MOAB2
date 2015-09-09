@@ -1506,6 +1506,8 @@ AC_CONFIG_FILES([Makefile
                  itaps/imesh/iMesh-Defs.inc
                  itaps/fbigeom/Makefile
                  itaps/fbigeom/FBiGeom-Defs.inc
+                 itaps/irel/Makefile
+                 itaps/irel/iRel-Defs.inc
                  tools/Makefile
                  tools/refiner/Makefile
                  tools/mbcoupler/Makefile

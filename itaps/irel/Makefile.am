@@ -64,6 +64,32 @@ if ENABLE_imesh
     LIBS += ${IMESH_LIBS}
 endif
 
+
+TESTS = test_entset test_both test_status 
+if ENABLE_fbigeom
+  TESTS+= test_entsetFB
+endif
+check_PROGRAMS = ${TESTS}
+
+# stuff for c test programs
+test_entset_SOURCES = test_entset.cpp
+test_entset_DEPENDENCIES = libiRel.la
+test_entset_LDADD = libiRel.la
+
+test_both_SOURCES = test_both.cpp TestUtil.hpp
+test_both_DEPENDENCIES = libiRel.la
+test_both_LDADD = libiRel.la
+
+test_status_SOURCES = test_status.cpp TestUtil.hpp
+test_status_DEPENDENCIES = libiRel.la
+test_status_LDADD = libiRel.la
+
+if ENABLE_fbigeom
+LDADD+=${FBIGEOM_DIR}/lib/libFBiGeomMOAB.la
+test_entsetFB_SOURCES = test_entsetFB.cpp TestUtil.hpp
+test_entsetFB_DEPENDENCIES = libiRel.la
+endif
+
 # Automake doesn't seem to have a directory defined for
 # platform-dependent data (or include) files. So put
 # in $(libdir).  Define a $(cfgdir) to get around automake's
