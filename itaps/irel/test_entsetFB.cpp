@@ -1,3 +1,4 @@
+#include "moab/MOABConfig.h"
 #include "FBiGeom.h"
 #include "iMesh.h"
 #include "iRel.h"
@@ -11,12 +12,11 @@
 
 #define STRINGIFY_(X) #X
 #define STRINGIFY(X) STRINGIFY_(X)
-#ifdef SRCDIR
-#  define DEFAULT_INPUT_FILE STRINGIFY(SRCDIR/DEFAULT_TEST_FILE)
-#  define DEFAULT_INPUT_FILE1 STRINGIFY(SRCDIR/DEFAULT_TEST_FILE1)
+#if defined(MESHDIR) && defined(MOAB_HAVE_HDF5)
+#define DEFAULT_INPUT_FILE STRINGIFY(MESHDIR/../fbigeom/DEFAULT_TEST_FILE)
+#define DEFAULT_INPUT_FILE1 STRINGIFY(MESHDIR/../fbigeom/DEFAULT_TEST_FILE1)
 #else
-#  define DEFAULT_INPUT_FILE STRINGIFY(DEFAULT_TEST_FILE)
-#  define DEFAULT_INPUT_FILE1 STRINGIFY(DEFAULT_TEST_FILE1)
+#error Specify MESHDIR to compile test
 #endif
 
 #define CHECK_SIZE_C(type, array, allocated_size, size)  \

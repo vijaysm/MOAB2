@@ -11,7 +11,8 @@ ACLOCAL_AMFLAGS = -I m4
 
 AM_CPPFLAGS += -I$(top_builddir) $(IGEOM_DEFINES) $(IGEOM_INCLUDES) \
                -DMESHDIR=$(MESHDIR) \
-               -I$(top_srcdir)/src -I$(top_srcdir)/itaps \
+               -I$(top_srcdir)/src \
+               -I$(top_srcdir)/itaps -I$(top_builddir)/itaps/fbigeom \
                -I$(top_srcdir)/itaps/imesh -I$(top_builddir)/itaps/imesh \
                -I$(top_srcdir)/itaps/irel -I$(top_builddir)/itaps/irel
 DEFS += 
