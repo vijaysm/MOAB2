@@ -6,6 +6,7 @@
 
 #include <cstdlib>
 
+using namespace moab;
 iGeom_Instance geom;
 iMesh_Instance mesh;
 iRel_Instance rel;

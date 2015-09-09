@@ -9,6 +9,7 @@
 iGeom_Instance geom;
 iMesh_Instance mesh;
 iRel_Instance rel;
+using namespace moab;
 
 void test_initial_inactive()
 {

@@ -6,22 +6,18 @@
 #include "stdlib.h"
 #include "string.h"
 
-#ifdef HAVE_OCC
-#define DEFAULT_GEOM_FILE brick.stp
-#define DEFAULT_MESH_FILE brick.h5m
-#else
-#define DEFAULT_GEOM_FILE brick.cub
-#define DEFAULT_MESH_FILE brick.cub
-#endif
-
 #define STRINGIFY_(X) #X
 #define STRINGIFY(X) STRINGIFY_(X)
-#ifdef SRCDIR
-#  define DEFAULT_GEOM STRINGIFY(SRCDIR/DEFAULT_GEOM_FILE)
-#  define DEFAULT_MESH STRINGIFY(SRCDIR/DEFAULT_MESH_FILE)
+#ifdef MESHDIR
+#ifdef HAVE_OCC
+#define DEFAULT_GEOM STRINGIFY(MESHDIR/brick.stp)
+#define DEFAULT_MESH STRINGIFY(MESHDIR/brick.h5m)
 #else
-#  define DEFAULT_GEOM STRINGIFY(DEFAULT_GEOM_FILE)
-#  define DEFAULT_MESH STRINGIFY(DEFAULT_MESH_FILE)
+#define DEFAULT_GEOM STRINGIFY(MESHDIR/brick.cub)
+#define DEFAULT_MESH STRINGIFY(MESHDIR/brick.cub)
+#endif
+#else
+#error Specify MESHDIR to compile test
 #endif
 
 #define CHECK_SIZE_C(type, array, allocated_size, size)  \
@@ -550,6 +546,8 @@ int main( int argc, char *argv[] )
   iMesh_Instance mesh;
   iRel_Instance assoc;
   iRel_PairHandle pair;
+  
+  printf("Usage: %s %s\n", geom_filename, mesh_filename);
 
   if (argc == 2 && !strcmp(argv[1], "-h")) {
     printf("Usage: %s <geom_filename> <mesh_filename>\n",
