@@ -12,9 +12,9 @@ else
 endif 
 
 if ENABLE_irel
-	irel_DIR = irel
+  irel_DIR = irel
 else
-	irel_DIR =
+  irel_DIR =
 endif
 
 include_HEADERS = iBase.h iBase_f.h

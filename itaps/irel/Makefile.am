@@ -1,7 +1,7 @@
 @IGEOM_CONFIG_OPTIONS@
 
 AUTOMAKE_OPTIONS = foreign
-BUILT_SOURCES = $(top_builddir)/itaps/irel/iRel_protos.h
+BUILT_SOURCES = iRel_protos.h
 
 MESHDIR = $(abs_top_srcdir)/MeshFiles/unittest/irel
 AM_CPPFLAGS = -DSRCDIR=$(srcdir)
@@ -28,14 +28,13 @@ libiRel_la_SOURCES = \
 	Lasso.cpp \
 	Lasso.hpp
 
-libiRel_la_include_HEADERS = \
-	$(top_srcdir)/itaps/irel/iRel.h \
-	$(top_srcdir)/itaps/irel/iRel_f.h \
-	$(top_builddir)/itaps/irel/iRel_protos.h
+libiRel_la_include_HEADERS = iRel.h \
+														 iRel_f.h \
+														 iRel_protos.h
 
 # The directory in which to install headers
 libiRel_la_includedir = $(includedir)
-libiRel_la_LIBADD =
+libiRel_la_LIBADD = $(top_builddir)/itaps/imesh/libiMesh.la $(top_builddir)/src/libMOAB.la
 
 lib_LTLIBRARIES = libiRel.la
 
@@ -111,13 +110,13 @@ install-data-hook:
 	echo "IREL_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iRel-Defs.inc
 	echo "IREL_INCLUDEDIR=${includedir}" >> $(DESTDIR)$(cfgdir)/iRel-Defs.inc
 
-CLEANFILES=$(top_builddir)/itaps/irel/iRel_protos.h
+CLEANFILES=iRel_protos.h
 
 #itaps/irel/iRel_FCDefs.h: itaps/iBase_FCDefs.h
 #	./config.status itaps/irel/iRel_FCDefs.h
 
-# DISTCLEANFILES = $(top_srcdir)/itaps/irel/iRel_FCDefs.h
+# DISTCLEANFILES = iRel_FCDefs.h
 
-$(top_builddir)/itaps/irel/iRel_protos.h: iRel.h $(top_srcdir)/itaps/mkprotos.sh Makefile.am
+iRel_protos.h: iRel.h $(top_srcdir)/itaps/mkprotos.sh Makefile.am
 	$(AM_V_GEN)$(top_srcdir)/itaps/mkprotos.sh iRel MOAB $< $@ MOAB_FCDefs.h
 
