@@ -38,7 +38,7 @@ enable_testing()
 add_executable( test_mesh_refiner test_mesh_refiner.cpp )
 set_source_files_properties( test_mesh_refiner.cpp
   COMPILE_FLAGS "-DTEST ${MOAB_DEFINES}" )
-target_link_libraries( test_mesh_refiner MOAB MOABrefiner )
+target_link_libraries( test_mesh_refiner MOAB MOABrefiner ${CGM_LIBRARIES})
 
 add_test( TestMeshRefiner
   ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 4 ${MPIEXEC_PREFLAGS}

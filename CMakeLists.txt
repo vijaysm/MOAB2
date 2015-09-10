@@ -131,14 +131,15 @@ option ( MOAB_FORCE_64_BIT_HANDLES "Force MBEntityHandle to be 64 bits (uint64_t
 option ( MOAB_FORCE_32_BIT_HANDLES "Force MBEntityHandle to be 32 bits (uint32_t)" OFF )
 
 option ( ENABLE_IMESH        "Should build IMESH?"       ON )
-option ( ENABLE_IGEOM        "Should build IGEOM?"       OFF )
+option ( ENABLE_FBIGEOM      "Should build FBIGEOM?"     OFF )
+option ( ENABLE_IREL         "Should build IREL?"        OFF )
 
 mark_as_advanced(
   MOAB_FORCE_64_BIT_HANDLES
   MOAB_FORCE_32_BIT_HANDLES
 )
 
-if ( ENABLE_IMESH OR ENABLE_IGEOM )
+if ( ENABLE_IMESH OR ENABLE_FBIGEOM )
   include (${CMAKE_ROOT}/Modules/CMakeDetermineFortranCompiler.cmake)
 endif ()
 include (config/CheckCompilerFlags.cmake)
@@ -358,13 +359,13 @@ CONFIGURE_FILE(config/MOABConfig.cmake.h.in "${PROJECT_BINARY_DIR}/src/moab/MOAB
 
 CONFIGURE_FILE(MOABConfig.new.cmake.in "${PROJECT_BINARY_DIR}/MOABConfig.cmake" @ONLY)
 CONFIGURE_FILE(moab.make.in "${PROJECT_BINARY_DIR}/lib/moab.make" @ONLY)
-if ( MOAB_HAVE_IGEOM )
-  CONFIGURE_FILE(itaps/igeom/iGeom-Defs.inc.in "${PROJECT_BINARY_DIR}/lib/iGeom-Defs.inc" @ONLY)
+if ( MOAB_HAVE_FBIGEOM )
+  CONFIGURE_FILE(itaps/fbigeom/FBiGeom-Defs.inc.in "${PROJECT_BINARY_DIR}/lib/FBiGeom-Defs.inc" @ONLY)
   install(
-    FILES "${PROJECT_BINARY_DIR}/lib/iGeom-Defs.inc"
+    FILES "${PROJECT_BINARY_DIR}/lib/FBiGeom-Defs.inc"
     DESTINATION ${CMAKE_INSTALL_LIBDIR}
     )
-endif ( MOAB_HAVE_IGEOM )
+endif ( MOAB_HAVE_FBIGEOM )
 
 if ( MOAB_HAVE_IMESH )
   CONFIGURE_FILE(itaps/imesh/iMesh-Defs.inc.in "${PROJECT_BINARY_DIR}/lib/iMesh-Defs.inc" @ONLY)

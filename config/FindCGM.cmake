@@ -17,10 +17,13 @@ find_file(CGM_CFG cgm.make DOC "Path to cgm.make configuration file")
 if(CGM_CFG)
   set(CGM_FOUND 1)
   file(READ "${CGM_CFG}" CGM_CFG_DATA)
+  get_filename_component( CGM_LCFGDIR ${CGM_CFG} DIRECTORY )
+  file(READ "${CGM_LCFGDIR}/iGeom-Defs.inc" IGEOM_CFG_DATA)
   ##
   ## Replace line continuations ('\' at EOL) so we don't have to parse them later
   ##
   string(REGEX REPLACE "\\\\\\\n" "" CGM_CFG_DATA "${CGM_CFG_DATA}")
+  string(REGEX REPLACE "\\\\\\\n" "" IGEOM_CFG_DATA "${IGEOM_CFG_DATA}")
 
   ##
   ## Find include directories
@@ -111,8 +114,38 @@ if(CGM_CFG)
       unset(CGM_FOUND)
     endif()
   endforeach()
-  #message("Libs ${CGM_LIBRARIES}")
+  #message("CGM Libs ${CGM_LIBRARIES}")
 
+  ##
+  ## Find the iGeom library and its dependencies
+  ##
+  ## Note: The regex is fragile since it depends on number of spaces after IGEOM_LIBS
+  ## 
+  string(REGEX MATCHALL "IGEOM_LIBS    =[^\\\n]*" _IGEOM_LIBS "${IGEOM_CFG_DATA}")
+  string(REGEX MATCHALL "-l[^ \t\n]+" _IGEOM_LIBS "${_IGEOM_LIBS}")
+  foreach(_IGEOM_LIB ${_IGEOM_LIBS})
+    string(REGEX REPLACE "-l" "" _IGEOM_LIB "${_IGEOM_LIB}")
+    find_library(_IGEOM_LIB_LOC
+      NAME "${_IGEOM_LIB}"
+      # Cannot quote since it contains semicolons:
+      PATHS ${CGM_LIB_DIRS}
+      NO_DEFAULT_PATH
+      NO_CMAKE_ENVIRONMENT_PATH
+      NO_CMAKE_PATH
+      NO_SYSTEM_ENVIRONMENT_PATH
+      NO_CMAKE_SYSTEM_PATH
+      )
+    # message("[1] iGeom Lib \"${_IGEOM_LIB}\" @ \"${_IGEOM_LIB_LOC}\" paths \"${IGEOM_LIB_DIRS}\"")
+    if (_IGEOM_LIB_LOC)
+      list(APPEND IGEOM_LIBRARIES "${_IGEOM_LIB_LOC}")
+      unset(_IGEOM_LIB_LOC CACHE)
+      unset(_IGEOM_LIB_LOC)
+    else()
+      message("iGeom: Could not find ${_IGEOM_LIB} library (part of CGM)")
+      unset(IGEOM_FOUND)
+    endif()
+  endforeach()
+  #message("iGeom Libs ${IGEOM_LIBRARIES}")
 
   ##
   ## Kill temporary variables
@@ -132,6 +165,6 @@ endif()
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(CGM
-  REQUIRED_VARS CGM_INCLUDE_DIRS CGM_LIBRARIES
+  REQUIRED_VARS CGM_INCLUDE_DIRS CGM_LIBRARIES IGEOM_LIBRARIES
   VERSION_VAR CGM_VERSION
 )
