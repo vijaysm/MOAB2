@@ -40,7 +40,7 @@ TESTS = pcomm_unit \
 if HAVE_HDF5_PARALLEL
   HDF5_TESTS = parallel_hdf5_test mhdf_parallel parallel_write_test \
         parallel_unit_tests \
-        uber_parallel_test parallel_adj parmerge_test
+        uber_parallel_test parallel_adj parmerge_test augment_with_ghosts
 else
   HDF5_TESTS = 
 endif
@@ -111,6 +111,7 @@ write_nc_par_SOURCES = ../io/write_nc.cpp
 par_spatial_locator_test_SOURCES = par_spatial_locator_test.cpp
 parallel_adj_SOURCES = ../adj_moab_test.cpp
 parmerge_test_SOURCES = parmerge_test.cpp
+augment_with_ghosts_SOURCES = augment_with_ghosts.cpp
 
 if ENABLE_imesh
 if HAVE_HDF5_PARALLEL
