@@ -4353,8 +4353,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     return MB_SUCCESS;
   }
   // populate sets with ghost entities, if necessary
-  ErrorCode ParallelComm::augment_default_sets_with_ghosts( EntityHandle file_set,
-      int /*ghost_dim*/, int /*addl_ents*/)
+  ErrorCode ParallelComm::augment_default_sets_with_ghosts( EntityHandle file_set)
   {
     // gather all default sets we are interested in, material, neumann, etc
     // we will skip geometry sets, because they are not uniquely identified with their tag value

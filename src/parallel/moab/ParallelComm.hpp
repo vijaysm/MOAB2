@@ -477,18 +477,11 @@ namespace moab {
      * The shared sets data is not used, because we do not use the geometry sets, as they are
      * not uniquely identified
      *
-     * \param ghost_dim : primary ghost dimension
-     * \param  addl_ents  include additional entities, edges and faces
-     *          It has the same significance as for ghosting
-     *            0 no addl ents
-     *            1 edges only
-     *            2 faces only
-     *            3 edges and faces
+     *
      * \param file_set : file set used per application
      *
      */
-    ErrorCode augment_default_sets_with_ghosts( EntityHandle file_set,
-        int ghost_dim, int addl_ents);
+    ErrorCode augment_default_sets_with_ghosts( EntityHandle file_set);
     // ==================================
     // \section GET PARALLEL DATA (shared/owned/iface entities, etc.)
     // ==================================
