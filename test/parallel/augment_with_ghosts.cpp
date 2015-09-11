@@ -83,7 +83,7 @@ void test_read_and_ghost_after()
   rval = pc->exchange_ghost_cells( ghost_dim, bridge, layers, addl_ents, true, true);
   CHECK_ERR(rval);
 
-  rval = pc->augment_default_sets_with_ghosts( ghost_dim, addl_ents);
+  rval = pc->augment_default_sets_with_ghosts(0, ghost_dim, addl_ents);
   CHECK_ERR(rval);
 
   report_sets(mb, rank, nproc);

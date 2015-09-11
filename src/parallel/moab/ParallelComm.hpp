@@ -484,9 +484,11 @@ namespace moab {
      *            1 edges only
      *            2 faces only
      *            3 edges and faces
+     * \param file_set : file set used per application
      *
      */
-    ErrorCode augment_default_sets_with_ghosts(int ghost_dim, int addl_ents);
+    ErrorCode augment_default_sets_with_ghosts( EntityHandle file_set,
+        int ghost_dim, int addl_ents);
     // ==================================
     // \section GET PARALLEL DATA (shared/owned/iface entities, etc.)
     // ==================================

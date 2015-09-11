@@ -4353,8 +4353,35 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     return MB_SUCCESS;
   }
   // populate sets with ghost entities, if necessary
-  ErrorCode ParallelComm::augment_default_sets_with_ghosts(int ghost_dim, int addl_ents)
+  ErrorCode ParallelComm::augment_default_sets_with_ghosts( EntityHandle file_set,
+      int ghost_dim, int addl_ents)
   {
+    // gather all default sets we are interested in, material, neumann, etc
+    // we will skip geometry sets, because they are not uniquely identified with their tag value
+    // maybe we will add another tag, like category
+
+    const char* const shared_set_tag_names[] = {MATERIAL_SET_TAG_NAME,
+                                                DIRICHLET_SET_TAG_NAME,
+                                                NEUMANN_SET_TAG_NAME,
+                                                PARALLEL_PARTITION_TAG_NAME};
+
+    int num_tags = sizeof(shared_set_tag_names) / sizeof(shared_set_tag_names[0]);
+
+    Range * rangeSets = new Range [num_tags];
+    Tag * tags = new Tag [num_tags+1]; // one extra for global id tag, which is an int, so far
+
+    ErrorCode rval;
+    for (int i = 0; i < num_tags; i++) {
+
+      rval = mbImpl->tag_get_handle(shared_set_tag_names[i], 1, MB_TYPE_INTEGER,
+                                      tags[i], MB_TAG_ANY);
+      if (MB_SUCCESS!=rval)
+        continue;
+      rval = mbImpl->get_entities_by_type_and_tag(file_set, MBENTITYSET, &(tags[i]), 0, 1, rangeSets[i], Interface::UNION);
+      MB_CHK_SET_ERR(rval, "can't get sets with a tag");
+    }
+
+
     return MB_SUCCESS;
   }
   ErrorCode ParallelComm::create_interface_sets(EntityHandle this_set, int resolve_dim, int shared_dim)

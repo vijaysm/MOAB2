@@ -521,7 +521,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
           if (1 == myPcomm->size())
             tmp_result = MB_SUCCESS;
           else
-            tmp_result = myPcomm->augment_default_sets_with_ghosts(ghost_dim, addl_ents);
+            tmp_result = myPcomm->augment_default_sets_with_ghosts(file_set, ghost_dim, addl_ents);
           break;
 //==================
       case PA_PRINT_PARALLEL:
