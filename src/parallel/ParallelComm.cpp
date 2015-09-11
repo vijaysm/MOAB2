@@ -1280,17 +1280,6 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     return MB_SUCCESS;
   }
 
-  int ParallelComm::num_subranges(const Range &this_range)
-  {
-    // OK, have all the ranges we'll pack; count the subranges
-    int num_sub_ranges = 0;
-    for (Range::const_pair_iterator pit = this_range.const_pair_begin(); 
-         pit != this_range.const_pair_end(); ++pit)
-      num_sub_ranges++;
-
-    return num_sub_ranges;
-  }
-
   int ParallelComm::estimate_ents_buffer_size(Range &entities,
                                               const bool store_remote_handles) 
   {

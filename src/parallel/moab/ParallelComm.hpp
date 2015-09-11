@@ -1004,8 +1004,6 @@ namespace moab {
                                    bool verts_too = true,
                                    int operation = Interface::UNION);
 
-    int num_subranges(const Range &this_range);
-
     //! estimate size required to pack entities
     int estimate_ents_buffer_size(Range &entities,
 				  const bool store_remote_handles);
