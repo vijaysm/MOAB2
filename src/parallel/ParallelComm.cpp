@@ -4352,7 +4352,11 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
     return MB_SUCCESS;
   }
-
+  // populate sets with ghost entities, if necessary
+  ErrorCode ParallelComm::augment_default_sets_with_ghosts(int ghost_dim, int addl_ents)
+  {
+    return MB_SUCCESS;
+  }
   ErrorCode ParallelComm::create_interface_sets(EntityHandle this_set, int resolve_dim, int shared_dim)
   {
     std::map<std::vector<int>, std::vector<EntityHandle> > proc_nvecs;
