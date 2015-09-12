@@ -17,8 +17,14 @@ else
   irel_DIR =
 endif
 
+if ENABLE_mesquite
+  mesquite_DIR = mesquite
+else
+  mesquite_DIR =
+endif
+
 include_HEADERS = iBase.h iBase_f.h
 
-SUBDIRS = $(imesh_DIR) $(fbigeom_DIR) $(irel_DIR)
+SUBDIRS = $(imesh_DIR) $(fbigeom_DIR) $(irel_DIR) $(mesquite_DIR)
 
 EXTRA_DIST = mkprotos.sh

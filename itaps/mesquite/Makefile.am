@@ -1,27 +1,22 @@
-if ENABLE_IMESH
-  IMESH_LIB = libmsqimesh.la
-else
-  IMESH_LIB = 
-endif
-
-if ENABLE_IGEOM
+if ENABLE_igeom
   IGEOM_LIB = libmsqigeom.la
 else
   IGEOM_LIB = 
 endif
 
-if ENABLE_IREL
+if ENABLE_irel
   IREL_LIB = libmsqirel.la
 else
   IREL_LIB = 
 endif
 
-if ENABLE_IMESHP
+if ENABLE_imesh
+  IMESH_LIB = libmsqimesh.la
   IMESHP_LIB = libmsqimeshp.la
 else
+  IMESH_LIB = 
   IMESHP_LIB = 
 endif
-
 
 lib_LTLIBRARIES = $(IMESH_LIB) $(IGEOM_LIB) $(IREL_LIB) $(IMESHP_LIB)
 
@@ -57,7 +52,5 @@ AM_CPPFLAGS = $(CPPFLAGS) \
               $(IREL_INCL) \
               $(IMESHP_INCL) 
 
-EXTRA_DIST = CMakeLists.txt
-
-
+EXTRA_DIST = 
 
