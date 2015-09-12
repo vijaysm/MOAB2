@@ -62,6 +62,9 @@ if ENABLE_imesh
         MeshAssocPairSide.cpp \
         MeshAssocPairSide.hpp
     libiRel_la_LIBADD += $(top_builddir)/itaps/imesh/libiMesh.la
+if HAVE_MPI
+    AM_CPPFLAGS += -I$(top_srcdir)/src/parallel
+endif
 endif
 
 
