@@ -4359,6 +4359,8 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     // we will skip geometry sets, because they are not uniquely identified with their tag value
     // maybe we will add another tag, like category
 
+  	if (procConfig.proc_size() <2)
+  		return MB_SUCCESS; // no reason to stop by
     const char* const shared_set_tag_names[] = {MATERIAL_SET_TAG_NAME,
                                                 DIRICHLET_SET_TAG_NAME,
                                                 NEUMANN_SET_TAG_NAME,
@@ -4454,7 +4456,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
               if (procs[k]!=my_rank)
               {
                 remoteEnts.vi_wr[ir++]=procs[k]; // send to proc
-                remoteEnts.vi_wr[ir++]=j; // for the tags [j] (0-3)
+                remoteEnts.vi_wr[ir++]=i; // for the tags [i] (0-3)
                 remoteEnts.vi_wr[ir++]=tagVals[i][j]; // actual value of the tag
                 remoteEnts.vul_wr[jr++]= handles[k];
                 remoteEnts.inc_n();
@@ -4462,39 +4464,52 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
             }
           }
         }
-        // if the local entity has a global id, send it too, so we avoid
-        // another "exchange_tags" for global id
-        int gid;
-        rval = mbImpl->tag_get_data(tags[num_tags], &geh, 1, &gid); MB_CHK_SET_ERR(rval, "Failed to get global id");
-        if (gid!=0)
-        {
-          for (int k=0; k<nprocs; k++)
-          {
-            if (procs[k]!=my_rank)
-            {
-              remoteEnts.vi_wr[ir++]=procs[k]; // send to proc
-              remoteEnts.vi_wr[ir++]=num_tags; // for the tags [j] (4)
-              remoteEnts.vi_wr[ir++]=gid; // actual value of the tag
-              remoteEnts.vul_wr[jr++]= handles[k];
-              remoteEnts.inc_n();
-            }
-          }
-        }
       }
+      // if the local entity has a global id, send it too, so we avoid
+			// another "exchange_tags" for global id
+			int gid;
+			rval = mbImpl->tag_get_data(tags[num_tags], &geh, 1, &gid); MB_CHK_SET_ERR(rval, "Failed to get global id");
+			if (gid!=0)
+			{
+				for (int k=0; k<nprocs; k++)
+				{
+					if (procs[k]!=my_rank)
+					{
+						remoteEnts.vi_wr[ir++]=procs[k]; // send to proc
+						remoteEnts.vi_wr[ir++]=num_tags; // for the tags [j] (4)
+						remoteEnts.vi_wr[ir++]=gid; // actual value of the tag
+						remoteEnts.vul_wr[jr++]= handles[k];
+						remoteEnts.inc_n();
+					}
+				}
+			}
     }
 
+#ifndef NDEBUG
+    if (my_rank==1 && 1 == get_debug_verbosity() )
+    	remoteEnts.print(" on rank 1, before augment routing");
+    MPI_Barrier(procConfig.proc_comm());
+#endif
+    int sentEnts=remoteEnts.get_n();
+    assert((sentEnts==jr) && (3*sentEnts==ir) );
     // exchange the info now, and send to
     gs_data::crystal_data *cd = this->procConfig.crystal_router();
     // All communication happens here; no other mpi calls
     // Also, this is a collective call
     rval = cd->gs_transfer(1, remoteEnts, 0);MB_CHK_SET_ERR(rval, "Error in tuple transfer");
-
+#ifndef NDEBUG
+    if (my_rank==0 && 1 == get_debug_verbosity() )
+    	remoteEnts.print(" on rank 0, after augment routing");
+    MPI_Barrier(procConfig.proc_comm());
+#endif
     // now process the data received from other processor
     int received=remoteEnts.get_n();
     for (int i = 0; i < received; i++) {
       //int from = ents_to_delete.vi_rd[i];
       EntityHandle geh=(EntityHandle)remoteEnts.vul_rd[i];
       int from_proc=remoteEnts.vi_rd[3*i];
+      if (my_rank==from_proc)
+      	std::cout<<" unexpected receive from my rank " << my_rank << " during augmenting with ghosts\n ";
       int tag_type=remoteEnts.vi_rd[3*i+1];
       assert( (0<=tag_type) && (tag_type<=num_tags));
       int value = remoteEnts.vi_rd[3*i+2];
