@@ -2,7 +2,7 @@ SRC_MESH_DIR = Mesh
 MSQ_INCLUDES += -I$(top_srcdir)/src/$(SRC_MESH_DIR)
 INCLUDED_MAKEFILES += $(SRC_MESH_DIR)/Makefile.am
 
-if WITH_MPI
+if HAVE_MPI
   MPI_SRCS = $(SRC_MESH_DIR)/ParallelHelper.cpp
   MPI_INCS = $(SRC_MESH_DIR)/ParallelHelper.hpp
 else

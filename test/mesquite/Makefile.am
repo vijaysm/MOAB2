@@ -1,28 +1,28 @@
-if ENABLE_IMESH
+if ENABLE_imesh
   IMESH_TEST = imesh
 else
   IMESH_TEST =
 endif
 
-if ENABLE_IGEOM
+if ENABLE_igeom
   IGEOM_TEST = igeom
 else
   IGEOM_TEST =
 endif
 
-if WITH_EXODUS
+if HAVE_NETCDF
   EXO_TEST = convert 
 else
   EXO_TEST = 
 endif
 
-if WITH_CPPUNIT
-  UNIT_TEST = unit
-else
-  UNIT_TEST =
-endif
+#if WITH_CPPUNIT
+#  UNIT_TEST = unit
+#else
+#  UNIT_TEST =
+#endif
 
-if WITH_MPI
+if HAVE_MPI
   PARALLEL_UNTANGLE_SHAPE = parallel_untangle_shape
   PARALLEL_SMOOTH_LAPLACE = parallel_smooth_laplace
 else
