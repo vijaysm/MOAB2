@@ -36,13 +36,15 @@ void report_sets(moab::Core * mb, int rank, int nproc)
         rval = mb->get_entities_by_type_and_tag(0, MBENTITYSET, &tag, 0, 1, sets, Interface::UNION);
         CHECK_ERR(rval);
 
-
+        std::vector<int> vals(sets.size());
+        rval = mb->tag_get_data(tag, sets, &vals[0]); CHECK_ERR(rval);
         std::cout<<"  sets: " << shared_set_tag_names[i] << "\n";
-        for (Range::iterator it = sets.begin(); it!=sets.end(); it++)
+        int j=0;
+        for (Range::iterator it = sets.begin(); it!=sets.end(); it++, j++)
         {
           Range ents;
           rval = mb->get_entities_by_handle(*it, ents);CHECK_ERR(rval);
-          std::cout << "    set " << mb->id_from_handle(*it) << " has " << ents.size() << " entities\n";
+          std::cout << "    set " << mb->id_from_handle(*it) << " with tagval="<<vals[j]<<  " has " << ents.size() << " entities\n";
         }
       }
     }
@@ -83,6 +85,8 @@ void test_read_and_ghost_after()
   rval = pc->exchange_ghost_cells( ghost_dim, bridge, layers, addl_ents, true, true);
   CHECK_ERR(rval);
 
+  //
+  pc->set_debug_verbosity(1);
   rval = pc->augment_default_sets_with_ghosts(0);
   CHECK_ERR(rval);
 
