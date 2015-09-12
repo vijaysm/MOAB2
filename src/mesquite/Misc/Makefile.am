@@ -2,7 +2,7 @@ SRC_MISC_DIR = Misc
 MSQ_INCLUDES += -I$(top_srcdir)/src/$(SRC_MISC_DIR)
 INCLUDED_MAKEFILES += $(SRC_MISC_DIR)/Makefile.am
 
-if ENABLE_ITAPS
+if ENABLE_imesh
   MSQ_ITAPS_COMMON_SRC = $(SRC_MISC_DIR)/MsqIBase.cpp \
                          $(SRC_MISC_DIR)/MsqIBase.hpp
 else
