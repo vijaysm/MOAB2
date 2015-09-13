@@ -36,6 +36,7 @@
 #ifndef MSQ_IBASE_HPP
 #define MSQ_IBASE_HPP
 
+#include "moab/MOABConfig.h"
 #include "Mesquite.hpp"
 #include <string>
 
