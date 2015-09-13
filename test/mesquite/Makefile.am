@@ -4,7 +4,7 @@ else
   IMESH_TEST =
 endif
 
-if ENABLE_igeom
+if HAVE_CGM
   IGEOM_TEST = igeom
 else
   IGEOM_TEST =

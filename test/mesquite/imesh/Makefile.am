@@ -11,7 +11,7 @@ EXTRA_DIST = CMakeLists.txt
 
 AM_CPPFLAGS += $(IMESH_INCL)
 
-if ENABLE_IMESH
+if ENABLE_imesh
 
 else
 main$(EXEEXT):

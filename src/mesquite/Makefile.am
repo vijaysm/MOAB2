@@ -15,7 +15,6 @@ BUILT_SOURCES = include/Mesquite_all_headers.hpp cppflags.make
 MSQ_SRCS=
 MSQ_HDRS=
 MSQ_INCLUDES =
-INCLUDED_MAKEFILES =
 lib_LTLIBRARIES = libmesquite.la
 libmesquite_la_DEPENDENCIES=
 # Tell libtool that there are no undefined symbols when linking 
@@ -26,33 +25,7 @@ libmesquite_la_DEPENDENCIES=
 # libs cannot have any unmet depenendencies (windows, and maybe AIX)
 libmesquite_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined
 
-include Mesh/Makefile.am
-include Control/Makefile.am
-include Wrappers/Makefile.am
-include MappingFunction/Makefile.am
-include MappingFunction/Lagrange/Makefile.am
-include MappingFunction/Linear/Makefile.am
-include Misc/Makefile.am
-include ObjectiveFunction/Makefile.am
-include QualityAssessor/Makefile.am
-include QualityImprover/Makefile.am
-include QualityImprover/OptSolvers/Makefile.am
-include QualityImprover/Relaxation/Makefile.am
-include QualityMetric/Makefile.am
-include QualityMetric/Shape/Makefile.am
-include QualityMetric/Smoothness/Makefile.am
-include QualityMetric/TMP/Makefile.am
-include QualityMetric/Untangle/Makefile.am
-include QualityMetric/Volume/Makefile.am
-include TargetCalculator/Makefile.am
-include TargetMetric/Makefile.am
-include TargetMetric/Misc/Makefile.am
-include TargetMetric/Shape/Makefile.am
-include TargetMetric/ShapeOrient/Makefile.am
-include TargetMetric/ShapeSize/Makefile.am
-include TargetMetric/ShapeSizeOrient/Makefile.am
-include TargetMetric/Size/Makefile.am
-include TargetMetric/Untangle/Makefile.am
+include make.inc
 
 libmesquite_la_includedir = $(includedir)
 libmesquite_la_nodist_includedir = $(includedir)
@@ -61,21 +34,25 @@ libmesquite_la_SOURCES = $(MSQ_SRCS)
 
 libmesquite_la_include_HEADERS = include/Mesquite.hpp \
                                  include/MeshInterface.hpp \
-				 include/ParallelMeshInterface.hpp \
-				 include/ParallelHelperInterface.hpp \
-				 include/CurveDomain.hpp \
+                                 include/ParallelMeshInterface.hpp \
+                                 include/ParallelHelperInterface.hpp \
+                                 include/CurveDomain.hpp \
                                  $(MSQ_HDRS)
 
 # don't put these generated headers into the distribution
 nodist_libmesquite_la_include_HEADERS = include/Mesquite_all_headers.hpp \
-					$(top_builddir)/src/include/mesquite_config.h \
-				 	$(top_builddir)/src/include/mesquite_version.h 
+                                        include/mesquite_config.h \
+				 	include/mesquite_version.h 
 
 libmesquite_la_LIBADD = $(MESQUITE_LIBS)
-AM_CPPFLAGS += -Iinclude \
-               -I$(srcdir)/include  \
+AM_CPPFLAGS += -I$(top_srcdir)/src/mesquite/include \
+               -I$(top_builddir)/src/mesquite//include  \
                $(MSQ_INCLUDES) \
-	       $(IBASE_INCL)
+	           -I$(top_srcdir)/itaps \
+               -I$(top_srcdir)/itaps/imesh \
+               -I$(top_builddir)/itaps/imesh \
+               -I$(top_srcdir)/itaps/fbigeom \
+               -I$(top_srcdir)/itaps/irel
 
 include/Mesquite_all_headers.hpp: $(MSQ_HDRS)
 	@echo "Generating $@..."
@@ -100,23 +77,23 @@ include/Mesquite_all_headers.hpp: $(MSQ_HDRS)
 # for use when compiling stuff outside of the src/ subdir.
 # Basically, replace value of $(top_srcdir) with the
 # $(top_srcdir) variable in the existing list of include flags.
-$(RECURSIVE_TARGETS) distdir: cppflags.make
-cppflags.make: $(MSQ_HDRS) Makefile.am ../config.status
+$(RECURSIVE_TARGETS) distdir: msqcppflags.make
+msqcppflags.make: $(MSQ_HDRS) Makefile.am $(top_builddir)/config.status
 	@echo "Generating $@..."
 	@echo "#MSQ_INCLUDES = $(MSQ_INCLUDES)" > $@
-	@echo "INCLUDES = -I\$$(top_srcdir)/src/include \\" >> $@
+	@echo "INCLUDES = -I\$$(top_srcdir)/src/mesquite/include \\" >> $@
 	@for flag in $(MSQ_INCLUDES); do \
 	  n=`expr X"$$flag" : X"-I$(top_srcdir)/\(.*\)" || true`; \
 	  if test "x$$n" != "x"; then \
 	    echo "	-I\$$(top_srcdir)/$$n \\"     >> $@ ; \
 	  fi ; \
 	done
-	@echo "	-I\$$(top_builddir)/src/include \\"       >> $@ 
-	@echo "	-I\$$(top_builddir)/testSuite \\"         >> $@
-	@echo "	-I\$$(top_srcdir)/itaps \\"               >> $@ 
-	@echo "	-I\$$(top_builddir)/itaps \\"             >> $@
-	@echo "	\$$(IBASE_INCL)"                          >> $@
+	@echo "	-I\$$(top_builddir)/src/mesquite/include \\"       >> $@ 
+	@echo "	-I\$$(top_builddir)/test/mesquite \\"         >> $@
+	@echo "	-I\$$(top_srcdir)/itaps/mesquite \\"               >> $@ 
+	@echo "	-I\$$(top_builddir)/itaps/mesquite "             >> $@
+#	@echo "	\$$(IBASE_INCL)"                          >> $@
 
 MOSTLYCLEANFILES = include/Mesquite_all_headers.hpp 
-DISTCLEANFILES = cppflags.make  $(OLD_AM_GENERATED_HDRS)
+DISTCLEANFILES = msqcppflags.make  $(OLD_AM_GENERATED_HDRS)
 
