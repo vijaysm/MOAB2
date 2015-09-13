@@ -8,6 +8,18 @@
 
 using namespace moab;
 
+#define ACOS(x) acos(std::min(std::max(x,-1.0),1.0))
+
+double find_angle(const moab::CartVect& A, const moab::CartVect& B)
+{
+  const double lA=A.length(), lB=B.length();
+  assert(lA > 0.0);
+  assert(lB > 0.0);
+  const double dPI = 3.14159265;
+  const double dot=(A[0]*B[0]+A[1]*B[1]+A[2]*B[2]);
+  return ACOS( dot / ( lA * lB ) ) * 180.0 / dPI;
+}
+
 #define CHECK_EIGVECREAL_EQUAL( EXP, ACT, EPS ) check_equal_eigvect( (EXP), (ACT), (EPS), #EXP, #ACT, __LINE__, __FILE__ ) 
 void check_equal_eigvect( const moab::CartVect& A,
                         const moab::CartVect& B, double eps,
@@ -16,9 +28,12 @@ void check_equal_eigvect( const moab::CartVect& A,
 {
   check_equal( A.length(), B.length(), eps, sA, sB, line, file);
 
+  double angle = find_angle(A, B);
+
   if (  (fabs(A[0] - B[0]) <= eps || fabs(A[0] + B[0]) <= eps) && 
         (fabs(A[1] - B[1]) <= eps || fabs(A[1] + B[1]) <= eps) &&
-        (fabs(A[2] - B[2]) <= eps || fabs(A[2] + B[2]) <= eps) )
+        (fabs(A[2] - B[2]) <= eps || fabs(A[2] + B[2]) <= eps) && 
+        (angle <= eps || fabs(angle - 180.0) <= eps) )
     return;
   
   std::cout << "Equality Test Failed: " << sA << " == " << sB << std::endl;
