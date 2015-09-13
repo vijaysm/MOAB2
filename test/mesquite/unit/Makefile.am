@@ -1,11 +1,11 @@
 @TEST_MAKE_INCLUDE@
-LDADD = $(top_builddir)/src/libmesquite.la
+LDADD = $(top_builddir)/src/mesquite/libmesquite.la
 AM_LDFLAGS = @AM_LDFLAGS@
 AM_CPPFLAGS = @AM_CPPFLAGS@
 
 if HAVE_CPPUNIT
   check_PROGRAMS = msq_test
-  msq_test_DEPENDENCIES = $(top_builddir)/src/libmesquite.la
+  msq_test_DEPENDENCIES = $(top_builddir)/src/mesquite/libmesquite.la
   TESTS = $(check_PROGRAMS)
   CPPUNIT_CPPFLAGS_SET = @CPPUNIT_CPPFLAGS@
   CPPUNIT_LDFLAGS_SET = @CPPUNIT_LDFLAGS@
@@ -28,8 +28,8 @@ no_cpp_unit:
 
 if ENABLE_imesh
   IMESH_TEST_SRC = iMeshTest.cpp
-  IMESH_LDADD = $(top_builddir)/itaps/libmsqimesh.la $(IMESH_LIBS)
-  IMESH_DEP = $(top_builddir)/itaps/libmsqimesh.la
+  IMESH_LDADD = $(top_builddir)/itaps/mesquite/libmsqimesh.la $(IMESH_LIBS)
+  IMESH_DEP = $(top_builddir)/itaps/mesquite/libmsqimesh.la
 else
   IMESH_TEST_SRC =
   IMESH_LDADD = 
@@ -157,4 +157,3 @@ MOSTLYCLEANFILES = hexagon.vtk \
 
 EXTRA_DIST = CMakeLists.txt
 
-		   

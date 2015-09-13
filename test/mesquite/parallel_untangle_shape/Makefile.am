@@ -1,5 +1,5 @@
 @TEST_MAKE_INCLUDE@
-LDADD = $(top_builddir)/src/libmesquite.la
+LDADD = $(top_builddir)/src/mesquite/libmesquite.la
 check_PROGRAMS = par_hex_untangle_shape
 par_hex_untangle_shape_SOURCES = par_hex_untangle_shape.cpp
 par_hex_untangle_shape_DEPENDENCIES = $(LDADD)
