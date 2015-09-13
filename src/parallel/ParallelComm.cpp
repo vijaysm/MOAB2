@@ -5323,6 +5323,12 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     result = get_sent_ents(is_iface, bridge_dim, ghost_dim, num_layers,
                            addl_ents, sent_ents, allsent, entprocs);MB_CHK_SET_ERR(result, "get_sent_ents failed");
 
+    // augment file set with the entities to be sent
+    // we might have created new entities if addl_ents>0, edges and/or faces
+    if (addl_ents> 0 && file_set && !allsent.empty()) {
+      result = mbImpl->add_entities(*file_set, allsent);
+      MB_CHK_SET_ERR(result, "Failed to add new sub-entities to set");
+    }
     myDebug->tprintf(1, "allsent ents compactness (size) = %f (%lu)\n", allsent.compactness(),
                      (unsigned long)allsent.size());
 
