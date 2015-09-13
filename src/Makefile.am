@@ -190,7 +190,6 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/point_locater/parametrizer.hpp \
   moab/Matrix3.hpp \
   moab/MergeMesh.hpp \
-  moab/MeasureTime.hpp \
   moab/MeshTopoUtil.hpp \
   moab/MOABConfig.h \
   moab/OrientedBoxTreeTool.hpp \
