@@ -11,7 +11,7 @@ EXTRA_DIST = 	$(OLD_AM_GENERATED_HDRS:=.in) \
 		include/mesquite_config.win.h \
 	        CMakeLists.txt 
 
-BUILT_SOURCES = include/Mesquite_all_headers.hpp cppflags.make
+BUILT_SOURCES = include/Mesquite_all_headers.hpp msqcppflags.make
 MSQ_SRCS=
 MSQ_HDRS=
 MSQ_INCLUDES =
