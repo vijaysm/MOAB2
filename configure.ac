@@ -41,6 +41,7 @@ EXTRA_GNU_FLAGS='-Wall -pipe -pedantic -Wno-long-long -Wextra -Wcast-align  -Wpo
 EXTRA_INTEL_FLAGS='-Wall'
 
 # Find out the appropriate compiler based on user options
+AC_ARG_VAR([FC], [FORTRAN compiler command])
 FATHOM_CHECK_COMPILERS([yes],[yes],[$ENABLE_FORTRAN])
 AM_CONDITIONAL(PARALLEL,[test "x$enablempi" != "xno"])
 AM_CONDITIONAL(ENABLE_FORTRAN,[test "x$ENABLE_FORTRAN" != "xno"])
@@ -117,6 +118,7 @@ FATHOM_OLD_STD_COUNT
 ################################################################################
 #                              Headers
 ################################################################################
+AC_HEADER_STDC
 AC_CHECK_HEADERS(fcntl.h strings.h sys/file.h sys/time.h unistd.h)
 AC_CHECK_HEADER([inttypes.h], [AC_DEFINE(HAVE_INTTYPES_H,  [1], [MOAB qualified HAVE_INTTYPES_H]) ])
 AC_CHECK_HEADER([stdint.h],   [AC_DEFINE(HAVE_STDINT_H,    [1], [MOAB qualified HAVE_STDINT_H])   ])
@@ -1522,15 +1524,17 @@ AC_SUBST([AM_CFLAGS])
 AC_SUBST([AM_FCFLAGS])
 AC_SUBST([AM_FFLAGS])
 
-AC_ARG_VAR([FC], [FORTRAN compiler command])
-# AC_CONFIG_HEADERS([config.h])
-#                   src/moab/MOABConfig.h:config/MOABConfig.h.in
+# Create a temporary file with e.g. HAVE_MPI
+AC_CONFIG_HEADERS([src/moab/MOABConfig.h:config/MOABConfig.h.in])
+# Prefixes everything in the temporary file with MOAB_, e.g. MOAB_HAVE_MPI
+AX_PREFIX_CONFIG_H([src/moab/MOABConfig.h],[MOAB],[src/moab/MOABConfig.h])
+
+#src/moab/MOABConfig.h:config/MOABConfig.h.in
 AC_CONFIG_HEADERS([src/moab/Version.h
                    src/moab/EntityHandle.hpp
                    src/parallel/moab_mpi_config.h
                    src/FCDefs.h
-                 ])
-# AX_PREFIX_CONFIG_H([src/moab/MOABConfig.h],[MOAB],[src/moab/MOABConfig.h])
+                  ])
 
 AC_CONFIG_FILES([Makefile 
                  moab.make                  
