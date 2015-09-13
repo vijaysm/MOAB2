@@ -342,7 +342,6 @@ AC_SUBST(UTIL_MAKE_INCLUDE)
 # not restricted to the Mesquite namespace and therefore
 # may conflict with the config.h of the application using
 # mesquite.
-AC_CONFIG_HEADERS([src/mesquite/include/junk_config.h])
 AC_CONFIG_HEADERS([src/mesquite/include/mesquite_config.h
                    src/mesquite/include/mesquite_version.h])
 
@@ -395,14 +394,6 @@ AC_CONFIG_FILES([src/mesquite/Makefile
 # from the build.
 # AC_CONFIG_COMMANDS_POST([rm -f .deps/*])
                  
-# This header is the header that autoheader creates.
-# It should not be used because it contains stuff that is
-# not restricted to the Mesquite namespace and therefore
-# may conflict with the config.h of the application using
-# mesquite.
-AC_CONFIG_COMMANDS([junk_config.h],
-                   [rm src/mesquite/include/junk_config.h])
-
-echo "MSQ_CXXFLAGS = $MSQ_CXXFLAGS"
+# echo "MSQ_CXXFLAGS = $MSQ_CXXFLAGS"
 
 ])
