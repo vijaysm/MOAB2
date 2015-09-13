@@ -1,15 +1,21 @@
 @TEST_MAKE_INCLUDE@
-LDADD = $(top_builddir)/itaps/libmsqigeom.la \
-        $(top_builddir)/src/libmesquite.la \
+LDADD = $(top_builddir)/itaps/mesquite/libmsqigeom.la \
+        $(top_builddir)/src/mesquite/libmesquite.la \
         $(IGEOM_LIBS)
 check_PROGRAMS = main
 main_SOURCES = main.cpp
-main_DEPENDENCIES = $(top_builddir)/src/libmesquite.la \
-                    $(top_builddir)/itaps/libmsqigeom.la
+main_DEPENDENCIES = $(top_builddir)/src/mesquite/libmesquite.la \
+                    $(top_builddir)/itaps/mesquite/libmsqigeom.la \
+                    ${IGEOM_LTFLAGS} ${IGEOM_LDFLAGS} \
+                    ${CGM_DIR}/lib/libiGeom.la
+
 TESTS = main
 EXTRA_DIST = CMakeLists.txt 
 
-AM_CPPFLAGS += $(IGEOM_INCL)
+AM_CPPFLAGS += $(IGEOM_DEFINES) $(IGEOM_INCLUDES) \
+							 -I$(top_srcdir)/itaps/imesh \
+							 -I$(top_builddir)/itaps/imesh \
+							 -I$(top_srcdir)/src/parallel
 
 if HAVE_CGM
 
