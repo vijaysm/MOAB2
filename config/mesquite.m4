@@ -116,34 +116,6 @@ else
   MSQ_LIBTOOL_FLAGS=
 fi
 
-# if test "x$MSQ_DO_32BIT" = "xyes"; then
-#   SNL_CXX_COMPILE_32BIT
-# fi
-# if test "x$MSQ_DO_64BIT" = "xyes"; then
-#   if test "x$MSQ_DO_32BIT" = "xyes"; then
-#     AC_MSG_ERROR([--enable-32bit and --enable-64bit are mutually exclusive.])
-#   fi
-#   SNL_CXX_COMPILE_64BIT
-# fi
-# AC_LANG_CPLUSPLUS
-
-#------------------------------------------------------------------------------
-# LIBTOOL
-#------------------------------------------------------------------------------
-# Don't set up libtool until we're done messing with the compiler flags
-# so we're sure libtool is set up correctly for the flags we want.
-# Mostly need to make sure ar and nm are correct on IBM AIX, and that's
-# handled inside our compiler detection code.
-
-# AC_LIBTOOL_WIN32_DLL
-# AM_PROG_LIBTOOL
-
-#-----------------------------------------------------------------------------
-# Check for required headers
-#-----------------------------------------------------------------------------
-#AC_HEADER_STDC
-
-
 # Use C++ compiler because C allows undefined functions, so these
 # checks don't achive much if compiled as C.  Also, if C and C++
 # compilers are mis-matched, what works for one may not work for the
@@ -292,18 +264,8 @@ HAVE_CPPUNIT="no"
 #   LIBS="$old_LIBS"
 # fi
 
-#------------------------------------------------------------------------------
-# ITAPS
-#------------------------------------------------------------------------------
-
-# ITAPS_API([imesh], [IMESH], [iMesh])
-# ITAPS_API([igeom], [IGEOM], [iGeom])
-# ITAPS_API([irel],  [IREL],  [iRel],  [IMESH], [IGEOM])
-# ITAPS_API([imeshp],[IMESHP],[iMeshP],[IMESH])
-
 MSQ_AM_CPPFLAGS="${MSQ_AM_CPPFLAGS}"
 # AM_CONDITIONAL([ENABLE_ITAPS],[test "x$ENABLE_ITAPS" = "xyes"])
-# AC_SUBST(IBASE_INCL)
 
 #------------------------------------------------------------------------------
 # The End
@@ -337,11 +299,7 @@ UTIL_MAKE_INCLUDE='include $(abs_top_builddir)/src/mesquite/msqcppflags.make'
 AC_SUBST(TEST_MAKE_INCLUDE)
 AC_SUBST(UTIL_MAKE_INCLUDE)
 
-# The first header is the header that autoheader creates.
-# It should not be used because it contains stuff that is
-# not restricted to the Mesquite namespace and therefore
-# may conflict with the config.h of the application using
-# mesquite.
+# Specify the headers to create for mesquite
 AC_CONFIG_HEADERS([src/mesquite/include/mesquite_config.h
                    src/mesquite/include/mesquite_version.h])
 
@@ -385,14 +343,6 @@ AC_CONFIG_FILES([src/mesquite/Makefile
                  tools/mesquite/Makefile
                  MeshFiles/mesquite/Makefile
                  ])
-                 
-# Remove any source depenency data so that it is regenerated.
-# This isn't necessary for a correctly working configure script,
-# but from a support POV, it is a easier to explain and remember
-# that the configure script should be re-run without having to
-# also remember to do "rm .deps/*" when a source file is removed
-# from the build.
-# AC_CONFIG_COMMANDS_POST([rm -f .deps/*])
                  
 # echo "MSQ_CXXFLAGS = $MSQ_CXXFLAGS"
 
