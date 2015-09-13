@@ -332,8 +332,8 @@ AC_SUBST(MESQUITE_IMESH_MAKE_INCLUDE)
 # AUTOHEADER=":"
 # AC_SUBST(AUTOHEADER)
 
-TEST_MAKE_INCLUDE="include ../../src/mesquite/msqcppflags.make"
-UTIL_MAKE_INCLUDE="include ../../src/mesquite/msqcppflags.make"
+TEST_MAKE_INCLUDE='include $(abs_top_builddir)/src/mesquite/msqcppflags.make'
+UTIL_MAKE_INCLUDE='include $(abs_top_builddir)/src/mesquite/msqcppflags.make'
 AC_SUBST(TEST_MAKE_INCLUDE)
 AC_SUBST(UTIL_MAKE_INCLUDE)
 
