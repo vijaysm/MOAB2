@@ -25,7 +25,6 @@
 #define CHECK_ARRAYS_EQUAL( EXP, EXP_LEN, ACT, ACT_LEN ) check_array_equal( (EXP), (EXP_LEN), (ACT), (ACT_LEN), #EXP, #ACT, __LINE__, __FILE__ )
 /** Check that two CartVect objects contain same values */
 #define CHECK_VECREAL_EQUAL( EXP, ACT, EPS ) check_equal_cartvect( (EXP), (ACT), (EPS), #EXP, #ACT, __LINE__, __FILE__ ) 
-#define CHECK_EIGVECREAL_EQUAL( EXP, ACT, EPS ) check_equal_eigvect( (EXP), (ACT), (EPS), #EXP, #ACT, __LINE__, __FILE__ ) 
 /** Run a test
  *  Argument should be a function with the signature:  void func(void)
  *  Evaluates to zero if test is successful, one otherwise.
@@ -492,30 +491,6 @@ void check_equal_cartvect( const moab::CartVect& A,
   check_equal( A.length(), B.length(), eps, sA, sB, line, file);
 
   if( fabs(A[0] - B[0]) <= eps && fabs(A[1] - B[1]) <= eps && fabs(A[2] - B[2]) <= eps )
-    return;
-  
-  std::cout << "Equality Test Failed: " << sA << " == " << sB << std::endl;
-  std::cout << "  at line " << line << " of '" << file << "'" << std::endl;
-   
-  std::cout << "  Expected: ";
-  std::cout << A << std::endl;
-  
-  std::cout << "  Actual:   ";
-  std::cout << B << std::endl;
-  
-  flag_error(); 
-}
-
-void check_equal_eigvect( const moab::CartVect& A,
-                        const moab::CartVect& B, double eps,
-                        const char* sA, const char* sB, 
-                        int line, const char* file )
-{
-  check_equal( A.length(), B.length(), eps, sA, sB, line, file);
-
-  if (  (fabs(A[0] - B[0]) <= eps || fabs(A[0] + B[0]) <= eps) && 
-        (fabs(A[1] - B[1]) <= eps || fabs(A[1] + B[1]) <= eps) &&
-        (fabs(A[2] - B[2]) <= eps || fabs(A[2] + B[2]) <= eps) )
     return;
   
   std::cout << "Equality Test Failed: " << sA << " == " << sB << std::endl;

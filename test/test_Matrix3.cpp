@@ -8,6 +8,31 @@
 
 using namespace moab;
 
+#define CHECK_EIGVECREAL_EQUAL( EXP, ACT, EPS ) check_equal_eigvect( (EXP), (ACT), (EPS), #EXP, #ACT, __LINE__, __FILE__ ) 
+void check_equal_eigvect( const moab::CartVect& A,
+                        const moab::CartVect& B, double eps,
+                        const char* sA, const char* sB, 
+                        int line, const char* file )
+{
+  check_equal( A.length(), B.length(), eps, sA, sB, line, file);
+
+  if (  (fabs(A[0] - B[0]) <= eps || fabs(A[0] + B[0]) <= eps) && 
+        (fabs(A[1] - B[1]) <= eps || fabs(A[1] + B[1]) <= eps) &&
+        (fabs(A[2] - B[2]) <= eps || fabs(A[2] + B[2]) <= eps) )
+    return;
+  
+  std::cout << "Equality Test Failed: " << sA << " == " << sB << std::endl;
+  std::cout << "  at line " << line << " of '" << file << "'" << std::endl;
+   
+  std::cout << "  Expected: ";
+  std::cout << A << std::endl;
+  
+  std::cout << "  Actual:   ";
+  std::cout << B << std::endl;
+  
+  flag_error(); 
+}
+
 
 void test_EigenDecomp();
 
@@ -50,7 +75,7 @@ void test_EigenDecomp()
 
   //Hardcoded check values for the results
   double lamda_check[3];
-  lamda_check[0] = 3.41421; lamda_check[1] = 2; lamda_check[2] = 0.585786;
+  lamda_check[0] = 3.41421; lamda_check[1] = 2.0; lamda_check[2] = 0.585786;
 
   moab::CartVect vec0_check(0.5, -0.707107, 0.5);
   moab::CartVect vec1_check(0.707107, 3.37748e-17, -0.707107);
