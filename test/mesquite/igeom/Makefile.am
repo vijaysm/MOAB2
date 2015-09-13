@@ -11,7 +11,7 @@ EXTRA_DIST = CMakeLists.txt
 
 AM_CPPFLAGS += $(IGEOM_INCL)
 
-if ENABLE_IGEOM
+if HAVE_CGM
 
 else
 main$(EXEEXT):

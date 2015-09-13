@@ -3,8 +3,7 @@ LDADD = $(top_builddir)/src/libmesquite.la
 AM_LDFLAGS = @AM_LDFLAGS@
 AM_CPPFLAGS = @AM_CPPFLAGS@
 
-
-if WITH_CPPUNIT
+if HAVE_CPPUNIT
   check_PROGRAMS = msq_test
   msq_test_DEPENDENCIES = $(top_builddir)/src/libmesquite.la
   TESTS = $(check_PROGRAMS)
@@ -27,7 +26,7 @@ no_cpp_unit:
 	@echo "exit 0" >> $@
 	@chmod a+x $@
 
-if ENABLE_IMESH
+if ENABLE_imesh
   IMESH_TEST_SRC = iMeshTest.cpp
   IMESH_LDADD = $(top_builddir)/itaps/libmsqimesh.la $(IMESH_LIBS)
   IMESH_DEP = $(top_builddir)/itaps/libmsqimesh.la
@@ -39,7 +38,7 @@ endif
 LDADD += $(IMESH_LDADD)
 msq_test_DEPENDENCIES += $(IMESH_DEP)
 
-if WITH_EXODUS
+if HAVE_NETCDF
   EXODUS_TEST_SRC = ExodusTest.cpp
 else
   EXODUS_TEST_SRC = 
