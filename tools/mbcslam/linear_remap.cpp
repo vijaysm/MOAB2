@@ -60,9 +60,10 @@ void decide_gnomonic_plane_test(const CartVect & pos, int & plane);
 
 double radius = 1.; // in m:  6371220.
 
-int main(int /*argc*/, char **/*argv[]*/) {
+int main(int argc, char *argv[]) {
 
   // set up MOAB interface and parallel communication
+  MPI_Init(&argc, &argv);
   moab::Core moab;
   moab::Interface& mb = moab;
   moab::ParallelComm mb_pcomm(&mb, MPI_COMM_WORLD);
@@ -128,6 +129,7 @@ int main(int /*argc*/, char **/*argv[]*/) {
   test_linear_reconstruction(&mb, euler_set, rhoTag, planeTag, barycenterTag,
       coefRhoTag);
 
+  MPI_Finalize();
   return 0;
 }
 
