@@ -1,5 +1,5 @@
 @TEST_MAKE_INCLUDE@
-LDADD = $(top_builddir)/src/libmesquite.la
+LDADD = $(top_builddir)/src/mesquite/libmesquite.la
 AM_CPPFLAGS += '-DSRCDIR="$(srcdir)/"'
 
 check_PROGRAMS = deforming \

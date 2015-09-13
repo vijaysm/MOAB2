@@ -1,15 +1,18 @@
 @TEST_MAKE_INCLUDE@
-LDADD = $(top_builddir)/itaps/libmsqimesh.la \
-        $(top_builddir)/src/libmesquite.la \
+LDADD = $(top_builddir)/itaps/mesquite/libmsqimesh.la \
+        $(top_builddir)/src/mesquite/libmesquite.la \
         $(IMESH_LIBS)
 check_PROGRAMS = main
 main_SOURCES = main.cpp
-main_DEPENDENCIES = $(top_builddir)/src/libmesquite.la \
-                    $(top_builddir)/itaps/libmsqimesh.la
+main_DEPENDENCIES = $(top_builddir)/src/mesquite/libmesquite.la \
+                    $(top_builddir)/itaps/mesquite/libmsqimesh.la
 TESTS = main
 EXTRA_DIST = CMakeLists.txt
 
-AM_CPPFLAGS += $(IMESH_INCL)
+AM_CPPFLAGS += -I$(top_srcdir)/src/parallel \
+							 -I$(top_srcdir)/itaps \
+               -I$(top_srcdir)/itaps/imesh \
+               -I$(top_builddir)/itaps/imesh
 
 if ENABLE_imesh
 
