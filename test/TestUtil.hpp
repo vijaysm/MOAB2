@@ -23,6 +23,8 @@
 #define CHECK_REAL_EQUAL( EXP, ACT, EPS ) check_equal( (EXP), (ACT), (EPS), #EXP, #ACT, __LINE__, __FILE__ )
 /** Check that two arrays contain the same values in the same order */
 #define CHECK_ARRAYS_EQUAL( EXP, EXP_LEN, ACT, ACT_LEN ) check_array_equal( (EXP), (EXP_LEN), (ACT), (ACT_LEN), #EXP, #ACT, __LINE__, __FILE__ )
+/** Check that two CartVect objects contain same values */
+#define CHECK_VECREAL_EQUAL( EXP, ACT, EPS ) check_equal_cartvect( (EXP), (ACT), (EPS), #EXP, #ACT, __LINE__, __FILE__ ) 
 /** Run a test
  *  Argument should be a function with the signature:  void func(void)
  *  Evaluates to zero if test is successful, one otherwise.
@@ -479,6 +481,32 @@ void check_true( bool cond, const char* str, int line, const char* file )
   }
 }
 
+#ifdef MB_CART_VECT_HPP
+
+void check_equal_cartvect( const moab::CartVect& A,
+                        const moab::CartVect& B, double eps,
+                        const char* sA, const char* sB, 
+                        int line, const char* file )
+{
+  check_equal( A.length(), B.length(), eps, sA, sB, line, file);
+
+  if( fabs(A[0] - B[0]) <= eps && fabs(A[1] - B[1]) <= eps && fabs(A[2] - B[2]) <= eps )
+    return;
+  
+  std::cout << "Equality Test Failed: " << sA << " == " << sB << std::endl;
+  std::cout << "  at line " << line << " of '" << file << "'" << std::endl;
+   
+  std::cout << "  Expected: ";
+  std::cout << A << std::endl;
+  
+  std::cout << "  Actual:   ";
+  std::cout << B << std::endl;
+  
+  flag_error(); 
+}
+
+#endif // #ifdef MB_CART_VECT_HPP
+
 #ifdef __cplusplus
 
 template <typename T>
@@ -590,8 +618,8 @@ void check_equal( const moab::Range& A, const moab::Range& B, const char* sA, co
   flag_error();
 }
 
-#endif  /* ifdef MOAB_RANGE_HPP */
-    
+#endif // #ifdef MOAB_RANGE_HPP
+
 #endif /* ifdef __cplusplus */
 
 #endif
