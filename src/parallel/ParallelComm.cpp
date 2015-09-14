@@ -4359,7 +4359,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     // we will skip geometry sets, because they are not uniquely identified with their tag value
     // maybe we will add another tag, like category
 
-  	if (procConfig.proc_size() <2)
+    if (procConfig.proc_size() <2)
   		return MB_SUCCESS; // no reason to stop by
     const char* const shared_set_tag_names[] = {MATERIAL_SET_TAG_NAME,
                                                 DIRICHLET_SET_TAG_NAME,
@@ -4532,6 +4532,13 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
           lmap[value] = newSet;
           // set the tag value
           rval = mbImpl->tag_set_data(tags[tag_type], &newSet, 1, &value);MB_CHK_SET_ERR(rval, "can't set tag for new set");
+
+          // we also need to add the new created set to the file set, if not null
+          if (file_set)
+          {
+            rval = mbImpl->add_entities(file_set, &newSet, 1);
+            MB_CHK_SET_ERR(rval, "can't add new set to the file set");
+          }
         }
         // add the entity to the set pointed to by the map
         rval = mbImpl->add_entities(lmap[value], &geh, 1);MB_CHK_SET_ERR(rval, "can't add ghost ent to the set");
