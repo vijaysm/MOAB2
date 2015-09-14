@@ -22,11 +22,11 @@
 static const char *GLOBAL_ID_TAG_NAME = "GLOBAL_ID";
 static const char *RELATION_TAG_NAME = "__GEOM_ASSOCIATION";
 
-GeomAssocPairSide::GeomAssocPairSide(iRel_Instance relation,
-                                     iBase_Instance instance, int id) :
-  relation(relation),
-  instance_(reinterpret_cast<iGeom_Instance>(instance)),
-  id(id)
+GeomAssocPairSide::GeomAssocPairSide(iRel_Instance p_relation,
+                                     iBase_Instance p_instance, int p_id) :
+  relation(p_relation),
+  instance_(reinterpret_cast<iGeom_Instance>(p_instance)),
+  id(p_id)
 {
   int result;
 
@@ -139,14 +139,14 @@ int GeomAssocPairSide::get_ents_dims(iBase_EntityHandle *entities,
   RETURNR(iBase_SUCCESS);
 }
 
-int GeomAssocPairSide::get_related_ents(iBase_EntityHandle **entities,
-                                        int *entities_alloc, int *entities_size)
+int GeomAssocPairSide::get_related_ents(iBase_EntityHandle ** /*entities*/,
+                                        int * /*entities_alloc*/, int * /*entities_size*/)
 {
   RETURNR(iBase_FAILURE);
 }
 
-int GeomAssocPairSide::get_related_sets(iBase_EntitySetHandle **sets,
-                                        int *sets_alloc, int *sets_size)
+int GeomAssocPairSide::get_related_sets(iBase_EntitySetHandle ** /*sets*/,
+                                        int * /*sets_alloc*/, int * /*sets_size*/)
 {
   RETURNR(iBase_FAILURE);
 }
@@ -272,14 +272,14 @@ int GeomAssocPairSide::get_gids(iBase_EntitySetHandle *sets, int num_sets,
   RETURNR(iBase_SUCCESS);
 }
 
-int GeomAssocPairSide::get_dims(iBase_EntityHandle *entities, int num_entities,
-                                int *values)
+int GeomAssocPairSide::get_dims(iBase_EntityHandle * /*entities*/, int /*num_entities*/,
+                                int * /*values*/)
 {
   RETURNR(iBase_FAILURE);
 }
 
-int GeomAssocPairSide::get_dims(iBase_EntitySetHandle *sets, int num_sets,
-                                int *values)
+int GeomAssocPairSide::get_dims(iBase_EntitySetHandle * /*sets*/, int /*num_sets*/,
+                                int * /*values*/)
 {
   RETURNR(iBase_FAILURE);
 }
