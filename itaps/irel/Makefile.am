@@ -37,24 +37,7 @@ libiRel_la_includedir = $(includedir)
 libiRel_la_LIBADD = $(top_builddir)/itaps/imesh/libiMesh.la $(top_builddir)/src/libMOAB.la
 
 lib_LTLIBRARIES = libiRel.la
-
-if HAVE_CGM
-    AM_CPPFLAGS += -DENABLE_IGEOM -I${CGM_DIR}/include
-    libiRel_la_SOURCES += \
-        GeomAssocPairSide.cpp \
-        GeomAssocPairSide.hpp
-    libiRel_la_LIBADD += \
-        ${IGEOM_LTFLAGS} ${IGEOM_LDFLAGS} ${CGM_DIR}/lib/libiGeom.la
-    LIBS += ${CGM_LIBS}
-endif
-
-if ENABLE_fbigeom
-    AM_CPPFLAGS += -DENABLE_FBIGEOM -I$(top_srcdir)/itaps/fbigeom
-    libiRel_la_SOURCES += \
-        FBGeomAssocPairSide.cpp \
-        FBGeomAssocPairSide.hpp
-    libiRel_la_LIBADD += $(top_builddir)/itaps/fbigeom/libFBiGeomMOAB.la
-endif
+TEST_DEPS = libiRel.la
 
 if ENABLE_imesh
     AM_CPPFLAGS += -DENABLE_IMESH -I$(top_srcdir)/itaps/imesh
@@ -65,8 +48,30 @@ if ENABLE_imesh
 if HAVE_MPI
     AM_CPPFLAGS += -I$(top_srcdir)/src/parallel
 endif
+    TEST_DEPS += $(top_builddir)/itaps/imesh/libiMesh.la 
 endif
 
+if ENABLE_fbigeom
+    AM_CPPFLAGS += -DENABLE_FBIGEOM -I$(top_srcdir)/itaps/fbigeom
+    libiRel_la_SOURCES += \
+        FBGeomAssocPairSide.cpp \
+        FBGeomAssocPairSide.hpp
+    libiRel_la_LIBADD += $(top_builddir)/itaps/fbigeom/libFBiGeomMOAB.la
+    TEST_DEPS += $(top_builddir)/itaps/fbigeom/libFBiGeomMOAB.la
+endif
+TEST_DEPS += $(top_builddir)/src/libMOAB.la
+
+if HAVE_CGM
+    AM_CPPFLAGS += -DENABLE_IGEOM -I${CGM_DIR}/include
+    libiRel_la_SOURCES += \
+        GeomAssocPairSide.cpp \
+        GeomAssocPairSide.hpp
+    libiRel_la_LIBADD += \
+        ${IGEOM_LTFLAGS} ${IGEOM_LDFLAGS} ${CGM_DIR}/lib/libiGeom.la
+    LIBS += ${CGM_LIBS}
+    TEST_DEPS += ${CGM_DIR}/lib/libiGeom.la
+endif
+TEST_DEPS += ${MOAB_CXX_LINKFLAGS} ${MOAB_CXX_LIBS}
 
 TESTS = test_entset test_both test_status 
 if ENABLE_fbigeom
@@ -77,23 +82,23 @@ check_PROGRAMS = ${TESTS}
 # stuff for c test programs
 test_entset_SOURCES = test_entset.cpp
 test_entset_DEPENDENCIES = libiRel.la
-test_entset_LDADD = libiRel.la
+test_entset_LDADD = $(TEST_DEPS)
 test_entset_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_srcdir)/test
 
 test_both_SOURCES = test_both.cpp
 test_both_DEPENDENCIES = libiRel.la
-test_both_LDADD = libiRel.la
+test_both_LDADD = $(TEST_DEPS)
 test_both_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_srcdir)/test
 
 test_status_SOURCES = test_status.cpp
 test_status_DEPENDENCIES = libiRel.la
-test_status_LDADD = libiRel.la
+test_status_LDADD = $(TEST_DEPS)
 test_status_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_srcdir)/test
 
 if ENABLE_fbigeom
 test_entsetFB_SOURCES = test_entsetFB.cpp
 test_entsetFB_DEPENDENCIES = libiRel.la
-test_entsetFB_LDADD = libiRel.la
+test_entsetFB_LDADD = $(TEST_DEPS)
 test_entsetFB_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_srcdir)/test
 endif
 
