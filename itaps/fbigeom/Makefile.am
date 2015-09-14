@@ -1,6 +1,6 @@
 BUILT_SOURCES = FBiGeom_protos.h
 
-MESHDIR = $(abs_top_srcdir)/MeshFiles/unittest/iGeom
+MESHDIR = $(abs_top_srcdir)/MeshFiles/unittest/fbigeom
 
 AM_CPPFLAGS = -DSRCDIR=$(srcdir) \
               -DMESHDIR=$(MESHDIR) \
