@@ -188,21 +188,21 @@ else
 fi
 
 ################################################################################
-#                           iGeom Part 1 of 2
+#                           FBiGeom Part 1 of 2
 ################################################################################
-AC_ARG_ENABLE( [igeom],
-[AS_HELP_STRING([--enable-igeom],[Build mesh-based iGeom implementation])],
-[enable_igeom=$enableval],[enable_igeom=no] )
+AC_ARG_ENABLE( [fbigeom],
+[AS_HELP_STRING([--enable-fbigeom],[Build mesh-based (facets) iGeom implementation])],
+[enable_fbigeom=$enableval],[enable_fbigeom=no] )
 
-if (test "xyes" != "x$enable_igeom" && test "xno" != "x$enable_igeom"); then
-  AC_MSG_ERROR([Unknown argument --enable-igeom=$enableval])
+if (test "xyes" != "x$enable_fbigeom" && test "xno" != "x$enable_fbigeom"); then
+  AC_MSG_ERROR([Unknown argument --enable-fbigeom=$enableval])
 else
-  ENABLE_igeom=$enable_igeom
-  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-igeom=$enable_igeom"
+  ENABLE_fbigeom=$enable_fbigeom
+  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-fbigeom=$enable_fbigeom"
 fi
 
 ################################################################################
-#                           iMesh/iGeom Part 2 of 2
+#                           iMesh/FBiGeom Part 2 of 2
 ################################################################################
 
 # The iMesh option must be checked before configuring the compilers
@@ -215,19 +215,20 @@ AC_MSG_RESULT([$SIZEOF_MBENTITYHANDLE])
 ITAPS_VALID_HANDLE_SIZE=yes
 if test $SIZEOF_VOID_P -ne $SIZEOF_MBENTITYHANDLE; then
   ITAPS_VALID_HANDLE_SIZE=no
-  AC_MSG_WARN([Cannot build iMesh or iGeom API because sizeof(EntityHandle) != sizeof(void*)])
+  AC_MSG_WARN([Cannot build iMesh or FBiGeom API because sizeof(EntityHandle) != sizeof(void*)])
   ENABLE_imesh=no
-  ENABLE_igeom=no
+  ENABLE_fbigeom=no
 fi
 
-AC_MSG_CHECKING([if iGeom support is to be built])
-AC_MSG_RESULT([$ENABLE_igeom])
-AM_CONDITIONAL([ENABLE_igeom],[test "xyes" = "x$ENABLE_igeom"])
-if test "x$ENABLE_igeom" = "xyes"; then
+AC_MSG_CHECKING([if FBiGeom support is to be built])
+AC_MSG_RESULT([$ENABLE_fbigeom])
+AM_CONDITIONAL([ENABLE_fbigeom],[test "xyes" = "x$ENABLE_fbigeom"])
+if test "x$ENABLE_fbigeom" = "xyes"; then
   if test "x$ITAPS_VALID_HANDLE_SIZE" != "xyes"; then
-    AC_MSG_ERROR([Cannot build iGeom API with sizeof(EntityHandle) != sizeof(void*)])
+    AC_MSG_ERROR([Cannot build FBiGeom API with sizeof(EntityHandle) != sizeof(void*)])
   fi
-  AC_DEFINE([HAVE_IGEOM],[1],[Define if configured with iGeom interfaces.])
+  AC_DEFINE([HAVE_FBIGEOM],[1],[Define if configured with FBiGeom interfaces.])
+  
 fi
 
 AC_MSG_CHECKING([if iMesh support is to be built])
@@ -239,6 +240,21 @@ if test "x$ENABLE_imesh" = "xyes"; then
   fi
   AC_DEFINE([HAVE_IMESH],[1],[Define if configured with iMesh interfaces.])
 fi
+
+################################################################################
+#                           iRel/Lasso Part 1 of 2
+################################################################################
+AC_ARG_ENABLE( [irel],
+[AS_HELP_STRING([--enable-irel],[Build relational geometry-mesh query interface implementation])],
+[enable_irel=$enableval],[enable_irel=no] )
+
+if (test "xyes" != "x$enable_irel" && test "xno" != "x$enable_irel"); then
+  AC_MSG_ERROR([Unknown argument --enable-irel=$enableval])
+else
+  ENABLE_irel=$enable_irel
+  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-irel=$enable_irel"
+fi
+
 
 ################################################################################
 #                              Version Stuff
@@ -936,6 +952,33 @@ if (test "x$CGM_MISSING" == "xno"); then
 fi
 
 
+################################################################################
+#                           iRel/Lasso Part 2 of 2
+################################################################################
+
+AC_MSG_CHECKING([if iRel support is to be built])
+AC_MSG_RESULT([$ENABLE_irel])
+AM_CONDITIONAL([ENABLE_irel],[test "xyes" = "x$ENABLE_irel"])
+if test "x$ENABLE_irel" = "xyes"; then
+  if (test "x$ENABLE_imesh" != "xyes" || test "x$CGM_MISSING" != "xno"); then
+    AC_MSG_ERROR([Cannot build iRel API. Enable both iGeom (CGM) and iMesh implementations.])
+  fi
+  AC_DEFINE([HAVE_IREL],[1],[Define if configured with iRel interfaces.])
+  
+  AC_CHECK_FILE([${CGM_DIR}/lib/iGeom-Defs.inc],
+              [IGEOM_CONFIG_OPTIONS="include ${CGM_DIR}/lib/iGeom-Defs.inc";
+               FATHOM_MAKE_INC_VAR([${CGM_DIR}/lib/iGeom-Defs.inc],[IGEOM_DEFINES], [IGEOM_DEFINES="$make_val"],
+                  [IGEOM_DEFINES=]) ],
+              [AC_CHECK_FILE([${CGM_DIR}/iGeom-Defs.inc],
+                             [IGEOM_CONFIG_OPTIONS="include ${CGM_DIR}/iGeom-Defs.inc"],
+                             [AC_MSG_WARN([$CGM_DIR : not a configured iGeom])]
+                            )
+              ])
+  AC_SUBST(IGEOM_DEFINES)
+  AC_SUBST(IGEOM_CONFIG_OPTIONS)
+fi
+
+
 ###############################################################################
 #                           Optional Tools
 ###############################################################################
@@ -1461,8 +1504,10 @@ AC_CONFIG_FILES([Makefile
                  itaps/Makefile
                  itaps/imesh/Makefile
                  itaps/imesh/iMesh-Defs.inc
-                 itaps/igeom/Makefile
-                 itaps/igeom/FBiGeom-Defs.inc
+                 itaps/fbigeom/Makefile
+                 itaps/fbigeom/FBiGeom-Defs.inc
+                 itaps/irel/Makefile
+                 itaps/irel/iRel-Defs.inc
                  tools/Makefile
                  tools/refiner/Makefile
                  tools/mbcoupler/Makefile
@@ -1476,7 +1521,8 @@ AC_CONFIG_FILES([Makefile
                  MeshFiles/Makefile
                  MeshFiles/unittest/Makefile
                  MeshFiles/unittest/io/Makefile
-                 MeshFiles/unittest/iGeom/Makefile
+                 MeshFiles/unittest/fbigeom/Makefile
+                 MeshFiles/unittest/irel/Makefile
                  MeshFiles/unittest/dagmc/Makefile
                  MeshFiles/unittest/mbcslam/Makefile
                  MeshFiles/unittest/h5file/Makefile

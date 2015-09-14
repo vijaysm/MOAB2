@@ -207,6 +207,7 @@ set( MOAB_GENERATED_INSTALL_HEADERS
 
 if( MOAB_HAVE_CGM )
   set( MOAB_CGM_LIBS ${CGM_LIBRARIES} )
+  include_directories(${CGM_INCLUDE_DIRS})
 endif()
 
 if (MOAB_HAVE_ZOLTAN)
