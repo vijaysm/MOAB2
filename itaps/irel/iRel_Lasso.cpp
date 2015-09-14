@@ -729,10 +729,10 @@ iRel_inferSetArrSetArrRelations(iRel_Instance instance,
                                 iRel_PairHandle pair,
                                 iBase_EntitySetHandle *ents1,
                                 const int ents1_size,
-                                int is_set1,
+                                int /*is_set1*/,
                                 iBase_EntitySetHandle *ents2,
                                 const int ents2_size,
-                                int is_set2,
+                                int /*is_set2*/,
                                 int *err)
 
 {
@@ -782,7 +782,7 @@ void iRel_inferAllRelations (
 
 void iRel_inferAllRelationsAndType (
   iRel_Instance instance,
-  iRel_PairHandle *pair,
+  iRel_PairHandle * /*pair*/,
   int *err)
 {
   ERROR(iBase_NOT_SUPPORTED, "Not currently supported.");

@@ -22,11 +22,11 @@
 static const char *GLOBAL_ID_TAG_NAME = "GLOBAL_ID";
 static const char *RELATION_TAG_NAME = "__FBGEOM_ASSOCIATION";
 
-FBGeomAssocPairSide::FBGeomAssocPairSide(iRel_Instance relation,
-                                         iBase_Instance instance, int id) :
-  relation(relation),
-  instance_(reinterpret_cast<FBiGeom_Instance>(instance)),
-  id(id)
+FBGeomAssocPairSide::FBGeomAssocPairSide(iRel_Instance p_relation,
+                                         iBase_Instance p_instance, int p_id) :
+  relation(p_relation),
+  instance_(reinterpret_cast<FBiGeom_Instance>(p_instance)),
+  id(p_id)
 {
   int result;
 
@@ -139,15 +139,15 @@ int FBGeomAssocPairSide::get_ents_dims(iBase_EntityHandle *entities,
   RETURNR(iBase_SUCCESS);
 }
 
-int FBGeomAssocPairSide::get_related_ents(iBase_EntityHandle **entities,
-                                          int *entities_alloc,
-                                          int *entities_size)
+int FBGeomAssocPairSide::get_related_ents(iBase_EntityHandle ** /*entities*/,
+                                          int * /*entities_alloc*/,
+                                          int * /*entities_size*/)
 {
   RETURNR(iBase_FAILURE);
 }
 
-int FBGeomAssocPairSide::get_related_sets(iBase_EntitySetHandle **sets,
-                                          int *sets_alloc, int *sets_size)
+int FBGeomAssocPairSide::get_related_sets(iBase_EntitySetHandle ** /*sets*/,
+                                          int * /*sets_alloc*/, int * /*sets_size*/)
 {
   RETURNR(iBase_FAILURE);
 }
@@ -274,14 +274,14 @@ int FBGeomAssocPairSide::get_gids(iBase_EntitySetHandle *sets, int num_sets,
   RETURNR(iBase_SUCCESS);
 }
 
-int FBGeomAssocPairSide::get_dims(iBase_EntityHandle *entities,
-                                  int num_entities, int *values)
+int FBGeomAssocPairSide::get_dims(iBase_EntityHandle * /*entities*/,
+                                  int /*num_entities*/, int * /*values*/)
 {
   RETURNR(iBase_FAILURE);
 }
 
-int FBGeomAssocPairSide::get_dims(iBase_EntitySetHandle *sets, int num_sets,
-                                  int *values)
+int FBGeomAssocPairSide::get_dims(iBase_EntitySetHandle * /*sets*/, int /*num_sets*/,
+                                  int * /*values*/)
 {
   RETURNR(iBase_FAILURE);
 }

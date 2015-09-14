@@ -16,16 +16,16 @@
 
 int AssocPair::currId = 0;
 
-AssocPair::AssocPair(iRel_Instance instance,
+AssocPair::AssocPair(iRel_Instance p_instance,
                      iBase_Instance iface0,
                      iRel_RelationType ent_or_set0,
                      iRel_IfaceType type0,
-                     iRel_RelationStatus status0,
+                     iRel_RelationStatus p_status0,
                      iBase_Instance iface1,
                      iRel_RelationType ent_or_set1,
                      iRel_IfaceType type1,
-                     iRel_RelationStatus status1)
-  : instance(instance)
+                     iRel_RelationStatus p_status1)
+  : instance(p_instance)
 {
   pairId = currId++;
 
@@ -55,8 +55,8 @@ AssocPair::AssocPair(iRel_Instance instance,
 
   entOrSet[0] = ent_or_set0;
   entOrSet[1] = ent_or_set1;
-  relStatus[0] = status0;
-  relStatus[1] = status1;
+  relStatus[0] = p_status0;
+  relStatus[1] = p_status1;
 }
 
 AssocPair::~AssocPair()
