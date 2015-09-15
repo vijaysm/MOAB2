@@ -4418,7 +4418,11 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
     // consider only entities that are not on the interface
     // they should already belong to the right sets, after reading, on multiple processors
-    rval = filter_pstatus(owned_shared_ents, PSTATUS_INTERFACE, PSTATUS_NOT, -1);
+    // rval = filter_pstatus(owned_shared_ents, PSTATUS_INTERFACE, PSTATUS_NOT, -1);
+    //   above filtering was wrong, because some vertices that were on the interface
+    //    could be ghosted on other processors, so we effectively remove them
+    //  it is true that some might already have the global id (shared, not owned), so it is
+    // a duplicate, but it should be fine
     TupleList remoteEnts;
     int estim = (int) owned_shared_ents.size() * (size() - 1) * num_tags;// maybe overkill?
     // processor to send to, type of tag (0-mat,) tag value,     remote handle
