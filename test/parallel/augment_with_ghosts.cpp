@@ -4,6 +4,7 @@
 #include "TestUtil.hpp"
 #include "MBTagConventions.hpp"
 #include <iostream>
+#include <sstream>
 
 #ifdef MESHDIR
  std::string filename = STRINGIFY(MESHDIR) "/io/p8ex1.h5m";
@@ -64,7 +65,13 @@ void test_read_with_ghost()
   rval = mb->load_file(filename.c_str() , 0, read_opts);CHECK_ERR(rval);
 
   report_sets(mb, rank, nproc);
-
+  // write in serial the database , on each rank
+  std::ostringstream outfile;
+  outfile <<"testReadGhost_n" <<nproc<<"."<< rank<<".h5m";
+  // the mesh contains ghosts too, but they were not part of mat/neumann set
+  // write in serial the file, to see what tags are missing / or not
+  rval = mb->write_file(outfile.str().c_str()); // everything on root
+  CHECK_ERR(rval);
   delete mb;
 }
 
@@ -91,6 +98,14 @@ void test_read_and_ghost_after()
   CHECK_ERR(rval);
 
   report_sets(mb, rank, nproc);
+
+  // write in serial the database , on each rank
+  std::ostringstream outfile;
+  outfile <<"TaskMesh_n" <<nproc<<"."<< rank<<".h5m";
+  // the mesh contains ghosts too, but they were not part of mat/neumann set
+  // write in serial the file, to see what tags are missing / or not
+  rval = mb->write_file(outfile.str().c_str()); // everything on root
+  CHECK_ERR(rval);
 
   delete pc;
   delete mb;
