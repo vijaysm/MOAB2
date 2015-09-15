@@ -173,6 +173,8 @@ static inline MeshSet* get_mesh_set( SequenceManager* sm,
   return reinterpret_cast<MeshSetSequence*>(seq)->get_set(h);
 }
 
+double Core::option_seq=1.0;
+
 //! Constructor
 Core::Core()
 {

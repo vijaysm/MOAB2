@@ -415,7 +415,8 @@ ErrorCode test_elements_on_several_procs( const char* filename )
                          "PARALLEL=READ_DELETE;"
                          "PARTITION=GEOM_DIMENSION;PARTITION_VAL=3;"
                          "PARTITION_DISTRIBUTE;"
-                         "PARALLEL_RESOLVE_SHARED_ENTS" );
+                         "PARALLEL_RESOLVE_SHARED_ENTS;"
+                         "PARALLEL_SEQUENCE_FACTOR=1.4");
   CHKERR(rval);
   
     // test contents of interface sets against sharedEnts structure in pcomm;
