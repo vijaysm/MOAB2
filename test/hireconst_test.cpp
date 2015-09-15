@@ -148,7 +148,7 @@ ErrorCode test_mesh(const char* infile,const int degree, const bool interp, cons
 	//initialize
 	HiReconstruction hirec(dynamic_cast<Core*>(mbimpl),pc,meshset);
 	Range elems;
-	error = mbimpl->get_entities_by_dimension(meshset,dim,elems);
+	error = mbimpl->get_entities_by_dimension(meshset,dim,elems); MB_CHK_ERR(error);
 	int nelems = elems.size();
 	std::cout << "Mesh has " << nelems << " elements" << std::endl;
 	//reconstruction
@@ -356,7 +356,7 @@ ErrorCode test_unitsphere(){
 		//initialize
 		HiReconstruction hirec(&moab,pc,meshset);
 		Range elems;
-		error = mbimpl->get_entities_by_dimension(meshset,2,elems);
+		error = mbimpl->get_entities_by_dimension(meshset,2,elems); MB_CHK_ERR(error);
 		//reconstruction
 		for(int degree=1;degree<=maxdeg;++degree){
 			hirec.reconstruct3D_surf_geom(degree, true, false, true);
@@ -421,7 +421,7 @@ ErrorCode test_unitcircle(){
 		//initialize
 		HiReconstruction hirec(&moab,pc,meshset);
 		Range edges;
-		error = mbimpl->get_entities_by_dimension(meshset,dim,edges);
+		error = mbimpl->get_entities_by_dimension(meshset,dim,edges); MB_CHK_ERR(error);
 		//reconstruction
 		for(int degree=1;degree<=maxdeg;++degree){
 			hirec.reconstruct3D_curve_geom(degree, true, false, true);

@@ -639,7 +639,7 @@ namespace moab
 	 				nrms[3*id+2] = _local_coords[9*index+8];
 	 			}
 	 		#else
-	 			assert(1!=index);
+	 			assert(-1!=index);
 	 			nrms[3*id] = _local_coords[9*index+6];
 	 			nrms[3*id+1] = _local_coords[9*index+7];
 	 			nrms[3*id+2] = _local_coords[9*index+8];
