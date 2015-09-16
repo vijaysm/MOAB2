@@ -34,13 +34,13 @@
 #define MSQ_T_SIZE_B_1_HPP
 
 #include "Mesquite.hpp"
-#include "TMetricBarrier.hpp"
+#include "TMetric.hpp"
 
 namespace MESQUITE_NS {
 
 
 /** det(T) + 1/det(T) - 2 */
-class TSizeB1 : public TMetricBarrier
+class TSizeB1 : public TMetric
 {
 public:
   MESQUITE_EXPORT virtual

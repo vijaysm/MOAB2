@@ -67,14 +67,16 @@ class MESQUITE_EXPORT Wrapper : public IQInterface
   protected:
   
     /** Function inherited from IQInterface that we implement here */
-    void run_common( MeshDomainAssoc* mesh_and_domain,
+    void run_common( Mesh* mesh,
                      ParallelMesh* pmesh,
+                     MeshDomain* domain,
                      Settings* settings,
                      MsqError& err );
   
     /** Function that each wrapper must implement */
-    virtual void run_wrapper( MeshDomainAssoc* mesh_and_domain,
+    virtual void run_wrapper( Mesh* mesh,
                               ParallelMesh* pmesh,
+                              MeshDomain* domain,
                               Settings* settings,
                               QualityAssessor* quality_assessor,
                               MsqError& err ) = 0;

@@ -36,7 +36,6 @@ namespace MESQUITE_NS {
 class Mesh;
 class ParallelMesh;
 class MeshDomain;
-class MeshDomainAssoc;
 class MsqError;
 class Settings;
 
@@ -50,13 +49,15 @@ class MESQUITE_EXPORT Instruction
       //! Called for all instructions in queue before loop_over_mesh
       //! is called for any insetruction in queue.  Default behavior
       //! is to do nothing.
-    virtual void initialize_queue( MeshDomainAssoc* mesh_and_domain,
+    virtual void initialize_queue( Mesh* mesh,
+                                   MeshDomain* domain,
                                    const Settings* settings,
                                    MsqError& err ) = 0;
   
       //! Virtual fuction implementing primary functionaliy of 
       //! instruction instance.
-    virtual double loop_over_mesh( MeshDomainAssoc* mesh_and_domain, 
+    virtual double loop_over_mesh( Mesh* mesh, 
+                                   MeshDomain* domain, 
                                    const Settings* settings,
                                    MsqError& err ) = 0;
 
@@ -77,7 +78,8 @@ class MESQUITE_EXPORT Instruction
       //! \NOTE SLAVE_ALL setting is handled in PatchData rather than here 
       //! for efficiency.
     static
-    void initialize_vertex_byte( MeshDomainAssoc* mesh_and_domain,
+    void initialize_vertex_byte( Mesh* mesh, 
+                                 MeshDomain* domain,
                                  const Settings* settings,
                                  MsqError& err );
 };

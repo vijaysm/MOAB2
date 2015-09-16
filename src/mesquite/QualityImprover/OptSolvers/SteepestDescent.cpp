@@ -77,8 +77,8 @@ void SteepestDescent::optimize_vertex_positions(PatchData &pd,
   std::vector<Vector3D> gradient(pd.num_free_vertices()); 
   bool feasible=true;//bool for OF values
   double min_edge_len, max_edge_len;
-  double step_size=0, original_value=0, new_value=0;
-  double norm_squared=0;
+  double step_size, original_value, new_value;
+  double norm_squared;
   PatchDataVerticesMemento* pd_previous_coords;
   TerminationCriterion* term_crit=get_inner_termination_criterion();
   OFEvaluator& obj_func = get_objective_function_evaluator();
@@ -113,10 +113,9 @@ void SteepestDescent::optimize_vertex_positions(PatchData &pd,
   //step_size = max_edge_len / std::sqrt(norm_squared);
   //if (!finite(step_size))  // zero-length gradient
   //  return;
-//  if (norm_squared < DBL_EPSILON)
-//    return;
-  if (norm_squared >= DBL_EPSILON)
-    step_size = max_edge_len / std::sqrt(norm_squared) * pd.num_free_vertices();
+  if (norm_squared < DBL_EPSILON)
+    return;
+  step_size = max_edge_len / std::sqrt(norm_squared) * pd.num_free_vertices();
 
     // The steepest descent loop...
     // We loop until the user-specified termination criteria are met.
@@ -148,10 +147,7 @@ void SteepestDescent::optimize_vertex_positions(PatchData &pd,
       // to that of the initial vertex coordinates.  However, for block
       // coordinate decent to work correctly, we will need to call an
       // 'update' form if we decide to keep the new vertex coordinates.
-      feasible = obj_func.evaluate( pd, new_value, err ); 
-      if (err.error_code() == err.BARRIER_VIOLATED) 
-        err.clear();  // barrier violated does not represent an actual error here
-      MSQ_ERRRTN(err);
+      feasible = obj_func.evaluate( pd, new_value, err ); MSQ_ERRRTN(err);
       MSQ_DBGOUT(3) << "    o  step_size: " << step_size << std::endl;
       MSQ_DBGOUT(3) << "    o  new_value: " << new_value << std::endl;
 
@@ -203,9 +199,8 @@ void SteepestDescent::optimize_vertex_positions(PatchData &pd,
       // from this iteration
     step_size *= norm_squared;
     norm_squared = length_squared( gradient );
-//    if (norm_squared < DBL_EPSILON)
-//      break;
-  if (norm_squared >= DBL_EPSILON)
+    if (norm_squared < DBL_EPSILON)
+      break;
     step_size /= norm_squared;
   }
 }

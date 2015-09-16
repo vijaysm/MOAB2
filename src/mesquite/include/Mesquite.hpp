@@ -56,7 +56,6 @@
 #include <cmath>
 #include <cfloat>
 #include <climits>
-#include <cstddef>
 #ifdef HAVE_CBRT
 #  include <math.h>
 #endif
@@ -108,15 +107,6 @@ namespace MESQUITE_NS
     SEPTAHEDRON =15,
     MIXED
   };
-
-  enum AssessSchemes
-  { 
-    NO_SCHEME = 0,
-    ELEMENT_AVG_QM = 1,
-    ELEMENT_MAX_QM = 2, 
-    TMP_QUALITY_METRIC = 3,
-    QUALITY_METRIC = 4 } ;
-
 
     // Version information
    MESQUITE_EXPORT const char* version_string(bool);
@@ -241,16 +231,14 @@ inline bool divide( double num, double den, double& result )
   
 /**\brief get array pointer from std::vector */
 template <typename T> inline 
-T* arrptr( std::vector< T >& v, bool check_zero_size=false )
+T* arrptr( std::vector< T >& v )
 {
-  if (check_zero_size && !v.size()) return 0;
   assert(!v.empty());
   return &v[0];
 }
 template <typename T> inline 
-const T* arrptr( const std::vector< T >& v, bool check_zero_size=false )
+const T* arrptr( const std::vector< T >& v )
 {
-  if (check_zero_size && !v.size()) return 0;
   assert(!v.empty());
   return &v[0];
 }

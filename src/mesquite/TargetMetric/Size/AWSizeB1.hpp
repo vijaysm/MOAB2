@@ -35,13 +35,12 @@
 
 #include "Mesquite.hpp"
 #include "AWMetric.hpp"
-#include "AWMetricBarrier.hpp"
 
 namespace MESQUITE_NS {
 
 
 /** \f$ \frac{\alpha}{\omega} - \frac{\omega}{\alpha} - 2 \f$ */
-class AWSizeB1 : public AWMetricBarrier
+class AWSizeB1 : public AWMetric
 {
   public:
 

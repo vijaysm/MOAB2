@@ -72,18 +72,15 @@ bool ElementMaxQM::evaluate( PatchData& pd,
   double tmpval;
   bool tmpvalid;
 
-  value = -1.e+100; // initialize max computation
-  for (std::vector<size_t>::iterator h = mHandles.begin(); h != mHandles.end(); ++h) { 
-    tmpvalid = qm->evaluate( pd, *h, tmpval, err );  // MSQ_ERRZERO(err);
-    if (!tmpvalid)
-    {
-      value = +1.e+100;
-      return false;   // if any handle within the element makes tmpvalid false, then valid is false, no matter what the other handles say
-    }
+  value = -std::numeric_limits<double>::infinity();
+  for (std::vector<size_t>::iterator h = mHandles.begin(); h != mHandles.end(); ++h) {
+    tmpvalid = qm->evaluate( pd, *h, tmpval, err ); MSQ_ERRZERO(err);
+    if (!tmpvalid) 
+      valid = false;
     else if (tmpval > value)
       value = tmpval;
   }
-
+    
   return valid;
 }
 /*

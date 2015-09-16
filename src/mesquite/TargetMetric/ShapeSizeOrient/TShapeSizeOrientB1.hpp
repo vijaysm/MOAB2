@@ -34,12 +34,12 @@
 #define MSQ_T_SHAPE_SIZE_ORIENT_B_1_HPP
 
 #include "Mesquite.hpp"
-#include "TMetricBarrier.hpp"
+#include "TMetric.hpp"
 
 namespace MESQUITE_NS {
 
 /** |T-I|^2/ (2 det(T)) */
-class TShapeSizeOrientB1 : public TMetricBarrier
+class TShapeSizeOrientB1 : public TMetric
 {
   public:
 
@@ -69,14 +69,14 @@ class TShapeSizeOrientB1 : public TMetricBarrier
 
   MESQUITE_EXPORT virtual
   bool evaluate( const MsqMatrix<3,3>& T, 
-                 double& result,
+                 double& result, 
                  MsqError& err );
   
   
   MESQUITE_EXPORT virtual
   bool evaluate_with_grad( const MsqMatrix<3,3>& T, 
                            double& result, 
-                           MsqMatrix<3,3>& wrt_T,
+                           MsqMatrix<3,3>& wrt_T, 
                            MsqError& err );
 
   MESQUITE_EXPORT virtual

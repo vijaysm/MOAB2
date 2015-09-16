@@ -245,9 +245,6 @@ namespace MESQUITE_NS
     void get_active_directions( const std::vector<Vector3D>& gradient,
                                 std::vector<Vector3D>& dir, 
                                 MsqError &err );
-    NonSmoothDescent(const NonSmoothDescent &pd); //disable copying
-    NonSmoothDescent& operator=(const NonSmoothDescent &pd);  //disable assignment
-
   };
   
 

@@ -28,9 +28,9 @@
   \file   SteepestDescent.hpp
   \brief  
 
-  The SteepestDescent Class implements the steepest descent algorithm in
+  The SteepestDescent Class implements the steepest descent algorythm in
   order to move a free vertex to an optimal position given an
-  ObjectiveFunction object and a QualityMetric object.
+  ObjectiveFunction object and a QaulityMetric object.
 
   \author Thomas Leurent
   \date   2002-06-13
@@ -50,7 +50,8 @@ namespace MESQUITE_NS
   /*! \class SteepestDescent
 
       This is a very basic implementation of the steepest descent optimization algorythm.
-   */ 
+      It works on patches of any size but the step size is hard-wired.
+      Obvisouly, this is for testing purposed only. */ 
   class SteepestDescent : public VertexMover, public PatchSetUser
   {
   public:
@@ -95,9 +96,6 @@ namespace MESQUITE_NS
   private:
     bool projectGradient;
     //bool cosineStep;
-    SteepestDescent(const SteepestDescent &pd); //disable copying
-    SteepestDescent& operator=(const SteepestDescent &pd);  //disable assignment
-
   };
   
 }

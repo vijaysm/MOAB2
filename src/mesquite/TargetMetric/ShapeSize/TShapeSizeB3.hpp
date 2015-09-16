@@ -34,13 +34,13 @@
 #define MSQ_T_SHAPE_SIZE_B_3_HPP
 
 #include "Mesquite.hpp"
-#include "TMetricBarrier.hpp"
+#include "TMetric.hpp"
 
 namespace MESQUITE_NS {
 
 /** 2D: |T|^2 - 2 * ln(tau) - 2
  *  3D: |T|^3 - 3 sqrt(3) ln(tau) - 3 sqrt(3) */
-class TShapeSizeB3 : public TMetricBarrier
+class TShapeSizeB3 : public TMetric
 {
   public:
 

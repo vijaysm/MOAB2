@@ -51,7 +51,6 @@ namespace MESQUITE_NS {
   class Mesh;
   class ParallelMesh;
   class MeshDomain;
-  class MeshDomainAssoc;
   class Instruction;
   class MappingFunctionSet;
   class TargetWriter;
@@ -134,8 +133,9 @@ namespace MESQUITE_NS {
        *\param domain The domain of the mesh -- may be NULL if no domain.
        */
     MESQUITE_EXPORT
-    virtual void run_common( MeshDomainAssoc* mesh_and_domain,
+    virtual void run_common( Mesh* mesh,
                              ParallelMesh* pmesh,
+                             MeshDomain* domain,
                              Settings* settings,
                              MsqError& err );
     

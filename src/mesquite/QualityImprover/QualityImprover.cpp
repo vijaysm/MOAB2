@@ -70,12 +70,13 @@ QualityImprover::~QualityImprover()
 	delete defaultInnerCriterion;
 }
     
-void QualityImprover::initialize_queue( MeshDomainAssoc* mesh_and_domain,
+void QualityImprover::initialize_queue( Mesh* mesh,
+                                        MeshDomain* domain,
                                         const Settings* settings,
                                         MsqError& err )
 {
-  innerTerminationCriterion->initialize_queue( mesh_and_domain, settings, err ); MSQ_ERRRTN(err);
-  outerTerminationCriterion->initialize_queue( mesh_and_domain, settings, err ); MSQ_ERRRTN(err);
+  innerTerminationCriterion->initialize_queue( mesh, domain, settings, err ); MSQ_ERRRTN(err);
+  outerTerminationCriterion->initialize_queue( mesh, domain, settings, err ); MSQ_ERRRTN(err);
 }
 
 } // namespace MESQUITE_NS

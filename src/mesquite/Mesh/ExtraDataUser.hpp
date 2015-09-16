@@ -172,9 +172,9 @@ T& ExtraDataUser<T>::get_data( PatchData& patch )
 template <typename T> 
 void ExtraDataUser<T>::set_data( PatchData& patch, const T& data )
 {
-  T* ptr = get_data_ptr( patch );
+  ExtraDataUser<T>* ptr = get_data_ptr( patch );
   if (ptr) 
-    *ptr = data;
+    ptr->userData = data;
   else
     listHead = new ExtraUserData<T>( patch, this, listHead, data );
 }

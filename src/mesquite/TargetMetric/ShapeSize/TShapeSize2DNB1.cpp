@@ -35,8 +35,6 @@
 #include "MsqMatrix.hpp"
 #include "TMPDerivs.hpp"
 
-#include <iostream>
-
 namespace MESQUITE_NS {
 
 std::string TShapeSize2DNB1::get_name() const
@@ -87,16 +85,9 @@ bool TShapeSize2DNB1::evaluate_with_grad( const MsqMatrix<2,2>& T,
   result = frob_sqr - 2.0 * psi + 2.0;
 
   deriv_wrt_T = T;
-  if (psi > 1e-50)
-  {
-    deriv_wrt_T *= (1.0 - 1.0/psi);
-    deriv_wrt_T -= 1.0/psi * transpose_adj(T);
-    deriv_wrt_T *= 2;
-  }
-  else
-  {
-    std::cout << "Warning: Division by zero avoided in TShapeSize2DNB2::evaluate_with_grad()" << std::endl;
-  }
+  deriv_wrt_T *= (1.0 - 1.0/psi);
+  deriv_wrt_T -= 1.0/psi * transpose_adj(T);
+  deriv_wrt_T *= 2;
 
   return true;
 }
@@ -121,16 +112,9 @@ bool TShapeSize2DNB1::evaluate_with_hess( const MsqMatrix<2,2>& T,
   result = frob_sqr - 2.0 * psi + 2.0;
 
   deriv_wrt_T = T;
-  if (psi > 1e-50)
-  {
-    deriv_wrt_T *= (1.0 - 1.0/psi);
-    deriv_wrt_T -= 1.0/psi * transpose_adj(T);
-    deriv_wrt_T *= 2;
-  }
-  else
-  {
-    std::cout << "Warning: Division by zero avoided in TShapeSize2DNB2::evaluate_with_hess()" << std::endl;
-  }
+  deriv_wrt_T *= (1.0 - 1.0/psi);
+  deriv_wrt_T -= 1.0/psi * transpose_adj(T);
+  deriv_wrt_T *= 2;
 
   set_scaled_2nd_deriv_wrt_psi( second, -2.0, psi, T );
   pluseq_scaled_I( second, 2 );

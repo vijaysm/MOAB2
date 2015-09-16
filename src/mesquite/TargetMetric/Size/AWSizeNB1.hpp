@@ -34,13 +34,13 @@
 #define MSQ_AW_SIZE_NB_1_HPP
 
 #include "Mesquite.hpp"
-#include "AWMetricNonBarrier.hpp"
+#include "AWMetric.hpp"
 
 namespace MESQUITE_NS {
 
 
 /** \f$ (\alpha - \omega)^2 \f$ */
-class AWSizeNB1 : public AWMetricNonBarrier
+class AWSizeNB1 : public AWMetric
 {
   public:
 

@@ -34,13 +34,13 @@
 #define MSQ_T_INVERSE_MEAN_RATIO_HPP
 
 #include "Mesquite.hpp"
-#include "TMetricBarrier.hpp"
+#include "TMetric.hpp"
 #include <limits>
 
 namespace MESQUITE_NS {
 
 /** \f$ \frac{|T|^2}{2 det(T)} - 1 \f$ */
-class TInverseMeanRatio : public TMetricBarrier {
+class TInverseMeanRatio : public TMetric {
 public:
 
   MESQUITE_EXPORT virtual
@@ -70,7 +70,7 @@ public:
 
   MESQUITE_EXPORT virtual
   bool evaluate( const MsqMatrix<3,3>& T, 
-                 double& result,
+                 double& result, 
                  MsqError& err );
 
   MESQUITE_EXPORT virtual

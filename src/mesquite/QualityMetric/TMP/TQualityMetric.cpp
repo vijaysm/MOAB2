@@ -43,7 +43,6 @@
 #include "WeightCalculator.hpp"
 #include "TargetCalculator.hpp"
 #include "TMetric.hpp"
-#include "TMetricBarrier.hpp"
 #include "TargetMetricUtil.hpp"
 #include "TMPDerivs.hpp"
 
@@ -105,9 +104,7 @@ bool TQualityMetric::evaluate_internal( PatchData& pd,
       return false;
     const MsqMatrix<2,2> Winv = inverse(W);
     const MsqMatrix<2,2> T = A * Winv;
-    rval = targetMetric->evaluate( T, value, err );
-    MSQ_ERRZERO(err);
-
+    rval = targetMetric->evaluate( T, value, err ); MSQ_ERRZERO(err);
 #ifdef PRINT_INFO
     print_info<2>( e, s, J, Wp, A * inverse(W) );
 #endif
@@ -149,8 +146,7 @@ bool TQualityMetric::evaluate_with_gradient( PatchData& pd,
     targetCalc->get_3D_target( pd, e, s, W, err ); MSQ_ERRZERO(err);
     const MsqMatrix<3,3> Winv = inverse(W);
     const MsqMatrix<3,3> T = A*Winv;
-    rval = targetMetric->evaluate_with_grad( T, value, dmdT, err );
-    MSQ_ERRZERO(err);
+    rval = targetMetric->evaluate_with_grad( T, value, dmdT, err ); MSQ_ERRZERO(err);
     gradient<3>( num_idx, mDerivs3D, dmdT * transpose(Winv), grad );
 #ifdef PRINT_INFO
     print_info<3>( e, s, A, W, A * inverse(W) );
@@ -165,8 +161,7 @@ bool TQualityMetric::evaluate_with_gradient( PatchData& pd,
       return false;
     const MsqMatrix<2,2> Winv = inverse(W);
     const MsqMatrix<2,2> T = A*Winv;
-    rval = targetMetric->evaluate_with_grad( T, value, dmdT, err );
-    MSQ_ERRZERO(err);
+    rval = targetMetric->evaluate_with_grad( T, value, dmdT, err ); MSQ_ERRZERO(err);
     gradient<2>( num_idx, mDerivs2D, S_a_transpose_Theta*dmdT*transpose(Winv), grad );
 #ifdef PRINT_INFO
     print_info<2>( e, s, J, Wp, A * inverse(W) );
@@ -217,8 +212,7 @@ bool TQualityMetric::evaluate_with_Hessian( PatchData& pd,
     targetCalc->get_3D_target( pd, e, s, W, err ); MSQ_ERRZERO(err);
     const MsqMatrix<3,3> Winv = inverse(W);
     const MsqMatrix<3,3> T = A*Winv;
-    rval = targetMetric->evaluate_with_hess( T, value, dmdT, d2mdT2, err );
-    MSQ_ERRZERO(err);
+    rval = targetMetric->evaluate_with_hess( T, value, dmdT, d2mdT2, err ); MSQ_ERRZERO(err);
     gradient<3>( num_idx, mDerivs3D, dmdT*transpose(Winv), grad );
     second_deriv_wrt_product_factor( d2mdT2, Winv );
     Hessian.resize( num_idx*(num_idx+1)/2 );
@@ -245,8 +239,7 @@ bool TQualityMetric::evaluate_with_Hessian( PatchData& pd,
       return false;
     const MsqMatrix<2,2> Winv = inverse(W);
     const MsqMatrix<2,2> T = A*Winv;
-    rval = targetMetric->evaluate_with_hess( T, value, dmdT, d2mdT2, err );
-    MSQ_ERRZERO(err);
+    rval = targetMetric->evaluate_with_hess( T, value, dmdT, d2mdT2, err ); MSQ_ERRZERO(err);
     gradient<2>( num_idx, mDerivs2D, M * dmdT * transpose(Winv), grad );
       // calculate 2D hessian
     second_deriv_wrt_product_factor( d2mdT2, Winv );
@@ -313,8 +306,7 @@ bool TQualityMetric::evaluate_with_Hessian_diagonal(
     targetCalc->get_3D_target( pd, e, s, W, err ); MSQ_ERRZERO(err);
     const MsqMatrix<3,3> Winv = inverse(W);
     const MsqMatrix<3,3> T = A*Winv;
-    rval = targetMetric->evaluate_with_hess( T, value, dmdT, d2mdT2, err );
-    MSQ_ERRZERO(err);
+    rval = targetMetric->evaluate_with_hess( T, value, dmdT, d2mdT2, err ); MSQ_ERRZERO(err);
     gradient<3>( num_idx, mDerivs3D, dmdT * transpose(Winv), grad );
     second_deriv_wrt_product_factor( d2mdT2, Winv );
     
@@ -339,8 +331,7 @@ bool TQualityMetric::evaluate_with_Hessian_diagonal(
       return false;
     const MsqMatrix<2,2> Winv = inverse(W);
     const MsqMatrix<2,2> T = A*Winv;
-    rval = targetMetric->evaluate_with_hess( T, value, dmdT, d2mdT2, err );
-    MSQ_ERRZERO(err);
+    rval = targetMetric->evaluate_with_hess( T, value, dmdT, d2mdT2, err ); MSQ_ERRZERO(err);
     gradient<2>( num_idx, mDerivs2D, M * dmdT * transpose(Winv), grad );
     second_deriv_wrt_product_factor( d2mdT2, Winv );
 

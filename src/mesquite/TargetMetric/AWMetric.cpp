@@ -31,7 +31,6 @@
  */
 
 #include "AWMetric.hpp"
-#include "TMetricBarrier.hpp"
 #include "MsqMatrix.hpp"
 #include "MsqError.hpp"
 #include <limits>
@@ -51,8 +50,7 @@ do_finite_difference( int r, int c, AWMetric* metric,
   double diff_value;
   for (double step = INITAL_STEP; step > std::numeric_limits<double>::epsilon(); step *= 0.1) {
     A(r,c) = init + step;
-    valid = metric->evaluate( A, W, diff_value, err );
-    MSQ_ERRZERO(err);
+    valid = metric->evaluate( A, W, diff_value, err ); MSQ_ERRZERO(err);
     if (valid)
       return (diff_value - value) / step;
   }
@@ -61,8 +59,7 @@ do_finite_difference( int r, int c, AWMetric* metric,
     // direciton
   for (double step = INITAL_STEP; step > std::numeric_limits<double>::epsilon(); step *= 0.1) {
     A(r,c) = init - step;
-    valid = metric->evaluate( A, W, diff_value, err );
-    MSQ_ERRZERO(err);
+    valid = metric->evaluate( A, W, diff_value, err ); MSQ_ERRZERO(err);
     if (valid)
       return (value - diff_value) / step;
   }
@@ -82,9 +79,7 @@ do_numerical_gradient( AWMetric* mu,
                        MsqMatrix<Dim,Dim>& wrt_A,
                        MsqError& err )
 {
-  bool valid;
-  valid = mu->evaluate( A, W, result, err );
-  MSQ_ERRZERO(err);
+  bool valid = mu->evaluate( A, W, result, err );
   if (MSQ_CHKERR(err) || !valid)
     return valid;
   
@@ -125,8 +120,7 @@ do_numerical_hessian( AWMetric* metric,
     Hess[i].zero();
 
     // evaluate gradient for input values
-  bool valid;
-  valid = metric->evaluate_with_grad( A, W, value, grad, err );
+  bool valid = metric->evaluate_with_grad( A, W, value, grad, err );
   if (MSQ_CHKERR(err) || !valid)
     return false;
   
@@ -140,8 +134,7 @@ do_numerical_hessian( AWMetric* metric,
       double step;
       for (step = INITAL_STEP; step > std::numeric_limits<double>::epsilon(); step *= 0.1) {
         A(r,c) = in_val + step;
-        valid = metric->evaluate_with_grad( A, W, value2, grad2, err );
-        MSQ_ERRZERO(err);
+        valid = metric->evaluate_with_grad( A, W, value2, grad2, err );  MSQ_ERRZERO(err);
         if (valid)
           break;
       }
@@ -150,8 +143,7 @@ do_numerical_hessian( AWMetric* metric,
       if (!valid) {
         for (step = -INITAL_STEP; step < -std::numeric_limits<double>::epsilon(); step *= 0.1) {
           A(r,c) = in_val + step;
-          valid = metric->evaluate_with_grad( A, W, value2, grad2, err );
-          MSQ_ERRZERO(err);
+          valid = metric->evaluate_with_grad( A, W, value2, grad2, err );  MSQ_ERRZERO(err);
           if (valid)
             break;
         }
@@ -192,21 +184,6 @@ do_numerical_hessian( AWMetric* metric,
 
 AWMetric::~AWMetric() {}
      
-bool AWMetric::evaluate( const MsqMatrix<2,2>& A, 
-                         const MsqMatrix<2,2>& W,
-                         double& result, 
-                         MsqError& err )
-{
-  return false;
-}
-
-bool AWMetric::evaluate( const MsqMatrix<3,3>& A, 
-                         const MsqMatrix<3,3>& W,
-                         double& result, 
-                         MsqError& err )
-{
-  return false;
-}
 
 bool AWMetric::evaluate_with_grad( const MsqMatrix<2,2>& A,
                                    const MsqMatrix<2,2>& W,
@@ -225,6 +202,7 @@ bool AWMetric::evaluate_with_grad( const MsqMatrix<3,3>& A,
 {
   return do_numerical_gradient( this, A, W, result, wrt_A, err );
 }
+
 
 bool AWMetric::evaluate_with_hess( const MsqMatrix<2,2>& A,
                                    const MsqMatrix<2,2>& W,
@@ -245,6 +223,8 @@ bool AWMetric::evaluate_with_hess( const MsqMatrix<3,3>& A,
 {
   return do_numerical_hessian( this, A, W, result, deriv_wrt_A, hess_wrt_A, err );
 }
+
+
 
 AWMetric2D::~AWMetric2D() {}
 AWMetric3D::~AWMetric3D() {}

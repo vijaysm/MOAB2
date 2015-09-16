@@ -24,7 +24,6 @@
     pknupp@sandia.gov, tleurent@mcs.anl.gov, tmunson@mcs.anl.gov      
    
   ***************************************************************** */
-#include "moab/MOABConfig.h"
 #include "MsqTimer.hpp"
 
 #include <iostream>
@@ -33,7 +32,7 @@
 // Create the global collection of stop watches
 Mesquite::StopWatchCollection Mesquite::GlobalStopWatches;
 
-#ifdef MOAB_HAVE_TIMES
+#ifdef HAVE_TIMES
 #  include <sys/times.h>
 #  include <unistd.h>
 #  include <limits.h>
@@ -46,20 +45,20 @@ Mesquite::StopWatchCollection Mesquite::GlobalStopWatches;
 #        define CLK_TCK HZ
 #      else
 #        error times(3) w/out CLK_TCK.  Please report this.
-#        undef MOAB_HAVE_TIMES
+#        undef HAVE_TIMES
 #      endif
 #    endif
 #  endif
 #endif
 
-#ifdef MOAB_HAVE_TIMES
+#ifdef HAVE_TIMES
    static inline double now()
    {
      tms t;
      times( &t );
      return (double)(t.tms_utime + t.tms_stime) / CLK_TCK;
    }
-#elif defined(MOAB_HAVE_CLOCK)
+#elif defined(HAVE_CLOCK)
 #  include <ctime>
    static inline double now()
    {

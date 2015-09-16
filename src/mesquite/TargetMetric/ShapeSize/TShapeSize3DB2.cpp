@@ -33,7 +33,6 @@
 #include "Mesquite.hpp"
 #include "TShapeSize3DB2.hpp"
 #include "TMPDerivs.hpp"
-#include "MsqError.hpp"
 
 namespace MESQUITE_NS {
 
@@ -44,11 +43,11 @@ TShapeSize3DB2::~TShapeSize3DB2() {}
 
 bool TShapeSize3DB2::evaluate( const MsqMatrix<3,3>& T, 
                                double& result, 
-                               MsqError& err )
+                               MsqError&  )
 {
   const double tau = det(T);
   if (invalid_determinant(tau)) { // barrier
-    MSQ_SETERR(err)( barrier_violated_msg, MsqError::BARRIER_VIOLATED );
+    result = 0.0;
     return false;
   }
   
@@ -65,7 +64,7 @@ bool TShapeSize3DB2::evaluate_with_grad( const MsqMatrix<3,3>& T,
 {
   const double tau = det(T);
   if (invalid_determinant(tau)) { // barrier
-    MSQ_SETERR(err)( barrier_violated_msg, MsqError::BARRIER_VIOLATED );
+    result = 0.0;
     return false;
   }
   
@@ -94,7 +93,7 @@ bool TShapeSize3DB2::evaluate_with_hess( const MsqMatrix<3,3>& T,
 {
   const double tau = det(T);
   if (invalid_determinant(tau)) { // barrier
-    MSQ_SETERR(err)( barrier_violated_msg, MsqError::BARRIER_VIOLATED );
+    result = 0.0;
     return false;
   }
   

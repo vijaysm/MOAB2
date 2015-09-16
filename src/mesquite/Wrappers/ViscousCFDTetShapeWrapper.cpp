@@ -56,8 +56,9 @@
 
 namespace MESQUITE_NS {
 
-void ViscousCFDTetShapeWrapper::run_wrapper( MeshDomainAssoc* mesh_and_domain,
+void ViscousCFDTetShapeWrapper::run_wrapper( Mesh* mesh,
                                              ParallelMesh* pmesh,
+                                             MeshDomain* domain,
                                              Settings* settings,
                                              QualityAssessor* qa,
                                              MsqError& err )
@@ -73,7 +74,7 @@ void ViscousCFDTetShapeWrapper::run_wrapper( MeshDomainAssoc* mesh_and_domain,
   QualityAssessor inv_check( &barrier );
   inv_check.disable_printing_results();
   q.add_quality_assessor( &inv_check, err );  MSQ_ERRRTN(err);
-  q.run_common( mesh_and_domain, pmesh, settings, err ); MSQ_ERRRTN(err);
+  q.run_common( mesh, pmesh, domain, settings, err ); MSQ_ERRRTN(err);
   q.remove_quality_assessor( 0, err ); MSQ_ERRRTN(err);
   const QualityAssessor::Assessor* inv_b = inv_check.get_results( &barrier );
   const bool use_barrier = (0 == inv_b->get_invalid_element_count());
@@ -94,9 +95,7 @@ void ViscousCFDTetShapeWrapper::run_wrapper( MeshDomainAssoc* mesh_and_domain,
     mu_op = &mu_o;
   }
   
-
   // Set up target and weight calculators
-  Mesh* mesh = mesh_and_domain->get_mesh();
   TagVertexMesh init_mesh( err, pmesh ? (Mesh*)pmesh : mesh );  MSQ_ERRRTN(err);
   ReferenceMesh ref_mesh( &init_mesh );
   RefMeshTargetCalculator w_init( &ref_mesh );
@@ -127,7 +126,7 @@ void ViscousCFDTetShapeWrapper::run_wrapper( MeshDomainAssoc* mesh_and_domain,
   q.add_quality_assessor( qa, err ); MSQ_ERRRTN(err);
 
   // Optimize mesh
-  q.run_common( mesh_and_domain, pmesh, settings, err ); MSQ_CHKERR(err);  
+  q.run_common( mesh, pmesh, domain, settings, err ); MSQ_CHKERR(err);  
 }
 
 } // namespace MESQUITE_NS

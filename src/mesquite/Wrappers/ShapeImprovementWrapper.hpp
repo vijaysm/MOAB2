@@ -76,8 +76,9 @@ namespace MESQUITE_NS {
   protected:
   
     MESQUITE_EXPORT
-    void run_wrapper( MeshDomainAssoc* mesh_and_domain,
+    void run_wrapper( Mesh* mesh,
                       ParallelMesh* pmesh,
+                      MeshDomain* geom,
                       Settings* settings,
                       QualityAssessor* qa,
                       MsqError& err );

@@ -34,12 +34,12 @@
 #define MSQ_T_SQUARED_HPP
 
 #include "Mesquite.hpp"
-#include "TMetricNonBarrier.hpp"
+#include "TMetric.hpp"
 
 namespace MESQUITE_NS {
 
 /** |T|^2 */
-class TSquared : public TMetricNonBarrier
+class TSquared : public TMetric
 {
   public:
 

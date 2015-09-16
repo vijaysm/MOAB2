@@ -33,9 +33,6 @@
 #include "Mesquite.hpp"
 #include "TShapeSizeB3.hpp"
 #include "TMPDerivs.hpp"
-#include "MsqError.hpp"
-
-#include <iostream>
 
 namespace MESQUITE_NS {
 
@@ -46,11 +43,11 @@ TShapeSizeB3::~TShapeSizeB3() {}
 
 bool TShapeSizeB3::evaluate( const MsqMatrix<2,2>& T, 
                                            double& result, 
-                                           MsqError& err )
+                                           MsqError& )
 {
   const double tau = det(T);
   if (invalid_determinant(tau)) { // barrier
-    MSQ_SETERR(err)( barrier_violated_msg, MsqError::BARRIER_VIOLATED );
+    result = 0.0;
     return false;
   }
   
@@ -65,7 +62,7 @@ bool TShapeSizeB3::evaluate_with_grad( const MsqMatrix<2,2>& T,
 {
   const double tau = det(T);
   if (invalid_determinant(tau)) { // barrier
-    MSQ_SETERR(err)( barrier_violated_msg, MsqError::BARRIER_VIOLATED );
+    result = 0.0;
     return false;
   }
   
@@ -85,7 +82,7 @@ bool TShapeSizeB3::evaluate_with_hess( const MsqMatrix<2,2>& T,
 {
   const double tau = det(T);
   if (invalid_determinant(tau)) { // barrier
-    MSQ_SETERR(err)( barrier_violated_msg, MsqError::BARRIER_VIOLATED );
+    result = 0.0;
     return false;
   }
   
@@ -107,11 +104,11 @@ bool TShapeSizeB3::evaluate_with_hess( const MsqMatrix<2,2>& T,
 
 bool TShapeSizeB3::evaluate( const MsqMatrix<3,3>& T, 
                              double& result, 
-                             MsqError& err )
+                             MsqError& )
 {
   const double tau = det(T);
   if (invalid_determinant(tau)) { // barrier
-    MSQ_SETERR(err)( barrier_violated_msg, MsqError::BARRIER_VIOLATED );
+    result = 0.0;
     return false;
   }
   
@@ -127,7 +124,7 @@ bool TShapeSizeB3::evaluate_with_grad( const MsqMatrix<3,3>& T,
 {
   const double tau = det(T);
   if (invalid_determinant(tau)) { // barrier
-    MSQ_SETERR(err)( barrier_violated_msg, MsqError::BARRIER_VIOLATED );
+    result = 0.0;
     return false;
   }
   
@@ -150,7 +147,7 @@ bool TShapeSizeB3::evaluate_with_hess( const MsqMatrix<3,3>& T,
 {
   const double tau = det(T);
   if (invalid_determinant(tau)) { // barrier
-    MSQ_SETERR(err)( barrier_violated_msg, MsqError::BARRIER_VIOLATED );
+    result = 0.0;
     return false;
   }
   
@@ -162,20 +159,12 @@ bool TShapeSizeB3::evaluate_with_hess( const MsqMatrix<3,3>& T,
   deriv_wrt_T = T;
   deriv_wrt_T *= 3*n;
   deriv_wrt_T -= 3*MSQ_SQRT_THREE*it * adjt;
-
-  if (n > 1e-50) 
-  {
-    set_scaled_outer_product( second_wrt_T, 3/n, T );
-    pluseq_scaled_I( second_wrt_T, 3*n );
-    pluseq_scaled_2nd_deriv_of_det( second_wrt_T, -3*MSQ_SQRT_THREE*it, T );
-    pluseq_scaled_outer_product( second_wrt_T, 3*MSQ_SQRT_THREE*it*it, adjt );
-  }
-  else
-  {
-    std::cout << "Warning: Division by zero avoided in TShapeSizeB3::evaluate_with_hess()" << std::endl;
-  }
   
-
+  set_scaled_outer_product( second_wrt_T, 3/n, T );
+  pluseq_scaled_I( second_wrt_T, 3*n );
+  pluseq_scaled_2nd_deriv_of_det( second_wrt_T, -3*MSQ_SQRT_THREE*it, T );
+  pluseq_scaled_outer_product( second_wrt_T, 3*MSQ_SQRT_THREE*it*it, adjt );
+  
   return true;
 }
 

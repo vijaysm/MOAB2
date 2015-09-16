@@ -155,8 +155,7 @@ int main( int argc, char* argv[] )
     q.set_master_quality_improver( &op, err );
   }
   q.add_quality_assessor( &qa, err );
-  MeshDomainAssoc mesh_and_domain = MeshDomainAssoc(&mesh, domain);
-  q.run_instructions( &mesh_and_domain, err );
+  q.run_instructions( &mesh, domain, err );
   if (err) {
     std::cerr << err << std::endl;
     return 3;

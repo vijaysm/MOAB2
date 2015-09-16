@@ -57,7 +57,8 @@ public:
    //!
    //! Do any preliminary global initialization, consistency checking,
    //! etc.  Default implementation does nothing.
-  virtual void initialize_queue( MeshDomainAssoc* mesh_and_domain,
+  virtual void initialize_queue( Mesh* mesh,
+                                 MeshDomain* domain,
                                  const Settings* settings,
                                  MsqError& err );
 
@@ -196,7 +197,7 @@ public:
 
   /**\brief Create a new orientation matrix
    *
-   * Create an orientation matrix such that
+   * Create an orientation matrix tsuch that
    * the first and second Jacobian columns of W are aligned to 
    * the passed vectors.
    */

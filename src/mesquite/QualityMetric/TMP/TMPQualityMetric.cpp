@@ -345,13 +345,14 @@ void TMPQualityMetric::weight( PatchData& pd,
   }
 }
 
-void TMPQualityMetric::initialize_queue( MeshDomainAssoc* mesh_and_domain,
+void TMPQualityMetric::initialize_queue( Mesh* mesh,
+                                         MeshDomain* domain,
                                          const Settings* settings,
                                          MsqError& err )
 {
-  targetCalc->initialize_queue( mesh_and_domain, settings, err ); MSQ_ERRRTN(err);
+  targetCalc->initialize_queue( mesh, domain, settings, err ); MSQ_ERRRTN(err);
   if (weightCalc) {
-    weightCalc->initialize_queue( mesh_and_domain, settings, err ); 
+    weightCalc->initialize_queue( mesh, domain, settings, err ); 
     MSQ_ERRRTN(err);
   }
 }

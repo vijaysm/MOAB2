@@ -25,7 +25,7 @@
   ***************************************************************** */
 
 
-/** \file TMetric.hpp
+/** \file TRelMetric.hpp
  *  \brief 
  *  \author Jason Kraftcheck 
  */
@@ -61,7 +61,7 @@ public:
   MESQUITE_EXPORT virtual
   bool evaluate( const MsqMatrix<2,2>& T, 
                  double& result, 
-                 MsqError& err );
+                 MsqError& err ) = 0;
 
     /**\brief Evaluate \f$\mu(T)\f$
      *
@@ -73,8 +73,8 @@ public:
   MESQUITE_EXPORT virtual
   bool evaluate( const MsqMatrix<3,3>& T, 
                  double& result, 
-                 MsqError& err );
-
+                 MsqError& err ) = 0;
+  
     /**\brief Gradient of \f$\mu(T)\f$ with respect to components of T
      *
      *\param T 2x2 relative measure matrix (typically A W^-1)
@@ -158,6 +158,7 @@ public:
                            MsqMatrix<2,2>& deriv_wrt_T,
                            MsqMatrix<2,2> second_wrt_T[3],
                            MsqError& err );
+  
     /**\brief Hessian of \f$\mu(T)\f$ with respect to components of T
      *
      *\param T 3x3 relative measure matrix (typically A W^-1)
@@ -230,6 +231,7 @@ public:
      *                           \frac{\partial^{2}\mu}{\partial T_{2,1}\partial T_{2,2}} &
      *                           \frac{\partial^{2}\mu}{\partial T_{2,2}^2} \\
      *                            \end{array}\right]\f]
+     *        
      *\return false if function cannot be evaluated for given T
      *          (e.g. division by zero, etc.), true otherwise.
      */

@@ -34,12 +34,12 @@
 #define MSQ_T_SHAPE_SIZE_3D_B_4_HPP
 
 #include "Mesquite.hpp"
-#include "TMetricBarrier.hpp"
+#include "TMetric.hpp"
 
 namespace MESQUITE_NS {
 
 /**  |T|^3 / (3 * sqrt(3) * tau) - 1 + gamma * (tau + 1/tau - 2) */
-class TShapeSize3DB4 : public TMetricBarrier3D
+class TShapeSize3DB4 : public TMetric3D
 {
   private:
   double mGamma;

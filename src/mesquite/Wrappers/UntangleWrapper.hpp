@@ -62,10 +62,6 @@ public:
   MESQUITE_EXPORT
   void set_cpu_time_limit( double seconds );
 
-  /**\brief Specify max number of outer iterations after which untangler will exit */
-  MESQUITE_EXPORT
-  void set_outer_iteration_limit( int maxIt );
-
   /**\brief Specify factor by which to minimum distance a vertex must 
    *        move in an iteration to avoid termination of the untangler */
   MESQUITE_EXPORT
@@ -107,8 +103,9 @@ public:
 protected:
 
   MESQUITE_EXPORT
-  void run_wrapper( MeshDomainAssoc* mesh_and_domain,
+  void run_wrapper( Mesh* mesh,
                     ParallelMesh* pmesh,
+                    MeshDomain* geom,
                     Settings* settings,
                     QualityAssessor* qa,
                     MsqError& err );
@@ -117,7 +114,6 @@ private:
 
   UntangleMetric qualityMetric;
   double maxTime, movementFactor, metricConstant;
-  int maxIterations;
   bool doCulling, doJacobi;
 };
 

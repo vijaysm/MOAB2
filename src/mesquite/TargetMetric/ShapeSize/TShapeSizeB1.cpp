@@ -33,7 +33,6 @@
 #include "Mesquite.hpp"
 #include "TShapeSizeB1.hpp"
 #include "TMPDerivs.hpp"
-#include "MsqError.hpp"
 
 namespace MESQUITE_NS {
 
@@ -44,10 +43,11 @@ TShapeSizeB1::~TShapeSizeB1() {}
 
 bool TShapeSizeB1::evaluate( const MsqMatrix<2,2>& T, 
                              double& result, 
-                             MsqError& err )
+                             MsqError&  )
 {
   const double tau = det(T);
   if (invalid_determinant(tau)) { // barrier
+    result = 0.0;
     return false;
   }
   
@@ -59,10 +59,11 @@ bool TShapeSizeB1::evaluate( const MsqMatrix<2,2>& T,
 
 bool TShapeSizeB1::evaluate( const MsqMatrix<3,3>& T, 
                              double& result, 
-                             MsqError& err )
+                             MsqError&  )
 {
   const double tau = det(T);
   if (invalid_determinant(tau)) { // barrier
+    result = 0.0;
     return false;
   }
   
@@ -76,11 +77,11 @@ bool TShapeSizeB1::evaluate( const MsqMatrix<3,3>& T,
 bool TShapeSizeB1::evaluate_with_grad( const MsqMatrix<2,2>& T,
                                        double& result,
                                        MsqMatrix<2,2>& deriv_wrt_T,
-                                       MsqError& err )
+                                       MsqError& )
 {
   const double tau = det(T);
   if (invalid_determinant(tau)) { // barrier
-    MSQ_SETERR(err)( barrier_violated_msg, MsqError::BARRIER_VIOLATED );
+    result = 0.0;
     return false;
   }
   
@@ -99,11 +100,11 @@ bool TShapeSizeB1::evaluate_with_grad( const MsqMatrix<2,2>& T,
 bool TShapeSizeB1::evaluate_with_grad( const MsqMatrix<3,3>& T,
                                        double& result,
                                        MsqMatrix<3,3>& deriv_wrt_T,
-                                       MsqError& err )
+                                       MsqError& )
 {
   const double tau = det(T);
   if (invalid_determinant(tau)) { // barrier
-    MSQ_SETERR(err)( barrier_violated_msg, MsqError::BARRIER_VIOLATED );
+    result = 0.0;
     return false;
   }
   
@@ -130,7 +131,7 @@ bool TShapeSizeB1::evaluate_with_hess( const MsqMatrix<2,2>& T,
 {
   const double tau = det(T);
   if (invalid_determinant(tau)) { // barrier
-    MSQ_SETERR(err)( barrier_violated_msg, MsqError::BARRIER_VIOLATED );
+    result = 0.0;
     return false;
   }
   
@@ -158,7 +159,7 @@ bool TShapeSizeB1::evaluate_with_hess( const MsqMatrix<3,3>& T,
 {
   const double tau = det(T);
   if (invalid_determinant(tau)) { // barrier
-    MSQ_SETERR(err)( barrier_violated_msg, MsqError::BARRIER_VIOLATED );
+    result = 0.0;
     return false;
   }
   

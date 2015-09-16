@@ -329,14 +329,11 @@ namespace MESQUITE_NS
 	MESQUITE_EXPORT
     void generate_vertex_to_element_data();
 
-      /*! 
-      */
 	MESQUITE_EXPORT
     void set_vertex_coordinates(const Vector3D &coords,
                                 size_t index,
                                 MsqError &err);
-      /*! Add delta to the index-th free vertex in the patch 
-      */
+
 	MESQUITE_EXPORT
     void move_vertex( const Vector3D &delta, size_t index, MsqError &err);
 
@@ -805,6 +802,9 @@ namespace MESQUITE_NS
     myDomain = 0;
   }
   
+  
+  
+
   /*! \brief Returns an array of all vertices in the PatchData.
   */
   inline const MsqVertex* PatchData::get_vertex_array(MsqError &err) const 
@@ -813,6 +813,12 @@ namespace MESQUITE_NS
       MSQ_SETERR(err)( "No vertex array defined", MsqError::INVALID_STATE );
     return arrptr(vertexArray);
   }
+  //inline MsqVertex* PatchData::get_vertex_array(MsqError &err) 
+  //{
+  //  if (vertexArray.empty()) 
+  //    MSQ_SETERR(err)( "No vertex array defined", MsqError::INVALID_STATE );
+  //  return arrptr(vertexArray);
+  //}
   
   /*! \brief Returns the PatchData element array.
   */
@@ -829,7 +835,7 @@ namespace MESQUITE_NS
     return arrptr(elementArray);
   }
  
-  /*! \brief set the coordinates of the index-th vertex in the raw array
+  /*! \brief set the coordinates of a vertex in the raw array
   */
   inline void PatchData::set_vertex_coordinates(const Vector3D &coords,
                                                 size_t index,
@@ -849,8 +855,6 @@ namespace MESQUITE_NS
       update_slave_node_coordinates( indices, num_elem, err ); MSQ_ERRRTN(err);
     }
   }
-  /*! \brief increment the coordinates of the index-th vertex in the raw array
-  */
   inline void PatchData::move_vertex( const Vector3D &delta,
                                       size_t index,
                                       MsqError &err) 

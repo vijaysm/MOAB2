@@ -80,13 +80,15 @@ class MESQUITE_EXPORT SlaveBoundaryVertices : public VertexSlaver
     SlaveBoundaryVertices( unsigned depth,
                            unsigned max_boundary_domain_dimension = 4 );
     
-    virtual double loop_over_mesh( MeshDomainAssoc* mesh_and_domain,
+    virtual double loop_over_mesh( Mesh* mesh, 
+                                   MeshDomain* domain, 
                                    const Settings* settings,
                                    MsqError& err );
    
     virtual std::string get_name() const;
 
-    virtual void initialize_queue( MeshDomainAssoc* mesh_and_domain,
+    virtual void initialize_queue( Mesh* mesh,
+                                   MeshDomain* domain,
                                    const Settings* settings,
                                    MsqError& err );
     

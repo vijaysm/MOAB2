@@ -34,9 +34,6 @@
 
 #include "QualityAssessor.hpp"
 #include "QualityMetric.hpp"
-#include "TMPQualityMetric.hpp"
-#include "ElementMaxQM.hpp"
-#include "ElementAvgQM.hpp"
 #include "PatchData.hpp"
 #include "MsqMeshEntity.hpp"
 #include "MsqVertex.hpp"
@@ -53,7 +50,6 @@
 #include <fstream>
 #include <iomanip>
 #include <set>
-#include <math.h>
 
 #ifdef HAVE_SYS_IOCTL_H
 # include <sys/ioctl.h>
@@ -89,9 +85,6 @@ QualityAssessor::QualityAssessor( bool print_summary,
     
   if (qualityAssessorName.empty()) 
     qualityAssessorName = default_name( free_only );
-
-  for (int i=POLYGON; i <= MIXED; i++)
-    elementTypeCount[i - POLYGON] = 0;
 }
 
 QualityAssessor::QualityAssessor( std::ostream& stream,
@@ -109,9 +102,6 @@ QualityAssessor::QualityAssessor( std::ostream& stream,
     
   if (qualityAssessorName.empty()) 
     qualityAssessorName = default_name( free_only );
-
-  for (int i=POLYGON; i <= MIXED; i++)
-    elementTypeCount[i - POLYGON] = 0;
 }
 
 QualityAssessor::QualityAssessor( std::ostream& output_stream,
@@ -133,11 +123,8 @@ QualityAssessor::QualityAssessor( std::ostream& output_stream,
     
   if (qualityAssessorName.empty()) 
     qualityAssessorName = default_name( free_only );
-
+    
   set_stopping_assessment( metric, histogram_intervals, power_mean, metric_value_tag_name );
-
-  for (int i=POLYGON; i <= MIXED; i++)
-    elementTypeCount[i - POLYGON] = 0;
 }
 
 QualityAssessor::QualityAssessor( QualityMetric* metric, 
@@ -161,9 +148,6 @@ QualityAssessor::QualityAssessor( QualityMetric* metric,
     qualityAssessorName = default_name( free_only );
     
   set_stopping_assessment( metric, histogram_intervals, power_mean, metric_value_tag_name );
-
-  for (int i=POLYGON; i <= MIXED; i++)
-    elementTypeCount[i - POLYGON] = 0;
 }
 
 QualityAssessor::QualityAssessor( const QualityAssessor& copy ) :
@@ -175,15 +159,11 @@ QualityAssessor::QualityAssessor( const QualityAssessor& copy ) :
   invertedTagName(copy.invertedTagName),
   fixedTagName(copy.fixedTagName),
   skipFixedSamples(copy.skipFixedSamples)
-
 {
   list_type::iterator iter;
   for (iter = assessList.begin(); iter != assessList.end(); ++iter) 
     (*iter)->referenceCount++;
   myData->referenceCount++;
-
- for (int i=POLYGON; i <= MIXED; i++)
-   elementTypeCount[i - POLYGON] = copy.elementTypeCount[i - POLYGON];
 }
 
 QualityAssessor& QualityAssessor::operator=( const QualityAssessor& copy )
@@ -206,9 +186,6 @@ QualityAssessor& QualityAssessor::operator=( const QualityAssessor& copy )
   for (iter = assessList.begin(); iter != assessList.end(); ++iter) 
     (*iter)->referenceCount++;
   myData->referenceCount++;
-
-  for (int i=POLYGON; i <= MIXED; i++)
-    elementTypeCount[i - POLYGON] = copy.elementTypeCount[i - POLYGON];
     
   return *this;
 }  
@@ -417,12 +394,13 @@ TagHandle QualityAssessor::get_tag( Mesh* mesh,
   return tag;
 }
 
-void QualityAssessor::initialize_queue( MeshDomainAssoc* mesh_and_domain,
+void QualityAssessor::initialize_queue( Mesh* mesh,
+                                        MeshDomain* domain,
                                         const Settings* settings,
                                         MsqError& err )
 {
   for (list_type::iterator i = assessList.begin(); i != assessList.end(); ++i) {
-    (*i)->get_metric()->initialize_queue( mesh_and_domain, settings, err );
+    (*i)->get_metric()->initialize_queue( mesh, domain, settings, err );
     MSQ_ERRRTN(err);
   }
 }
@@ -438,11 +416,12 @@ void QualityAssessor::initialize_queue( MeshDomainAssoc* mesh_and_domain,
   set_stopping_assessemnt().
   \param ms (const MeshSet &) MeshSet used for quality assessment.
  */
-double QualityAssessor::loop_over_mesh( MeshDomainAssoc* mesh_and_domain,
+double QualityAssessor::loop_over_mesh( Mesh* mesh,
+                                        MeshDomain* domain,
                                         const Settings* settings,
                                         MsqError& err)
 {
-  return loop_over_mesh_internal( mesh_and_domain, settings, NULL, err );
+  return loop_over_mesh_internal( mesh, domain, settings, NULL, err );
 }
 
 /*! 
@@ -461,12 +440,12 @@ double QualityAssessor::loop_over_mesh( ParallelMesh* mesh,
                                         const Settings* settings,
                                         MsqError& err)
 {
-  MeshDomainAssoc mesh_and_domain = MeshDomainAssoc((Mesh*)mesh, domain, false, true);
-  return loop_over_mesh_internal( &mesh_and_domain, settings, 
+  return loop_over_mesh_internal( mesh, domain, settings, 
                                   mesh->get_parallel_helper(), err );
 }
 
-double QualityAssessor::loop_over_mesh_internal( MeshDomainAssoc* mesh_and_domain,
+double QualityAssessor::loop_over_mesh_internal( Mesh* mesh,
+                                                 MeshDomain* domain,
                                                  const Settings* settings,
                                                  ParallelHelper* helper,
                                                  MsqError& err )
@@ -475,11 +454,7 @@ double QualityAssessor::loop_over_mesh_internal( MeshDomainAssoc* mesh_and_domai
   reset_data();
 
     // Clear culling flag, set hard fixed flag, etc on all vertices
-  initialize_vertex_byte( mesh_and_domain, settings, err ); MSQ_ERRZERO(err);
-
-  Mesh* mesh = mesh_and_domain->get_mesh();
-  MeshDomain* domain = mesh_and_domain->get_domain();
-  invalid_values = false;
+  initialize_vertex_byte( mesh, domain, settings, err ); MSQ_ERRZERO(err);
 
   PatchData patch;
   patch.set_mesh( mesh );
@@ -520,24 +495,7 @@ double QualityAssessor::loop_over_mesh_internal( MeshDomainAssoc* mesh_and_domai
     fixedTag = get_tag( mesh, fixedTagName, Mesh::INT, 1, err );
     MSQ_ERRZERO(err);
   }
-
-  // Record the type of metric for each assessment so that it can be
-  // included in the QualitySummary report. 
-  for (iter = assessList.begin(); iter != assessList.end(); ++iter) 
-  {
-    ElementAvgQM* avg_ptr = dynamic_cast<ElementAvgQM*>((*iter)->get_metric());
-    ElementMaxQM* max_ptr = dynamic_cast<ElementMaxQM*>((*iter)->get_metric());
-    TMPQualityMetric* tq_ptr = dynamic_cast<TMPQualityMetric*>( (*iter)->get_metric() );
-    if (avg_ptr)
-      (*iter)->assessScheme = ELEMENT_AVG_QM;
-    else if (max_ptr)
-     (*iter)->assessScheme = ELEMENT_MAX_QM;
-    else if (tq_ptr)
-      (*iter)->assessScheme = TMP_QUALITY_METRIC;
-    else
-      (*iter)->assessScheme = QUALITY_METRIC;
-  }
-
+  
     // Check for any metrics for which a histogram is to be 
     // calculated and for which the user has not specified 
     // minimum and maximum values.  
@@ -581,7 +539,7 @@ double QualityAssessor::loop_over_mesh_internal( MeshDomainAssoc* mesh_and_domai
       //the end of this loop
     for (p = patches.begin(); p != patches.end(); ++p) {
       elem_patches.get_patch( *p, patch_elems, patch_verts, err ); MSQ_ERRZERO(err);
-
+ 
       if (helper) {
         bool ours = helper->is_our_element( patch_elems[0], err );
         MSQ_ERRZERO(err);
@@ -592,17 +550,6 @@ double QualityAssessor::loop_over_mesh_internal( MeshDomainAssoc* mesh_and_domai
       }
       patch.set_mesh_entities( patch_elems, patch_verts, err ); MSQ_ERRZERO(err);
       
-      if (first_pass)
-      {
-          // record element type for use in print_summary
-        for (size_t i=0; i < patch.num_elements(); i++)
-        {
-          const MsqMeshEntity* elem = &patch.element_by_index(i);
-          EntityTopology topo = elem->get_element_type();  
-          elementTypeCount[topo - POLYGON]++;
-        }
-      }
-
       if (0 == patch.num_free_vertices()) {
         if (tagging_fixed_elements()) {
           Mesh::ElementHandle h = patch.get_element_handles_array()[0];
@@ -645,12 +592,7 @@ double QualityAssessor::loop_over_mesh_internal( MeshDomainAssoc* mesh_and_domai
           for (std::vector<size_t>::iterator j = metric_handles.begin(); 
                j != metric_handles.end(); ++j) 
           {
-            bool valid = (*iter)->get_metric()->evaluate( patch, *j, value, err ); // MSQ_ERRZERO(err);
-            if (err.error_code() == err.BARRIER_VIOLATED)
-            {
-              err.clear();
-              invalid_values = true;
-            }
+            bool valid = (*iter)->get_metric()->evaluate( patch, *j, value, err ); MSQ_ERRZERO(err);
             (*iter)->add_value(value);
             if (!valid) 
               (*iter)->add_invalid_value();
@@ -696,7 +638,7 @@ double QualityAssessor::loop_over_mesh_internal( MeshDomainAssoc* mesh_and_domai
 //          else
 //            (*iter)->haveHistRange = true;
         }
-  } while (first_pass && need_second_pass_for_elements && !invalid_values);
+  } while (first_pass && need_second_pass_for_elements);
       
     
       // Do vertex-based metrics
@@ -775,7 +717,7 @@ double QualityAssessor::loop_over_mesh_internal( MeshDomainAssoc* mesh_and_domai
 //          else
 //            (*iter)->haveHistRange = true;
           }
-    } while (first_pass && need_second_pass_for_vertices && !invalid_values);
+    } while (first_pass && need_second_pass_for_vertices);
   }  
   
   if (helper) {
@@ -824,362 +766,6 @@ void QualityAssessor::reset_data()
     (*iter)->reset_data();
   myData->invertedElementCount = -1;
   myData->invertedSampleCount = -1;
-
-  for (int i=POLYGON; i <= MIXED; i++)
-    elementTypeCount[i - POLYGON] = 0;
-}
-
-void QualityAssessor::scale_histograms(QualityAssessor* optimized)
-{
-    // find the histograms to scale
-  list_type::iterator iter;
-  list_type::iterator initial;
-  list_type::iterator optimal;
-  bool initial_found = false, optimal_found = false;
-  for (iter = assessList.begin(); iter != assessList.end(); ++iter)
-  {
-    if ((*iter)->histogram.size() > 0)
-    {
-      if (initial_found == false)
-      {
-        initial = iter;
-        initial_found = true;
-        break;
-      }
-    }
-  }
-  for (iter = optimized->assessList.begin(); iter != optimized->assessList.end(); ++iter)
-  {
-    if ((*iter)->histogram.size() > 0)
-    {
-      optimal = iter;
-      optimal_found = true;
-      break;
-    }
-  }
-  if (!initial_found || !optimal_found)
-  {
-      // issue warning: orig histograms not found
-    if (!initial_found)
-      outputStream << "WARNING: 'before' histogram not found" << std::endl;
-    else
-      outputStream << "WARNING: 'after' histogram not found" << std::endl;
-    return;
-  }
-
-    // check number of intervals (bins) for each histogram
-  int num_intervals = (*initial)->histogram.size()-2;
-  if (num_intervals != int((*optimal)->histogram.size()-2))
-  {
-       // issue warning: number of intervals not the same   
-    outputStream << "WARNING: histogram intervals are not the same" << std::endl;
-    return;
-  }
-
-    // calculate new max and min values
-  double combined_min, combined_max;  
-  if ((*initial)->histMin < (*optimal)->histMin)
-    combined_min = (*initial)->histMin;
-  else
-    combined_min = (*optimal)->histMin;
-
-  if ((*initial)->histMax > (*optimal)->histMax)
-    combined_max = (*initial)->histMax;
-  else
-    combined_max = (*optimal)->histMax;
-
-    // put the before quality values into the correct new bins
-
-    // First and last values in array are counts of valuesnum_intervals+1
-    // outside the user-specified range of the histogram
-    // (below and above, respectively.)
-  std::vector<int> new_initial_histogram;    
-  new_initial_histogram.resize((*initial)->histogram.size(), 0);
-  new_initial_histogram[0] = (*initial)->histogram[0];
-  new_initial_histogram[new_initial_histogram.size()-1] = 
-                  (*initial)->histogram[(*initial)->histogram.size()-1];
-  
-    // Re-calculate which interval the value is in.  Add one
-    // because first entry is for values below user-specifed
-    // minimum value for histogram.
-  double combined_range = combined_max - combined_min;
-  double initial_min = (*initial)->histMin;
-  double optimal_min = (*optimal)->histMin;
-  double initial_range = (*initial)->histMax - (*initial)->histMin;
-  double optimal_range = (*optimal)->histMax - (*optimal)->histMin;
-  double combined_step = combined_range / num_intervals;
-  double initial_step = initial_range / num_intervals;
-  double optimal_step = optimal_range / num_intervals;
-    // round steps to 3 significant digits
-  if (combined_step >= 0.001)
-    combined_step = round_to_3_significant_digits(combined_step);
-  if (initial_step >= 0.001)
-    initial_step = round_to_3_significant_digits(initial_step);
-  if (optimal_step >= 0.001)
-    optimal_step = round_to_3_significant_digits(optimal_step);
-
-    // populate initial histogram
-  if (initial_range == combined_range)
-  {
-      // just copy histogram
-    new_initial_histogram = (*initial)->histogram;
-  }
-  else
-  {
-    for (size_t i=1 ; i < new_initial_histogram.size()-1; i++)
-    {
-      double combined_bin_value = combined_min + (combined_step * (i-1));
-      for (size_t j=1; j < new_initial_histogram.size()-1; j++)
-      {
-        double initial_bin_value = initial_min + (initial_step * (j-1));
-        if ( initial_bin_value >= combined_bin_value &&
-             initial_bin_value < combined_bin_value + combined_step)
-        {
-          new_initial_histogram[i] += (*initial)->histogram[j];
-        }
-      }
-    }
-  }
-
-    // put the optimal quality values into the correct new bins
-  std::vector<int> new_optimal_histogram; 
-  new_optimal_histogram.resize((*optimal)->histogram.size(), 0);
-  new_optimal_histogram[0] = (*optimal)->histogram[0];
-  new_optimal_histogram[new_optimal_histogram.size()-1] = 
-                (*optimal)->histogram[(*optimal)->histogram.size()-1];
-
-    // populate optimal histogram
-  if (optimal_range == combined_range)
-  {
-      // just copy histogram
-    new_optimal_histogram = (*optimal)->histogram;
-  }
-  else
-  {
-    for (size_t i=1 ; i < new_optimal_histogram.size()-1; i++)
-    {
-      double combined_bin_value = combined_min + (combined_step * (i-1));
-      for (size_t j=1; j < new_optimal_histogram.size()-1; j++)
-      {
-        double optimal_bin_value = optimal_min + (optimal_step * (j-1));
-        if (optimal_bin_value >= combined_bin_value &&
-            optimal_bin_value < combined_bin_value + combined_step)
-        {
-          new_optimal_histogram[i] += (*optimal)->histogram[j];
-        }
-      }
-    }
-  }
-
-    // determine largest number of values in a 'bin' for both histograms
-  unsigned i;
-  int max_interval_num = 1;
-  for (i = 0; i < new_initial_histogram.size(); ++i)
-  {
-    if (new_initial_histogram[i] > max_interval_num)
-      max_interval_num = new_initial_histogram[i];
-  }
-  for (i = 0; i < new_optimal_histogram.size(); ++i)
-  {
-    if (new_optimal_histogram[i] > max_interval_num)
-      max_interval_num = new_optimal_histogram[i];
-  }
-
-    // calculate how many bar graph characters will represent the 
-    // largest 'bin' value.
-    // create the 'before' histogram
-  int termwidth = get_terminal_width();
-  const char indent[] = "   ";
-  const char GRAPH_CHAR = '=';  // Character used to create bar graphs
-  const int TOTAL_WIDTH = termwidth > 30 ? termwidth : 70;   // Width of histogram
-  int GRAPHW = TOTAL_WIDTH - sizeof(indent);
-
-  if (0 == max_interval_num)
-    return; // no data 
-  
-    // Calculate width of field containing counts for 
-    // histogram intervals (log10(max_interval)).
-  int num_width = 1;
-  for (int temp = max_interval_num; temp > 0; temp /= 10)
-    ++num_width;
-  GRAPHW -= num_width;
-
-     // Create an array of bar graph characters for use in output
-  std::vector<char> graph_chars(GRAPHW+1, GRAPH_CHAR);
-  
-    // Check if bar-graph should be linear or log10 plot
-    // Do log plot if standard deviation is less that 1.5
-    // histogram intervals.
-
-  bool log_plot = false;
-  double stddev = (*initial)->get_stddev();
-  if (stddev > 0 && stddev < 2.0*combined_step)
-  {
-    int new_interval = (int)(log10((double)(1+max_interval_num)));
-    if (new_interval > 0) {
-      log_plot = true;
-      max_interval_num = new_interval;
-    }
-  }
-    // output the 'before' histogram
-
-    // Write title
-   outputStream << std::endl 
-                << "************** Common-scale Histograms **************" 
-                << std::endl << std::endl;
-   outputStream << indent << (*initial)->get_label() << " histogram (initial mesh):";
-  if (log_plot)
-    outputStream << " (log10 plot)";
-  outputStream << std::endl;
-
-    // Calculate width of a single quality interval value
-  double interval_value = 0.0;
-  int max_interval_width = 0;
-  std::stringstream str_stream;
-  std::string interval_string; 
-  for (i = 0; i < new_initial_histogram.size(); ++i)
-  {
-    interval_value = combined_min + (i)*combined_step;
-    if (combined_step >= .001)
-      interval_value = round_to_3_significant_digits(interval_value);
-    str_stream.clear();
-    str_stream.str(""); 
-    interval_string = "";
-    str_stream << interval_value;
-    interval_string = str_stream.str();
-    if (interval_string.length() >  (size_t)max_interval_width)
-      max_interval_width = interval_string.length();
-  }
-
-    // adjust graph width for actual size of interval values
-  GRAPHW = GRAPHW - (max_interval_width*2) - 5; 
-
-    // For each interval of histogram
-  for (i = 0; i < new_initial_histogram.size(); ++i)
-  {
-      // First value is the count of the number of values that
-      // were below the minimum value of the histogram.
-    if (0 == i)
-    {
-      if (0 == new_initial_histogram[i])
-        continue;
-      outputStream << indent << std::setw(max_interval_width) << "under min";
-    }
-      // Last value is the count of the number of values that
-      // were above the maximum value of the histogram.
-    else if (i+1 == new_initial_histogram.size())
-    {
-      if (0 == new_initial_histogram[i])
-        continue;
-      outputStream << indent << std::setw(max_interval_width) << "over max";
-    }
-      // Anything else is a valid interval of the histogram.
-      // Print the range for each interval.
-    else
-    {
-      double start_value = combined_min + (i-1)*combined_step;
-      double end_value = combined_min + (i)*combined_step;
-
-      if (combined_step >= 0.001)
-      {
-        start_value = round_to_3_significant_digits(start_value);
-        end_value = round_to_3_significant_digits(end_value);
-      }
-
-      outputStream << indent << "(" << std::setw(max_interval_width) << std::right 
-                   << start_value << "-" << std::setw(max_interval_width) 
-                   << std::left << end_value << ") |";
-    }
-
-      // Print bar graph
-    
-      // First calculate the number of characters to output
-    int num_graph;
-    if (log_plot)
-      num_graph = GRAPHW * (int)log10((double)(1+new_initial_histogram[i])) / max_interval_num;
-    else
-      num_graph = GRAPHW * new_initial_histogram[i] / max_interval_num;
-      
-      // print num_graph characters using array of fill characters.
-    graph_chars[num_graph] = '\0';
-    outputStream << arrptr(graph_chars);
-    graph_chars[num_graph] = GRAPH_CHAR;
-
-      // Print interval count.
-    outputStream << new_initial_histogram[i] << std::endl;
-  }
-  
-   outputStream << "  metric was evaluated " << (*initial)->count << " times." 
-                << std::endl << std::endl;
-
-    // output the 'after' histogram
-   outputStream << std::endl << indent << (*optimal)->get_label() << " histogram (optimal mesh):";
-  if (log_plot)
-    outputStream << " (log10 plot)";
-  outputStream << std::endl;
-
-    // For each interval of histogram
-  for (i = 0; i < new_optimal_histogram.size(); ++i)
-  {
-      // First value is the count of the number of values that
-      // were below the minimum value of the histogram.
-    if (0 == i)
-    {
-      if (0 == new_optimal_histogram[i])
-        continue;
-      outputStream << indent << std::setw(max_interval_width) << "under min";
-    }
-      // Last value is the count of the number of values that
-      // were above the maximum value of the histogram.
-    else if (i+1 == new_optimal_histogram.size())
-    {
-      if (0 == new_optimal_histogram[i])
-        continue;
-      outputStream << indent << std::setw(max_interval_width) << "over max";
-    }
-      // Anything else is a valid interval of the histogram.
-      // Print the range for each interval.
-    else
-    {
-      double start_value = combined_min + (i-1)*combined_step;
-      double end_value = combined_min + (i)*combined_step;
-
-      if (combined_step >= 0.001)
-      {
-        start_value = round_to_3_significant_digits(start_value);
-        end_value = round_to_3_significant_digits(end_value);
-      }
-
-      outputStream << indent << "(" << std::setw(max_interval_width) << std::right 
-                   << start_value << "-" << std::setw(max_interval_width) 
-                   << std::left << end_value << ") |";
-
-    }
-
-      // Print bar graph
-    
-      // First calculate the number of characters to output
-    int num_graph;
-    if (log_plot)
-      num_graph = GRAPHW * (int)log10((double)(1+new_optimal_histogram[i])) / max_interval_num;
-    else
-      num_graph = GRAPHW * new_optimal_histogram[i] / max_interval_num;
-      
-      // print num_graph characters using array of fill characters.
-    graph_chars[num_graph] = '\0';
-    outputStream << arrptr(graph_chars);
-    graph_chars[num_graph] = GRAPH_CHAR;
-
-      // Print interval count.
-    outputStream << new_optimal_histogram[i] << std::endl;
-    
-  }
-  
-   outputStream << "  metric was evaluated " << (*optimal)->count << " times." 
-                << std::endl << std::endl;
-
-
-  return;
 }
 
 QualityAssessor::Assessor::Assessor( QualityMetric* metric, const char* label )
@@ -1191,8 +777,7 @@ QualityAssessor::Assessor::Assessor( QualityMetric* metric, const char* label )
     histMax(0.0),
     tagHandle(0),
     stoppingFunction(false),
-    referenceCount(0),
-    assessScheme(NO_SCHEME)
+    referenceCount(0)
 {
   reset_data();
 }
@@ -1241,7 +826,6 @@ void QualityAssessor::Assessor::reset_data()
   sqrSum = 0;
   pSum = 0;
   numInvalid = 0;
-  assessScheme = NO_SCHEME;
     // zero histogram data
   size_t hist_size = histogram.size();
   histogram.clear();
@@ -1305,19 +889,16 @@ void QualityAssessor::Assessor::add_hist_value( double metric_value )
   }
 }
 
-
 void QualityAssessor::Assessor::calculate_histogram_range()
 {
-  double lower_bound = minimum;
-  int num_intervals = histogram.size();
-  double step = (maximum - lower_bound) / num_intervals;
+  double step = (maximum - minimum) / (histogram.size() - 2);
   if (step == 0)
     step = 1.0;
-  double size = pow( 10.0, floor(log10(step / (num_intervals-1))) );
+  double size = pow( 10.0, ceil(log10(step)) );
   if (size < 1e-6) 
     size = 1.0;
-  histMin = lower_bound;
-  histMax = lower_bound + num_intervals * size * ceil(step/size);
+  histMin = size * floor( minimum / size );
+  histMax = size *  ceil( maximum / size );
 }  
 
 void QualityAssessor::print_summary( std::ostream& stream ) const
@@ -1340,20 +921,6 @@ void QualityAssessor::print_summary( std::ostream& stream ) const
   else
     stream << "  Evaluating quality for " << myData->elementCount 
            << " elements." << std::endl;
-
-    // Print element type totals
-  std::string str_value = "";
-  for (int i=POLYGON; i <= MIXED; i++)
-  {
-    if ( elementTypeCount[i - POLYGON] )
-    {
-      str_value = element_name_as_string(i);
-      if (str_value != "")
-        stream << "  This mesh had " 
-               << elementTypeCount[i - POLYGON]
-               << " " << str_value << " elements." << std::endl;
-    }
-  }
   
   if (myData->invertedElementCount) {
     stream << "  THERE ARE "
@@ -1389,146 +956,102 @@ void QualityAssessor::print_summary( std::ostream& stream ) const
     stream << "  No entities had undefined values for any computed metric." 
            << std::endl << std::endl;
   }
-
-  if (!invalid_values)
-  {
-      // Check if a user-define power-mean was calculated for any of the metrics
-    std::set<double> pmeans;
-    for (iter = assessList.begin(); iter != assessList.end(); ++iter)
-      if ((*iter)->have_power_mean())
-        pmeans.insert( (*iter)->get_power() );
+         
+    // Check if a user-define power-mean was calculated for any of the metrics
+  std::set<double> pmeans;
+  for (iter = assessList.begin(); iter != assessList.end(); ++iter)
+    if ((*iter)->have_power_mean())
+      pmeans.insert( (*iter)->get_power() );
       
-      // If power-mean of 1 or 2 was requested, change titles rather
-      // than printing redundant values
-    std::string average_str("average"), rms_str("rms");
-    if (pmeans.find(1.0) != pmeans.end()) {
-      pmeans.erase( pmeans.find(1.0) );
-      average_str = "1-mean";
-    }
-    if (pmeans.find(2.0) != pmeans.end()) {
-      pmeans.erase( pmeans.find(2.0) );
-      rms_str = "2-mean";
-    }
+    // If power-mean of 1 or 2 was requested, change titles rather
+    // than printing redundant values
+  std::string average_str("average"), rms_str("rms");
+  if (pmeans.find(1.0) != pmeans.end()) {
+    pmeans.erase( pmeans.find(1.0) );
+    average_str = "1-mean";
+  }
+  if (pmeans.find(2.0) != pmeans.end()) {
+    pmeans.erase( pmeans.find(2.0) );
+    rms_str = "2-mean";
+  }
   
-      // Number of values in table
-    unsigned num_values = pmeans.size() + 5;
+    // Number of values in table
+  unsigned num_values = pmeans.size() + 5;
   
-      // Decide how wide of a table field should be used for the metric name
-    unsigned twidth = get_terminal_width();
-    unsigned maxnwidth = NAMEW;
-    if (twidth) {
-      unsigned valwidth = NUMW*num_values;
-      maxnwidth = valwidth < twidth ? twidth - valwidth : 0;
-    }
-    unsigned namewidth = 0;
-    for (iter = assessList.begin(); iter != assessList.end(); ++iter)
-      if ((*iter)->get_label().size() > namewidth)
-        namewidth = (*iter)->get_label().size();
-    if (namewidth > maxnwidth)
-      namewidth = maxnwidth;
-    if (namewidth < 7)  // at least enough width for the column header
-      namewidth = 7;
-
-    int number_of_assessments = 0;
-
-      // print metric values
-    for (iter = assessList.begin(); iter != assessList.end(); ++iter)
-    {
-      if (number_of_assessments > 0)
-        stream <<"    -------------------------------------------" << std::endl;
-     
-        // print assessment method used to calculate the statistics
-      if ( (*iter)->assessScheme == TMP_QUALITY_METRIC)
-        stream << "     Sample Point Quality Statistics" 
-               << std::endl << std::endl;
-      else
-        stream << "     Element Quality Statistics" 
-               << std::endl << std::endl;
-     
-        // print comlumn label line
-      std::set<double>::const_iterator piter;
-      stream << std::setw(NUMW)      << "minimum";
-      for (piter = pmeans.begin(); piter != pmeans.end() && *piter < 1.0; ++piter)
-        stream << std::setw(NUMW-6) << *piter << "-mean ";
-      stream << std::setw(NUMW)      << average_str;
-      for (; piter != pmeans.end() && *piter < 2.0; ++piter)
-        stream << std::setw(NUMW-6) << *piter << "-mean ";
-      stream << std::setw(NUMW)      << rms_str;
-      for (; piter != pmeans.end(); ++piter)
-        stream << std::setw(NUMW-6) << *piter << "-mean ";
-      stream << std::setw(NUMW)      << "maximum";
-      stream << std::setw(NUMW)      << "std.dev.";
-      stream << std::endl;
-  
-      stream << std::setw(NUMW) << (*iter)->get_minimum();
-        // print power-means with P less than 1.0
-      for (piter = pmeans.begin(); piter != pmeans.end() && *piter < 1.0; ++piter) {
-        if ((*iter)->have_power_mean() && (*iter)->get_power() == *piter) 
-          stream << std::setw(NUMW) << (*iter)->get_power_mean();
-        else
-          stream << std::setw(NUMW) << " ";
-      }
-        // print average
-      stream << std::setw(NUMW) << (*iter)->get_average();
-        // print power-means with P less than 2.0
-      for ( ; piter != pmeans.end() && *piter < 2.0; ++piter) {
-        if ((*iter)->have_power_mean() && (*iter)->get_power() == *piter) 
-          stream << std::setw(NUMW) << (*iter)->get_power_mean();
-        else
-          stream << std::setw(NUMW) << " ";
-      }
-        // print RMS
-      stream << std::setw(NUMW) << (*iter)->get_rms();
-        // print power-means with P greater than 2.0
-      for ( ; piter != pmeans.end(); ++piter) {
-        if ((*iter)->have_power_mean() && (*iter)->get_power() == *piter) 
-          stream << std::setw(NUMW) << (*iter)->get_power_mean();
-        else
-          stream << std::setw(NUMW) << " ";
-      }
-        // print maximum and standard deviation
-      stream << std::setw(NUMW) << (*iter)->get_maximum();
-      stream << std::setw(NUMW) << (*iter)->get_stddev();
-      stream << std::endl << std::endl;
-
-      stream << "     Number of statistics = " << (*iter)->get_count() << std::endl;
-
-        // print name
-      stream << "     Metric = "  << (*iter)->get_label() << std::endl;
+    // Decide how wide of a table field shoudl be used for the metric name
+  unsigned twidth = get_terminal_width();
+  unsigned maxnwidth = NAMEW;
+  if (twidth) {
+    unsigned valwidth = NUMW*num_values;
+    maxnwidth = valwidth < twidth ? twidth - valwidth : 0;
+  }
+  unsigned namewidth = 0;
+  for (iter = assessList.begin(); iter != assessList.end(); ++iter)
+    if ((*iter)->get_label().size() > namewidth)
+      namewidth = (*iter)->get_label().size();
+  if (namewidth > maxnwidth)
+    namewidth = maxnwidth;
+  if (namewidth < 7)  // at least enough width for the column header
+    namewidth = 7;
     
-        // Output the method used to calcualte the quality values
-      switch ( (*iter)->assessScheme )
-      {
-      case ELEMENT_AVG_QM:
-        stream << "     Element Quality = average over metric values at the elements' sample points" 
-               << std::endl << std::endl;
-        break;
-      case ELEMENT_MAX_QM:
-        stream << "     Element Quality = maximum over metric values at the elements' sample points" 
-               << std::endl << std::endl;
-        break;
-      case TMP_QUALITY_METRIC:
-        stream << std::endl << std::endl;
-        break;
-      case QUALITY_METRIC:
-        stream << "     Element Quality not based on sample points." 
-               << std::endl << std::endl;
-        break;
-      default: 
-        stream << "     Scheme used for deriving qualitiy values unknown" 
-               << std::endl << std::endl;
-      }
-      if ((*iter)->have_histogram())
-        (*iter)->print_histogram( stream, get_terminal_width() );
-      number_of_assessments++;
+    // print comlumn label line
+  std::set<double>::const_iterator piter;
+  stream << std::setw(namewidth) << "metric";
+  stream << std::setw(NUMW)      << "minimum";
+  for (piter = pmeans.begin(); piter != pmeans.end() && *piter < 1.0; ++piter)
+    stream << std::setw(NUMW-6) << *piter << "-mean ";
+  stream << std::setw(NUMW)      << average_str;
+  for (; piter != pmeans.end() && *piter < 2.0; ++piter)
+    stream << std::setw(NUMW-6) << *piter << "-mean ";
+  stream << std::setw(NUMW)      << rms_str;
+  for (; piter != pmeans.end(); ++piter)
+    stream << std::setw(NUMW-6) << *piter << "-mean ";
+  stream << std::setw(NUMW)      << "maximum";
+  stream << std::setw(NUMW)      << "std.dev.";
+  stream << std::endl;
+  
+    // print metric values
+  for (iter = assessList.begin(); iter != assessList.end(); ++iter) {
+      // print name
+    stream << std::setw(namewidth) << (*iter)->get_label();
+    if ((*iter)->get_label().size() > namewidth) 
+      stream << std::endl << std::setw(namewidth) << " ";
+      // print minimum
+    stream << std::setw(NUMW) << (*iter)->get_minimum();
+      // print power-means with P less than 1.0
+    for (piter = pmeans.begin(); piter != pmeans.end() && *piter < 1.0; ++piter) {
+      if ((*iter)->have_power_mean() && (*iter)->get_power() == *piter) 
+        stream << std::setw(NUMW) << (*iter)->get_power_mean();
+      else
+        stream << std::setw(NUMW) << " ";
     }
+      // print average
+    stream << std::setw(NUMW) << (*iter)->get_average();
+      // print power-means with P less than 2.0
+    for ( ; piter != pmeans.end() && *piter < 2.0; ++piter) {
+      if ((*iter)->have_power_mean() && (*iter)->get_power() == *piter) 
+        stream << std::setw(NUMW) << (*iter)->get_power_mean();
+      else
+        stream << std::setw(NUMW) << " ";
+    }
+      // print RMS
+    stream << std::setw(NUMW) << (*iter)->get_rms();
+      // print power-means with P greater than 2.0
+    for ( ; piter != pmeans.end(); ++piter) {
+      if ((*iter)->have_power_mean() && (*iter)->get_power() == *piter) 
+        stream << std::setw(NUMW) << (*iter)->get_power_mean();
+      else
+        stream << std::setw(NUMW) << " ";
+    }
+      // print maximum and standard deviation
+    stream << std::setw(NUMW) << (*iter)->get_maximum();
+    stream << std::setw(NUMW) << (*iter)->get_stddev();
+    stream << std::endl;
   }
-  else
-  {
-    stream << "  Element Quality Statistics are Undefined for this Metric because"  << std::endl
-           << "  there are Inverted Elements" << std::endl << std::endl;
-
-  }
+  
+  for (iter = assessList.begin(); iter != assessList.end(); ++iter)
+    if ((*iter)->have_histogram())
+      (*iter)->print_histogram( stream, get_terminal_width() );
 }
 
 
@@ -1544,8 +1067,9 @@ void QualityAssessor::Assessor::print_histogram( std::ostream& stream,
   
   const char indent[] = "   ";
   const char GRAPH_CHAR = '=';  // Character used to create bar graphs
+  const int FLOATW = 12;        // Width of floating-point output
   const int TOTAL_WIDTH = termwidth > 30 ? termwidth : 70;   // Width of histogram
-  int GRAPHW = TOTAL_WIDTH - sizeof(indent);
+  int GRAPHW = TOTAL_WIDTH - FLOATW - 4 - sizeof(indent);
   
     // range is either user-specified (histMin & histMax) or
     // calculated (minimum & maximum)
@@ -1554,25 +1078,21 @@ void QualityAssessor::Assessor::print_histogram( std::ostream& stream,
   max = histMax;
     // Witdh of one interval of histogram
   double step = (max - min) / (histogram.size()-2);
-    // round step to 3 significant digits
-
-  if (step >= 0.001)
-    step = round_to_3_significant_digits(step);
   
-    // Find maximum value for an interval bin of the histogram
+    // Find maximum value for an interval of the histogram
   unsigned i;
-  int max_bin_value = 1;
+  int max_interval = 1;
   for (i = 0; i < histogram.size(); ++i)
-    if (histogram[i] > max_bin_value)
-      max_bin_value = histogram[i];
+    if (histogram[i] > max_interval)
+      max_interval = histogram[i];
   
-  if (0 == max_bin_value)
+  if (0 == max_interval)
     return; // no data 
   
     // Calculate width of field containing counts for 
-    // histogram intervals (log10(max_bin_value)).
+    // histogram intervals (log10(max_interval)).
   int num_width = 1;
-  for (int temp = max_bin_value; temp > 0; temp /= 10)
+  for (int temp = max_interval; temp > 0; temp /= 10)
     ++num_width;
   GRAPHW -= num_width;
 
@@ -1586,42 +1106,21 @@ void QualityAssessor::Assessor::print_histogram( std::ostream& stream,
   double stddev = get_stddev();
   if (stddev > 0 && stddev < 2.0*step)
   {
-    int new_interval = (int)(log10((double)(1+max_bin_value)));
+    int new_interval = (int)(log10((double)(1+max_interval)));
     if (new_interval > 0) {
       log_plot = true;
-      max_bin_value = new_interval;
+      max_interval = new_interval;
     }
   }
+
   
     // Write title
-  stream << indent << get_label() << " histogram:";
+  stream << std::endl << indent << get_label() << " histogram:";
   if (log_plot)
     stream << " (log10 plot)";
   stream << std::endl;
 
-    // Calculate width of a single quality interval value
-
-  double interval_value = 0.0;
-  int max_interval_width = 0;
-  std::stringstream str_stream;
-  std::string interval_string; 
-  for (i = 0; i < histogram.size(); ++i)
-  {
-    interval_value = min + (i)*step;
-    if (step >= 0.001)
-      interval_value = round_to_3_significant_digits(interval_value);
-    str_stream.clear();
-    str_stream.str(""); 
-    interval_string = "";
-    str_stream << interval_value;
-    interval_string = str_stream.str();
-    if (interval_string.length() >  (size_t)max_interval_width)
-      max_interval_width = interval_string.length();
-  }
-
-    // adjust graph width for actual size of interval values
-  GRAPHW = GRAPHW - (max_interval_width*2) - 5; 
-
+  
     // For each interval of histogram
   for (i = 0; i < histogram.size(); ++i)
   {
@@ -1631,7 +1130,7 @@ void QualityAssessor::Assessor::print_histogram( std::ostream& stream,
     {
       if (0 == histogram[i])
         continue;
-      stream << indent << std::setw(max_interval_width) << "under min";
+      stream << indent << std::setw(FLOATW) << "under min";
     }
       // Last value is the count of the number of values that
       // were above the maximum value of the histogram.
@@ -1639,49 +1138,34 @@ void QualityAssessor::Assessor::print_histogram( std::ostream& stream,
     {
       if (0 == histogram[i])
         continue;
-      stream << indent << std::setw(max_interval_width) << "over max";
+      stream << indent << std::setw(FLOATW) << "over max";
     }
       // Anything else is a valid interval of the histogram.
-      // Print the range for each interval.
+      // Print the lower bound for each interval.
     else
     {
-      double start_value = min + (i-1)*step;
-      double end_value = min + (i)*step;
-      if (step >= 0.001)
-      {
-        start_value = round_to_3_significant_digits(start_value);
-        end_value = round_to_3_significant_digits(end_value);
-      }
-
-      stream << indent << "(" << std::setw(max_interval_width) << std::right 
-             << start_value << "-" << std::setw(max_interval_width) 
-             << std::left << end_value << ") |";
-
-        // reset stream alignment to right (the default)
-      stream << std::right;
-
+      stream << indent << std::setw(FLOATW) << min + (i-1)*step;
     }
-
+    
+      // Print interval count.
+    stream << ": " << std::setw(num_width) << histogram[i] << ": ";
+    
       // Print bar graph
     
       // First calculate the number of characters to output
     int num_graph;
     if (log_plot)
-      num_graph = GRAPHW * (int)log10((double)(1+histogram[i])) / max_bin_value;
+      num_graph = GRAPHW * (int)log10((double)(1+histogram[i])) / max_interval;
     else
-      num_graph = GRAPHW * histogram[i] / max_bin_value;
+      num_graph = GRAPHW * histogram[i] / max_interval;
       
       // print num_graph characters using array of fill characters.
     graph_chars[num_graph] = '\0';
-    stream << arrptr(graph_chars);
+    stream << arrptr(graph_chars) << std::endl;
     graph_chars[num_graph] = GRAPH_CHAR;
-
-      // Print interval count.
-    stream << histogram[i] << std::endl;
-    
   }
-  stream << "  metric was evaluated " << count << " times." 
-         << std::endl << std::endl;
+  
+  stream << std::endl;
 }
 
 #ifdef _MSC_VER
@@ -1709,58 +1193,6 @@ int QualityAssessor::get_terminal_width() const
 
   return 0;
 }
-
-std::string QualityAssessor::element_name_as_string(int enum_name)
-{
-  std::string str_value = "";
-
-  switch (enum_name)
-  {
-    case POLYGON:       str_value.assign("polygon"); break;
-    case TRIANGLE:      str_value.assign("triangle"); break;
-    case QUADRILATERAL: str_value.assign("quadrilateral"); break;
-    case POLYHEDRON:    str_value.assign("polyhedron"); break;
-    case TETRAHEDRON:   str_value.assign("tetrahedron"); break;
-    case HEXAHEDRON:    str_value.assign("hexahedron"); break;
-    case PRISM:         str_value.assign("prism"); break;
-    case SEPTAHEDRON:   str_value.assign("septahedron"); break;
-    case MIXED:         str_value.assign("mixed"); break;
-    case PYRAMID:       str_value.assign("pyramid"); break;
-  }
-
-  return str_value;
-}
-
-double QualityAssessor::round_to_3_significant_digits(double number)
-{
-  double result = number;
-  double p=1.0;
-
-  if (number > 0 && number < 1000)
-  {
-    if ( number < 1000 )
-    {
-      while ( number <100 ) 
-      {
-        number *= 10;
-        p *= 10;
-      }
-    }
-    else 
-    {
-      while ( number >= 1000 )
-      {
-        number /= 10;
-        p /= 10;
-      }
-    }
-    int z = int(number + 0.5);
-    result = z / p;
-  }
-
-  return result;
-}
-
 
 double QualityAssessor::Assessor::stopping_function_value() const
 {

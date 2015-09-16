@@ -34,12 +34,12 @@
 #define MSQ_T_SHAPE_SIZE_ORIENT_NB_1_HPP
 
 #include "Mesquite.hpp"
-#include "TMetricNonBarrier.hpp"
+#include "TMetric.hpp"
 
 namespace MESQUITE_NS {
 
 /** |T-I|^2 */
-class TShapeSizeOrientNB1 : public TMetricNonBarrier
+class TShapeSizeOrientNB1 : public TMetric
 {
   public:
 

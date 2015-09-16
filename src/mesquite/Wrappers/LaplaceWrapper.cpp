@@ -54,8 +54,9 @@ LaplaceWrapper::LaplaceWrapper()
 LaplaceWrapper::~LaplaceWrapper()
 {}
 
-void LaplaceWrapper::run_wrapper( MeshDomainAssoc* mesh_and_domain,
+void LaplaceWrapper::run_wrapper( Mesh* mesh,
                                   ParallelMesh* pmesh,
+                                  MeshDomain* geom,
                                   Settings* settings,
                                   QualityAssessor* qa,
                                   MsqError& err )
@@ -71,7 +72,7 @@ void LaplaceWrapper::run_wrapper( MeshDomainAssoc* mesh_and_domain,
   qa->add_quality_assessment( &qa_metric );
   
   LaplacianSmoother smoother;
-  TerminationCriterion outer("<type:laplace_outer>"), inner("<type:laplace_inner>");
+  TerminationCriterion outer, inner;
   if (maxTime > 0.0)
     outer.add_cpu_time( maxTime );
   if (iterationLimit > 0)
@@ -89,7 +90,7 @@ void LaplaceWrapper::run_wrapper( MeshDomainAssoc* mesh_and_domain,
   q.add_quality_assessor( qa, err ); MSQ_ERRRTN(err);
   q.set_master_quality_improver( &smoother, err ); MSQ_ERRRTN(err);
   q.add_quality_assessor( qa, err ); MSQ_ERRRTN(err);
-  q.run_common( mesh_and_domain, pmesh, settings, err ); MSQ_ERRRTN(err);
+  q.run_common( mesh, pmesh, geom, settings, err ); MSQ_ERRRTN(err);
 }
 
 } // namespace MESQUITE_NS

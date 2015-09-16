@@ -72,20 +72,22 @@ void CompositeOFScalarAdd::clear()
 }
 
 
-void CompositeOFScalarAdd::initialize_queue( MeshDomainAssoc* mesh_and_domain,
+void CompositeOFScalarAdd::initialize_queue( Mesh* mesh,
+                                             MeshDomain* domain,
                                              const Settings* settings,
                                              MsqError& err )
 {
-  objFunc->initialize_queue( mesh_and_domain, settings, err ); MSQ_ERRRTN(err);
+  objFunc->initialize_queue( mesh, domain, settings, err ); MSQ_ERRRTN(err);
 }
 
 bool CompositeOFScalarAdd::initialize_block_coordinate_descent( 
-                                                       MeshDomainAssoc* mesh_and_domain,
+                                                       Mesh* mesh, 
+                                                       MeshDomain* domain,
                                                        const Settings* settings,
                                                        PatchSet* user_set,
                                                        MsqError& err )
 {
-  bool rval = objFunc->initialize_block_coordinate_descent( mesh_and_domain, settings, user_set, err );
+  bool rval = objFunc->initialize_block_coordinate_descent( mesh, domain, settings, user_set, err );
   return !MSQ_CHKERR(err) && rval;
 }
 

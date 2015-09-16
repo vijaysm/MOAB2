@@ -34,13 +34,13 @@
 #define MSQ_AW_SHAPE_2D_B_1_HPP
 
 #include "Mesquite.hpp"
-#include "AWMetricBarrier.hpp"
+#include "AWMetric.hpp"
 
 namespace MESQUITE_NS {
 
 
 /** \f$ \frac{1}{4 \alpha \omega}|A(adj\,W)-[W(adj\,A)]^t|^2 \f$ */
-class AWShape2DB1 : public AWMetricBarrier2D
+class AWShape2DB1 : public AWMetric2D
 {
   public:
 

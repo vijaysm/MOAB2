@@ -131,7 +131,7 @@ void InstructionQueue::add_preconditioner(QualityImprover* instr,
                                         MsqError &err)
 {
   if (isMasterSet) {
-    MSQ_SETERR(err)("Cannot add preconditioners once the master "
+    MSQ_SETERR(err)("Cannot add preconditionners once the master "
                     "QualityImprover has been set.", MsqError::INVALID_STATE);
     return;
   }
@@ -158,7 +158,7 @@ void InstructionQueue::remove_preconditioner(size_t index, MsqError &err)
     return;
   }
   
-  // position the instruction iterator over the preconditioner to delete
+  // position the instruction iterator over the preconditionner to delete
   std::list<Instruction*>::iterator pos;
   pos = instructions.begin();
   std::advance(pos, index);
@@ -189,7 +189,7 @@ void InstructionQueue::insert_preconditioner(QualityImprover* instr,
 {
   // checks index is valid
   if (isMasterSet==true && index > masterInstrIndex) {
-    MSQ_SETERR(err)("Cannot add a preconditioner after the master "
+    MSQ_SETERR(err)("Cannot add a preconditionner after the master "
                     "QualityImprover.", MsqError::INVALID_STATE);
     return;
   }
@@ -297,8 +297,9 @@ void InstructionQueue::set_master_quality_improver(QualityImprover* instr,
 }
 
   
-void InstructionQueue::run_common( MeshDomainAssoc* mesh_and_domain,
+void InstructionQueue::run_common( Mesh* mesh,
                                    ParallelMesh* pmesh, 
+                                   MeshDomain* domain,
                                    Settings* settings,
                                    MsqError &err)
 { 
@@ -315,9 +316,6 @@ void InstructionQueue::run_common( MeshDomainAssoc* mesh_and_domain,
   MsqInterrupt msq_interrupt;
 #endif
 
-  Mesh* mesh = mesh_and_domain->get_mesh();
-  MeshDomain* domain = mesh_and_domain->get_domain();
-
     // Generate SIGFPE on floating point errors
   MsqFPE fpe_trap( settings->trap_floating_point_exception() );
   
@@ -332,7 +330,7 @@ void InstructionQueue::run_common( MeshDomainAssoc* mesh_and_domain,
       return;
     }
     
-    (*instr)->initialize_queue( mesh_and_domain, settings, err ); 
+    (*instr)->initialize_queue( mesh, domain, settings, err ); 
     MSQ_ERRRTN(err);
   }
   
@@ -350,7 +348,7 @@ void InstructionQueue::run_common( MeshDomainAssoc* mesh_and_domain,
       (*instr)->loop_over_mesh( pmesh, domain, settings, err ); 
     }
     else {
-      (*instr)->loop_over_mesh( mesh_and_domain, settings, err ); 
+      (*instr)->loop_over_mesh( mesh, domain, settings, err ); 
     }
     MSQ_ERRRTN(err);
   }

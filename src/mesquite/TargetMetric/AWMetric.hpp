@@ -65,7 +65,7 @@ public:
   bool evaluate( const MsqMatrix<2,2>& A, 
                  const MsqMatrix<2,2>& W, 
                  double& result, 
-                 MsqError& err );
+                 MsqError& err ) = 0;
 
     /**\brief Evaluate \f$\mu(A,W)\f$
      *
@@ -79,8 +79,8 @@ public:
   bool evaluate( const MsqMatrix<3,3>& A, 
                  const MsqMatrix<3,3>& W, 
                  double& result, 
-                 MsqError& err );
-
+                 MsqError& err ) = 0;
+  
     /**\brief Gradient of \f$\mu(A,W)\f$ with respect to components of A
      *
      *\param A 2x2 active matrix
@@ -170,7 +170,7 @@ public:
                            MsqMatrix<2,2>& deriv_wrt_A,
                            MsqMatrix<2,2> second_wrt_A[3],
                            MsqError& err );
-
+  
     /**\brief Hessian of \f$\mu(A,W)\f$ with respect to components of A
      *
      *\param A 3x3 active matrix
@@ -255,7 +255,7 @@ public:
                            MsqMatrix<3,3>& deriv_wrt_A,
                            MsqMatrix<3,3> second_wrt_A[6],
                            MsqError& err );
-
+                           
   static inline bool invalid_determinant( double d )
     { return d < 1e-12; }
 };

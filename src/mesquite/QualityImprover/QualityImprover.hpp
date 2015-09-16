@@ -81,7 +81,8 @@ namespace MESQUITE_NS
       
     virtual PatchSet* get_patch_set() = 0;
     
-    virtual void initialize_queue( MeshDomainAssoc* mesh_and_domain,
+    virtual void initialize_queue( Mesh* mesh,
+                                   MeshDomain* domain,
                                    const Settings* settings,
                                    MsqError& err );
 

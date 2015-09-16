@@ -35,12 +35,13 @@
 
 #include "Mesquite.hpp"
 #include "Settings.hpp"
-#include "MeshInterface.hpp"
 
 namespace MESQUITE_NS {
 
 class MsqError;
+class Mesh;
 class ParallelMesh;
+class MeshDomain;
 
 class MESQUITE_EXPORT IQInterface : public Settings
 {
@@ -49,34 +50,26 @@ class MESQUITE_EXPORT IQInterface : public Settings
     virtual ~IQInterface();
   
     inline void 
-    run_instructions( MeshDomainAssoc* mesh_and_domain, MsqError &err)
-      { this->run_common( mesh_and_domain, 0, this, err ); }
+    run_instructions( Mesh* mesh, MeshDomain* domain, MsqError &err)
+      { this->run_common( mesh, 0, domain, this, err ); }
     
     inline void 
     run_instructions( Mesh* mesh, MsqError& err )
-      { 
-        MeshDomainAssoc mesh_and_domain = MeshDomainAssoc(mesh, 0);
-        this->run_common( &mesh_and_domain, 0, this, err ); 
-      }
+      { this->run_common( mesh, 0, 0, this, err ); }
     
     inline void 
     run_instructions( ParallelMesh* mesh, MeshDomain* domain, MsqError &err)
-      {
-        MeshDomainAssoc mesh_and_domain = MeshDomainAssoc((Mesh*)mesh, domain);
-        this->run_common( &mesh_and_domain, mesh, this, err ); 
-      }
+      { this->run_common( (Mesh*)mesh, mesh, domain, this, err ); }
     
     inline void 
     run_instructions( ParallelMesh* mesh, MsqError& err )
-      {
-        MeshDomainAssoc mesh_and_domain = MeshDomainAssoc((Mesh*)mesh, 0);
-        this->run_common( &mesh_and_domain, mesh, this, err ); 
-      }
+      { this->run_common( (Mesh*)mesh, mesh, 0, this, err ); }
 
   protected:
   
-    virtual void run_common( MeshDomainAssoc* mesh_and_domain,
+    virtual void run_common( Mesh* mesh,
                              ParallelMesh* pmesh,
+                             MeshDomain* domain,
                              Settings* settings,
                              MsqError& err ) = 0;
 };

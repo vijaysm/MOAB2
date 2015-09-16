@@ -42,7 +42,8 @@
 
 namespace MESQUITE_NS {
 
-void QualityMetric::initialize_queue( MeshDomainAssoc* ,
+void QualityMetric::initialize_queue( Mesh* ,
+                                      MeshDomain* ,
                                       const Settings* ,
                                       MsqError&  )
 {}

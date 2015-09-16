@@ -47,24 +47,20 @@ Instruction::~Instruction()
 {}
 
 double Instruction::loop_over_mesh( ParallelMesh* mesh, 
-				                            MeshDomain* domain, 
-			                         	    const Settings* settings,
-				                            MsqError& err )
+				    MeshDomain* domain, 
+				    const Settings* settings,
+				    MsqError& err )
 {
-  MeshDomainAssoc mesh_and_domain = MeshDomainAssoc((Mesh*)mesh, domain, false, true);
-  return loop_over_mesh(&mesh_and_domain, settings, err);
+  return loop_over_mesh((Mesh*)mesh, domain, settings, err);
 }
 
-void Instruction::initialize_vertex_byte( MeshDomainAssoc* mesh_and_domain,
+void Instruction::initialize_vertex_byte( Mesh* mesh,
+                                          MeshDomain* domain,
                                           const Settings* settings,
                                           MsqError& err )
 {
   std::vector<Mesh::VertexHandle> verts;
   std::vector<unsigned char> bytes;
-
-  Mesh* mesh = mesh_and_domain->get_mesh();
-  MeshDomain* domain = mesh_and_domain->get_domain();
-
 
     // Handle SLAVE_ALL first because we want to work with vertices
     // in element connectivity lists rather than one big array of
@@ -82,7 +78,7 @@ void Instruction::initialize_vertex_byte( MeshDomainAssoc* mesh_and_domain,
       verts.clear();
       junk.clear();
       mesh->elements_get_attached_vertices( &elems[i], 1, verts, junk, err ); MSQ_ERRRTN(err);
-      if (ncorner < verts.size() && type != POLYGON)
+      if (ncorner < verts.size())
         use_existing_slaved_flag = true;
       
       bytes.clear();

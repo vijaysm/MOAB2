@@ -49,9 +49,9 @@ Header file for the Mesquite::QualityMetric class
 
 #ifdef _MSC_VER
    typedef unsigned uint32_t;
-#elif defined(MOAB_HAVE_STDINT_H)
+#elif defined(MSQ_HAVE_STDINT_H)
 #  include <stdint.h>
-#elif defined(MOAB_HAVE_INTTYPES_H)
+#elif defined(MSQ_HAVE_INTTYPES_H)
 #  include <inttypes.h>
 #endif
 
@@ -65,7 +65,6 @@ namespace MESQUITE_NS
    class MsqMeshEntity;
    class Mesh;
    class MeshDomain;
-   class MeshDomainAssoc;
    class Settings;
    
    class QualityMetric
@@ -339,7 +338,8 @@ namespace MESQUITE_NS
       //! Do any preliminary global initialization, consistency checking,
       //! etc.  Default implementation does nothing.
      MESQUITE_EXPORT virtual 
-     void initialize_queue( MeshDomainAssoc* mesh_and_domain,
+     void initialize_queue( Mesh* mesh,
+                            MeshDomain* domain,
                             const Settings* settings,
                             MsqError& err );
 

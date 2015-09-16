@@ -34,7 +34,7 @@
 #define MSQ_T_SHAPE_ORIENT_B_2_HPP
 
 #include "Mesquite.hpp"
-#include "TMetricBarrier.hpp"
+#include "TMetric.hpp"
 
 namespace MESQUITE_NS {
 
@@ -43,7 +43,7 @@ namespace MESQUITE_NS {
  *
  * Section 3.3.3 of derivs.tex (7/2009)
  */
-class TShapeOrientB2 : public TMetricBarrier
+class TShapeOrientB2 : public TMetric
 {
   public:
 
@@ -54,9 +54,7 @@ class TShapeOrientB2 : public TMetricBarrier
   ~TShapeOrientB2();
 
   MESQUITE_EXPORT virtual
-  bool evaluate( const MsqMatrix<2,2>& T, 
-                 double& result, 
-                 MsqError& err );
+  bool evaluate( const MsqMatrix<2,2>& T, double& result, MsqError& err );
 
   MESQUITE_EXPORT virtual
   bool evaluate_with_grad( const MsqMatrix<2,2>& T, 

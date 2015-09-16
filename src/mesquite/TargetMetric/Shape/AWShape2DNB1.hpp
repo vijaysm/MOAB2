@@ -34,13 +34,13 @@
 #define MSQ_AW_SHAPE_2D_NB_1_HPP
 
 #include "Mesquite.hpp"
-#include "AWMetricNonBarrier.hpp"
+#include "AWMetric.hpp"
 
 namespace MESQUITE_NS {
 
 
 /** \f$ |\omega A^t A - \alpha W^t W|^2 \f$ */
-class AWShape2DNB1 : public AWMetricNonBarrier2D
+class AWShape2DNB1 : public AWMetric2D
 {
   public:
 

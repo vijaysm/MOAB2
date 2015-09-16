@@ -34,12 +34,12 @@
 #define MSQ_T_SHAPE_SIZE_2D_NB_1_HPP
 
 #include "Mesquite.hpp"
-#include "TMetricNonBarrier.hpp"
+#include "TMetric.hpp"
 
 namespace MESQUITE_NS {
 
 /** |T|^2 - 2*sqrt(|T|^2 + 2*det(T))+2 */
-class TShapeSize2DNB1 : public TMetricNonBarrier2D
+class TShapeSize2DNB1 : public TMetric2D
 {
   public:
 
