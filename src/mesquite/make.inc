@@ -272,16 +272,16 @@ MSQ_SRCS += QualityImprover/OptSolvers/ConjugateGradient.cpp \
 	    QualityImprover/OptSolvers/NonSmoothDescent.cpp \
 	    QualityImprover/OptSolvers/QuasiNewton.cpp \
 	    QualityImprover/OptSolvers/SteepestDescent.cpp \
-	    QualityImprover/OptSolvers/NonGradient.cpp \
 	    QualityImprover/OptSolvers/TrustRegion.cpp
+#	    QualityImprover/OptSolvers/NonGradient.cpp 
 
 MSQ_HDRS += QualityImprover/OptSolvers/ConjugateGradient.hpp \
 	    QualityImprover/OptSolvers/FeasibleNewton.hpp \
 	    QualityImprover/OptSolvers/NonSmoothDescent.hpp \
 	    QualityImprover/OptSolvers/QuasiNewton.hpp \
 	    QualityImprover/OptSolvers/SteepestDescent.hpp \
-	    QualityImprover/OptSolvers/NonGradient.hpp \
 	    QualityImprover/OptSolvers/TrustRegion.hpp 
+#	    QualityImprover/OptSolvers/NonGradient.hpp 
 
 MSQ_INCLUDES += -I$(top_srcdir)/src/mesquite/QualityImprover/Relaxation
 

@@ -62,11 +62,11 @@ namespace MESQUITE_NS
                         MsqError& err,
 			const iBase_TagHandle* fixed_tag,
 			const iBase_TagHandle* slaved_tag  )
-    : MsqIMesh(mesh, err, fixed_tag, slaved_tag), 
+    : MsqIMesh(mesh, iBase_ALL_TYPES, err, fixed_tag, slaved_tag), 
       partitionInstance(partition)
   {
   }
-
+ 
   MsqIMeshP::~MsqIMeshP()
   {
   }
