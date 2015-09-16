@@ -36,9 +36,7 @@
 #include "MsqMatrix.hpp"
 
 #include "TMetric.hpp"
-#include "TMetricBarrier.hpp"
 #include "AWMetric.hpp"
-#include "AWMetricBarrier.hpp"
 
 // NOTE: Caller must define TARGET_TEST_GROUP to be a quoted string,
 //       typically the base file name of the file containing the 
@@ -260,72 +258,45 @@ template <class Metric,unsigned DIM> class TMetricTest : public CppUnit::TestFix
    // TMetric
   inline bool eval( TMetric& metric, MsqMatrix<DIM,DIM> A, MsqMatrix<DIM,DIM> W, 
                     double& value, MsqError& err )
-    {
-      return metric.evaluate( A*inverse(W), value, err );
-    }
+    { return metric.evaluate( A*inverse(W), value, err ); }
   inline bool grad( TMetric& metric, MsqMatrix<DIM,DIM> A, MsqMatrix<DIM,DIM> W, 
                     double& value, MsqMatrix<DIM,DIM>& dmdA, MsqError& err )
-    {
-      bool rval = metric.evaluate_with_grad( A*inverse(W), value, dmdA, err );
-      dmdA = dmdA * transpose(inverse(W)); 
-      return rval; 
-    }
+    { bool rval = metric.evaluate_with_grad( A*inverse(W), value, dmdA, err );
+      dmdA = dmdA * transpose(inverse(W)); return rval; }
   inline bool num_grad( TMetric& metric, MsqMatrix<DIM,DIM> A, MsqMatrix<DIM,DIM> W, 
                         double& value, MsqMatrix<DIM,DIM>& dmdA, MsqError& err )
-    {
-      bool rval = metric.evaluate_with_grad( A*inverse(W), value, dmdA, err );
-      dmdA = dmdA * transpose(inverse(W)); 
-      return rval; 
-    }
+    { bool rval = metric.TMetric::evaluate_with_grad( A*inverse(W), value, dmdA, err );
+      dmdA = dmdA * transpose(inverse(W)); return rval; }
   inline bool hess( TMetric& metric, MsqMatrix<DIM,DIM> A, MsqMatrix<DIM,DIM> W, 
                     double& value, MsqMatrix<DIM,DIM>& dmdA, MsqMatrix<DIM,DIM> d2mdA2[3], MsqError& err )
-    {
-      bool rval = metric.evaluate_with_hess( A*inverse(W), value, dmdA, d2mdA2, err );
+    { bool rval = metric.evaluate_with_hess( A*inverse(W), value, dmdA, d2mdA2, err );
       dmdA = dmdA * transpose(inverse(W)); 
       for (unsigned i = 0; i < DIM*(DIM+1)/2; ++i) d2mdA2[i] = inverse(W) * d2mdA2[i] * transpose(inverse(W));
-      return rval; 
-    }
+      return rval; }
   inline bool num_hess( TMetric& metric, MsqMatrix<DIM,DIM> A, MsqMatrix<DIM,DIM> W, 
                         double& value, MsqMatrix<DIM,DIM>& dmdA, MsqMatrix<DIM,DIM> d2mdA2[3], MsqError& err )
-    {
-      bool rval = metric.evaluate_with_hess( A*inverse(W), value, dmdA, d2mdA2, err );
+    { bool rval = metric.TMetric::evaluate_with_hess( A*inverse(W), value, dmdA, d2mdA2, err );
       dmdA = dmdA * transpose(inverse(W)); 
       for (unsigned i = 0; i < DIM*(DIM+1)/2; ++i) d2mdA2[i] = inverse(W) * d2mdA2[i] * transpose(inverse(W));
-      return rval;
-    }
- 
+      return rval; }
+
    // AWMetric
   inline bool eval( AWMetric& metric, MsqMatrix<DIM,DIM> A, MsqMatrix<DIM,DIM> W, 
                     double& value, MsqError& err )
-    { 
-      bool rval = metric.evaluate( A, W, value, err );  
-      return rval;
-    }
+    { return metric.evaluate( A, W, value, err ); }
   inline bool grad( AWMetric& metric, MsqMatrix<DIM,DIM> A, MsqMatrix<DIM,DIM> W, 
                     double& value, MsqMatrix<DIM,DIM>& dmdA, MsqError& err )
-    { 
-      bool rval = metric.evaluate_with_grad( A, W, value, dmdA, err );   
-      return rval;
-    }
+    { return metric.evaluate_with_grad( A, W, value, dmdA, err ); }
   inline bool num_grad( AWMetric& metric, MsqMatrix<DIM,DIM> A, MsqMatrix<DIM,DIM> W, 
                     double& value, MsqMatrix<DIM,DIM>& dmdA, MsqError& err )
-    { 
-      bool rval = metric.evaluate_with_grad( A, W, value, dmdA, err );
-      return rval;  
-    }
+    { return metric.AWMetric::evaluate_with_grad( A, W, value, dmdA, err ); }
   inline bool hess( AWMetric& metric, MsqMatrix<DIM,DIM> A, MsqMatrix<DIM,DIM> W, 
                     double& value, MsqMatrix<DIM,DIM>& dmdA, MsqMatrix<DIM,DIM> d2mdA2[3], MsqError& err )
-    { 
-      bool rval = metric.evaluate_with_hess( A, W, value, dmdA, d2mdA2, err );
-      return rval;  
-    }      
+    { return metric.evaluate_with_hess( A, W, value, dmdA, d2mdA2, err ); }
   inline bool num_hess( AWMetric& metric, MsqMatrix<DIM,DIM> A, MsqMatrix<DIM,DIM> W, 
                     double& value, MsqMatrix<DIM,DIM>& dmdA, MsqMatrix<DIM,DIM> d2mdA2[3], MsqError& err )
-    { 
-      bool  rval = metric.evaluate_with_hess( A, W, value, dmdA, d2mdA2, err ); 
-      return rval;  
-    }            
- };
+    { return metric.AWMetric::evaluate_with_hess( A, W, value, dmdA, d2mdA2, err ); }
+};
 
 #define TMETRIC_FUNC template <class Metric, unsigned DIM> void TMetricTest<Metric,DIM>
 #define MAT_TYPE TMetricTest<Metric,DIM>::Matrix
@@ -389,20 +360,14 @@ TMETRIC_FUNC::test_inverted()
   
   if (Barrier) {
     valid = eval( testMetric, V, W, val, err );
-    if (err.error_code() == err.BARRIER_VIOLATED)
-      err.clear();
     ASSERT_NO_ERROR(err);
     CPPUNIT_ASSERT(!valid);
     
     valid = grad( testMetric, V, W, val, g, err );
-    if (err.error_code() == err.BARRIER_VIOLATED)
-      err.clear();
     ASSERT_NO_ERROR(err);
     CPPUNIT_ASSERT(!valid);
     
     valid = hess( testMetric, V, W, val, g, h, err );
-    if (err.error_code() == err.BARRIER_VIOLATED)
-      err.clear();
     ASSERT_NO_ERROR(err);
     CPPUNIT_ASSERT(!valid);
   }
@@ -421,8 +386,8 @@ TMETRIC_FUNC::test_inverted()
 }
   
 TMETRIC_FUNC::test_non_ideal( bool sensitive,
-                              Matrix J,
-                              Matrix W )
+                              MAT_TYPE J,
+                              MAT_TYPE W )
 {
   MsqPrintError err(std::cerr);
   MsqMatrix<DIM,DIM> g;

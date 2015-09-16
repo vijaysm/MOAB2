@@ -71,7 +71,7 @@ class InstructionQueueTest : public CppUnit::TestFixture
 {
 private:
    CPPUNIT_TEST_SUITE(InstructionQueueTest);
-   CPPUNIT_TEST (test_add_preconditioner);
+   CPPUNIT_TEST (test_add_preconditionner);
    CPPUNIT_TEST (test_remove_preconditioner);
    CPPUNIT_TEST (test_insert_preconditioner);
    CPPUNIT_TEST (test_add_quality_assessor);
@@ -114,7 +114,7 @@ public:
   InstructionQueueTest()
     {}
   
-  void test_add_preconditioner()
+  void test_add_preconditionner()
   {
      MsqPrintError err(cout);
      mQueue.clear();
@@ -125,7 +125,7 @@ public:
      CPPUNIT_ASSERT(!err);
      err.clear();
      mQueue.add_preconditioner(mQI, err);
-     CPPUNIT_ASSERT_MESSAGE("preconditioner cannot be added after master QI"
+     CPPUNIT_ASSERT_MESSAGE("preconditionner cannot be added after master QI"
                             , err);
      err.clear(); 
   }
@@ -241,12 +241,14 @@ CPPUNIT_TEST_SUITE_NAMED_REGISTRATION(InstructionQueueTest, "Unit");
 class DummyVertexSlaver : public VertexSlaver
 {
   public:
-    virtual double loop_over_mesh( MeshDomainAssoc* , 
+    virtual double loop_over_mesh( Mesh* , 
+                                   MeshDomain* , 
                                    const Settings* ,
                                    MsqError&  )
       { CPPUNIT_ASSERT(false); return 0.0; }
     virtual std::string get_name() const { return "Dummy"; }
-    virtual void initialize_queue( MeshDomainAssoc* ,
+    virtual void initialize_queue( Mesh* ,
+                                   MeshDomain* ,
                                    const Settings* ,
                                    MsqError&  ) {}
 };

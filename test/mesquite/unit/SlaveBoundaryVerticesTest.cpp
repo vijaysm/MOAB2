@@ -99,9 +99,8 @@ void SlaveBoundaryVerticesTest::test_fail_if_slaves_not_calculated()
   MeshImpl mesh;
   DomainClassifier domain;
   make_mesh( mesh, domain, 2 );
-    
-  MeshDomainAssoc mesh_and_domain = MeshDomainAssoc(&mesh, &domain);
-  tool.loop_over_mesh( &mesh_and_domain, &settings, err );
+  
+  tool.loop_over_mesh( &mesh, &domain, &settings, err );
   CPPUNIT_ASSERT(err);
   err.clear();
 }
@@ -111,7 +110,7 @@ void SlaveBoundaryVerticesTest::make_mesh( MeshImpl& mesh,
                                            const int intervals )
 {
   MsqPrintError err(std::cerr);
-  const char input_file[] = MESH_FILES_DIR "3D/vtk/quadratic/6x6x6-hex20.vtk";
+  const char input_file[] = MESH_FILES_DIR "3D/VTK/6x6x6-hex20.vtk";
   
   const Vector3D min( -3, -3, -3 );
   const Vector3D max(  3,  3,  3 );
@@ -269,8 +268,7 @@ void SlaveBoundaryVerticesTest::test_slaved_common( unsigned depth, unsigned bou
   Settings settings;
   settings.set_slaved_ho_node_mode( Settings::SLAVE_CALCULATED );
   SlaveBoundaryVertices tool( depth, boundary );
-  MeshDomainAssoc mesh_and_domain = MeshDomainAssoc(&mesh, &domain);
-  tool.loop_over_mesh( &mesh_and_domain, &settings, err );
+  tool.loop_over_mesh( &mesh, &domain, &settings, err );
   ASSERT_NO_ERROR(err);
   
     // Now verify the results

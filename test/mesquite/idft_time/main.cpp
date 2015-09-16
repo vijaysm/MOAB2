@@ -51,7 +51,7 @@ using std::endl;
 
 #include "IdealShapeTarget.hpp"
 #include "PMeanPTemplate.hpp"
-#include "SteepestDescent.hpp"
+#include "FeasibleNewton.hpp"
 #include "ConjugateGradient.hpp"
 #include "QuasiNewton.hpp"
 
@@ -59,7 +59,7 @@ using std::endl;
 #include "MsqTimer.hpp"
 using namespace Mesquite;
 
-const char* DEFAULT_INPUT = MESH_FILES_DIR "2D/vtk/tris/untangled/equil_tri2.vtk";
+const char* DEFAULT_INPUT = MESH_FILES_DIR "2D/VTK/equil_tri2.vtk";
 
 /* Print usage or help information: exits if err == true */
 void usage( const char* argv0 = 0, bool err = true )
@@ -75,7 +75,7 @@ void usage( const char* argv0 = 0, bool err = true )
   if (err)
     exit(1);
 
-  s << "  -n : Use SteepestDescent solver (default)" << endl
+  s << "  -n : Use FeasibleNewton solver (default)" << endl
     << "  -c : Use ConjugateGradient solver" << endl
     << "  -q : Use QuasiNewton solver" << endl
     << "  -e : Test IdealWeightInverseMeanRatio metric" << endl
@@ -96,7 +96,7 @@ const char* eps_file = 0; /* eps output file name */
 const char* gpt_file = 0; /* GNUPlot output file name */
 const char* plot_file = 0; /* Time-dependent plot of solver data */
 
-enum Solver { STEEP_DESCENT, CONJ_GRAD, QUASI_NEWT };
+enum Solver { FEAS_NEWT, CONJ_GRAD, QUASI_NEWT };
 
 /* Run an optimization: returns average quality of final mesh */
 double run( QualityMetric* metric, 
@@ -213,7 +213,7 @@ const double CompareMetric::epsilon = 5e-2;
 /* Parse command line options and call 'run' */
 int main( int argc, char* argv[] )
 {
-  Solver solver = STEEP_DESCENT;
+  Solver solver = FEAS_NEWT;
   bool do_non_target_metric = false;
   bool do_new_target_metric = false;
   bool do_new_target_average = false;
@@ -227,7 +227,7 @@ int main( int argc, char* argv[] )
     if (argv[i][0] == '-' && !no_more_flags) {
       for (int k = 1; argv[i][k]; ++k) {
         switch (argv[i][k]) {
-          case 'n': solver = STEEP_DESCENT; break;
+          case 'n': solver = FEAS_NEWT; break;
           case 'c': solver = CONJ_GRAD; break;
           case 'q': solver = QUASI_NEWT; break;
           case 'e': do_non_target_metric = true; break;
@@ -337,12 +337,12 @@ double run( QualityMetric* metric,
   QualityAssessor qa( &qa_metric );
   qa.add_quality_assessment( metric );
   InstructionQueue q;
-  SteepestDescent steep(&of);
+  FeasibleNewton newt(&of);
   QuasiNewton quasi(&of);
   ConjugateGradient conj(&of);
   VertexMover* solver = 0;
   switch (solver_type) {
-    case STEEP_DESCENT: solver = &steep; break;
+    case FEAS_NEWT: solver = &newt; break;
     case QUASI_NEWT:solver = &quasi;break;
     case CONJ_GRAD: solver = &conj; break;
   }
@@ -390,8 +390,7 @@ double run( QualityMetric* metric,
     domain = new PlanarDomain( PlanarDomain::XY, min[2] );
   
   Timer timer;
-  MeshDomainAssoc mesh_and_domain = MeshDomainAssoc(&mesh, domain);
-  q.run_instructions( &mesh_and_domain, err );
+  q.run_instructions( &mesh, domain, err );
   seconds_out = timer.since_birth();
   if (err) {
     cerr << "Optimization failed." << endl << err << endl;

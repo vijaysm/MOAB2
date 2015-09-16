@@ -58,7 +58,7 @@ int main(int argc, char* argv[])
     // sets the objective function template
   LPtoPTemplate obj_func(&inverse_mean_ratio, 2, err);
     // creates the optimization procedures
-  SteepestDescent f_newton(&obj_func);
+  FeasibleNewton f_newton(&obj_func);
     //performs optimization globally
   f_newton.use_global_patch();
     // creates a termination criterion and
@@ -76,8 +76,7 @@ int main(int argc, char* argv[])
   queue.set_master_quality_improver(&f_newton, err);
   queue.add_quality_assessor(&m_ratio_qa, err);
     // do optimization of the mesh_set
-  MeshDomainAssoc mesh_and_domain = MeshDomainAssoc(&my_mesh, &my_mesh_plane);
-  queue.run_instructions(&mesh_and_domain, err);
+  queue.run_instructions(&my_mesh, &my_mesh_plane, err);
   if (err) {
     std::cout << err << std::endl;
     return 2;

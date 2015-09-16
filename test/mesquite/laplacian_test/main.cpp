@@ -69,7 +69,7 @@ using std::endl;
 #include "EdgeLengthQualityMetric.hpp"
 using namespace Mesquite;
 
-const char DEFAULT_INPUT[] = MESH_FILES_DIR "2D/vtk/quads/untangled/square_quad_2.vtk";
+const char DEFAULT_INPUT[] = MESH_FILES_DIR "2D/VTK/square_quad_2.vtk";
 
 void help(const char* argv0)
 {
@@ -139,9 +139,8 @@ int main(int argc, char* argv[])
   PlanarDomain plane(Vector3D(0,0,1), Vector3D(0,0,5));
   
     // launches optimization on mesh_set1
-  MeshDomainAssoc mesh_and_domain = MeshDomainAssoc(&mesh, &plane);
   Timer t;
-  queue1.run_instructions(&mesh_and_domain, err); 
+  queue1.run_instructions(&mesh, &plane, err); 
   if (err) return 1;
   double secs = t.since_birth();
   std::cout << "Optimization completed in " << secs << " seconds" << std::endl;

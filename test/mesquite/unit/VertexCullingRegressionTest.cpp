@@ -102,7 +102,7 @@ public:
         /* Read a VTK Mesh file */
       MsqPrintError err(cout);
       Mesquite::MeshImpl mesh;
-      mesh.read_vtk(MESH_FILES_DIR "2D/vtk/quads/untangled/square_quad_10_rand.vtk", err);
+      mesh.read_vtk(MESH_FILES_DIR "2D/VTK/square_quad_10_rand.vtk", err);
       CPPUNIT_ASSERT(!err);
       
       Vector3D pnt(0,0,5);
@@ -157,8 +157,7 @@ public:
       queue1.add_quality_assessor(&stop_qa,err);
         //Make sure no errors
       CPPUNIT_ASSERT(!err);
-      MeshDomainAssoc mesh_and_domain = MeshDomainAssoc(&mesh, &msq_geom);
-      queue1.run_instructions(&mesh_and_domain, err);
+      queue1.run_instructions(&mesh, &msq_geom, err);
       CPPUNIT_ASSERT(!err);
     }
   

@@ -984,8 +984,7 @@ void HigherOrderTest::basic_tri_test( double& x2, double& y2,
   PlanarDomain xy( PlanarDomain::XY );
   
     // Solve
-  MeshDomainAssoc mesh_and_domain = MeshDomainAssoc(&mesh, &xy);
-  q.run_instructions( &mesh_and_domain, err ); MSQ_ERRRTN(err);
+  q.run_instructions( &mesh, &xy, err ); MSQ_ERRRTN(err);
 
     // Pass back modified coordinates
   x2 = coords[2*DIM+0]; y2 = coords[2*DIM+1];
@@ -1069,8 +1068,7 @@ void HigherOrderTest::basic_quad_test( Vector3D& p2,
 
   
     // Solve
-  MeshDomainAssoc mesh_and_domain = MeshDomainAssoc(&mesh, &xy);
-  q.run_instructions( &mesh_and_domain, err ); ASSERT_NO_ERROR(err);
+  q.run_instructions( &mesh, &xy, err ); ASSERT_NO_ERROR(err);
   CPPUNIT_ASSERT(!hit_iteration_limit());
 
     // Pass back modified coordinates
@@ -1229,8 +1227,7 @@ void HigherOrderTest::test_tri_open_domain( double& x1, double& x3, double& x4,
   ASSERT_NO_ERROR(err);
   
     // Solve
-  MeshDomainAssoc mesh_and_domain = MeshDomainAssoc(&mesh, &geom);
-  q.run_instructions( &mesh_and_domain, err ); ASSERT_NO_ERROR(err);
+  q.run_instructions( &mesh, &geom, err ); ASSERT_NO_ERROR(err);
   CPPUNIT_ASSERT(!hit_iteration_limit());
  
     // Pass back modified coordinate values
@@ -1308,7 +1305,7 @@ void HigherOrderTest::test_tri_slac()
   PlanarDomain xy( PlanarDomain::XY );
   
     // Solve
-  q.run_instructions( &mesh, err ); ASSERT_NO_ERROR(err);
+  q.run_instructions( &mesh, &xy, err ); ASSERT_NO_ERROR(err);
   CPPUNIT_ASSERT(!hit_iteration_limit());
   
   const Vector3D v0(coords+0*DIM);

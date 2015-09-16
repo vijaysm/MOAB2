@@ -118,7 +118,7 @@ public:
    {
      Mesquite::MeshImpl mesh;
      Mesquite::MsqPrintError err(cout);
-     mesh.read_vtk(MESH_FILES_DIR "2D/vtk/quads/untangled/quads_on_sphere_529.vtk", err);
+     mesh.read_vtk(MESH_FILES_DIR "2D/VTK/quads_on_sphere_529.vtk", err);
      CPPUNIT_ASSERT(!err);
      
        //create geometry: sphere, center (2,2,0), radius 3
@@ -158,14 +158,13 @@ public:
        //Make sure no errors
      CPPUNIT_ASSERT(!err);
        // launches optimization on mesh_set1
-     MeshDomainAssoc mesh_and_domain = MeshDomainAssoc(&mesh, &msq_geom);
-     double orig_qa_val=qa.loop_over_mesh(&mesh_and_domain, 0, err);
+     double orig_qa_val=qa.loop_over_mesh(&mesh, &msq_geom, 0, err);
        //Make sure no errors
      CPPUNIT_ASSERT(!err);
-     queue1.run_instructions(&mesh_and_domain, err); CPPUNIT_ASSERT(!err);
+     queue1.run_instructions(&mesh, &msq_geom, err); CPPUNIT_ASSERT(!err);
        //Make sure no errors
      CPPUNIT_ASSERT(!err);
-     double fin_qa_val=qa.loop_over_mesh(&mesh_and_domain, 0, err);
+     double fin_qa_val=qa.loop_over_mesh(&mesh, &msq_geom, 0, err);
        //Make sure no errors
      CPPUNIT_ASSERT(!err);
        //make sure 'quality' improved
@@ -175,7 +174,7 @@ public:
      {
        Mesquite::MeshImpl mesh;
        Mesquite::MsqPrintError err(cout); 
-       mesh.read_vtk(MESH_FILES_DIR "2D/vtk/quads/untangled/quads_on_sphere_529.vtk", err);
+       mesh.read_vtk(MESH_FILES_DIR "2D/VTK/quads_on_sphere_529.vtk", err);
        
          //create geometry sphere:  ratius 1, centered at (0,0,0)
        Vector3D center(2,2,0);
@@ -203,16 +202,15 @@ public:
        CPPUNIT_ASSERT(!err);
          // launches optimization on mesh_set1
        QualityAssessor qa=QualityAssessor( &shape_metric );
-       MeshDomainAssoc mesh_and_domain = MeshDomainAssoc(&mesh, &msq_geom);
-       double orig_val=qa.loop_over_mesh(&mesh_and_domain, 0, err);
+       double orig_val=qa.loop_over_mesh(&mesh, &msq_geom, 0, err);
        
          //Make sure no errors
        CPPUNIT_ASSERT(!err);
-       queue1.run_instructions(&mesh_and_domain, err); CPPUNIT_ASSERT(!err);
+       queue1.run_instructions(&mesh, &msq_geom, err); CPPUNIT_ASSERT(!err);
          //Make sure no errors
        CPPUNIT_ASSERT(!err);
 
-       double final_val= qa.loop_over_mesh(&mesh_and_domain, 0, err);
+       double final_val= qa.loop_over_mesh(&mesh, &msq_geom, 0, err);
   
          //Make sure no errors
        CPPUNIT_ASSERT(!err);
@@ -225,7 +223,7 @@ public:
        Mesquite::MeshImpl mesh;
        Mesquite::MsqPrintError err(cout);
        
-       mesh.read_vtk(MESH_FILES_DIR "2D/vtk/tris/untangled/Mesquite_geo_10242.vtk", err);
+       mesh.read_vtk(MESH_FILES_DIR "2D/VTK/Mesquite_geo_10242.vtk", err);
        
          //create geometry sphere:  ratius 1, centered at (0,0,0)
        Vector3D center(0,0,0);
@@ -256,14 +254,13 @@ public:
          //Make sure no errors
        CPPUNIT_ASSERT(!err);
          // launches optimization on mesh_set1
-       MeshDomainAssoc mesh_and_domain = MeshDomainAssoc(&mesh, &msq_geom);
-       double orig_qa_val=qa.loop_over_mesh(&mesh_and_domain, 0, err);
+       double orig_qa_val=qa.loop_over_mesh(&mesh, &msq_geom, 0, err);
          //Make sure no errors
        CPPUNIT_ASSERT(!err);
-       queue1.run_instructions(&mesh_and_domain, err); CPPUNIT_ASSERT(!err);
+       queue1.run_instructions(&mesh, &msq_geom, err); CPPUNIT_ASSERT(!err);
          //Make sure no errors
        CPPUNIT_ASSERT(!err);
-       double fin_qa_val=qa.loop_over_mesh(&mesh_and_domain, 0, err);
+       double fin_qa_val=qa.loop_over_mesh(&mesh, &msq_geom, 0, err);
          //Make sure no errors
        CPPUNIT_ASSERT(!err);
          //make sure 'quality' improved

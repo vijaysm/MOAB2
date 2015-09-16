@@ -71,7 +71,7 @@ int main(int argc, char* argv[])
 
   Mesquite::MeshImpl mesh;
     //mesh->read_exodus("transformed_mesh.exo", err);
-  mesh.read_vtk(MESH_FILES_DIR "2D/vtk/quads/untangled/tfi_horse10x4-12.vtk", err);
+  mesh.read_vtk(MESH_FILES_DIR "2D/VTK/tfi_horse10x4-12.vtk", err);
   if (err) return 1;
   
     // Get all vertex coordinates from mesh
@@ -96,8 +96,7 @@ int main(int argc, char* argv[])
   Vector3D my_vec(0, 0 , 10);
   MeshTransform my_transform(my_mat, my_vec);
     //mesh->write_exodus("original_mesh.exo", err);
-  MeshDomainAssoc mesh_and_domain = MeshDomainAssoc(&mesh, 0);
-  my_transform.loop_over_mesh(&mesh_and_domain, 0, err);
+  my_transform.loop_over_mesh(&mesh, 0, 0, err);
   if (err) return 1;
     //mesh->write_exodus("transformed_mesh.exo", err);
   mesh.write_vtk("transformed_mesh.vtk", err);

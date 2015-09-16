@@ -43,7 +43,6 @@ int main(int argc, char* argv[])
   my_mesh.read_vtk(argv[1], err);
   if (err)
   {
-
     std::cout << err << std::endl;
     return 1;
   }
@@ -55,8 +54,7 @@ int main(int argc, char* argv[])
   PlanarDomain my_mesh_plane(normal, point);
 
   Mesquite::ShapeImprover mesh_quality_algorithm;
-  MeshDomainAssoc mesh_and_domain = MeshDomainAssoc(&my_mesh, &my_mesh_plane);
-  mesh_quality_algorithm.run_instructions(&mesh_and_domain, err);
+  mesh_quality_algorithm.run_instructions( &my_mesh, &my_mesh_plane, err);
     //Should check the error object after the instruction is ran
     // to see whether the instructions were all successful.
   if (err)

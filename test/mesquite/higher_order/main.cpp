@@ -65,7 +65,7 @@ using std::endl;
 #include "ConditionNumberQualityMetric.hpp"
 #include "LPtoPTemplate.hpp"
 #include "LInfTemplate.hpp"
-#include "SteepestDescent.hpp"
+#include "FeasibleNewton.hpp"
 #include "ConjugateGradient.hpp"
 
 #include "PlanarDomain.hpp"
@@ -114,7 +114,7 @@ const char HOUR_INPUT_FILE_NAME[]         = SRCDIR "hour-quad8.vtk";
 const char OUTPUT_FILE_NAME[]             = "smoothed_qudratic_mesh.vtk";
 const unsigned NUM_CORNER_VERTICES = 16;
 const unsigned NUM_MID_NODES = 24;
-const double SPATIAL_COMPARE_TOLERANCE = 4e-6;
+const double SPATIAL_COMPARE_TOLERANCE = 1e-6;
 
 
 void compare_nodes( size_t start_index,
@@ -220,7 +220,7 @@ InstructionQueue* create_instruction_queue(MsqError& err)
   
   // creates the optimization procedures
 //   ConjugateGradient* pass1 = new ConjugateGradient( obj_func, err );
-  SteepestDescent* pass1 = new SteepestDescent( obj_func );
+  FeasibleNewton* pass1 = new FeasibleNewton( obj_func );
 
   //perform optimization globally
   pass1->use_global_patch();
@@ -288,8 +288,7 @@ int do_test( bool slave)
   cout << "Smoothing linear elements" << endl;
   InstructionQueue* q1 = create_instruction_queue( err );
   if (MSQ_CHKERR(err)) return 1;
-  MeshDomainAssoc mesh_and_domain = MeshDomainAssoc(linear_in, &geom);
-  q1->run_instructions( &mesh_and_domain, err ); 
+  q1->run_instructions( linear_in, &geom, err ); 
   if (MSQ_CHKERR(err)) return 1;
   cout << "Checking results" << endl;
   compare_nodes( 0, NUM_CORNER_VERTICES, linear_in, linear_ex, err );
@@ -307,8 +306,7 @@ int do_test( bool slave)
   if (!slave)
     q3->set_slaved_ho_node_mode(Settings::SLAVE_NONE);
 //  q3->set_mapping_function( &quad9 );
-  MeshDomainAssoc mesh_and_domain2 = MeshDomainAssoc(quadratic_in_2, &geom);
-  q3->run_instructions( &mesh_and_domain2, err ); 
+  q3->run_instructions( quadratic_in_2, &geom, err ); 
   if (MSQ_CHKERR(err)) return 1;
     // Make sure corner vertices are the same as in the linear case
   cout << "Checking results" << endl;
@@ -355,8 +353,7 @@ int do_smooth_ho()
   if (MSQ_CHKERR(err)) return 1;
   q1->set_slaved_ho_node_mode(Settings::SLAVE_NONE);
 //  q1->set_mapping_function( &quad9 );
-    MeshDomainAssoc mesh_and_domain = MeshDomainAssoc(quadratic_in, &geom);
-  q1->run_instructions( &mesh_and_domain, err ); 
+  q1->run_instructions( quadratic_in, &geom, err ); 
   if (MSQ_CHKERR(err)) return 1;
   cout << "Checking results" << endl;
   //compare_nodes( 0, NUM_CORNER_VERTICES + NUM_MID_NODES,

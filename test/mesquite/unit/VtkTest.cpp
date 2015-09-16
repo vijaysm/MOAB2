@@ -36,7 +36,6 @@ using std::cout;
 #  include "Mesquite.hpp"
 #  include "PatchData.hpp"
 #  include "MeshImpl.hpp"
-#  include "MeshInterface.hpp"
 #  include "VertexPatches.hpp"
 #  include "PatchIterator.hpp"
 #  include "UnitUtil.hpp"
@@ -55,7 +54,6 @@ using std::cout;
 #endif
 
 #include <algorithm>
-
 
 extern const char temp_file_name[] = "VtkTest.vtk";
 
@@ -1151,10 +1149,9 @@ public:
   {
     Mesquite::MsqPrintError err(cout);
     MeshImpl mMesh;
-    mMesh.read_vtk(MESH_FILES_DIR "2D/vtk/tris/untangled/equil_tri2.vtk", err);
+    mMesh.read_vtk(MESH_FILES_DIR "2D/VTK/equil_tri2.vtk", err);
     ASSERT_NO_ERROR(err);
-    Mesquite::MeshDomainAssoc mesh_and_domain = Mesquite::MeshDomainAssoc(&mMesh, 0);
-    Mesquite::Instruction::initialize_vertex_byte( &mesh_and_domain, 0, err );
+    Mesquite::Instruction::initialize_vertex_byte( &mMesh, 0, 0, err );
     ASSERT_NO_ERROR(err);
     
       // Retrieve a patch

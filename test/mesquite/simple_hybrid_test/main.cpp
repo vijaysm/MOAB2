@@ -57,7 +57,7 @@ describe main.cpp here
 #include "IdealWeightInverseMeanRatio.hpp"
 #include "EdgeLengthQualityMetric.hpp"
 #include "LPtoPTemplate.hpp"
-#include "SteepestDescent.hpp"
+#include "FeasibleNewton.hpp"
 #include "ConjugateGradient.hpp"
 
 #include <iostream>
@@ -76,7 +76,8 @@ int main()
   Vector3D s_norm(0,0,1);
   Mesquite::PlanarDomain msq_geom(s_norm, pnt);
      
-  mesh.read_vtk(MESH_FILES_DIR "2D/vtk/mixed/untangled/hybrid_3quad_1tri.vtk", err);
+    //mesh->read_vtk(MESH_FILES_DIR "2D/VTK/cube-clip-corner.vtk", err);
+  mesh.read_vtk(MESH_FILES_DIR "2D/VTK/hybrid_3quad_1tri.vtk", err);
   if (err) return 1;
   
     // creates an intruction queue
@@ -96,7 +97,7 @@ int main()
   
     // creates the steepest descent, feas newt optimization procedures
     //ConjugateGradient* pass1 = new ConjugateGradient( &obj_func, err );
-  SteepestDescent pass1( &obj_func );
+  FeasibleNewton pass1( &obj_func );
   pass1.use_global_patch();
   if (err) return 1;;
   
@@ -125,8 +126,7 @@ int main()
   mesh.write_vtk("original_mesh.vtk",err); 
   if (err) return 1;
   
-  MeshDomainAssoc mesh_and_domain = MeshDomainAssoc(&mesh, &msq_geom);
-  queue1.run_instructions(&mesh_and_domain, err); 
+  queue1.run_instructions(&mesh, &msq_geom, err); 
   if (err) return 1;
   mesh.write_vtk("smoothed_mesh.vtk",err); 
   if (err) return 1;

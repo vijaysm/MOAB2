@@ -49,7 +49,7 @@
 using namespace Mesquite;
 
 
-const char DEFAULT_INPUT[] = MESH_FILES_DIR "/2D/vtk/quads/tangled/inverted-hole-1.vtk";
+const char DEFAULT_INPUT[] = MESH_FILES_DIR "/2D/VTK/inverted-hole-1.vtk";
 
 void usage( const char* argv0, bool help = false ) {
   std::ostream& str = help ? std::cout : std::cerr;
@@ -99,8 +99,7 @@ int main( int argc, char* argv[] )
 #endif
   IdealWeightInverseMeanRatio extra_metric;
   smoother.quality_assessor().add_quality_assessment(&extra_metric);
-  MeshDomainAssoc mesh_and_domain = MeshDomainAssoc(&mesh, &plane);
-  smoother.run_instructions( &mesh_and_domain, err );
+  smoother.run_instructions( &mesh, &plane, err );
   if (err) {
     std::cerr << err << std::endl
               << input_file << ": smoother failed" << std::endl;

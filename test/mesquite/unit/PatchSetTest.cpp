@@ -299,8 +299,7 @@ void PatchSetTest::test_vertex_patches()
   VertexPatches vp;
   MsqPrintError err(std::cout);
   vp.set_mesh( &myMesh );
-  MeshDomainAssoc mesh_and_domain = MeshDomainAssoc(&myMesh, 0);
-  Instruction::initialize_vertex_byte( &mesh_and_domain, 0, err );
+  Instruction::initialize_vertex_byte( &myMesh, 0, 0, err );
   ASSERT_NO_ERROR(err);
   
     // Get data from myMesh to compare to

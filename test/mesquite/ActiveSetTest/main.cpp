@@ -71,11 +71,12 @@ int main()
 {     
     /* Reads a Mesh file */
   const char *file_name = 
-//      MESH_FILES_DIR "2D/vtk/tris/untangled/equil_tri2.vtk";
-//      MESH_FILES_DIR "2D/vtk/tris/untangled/tri_20258.vtk";
-//      MESH_FILES_DIR "3D/vtk/tets/untangled/tet_1.vtk";
-//      MESH_FILES_DIR "3D/vtk/hexes/untangled/cube_tet_2.vtk";
-     MESH_FILES_DIR "3D/vtk/tets/untangled//tire.vtk";
+//      MESH_FILES_DIR "2D/VTK/equil_tri2.vtk";
+//      MESH_FILES_DIR "2D/VTK/bad_circle_tri_rhr.vtk";
+//      MESH_FILES_DIR "2D/VTK/tri_20258.vtk";
+//      MESH_FILES_DIR "3D/VTK/tet_1.vtk";
+//      MESH_FILES_DIR "3D/VTK/cube_tet_2.vtk";
+     MESH_FILES_DIR "3D/VTK/tire.vtk";
   printf("Loading mesh set 1\n");
   MsqPrintError err( cout );
   Mesquite::MeshImpl mesh;

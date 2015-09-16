@@ -33,7 +33,6 @@
 #include "Mesquite.hpp"
 #include "MsqIGeom.hpp"
 #include "MeshImpl.hpp"
-#include "MsqIMeshP.hpp"
 #include "MsqError.hpp"
 #include "ShapeImprovementWrapper.hpp"
 #include "MsqVertex.hpp"
@@ -62,7 +61,7 @@ bool chk_igeom_error( int ierr, const char* file, int line )
   return true;
 }
 
-const char* const default_file_name = MESH_FILES_DIR "2D/vtk/quads/untangled/quads_on_sphere_529.vtk";
+const char* const default_file_name = MESH_FILES_DIR "2D/VTK/quads_on_sphere_529.vtk";
 
 void usage()
 {
@@ -111,7 +110,6 @@ int main(int argc, char* argv[])
   
   MsqError err;
   MeshImpl mesh;
-  //MsqIMesh mesh;
   mesh.read_vtk( file_name, err );
   if (MSQ_CHKERR(err)) {
     std::cerr << err << std::endl;
@@ -158,7 +156,7 @@ int main(int argc, char* argv[])
 void run_smoother( Mesh& mesh, MeshDomain* dom, MsqError& err )
 {
   ShapeImprovementWrapper smoother;
-  smoother.run_instructions( dynamic_cast<ParallelMesh*>(&mesh), dom, err );
+  smoother.run_instructions( &mesh, dom, err );
   MSQ_CHKERR(err);
   
   if (smoother.quality_assessor().invalid_elements()) {
@@ -219,7 +217,7 @@ bool check_results( Mesh& mesh, MeshDomain* dom, MsqError& err )
 
 MeshDomain* get_itaps_domain()
 {
-  const double EPS = 1e-6;
+  const double EPS = 2e-6;
   int ierr;
   iGeom_Instance igeom;
   iGeom_newGeom( "", &igeom, &ierr, 0 ); CHKIGEOM;

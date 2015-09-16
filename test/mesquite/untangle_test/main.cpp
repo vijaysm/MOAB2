@@ -72,7 +72,7 @@ using std::endl;
 
 using namespace Mesquite;
 
-#define VTK_2D_DIR MESH_FILES_DIR "2D/vtk/"
+#define VTK_2D_DIR MESH_FILES_DIR "2D/VTK/"
 
 const bool brief_output = true;
 const bool write_output = false;
@@ -81,11 +81,11 @@ int main( )
 {
   Mesquite::MeshImpl mesh;
   MsqPrintError err(cout);
-  mesh.read_vtk(VTK_2D_DIR "quads/tangled/tangled_quad.vtk", err);
+  mesh.read_vtk(VTK_2D_DIR "tangled_quad.vtk", err);
   if (err) return 1;
   
   // Set Domain Constraint
-  Vector3D pnt(0,0,5);
+  Vector3D pnt(0,0,0);
   Vector3D s_norm(0,0,1);
   PlanarDomain msq_geom(s_norm, pnt);
                                                                               
@@ -153,8 +153,7 @@ int main( )
   if (err) return 1;
   
     // launches optimization on mesh_set1
-  MeshDomainAssoc mesh_and_domain = MeshDomainAssoc(&mesh, &msq_geom);
-  queue1.run_instructions(&mesh_and_domain, err);
+  queue1.run_instructions(&mesh, &msq_geom, err);
   if (err) return 1;
   
   if (write_output)

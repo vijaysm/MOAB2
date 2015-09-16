@@ -51,7 +51,7 @@ using std::endl;
 
 using namespace Mesquite;
 
-const char DEFAULT_INPUT[] = MESH_FILES_DIR "2D/vtk/quads/untangled/bias-sphere-quads.vtk";
+const char DEFAULT_INPUT[] = MESH_FILES_DIR "2D/VTK/bias-sphere-quads.vtk";
 
 void help(const char* argv0)
 {
@@ -112,8 +112,7 @@ int main(int argc, char* argv[])
     /* Run optimizer */
   SphericalDomain geom( Vector3D(0,0,0), 10.0 );
   SizeAdaptShapeWrapper smoother(1e-2);
-  MeshDomainAssoc mesh_and_domain = MeshDomainAssoc(&mesh, &geom);
-  smoother.run_instructions( &mesh_and_domain, err);
+  smoother.run_instructions( &mesh, &geom, err);
   if (err) return 1;
   
   if (output_file) {

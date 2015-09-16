@@ -65,7 +65,7 @@ int main()
 {
   Mesquite::MeshImpl mesh;
   MsqPrintError err(cout);
-  mesh.read_vtk(MESH_FILES_DIR "2D/vtk/quads/untangled/square_quad_2.vtk", err);
+  mesh.read_vtk(MESH_FILES_DIR "2D/VTK/square_quad_2.vtk", err);
   if (err) return 1;
   
      //create geometry: plane z=0, normal (0,0,1)
@@ -80,8 +80,7 @@ int main()
   if (err) return 1;
   
     // launches optimization on mesh_set1
-  MeshDomainAssoc mesh_and_domain = MeshDomainAssoc(&mesh, &msq_geom);
-  laplacian_smoother.run_instructions(&mesh_and_domain, err); 
+  laplacian_smoother.run_instructions(&mesh, &msq_geom, err); 
   if (err) return 1;
  
   mesh.write_vtk("smoothed_mesh.vtk", err); 

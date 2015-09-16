@@ -37,7 +37,6 @@
 #include "ConjugateGradient.hpp"
 #include "FeasibleNewton.hpp"
 #include "PlanarDomain.hpp"
-#include "XYPlanarDomain.hpp"
 #include "ReferenceMesh.hpp"
 #include "RefMeshTargetCalculator.hpp"
 #include "TQualityMetric.hpp"
@@ -459,7 +458,7 @@ bool run_smoother( mesh_reader_t input_mesh,
     fn.use_global_patch();
   }
   VertexMover* solver = USE_FEAS_NEWT ? (VertexMover*)&fn : (VertexMover*)&cg;
-  XYPlanarDomain plane2;
+  PlanarDomain plane( PlanarDomain::XY );
   solver->set_inner_termination_criterion( &inner );
   solver->set_outer_termination_criterion( &outer );
 
@@ -468,9 +467,7 @@ bool run_smoother( mesh_reader_t input_mesh,
   CHKERR(err)
 
   cout << "Running " << exp << "." << n << " ...";
-
-  MeshDomainAssoc mesh_and_domain = MeshDomainAssoc(&active, &plane2);
-  q.run_instructions( &mesh_and_domain, err );
+  q.run_instructions( &active, &plane, err );
   if (MSQ_CHKERR(err)) {
     cout << "######## EXPERIMENT " << exp << "." << n << " FAILED! ##########" << endl;
     return false;
