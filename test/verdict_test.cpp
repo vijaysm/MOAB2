@@ -21,7 +21,6 @@ int main( int argc, char* argv[] )
 {
   if(argc > 1) if (argc > 1) filename = std::string(argv[1]);
 
-
   int result = 0;
 
   result += RUN_TEST(verdict_test1);
@@ -34,8 +33,7 @@ void verdict_test1()
   ErrorCode rval;
   Core moab_core;
   Interface* mb = &moab_core;
-  rval = mb->load_mesh( filename.c_str());
-  CHECK_ERR(rval);
+  rval = mb->load_mesh( filename.c_str());CHECK_ERR(rval);
 
   Range entities;
   rval = mb->get_entities_by_handle( 0, entities ); // all entities from the model
@@ -43,9 +41,8 @@ void verdict_test1()
 
   VerdictWrapper vw(mb);
   // for size methods/quality, we need a size, to compute relative sizes and stuff
-  rval = vw.set_size(1.0);
-  CHECK_ERR(rval);
-  for (Range::iterator eit=entities.begin(); eit!=entities.end(); eit++)
+  rval = vw.set_size(1.0);CHECK_ERR(rval);
+  for (Range::iterator eit=entities.begin(); eit!=entities.end(); ++eit)
   {
     EntityHandle eh=*eit;
     EntityType etype=TYPE_FROM_HANDLE(eh);
@@ -365,7 +362,7 @@ void verdict_unit_tests()
 
   ErrorCode merr;
   Interface* iface = new Core();
-  VerdictWrapper vw(iface);
+  VerdictWrapper* vw = new VerdictWrapper(iface);
   EntityHandle dummy=0;
 
   // loop through each test
@@ -385,7 +382,7 @@ void verdict_unit_tests()
           */
 
           cout << "\t #" << j+1 << " TESTING :: " << QualityType_ToString(testcases[i].function[j]) << endl;
-          merr = vw.quality_measure(dummy, testcases[i].function[j], answer_from_lib,
+          merr = vw->quality_measure(dummy, testcases[i].function[j], answer_from_lib,
                                       testcases[i].num_nodes, testcases[i].etype, testcases[i].coords);MB_CHK_ERR_RET(merr);
 
           sprintf(exponent, "%e", testcases[i].answer[j]);
@@ -412,6 +409,8 @@ void verdict_unit_tests()
           }
       }
   }
+  delete vw;
+  delete iface;
   std::cout << endl << "All tests passed ? " << (passed ? 1 : 0) << endl ;
   return;
 }
