@@ -156,4 +156,8 @@ MOSTLYCLEANFILES = mhdf_ll.h5m tmp0.h5m tmp1.h5m tmp2.h5m tmp3.h5m \
                    test_par_mpas_vars.nc \
                    test2.h5m  \
                    testpm.h5m \
-                   newfile.h5m
+                   newfile.h5m \
+                   TaskMesh_n2.0.h5m \
+                   TaskMesh_n2.1.h5m \
+                   testReadGhost_n2.0.h5m \
+                   testReadGhost_n2.1.h5m
