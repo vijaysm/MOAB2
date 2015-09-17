@@ -16,7 +16,7 @@ else
   EXO_TEST = 
 endif
 
-if WITH_CPPUNIT
+if HAVE_CPPUNIT
   UNIT_TEST = unit
 else
   UNIT_TEST =

@@ -1025,7 +1025,6 @@ fi
 
 AC_MSG_CHECKING([if Mesquite support is to be built])
 AC_MSG_RESULT([$ENABLE_mesquite])
-AM_CONDITIONAL([ENABLE_mesquite],[test "xyes" = "x$ENABLE_mesquite"])
 if (test "xno" != "x$ENABLE_mesquite"); then
   if (test "x$ENABLE_imesh" != "xyes" || test "x$CGM_MISSING" != "xno"); then
     ENABLE_mesquite=no
@@ -1036,6 +1035,7 @@ if (test "xno" != "x$ENABLE_mesquite"); then
     AC_DEFINE(HAVE_MESQUITE,[1],"MOAB configured with Mesquite support")
   fi
 fi
+AM_CONDITIONAL([ENABLE_mesquite],[test "xyes" = "x$ENABLE_mesquite"])
 AM_CONDITIONAL([HAVE_CPPUNIT],[test "x$HAVE_CPPUNIT" = "xyes"])
 
 ###############################################################################
