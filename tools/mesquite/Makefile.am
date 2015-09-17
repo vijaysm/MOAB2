@@ -1,7 +1,7 @@
 @UTIL_MAKE_INCLUDE@
 LDADD = libmsqutil.la $(top_builddir)/src/mesquite/libmesquite.la
 bin_PROGRAMS = vtkrandom vtkxform msqshape msqquality
-man1_MANS = vtkrandom.1 vtkxform.1 msqshape.1 msqquality.1
+dist_man1_MANS = vtkrandom.1 vtkxform.1 msqshape.1 msqquality.1
 noinst_LTLIBRARIES = libmsqutil.la
 
 libmsqutil_la_SOURCES = CLArgs.cpp CLArgs.hpp \
@@ -25,6 +25,6 @@ vtkxform.1: vtkxform$(EXEEXT)
 msqquality.1: msqquality$(EXEEXT)
 	./$< -M > $@ || touch $@
 
-MOSTLYCLEANFILES = $(man1_MANS)
+MOSTLYCLEANFILES = $(dist_man1_MANS)
 
 EXTRA_DIST = CMakeLists.txt
