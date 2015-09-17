@@ -23,7 +23,7 @@ endif
 #endif
 
 if HAVE_MPI
-  PARALLEL_UNTANGLE_SHAPE = parallel_untangle_shape
+  PARALLEL_UNTANGLE_SHAPE = #parallel_untangle_shape
   PARALLEL_SMOOTH_LAPLACE = parallel_smooth_laplace
 else
   PARALLEL_UNTANGLE_SHAPE = 
@@ -45,10 +45,8 @@ SUBDIRS = test_1 \
 	  $(IMESH_TEST) \
 	  jacobi \
 	  laplacian_test\
-	  laplacian_polygon_test\
 	  $(PARALLEL_SMOOTH_LAPLACE) \
 	  $(PARALLEL_UNTANGLE_SHAPE) \
-	  nongradient_test\
 	  pyramid \
 	  simple_hybrid_test\
           slaved \
@@ -62,6 +60,9 @@ SUBDIRS = test_1 \
 	  2d_metrics\
 	  2d_formulation \
           $(UNIT_TEST)
+
+#	  laplacian_polygon_test
+#	  nongradient_test
 
 EXTRA_DIST = CMakeLists.txt
 
