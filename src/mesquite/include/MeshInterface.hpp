@@ -42,9 +42,13 @@
 #include "Mesquite.hpp"
 #include "TopologyInfo.hpp"
 
+#include "MsqError.hpp"
+#include "MsqVertex.hpp"
+
 #include <vector>
 #include <cstddef>
 #include <string>
+#include <iostream>
 
 namespace MESQUITE_NS
 {
@@ -481,6 +485,98 @@ namespace MESQUITE_NS
                              
        
   };
+
+
+  class MESQUITE_EXPORT MeshDomainAssoc
+  {
+  public:
+
+    MeshDomainAssoc(Mesquite::Mesh* mesh, 
+                    Mesquite::MeshDomain* domain, 
+                    bool full_compatibility_check=false,
+                    bool proceed=false,
+                    bool skip_compatibility_check=false)
+       : mMesh(mesh), mMeshDomain(domain), mesh_and_domain_are_compatible(false)
+    {
+        // check for real instance.  If either value is NULL then it's just an 
+        // instance created to facilitate passing of just a mesh or domain
+        // also, check if skipping the compatibility check was requested
+      if (mesh && domain && !skip_compatibility_check)
+      {
+        MsqError err;
+        double tolerance = 1.0e-3;
+
+        std::vector<Mesh::VertexHandle> vert_handles;
+        mMesh->get_all_vertices( vert_handles, err );     
+
+        MsqVertex mesh_vertex, domain_vertex;
+        Vector3D normal;
+
+        double distance; 
+        std::vector<int>::size_type i, times_to_loop;
+        if (full_compatibility_check)
+          times_to_loop = vert_handles.size();
+        else
+          times_to_loop = 1;
+        mesh_and_domain_are_compatible = true;
+        for (i = 0; i < times_to_loop; ++i) 
+        {
+          mMesh->vertices_get_coordinates(&vert_handles[i], 
+                                          &mesh_vertex,
+                                          1,
+                                          err);     
+          mMeshDomain->closest_point( vert_handles[i],
+                                      Vector3D(mesh_vertex),
+                                      domain_vertex,
+                                      normal,
+                                      err ); 
+
+        distance = Vector3D::distance_between(mesh_vertex, domain_vertex);
+        if ( distance > tolerance )
+        {
+          mesh_and_domain_are_compatible = false;
+          std::cout << "Warning: Mesh and Domain are not compatibile" << std::endl;
+          if (!proceed)
+          {
+            std::cout << "Terminating due to Mesh/Domain incompatibility" << std::endl;
+            throw "Terminating due to Mesh/Domain incompatibility";
+          }
+          break;   // exits for loop when not compatbile but should not terminate
+        }
+      }
+    }
+  }
+
+
+    ~MeshDomainAssoc() {};
+   
+  
+    Mesquite::Mesh* get_mesh()
+    {
+      return mMesh;
+    };
+   
+
+    Mesquite::MeshDomain* get_domain()
+    {
+      return mMeshDomain;
+    };
+
+
+  private:
+    Mesquite::Mesh* mMesh;
+    Mesquite::MeshDomain* mMeshDomain;
+    bool mesh_and_domain_are_compatible;
+
+  public:
+
+    bool are_compatible()
+    {
+      return mesh_and_domain_are_compatible;
+    };
+
+  };
+
 }
 
 inline size_t Mesquite::vertices_in_topology(Mesquite::EntityTopology topo)

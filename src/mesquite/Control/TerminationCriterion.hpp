@@ -55,18 +55,20 @@ namespace MESQUITE_NS
    class PatchDataVerticesMemento;
    class Mesh;
    class MeshDomain;
+   class MeshDomainAssoc;
    class Settings;
-   
+  class VertexMover;
+
   /*! \class TerminationCriterion
 
       \brief The TerminationCriterion class contains functionality to
       terminate the VertexMover's optimization.
 
-      The TerminationCriterion class has three roles.  It
+      The Termination Criterion class has three roles.  It
       is used to terminate the optimization on a single patch; it
       is used to terminate the iterations over all patches in the
-      mesh; and it is used to cull vertices frm the optimization
-      processes.  Thus, for each optimzation, two TerminationCriterion
+      mesh; and it is used to cull vertices from the optimization
+      processes.  Thus, for each optimization, two TerminationCriterion
       objects are used.  The class contains five important member
       functions used in the VertexMover:  initialize(), reset(),
       terminate(), cull_vertices(), and cleanup().  These functions
@@ -78,13 +80,13 @@ namespace MESQUITE_NS
 
       There are several different types of termination criteria
       available. Multiple criteria types can be set on a given
-      TermiantionCriterion object, and when this occurs, the
+      Termination Criterion object, and when this occurs, the
       optimization process will terminate whenever any of the
       criteria have been satisfied.
       
       The following is a brief description of how TerminationCriterion
       is used within Mesquite.  Functions called during QualityImprovement
-      can be devided into three groups:
+      can be divided into three groups:
         reset_*      - Initialize data for an iteration
         accumulate_* - Update TC for changed data during iteration
         terminate    - Check if the termination criterion has been met.
@@ -114,6 +116,7 @@ namespace MESQUITE_NS
         o Care should be taken that terminate() does not check 
           uninitialized data if called before the first call to
           accumulate_patch()
+
   */
   class TerminationCriterion
   {
@@ -237,6 +240,10 @@ namespace MESQUITE_NS
          //! decrease in the objective function value since the beginning
          //! of this optimization process.
     MESQUITE_EXPORT void cull_on_relative_successive_improvement( double limit );
+
+         //!Cull for a global patch - sets soft fixed flags for vertices
+         //! that touch elements that are culled by above flags.
+    MESQUITE_EXPORT void cull_for_global_patch( bool val=true );
     
      //!Cull when the mesh is detected to be untangled.
      //! Uses the same approach as QualityAssessor,
@@ -245,9 +252,14 @@ namespace MESQUITE_NS
     
     MESQUITE_EXPORT void remove_culling();
     
-
+    enum InnerOuterType {
+      TYPE_UNKNOWN,
+      TYPE_INNER,
+      TYPE_OUTER
+    };
+    
       //!Constructor which does not take any arguements
-    MESQUITE_EXPORT TerminationCriterion();
+    MESQUITE_EXPORT TerminationCriterion(std::string name="", InnerOuterType innerOuterType=TYPE_UNKNOWN);
     
       //!Destructor
     MESQUITE_EXPORT ~TerminationCriterion(){};
@@ -264,7 +276,7 @@ namespace MESQUITE_NS
       { debugLevel = i; }
     
     enum TimeStepFileType { NOTYPE = 0, VTK, GNUPLOT };
-    
+
     /**\brief Write mesh improvement animation 
      *
      * Write mesh at each iteration such that the sequence of mesh files can be used
@@ -319,23 +331,40 @@ namespace MESQUITE_NS
     
       //! Check if termination criterion has been met
     MESQUITE_EXPORT bool terminate();
+
+      //! Check if at least one termination criterion is set
+    MESQUITE_EXPORT bool criterion_is_set();
     
     
       //!Function which determines whether this patch should be 'culled'
     bool cull_vertices(PatchData &pd, OFEvaluator& obj_ptr, MsqError &err);
+
+      //!experimental, first cut at culling for global patches - not finished
+    bool cull_vertices_global(PatchData &global_patch,
+                              Mesh *mesh, MeshDomain *domain, const Settings *settings,
+                              OFEvaluator& of_eval,
+                              MsqError &err);
+
       //!Cleans up after the TerminationCriterion is finished.
     void cleanup(Mesh* ms, MeshDomain* domain, MsqError &err);
     
-    void initialize_queue( Mesh* mesh,
-                           MeshDomain* domain,
+    void initialize_queue( MeshDomainAssoc* mesh_and_domain,
                            const Settings* settings,
                            MsqError& err );
+
+    void initialize_queue( Mesh* mesh, MeshDomain*,
+                            const Settings* stg,
+                            MsqError& err );
+
+    friend class VertexMover;
 
  protected:
     
     void write_timestep( PatchData& pd, const Vector3D* gradient, MsqError& err );
     
     static size_t count_inverted( PatchData& pd, MsqError& err );
+
+    std::string par_string();  // for debug print of parallel rank
     
  private:
     //PRIVATE DATA MEMBERS
@@ -343,6 +372,8 @@ namespace MESQUITE_NS
     long unsigned int cullingMethodFlag;/*!<Bit flag of criterion for culling*/
       //epsiloon used in culling methods.
     double cullingEps;
+
+    bool cullingGlobalPatch;/*!<enable culling of pieces of a global patch*/
 
       //Data not specific to a single criterion
     double initialOFValue;
@@ -400,6 +431,8 @@ namespace MESQUITE_NS
     //! Base name for timestep files
     std::string timeStepFileName;    
     TimeStepFileType timeStepFileType;
+    std::string moniker;
+    InnerOuterType innerOuterType;
   };
 
 } //namespace

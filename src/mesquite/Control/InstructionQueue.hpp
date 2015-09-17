@@ -139,6 +139,14 @@ namespace MESQUITE_NS {
                              Settings* settings,
                              MsqError& err );
     
+ 
+    MESQUITE_EXPORT
+    virtual void run_common( MeshDomainAssoc* mesh_and_domain,
+                             ParallelMesh* pmesh,
+                             Settings* settings,
+                             MsqError& err )
+    { this->run_common(mesh_and_domain->get_mesh(), pmesh, mesh_and_domain->get_domain(), settings, err); }
+
 
     MESQUITE_EXPORT
     void clear();  

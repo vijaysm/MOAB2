@@ -49,8 +49,21 @@
 #include "SimpleStats.hpp"
 
 #include <sstream>
+#include <set>
 
 namespace MESQUITE_NS {
+
+extern int get_parallel_rank();
+extern int get_parallel_size();
+extern double reduce_parallel_max(double value);
+
+#define MSQ_DBGOUT_P0_ONLY(flag) if (!get_parallel_rank()) MSQ_DBGOUT(flag)
+
+#define RPM(val) val
+
+// this causes race conditions - don't use it
+#define RPM1(val) reduce_parallel_max(val)
+
  /*! \enum TCType  defines the termination criterion */
 enum TCType {
    NONE    = 0,
@@ -131,16 +144,17 @@ const unsigned long MOVEMENT_FLAGS = VERTEX_MOVEMENT_ABSOLUTE |
 
 /*!Constructor initializes all of the data members which are not
   necessarily automatically initialized in their constructors.*/
-TerminationCriterion::TerminationCriterion() 
+  TerminationCriterion::TerminationCriterion(std::string name, InnerOuterType innerOuterType)
   : mGrad(8),
     initialVerticesMemento(0),
     previousVerticesMemento(0),
     debugLevel(2),
-    timeStepFileType(NOTYPE)
+    timeStepFileType(NOTYPE), moniker(name), innerOuterType(innerOuterType)
 {
   terminationCriterionFlag=NONE;
   cullingMethodFlag=NONE;
   cullingEps=0.0;
+  cullingGlobalPatch=false;
   initialOFValue=0.0;
   previousOFValue=0.0;
   currentOFValue = 0.0;
@@ -167,6 +181,17 @@ TerminationCriterion::TerminationCriterion()
   globalInvertedCount = 0;
   patchInvertedCount = 0;
   
+}
+
+std::string TerminationCriterion::par_string() 
+{
+  if (get_parallel_size())
+    {
+      std::ostringstream str;
+      str << "P[" << get_parallel_rank() << "] " + moniker + " ";
+      return str.str();
+    }
+  return moniker + " ";
 }
 
 void TerminationCriterion::add_absolute_gradient_L2_norm( double eps )
@@ -311,6 +336,11 @@ void TerminationCriterion::remove_culling()
   cullingMethodFlag=NONE;
 }
 
+void TerminationCriterion::cull_for_global_patch(bool val)
+{
+  cullingGlobalPatch = val;
+}
+
 
 
 /*!This version of reset is called using a MeshSet, which implies
@@ -407,15 +437,15 @@ void TerminationCriterion::reset_inner(PatchData &pd, OFEvaluator& obj_eval,
     if (totalFlag & (GRADIENT_INF_NORM_ABSOLUTE|GRADIENT_INF_NORM_RELATIVE))
     {
       currentGradInfNorm = initialGradInfNorm = Linf(mGrad);
-      MSQ_DBGOUT(debugLevel) << "  o Initial gradient Inf norm: " 
-        << initialGradInfNorm << std::endl;
+      MSQ_DBGOUT_P0_ONLY(debugLevel) << par_string() << "  o Initial gradient Inf norm: " << " "
+                                     << RPM(initialGradInfNorm) << std::endl;
     }  
       
     if (totalFlag & (GRADIENT_L2_NORM_ABSOLUTE|GRADIENT_L2_NORM_RELATIVE))
     {
       currentGradL2NormSquared = initialGradL2NormSquared = length_squared(mGrad);
-      MSQ_DBGOUT(debugLevel) << "  o Initial gradient L2 norm: " 
-        << std::sqrt(initialGradL2NormSquared) << std::endl;
+      MSQ_DBGOUT_P0_ONLY(debugLevel) << par_string() << "  o Initial gradient L2 norm: " << " "
+                                     << RPM(std::sqrt(initialGradL2NormSquared)) << std::endl;
     }  
 
       //the OFvalue comes for free, so save it
@@ -449,7 +479,7 @@ void TerminationCriterion::reset_inner(PatchData &pd, OFEvaluator& obj_eval,
   }
   
   if (totalFlag & (GRAD_FLAGS|OF_FLAGS))
-    MSQ_DBGOUT(debugLevel) << "  o Initial OF value: " << initialOFValue << std::endl;
+    MSQ_DBGOUT_P0_ONLY(debugLevel) << par_string() << "  o Initial OF value: " << " " << RPM(initialOFValue) << std::endl;
   
     // Store current vertex locations now, because we'll
     // need them later to compare the current movement with.
@@ -472,6 +502,7 @@ void TerminationCriterion::reset_inner(PatchData &pd, OFEvaluator& obj_eval,
   
   if (terminationCriterionFlag & UNTANGLED_MESH) {
     globalInvertedCount = count_inverted( pd, err );
+    //if (innerOuterType==TYPE_OUTER) MSQ_DBGOUT_P0_ONLY(debugLevel) << par_string() << "  o Num Inverted: " << " " << globalInvertedCount << std::endl;
     patchInvertedCount = 0;
     MSQ_ERRRTN(err);
   }
@@ -517,6 +548,7 @@ void TerminationCriterion::reset_patch(PatchData &pd, MsqError &err)
 
   if (totalFlag & UNTANGLED_MESH) {
     patchInvertedCount = count_inverted( pd, err );
+    //MSQ_DBGOUT_P0_ONLY(debugLevel) << par_string() << "  o Num Patch Inverted: " << " " << patchInvertedCount << std::endl;
     MSQ_ERRRTN(err);
   }
 }
@@ -562,30 +594,34 @@ void TerminationCriterion::accumulate_inner( PatchData& pd,
   if (terminationCriterionFlag & (GRADIENT_L2_NORM_ABSOLUTE | GRADIENT_L2_NORM_RELATIVE)) 
   {
     currentGradL2NormSquared = length_squared(grad_array, pd.num_free_vertices()); // get the L2 norm
-    MSQ_DBGOUT(debugLevel) << "  o TermCrit -- gradient L2 norm: " 
-      << std::sqrt(currentGradL2NormSquared) << std::endl;
+    MSQ_DBGOUT_P0_ONLY(debugLevel) << par_string() << "  o Info -- gradient L2 norm: " << " "
+                                   << RPM(std::sqrt(currentGradL2NormSquared)) << std::endl;
   }
   //currentGradInfNorm = 10e6;
   if (terminationCriterionFlag & (GRADIENT_INF_NORM_ABSOLUTE | GRADIENT_INF_NORM_RELATIVE)) 
   {
     currentGradInfNorm = Linf(grad_array, pd.num_free_vertices()); // get the Linf norm
-    MSQ_DBGOUT(debugLevel) << "  o TermCrit -- gradient Inf norm: " 
-      << currentGradInfNorm << std::endl;
+    MSQ_DBGOUT_P0_ONLY(debugLevel) << par_string() << "  o Info -- gradient Inf norm: " << " "
+                                   << RPM(currentGradInfNorm) << std::endl;
   } 
   
   if (terminationCriterionFlag & VERTEX_MOVEMENT_RELATIVE)
   {
     maxSquaredInitialMovement = pd.get_max_vertex_movement_squared(
                                initialVerticesMemento, err );  MSQ_ERRRTN(err);
+    MSQ_DBGOUT_P0_ONLY(debugLevel) << par_string() << "  o Info -- max initial vertex movement: " << " "
+                                   << RPM(maxSquaredInitialMovement) << std::endl;
   }
   
   previousOFValue = currentOFValue;
   currentOFValue = of_value;
   if (terminationCriterionFlag & OF_FLAGS) {
-    MSQ_DBGOUT(debugLevel) << "  o TermCrit -- OF Value: " << of_value << std::endl;
+    MSQ_DBGOUT_P0_ONLY(debugLevel) << par_string() << "  o Info -- OF Value: " << " " << RPM(of_value) << " iterationCounter= " << iterationCounter << std::endl;
   }
   else if (grad_array) {
-    MSQ_DBGOUT(debugLevel) << "  o OF Value: " << of_value << std::endl;
+    MSQ_DBGOUT_P0_ONLY(debugLevel) << par_string() << "  o OF Value: " << " " << RPM(of_value) << " iterationCounter= " << iterationCounter 
+      //<< " terminationCriterionFlag= " << terminationCriterionFlag << " OF_FLAGS = " << OF_FLAGS
+                                   << std::endl;
   }
   
   ++iterationCounter;
@@ -663,6 +699,8 @@ void TerminationCriterion::accumulate_patch( PatchData& pd, MsqError& err )
     globalInvertedCount += new_count;
     globalInvertedCount -= patchInvertedCount;
     patchInvertedCount = new_count;
+    //if (innerOuterType==TYPE_OUTER) 
+    //  MSQ_DBGOUT_P0_ONLY(debugLevel) << par_string() << "  o Num Patch Inverted: " << " " << patchInvertedCount << " globalInvertedCount= " << globalInvertedCount << std::endl;
       
     MSQ_ERRRTN(err);
   }
@@ -676,12 +714,13 @@ void TerminationCriterion::accumulate_patch( PatchData& pd, MsqError& err )
 bool TerminationCriterion::terminate( )
 {
   bool return_flag = false;
-  //  cout<<"\nInside terminate(pd,of,err):  flag = "<<terminationCriterionFlag << endl;
+  //std::cout<<"\nInside terminate(pd,of,err):  flag = "<<terminationCriterionFlag << std::endl;
+  int type=0;
 
     //First check for an interrupt signal
   if (MsqInterrupt::interrupt())
   {
-     MSQ_DBGOUT(debugLevel) << "  o TermCrit -- INTERRUPTED" << std::endl;
+     MSQ_DBGOUT_P0_ONLY(debugLevel) << par_string() << "  o TermCrit -- INTERRUPTED" << " " << std::endl;
     return true;
   }
   
@@ -690,32 +729,40 @@ bool TerminationCriterion::terminate( )
     && iterationCounter >= iterationBound)
   {
     return_flag = true;
-    MSQ_DBGOUT(debugLevel) << "  o TermCrit -- Reached " << iterationBound << " iterations." << std::endl;
+    type=1;
+    MSQ_DBGOUT_P0_ONLY(debugLevel) << par_string() << "  o TermCrit -- Reached " << " " << iterationBound << " iterations." << std::endl;
   }
   
   if (CPU_TIME & terminationCriterionFlag && mTimer.since_birth()>=timeBound)
   {
     return_flag=true;
-    MSQ_DBGOUT(debugLevel) << "  o TermCrit -- Exceeded CPU time." << std::endl;
+    type=2;
+    MSQ_DBGOUT_P0_ONLY(debugLevel) << par_string() << "  o TermCrit -- Exceeded CPU time. " << " " << std::endl;
   }
   
   
   if (MOVEMENT_FLAGS & terminationCriterionFlag
       && maxSquaredMovement >= 0.0)
   {
-    MSQ_DBGOUT(debugLevel) << "  o TermCrit -- Maximuim vertex movement: "
-    << sqrt(maxSquaredMovement) << std::endl;
+    MSQ_DBGOUT_P0_ONLY(debugLevel) << par_string() << "  o Info -- Maximum vertex movement: " << " "
+                                   << RPM(sqrt(maxSquaredMovement)) << std::endl;
 
     if (VERTEX_MOVEMENT_ABSOLUTE & terminationCriterionFlag 
         && maxSquaredMovement <= vertexMovementAbsoluteEps)
     {
+      MSQ_DBGOUT_P0_ONLY(debugLevel) << par_string() << "  o TermCrit -- VERTEX_MOVEMENT_ABSOLUTE: " << " "
+                                     << RPM(sqrt(maxSquaredMovement)) << std::endl;
       return_flag = true;
+    type=3;
     }
   
     if (VERTEX_MOVEMENT_RELATIVE & terminationCriterionFlag
         && maxSquaredMovement <= vertexMovementRelativeEps*maxSquaredInitialMovement)
     {
+      MSQ_DBGOUT_P0_ONLY(debugLevel) << par_string() << "  o TermCrit -- VERTEX_MOVEMENT_RELATIVE: " << " "
+                                     << RPM(sqrt(maxSquaredMovement)) << std::endl;
       return_flag = true;
+    type=4;
     }
 
     if (VERTEX_MOVEMENT_ABS_EDGE_LENGTH & terminationCriterionFlag)
@@ -723,7 +770,10 @@ bool TerminationCriterion::terminate( )
       assert( vertexMovementAbsoluteAvgEdge > -1e-12 ); // make sure value actually got calculated
       if (maxSquaredMovement <= vertexMovementAbsoluteAvgEdge)
       {
+        MSQ_DBGOUT_P0_ONLY(debugLevel) << par_string() << "  o TermCrit -- VERTEX_MOVEMENT_ABS_EDGE_LENGTH: " << " "
+                                       << RPM(sqrt(maxSquaredMovement)) << std::endl;
         return_flag = true;
+        type=5;
       }
     }
   }
@@ -731,32 +781,42 @@ bool TerminationCriterion::terminate( )
   if (GRADIENT_L2_NORM_ABSOLUTE & terminationCriterionFlag &&
       currentGradL2NormSquared <= gradL2NormAbsoluteEpsSquared)
   {
+    MSQ_DBGOUT_P0_ONLY(debugLevel) << par_string() << "  o TermCrit -- GRADIENT_L2_NORM_ABSOLUTE: " << " " << RPM(currentGradL2NormSquared) << std::endl;
     return_flag = true;
+    type=6;
   }
   
   if (GRADIENT_INF_NORM_ABSOLUTE & terminationCriterionFlag &&
       currentGradInfNorm <= gradInfNormAbsoluteEps)
   {
+    MSQ_DBGOUT_P0_ONLY(debugLevel) << par_string() << "  o TermCrit -- GRADIENT_INF_NORM_ABSOLUTE: " << " " << RPM(currentGradInfNorm) << std::endl;
     return_flag = true;
+    type=7;
   }
   
   if (GRADIENT_L2_NORM_RELATIVE & terminationCriterionFlag &&
       currentGradL2NormSquared <= (gradL2NormRelativeEpsSquared * initialGradL2NormSquared))
   {
+    MSQ_DBGOUT_P0_ONLY(debugLevel) << par_string() << "  o TermCrit -- GRADIENT_L2_NORM_RELATIVE: " << " " << RPM(currentGradL2NormSquared) << std::endl;
     return_flag = true;
+    type=8;
   }
   
   if (GRADIENT_INF_NORM_RELATIVE & terminationCriterionFlag &&
       currentGradInfNorm <= (gradInfNormRelativeEps * initialGradInfNorm))
   {
+    MSQ_DBGOUT_P0_ONLY(debugLevel) << par_string() << "  o TermCrit -- GRADIENT_INF_NORM_RELATIVE: " << " " << RPM(currentGradInfNorm) << std::endl;
     return_flag = true;
+    type=9;
   }
     //Quality Improvement and Successive Improvements are below.
     // The relative forms are only valid after the first iteration.
-  if (QUALITY_IMPROVEMENT_ABSOLUTE & terminationCriterionFlag &&
+  if ((QUALITY_IMPROVEMENT_ABSOLUTE & terminationCriterionFlag) &&
       currentOFValue <= qualityImprovementAbsoluteEps)
   {
+    MSQ_DBGOUT_P0_ONLY(debugLevel) << par_string() << "  o TermCrit -- QUALITY_IMPROVEMENT_ABSOLUTE: " << " " << RPM(currentOFValue) << std::endl;
     return_flag = true;
+    type=10;
   }
   
     //only valid if an iteration has occurred, see above.
@@ -764,32 +824,53 @@ bool TerminationCriterion::terminate( )
     if (SUCCESSIVE_IMPROVEMENTS_ABSOLUTE & terminationCriterionFlag &&
         (previousOFValue - currentOFValue) <= successiveImprovementsAbsoluteEps)
     {  
+      MSQ_DBGOUT_P0_ONLY(debugLevel) << par_string() << "  o TermCrit -- SUCCESSIVE_IMPROVEMENTS_ABSOLUTE: previousOFValue= " << " " << previousOFValue << " currentOFValue= " << RPM(currentOFValue) 
+                             << " successiveImprovementsAbsoluteEps= " << successiveImprovementsAbsoluteEps
+                             << std::endl;
       return_flag = true;
+    type=11;
     }
     if (QUALITY_IMPROVEMENT_RELATIVE & terminationCriterionFlag &&
         (currentOFValue - lowerOFBound) <= 
         qualityImprovementRelativeEps * (initialOFValue - lowerOFBound))
     {
+      MSQ_DBGOUT_P0_ONLY(debugLevel) << par_string() << "  o TermCrit -- QUALITY_IMPROVEMENT_RELATIVE: " << " " << std::endl;
       return_flag = true;
+    type=12;
     }
     if (SUCCESSIVE_IMPROVEMENTS_RELATIVE & terminationCriterionFlag &&
         (previousOFValue - currentOFValue) <= 
         successiveImprovementsRelativeEps * (initialOFValue - currentOFValue))
     {
+      MSQ_DBGOUT_P0_ONLY(debugLevel) << par_string() << "  o TermCrit -- SUCCESSIVE_IMPROVEMENTS_RELATIVE: previousOFValue= " << " " << previousOFValue << " currentOFValue= " << RPM(currentOFValue) 
+                             << " successiveImprovementsRelativeEps= " << successiveImprovementsRelativeEps
+                             << std::endl;
       return_flag = true;
+    type=13;
     }
   }
   
   if (BOUNDED_VERTEX_MOVEMENT & terminationCriterionFlag && vertexMovementExceedsBound)
   {
     return_flag = true;
-    MSQ_DBGOUT(debugLevel) << "  o TermCrit -- " << vertexMovementExceedsBound
+    type=14;
+    MSQ_DBGOUT_P0_ONLY(debugLevel) << par_string() << "  o TermCrit -- " << " " << vertexMovementExceedsBound
                            << " vertices out of bounds." << std::endl;
   }
   
-  if (UNTANGLED_MESH & terminationCriterionFlag && !globalInvertedCount)
+  if (UNTANGLED_MESH & terminationCriterionFlag)
   {
-    return_flag = true;
+    if (innerOuterType==TYPE_OUTER) {
+      //MSQ_DBGOUT_P0_ONLY(debugLevel) 
+      MSQ_DBGOUT(debugLevel) 
+        << par_string() << "  o Num Inverted: " << " " << globalInvertedCount << std::endl;
+    }
+    if (!globalInvertedCount)
+      {
+        MSQ_DBGOUT_P0_ONLY(debugLevel) << par_string() << "  o TermCrit -- UNTANGLED_MESH: "<< " " << std::endl;
+        return_flag = true;
+        type=15;
+      }
   }
   
     // clear this value at the end of each iteration
@@ -800,9 +881,21 @@ bool TerminationCriterion::terminate( )
     MsqError err;
     MeshWriter::write_gnuplot_overlay( iterationCounter, timeStepFileName.c_str(), err );
   }
+
+  if (0 && return_flag && MSQ_DBG(2))
+    std::cout << "P[" << get_parallel_rank() << "] tmp TerminationCriterion::terminate: " << moniker << " return_flag= " << return_flag << " type= " << type
+              << " terminationCriterionFlag= " << terminationCriterionFlag << " debugLevel= " << debugLevel << std::endl;
   
     //if none of the criteria were satisfied
   return return_flag;
+}
+
+bool TerminationCriterion::criterion_is_set()
+{
+  if (!terminationCriterionFlag)
+    return false;
+  else
+    return true;
 }
 
 
@@ -904,6 +997,105 @@ bool TerminationCriterion::cull_vertices(PatchData &pd,
   return cull_bool;
 }
 
+/*!This function is activated when cullingGlobalPatch is true.  It supplies
+  cull_vertices with a single vertex-based patch at a time.  If the patch
+  satisfies the culling criterion, it's free vertices are then soft-fixed.
+ */
+bool TerminationCriterion::cull_vertices_global(PatchData &global_patch,
+                                                Mesh *mesh, MeshDomain *domain, const Settings *settings,
+                                                OFEvaluator& of_eval,
+                                                MsqError &err)
+{
+  if (!cullingGlobalPatch) return false;
+
+    //PRINT_INFO("CULLING_METHOD FLAG = %i",cullingMethodFlag);
+  
+    //cull_bool will be changed to true if the criterion is satisfied
+  bool cull_bool=false;
+
+  std::vector<Mesh::VertexHandle> mesh_vertices;
+  //std::vector<Mesh::VertexHandle> patch_vertices;
+  //std::vector<Mesh::ElementHandle> patch_elements;
+  //std::vector<Mesh::VertexHandle> fixed_vertices;
+  //std::vector<Mesh::VertexHandle> free_vertices;
+
+  // FIXME, verify global_patch is a global patch... how, is this right?
+  mesh->get_all_vertices(mesh_vertices, err);
+  size_t mesh_num_nodes = mesh_vertices.size();
+  size_t global_patch_num_nodes = global_patch.num_nodes() ;
+  if (0)  std::cout << "tmp srk mesh_num_nodes= " << mesh_num_nodes << " global_patch_num_nodes= " 
+            << global_patch_num_nodes << std::endl;
+  if (mesh_num_nodes != global_patch_num_nodes)
+    {
+      std::cout << "tmp srk cull_vertices_global found non global patch" << std::endl;
+      exit(123);
+      return false;
+    }
+  PatchData patch;
+  patch.set_mesh( (Mesh*) mesh );
+  patch.set_domain( domain );
+  patch.attach_settings( settings );
+
+  const MsqVertex* global_patch_vertex_array = global_patch.get_vertex_array( err );
+  Mesh::VertexHandle* global_patch_vertex_handles = global_patch.get_vertex_handles_array();
+
+  int num_culled = 0;
+  for (unsigned iv=0; iv < global_patch_num_nodes; iv++)
+    {
+      // form a patch for this vertex; if it is culled, set it to be soft fixed
+      Mesh::VertexHandle vert = global_patch_vertex_handles[iv];
+      std::vector<Mesh::ElementHandle> elements;
+      std::vector<size_t> offsets;
+      mesh->vertices_get_attached_elements(&vert, 1, elements, offsets, err);
+      
+      std::set<Mesh::VertexHandle> patch_free_vertices_set;
+
+      for (unsigned ie=0; ie < elements.size(); ie++)
+        {
+          std::vector<Mesh::VertexHandle> vert_handles;
+          std::vector<size_t> v_offsets;
+          mesh->elements_get_attached_vertices(&elements[ie], 1, vert_handles, v_offsets, err);
+          for (unsigned jv=0; jv < vert_handles.size(); jv++)
+            {
+              unsigned char bt;
+              mesh->vertex_get_byte(vert_handles[jv], &bt, err);
+              MsqVertex v;
+              v.set_flags(bt);
+              if (v.is_free_vertex())
+                patch_free_vertices_set.insert(vert_handles[jv]);
+            }
+        }
+
+      std::vector<Mesh::VertexHandle> patch_free_vertices_vector(patch_free_vertices_set.begin(), patch_free_vertices_set.end());
+      //std::vector<unsigned char> byte_vector(patch_vertices_vector.size());
+      //mesh->vertices_get_byte(&vert_handles[0], &byte_vector[0], vert_handles.size(), err);
+
+      patch.set_mesh_entities( elements, patch_free_vertices_vector, err );
+      if (cull_vertices(patch, of_eval, err))
+        {
+          //std::cout << "tmp srk cull_vertices_global found culled patch" << std::endl;
+          Mesh::VertexHandle* patch_vertex_handles = patch.get_vertex_handles_array();
+          const MsqVertex* patch_vertex_array = patch.get_vertex_array( err );
+          for (unsigned jv=0; jv < patch.num_nodes(); jv++)
+            {
+              if (patch_vertex_handles[jv] == global_patch_vertex_handles[iv])
+                {
+                  if (patch_vertex_array[jv].is_flag_set(MsqVertex::MSQ_CULLED))
+                    {
+                      global_patch.set_vertex_culled(iv);
+                      ++num_culled;
+                      cull_bool = true;
+                      //std::cout << "tmp srk cull_vertices_global found culled vertex" << std::endl;
+                    }
+                }
+            }
+        }
+    }
+    if (0)  std::cout << "tmp srk cull_vertices_global found " << num_culled << " culled vertices out of " << global_patch_num_nodes << std::endl;
+
+  return cull_bool;
+}
+
 size_t TerminationCriterion::count_inverted( PatchData& pd, MsqError& err )
 {
   size_t num_elem = pd.num_elements();
@@ -956,10 +1148,8 @@ void TerminationCriterion::write_iterations( const char* filename, MsqError& err
     plotFile.close();
   }
 }
-    
-    
-void TerminationCriterion::initialize_queue( Mesh* mesh,
-                                             MeshDomain* ,
+
+void TerminationCriterion::initialize_queue( Mesh* mesh, MeshDomain*,
                                              const Settings* ,
                                              MsqError& err )
 {
@@ -975,6 +1165,13 @@ void TerminationCriterion::initialize_queue( Mesh* mesh,
     if (VERTEX_MOVEMENT_ABS_EDGE_LENGTH & cullingMethodFlag)
       cullingEps = limit;
   }
+}
+
+void TerminationCriterion::initialize_queue( MeshDomainAssoc* mesh_and_domain,
+                                             const Settings* stg,
+                                             MsqError& err )
+{
+  this->initialize_queue (mesh_and_domain->get_mesh(), 0, stg, err);
 }
 
 } //namespace Mesquite

@@ -8,6 +8,7 @@
 #include <iostream>
 #include <stdlib.h>
 #include <algorithm>
+#include <time.h>
 
 #include "MsqVertex.hpp"
 #include "MsqError.hpp"
@@ -20,6 +21,51 @@
 #define GHOST_NODE_VERTEX_UPDATES 2003
 
 namespace MESQUITE_NS {
+
+void parallel_barrier()
+{
+  int is_init=0;
+  int err = MPI_Initialized(&is_init);
+  if (MPI_SUCCESS != err) return;
+  if (is_init) MPI_Barrier(MPI_COMM_WORLD);
+}
+
+int get_parallel_rank()
+{
+  int rank=0;
+  int is_init=0;
+  int err = MPI_Initialized(&is_init);
+  if (MPI_SUCCESS != err) return 0;
+  if (is_init) MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  return rank;
+}
+
+int get_parallel_size()
+{
+  int nprocs=0;
+  int is_init=0;
+  int err = MPI_Initialized(&is_init);
+  if (MPI_SUCCESS != err) return 0;
+  if (is_init) MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  return nprocs;
+}
+
+double reduce_parallel_max(double value)
+{
+  int is_init=0;
+  int err = MPI_Initialized(&is_init);
+  if (MPI_SUCCESS != err) return value;
+  if (!is_init) return value;
+
+  double d_max[1];
+  double d_max_recv[1];
+  d_max[0] = value;
+  int rval = MPI_Allreduce(d_max, d_max_recv, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+  if (MPI_SUCCESS != rval) return value;
+
+  return d_max_recv[0];
+}
+
 
 static const char* mpi_err_string( int error_code )
 {

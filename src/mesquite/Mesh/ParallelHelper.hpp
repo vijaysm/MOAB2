@@ -58,6 +58,11 @@ namespace MESQUITE_NS
   
   typedef std::map<VertexIdMapKey,int,VertexIdLessFunc> VertexIdMap;
 
+  int get_parallel_rank();
+  int get_parallel_size();
+  double reduce_parallel_max(double value);
+  void parallel_barrier();
+
   class ParallelHelperImpl : public ParallelHelper
   {
   public:

@@ -35,6 +35,7 @@
 
 #include "Mesquite.hpp"
 #include "Settings.hpp"
+#include "MeshInterface.hpp"
 
 namespace MESQUITE_NS {
 
@@ -48,6 +49,10 @@ class MESQUITE_EXPORT IQInterface : public Settings
   public:
   
     virtual ~IQInterface();
+
+    inline void
+    run_instructions( MeshDomainAssoc* mesh_and_domain, MsqError &err)
+    { this->run_common( mesh_and_domain->get_mesh(), 0, mesh_and_domain->get_domain(), this, err ); }
   
     inline void 
     run_instructions( Mesh* mesh, MeshDomain* domain, MsqError &err)
@@ -64,10 +69,16 @@ class MESQUITE_EXPORT IQInterface : public Settings
     inline void 
     run_instructions( ParallelMesh* mesh, MsqError& err )
       { this->run_common( (Mesh*)mesh, mesh, 0, this, err ); }
+ 
+    virtual void run_common( MeshDomainAssoc* mesh_and_domain,
+                             ParallelMesh* pmesh,
+                             Settings* settings,
+                             MsqError& err )
+    { this->run_common(mesh_and_domain->get_mesh(), pmesh, mesh_and_domain->get_domain(), settings, err); }
 
   protected:
-  
-    virtual void run_common( Mesh* mesh,
+
+      virtual void run_common( Mesh* mesh,
                              ParallelMesh* pmesh,
                              MeshDomain* domain,
                              Settings* settings,

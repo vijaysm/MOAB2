@@ -69,7 +69,7 @@ using std::endl;
 #include "EdgeLengthQualityMetric.hpp"
 using namespace Mesquite;
 
-const char DEFAULT_INPUT[] = MESH_FILES_DIR "2D/vtk/N-Polygonal/poly1.vtk";
+const char DEFAULT_INPUT[] = MESH_FILES_DIR "2D/VTK/N-Polygonal/poly1.vtk";
 
 void help(const char* argv0)
 {
@@ -97,13 +97,14 @@ int main(int argc, char* argv[])
     case 1:
       ;
   }
+  std::cout << " ---------- MESH LOADED: " << input_file << " --------------\n";
 
     /* Read a VTK Mesh file */
   MsqPrintError err(cout);
   Mesquite::MeshImpl mesh;
   mesh.read_vtk( input_file, err);
   if (err) return 1;
-  
+
     // creates an intruction queue
   InstructionQueue queue1;
   
