@@ -312,15 +312,19 @@ INPUT                  = @top_srcdir@/src \
                          @top_srcdir@/src/parallel/moab  \
                          @top_srcdir@/src/verdict/moab  \
                          @top_srcdir@/src/RefineMesh/moab \
+                         @top_srcdir@/src/mesquite \
                          @top_srcdir@/src/MBTagConventions.hpp \
                          @top_srcdir@/src/MBCN.h \
                          @top_srcdir@/src/MBEntityType.h \
                          @top_srcdir@/src/parallel/MBParallelConventions.h \
-                         @top_srcdir@/tools/ @top_srcdir@/tools/mbcoupler \
-                         @top_srcdir@/tools/dagmc/DagMC.hpp \
-                         @top_srcdir@/lasso/src \
-                         @top_srcdir@/lasso/src/lasso \
-                         @top_srcdir@/itaps @top_srcdir@/itaps/imesh @top_srcdir@/itaps/irel \
+                         @top_srcdir@/tools \
+                         @top_srcdir@/tools/mbcoupler \
+                         @top_srcdir@/tools/dagmc \
+                         @top_srcdir@/itaps \
+                         @top_srcdir@/itaps/imesh \
+                         @top_srcdir@/itaps/irel \
+                         @top_srcdir@/itaps/fbigeom \
+                         @top_srcdir@/itaps/mesquite \
                          @top_srcdir@/examples
 
 # If the value of the INPUT tag contains directories, you can use the 
@@ -328,7 +332,7 @@ INPUT                  = @top_srcdir@/src \
 # and *.h) to filter out the source-files in the directories. If left 
 # blank all files are included.
 
-FILE_PATTERNS          = *.cpp *.hpp *.h *.dox *.F90
+FILE_PATTERNS          = *.cpp *.hpp *.h *.dox *.F90 *.F
 #FILE_PATTERNS          = *.dox
 
 # The RECURSIVE tag can be used to turn specify whether or not subdirectories 
@@ -503,7 +507,7 @@ TREEVIEW_WIDTH         = 250
 # If the GENERATE_LATEX tag is set to YES (the default) Doxygen will 
 # generate Latex output.
 
-GENERATE_LATEX         = NO
+GENERATE_LATEX         = YES
 
 # The LATEX_OUTPUT tag is used to specify where the LaTeX docs will be put. 
 # If a relative path is entered the value of OUTPUT_DIRECTORY will be 
@@ -546,14 +550,14 @@ PDF_HYPERLINKS         = NO
 # plain latex in the generated Makefile. Set this option to YES to get a 
 # higher quality PDF documentation.
 
-USE_PDFLATEX           = NO
+USE_PDFLATEX           = YES
 
 # If the LATEX_BATCHMODE tag is set to YES, doxygen will add the \\batchmode. 
 # command to the generated LaTeX files. This will instruct LaTeX to keep 
 # running if errors occur, instead of asking the user for help. 
 # This option is also used when generating formulas in HTML.
 
-LATEX_BATCHMODE        = NO
+LATEX_BATCHMODE        = YES
 
 #---------------------------------------------------------------------------
 # configuration options related to the RTF output
