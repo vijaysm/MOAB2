@@ -82,29 +82,6 @@ fi
 #------------------------------------------------------------------------------
 
 # Construct compiler options from above configure options
-#SNL_DETECT_CXX
-#SNL_REQUIRED_CXX_FLAGS
-if test "$MSQ_DO_FAST" = "yes"; then
-  SNL_CXX_COMPILE_FAST
-elif test "$MSQ_DO_OPTIMIZE" = "yes"; then
-  SNL_CXX_COMPILE_OPTIMIZED
-fi
-if test "$MSQ_DEBUG_SYMBOLS" = "yes"; then
-  SNL_CXX_DEBUG_SYMBOLS
-fi
-if test "$MSQ_DEBUG_ASSERTS" = "no"; then
-  MSQ_AM_CPPFLAGS="$MSQ_AM_CPPFLAGS -DNDEBUG"
-fi
-if test -n "$MSQ_DEBUG_OUT"; then
-  if test "$MSQ_DEBUG_OUT" = "yes"; then 
-    MSQ_AM_CPPFLAGS="$MSQ_AM_CPPFLAGS -DMSQ_ENABLE_DEBUG"
-  elif test "$MSQ_DEBUG_OUT" != "no"; then
-    MSQ_AM_CPPFLAGS="$MSQ_AM_CPPFLAGS -DMSQ_ENABLE_DEBUG=$MSQ_DEBUG_OUT"
-  fi
-fi
-if test "$MSQ_TRAP_FPE" = "yes"; then
-  MSQ_AM_CPPFLAGS="$MSQ_AM_CPPFLAGS -DMSQ_TRAP_FPE"
-fi
 if test "$MSQ_DO_TIMERS" = "yes"; then
   MSQ_AM_CPPFLAGS="MSQ_$AM_CPPFLAGS -DMSQ_USE_FUNCTION_TIMERS"
 fi
@@ -148,80 +125,14 @@ AC_TRY_COMPILE([#include <fstream>],
                [CPPFLAGS="$CPPFLAGS -DFSTREAM_HAS_FD"; AC_MSG_RESULT(yes)],
                [AC_MSG_RESULT(no)])
 
-#------------------------------------------------------------------------------
-# Other build options
-#------------------------------------------------------------------------------
-
-# AC_ARG_WITH(exodus,
-#   [AC_HELP_STRING([--with-exodus(=DIR)],
-#                    [Enable exodusII support and specifiy directory])
-# AC_HELP_STRING([--without-exodus],[Disable exodusII support (default)])],
-#   [EXODUS_ARG=${withval}],[EXODUS_ARG=no])
-
-# AC_ARG_WITH(netcdf,
-#   [AC_HELP_STRING([--with-netcdf(=DIR)],
-#                   [ExodusII requires NetCDF - defaults to values for --with-exodus])
-# AC_HELP_STRING([--without-netcdf],[Skip NetCDF check])],
-#   [NETCDF_ARG=$withval], [NETCDF_ARG=])
-
 # AC_ARG_WITH(cppunit,
 #   [AC_HELP_STRING([--with-cppunit(=DIR)],[Specify directory where CppUnit is installed.])
 # AC_HELP_STRING([--without-cppunit],   [Disable CppUnit tests])],
 #   [CPPUNIT_ARG=${withval}], [CPPUNIT_ARG=])
 
-
 #-------------------------------------------------------------------------------
 # Configure different options
 #-------------------------------------------------------------------------------
-
-# Configure Exodus and NetCDF
-# AM_CONDITIONAL([WITH_EXODUS],[test "x$EXODUS_ARG" != "xno"])
-# if test "x$EXODUS_ARG" != "xno"; then
-#   old_CPPFLAGS="$CPPFLAGS"
-#   old_LDFLAGS="$LDFLAGS"
-#   old_LIBS="$LIBS"
-#   AM_CPPFLAGS="$AM_CPPFLAGS -DMSQ_USING_EXODUS"
-  
-#     # If user specified path for Exodus, add to appropriate vars
-#   if test "x$EXODUS_ARG" != "xyes"; then
-#     EXODUS_INC="-I${EXODUS_ARG}/include"
-#     EXODUS_LNK="-L${EXODUS_ARG}/lib"
-#     CPPFLAGS="$CPPFLAGS $EXODUS_INC"
-#     LDFLAGS="$LDFLAGS $EXODUS_LNK"
-#     AM_CPPFLAGS="$AM_CPPFLAGS $EXODUS_INC"
-#     AM_LDFLAGS="$AM_LDFLAGS $EXODUS_LNK"
-#   fi
-#   AM_LDFLAGS="$AM_LDFLAGS -lexoIIv2c"
-    
-#     # Check for netcdf unless user explicitly said --without-netcdf
-#   if test "x$NETCDF_ARG" != "xno"; then
-#       # If user specified path for NetCDF, add to appropriate vars
-#     if test "x$NETCDF_ARG" != "xyes" -a "x$NETCDF_ARG" != "x" ; then
-#       NETCDF_INC="-I${NETCDF_ARG}/inc -I${NETCDF_ARG}/include"
-#       NETCDF_LNK="-L${NETCDF_ARG}/lib"
-#       CPPFLAGS="$CPPFLAGS $NETCDF_INC"
-#       LDFLAGS="$LDFLAGS $NETCDF_LNK"
-#       AM_CPPFLAGS="$AM_CPPFLAGS $NETCDF_INC"
-#       AM_LDFLAGS="$AM_LDFLAGS $NETCDF_LNK"
-#     fi
-#       # Check for NetCDF, but don't fail configure unless user
-#       # explicitly specified that netcdf should be included
-#     AC_CHECK_LIB( [netcdf], [nc_open], 
-#       [LIBS="$LIBS -lnetcdf"; AM_LDFLAGS="$AM_LDFLAGS -lnetcdf"],
-#       [if test "x$NETCDF_ARG" != "x"; then AC_MSG_ERROR([NetCDF library not found]); fi])
-#     AC_CHECK_HEADER( [netcdf.h], [], 
-#       [if test "x$NETCDF_ARG" != "x"; then AC_MSG_ERROR([netcdf.h not found]); fi ])
-#   fi
-  
-#     # Check for ExodusII
-#   AC_CHECK_LIB( [exoIIv2c], [ex_close], [], [AC_MSG_ERROR([ExodusII library not found])] )
-#   AC_CHECK_HEADER( [exodusII.h], [], [AC_MSG_ERROR([exodusII.h not found])] )
-#   CPPFLAGS="$old_CPPFLAGS"
-#   LDFLAGS="$old_LDFLAGS"
-#   LIBS="$old_LIBS"
-# fi
-
-
 
 # CPPUnit
 HAVE_CPPUNIT="no"
@@ -265,7 +176,6 @@ HAVE_CPPUNIT="no"
 # fi
 
 MSQ_AM_CPPFLAGS="${MSQ_AM_CPPFLAGS}"
-# AM_CONDITIONAL([ENABLE_ITAPS],[test "x$ENABLE_ITAPS" = "xyes"])
 
 #------------------------------------------------------------------------------
 # The End
@@ -285,14 +195,6 @@ AC_SUBST(MSQ_LIBTOOL_FLAGS)
 # AC_SUBST(CPPUNIT_CPPFLAGS)
 # AC_SUBST(CPPUNIT_LDFLAGS)
 AC_SUBST(MESQUITE_IMESH_MAKE_INCLUDE)
-
-# We don't want to automatically generate mesquite_config.h.in
-# automatically using autoheader.  It puts #defines in the file
-# that are not appropriate for a library (will conflict with app's
-# #defines).  Try to disable it
-#AUTOHEADER="touch \$@"
-# AUTOHEADER=":"
-# AC_SUBST(AUTOHEADER)
 
 TEST_MAKE_INCLUDE='include $(abs_top_builddir)/src/mesquite/msqcppflags.make'
 UTIL_MAKE_INCLUDE='include $(abs_top_builddir)/src/mesquite/msqcppflags.make'
