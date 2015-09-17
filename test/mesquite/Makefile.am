@@ -63,7 +63,7 @@ SUBDIRS = test_1 \
 	  2d_formulation \
           $(UNIT_TEST)
 
-EXTRA_DIST = CMakeLists.txt
+EXTRA_DIST = #CMakeLists.txt
 
 # Override all-recursive so that "make" with no target 
 # skips subdirectories in testSuite.
