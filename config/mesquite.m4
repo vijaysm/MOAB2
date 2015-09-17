@@ -229,7 +229,6 @@ AC_CONFIG_FILES([src/mesquite/Makefile
                  test/mesquite/transform/Makefile
                  test/mesquite/tutorial/Makefile
                  test/mesquite/tutorial/tutorial.make
-                 test/mesquite/unit/Makefile
                  test/mesquite/untangle_test/Makefile
                  test/mesquite/parallel_untangle_shape/Makefile 
                  test/mesquite/parallel_smooth_laplace/Makefile
@@ -245,7 +244,10 @@ AC_CONFIG_FILES([src/mesquite/Makefile
                  tools/mesquite/Makefile
                  MeshFiles/mesquite/Makefile
                  ])
-                 
+
+if (test "$HAVE_CPPUNIT" != "no"); then
+  AC_CONFIG_FILES([test/mesquite/unit/Makefile])
+fi
 # echo "MSQ_CXXFLAGS = $MSQ_CXXFLAGS"
 
 ])
