@@ -1,7 +1,9 @@
 @TEST_MAKE_INCLUDE@
 LDADD = $(top_builddir)/itaps/mesquite/libmsqimesh.la \
         $(top_builddir)/src/mesquite/libmesquite.la \
-        $(IMESH_LIBS)
+        $(top_builddir)/itaps/imesh/libiMesh.la \
+        ${IGEOM_LDFLAGS} \
+        ${CGM_LDFLAGS} ${CGM_LIBS}
 check_PROGRAMS = main
 main_SOURCES = main.cpp
 main_DEPENDENCIES = $(top_builddir)/src/mesquite/libmesquite.la \
