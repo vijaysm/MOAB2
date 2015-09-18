@@ -23,117 +23,10 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <math.h>
-
+#include "moab/CartVect.hpp"
 #include "measure.hpp"
+using namespace moab;
 
-class CartVect {
-  private:
-    double coords[3];
-    
-  public:
-  
-    inline CartVect() {}
-    
-    inline CartVect( double tx, double ty, double tz ) { set(tx,ty,tz); }
-    
-    inline CartVect( const CartVect& other ) { set( other.coords); }
-    
-    inline void set( double tx, double ty, double tz )
-      { coords[0] = tx; coords[1] = ty; coords[2] = tz; }
-    
-    inline void set( const double* c )
-      { coords[0] = c[0]; coords[1] = c[1]; coords[2] = c[2]; }
-    
-    inline double x() const { return coords[0]; }
-    inline double y() const { return coords[1]; }
-    inline double z() const { return coords[2]; }
-  
-    inline CartVect& operator+=( const CartVect& other )
-    {
-      coords[0] += other.coords[0];
-      coords[1] += other.coords[1];
-      coords[2] += other.coords[2];
-      return *this;
-    }
-    
-    inline CartVect& operator-=( const CartVect& other )
-    {
-      coords[0] -= other.coords[0];
-      coords[1] -= other.coords[1];
-      coords[2] -= other.coords[2];
-      return *this;
-    }
-    
-    inline CartVect& operator*=( const CartVect& other );
-
-    inline double lensqr() const;
-    
-    inline double len() const;
-    
-    inline CartVect operator~( ) const;
-
-      
-    inline CartVect& operator*=( double a )
-    {
-      coords[0] *= a;
-      coords[1] *= a;
-      coords[2] *= a;
-      return *this;
-    }
-    
-    inline CartVect& operator/=( double a )
-    {
-      coords[0] /= a;
-      coords[1] /= a;
-      coords[2] /= a;
-      return *this;
-    }
-   
-    
-};
-
-inline CartVect operator+( const CartVect& v1, const CartVect& v2 )
-{
-  CartVect rval(v1);
-  rval += v2;
-  return rval;
-}
-
-inline CartVect operator-( const CartVect& v1, const CartVect& v2 )
-{
-  CartVect rval(v1);
-  rval -= v2;
-  return rval;
-}
-
-inline double operator%( const CartVect& v1, const CartVect& v2 )
-{
-  return v1.x() * v2.x() + v1.y() * v2.y() + v1.z() * v2.z();
-}
-
-inline CartVect operator*( const CartVect& v1, const CartVect& v2 )
-{
-  return CartVect( v1.y() * v2.z() - v1.z() * v2.y(),
-                   v1.z() * v2.x() - v1.x() * v2.z(),
-                   v1.x() * v2.y() - v1.y() * v2.x() );
-}
-
-inline CartVect CartVect::operator~() const
-{
-  double invlen = 1.0 / len();
-  return CartVect( invlen * x(), invlen * y(), invlen * z() );
-}
-     
-inline CartVect& CartVect::operator*=( const CartVect& other )
-      { return *this = *this * other; }
-
-inline double CartVect::lensqr() const
-      { return *this % *this; }
-    
-inline double CartVect::len() const
-      { return sqrt(lensqr()); }
- 
 inline static double tet_volume( const CartVect& v0,
                                  const CartVect& v1,
                                  const CartVect& v2, 
@@ -147,7 +40,7 @@ double edge_length( const double* start_vtx_coords,
 {
   const CartVect* start = reinterpret_cast<const CartVect*>(start_vtx_coords);
   const CartVect*   end = reinterpret_cast<const CartVect*>(  end_vtx_coords);
-  return (*start - *end).len();
+  return (*start - *end).length();
 }
 
 double measure( moab::EntityType type,
@@ -158,9 +51,9 @@ double measure( moab::EntityType type,
   switch( type )
   {
     case moab::MBEDGE:
-      return (coords[0] - coords[1]).len();
+      return (coords[0] - coords[1]).length();
     case moab::MBTRI:
-      return 0.5 * ((coords[1] - coords[0]) * (coords[2] - coords[0])).len();
+      return 0.5 * ((coords[1] - coords[0]) * (coords[2] - coords[0])).length();
     case moab::MBQUAD:
       num_vertices = 4;
     case moab::MBPOLYGON:
@@ -174,7 +67,7 @@ double measure( moab::EntityType type,
       for (int i = 0; i < num_vertices; ++i)
       {
         int j = (i+1)%num_vertices;
-        sum += ((mid - coords[i]) * (mid - coords[j])).len();
+        sum += ((mid - coords[i]) * (mid - coords[j])).length();
       }
       return 0.5 * sum;
     }
