@@ -276,17 +276,12 @@ fi
 AC_ARG_ENABLE( [mesquite],
 [AS_HELP_STRING([--enable-mesquite],[Build support for Mesquite interfaces.])],
 [enable_mesquite=$enableval],
-[enable_mesquite=yes] )
+[enable_mesquite=no] )
 
 if (test "xyes" != "x$enable_mesquite" && test "xno" != "x$enable_mesquite"); then
   AC_MSG_ERROR([Unknown argument --enable-mesquite=$enableval])
 else
-  if (test "$enable_mesquite" != "no"); then
-    ENABLE_mesquite=yes
-  else
-    ENABLE_mesquite=no
-  fi
-  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-mesquite=$ENABLE_mesquite"
+  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-mesquite=$enable_mesquite"
 fi
 
 ################################################################################
@@ -1012,19 +1007,19 @@ fi
 ################################################################################
 
 AC_MSG_CHECKING([if Mesquite support is to be built])
-AC_MSG_RESULT([$ENABLE_mesquite])
-if (test "xno" != "x$ENABLE_mesquite"); then
+AC_MSG_RESULT([$enable_mesquite])
+if (test "xno" != "x$enable_mesquite"); then
   if (test "x$ENABLE_imesh" != "xyes" || test "x$CGM_MISSING" != "xno"); then
-    ENABLE_mesquite=no
+    enable_mesquite=no
     AC_MSG_WARN([** Disabling Mesquite since iGeom or iMesh is not configured correctly.])
   fi
-  if (test "xno" != "x$ENABLE_mesquite"); then
+  if (test "xno" != "x$enable_mesquite"); then
     CONFIGURE_MESQUITE
     AC_DEFINE(HAVE_MESQUITE,[1],"MOAB configured with Mesquite support")
   fi
 fi
-AM_CONDITIONAL([ENABLE_mesquite],[test "xyes" = "x$ENABLE_mesquite"])
-AM_CONDITIONAL([HAVE_CPPUNIT],[test "x$HAVE_CPPUNIT" = "xyes"])
+AM_CONDITIONAL([ENABLE_mesquite],[test "yes" = "$enable_mesquite"])
+AM_CONDITIONAL([HAVE_CPPUNIT],[test "$HAVE_CPPUNIT" = "yes"])
 
 ###############################################################################
 #                           Optional Tools
