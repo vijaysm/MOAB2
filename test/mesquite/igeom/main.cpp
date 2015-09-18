@@ -158,7 +158,8 @@ int main(int argc, char* argv[])
 void run_smoother( Mesh& mesh, MeshDomain* dom, MsqError& err )
 {
   ShapeImprovementWrapper smoother;
-  smoother.run_instructions( dynamic_cast<ParallelMesh*>(&mesh), dom, err );
+  MeshDomainAssoc mesh_and_domain = MeshDomainAssoc(&mesh, dom);
+  smoother.run_instructions( &mesh_and_domain, err );
   MSQ_CHKERR(err);
   
   if (smoother.quality_assessor().invalid_elements()) {
