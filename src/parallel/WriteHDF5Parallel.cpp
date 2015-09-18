@@ -58,7 +58,7 @@ namespace moab {
 STATIC_ASSERT(sizeof(unsigned long) >= sizeof(EntityHandle));
 
 // Need an MPI type that we can put file IDs in
-STATIC_ASSERT(sizeof(unsigned long) >= sizeof(id_t));
+STATIC_ASSERT(sizeof(unsigned long) >= sizeof(WriteHDF5::wid_t));
 
 // This function doesn't do anything useful. It's just a nice
 // place to set a break point to determine why the reader fails.
@@ -1020,7 +1020,7 @@ ErrorCode WriteHDF5Parallel::create_dataset(int num_datasets,
                                             long* total_entities,
                                             const DataSetCreator& creator,
                                             ExportSet* groups[],
-                                            id_t* first_ids_out)
+                                            wid_t* first_ids_out)
 {
   int result;
   ErrorCode rval;
@@ -1063,7 +1063,7 @@ ErrorCode WriteHDF5Parallel::create_dataset(int num_datasets,
   result = MPI_Bcast(&cumulative[0], 3 * num_datasets, MPI_LONG, 0, comm);CHECK_MPI(result);
   for (int index = 0; index < num_datasets; ++index) {
     if (first_ids_out)
-      first_ids_out[index] = (id_t)cumulative[index].start_id;
+      first_ids_out[index] = (wid_t)cumulative[index].start_id;
     max_proc_entities[index] = cumulative[index].max_count;
     total_entities[index] = cumulative[index].total;
   }
@@ -1286,7 +1286,7 @@ ErrorCode WriteHDF5Parallel::create_element_tables()
   const int numtypes = exportList.size();
   std::vector<ExportSet*> groups(numtypes);
   std::vector<long> counts(numtypes), offsets(numtypes), max_ents(numtypes), total_ents(numtypes);
-  std::vector<id_t> start_ids(numtypes);
+  std::vector<wid_t> start_ids(numtypes);
 
   size_t idx = 0;
   std::list<ExportSet>::iterator ex_iter;
@@ -1345,7 +1345,7 @@ ErrorCode WriteHDF5Parallel::create_adjacency_tables()
   std::vector<long> max_ents(numtypes);
   std::vector<long> totals(numtypes);
   for (int i = 0; i < numtypes; ++i) {
-    id_t count;
+    wid_t count;
     rval = count_adjacencies(groups[i]->range, count);CHECK_MB(rval);
     counts[i] = count;
   }
@@ -1375,7 +1375,7 @@ void WriteHDF5Parallel::print_set_sharing_data(const Range& range, const char* l
     iFace->tag_get_data(idt, &*it, 1, &id);
     EntityHandle handle = 0;
     unsigned owner = 0;
-    id_t file_id = 0;
+    wid_t file_id = 0;
     myPcomm->get_entityset_owner(*it, owner, &handle);
     if (!idMap.find(*it, file_id))
       file_id = 0;
@@ -1579,7 +1579,7 @@ ErrorCode WriteHDF5Parallel::pack_set(Range::const_iterator it,
   const EntityHandle* ptr;
   int len;
   unsigned char flags;
-  std::vector<id_t> tmp;
+  std::vector<wid_t> tmp;
   size_t newlen;
 
   // Buffer must always contain at least flags and desired sizes
@@ -1641,7 +1641,7 @@ ErrorCode WriteHDF5Parallel::pack_set(Range::const_iterator it,
 template<typename TYPE>
 static void convert_to_ranged_ids(const TYPE* buffer,
                                   size_t len,
-                                  std::vector<WriteHDF5::id_t>& result)
+                                  std::vector<WriteHDF5::wid_t>& result)
 {
   if (!len) {
     result.clear();
@@ -1663,22 +1663,22 @@ static void convert_to_ranged_ids(const TYPE* buffer,
 
 static void merge_ranged_ids(const unsigned long* range_list,
                              size_t len,
-                             std::vector<WriteHDF5::id_t>& result)
+                             std::vector<WriteHDF5::wid_t>& result)
 {
-  typedef WriteHDF5::id_t id_t;
+  typedef WriteHDF5::wid_t wid_t;
   assert(0 == len%2);
   assert(0 == result.size()%2);
-  STATIC_ASSERT(sizeof(std::pair<id_t, id_t>) == 2 * sizeof(id_t));
+  STATIC_ASSERT(sizeof(std::pair<wid_t, wid_t>) == 2 * sizeof(wid_t));
 
   result.insert(result.end(), range_list, range_list + len);
   size_t plen = result.size() / 2;
   Range tmp;
   for (size_t i = 0; i < plen; i++) {
     EntityHandle starth = (EntityHandle)result[2 * i];
-    EntityHandle endh = (EntityHandle)result[2 * i] + (id_t)result[2*i + 1] - 1; // id + count - 1
+    EntityHandle endh = (EntityHandle)result[2 * i] + (wid_t)result[2*i + 1] - 1; // id + count - 1
     tmp.insert(starth, endh);
   }
-  // Now convert back to std::vector<WriteHDF5::id_t>, compressed range format
+  // Now convert back to std::vector<WriteHDF5::wid_t>, compressed range format
   result.resize(tmp.psize() * 2);
   int j = 0;
   for (Range::const_pair_iterator pit = tmp.const_pair_begin();
@@ -1690,7 +1690,7 @@ static void merge_ranged_ids(const unsigned long* range_list,
 
 static void merge_vector_ids(const unsigned long* list,
                              size_t len,
-                             std::vector<WriteHDF5::id_t>& result)
+                             std::vector<WriteHDF5::wid_t>& result)
 {
   result.insert(result.end(), list, list + len);
 }
@@ -1724,7 +1724,7 @@ ErrorCode WriteHDF5Parallel::unpack_set(EntityHandle set,
   // If either the current data or the new data is in ranged format,
   // then change the other to ranged format if it isn't already
   // in both cases when they differ, the data will end up "compressed range"
-  std::vector<id_t> tmp;
+  std::vector<wid_t> tmp;
   if ((flags & mhdf_SET_RANGE_BIT) != (data->setFlags & mhdf_SET_RANGE_BIT)) {
     if (flags & mhdf_SET_RANGE_BIT) {
       tmp = data->contentIds;
@@ -1735,15 +1735,15 @@ ErrorCode WriteHDF5Parallel::unpack_set(EntityHandle set,
       tmp.clear();
       convert_to_ranged_ids(contents, num_content, tmp);
       num_content = tmp.size();
-      if (sizeof(id_t) < sizeof(long)) {
+      if (sizeof(wid_t) < sizeof(long)) {
         size_t old_size = tmp.size();
-        tmp.resize(sizeof(long) * old_size / sizeof(id_t));
+        tmp.resize(sizeof(long) * old_size / sizeof(wid_t));
         unsigned long* array = reinterpret_cast<unsigned long*>(&tmp[0]);
         for (long i = ((long)old_size) - 1; i >= 0; --i)
           array[i] = tmp[i];
         contents = array;
       }
-      else if (sizeof(id_t) > sizeof(long)) {
+      else if (sizeof(wid_t) > sizeof(long)) {
         unsigned long* array = reinterpret_cast<unsigned long*>(&tmp[0]);
         std::copy(tmp.begin(), tmp.end(), array);
       }
