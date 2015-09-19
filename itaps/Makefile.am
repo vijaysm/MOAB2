@@ -26,5 +26,5 @@ endif
 include_HEADERS = iBase.h iBase_f.h
 
 SUBDIRS = $(imesh_DIR) $(fbigeom_DIR) $(irel_DIR) $(mesquite_DIR)
-
+DIST_SUBDIRS = $(SUBDIRS)
 EXTRA_DIST = mkprotos.sh
