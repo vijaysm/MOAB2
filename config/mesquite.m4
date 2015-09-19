@@ -30,14 +30,6 @@ MSQ_DO_64BIT="$enable_64bit"
 # set to a default value.
 #------------------------------------------------------------------------------
 
-# m4_ifdef([AM_SILENT_RULES],[
-#   if test "xyes" = "x$MSQ_DO_DEBUG"; then
-#     AM_SILENT_RULES(yes)
-#   else
-#     AM_SILENT_RULES(no)
-#   fi
-# ])
-
 
 
 # If neather debug or release is specified, enable release
@@ -200,54 +192,5 @@ TEST_MAKE_INCLUDE='include $(abs_top_builddir)/src/mesquite/msqcppflags.make'
 UTIL_MAKE_INCLUDE='include $(abs_top_builddir)/src/mesquite/msqcppflags.make'
 AC_SUBST(TEST_MAKE_INCLUDE)
 AC_SUBST(UTIL_MAKE_INCLUDE)
-
-# Specify the headers to create for mesquite
-AC_CONFIG_HEADERS([src/mesquite/include/mesquite_config.h
-                   src/mesquite/include/mesquite_version.h])
-
-AC_CONFIG_FILES([src/mesquite/Makefile
-                 itaps/mesquite/Makefile
-                 test/mesquite/Makefile
-                 test/mesquite/meshfiles.h
-                 test/mesquite/ActiveSetTest/Makefile
-                 test/mesquite/algorithm_test/Makefile
-                 test/mesquite/analytical_grad_3D/Makefile
-                 test/mesquite/convert/Makefile
-                 test/mesquite/benchmark_tests/Makefile
-                 test/mesquite/paraboloid_domain_test/Makefile
-                 test/mesquite/headers/Makefile
-                 test/mesquite/idft_time/Makefile
-                 test/mesquite/igeom/Makefile
-                 test/mesquite/imesh/Makefile
-                 test/mesquite/jacobi/Makefile
-                 test/mesquite/laplacian_test/Makefile
-                 test/mesquite/laplacian_polygon_test/Makefile
-                 test/mesquite/nongradient_test/Makefile
-                 test/mesquite/pyramid/Makefile
-                 test/mesquite/simple_hybrid_test/Makefile
-                 test/mesquite/test_1/Makefile
-                 test/mesquite/transform/Makefile
-                 test/mesquite/tutorial/Makefile
-                 test/mesquite/tutorial/tutorial.make
-                 test/mesquite/untangle_test/Makefile
-                 test/mesquite/parallel_untangle_shape/Makefile 
-                 test/mesquite/parallel_smooth_laplace/Makefile
-                 test/mesquite/wedge/Makefile
-                 test/mesquite/wrapper_tests/Makefile
-                 test/mesquite/2d_target/Makefile
-                 test/mesquite/2d_metrics/Makefile
-                 test/mesquite/2d_formulation/Makefile
-                 test/mesquite/synchronous/Makefile
-                 test/mesquite/high_aspect_ratio/Makefile
-                 test/mesquite/higher_order/Makefile
-                 test/mesquite/slaved/Makefile
-                 tools/mesquite/Makefile
-                 MeshFiles/mesquite/Makefile
-                 ])
-
-if (test "$HAVE_CPPUNIT" != "no"); then
-  AC_CONFIG_FILES([test/mesquite/unit/Makefile])
-fi
-# echo "MSQ_CXXFLAGS = $MSQ_CXXFLAGS"
 
 ])

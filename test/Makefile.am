@@ -14,7 +14,6 @@ endif
 if ENABLE_mesquite
   SUBDIRS += mesquite
 endif
-DIST_SUBDIRS = $(SUBDIRS)
 LDADD = $(top_builddir)/src/libMOAB.la
 
 MESHDIR = $(abs_top_srcdir)/MeshFiles/unittest

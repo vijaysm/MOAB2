@@ -19,7 +19,6 @@ libMOAB_la_LIBADD += io/libmoabio.la LocalDiscretization/libLocalDiscretization.
 if ENABLE_mesquite
 SUBDIRS += mesquite
 endif
-DIST_SUBDIRS = $(SUBDIRS)
 
 BUILT_SOURCES = MBCN_protos.h
 
