@@ -169,7 +169,7 @@ SUBDIRS = . \
           $(vtkMOABReader_DIR) \
           $(dagmc_DIR) \
           $(mesquite_DIR)
-DIST_SUBDIRS = $(SUBDIRS)
+
 mbconvert_SOURCES = convert.cpp
 mbmerge_SOURCES = merge.cpp
 mbgsets_SOURCES = gsets.cc
