@@ -17,8 +17,9 @@ SUBDIRS += io LocalDiscretization verdict RefineMesh .
 libMOAB_la_LIBADD += io/libmoabio.la LocalDiscretization/libLocalDiscretization.la verdict/libmoabverdict.la RefineMesh/libRefineMesh.la
 
 if ENABLE_mesquite
-  SUBDIRS += mesquite
+SUBDIRS += mesquite
 endif
+DIST_SUBDIRS = $(SUBDIRS)
 
 BUILT_SOURCES = MBCN_protos.h
 
