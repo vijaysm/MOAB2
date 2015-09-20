@@ -171,7 +171,7 @@ void run_smoother( Mesh& mesh, MeshDomain* dom, MsqError& err )
 
 bool check_results( Mesh& mesh, MeshDomain* dom, MsqError& err )
 {
-  double EPS = 1e-4;
+  double EPS = 1e-2;
 
   std::vector<Mesh::VertexHandle> handles;
   mesh.get_all_vertices( handles, err ); MSQ_ERRZERO(err);
@@ -220,7 +220,7 @@ bool check_results( Mesh& mesh, MeshDomain* dom, MsqError& err )
 
 MeshDomain* get_itaps_domain()
 {
-  const double EPS = 1e-6;
+  const double EPS = 1e-2;
   int ierr;
   iGeom_Instance igeom;
   iGeom_newGeom( "", &igeom, &ierr, 0 ); CHKIGEOM;
