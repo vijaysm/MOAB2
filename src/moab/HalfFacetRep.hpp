@@ -348,6 +348,12 @@ public:
                                       int leid, std::vector<EntityHandle> &adjents,
                                       std::vector<int> * leids = NULL, std::vector<int> *adj_orients = NULL);
 
+ ErrorCode get_up_adjacencies_edg_3d_comp( EntityHandle cid,
+                                                       int leid,
+                                                       std::vector<EntityHandle> &adjents,
+                                                       std::vector<int> *leids = NULL,
+                                                       std::vector<int> *adj_orients = NULL);
+
   //! Given an face, finds the cells incident on it.
   /** Given an face, it first finds a matching half-face in a cell corresponding to face, and then
      * collects all the incident cells via the sibhfs map.
@@ -442,6 +448,8 @@ public:
   ErrorCode get_incident_map(EntityType type, EntityHandle vid, std::vector<EntityHandle> &inci_entid, std::vector<int> &inci_lid);
 
   ErrorCode set_incident_map(EntityType type, EntityHandle vid, std::vector<EntityHandle> &set_entid, std::vector<int> &set_lid);
+
+  bool check_nonmanifold_vertices(EntityType type, EntityHandle vid);
 
   /**********************
    *         Local Maps

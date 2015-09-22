@@ -180,6 +180,8 @@ namespace moab
       int vert_on_faces[MAX_HF][MAX_VHF];
       //! Helper: stores child half-facets incident on parent half-facet. First column contain the number of such children
       int ents_on_pent[MAX_HF][MAX_CHILDRENS];
+      //! Helper: stores child ents incident on new verts on edge.
+      int ents_on_vedge[MAX_HE][MAX_VHF*3];
     };
     //! refPatterns
 

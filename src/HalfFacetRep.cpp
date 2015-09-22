@@ -2297,6 +2297,149 @@ ErrorCode HalfFacetRep::get_up_adjacencies_edg_3d( EntityHandle eid,
     return MB_SUCCESS;
   }
  
+  ErrorCode HalfFacetRep::get_up_adjacencies_edg_3d_comp( EntityHandle cid,
+                                                     int leid,
+                                                     std::vector<EntityHandle> &adjents,
+                                                     std::vector<int> *leids,
+                                                     std::vector<int> *adj_orients)
+  {
+    ErrorCode error;
+    EntityType ctype = mb->type_from_handle(cid);
+    int index = get_index_in_lmap(cid);
+    int nvpc = lConnMap3D[index].num_verts_in_cell;
+    int nfpc = lConnMap3D[index].num_faces_in_cell;
+    adjents.clear();
+    adjents.reserve(20);
+
+    if (leids != NULL)
+      {
+        leids->clear();
+        leids->reserve(20);
+      }
+    if (adj_orients != NULL)
+      {
+        adj_orients->clear();
+        adj_orients->reserve(20);
+      }
+
+    const EntityHandle* econn;
+    error = mb->get_connectivity(cid, econn, nvpc);MB_CHK_ERR(error);
+
+    // Get the end vertices of the edge <cid,leid>
+    int id = lConnMap3D[index].e2v[leid][0];
+    EntityHandle v_start = econn[id];
+    id = lConnMap3D[index].e2v[leid][1];
+    EntityHandle v_end = econn[id];
+
+    int v1idx = ID_FROM_HANDLE(v_start)-1;
+    int v2idx = ID_FROM_HANDLE(v_end)-1;
+
+    // Find an half-facets incident to each end vertex of the edge
+    std::vector<EntityHandle> start_cells;
+    HFacet hf1 = v2hf[v1idx];
+    HFacet hf2 = v2hf[v2idx];
+
+    if ((hf1 == 0) && (v2hfs.find(v_start) != v2hfs.end()) && (hf2 == 0)  && (v2hfs.find(v_end) != v2hfs.end()))
+      {
+        std::pair <std::multimap<EntityHandle, HFacet>::iterator, std::multimap<EntityHandle, HFacet>::iterator> it_hes;
+        it_hes = v2hfs.equal_range(v_start);
+
+        for (std::multimap<EntityHandle, HFacet>::iterator it = it_hes.first; it != it_hes.second; ++it)
+          {
+            start_cells.push_back(fid_from_halfacet(it->second, ctype));
+          }
+      }
+    else
+      return MB_SUCCESS;
+
+    if (start_cells.empty())
+      return MB_SUCCESS;
+
+
+   // std::sort(start_cells.begin(), start_cells.end());
+  //  std::vector<EntityHandle>::iterator last = std::unique(start_cells.begin(), start_cells.end());
+  //  start_cells.erase(last, start_cells.end());
+
+    for (int c=0; c<(int)start_cells.size(); c++)
+      {
+        cellq[0] = start_cells[c];
+
+        int qsize = 1;
+        int num_qvals = 0;
+
+        while (num_qvals < qsize){
+            EntityHandle cell_id = cellq[num_qvals];
+            num_qvals += 1;
+
+            const EntityHandle* conn;
+            error = mb->get_connectivity(cell_id, conn, nvpc);MB_CHK_ERR(error);
+
+            int lv0 = -1, lv1 = -1, lv = -1;
+
+            //locate v_origin in poped out tet, check if v_end is in
+            for (int i = 0; i<nvpc; i++){
+                if (v_start == conn[i]){
+                    lv0 = i;
+                    lv = lv0;
+                  }
+                else if (v_end == conn[i]){
+                    lv1 = i;
+                    lv = lv1;
+                  }
+              }
+
+            if ((lv0 >= 0) && (lv1 >= 0))
+              {
+                adjents.push_back(cell_id);
+                if (leids != NULL)
+                  leids->push_back( lConnMap3D[index].lookup_leids[lv0][lv1]);
+
+                if (adj_orients != NULL)
+                  {
+                    int cur_leid = lConnMap3D[index].lookup_leids[lv0][lv1];
+                    int id1 =  lConnMap3D[index].e2v[cur_leid][0];
+                    int id2 =  lConnMap3D[index].e2v[cur_leid][1];
+                    if ((v_start == conn[id1]) && (v_end == conn[id2]))
+                      adj_orients->push_back(1);
+                    else if ((v_start == conn[id2]) && (v_end== conn[id1]))
+                      adj_orients->push_back(0);
+                  }
+
+                for (int i = 0; i<qsize; i++)
+                  cellq[i] = 0;
+
+                break;
+              }
+
+            //push back new found unchecked incident tets of v_start
+            int cidx = ID_FROM_HANDLE(cell_id)-1;
+            int nhf_thisv = lConnMap3D[index].v2hf_num[lv];
+
+            for (int i = 0; i < nhf_thisv; i++){
+                int ind = lConnMap3D[index].v2hf[lv][i];
+                HFacet hf = sibhfs[nfpc*cidx+ind];
+                EntityHandle ngb = fid_from_halfacet(hf, ctype);
+
+                if (ngb){
+                    bool found_ent = find_match_in_array(ngb, &cellq[0], qsize-1);
+
+                    if (!found_ent)
+                      {
+                        cellq[qsize] = ngb;
+                        qsize += 1;
+                      }
+                  }
+              }
+          }
+
+        for (int i = 0; i<qsize; i++)
+          cellq[i] = 0;
+      }
+
+    return MB_SUCCESS;
+  }
+
+
 
   ErrorCode  HalfFacetRep::get_up_adjacencies_face_3d( EntityHandle fid,
                                                        std::vector<EntityHandle> &adjents,
@@ -3036,6 +3179,27 @@ ErrorCode HalfFacetRep::get_up_adjacencies_edg_3d( EntityHandle eid,
 
    return MB_SUCCESS;
 
+  }
+
+  bool HalfFacetRep::check_nonmanifold_vertices(EntityType type, EntityHandle vid)
+  {
+    bool status = false;
+    if (type == MBTRI || type == MBQUAD)
+      {
+        HFacet hf = v2he[ID_FROM_HANDLE(vid)-1];
+        if (hf==0 && (v2hes.find(vid) != v2hes.end()))
+          status = true;
+      }
+    else if (type == MBTET || type == MBHEX)
+      {
+        HFacet hf = v2hf[ID_FROM_HANDLE(vid)-1];
+        if (hf==0 && (v2hfs.find(vid) != v2hfs.end()))
+          status = true;
+      }
+    else
+      MB_SET_ERR(MB_FAILURE,"Requesting non-manifold vertex checks for either (1) 1D mesh or (2) not-implemented entity types");
+
+    return status;
   }
 
   ErrorCode HalfFacetRep::get_sibling_map(EntityType type, EntityHandle ent, EntityHandle *sib_entids, int *sib_lids,  int num_halffacets)

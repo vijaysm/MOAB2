@@ -167,6 +167,21 @@ ErrorCode test_adjacencies(Interface *mbImpl, NestedRefine *nr, Range all_ents)
           adjents.clear(); mbents.clear(); ahfents.clear();
           error = nr->get_adjacencies( *i, 3, adjents); CHECK_ERR(error);
           error = mbImpl->get_adjacencies(&*i, 1, 3, false, mbents); CHECK_ERR(error);
+
+          if (adjents.size() != mbents.size())
+            {
+              std::cout<<"VID = "<<*i<<std::endl;
+
+              std::cout<<"HF"<<std::endl;
+              for (int j = 0 ; j<(int)adjents.size(); j++)
+                std::cout<<"hfents["<<j<<"] = "<<adjents[j]<<std::endl;
+
+              std::cout<<"Native"<<std::endl;
+              for (int j = 0 ; j<(int)mbents.size(); j++)
+                std::cout<<"mbents["<<j<<"] = "<<mbents[j]<<std::endl;
+            }
+
+
           CHECK_EQUAL(adjents.size(), mbents.size());
           std::sort(adjents.begin(), adjents.end());
           std::copy(adjents.begin(), adjents.end(), range_inserter(ahfents));
@@ -1232,7 +1247,7 @@ int main(int argc, char *argv[])
     else if (argc == 2)
       {
         const char* filename = argv[1];
-        int deg[2] = {2,2};
+        int deg[4] = {2,3,2,3};
         int len = sizeof(deg) / sizeof(int);
         result = test_mesh(filename, deg, len);
         handle_error_code(result, number_tests_failed, number_tests_successful);
