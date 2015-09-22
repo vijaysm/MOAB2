@@ -34,7 +34,7 @@
 using namespace moab;
 using namespace std;
 
-// #define WRITE_DEBUG_FILES
+#define WRITE_DEBUG_FILES
 
 #ifdef MESH_DIR
 string test_file_name = string(MESH_DIR) + string("/surfrandomtris-4part.h5m");
@@ -213,7 +213,13 @@ ErrorCode perform_laplacian_smoothing(Core *mb, Range& cells, Range &verts, int 
   int nacc = 2; /* nacc_method: 1 = Method 2 from [1], 2 = Method 3 from [1] */
   std::vector<double> verts_acc1, verts_acc2, verts_acc3;
   double rat_theta=rel_eps, rat_alpha=rel_eps, rat_alphaprev=rel_eps;
+#ifdef MOAB_HAVE_MPI
+  const char *woptions = "PARALLEL=WRITE_PART";
+#else
+  const char *woptions = "";
+#endif
   std::vector<int> fix_tag(verts.size());
+
   rval = mb->tag_get_data(fixed, verts, &fix_tag[0]); RC;
 
 #ifdef MOAB_HAVE_MPI
@@ -253,12 +259,30 @@ ErrorCode perform_laplacian_smoothing(Core *mb, Range& cells, Range &verts, int 
     memcpy( &verts_acc3[0], &verts_o[0], nbytes );
   }
 
+  // Filter verts down to owned ones and get fixed tag for them
+  Range owned_verts, shared_owned_verts;
+  if (global_size > 1) {
+#ifdef MOAB_HAVE_MPI
+    rval = pcomm->filter_pstatus(verts, PSTATUS_NOT_OWNED, PSTATUS_NOT, -1, &owned_verts);MB_CHK_ERR(rval);
+#endif
+  }
+  else
+    owned_verts = verts;
+
+#ifdef MOAB_HAVE_MPI
+  // Get shared owned verts, for exchanging tags
+  rval = pcomm->get_shared_entities(-1, shared_owned_verts, 0, false, true);MB_CHK_ERR(rval);
+  // Workaround: if no shared owned verts, put a non-shared one in the list, to prevent exchanging tags
+  // for all shared entities
+  if (shared_owned_verts.empty()) shared_owned_verts.insert(*verts.begin());
+#endif
+
 #ifdef WRITE_DEBUG_FILES
   {
     // output file, using parallel write
     std::stringstream sstr;
-    sstr << "LaplacianSmootherIterate_0.vtk";
-    rval = mb->write_file(sstr.str().c_str()); RC;
+    sstr << "LaplacianSmootherIterate_0.h5m";
+    rval = mb->write_file(sstr.str().c_str(), NULL, woptions); RC;
   }
 #endif
 
@@ -451,17 +475,16 @@ ErrorCode perform_laplacian_smoothing(Core *mb, Range& cells, Range &verts, int 
       rval = mb->set_coords(verts, &verts_n[0]); RC;
       // output VTK file for debugging purposes
       std::stringstream sstr;
-      sstr << "LaplacianSmootherIterate_" << nit+1 << ".vtk";
-      rval = mb->write_file(sstr.str().c_str()); RC;
+      sstr << "LaplacianSmootherIterate_" << nit+1 << ".h5m";
+      rval = mb->write_file(sstr.str().c_str(), NULL, woptions); RC;
     }
 #endif
 
 #ifdef MOAB_HAVE_MPI
       // 2c. exchange tags on owned verts
     if (global_size > 1) {
-      rval = mb->tag_set_data(vpost, verts, vdata); RC;
-      rval = pcomm->exchange_tags(vpost, verts); RC;
-      rval = mb->tag_get_data(vpost, verts, vdata); RC;
+      rval = mb->tag_set_data(vpost, owned_verts, vdata); RC;
+      rval = pcomm->exchange_tags(vpost, shared_owned_verts); RC;
     }
 #endif
 
