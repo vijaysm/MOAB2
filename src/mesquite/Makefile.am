@@ -8,7 +8,7 @@ OLD_AM_GENERATED_HDRS = include/mesquite_config.h \
 EXTRA_DIST = 	$(OLD_AM_GENERATED_HDRS:=.in) \
 							include/mesquite_config.win.h
 
-BUILT_SOURCES = include/Mesquite_all_headers.hpp
+BUILT_SOURCES = include/Mesquite_all_headers.hpp msqcppflags.make
 MSQ_SRCS=
 MSQ_HDRS=
 MSQ_INCLUDES =
@@ -39,7 +39,7 @@ libmesquite_la_include_HEADERS = include/Mesquite.hpp \
 # don't put these generated headers into the distribution
 nodist_libmesquite_la_include_HEADERS = include/Mesquite_all_headers.hpp \
                                         include/mesquite_config.h \
-				 	include/mesquite_version.h 
+                                        include/mesquite_version.h 
 
 libmesquite_la_LIBADD = $(MESQUITE_LIBS)
 AM_CPPFLAGS += -I$(top_srcdir)/src/mesquite/include \
@@ -69,7 +69,28 @@ include/Mesquite_all_headers.hpp: $(MSQ_HDRS)
 	done
 	@echo '#endif'                                  >> $@ 
 
+# Generate list of include flags src/ dir and subdirs 
+# for use when compiling stuff outside of the src/ subdir.
+# Basically, replace value of $(top_srcdir) with the
+# $(top_srcdir) variable in the existing list of include flags.
+$(RECURSIVE_TARGETS) distdir: cppflags.make
+msqcppflags.make: $(MSQ_HDRS) Makefile.am $(top_builddir)/config.status
+	@echo "Generating $@..."
+	@echo "#MSQ_INCLUDES = $(MSQ_INCLUDES)" > $@
+	@echo "INCLUDES = -I\$$(top_srcdir)/src/mesquite/include \\" >> $@
+	@for flag in $(MSQ_INCLUDES); do \
+	  n=`expr X"$$flag" : X"-I$(top_srcdir)/\(.*\)" || true`; \
+	  if test "x$$n" != "x"; then \
+	    echo "	-I\$$(top_srcdir)/$$n \\"     >> $@ ; \
+	  fi ; \
+	done
+	@echo "	-I\$$(top_builddir)/src/mesquite/include \\"                >> $@ 
+	@echo "	-I\$$(top_srcdir)/src \\"                        >> $@ 
+	@echo "	-I\$$(top_srcdir)/itaps \\"                        >> $@ 
+	@echo "	-I\$$(top_builddir)/itaps \\"                      >> $@
+	@echo "	-I\$$(top_srcdir)/test \\"                      >> $@
+	@echo "	\$$(IBASE_INCL)"                                   >> $@
 
 MOSTLYCLEANFILES = $(BUILT_SOURCES)
-DISTCLEANFILES = $(OLD_AM_GENERATED_HDRS)
+DISTCLEANFILES = msqcppflags.make $(OLD_AM_GENERATED_HDRS)
 
