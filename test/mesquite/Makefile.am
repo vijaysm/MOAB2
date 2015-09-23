@@ -54,7 +54,6 @@ SUBDIRS = test_1 \
     slaved \
     synchronous \
     transform \
-    tutorial\
     untangle_test\
     wrapper_tests\
     wedge \
