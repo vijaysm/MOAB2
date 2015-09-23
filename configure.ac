@@ -1565,7 +1565,6 @@ AC_CONFIG_FILES([Makefile
 AC_CONFIG_FILES([src/mesquite/Makefile
                  itaps/mesquite/Makefile
                  test/mesquite/Makefile
-                 test/mesquite/meshfiles.h
                  test/mesquite/ActiveSetTest/Makefile
                  test/mesquite/algorithm_test/Makefile
                  test/mesquite/analytical_grad_3D/Makefile
