@@ -7,9 +7,6 @@
 #include <cstdio>
 #include "TestUtil.hpp"
 
-
-std::string TestDir( STRINGIFY(MESHDIR) );
-
 std::string filename = TestDir + "/mbtest1.vtk";
 
 using namespace moab;

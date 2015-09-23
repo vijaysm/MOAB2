@@ -20,17 +20,8 @@
 
 using namespace moab;
 
-#define STRINGIFY_(X) #X
-#define STRINGIFY(X) STRINGIFY_(X)
-
 #ifdef MOAB_HAVE_MPI
 std::string read_options;
-#endif
-
-#ifdef MESHDIR
-std::string TestDir( STRINGIFY(MESHDIR) );
-#else
-#error MESHDIR needs to be defined for running unit tests
 #endif
 
 int number_tests_successful = 0;

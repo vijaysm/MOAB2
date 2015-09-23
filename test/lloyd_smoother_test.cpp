@@ -3,12 +3,6 @@
 #include "moab/CartVect.hpp"
 #include "TestUtil.hpp"
 
-#ifdef MESHDIR
-std::string TestDir( STRINGIFY(MESHDIR) );
-#else
-#error Specify MESHDIR to compile test
-#endif
-
 std::string filename = TestDir + "/surfrandomtris-4part.h5m";
 
 using namespace moab;
