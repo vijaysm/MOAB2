@@ -23,9 +23,6 @@
     kraftche@cae.wisc.edu     
    
   ***************************************************************** */
-
-#include "meshfiles.h"
-
 #include <iostream>
 #include <sstream>
 using std::cout;
@@ -57,9 +54,11 @@ using std::endl;
 
 #include "MeshWriter.hpp"
 #include "MsqTimer.hpp"
+#include "TestUtil.hpp"
+
 using namespace Mesquite;
 
-const char* DEFAULT_INPUT = MESH_FILES_DIR "2D/vtk/tris/untangled/equil_tri2.vtk";
+std::string DEFAULT_INPUT = TestDir + "/2D/vtk/tris/untangled/equil_tri2.vtk";
 
 /* Print usage or help information: exits if err == true */
 void usage( const char* argv0 = 0, bool err = true )
@@ -219,7 +218,7 @@ int main( int argc, char* argv[] )
   bool do_new_target_average = false;
   bool do_new_target_numeric = false;
   bool do_compare_metric = false;
-  const char* input_file = DEFAULT_INPUT;
+  const char* input_file = DEFAULT_INPUT.c_str();
   bool no_more_flags = false;
   
   std::list<const char**> exp_list;
@@ -253,7 +252,7 @@ int main( int argc, char* argv[] )
       *ptr = argv[i];
     }
     else {
-      if (input_file != DEFAULT_INPUT) {
+      if (!DEFAULT_INPUT.compare(input_file)) {
         cerr << "Unexpected argument: \"" << argv[i] << '"' << endl;
         usage(argv[0]);
       }

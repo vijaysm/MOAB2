@@ -43,8 +43,6 @@ describe main.cpp here
 // DESCRIP-END.
 //
 
-#include "meshfiles.h"
-
 #include <iostream>
 using std::cout;
 using std::endl;
@@ -64,22 +62,22 @@ using std::endl;
 #include "NonSmoothDescent.hpp"
 
 #include "MeshImpl.hpp"
+#include "TestUtil.hpp"
 using namespace Mesquite;
-
 
 int main()
 {     
     /* Reads a Mesh file */
-  const char *file_name = 
-//      MESH_FILES_DIR "2D/vtk/tris/untangled/equil_tri2.vtk";
-//      MESH_FILES_DIR "2D/vtk/tris/untangled/tri_20258.vtk";
-//      MESH_FILES_DIR "3D/vtk/tets/untangled/tet_1.vtk";
-//      MESH_FILES_DIR "3D/vtk/hexes/untangled/cube_tet_2.vtk";
-     MESH_FILES_DIR "3D/vtk/tets/untangled//tire.vtk";
+  std::string file_name = TestDir + 
+//   "/2D/vtk/tris/untangled/equil_tri2.vtk";
+//   "/2D/vtk/tris/untangled/tri_20258.vtk";
+//   "/3D/vtk/tets/untangled/tet_1.vtk";
+//   "/3D/vtk/hexes/untangled/cube_tet_2.vtk";
+     "/3D/vtk/tets/untangled/tire.vtk";
   printf("Loading mesh set 1\n");
   MsqPrintError err( cout );
   Mesquite::MeshImpl mesh;
-  mesh.read_vtk(file_name, err);
+  mesh.read_vtk(file_name.c_str(), err);
   if (err) return 1;
   
     // Creates an intruction queue

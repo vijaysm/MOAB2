@@ -43,8 +43,6 @@ describe main.cpp here
 // DESCRIP-END.
 //
 
-#include "meshfiles.h"
-
 #include "MeshImpl.hpp"
 #include "MsqTimer.hpp"
 #include "Mesquite.hpp"
@@ -54,6 +52,7 @@ describe main.cpp here
 #include "PatchData.hpp"
 #include "TerminationCriterion.hpp"
 #include "QualityAssessor.hpp"
+#include "TestUtil.hpp"
 
 // algorithms
 #include "Randomize.hpp"
@@ -72,7 +71,7 @@ using std::endl;
 
 using namespace Mesquite;
 
-#define VTK_2D_DIR MESH_FILES_DIR "2D/vtk/"
+std::string DEFAULT_MESH = TestDir + "/2D/vtk/quads/tangled/tangled_quad.vtk";
 
 const bool brief_output = true;
 const bool write_output = false;
@@ -81,7 +80,7 @@ int main( )
 {
   Mesquite::MeshImpl mesh;
   MsqPrintError err(cout);
-  mesh.read_vtk(VTK_2D_DIR "quads/tangled/tangled_quad.vtk", err);
+  mesh.read_vtk(DEFAULT_MESH.c_str(), err);
   if (err) return 1;
   
   // Set Domain Constraint

@@ -42,8 +42,7 @@ describe main.cpp here
  */
 // DESCRIP-END.
 //
-
-#include "meshfiles.h"
+#include "TestUtil.hpp"
 
 #include <iostream>
 using std::cout;
@@ -60,7 +59,7 @@ using std::endl;
 
 using namespace Mesquite;
 
-const char DEFAULT_INPUT[] = MESH_FILES_DIR "3D/vtk/tets/untangled/flat-tet-sphere.vtk";
+std::string DEFAULT_INPUT = TestDir + "/3D/vtk/tets/untangled/flat-tet-sphere.vtk";
 
 void help(const char* argv0)
 {
@@ -81,7 +80,7 @@ void tet_dihedral_angle_ratios( Mesh& mesh,
 
 int main(int argc, char* argv[])
 {
-  const char* input_file = DEFAULT_INPUT;
+  const char* input_file = DEFAULT_INPUT.c_str();
   const char* output_file = NULL;
   switch (argc) {
     default:

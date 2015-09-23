@@ -30,6 +30,7 @@
  *  \author Jason Kraftcheck 
  */
 
+#include "TestUtil.hpp"
 #include "Mesquite.hpp"
 #include "DeformingDomainWrapper.hpp"
 #include "MeshImpl.hpp"
@@ -45,7 +46,7 @@
 
 using namespace Mesquite;
 
-const char INPUT_FILE[] = SRCDIR "sph-10-zsquare.vtk";
+std::string INPUT_FILE = std::string(STRINGIFY(SRCDIR)) + "/sph-10-zsquare.vtk";
 //const char INPUT_FILE[] = "test.vtk";
 const double Z = 7.0;
 // size of new domain
@@ -107,7 +108,7 @@ int main( int argc, char* argv[] )
     // load mesh
   MsqPrintError err(std::cerr);
   MeshImpl mesh;
-  mesh.read_vtk( INPUT_FILE, err ); 
+  mesh.read_vtk( INPUT_FILE.c_str(), err ); 
   if (MSQ_CHKERR(err)) return 1;
   
     // find boundary vertices

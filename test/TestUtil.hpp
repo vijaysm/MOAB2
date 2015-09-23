@@ -1,11 +1,18 @@
 #ifndef TEST_UTIL_HPP
 #define TEST_UTIL_HPP
 
+#include <string>
 #include "moab/MOABConfig.h"
 /* Define these here because they are used by many tests
  * to find the add directory for input files */
 #define STRINGIFY_(X) #X
 #define STRINGIFY(X) STRINGIFY_(X)
+
+#ifdef MESHDIR
+std::string TestDir( STRINGIFY(MESHDIR) );
+#else
+#error Specify MESHDIR to compile test
+#endif
 
 /* How to use this test suite utility:
  * 1) Write tests that use the CHECK and CHECK_* macros defined below to assert test conditions.

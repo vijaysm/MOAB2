@@ -43,13 +43,12 @@ describe main.cpp here
 // DESCRIP-END.
 //
 
-#include "meshfiles.h"
-
 #include <iostream>
 using std::cout;
 using std::endl;
 #include <cstdlib>
 
+#include "TestUtil.hpp"
 #include "Mesquite.hpp"
 #include "MsqError.hpp"
 #include "MeshImpl.hpp"
@@ -69,7 +68,7 @@ using std::endl;
 #include "EdgeLengthQualityMetric.hpp"
 using namespace Mesquite;
 
-const char DEFAULT_INPUT[] = MESH_FILES_DIR "2D/vtk/N-Polygonal/poly1.vtk";
+std::string DEFAULT_INPUT = TestDir + "/2D/vtk/N-Polygonal/poly1.vtk";
 
 void help(const char* argv0)
 {
@@ -81,7 +80,7 @@ void help(const char* argv0)
 
 int main(int argc, char* argv[])
 {
-  const char* input_file = DEFAULT_INPUT;
+  const char* input_file = DEFAULT_INPUT.c_str();
   const char* output_file = NULL;
   switch (argc) {
     default:

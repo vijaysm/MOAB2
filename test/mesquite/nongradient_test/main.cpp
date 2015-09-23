@@ -29,7 +29,6 @@
  * \brief test NonGradient Solver (barrier and non-barrier).
  * \author Boyd Tidwell
  */
-#include "meshfiles.h"
 #include "Mesquite.hpp"
 #include "MeshImpl.hpp"
 #include "MsqError.hpp"
@@ -54,7 +53,8 @@
 #include "PMeanPTemplate.hpp"
 #include "LPtoPTemplate.hpp"
 #include "ElementPMeanP.hpp"
-#include "NonGradient.hpp"   
+#include "NonGradient.hpp"
+#include "TestUtil.hpp"
 
 using namespace Mesquite;
 
@@ -65,13 +65,13 @@ int main()
 
   #define FILE_NAME1 "bad_circle_tri.vtk"
   #define FILE_NAME2 "tangled_tri.vtk"
-  const char file_name1[] = MESH_FILES_DIR "2D/vtk/tris/untangled/" FILE_NAME1;
-  const char file_name2[] = MESH_FILES_DIR "2D/vtk/tris/tangled/" FILE_NAME2;
+  std::string file_name1 = TestDir + "/2D/vtk/tris/untangled/" FILE_NAME1;
+  std::string file_name2 = TestDir + "/2D/vtk/tris/tangled/" FILE_NAME2;
 
     // Barrier / Max Objective Function Test
 
   Mesquite::MeshImpl mesh_max;
-  mesh_max.read_vtk(file_name1, err);
+  mesh_max.read_vtk(file_name1.c_str(), err);
   if (err)
   {
     std::cerr << "NonGradient Barrier test: failed to read file." << std::endl;
@@ -115,7 +115,7 @@ int main()
   // test for barrier violation
   PlanarDomain xyPlane2 (PlanarDomain::XY, 5);
   Mesquite::MeshImpl mesh_bv;
-  mesh_bv.read_vtk(file_name2, err);
+  mesh_bv.read_vtk(file_name2.c_str(), err);
   if (err)
   {
     std::cerr << "NonGradient Barrier Violation test: failed to read file." << std::endl;
@@ -139,7 +139,7 @@ int main()
     // Non-Barrier / Ave Objective Function Test
 
   Mesquite::MeshImpl mesh_mean;
-  mesh_mean.read_vtk(file_name1, err);
+  mesh_mean.read_vtk(file_name1.c_str(), err);
   if (err)
   {
     std::cerr << "NonGradient Non-barrier test: failed to read file." << std::endl;

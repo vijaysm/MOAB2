@@ -24,12 +24,6 @@
 
   ***************************************************************** */
 
-
-
-
-
-#include "meshfiles.h"
-
 #include "Mesquite.hpp"
 #include "MsqIGeom.hpp"
 #include "MeshImpl.hpp"
@@ -39,6 +33,7 @@
 #include "MsqVertex.hpp"
 #include "QualityAssessor.hpp"
 #include "SphericalDomain.hpp"
+#include "TestUtil.hpp"
 
 #include <memory>
 #include <iostream>
@@ -62,7 +57,7 @@ bool chk_igeom_error( int ierr, const char* file, int line )
   return true;
 }
 
-const char* const default_file_name = MESH_FILES_DIR "2D/vtk/quads/untangled/quads_on_sphere_529.vtk";
+std::string default_file_name = TestDir + "/2D/vtk/quads/untangled/quads_on_sphere_529.vtk";
 
 void usage()
 {
@@ -104,14 +99,13 @@ int main(int argc, char* argv[])
   }
   if (!file_name)
   {
-    file_name = default_file_name;
+    file_name = default_file_name.c_str();
     std::cout << "No file specified: using default: " << default_file_name << std::endl;
   }  
   
   
   MsqError err;
   MeshImpl mesh;
-  //MsqIMesh mesh;
   mesh.read_vtk( file_name, err );
   if (MSQ_CHKERR(err)) {
     std::cerr << err << std::endl;

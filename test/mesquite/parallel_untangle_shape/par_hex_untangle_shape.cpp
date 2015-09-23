@@ -48,8 +48,6 @@ example code shown therein.
 // DESCRIP-END.
 //
 
-#include "meshfiles.h"
-
 #include "MeshImpl.hpp"
 #include "MeshUtil.hpp"
 #include "MsqTimer.hpp"
@@ -89,6 +87,7 @@ example code shown therein.
 #include "SteepestDescent.hpp"
 #include "ConjugateGradient.hpp"
 #include "PlanarDomain.hpp"
+#include "TestUtil.hpp"
 
 #include <iostream>
 using std::cout;
@@ -100,8 +99,8 @@ using std::endl;
 
 using namespace Mesquite;
 
-#define VTK_3D_DIR MESH_FILES_DIR "3D/vtk/hexes/tangled/"
-#define VTK_2D_DIR MESH_FILES_DIR "2D/vtk/quads/tangled/"
+#define VTK_3D_DIR TestDir + "/3D/vtk/hexes/tangled/"
+#define VTK_2D_DIR TestDir + "/2D/vtk/quads/tangled/"
 
 using namespace std;
   
@@ -337,7 +336,7 @@ public:
 	  return num_invalid;
 	}
 
-	void ParShapeImprover::run(Mesh &mesh, MeshDomain *domain, MsqError& err, bool always_smooth, int debug)
+	void ParShapeImprover::run(Mesh &mesh, MeshDomain *domain, MsqError& , bool always_smooth, int debug)
 	{
 	  int rank, nprocs;
 	  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -381,8 +380,8 @@ public:
 		}
 	      else
 		{
-		  int  msq_debug             = debug; // 1,2,3 for more debug info
-		  bool always_smooth_local   = false;
+		  // int  msq_debug             = debug; // 1,2,3 for more debug info
+		  // bool always_smooth_local   = false;
 
 		  bool do_untangle_only = false;
 		  ParShapeImprover::ParShapeImprovementWrapper siw(innerIter,0.0,gradNorm,100);

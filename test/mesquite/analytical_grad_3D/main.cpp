@@ -43,8 +43,6 @@ describe main.cpp here
 // DESCRIP-END.
 //
 
-#include "meshfiles.h"
-
 #include <iostream>
 #include <cstdlib>
 
@@ -57,21 +55,23 @@ describe main.cpp here
 #include "TerminationCriterion.hpp"
 #include "QualityAssessor.hpp"
 
-// algorythms
+// algorithms
 #include "IdealWeightInverseMeanRatio.hpp"
 #include "ConditionNumberQualityMetric.hpp"
 #include "LPtoPTemplate.hpp"
 #include "LInfTemplate.hpp"
 #include "SteepestDescent.hpp"
+#include "TestUtil.hpp"
 
 using namespace Mesquite;
-
 
 int main()
 {
   MsqPrintError err(std::cout);
   Mesquite::MeshImpl mesh;
-  mesh.read_vtk(MESH_FILES_DIR "3D/vtk/hexes/untangled/hexes_4by2by2.vtk", err);
+
+  std::string file_name = TestDir + "/3D/vtk/hexes/untangled/hexes_4by2by2.vtk";
+  mesh.read_vtk(file_name.c_str(), err);
   
     // creates an intruction queue
   InstructionQueue queue1;

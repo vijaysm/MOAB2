@@ -29,10 +29,7 @@
  *  \brief 
  *  \author Jason Kraftcheck 
  */
-
-
-
-#include "meshfiles.h"
+#include "TestUtil.hpp"
 
 #include <iostream>
 using std::cout;
@@ -51,13 +48,13 @@ using std::endl;
 
 using namespace Mesquite;
 
-const char DEFAULT_INPUT[] = MESH_FILES_DIR "2D/vtk/quads/untangled/bias-sphere-quads.vtk";
+std::string DEFAULT_INPUT = TestDir + "/2D/vtk/quads/untangled/bias-sphere-quads.vtk";
 
 void help(const char* argv0)
 {
   std::cerr << "Usage: " << argv0 << " [<output_file>]" << std::endl
             << "  Input file is always: " << DEFAULT_INPUT << std::endl
-            << "  defualt is no output file" << std::endl;
+            << "  default is no output file" << std::endl;
   exit(1);
 }
 
@@ -77,7 +74,7 @@ void elem_areas( Mesh& mesh, const elem_vec_t& elems,
 
 int main(int argc, char* argv[])
 {
-  const char* input_file = DEFAULT_INPUT;
+  const char* input_file = DEFAULT_INPUT.c_str();
   const char* output_file = NULL;
   switch (argc) {
     default:

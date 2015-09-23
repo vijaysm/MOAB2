@@ -42,7 +42,7 @@ Calls the Mesquite wrappers. First command line argument is the mesh file.
  */
 // DESCRIP-END.
 //
-#include "meshfiles.h"
+#include "TestUtil.hpp"
 
 #include "Mesquite.hpp"
 #include "MeshImpl.hpp"
@@ -62,24 +62,24 @@ using namespace Mesquite;
 int main(int argc, char* argv[])
 {
   Mesquite::MsqPrintError err(cout);
-  char file_name[256];
+
+  std::string file_name = TestDir + "/3D/vtk/tets/untangled/tire.vtk";
   
   // command line arguments
   if (argc==1) {
 	
      cout << "No command line argument given for mesh file.\n"
-          << "Defaulting to " MESH_FILES_DIR "3D/vtk/tets/untangled/tire.vtk\n";
-     strcpy(file_name,MESH_FILES_DIR "3D/vtk/tets/untangled/tire.vtk");
+          << "Defaulting to " << file_name << "\n";
   } 
   else if (argc>2) 
     cout << "Too many command line arguments.\n" << endl;
   else if (argc==2) {
     cout << " given 1 command line arguments.\n";
-    strcpy(file_name, argv[1]);
+    file_name = argv[1];
   }
   
   Mesquite::MeshImpl mesh;
-  mesh.read_vtk(file_name, err);
+  mesh.read_vtk(file_name.c_str(), err);
   
   // creates a wrapper
   ShapeImprovementWrapper wrapper;

@@ -48,8 +48,7 @@ example code shown therein.
 // DESCRIP-END.
 //
 
-#include "meshfiles.h"
-
+#include "TestUtil.hpp"
 #include "MeshImpl.hpp"
 #include "MeshUtil.hpp"
 #include "MsqTimer.hpp"
@@ -66,7 +65,6 @@ example code shown therein.
 /* Mesquite includes */
 #include "ParallelMeshImpl.hpp"
 #include "ParallelHelper.hpp"
-
 
 // algorithms
 #include "Randomize.hpp"
@@ -88,7 +86,7 @@ using std::endl;
 
 using namespace Mesquite;
 
-#define VTK_3D_DIR MESH_FILES_DIR "3D/vtk/hexes/tangled/"
+std::string VTK_3D_DIR = TestDir + "/3D/vtk/hexes/tangled/";
 
 using namespace std;
   

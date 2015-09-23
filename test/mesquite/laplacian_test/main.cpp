@@ -43,8 +43,6 @@ describe main.cpp here
 // DESCRIP-END.
 //
 
-#include "meshfiles.h"
-
 #include <iostream>
 using std::cout;
 using std::endl;
@@ -60,6 +58,7 @@ using std::endl;
 #include "QualityAssessor.hpp"
 #include "PlanarDomain.hpp"
 #include "MsqTimer.hpp"
+#include "TestUtil.hpp"
 
 // algorythms
 #include "ConditionNumberQualityMetric.hpp"
@@ -69,7 +68,7 @@ using std::endl;
 #include "EdgeLengthQualityMetric.hpp"
 using namespace Mesquite;
 
-const char DEFAULT_INPUT[] = MESH_FILES_DIR "2D/vtk/quads/untangled/square_quad_2.vtk";
+std::string DEFAULT_INPUT = TestDir + "/2D/vtk/quads/untangled/square_quad_2.vtk";
 
 void help(const char* argv0)
 {
@@ -82,7 +81,7 @@ void help(const char* argv0)
 
 int main(int argc, char* argv[])
 {
-  const char* input_file = DEFAULT_INPUT;
+  const char* input_file = DEFAULT_INPUT.c_str();
   const char* output_file = NULL;
   switch (argc) {
     default:
@@ -154,7 +153,7 @@ int main(int argc, char* argv[])
   
     // check that smoother is working: 
     // the one free vertex must be at the origin
-  if (input_file == DEFAULT_INPUT) {
+  if (!DEFAULT_INPUT.compare(input_file)) {
     std::vector<Mesh::VertexHandle> vertices;
     mesh.get_all_vertices( vertices, err );
     if (err) return 1;

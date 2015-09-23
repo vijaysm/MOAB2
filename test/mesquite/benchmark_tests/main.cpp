@@ -41,8 +41,6 @@
 // DESCRIP-END.
 //
 
-#include "meshfiles.h"
-
 #include <iostream>
 using std::cout;
 using std::endl;
@@ -72,21 +70,22 @@ using std::endl;
 #include "PaverMinEdgeLengthWrapper.hpp"
 #include "DeformingDomainWrapper.hpp"
 #include "MeshDomain1D.hpp"
+#include "TestUtil.hpp"
 
 using namespace Mesquite;
 
-const char shape_improv_file_name_1[] = MESH_FILES_DIR "3D/vtk/hexes/untangled/1000hex-block-internal-bias.vtk";
-const char shape_improv_file_name_2[] = MESH_FILES_DIR "3D/vtk/tets/untangled/tire.vtk";
-const char laplacian_file_name_1[] = MESH_FILES_DIR "2D/vtk/quads/untangled/square_quad_10_rand.vtk";
-const char laplacian_file_name_2[] = MESH_FILES_DIR "2D/vtk//quads/untangled/shashkov_quad.vtk";
-const char untangle_file_name_1[] = MESH_FILES_DIR "2D/vtk/quads/tangled/tangled_horse1.vtk";
-const char untangle_file_name_2[] = MESH_FILES_DIR "2D/vtk/quads/untangled//shest_grid32.vtk";
-const char size_adapt_shape_file_name_1[] = MESH_FILES_DIR "2D/vtk/quads/untangled/bias-sphere-quads.vtk";
-const char min_edge_length_file_name_1[] = MESH_FILES_DIR "2D/vtk/quads/untangled/quads_4by2_bad.vtk";
-const char min_edge_length_file_name_2[] = MESH_FILES_DIR "2D/vtk/quads/untangled/shashkov_quad.vtk";
-const char deforming_domain_file_name_1[] = MESH_FILES_DIR "3D/vtk/hexes/untangled/sph-10-zsquare.vtk";
+std::string shape_improv_file_name_1 = TestDir + "/3D/vtk/hexes/untangled/1000hex-block-internal-bias.vtk";
+std::string shape_improv_file_name_2 = TestDir + "/3D/vtk/tets/untangled/tire.vtk";
+std::string laplacian_file_name_1 = TestDir + "/2D/vtk/quads/untangled/square_quad_10_rand.vtk";
+std::string laplacian_file_name_2 = TestDir + "/2D/vtk//quads/untangled/shashkov_quad.vtk";
+std::string untangle_file_name_1 = TestDir + "/2D/vtk/quads/tangled/tangled_horse1.vtk";
+std::string untangle_file_name_2 = TestDir + "/2D/vtk/quads/untangled//shest_grid32.vtk";
+std::string size_adapt_shape_file_name_1 = TestDir + "/2D/vtk/quads/untangled/bias-sphere-quads.vtk";
+std::string min_edge_length_file_name_1 = TestDir + "/2D/vtk/quads/untangled/quads_4by2_bad.vtk";
+std::string min_edge_length_file_name_2 = TestDir + "/2D/vtk/quads/untangled/shashkov_quad.vtk";
+std::string deforming_domain_file_name_1 = TestDir + "/3D/vtk/hexes/untangled/sph-10-zsquare.vtk";
 
-void help(const char* argv0)
+void help(const char* )
 {
   std::cerr << "Parameters are not supported for this test" << std::endl;
             exit(1);
@@ -113,9 +112,8 @@ const double Z = 7.0;
 // size of new domain
 const double HD = 4.5;
 
-int main(int argc, char* argv[])
+int main(int , char* [])
 {
-
   std::cout << std::endl << "********* Wrappers Timing Tests **********" 
             << std::endl << "Version "  << version_string(true) 
             << std::endl << std::endl;
@@ -126,7 +124,7 @@ int main(int argc, char* argv[])
 // #################### Begin ShapeImprover tests ###################
 
   ShapeImprover si_wrapper;
-  mesh.read_vtk(shape_improv_file_name_1, err);
+  mesh.read_vtk(shape_improv_file_name_1.c_str(), err);
 
   Timer t;  
   si_wrapper.run_instructions(&mesh, err); 
@@ -136,7 +134,7 @@ int main(int argc, char* argv[])
             << si_s_secs << " seconds" << std::endl;
 
   mesh.clear();
-  mesh.read_vtk(shape_improv_file_name_2, err); 
+  mesh.read_vtk(shape_improv_file_name_2.c_str(), err); 
   
   t.reset();
   si_wrapper.run_instructions(&mesh, err); 
@@ -154,7 +152,7 @@ int main(int argc, char* argv[])
   LaplaceWrapper lp_wrapper;
 
   mesh.clear();
-  mesh.read_vtk(laplacian_file_name_1, err);
+  mesh.read_vtk(laplacian_file_name_1.c_str(), err);
   if (err) return 1;
 
   MeshDomainAssoc mesh_and_domain4 = MeshDomainAssoc(&mesh, &msq_geom);
@@ -169,7 +167,7 @@ int main(int argc, char* argv[])
   Mesquite::PlanarDomain msq_geom2(s_norm, pnt2);
 
   mesh.clear();
-  mesh.read_vtk(laplacian_file_name_2, err);
+  mesh.read_vtk(laplacian_file_name_2.c_str(), err);
   if (err) return 1;  
 
   MeshDomainAssoc mesh_and_domain5 = MeshDomainAssoc(&mesh, &msq_geom2);
@@ -181,7 +179,7 @@ int main(int argc, char* argv[])
             << lp_l1_secs << " seconds" << std::endl;
 
   mesh.clear();
-  mesh.read_vtk(laplacian_file_name_2, err);
+  mesh.read_vtk(laplacian_file_name_2.c_str(), err);
   if (err) return 1;  
 
   lp_wrapper.set_vertex_movement_limit_factor(0.1);
@@ -196,7 +194,7 @@ int main(int argc, char* argv[])
 // #################### Begin UntangleWrapper::BETA tests ###################
 
   mesh.clear();
-  mesh.read_vtk(untangle_file_name_1, err);
+  mesh.read_vtk(untangle_file_name_1.c_str(), err);
   if (err) return 1;
 
   std::vector<Mesh::VertexHandle> verts;
@@ -222,7 +220,7 @@ int main(int argc, char* argv[])
             << unb_s_secs << " seconds" << std::endl;
 
   mesh.clear();
-  mesh.read_vtk(untangle_file_name_2, err);
+  mesh.read_vtk(untangle_file_name_2.c_str(), err);
   if (err) return 1;
 
    // get domain
@@ -245,7 +243,7 @@ int main(int argc, char* argv[])
             << unb_l1_secs << " seconds" << std::endl;
 
   mesh.clear();
-  mesh.read_vtk(untangle_file_name_2, err);
+  mesh.read_vtk(untangle_file_name_2.c_str(), err);
   if (err) return 1;
 
    // get domain
@@ -272,7 +270,7 @@ int main(int argc, char* argv[])
 // #################### Begin UntangleWrapper::SIZE tests ###################
 
   mesh.clear();
-  mesh.read_vtk(untangle_file_name_1, err);
+  mesh.read_vtk(untangle_file_name_1.c_str(), err);
   if (err) return 1;
 
   verts.clear();
@@ -296,7 +294,7 @@ int main(int argc, char* argv[])
             << uns_s_secs << " seconds" << std::endl;
 
   mesh.clear();
-  mesh.read_vtk(untangle_file_name_2, err);
+  mesh.read_vtk(untangle_file_name_2.c_str(), err);
   if (err) return 1;
 
    // get domain
@@ -320,7 +318,7 @@ int main(int argc, char* argv[])
             << uns_l1_secs << " seconds" << std::endl;
 
   mesh.clear();
-  mesh.read_vtk(untangle_file_name_2, err);
+  mesh.read_vtk(untangle_file_name_2.c_str(), err);
   if (err) return 1;
 
   mesh.get_all_vertices( verts, err );
@@ -342,7 +340,7 @@ int main(int argc, char* argv[])
 // #################### Begin UntangleWrapper::SHAPESIZE tests ###################
 
   mesh.clear();
-  mesh.read_vtk(untangle_file_name_1, err);
+  mesh.read_vtk(untangle_file_name_1.c_str(), err);
   if (err) return 1;
 
   verts.clear();
@@ -366,7 +364,7 @@ int main(int argc, char* argv[])
             << unss_s_secs << " seconds" << std::endl;
 
   mesh.clear();
-  mesh.read_vtk(untangle_file_name_2, err);
+  mesh.read_vtk(untangle_file_name_2.c_str(), err);
   if (err) return 1;
 
    // get domain
@@ -391,7 +389,7 @@ int main(int argc, char* argv[])
   // #################### Begin SizeAdaptShapeWrapper tests ###################
 
   mesh.clear();
-  mesh.read_vtk(size_adapt_shape_file_name_1, err);
+  mesh.read_vtk(size_adapt_shape_file_name_1.c_str(), err);
   if (err) return 1;
  
   elem_vec_t polar, equatorial;
@@ -417,7 +415,7 @@ int main(int argc, char* argv[])
             << sas1_secs << " seconds" << std::endl;
 
   mesh.clear();
-  mesh.read_vtk(size_adapt_shape_file_name_1, err);
+  mesh.read_vtk(size_adapt_shape_file_name_1.c_str(), err);
   if (err) return 1;
 
   t.reset();
@@ -433,7 +431,7 @@ int main(int argc, char* argv[])
   PaverMinEdgeLengthWrapper mel_wrapper2(.1, 50);
 
   mesh.clear();
-  mesh.read_vtk(min_edge_length_file_name_1, err); 
+  mesh.read_vtk(min_edge_length_file_name_1.c_str(), err); 
   
   t.reset();
   mel_wrapper1.run_instructions(&mesh, err); 
@@ -443,7 +441,7 @@ int main(int argc, char* argv[])
             << mel_s_secs << " seconds" << std::endl;
 
   mesh.clear();
-  mesh.read_vtk(min_edge_length_file_name_2, err); 
+  mesh.read_vtk(min_edge_length_file_name_2.c_str(), err); 
   
   t.reset();
   mel_wrapper1.run_instructions(&mesh, err); 
@@ -454,7 +452,7 @@ int main(int argc, char* argv[])
 
 
   mesh.clear();
-  mesh.read_vtk(min_edge_length_file_name_2, err); 
+  mesh.read_vtk(min_edge_length_file_name_2.c_str(), err); 
   t.reset();
   mel_wrapper2.run_instructions(&mesh, err); 
   if (err) return 1;
@@ -467,7 +465,7 @@ int main(int argc, char* argv[])
   
     // load mesh
   mesh.clear();
-  mesh.read_vtk( deforming_domain_file_name_1, err ); 
+  mesh.read_vtk( deforming_domain_file_name_1.c_str(), err ); 
   if (MSQ_CHKERR(err)) return 1;
 
   std::vector<Mesh::VertexHandle> curves[4];
@@ -527,7 +525,7 @@ int main(int argc, char* argv[])
 
     // Do it all again for the next test
   mesh.clear();
-  mesh.read_vtk( deforming_domain_file_name_1, err ); 
+  mesh.read_vtk( deforming_domain_file_name_1.c_str(), err ); 
   if (MSQ_CHKERR(err)) return 1;
 
   std::vector<Mesh::VertexHandle> curves2[4];

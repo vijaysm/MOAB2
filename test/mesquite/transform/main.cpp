@@ -42,14 +42,13 @@ describe main.cpp here
 // DESCRIP-END.
 //
 
-#include "meshfiles.h"
-
 #include <iostream>
 using std::cout;
 using std::cerr;
 using std::endl;
 #include <cstdlib>
 
+#include "TestUtil.hpp"
 #include "Mesquite.hpp"
 #include "MeshImpl.hpp"
 #include "MsqError.hpp"
@@ -65,13 +64,14 @@ using namespace Mesquite;
 
 const double EPSILON = 1e-6;
 
-int main(int argc, char* argv[])
+int main(int , char* [])
 {
   Mesquite::MsqPrintError err(cout);
-
   Mesquite::MeshImpl mesh;
+
+  std::string default_file_name = TestDir + "/2D/vtk/quads/untangled/tfi_horse10x4-12.vtk";
     //mesh->read_exodus("transformed_mesh.exo", err);
-  mesh.read_vtk(MESH_FILES_DIR "2D/vtk/quads/untangled/tfi_horse10x4-12.vtk", err);
+  mesh.read_vtk(default_file_name.c_str(), err);
   if (err) return 1;
   
     // Get all vertex coordinates from mesh

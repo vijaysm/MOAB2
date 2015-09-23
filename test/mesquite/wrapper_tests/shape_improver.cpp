@@ -30,6 +30,7 @@
  *  \author Jason Kraftcheck 
  */
 
+#include "TestUtil.hpp"
 #ifdef TEST_OLD_WRAPPER
 #  include "ShapeImprovementWrapper.hpp"
 #else
@@ -40,7 +41,6 @@
 #include "MsqError.hpp"
 #include "PlanarDomain.hpp"
 #include "IdealWeightInverseMeanRatio.hpp"
-#include "meshfiles.h"
 
 #include <iostream>
 #include <stdlib.h>
@@ -48,8 +48,7 @@
 
 using namespace Mesquite;
 
-
-const char DEFAULT_INPUT[] = MESH_FILES_DIR "/2D/vtk/quads/tangled/inverted-hole-1.vtk";
+std::string DEFAULT_INPUT = TestDir + "/2D/vtk/quads/tangled/inverted-hole-1.vtk";
 
 void usage( const char* argv0, bool help = false ) {
   std::ostream& str = help ? std::cout : std::cerr;
@@ -80,7 +79,7 @@ int main( int argc, char* argv[] )
       usage(argv[0]);
   }
   if (!input_file)
-    input_file = DEFAULT_INPUT;
+    input_file = DEFAULT_INPUT.c_str();
   
   MsqError err;
   MeshImpl mesh;

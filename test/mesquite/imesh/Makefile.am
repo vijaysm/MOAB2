@@ -11,9 +11,14 @@ main_DEPENDENCIES = $(top_builddir)/src/mesquite/libmesquite.la \
 TESTS = main
 EXTRA_DIST = CMakeLists.txt
 
-AM_CPPFLAGS += -I$(top_srcdir)/src/parallel \
+MESHDIR = $(abs_top_srcdir)/MeshFiles/mesquite
+
+AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
+               -DMESHDIR=$(MESHDIR) \
+               -I$(top_srcdir)/src/parallel \
 							 -I$(top_srcdir)/itaps \
                -I$(top_srcdir)/itaps/imesh \
+               -I$(top_srcdir)/itaps/mesquite \
                -I$(top_builddir)/itaps/imesh
 
 if ENABLE_imesh

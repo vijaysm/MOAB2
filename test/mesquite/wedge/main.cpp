@@ -26,10 +26,7 @@
    
   ***************************************************************** */
 
-
 #define TOL 1e-5
-
-#include "meshfiles.h"
 
 //#define DO_QUALITY_ASSESSOR
 
@@ -37,7 +34,6 @@
 using std::cout;
 using std::endl;
 #include <stdlib.h>
-
 
 #include "Mesquite.hpp"
 #include "MeshImpl.hpp"
@@ -47,6 +43,7 @@ using std::endl;
 #include "QualityAssessor.hpp"
 #include "LPtoPTemplate.hpp"
 #include "LInfTemplate.hpp"
+#include "TestUtil.hpp"
 
 // algorithms
 #include "IdealWeightMeanRatio.hpp"
@@ -107,7 +104,7 @@ const unsigned NUM_ELEM = 6;
 const unsigned NUM_VERT = 14;
 const unsigned VERT_PER_ELEM = 6;
 
-int main( int argc, char* argv[] )
+int main( int argc, char* [] )
 {
   if (argc != 1)
   {
@@ -115,7 +112,7 @@ int main( int argc, char* argv[] )
     return 2;
   }
   
-  const char* meshfile = MESH_FILES_DIR "3D/vtk/prisms/untangled/6-wedge-prism.vtk";
+  std::string meshfile = TestDir + "/3D/vtk/prisms/untangled/6-wedge-prism.vtk";
   unsigned i;
 
   Mesquite::MsqPrintError err(cout);
@@ -126,10 +123,10 @@ int main( int argc, char* argv[] )
 
     // Read Mesh
   Mesquite::MeshImpl mesh;
-  mesh.read_vtk( meshfile, err);
+  mesh.read_vtk( meshfile.c_str(), err);
   CPPUNIT_ASSERT(!err);
   Mesquite::MeshImpl ideal_mesh;
-  ideal_mesh.read_vtk( meshfile, err);
+  ideal_mesh.read_vtk( meshfile.c_str(), err);
   CPPUNIT_ASSERT(!err);
 
     // Check that the mesh read correctly, and contains what is
@@ -217,7 +214,7 @@ int main( int argc, char* argv[] )
 }
   
   
-bool smooth_mesh( MeshImpl* mesh, Mesh* ref_mesh,
+bool smooth_mesh( MeshImpl* mesh, Mesh* ,
                   Mesh::VertexHandle vert1, 
                   Mesh::VertexHandle vert2, 
                   Vector3D delta,
