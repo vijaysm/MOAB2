@@ -9,7 +9,7 @@
 #define STRINGIFY(X) STRINGIFY_(X)
 
 #ifdef MESHDIR
-std::string TestDir( STRINGIFY(MESHDIR) );
+const std::string TestDir( STRINGIFY(MESHDIR) );
 #else
 #error Specify MESHDIR to compile test
 #endif
@@ -257,8 +257,13 @@ inline void flag_error()
 #  include "Internals.hpp"
 #endif
 
+#ifndef TEST_USES_ERR_CODES
 typedef void (*test_func)(void);
 int run_test( test_func test, const char* func_name )
+#else
+typedef moab::ErrorCode (*test_func_err)(void);
+int run_test( test_func_err test, const char* func_name )
+#endif
 {
   printf("Running %s ...\n", func_name );
   
