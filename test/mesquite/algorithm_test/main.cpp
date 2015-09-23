@@ -42,8 +42,6 @@ describe main.cpp here
  */
 // DESCRIP-END.
 //
-#include "meshfiles.h"
-
 #include <iostream>
 using std::cout;
 using std::endl;
@@ -65,13 +63,16 @@ using std::endl;
 #include "LInfTemplate.hpp"
 #include "FeasibleNewton.hpp"
 #include "ConjugateGradient.hpp"
+#include "TestUtil.hpp"
 using namespace Mesquite;
 
 int main()
-{     
+{
   MsqPrintError err(cout);
   Mesquite::MeshImpl mesh;
-  mesh.read_vtk(MESH_FILES_DIR "3D/vtk/tets/untangled/tire.vtk", err);
+
+  std::string file_name = TestDir + "/3D/vtk/tets/untangled/tire.vtk";
+  mesh.read_vtk(file_name.c_str(), err);
   if (err) return 1;
   
     // creates an intruction queue

@@ -43,8 +43,7 @@ describe main.cpp here
 // DESCRIP-END.
 //
 
-#include "meshfiles.h"
-
+#include "TestUtil.hpp"
 #include "Mesquite.hpp"
 #include "MeshImpl.hpp"
 #include "PlanarDomain.hpp"
@@ -75,8 +74,9 @@ int main()
   Vector3D pnt(0,0,0);
   Vector3D s_norm(0,0,1);
   Mesquite::PlanarDomain msq_geom(s_norm, pnt);
-     
-  mesh.read_vtk(MESH_FILES_DIR "2D/vtk/mixed/untangled/hybrid_3quad_1tri.vtk", err);
+
+  std::string default_file_name = TestDir + "/2D/vtk/mixed/untangled/hybrid_3quad_1tri.vtk";
+  mesh.read_vtk(default_file_name.c_str(), err);
   if (err) return 1;
   
     // creates an intruction queue

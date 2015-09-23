@@ -42,8 +42,6 @@ describe main.cpp here
  */
 // DESCRIP-END.
 //
-#include "meshfiles.h"
-
 #include <iostream>
 using std::cout;
 using std::endl;
@@ -54,6 +52,7 @@ using std::endl;
 #include "MsqError.hpp"
 #include "Vector3D.hpp"
 #include "MeshInterface.hpp"
+#include "TestUtil.hpp"
 
 using namespace Mesquite;
 
@@ -88,19 +87,14 @@ class ParaboloidDomain : public MeshDomain
                              unsigned short* dof_array,
                              size_t num_handles,
                              MsqError& err ) const {};
-                             
-       
-
 };
-
-
 
 int main()
 {     
   MsqPrintError err(cout);
   Mesquite::MeshImpl mesh;
-  mesh.read_vtk(MESH_FILES_DIR "2D/vtk/quads/untangled/paraboloid.vtk", err); 
-//  mesh.read_vtk("/home/bktidwell/tmp/paraboloid.vtk", err);
+  std::string file_name = TestDir + "/2D/vtk/quads/untangled/paraboloid.vtk";
+  mesh.read_vtk(file_name.c_str(), err); 
   if (err) return 1;
   
   ParaboloidDomain domain;
@@ -108,7 +102,5 @@ int main()
   MeshDomainAssoc mesh_and_domain = MeshDomainAssoc(&mesh, &domain, true, true, false);
 
   std::cout << "Paraboloid Domain Test Passes" << std::endl;
-
-
   return 0;
 }

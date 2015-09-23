@@ -26,10 +26,7 @@
    
   ***************************************************************** */
 
-
 #define TOL 1e-5
-
-#include "meshfiles.h"
 
 #include <iostream>
 using std::cout;
@@ -53,6 +50,8 @@ using std::endl;
 #include "ConjugateGradient.hpp"
 #include "TrustRegion.hpp"
 #include "ConditionNumberQualityMetric.hpp"
+#include "TestUtil.hpp"
+
 using namespace Mesquite;
 
 // Use CPPUNIT_ASSERT in code so it's easy to convert to a unit test later.
@@ -79,7 +78,7 @@ bool smooth_mixed_mesh( const char* filename );
 int main( int argc, char* argv[] )
 {
   unsigned i;
-  const char* input_file = MESH_FILES_DIR "3D/vtk/mixed/tangled/mixed-hex-pyr-tet.vtk";
+  std::string input_file = TestDir + "/3D/vtk/mixed/tangled/mixed-hex-pyr-tet.vtk";
   if (argc == 2)
     input_file = argv[1];
   else if (argc != 1)
@@ -96,11 +95,13 @@ int main( int argc, char* argv[] )
   QualityMetric* metrics[] = { &m1, &m2, &m3, 0 };
 
     // Read Mesh
+  std::string mesh_file = TestDir + "/3D/vtk/pyramids/untangled/12-pyramid-unit-sphere.vtk";
+  std::string imesh_file = TestDir + "/3D/vtk/pyramids/untangled/12-pyramid-unit-sphere.vtk";
   Mesquite::MeshImpl mesh;
-  mesh.read_vtk(MESH_FILES_DIR "3D/vtk/pyramids/untangled/12-pyramid-unit-sphere.vtk", err);
+  mesh.read_vtk(mesh_file.c_str(), err);
   CPPUNIT_ASSERT(!err);
   Mesquite::MeshImpl ideal_mesh;
-  ideal_mesh.read_vtk(MESH_FILES_DIR "3D/vtk/pyramids/untangled/12-pyramid-unit-sphere.vtk", err);
+  ideal_mesh.read_vtk(imesh_file.c_str(), err);
   CPPUNIT_ASSERT(!err);
 
     // Check that the mesh read correctly, and contains what is
@@ -174,13 +175,13 @@ int main( int argc, char* argv[] )
     CPPUNIT_ASSERT( !smooth_mesh( &mesh, &ideal_mesh, apex_handle, position, metrics[i] ) );
 
     // Now try smoothing a real mixed mesh
-  CPPUNIT_ASSERT( !smooth_mixed_mesh( input_file ) );
+  CPPUNIT_ASSERT( !smooth_mixed_mesh( input_file.c_str() ) );
 
   return 0;
 }
   
   
-bool smooth_mesh( Mesh* mesh, Mesh* ref_mesh,
+bool smooth_mesh( Mesh* mesh, Mesh* ,
                   Mesh::VertexHandle free_vertex_at_origin, 
                   Vector3D initial_free_vertex_position,
                   QualityMetric* metric )

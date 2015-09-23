@@ -42,8 +42,6 @@ describe main.cpp here
 // DESCRIP-END.
 //
 
-#include "meshfiles.h"
-
 #include <iostream>
 using std::cout;
 using std::cerr;
@@ -63,6 +61,8 @@ using std::endl;
 #include "LPtoPTemplate.hpp"
 #include "FeasibleNewton.hpp"
 #include "ConjugateGradient.hpp"
+#include "TestUtil.hpp"
+
 using namespace Mesquite;
 
 void usage()
@@ -71,13 +71,12 @@ void usage()
   exit(1);
 }
 
-
 int main(int argc, char* argv[])
 {
   Mesquite::MsqPrintError err(cout);
-  const char* file_name = MESH_FILES_DIR "3D/vtk/hexes/untangled/large_box_hex_1000.vtk";
+
+  std::string file_name = TestDir + "/3D/vtk/hexes/untangled/large_box_hex_1000.vtk";
   double OF_value = 0.;
-  
   
   if (argc == 1)
   {
@@ -101,7 +100,7 @@ int main(int argc, char* argv[])
   }
   
   Mesquite::MeshImpl mesh;
-  mesh.read_vtk(file_name, err);
+  mesh.read_vtk(file_name.c_str(), err);
   if (err) return 1;
   
   // creates an intruction queue

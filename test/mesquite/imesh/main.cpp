@@ -43,8 +43,6 @@ describe main.cpp here
 // DESCRIP-END.
 //
 
-#include "meshfiles.h"
-
 #include "Mesquite.hpp"
 #include "MsqIMesh.hpp"
 #include "MeshImpl.hpp"
@@ -54,6 +52,7 @@ describe main.cpp here
 #include "QualityAssessor.hpp"
 #include "PlanarDomain.hpp"
 #include "MeshWriter.hpp"
+#include "TestUtil.hpp"
 
 // algorithms
 #include "IdealWeightInverseMeanRatio.hpp"
@@ -70,10 +69,9 @@ using std::endl;
 
 #include "iBase.h"
 
-
 using namespace Mesquite;
 
-const char* const default_file_name = MESH_FILES_DIR "3D/VTK/large_box_hex_1000.vtk";
+std::string default_file_name = TestDir + "/3D/vtk/large_box_hex_1000.vtk";
 
 void usage()
 {
@@ -122,7 +120,7 @@ int main(int argc, char* argv[])
   }
   if (!file_name)
   {
-    file_name = default_file_name;
+    file_name = default_file_name.c_str();
     cout << "No file specified: using default: " << default_file_name << endl;
   }  
   

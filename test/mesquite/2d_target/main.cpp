@@ -24,8 +24,6 @@
    
   ***************************************************************** */
 
-#include "meshfiles.h"
-
 #include "Mesquite.hpp"
 #include <iostream>
 using std::cout;
@@ -49,6 +47,7 @@ using std::auto_ptr;
 #include "ConditionNumberQualityMetric.hpp"
 #include "ReferenceMesh.hpp"
 #include "RefMeshTargetCalculator.hpp"
+#include "TestUtil.hpp"
 
 #include "TQualityMetric.hpp"
 #include "ElementPMeanP.hpp"
@@ -93,8 +92,8 @@ const char* const averaging_names[] = { "none", "element", "vertex", "patch" };
 const double DEFAULT_OF_POWER = 1.0;
 const unsigned DEFAULT_METRIC_IDX = 0;
 const AveragingScheme DEFAULT_AVG_SCHEME = NONE;
-const char DEFAULT_INPUT_FILE[] = MESH_FILES_DIR "2D/vtk/quads/untangled/quads_4by2_bad.vtk";
-const char DEFAULT_OUTPUT_FILE[] = "./out.vtk";
+std::string DEFAULT_INPUT_FILE = TestDir + "/2D/vtk/quads/untangled/quads_4by2_bad.vtk";
+std::string DEFAULT_OUTPUT_FILE = "./out.vtk";
 
 static PlanarDomain make_domain( Mesh* mesh, MsqError& );
 
@@ -373,9 +372,9 @@ int main( int argc, char* argv[] )
   }
   
   if (!input_file)
-    input_file = DEFAULT_INPUT_FILE;
+    input_file = DEFAULT_INPUT_FILE.c_str();
   if (!output_file)
-    output_file = DEFAULT_OUTPUT_FILE;
+    output_file = DEFAULT_OUTPUT_FILE.c_str();
   
   return do_smoother( input_file, 
                       output_file, 

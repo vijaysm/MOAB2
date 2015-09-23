@@ -29,9 +29,7 @@
  *  \brief tast untangle wrapper
  *  \author Jason Kraftcheck 
  */
-
-
-#include "meshfiles.h"
+#include "TestUtil.hpp"
 
 #include "MeshImpl.hpp"
 #include "MsqError.hpp"
@@ -47,7 +45,7 @@ using std::endl;
 
 using namespace Mesquite;
 
-#define VTK_2D_DIR MESH_FILES_DIR "2D/vtk/"
+std::string VTK_2D_DIR = TestDir + "/2D/vtk/";
 
 // Test untangle wrapper
 // Assumes all meshes lie in a plane for which the normal is [0,0,1].
