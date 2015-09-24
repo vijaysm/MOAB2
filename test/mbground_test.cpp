@@ -35,19 +35,7 @@ bool keep_output;
 int number_tests_successful = 0;
 int number_tests_failed = 0;
 
-#define PROCESS_ERROR(A, B)  {if (A!=MB_SUCCESS) {  std::cout << B << std::endl; return 1; } }
-
-#define CHECK( STR ) if (rval != MB_SUCCESS) return print_error( STR, rval, __FILE__, __LINE__ )
-
 using namespace moab;
-
-ErrorCode print_error(const char* desc, ErrorCode rval, const char* file,
-    int line)
-{
-  std::cerr << "ERROR: " << desc << std::endl << "  Error code: " << rval
-      << std::endl << "  At        : " << file << ':' << line << std::endl;
-  return MB_FAILURE; // must always return false or CHECK macro will break
-}
 
 ErrorCode split_test_across();
 ErrorCode verify_split();
@@ -92,7 +80,7 @@ int main(int argc, char *argv[])
   Interface * mb = &mbcore;
 
   ErrorCode rval = mb->load_file(filename.c_str());
-  PROCESS_ERROR(rval,"failed to load input file");
+  MB_CHK_SET_ERR(rval,"failed to load input file");
 
   FBEngine * pFacet = new FBEngine(mb, NULL, true);// smooth facetting, no OBB tree passed
 
@@ -102,7 +90,7 @@ int main(int argc, char *argv[])
   // should the init be part of constructor or not?
   // this is where the obb tree is constructed, and smooth faceting initialized, too.
   rval = pFacet->Init();
-  PROCESS_ERROR(rval,"failed to initialize smoothing");
+  MB_CHK_SET_ERR(rval,"failed to initialize smoothing");
 
   delete pFacet;
   pFacet = NULL;
@@ -133,21 +121,18 @@ ErrorCode split_test_across()
   Core mbcore;
   Interface * mb = &mbcore;
 
-  ErrorCode  rval = mb->load_file(filename.c_str());
-  CHECK("failed to load already modified file");
+  ErrorCode  rval = mb->load_file(filename.c_str());MB_CHK_SET_ERR(rval,"failed to load already modified file");
+
   FBEngine * pFacet = new FBEngine(mb, NULL, true);
 
-  rval = pFacet->Init();
-  CHECK("failed to initialize smoothing");
+  rval = pFacet->Init();MB_CHK_SET_ERR(rval,"failed to initialize smoothing");
 
   EntityHandle root_set;
-  rval = pFacet->getRootSet(&root_set);
-  CHECK( "ERROR : getRootSet failed!" );
+  rval = pFacet->getRootSet(&root_set);MB_CHK_SET_ERR(rval, "ERROR : getRootSet failed!" );
   int top = 2; //  iBase_FACE;
 
   Range faces;
-  rval = pFacet->getEntities(root_set, top, faces);
-  CHECK("Failed to get faces in split_test.");
+  rval = pFacet->getEntities(root_set, top, faces);MB_CHK_SET_ERR(rval,"Failed to get faces in split_test.");
 
   if (faces.size() !=1)
   {
@@ -197,30 +182,29 @@ ErrorCode split_test_across()
 
   EntityHandle newFace;// this test is with a "grounding" line
   // the second face should be the one that we want for test
-  rval = pFacet->split_surface_with_direction(second_face, xyz, direction, /*closed*/0, /*min_dot */0.8, newFace);
+  rval = pFacet->split_surface_with_direction(second_face, xyz, direction, /*closed*/0, /*min_dot */0.8, newFace);MB_CHK_ERR(rval);
 
-  if (rval!=MB_SUCCESS)
-    return rval;
   // save a new database, with 3 faces, eventually
   pFacet->delete_smooth_tags();
   delete pFacet;
   pFacet = NULL;// try not to write the obb tree
-  rval = mb->write_file(filename_out.c_str());
+
+  rval = mb->write_file(filename_out.c_str());MB_CHK_SET_ERR(rval, "Writing mesh file failed\n");
 
   return rval;
 }
+
 ErrorCode verify_split()
 {
-  Core mbcore;
-  Interface * mb = &mbcore;
+  Interface * mb = new Core();
 
-  ErrorCode  rval = mb->load_file(filename_out.c_str());
-  if (rval!=MB_SUCCESS)
-    return rval;
+  ErrorCode  rval = mb->load_file(filename_out.c_str());MB_CHK_SET_ERR(rval, "Loading mesh file failed\n");
+
   moab::GeomTopoTool gTopoTool(mb, true);
 
   if (!gTopoTool.check_model())
     return MB_FAILURE;
 
+  delete mb;
   return MB_SUCCESS;
 }

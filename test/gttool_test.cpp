@@ -21,19 +21,7 @@
 #include "TestUtil.hpp"
 #include "moab/GeomTopoTool.hpp"
 
-#define PROCESS_ERROR(A, B)  {if (A!=MB_SUCCESS) {  std::cout << B << std::endl; return 1; } }
-
-#define CHECK( STR ) if (rval != MB_SUCCESS) return print_error( STR, rval, __FILE__, __LINE__ )
-
 using namespace moab;
-
-ErrorCode print_error(const char* desc, ErrorCode rval, const char* file,
-    int line)
-{
-  std::cerr << "ERROR: " << desc << std::endl << "  Error code: " << rval
-      << std::endl << "  At        : " << file << ':' << line << std::endl;
-  return MB_FAILURE; // must always return false or CHECK macro will break
-}
 
 std::string filename;
 std::string ofile;
@@ -144,20 +132,10 @@ ErrorCode geometrize_test(Interface * mb, EntityHandle inputSet)
 {
   GeomTopoTool gtt(mb);
   EntityHandle outSet;
-  ErrorCode rval=gtt.geometrize_surface_set(inputSet, outSet);
-  if (rval !=MB_SUCCESS)
-  {
-    std::cout<<"Can't geometrize the set\n";
-    return rval;
-  }
+  ErrorCode rval=gtt.geometrize_surface_set(inputSet, outSet);MB_CHK_SET_ERR(rval, "Can't geometrize the set\n");
 
   std::cout<<"writing output file: " << ofile.c_str() << " ";
-  rval=mb->write_file(ofile.c_str(), 0, 0, &outSet, 1);
-  if (rval !=MB_SUCCESS)
-  {
-    std::cout<<"Can't write output file\n";
-    return rval;
-  }
+  rval=mb->write_file(ofile.c_str(), 0, 0, &outSet, 1);MB_CHK_SET_ERR(rval, "Can't write output file\n");
   if (remove_output_file)
   {
     remove(ofile.c_str());
@@ -169,13 +147,9 @@ ErrorCode create_shell_test(Interface * mb)
 {
   // we should be able to delete mesh and create a model from scratch
 
-  ErrorCode rval = mb->delete_mesh();
-  if (rval !=MB_SUCCESS)
-  {
-    std::cout<<"Can't delete existing mesh\n";
-    return rval;
-  }
-    // create some vertices
+  ErrorCode rval = mb->delete_mesh();MB_CHK_SET_ERR(rval, "Can't delete existing mesh\n");
+
+  // create some vertices
   double coords [] = { 0, 0, 0,
                      1, 0, 0.1,
                      2, 0, 0,
@@ -199,12 +173,7 @@ ErrorCode create_shell_test(Interface * mb)
 
   int nvert = 20;
   Range verts;
-  rval = mb->create_vertices(coords, nvert, verts);
-  if (rval !=MB_SUCCESS)
-  {
-    std::cout<<"Can't create vertices\n";
-    return rval;
-  }
+  rval = mb->create_vertices(coords, nvert, verts);MB_CHK_SET_ERR(rval, "Can't create vertices\n");
 
   EntityHandle connec [] = { 1, 2, 5,
                     5, 2, 6,
@@ -270,146 +239,99 @@ ErrorCode create_shell_test(Interface * mb)
   }
   // create some sets, and create some ordered sets for edges
   EntityHandle face1, face2;
-  rval = mb->create_meshset(MESHSET_SET, face1);
-  assert(MB_SUCCESS==rval);
-  rval = mb->add_entities(face1, &tris[0], 12);
-  assert(MB_SUCCESS==rval);
+  rval = mb->create_meshset(MESHSET_SET, face1);MB_CHK_ERR(rval);
+  rval = mb->add_entities(face1, &tris[0], 12);MB_CHK_ERR(rval);
 
-  rval = mb->create_meshset(MESHSET_SET, face2);
-  assert(MB_SUCCESS==rval);
-  rval = mb->add_entities(face2, &tris[12], 12); // next 12 triangles
-  assert(MB_SUCCESS==rval);
+  rval = mb->create_meshset(MESHSET_SET, face2);MB_CHK_ERR(rval);
+  // next 12 triangles
+  rval = mb->add_entities(face2, &tris[12], 12);MB_CHK_ERR(rval);
 
   // the orientation and senses need to be set for face edges
-
   moab::GeomTopoTool gTopoTool(mb, false);
 
-  rval = gTopoTool.add_geo_set(face1, 2); //
-  assert(MB_SUCCESS==rval);
+  rval = gTopoTool.add_geo_set(face1, 2);MB_CHK_ERR(rval);
 
-  rval = gTopoTool.add_geo_set(face2, 2); //
-  assert(MB_SUCCESS==rval);
+  rval = gTopoTool.add_geo_set(face2, 2);MB_CHK_ERR(rval);
 
   // create some edges
   EntityHandle edge[7]; //edge[0] has EH 1...
  ;
   for (i=0; i<7; i++)
   {
-    rval = mb->create_meshset(MESHSET_ORDERED, edge[i]);
-    assert(MB_SUCCESS==rval);
-    rval = gTopoTool.add_geo_set(edge[i], 1); //
-    assert(MB_SUCCESS==rval);
+    rval = mb->create_meshset(MESHSET_ORDERED, edge[i]);MB_CHK_ERR(rval);
+    rval = gTopoTool.add_geo_set(edge[i], 1);MB_CHK_ERR(rval);
   }
 
-
-  rval = mb->add_entities(edge[0], &edgs[0], 3); // first 3 mesh edges...
-  assert(MB_SUCCESS==rval);
-  rval = mb->add_entities(edge[1], &edgs[3], 2); //
-  assert(MB_SUCCESS==rval);
-  rval = mb->add_entities(edge[2], &edgs[5], 3); //
-  assert(MB_SUCCESS==rval);
-  rval = mb->add_entities(edge[3], &edgs[8], 2); //
-  assert(MB_SUCCESS==rval);
-  rval = mb->add_entities(edge[4], &edgs[10], 2); //
-  assert(MB_SUCCESS==rval);
-  rval = mb->add_entities(edge[5], &edgs[12], 3); //
-  assert(MB_SUCCESS==rval);
-  rval = mb->add_entities(edge[6], &edgs[15], 2);
-  assert(MB_SUCCESS==rval);
+  // first 3 mesh edges...
+  rval = mb->add_entities(edge[0], &edgs[0], 3);MB_CHK_ERR(rval);
+  rval = mb->add_entities(edge[1], &edgs[3], 2);MB_CHK_ERR(rval); 
+  rval = mb->add_entities(edge[2], &edgs[5], 3);MB_CHK_ERR(rval);
+  rval = mb->add_entities(edge[3], &edgs[8], 2);MB_CHK_ERR(rval);
+  rval = mb->add_entities(edge[4], &edgs[10], 2);MB_CHK_ERR(rval);
+  rval = mb->add_entities(edge[5], &edgs[12], 3);MB_CHK_ERR(rval);
+  rval = mb->add_entities(edge[6], &edgs[15], 2);MB_CHK_ERR(rval);
 
   // create some sets for vertices; also need to create some for parent/child relationships
   EntityHandle vertSets[6];// start from 0
 
   for (i=0; i<6; i++)
   {
-    rval = mb->create_meshset(MESHSET_SET, vertSets[i]);
-    assert(MB_SUCCESS==rval);
-    rval = gTopoTool.add_geo_set(vertSets[i], 0); //
-    assert(MB_SUCCESS==rval);
+    rval = mb->create_meshset(MESHSET_SET, vertSets[i]);MB_CHK_ERR(rval);
+    rval = gTopoTool.add_geo_set(vertSets[i], 0);MB_CHK_ERR(rval);
   }
 
   EntityHandle v(1); // first vertex;
-  rval = mb->add_entities(vertSets[0], &v, 1);
-  assert(MB_SUCCESS==rval);
+  rval = mb->add_entities(vertSets[0], &v, 1);MB_CHK_ERR(rval);
   v = EntityHandle (4);
-  rval = mb->add_entities(vertSets[1], &v, 1);
-  assert(MB_SUCCESS==rval);
+  rval = mb->add_entities(vertSets[1], &v, 1);MB_CHK_ERR(rval);
   v = EntityHandle (9);
-  rval = mb->add_entities(vertSets[2], &v, 1);
-  assert(MB_SUCCESS==rval);
+  rval = mb->add_entities(vertSets[2], &v, 1);MB_CHK_ERR(rval);
   v = EntityHandle (12);
-  rval = mb->add_entities(vertSets[3], &v, 1);
-  assert(MB_SUCCESS==rval);
+  rval = mb->add_entities(vertSets[3], &v, 1);MB_CHK_ERR(rval);
   v = EntityHandle (17);
-  rval = mb->add_entities(vertSets[4], &v, 1);
-  assert(MB_SUCCESS==rval);
+  rval = mb->add_entities(vertSets[4], &v, 1);MB_CHK_ERR(rval);
   v = EntityHandle (20);
-  rval = mb->add_entities(vertSets[5], &v, 1);
-  assert(MB_SUCCESS==rval);
+  rval = mb->add_entities(vertSets[5], &v, 1);MB_CHK_ERR(rval);
 
   // need to add parent-child relations between sets
   // edge 1 : 1-2
-  rval = mb ->add_parent_child( edge[0], vertSets[0]);
-  assert(MB_SUCCESS==rval);
-  rval = mb ->add_parent_child( edge[0], vertSets[1]);
-  assert(MB_SUCCESS==rval);
+  rval = mb ->add_parent_child( edge[0], vertSets[0]);MB_CHK_ERR(rval);
+  rval = mb ->add_parent_child( edge[0], vertSets[1]);MB_CHK_ERR(rval);
   // edge 2 : 2-4
-  rval = mb ->add_parent_child( edge[1], vertSets[1]);
-  assert(MB_SUCCESS==rval);
-  rval = mb ->add_parent_child( edge[1], vertSets[3]);
-  assert(MB_SUCCESS==rval);
+  rval = mb ->add_parent_child( edge[1], vertSets[1]);MB_CHK_ERR(rval);
+  rval = mb ->add_parent_child( edge[1], vertSets[3]);MB_CHK_ERR(rval);
 
   // edge 3 : 4-3
-  rval = mb ->add_parent_child( edge[2], vertSets[3]);
-  assert(MB_SUCCESS==rval);
-  rval = mb ->add_parent_child( edge[2], vertSets[2]);
-  assert(MB_SUCCESS==rval);
+  rval = mb ->add_parent_child( edge[2], vertSets[3]);MB_CHK_ERR(rval);
+  rval = mb ->add_parent_child( edge[2], vertSets[2]);MB_CHK_ERR(rval);
 
   // edge 4 : 4-1
-  rval = mb ->add_parent_child( edge[3], vertSets[2]);
-  assert(MB_SUCCESS==rval);
-  rval = mb ->add_parent_child( edge[3], vertSets[0]);
-  assert(MB_SUCCESS==rval);
+  rval = mb ->add_parent_child( edge[3], vertSets[2]);MB_CHK_ERR(rval);
+  rval = mb ->add_parent_child( edge[3], vertSets[0]);MB_CHK_ERR(rval);
 
   // edge 5 : 1-5
-  rval = mb ->add_parent_child( edge[4], vertSets[0]);
-  assert(MB_SUCCESS==rval);
-  rval = mb ->add_parent_child( edge[4], vertSets[4]);
-  assert(MB_SUCCESS==rval);
+  rval = mb ->add_parent_child( edge[4], vertSets[0]);MB_CHK_ERR(rval);
+  rval = mb ->add_parent_child( edge[4], vertSets[4]);MB_CHK_ERR(rval);
 
   // edge 6 : 5-6
-  rval = mb ->add_parent_child( edge[5], vertSets[4]);
-  assert(MB_SUCCESS==rval);
-  rval = mb ->add_parent_child( edge[5], vertSets[5]);
-  assert(MB_SUCCESS==rval);
+  rval = mb ->add_parent_child( edge[5], vertSets[4]);MB_CHK_ERR(rval);
+  rval = mb ->add_parent_child( edge[5], vertSets[5]);MB_CHK_ERR(rval);
 
   // edge 7 : 6-2
-  rval = mb ->add_parent_child( edge[6], vertSets[5]);
-  assert(MB_SUCCESS==rval);
-  rval = mb ->add_parent_child( edge[6], vertSets[1]);
-  assert(MB_SUCCESS==rval);
+  rval = mb ->add_parent_child( edge[6], vertSets[5]);MB_CHK_ERR(rval);
+  rval = mb ->add_parent_child( edge[6], vertSets[1]);MB_CHK_ERR(rval);
 
   // face 1: edges 1, 2, 3, 4
-  rval = mb ->add_parent_child( face1, edge[0]);
-  assert(MB_SUCCESS==rval);
-  rval = mb ->add_parent_child( face1, edge[1]);
-  assert(MB_SUCCESS==rval);
-  rval = mb ->add_parent_child( face1, edge[2]);
-  assert(MB_SUCCESS==rval);
-  rval = mb ->add_parent_child( face1, edge[3]);
-  assert(MB_SUCCESS==rval);
+  rval = mb ->add_parent_child( face1, edge[0]);MB_CHK_ERR(rval);
+  rval = mb ->add_parent_child( face1, edge[1]);MB_CHK_ERR(rval);
+  rval = mb ->add_parent_child( face1, edge[2]);MB_CHK_ERR(rval);
+  rval = mb ->add_parent_child( face1, edge[3]);MB_CHK_ERR(rval);
 
   // face 2: edges 1, 5, 6, 7
-  rval = mb ->add_parent_child( face2, edge[0]);
-  assert(MB_SUCCESS==rval);
-  rval = mb ->add_parent_child( face2, edge[4]);
-  assert(MB_SUCCESS==rval);
-  rval = mb ->add_parent_child( face2, edge[5]);
-  assert(MB_SUCCESS==rval);
-  rval = mb ->add_parent_child( face2, edge[6]);
-  assert(MB_SUCCESS==rval);
-
-
+  rval = mb ->add_parent_child( face2, edge[0]);MB_CHK_ERR(rval);
+  rval = mb ->add_parent_child( face2, edge[4]);MB_CHK_ERR(rval);
+  rval = mb ->add_parent_child( face2, edge[5]);MB_CHK_ERR(rval);
+  rval = mb ->add_parent_child( face2, edge[6]);MB_CHK_ERR(rval);
 
   // set senses !!
   std::vector<EntityHandle> faces;
@@ -435,17 +357,12 @@ ErrorCode create_shell_test(Interface * mb)
   // forward == 0, reverse ==1
   gTopoTool.set_senses(edge[0], faces, senses);
 
+  rval = mb->write_mesh(ofile2.c_str());MB_CHK_ERR(rval);
 
-  rval = mb->write_mesh(ofile2.c_str());
-  assert(MB_SUCCESS==rval);
-
-  rval = mb->delete_mesh();
-  assert(MB_SUCCESS==rval);
+  rval = mb->delete_mesh();MB_CHK_ERR(rval);
 
   // now test loading it up
-
-  rval = mb->load_file(ofile2.c_str());
-  assert(MB_SUCCESS==rval);
+  rval = mb->load_file(ofile2.c_str());MB_CHK_ERR(rval);
 
   if (remove_output_file)
   {
@@ -461,15 +378,10 @@ ErrorCode create_shell_test(Interface * mb)
 
   assert(MB_SUCCESS==rval);
   assert(ranges[0].size()==6);
-
   assert(ranges[1].size()==7);
-
   assert(ranges[2].size()==2);
-
   assert(ranges[3].size()==0);
-
   assert(ranges[4].size()==0);
-
 
   return MB_SUCCESS;
 }
@@ -484,26 +396,17 @@ ErrorCode duplicate_model_test(Interface * mb)
     return MB_FAILURE;
 
   Range ranges[5];
-  rval = newModel->find_geomsets(ranges);
+  rval = newModel->find_geomsets(ranges);MB_CHK_ERR(rval);
 
-  assert(MB_SUCCESS==rval);
   assert(ranges[0].size()==6);
-
   assert(ranges[1].size()==7);
-
   assert(ranges[2].size()==2);
-
   assert(ranges[3].size()==0);
 
   // write the model to a test file
   EntityHandle rootModelSet = newModel->get_root_model_set();
   std::cout<<"writing duplicated model file: " << ofile3.c_str() << " ";
-  rval=mb->write_file(ofile3.c_str(), 0, 0, &rootModelSet, 1);
-  if (rval !=MB_SUCCESS)
-  {
-    std::cout<<"Can't write output file\n";
-    return rval;
-  }
+  rval=mb->write_file(ofile3.c_str(), 0, 0, &rootModelSet, 1);MB_CHK_SET_ERR(rval, "Can't write output files\n");
 
   delete newModel; // we are done with the new geom topo tool
   // do not delete yet the output file, delay after the next test
@@ -514,22 +417,16 @@ ErrorCode duplicate_model_test(Interface * mb)
 
   return MB_SUCCESS;
 }
+
 ErrorCode check_model_test(Interface * mb)
 {
-  ErrorCode rval = mb->delete_mesh();
-  if (rval !=MB_SUCCESS)
-  {
-    std::cout<<"Can't delete existing mesh\n";
-    return rval;
-  }
-  rval = mb->load_file(ofile3.c_str());
-  assert(MB_SUCCESS==rval);
+  ErrorCode rval = mb->delete_mesh();MB_CHK_SET_ERR(rval, "Can't delete existing mesh\n");
+  
+  rval = mb->load_file(ofile3.c_str());MB_CHK_ERR(rval);
 
-
-    // do some tests on geometry
-
-    // it would be good to have a method on updating the geom topo tool
-    // so we do not have to create another one
+  // do some tests on geometry
+  // it would be good to have a method on updating the geom topo tool
+  // so we do not have to create another one
   if (remove_output_file)
   {
     remove(ofile3.c_str());
@@ -541,3 +438,4 @@ ErrorCode check_model_test(Interface * mb)
 
   return MB_SUCCESS;
 }
+
