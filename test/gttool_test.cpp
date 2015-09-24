@@ -18,15 +18,8 @@
 #include <string.h>
 #include <stdio.h>
 
+#include "TestUtil.hpp"
 #include "moab/GeomTopoTool.hpp"
-
-#define STRINGIFY_(A) #A
-#define STRINGIFY(A) STRINGIFY_(A)
-#ifdef MESHDIR
-std::string TestDir( STRINGIFY(MESHDIR) );
-#else
-#error Specify MESHDIR to compile test
-#endif
 
 #define PROCESS_ERROR(A, B)  {if (A!=MB_SUCCESS) {  std::cout << B << std::endl; return 1; } }
 
