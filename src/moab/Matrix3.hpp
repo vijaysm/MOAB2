@@ -23,17 +23,17 @@
 #ifndef MOAB_MATRIX3_HPP
 #define MOAB_MATRIX3_HPP
 
-#include "moab/Types.hpp"
 #include <iostream>
-#include "moab/CartVect.hpp"
-
 #include <iosfwd>
 #include <limits>
-#include <float.h>
-#include <assert.h>
+#include <cmath>
+#include <cassert>
 #ifdef _MSC_VER
 # define finite _finite
 #endif
+
+#include "moab/Types.hpp"
+#include "moab/CartVect.hpp"
 
 namespace moab {
 
@@ -420,7 +420,7 @@ inline Matrix3( double v00, double v01, double v02,
   
   inline bool invert() {
     double i = 1.0 / determinant();
-    if (!finite(i) || fabs(i) < std::numeric_limits<double>::epsilon())
+    if (!std::isfinite(i) || fabs(i) < std::numeric_limits<double>::epsilon())
       return false;
     *this = inverse( i );
     return true;
