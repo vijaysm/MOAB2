@@ -48,6 +48,7 @@ using std::cout;
 using std::endl;
 #include <cstdlib>
 
+#include "TestUtil.hpp"
 #include "Mesquite.hpp"
 #include "MeshImpl.hpp"
 #include "MsqError.hpp"
@@ -106,12 +107,12 @@ using namespace Mesquite;
 */
 
 
-const char LINEAR_INPUT_FILE_NAME[]       = SRCDIR "linear_input.vtk";
-const char QUADRATIC_INPUT_FILE_NAME[]    = SRCDIR "quadratic_input.vtk";
-const char EXPECTED_LINAR_FILE_NAME[]     = SRCDIR "expected_linear_output.vtk";
-const char EXPECTED_QUADRATIC_FILE_NAME[] = SRCDIR "expected_quadratic_output.vtk";
-const char HOUR_INPUT_FILE_NAME[]         = SRCDIR "hour-quad8.vtk";
-const char OUTPUT_FILE_NAME[]             = "smoothed_qudratic_mesh.vtk";
+std::string LINEAR_INPUT_FILE_NAME       = std::string ( STRINGIFY(SRCDIR) ) + "/linear_input.vtk";
+std::string QUADRATIC_INPUT_FILE_NAME    = std::string ( STRINGIFY(SRCDIR) ) + "/quadratic_input.vtk";
+std::string EXPECTED_LINAR_FILE_NAME     = std::string ( STRINGIFY(SRCDIR) ) + "/expected_linear_output.vtk";
+std::string EXPECTED_QUADRATIC_FILE_NAME = std::string ( STRINGIFY(SRCDIR) ) + "/expected_quadratic_output.vtk";
+std::string HOUR_INPUT_FILE_NAME         = std::string ( STRINGIFY(SRCDIR) ) + "/hour-quad8.vtk";
+std::string OUTPUT_FILE_NAME             = "smoothed_qudratic_mesh.vtk";
 const unsigned NUM_CORNER_VERTICES = 16;
 const unsigned NUM_MID_NODES = 24;
 const double SPATIAL_COMPARE_TOLERANCE = 4e-6;
@@ -262,25 +263,25 @@ int do_test( bool slave)
     // Read in linear input mesh
   cout << "Reading " << LINEAR_INPUT_FILE_NAME << endl;
   MeshImpl* linear_in = new MeshImpl;
-  linear_in->read_vtk( LINEAR_INPUT_FILE_NAME, err );
+  linear_in->read_vtk( LINEAR_INPUT_FILE_NAME.c_str(), err );
   if (MSQ_CHKERR(err)) return 1;
   
     // Read in expected linear results
   cout << "Reading " << EXPECTED_LINAR_FILE_NAME << endl;
   MeshImpl* linear_ex = new MeshImpl;
-  linear_ex->read_vtk( EXPECTED_LINAR_FILE_NAME, err );
+  linear_ex->read_vtk( EXPECTED_LINAR_FILE_NAME.c_str(), err );
   if (MSQ_CHKERR(err)) return 1;
  
     // Read in second copy of quadratic input mesh
   cout << "Reading " << QUADRATIC_INPUT_FILE_NAME << " again" << endl;
   MeshImpl* quadratic_in_2 = new MeshImpl;
-  quadratic_in_2->read_vtk( QUADRATIC_INPUT_FILE_NAME, err );
+  quadratic_in_2->read_vtk( QUADRATIC_INPUT_FILE_NAME.c_str(), err );
   if (MSQ_CHKERR(err)) return 1;
   
     // Read in expected quadratic results
   cout << "Reading " << EXPECTED_QUADRATIC_FILE_NAME << endl;
   MeshImpl* quadratic_ex = new MeshImpl;
-  quadratic_ex->read_vtk( EXPECTED_QUADRATIC_FILE_NAME, err );
+  quadratic_ex->read_vtk( EXPECTED_QUADRATIC_FILE_NAME.c_str(), err );
   if (MSQ_CHKERR(err)) return 1;
   
 
@@ -340,7 +341,7 @@ int do_smooth_ho()
     // Read in one copy of quadratic input mesh
   cout << "Reading " << HOUR_INPUT_FILE_NAME << endl;
   MeshImpl* quadratic_in = new MeshImpl;
-  quadratic_in->read_vtk( HOUR_INPUT_FILE_NAME, err );
+  quadratic_in->read_vtk( HOUR_INPUT_FILE_NAME.c_str(), err );
   if (MSQ_CHKERR(err)) return 1;
   
     // Read in expected results

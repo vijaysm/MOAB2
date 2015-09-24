@@ -30,7 +30,7 @@
  *  \author Jason Kraftcheck 
  */
 
-
+#include "TestUtil.hpp"
 #include "MeshImpl.hpp"
 #include "PlanarDomain.hpp"
 #include "TriLagrangeShape.hpp"
@@ -54,7 +54,7 @@
 
 using namespace Mesquite;
 
-const char DEFAULT_INPUT_FILE[] = SRCDIR "input.vtk";
+std::string DEFAULT_INPUT_FILE = std::string ( STRINGIFY(SRCDIR) ) + "/input.vtk";
 
 void usage( const char* argv0 )
 {
@@ -82,7 +82,7 @@ void tag_patch_slaved( Mesh& mesh,
 
 int main( int argc, char* argv[] )
 {
-  const char* input_file = DEFAULT_INPUT_FILE;
+  const char* input_file = DEFAULT_INPUT_FILE.c_str();
   const char* output_file_base = 0;
   bool expect_output_base = false;
   for (int i = 1; i < argc; ++i) {
@@ -92,7 +92,7 @@ int main( int argc, char* argv[] )
     }
     else if (!strcmp(argv[i],"-o"))
       expect_output_base = true;
-    else if (input_file != DEFAULT_INPUT_FILE)
+    else if (DEFAULT_INPUT_FILE.compare(input_file))
       usage(argv[0]);
     else
       input_file = argv[i];
@@ -199,7 +199,7 @@ int main( int argc, char* argv[] )
   }
   
   int exit_code = 0;
-  if (input_file == DEFAULT_INPUT_FILE) {
+  if (!DEFAULT_INPUT_FILE.compare(input_file)) {
     for (int i = 0; i < NUM_MODES; ++i) {
       std::cout << std::endl
                 << "-----------------------------------------------" << std::endl

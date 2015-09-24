@@ -29,6 +29,7 @@
  *  \brief Implement all experiments from 2D Metrics Paper
  *  \author Jason Kraftcheck 
  */
+#include "TestUtil.hpp"
 #include "Mesquite.hpp"
 #include "MeshImpl.hpp"
 #include "MsqError.hpp"
@@ -102,30 +103,28 @@ void scale( double s, Mesh* mesh );
 void reference( MeshImpl* mesh )
 {
   MsqError err;
-  mesh->read_vtk( SRCDIR "reference.vtk", err );
+  std::string filename = std::string ( STRINGIFY(SRCDIR) ) + "/reference.vtk";
+  mesh->read_vtk( filename.c_str(), err );
   CHKERR(err)
 }
 
 void exp_1_init( MeshImpl* mesh )
 {
   MsqError err;
-  mesh->read_vtk( SRCDIR "reference.vtk", err );
-  CHKERR(err)
+  std::string filename = std::string ( STRINGIFY(SRCDIR) ) + "/reference.vtk";
+  mesh->read_vtk( filename.c_str(), err );CHKERR(err)
 
   vector<Mesh::VertexHandle> handles;
-  mesh->get_all_vertices( handles, err );
-  CHKERR(err)
+  mesh->get_all_vertices( handles, err );CHKERR(err)
   
-  vector<Mesh::VertexHandle>::iterator i;
+  // vector<Mesh::VertexHandle>::iterator i;
   for (size_t i = 0; i < 8; ++i) {
     MsqVertex vtx;
-    mesh->vertices_get_coordinates( &handles[i], &vtx, 1, err );
-    CHKERR(err)
+    mesh->vertices_get_coordinates( &handles[i], &vtx, 1, err );CHKERR(err)
     
     vtx[1] = -0.4 * (vtx[0]-0.5)*(vtx[0]-0.5) + 0.1;
     
-    mesh->vertex_set_coordinates( handles[i], vtx, err );
-    CHKERR(err)
+    mesh->vertex_set_coordinates( handles[i], vtx, err );CHKERR(err)
   }
 }
 
@@ -355,9 +354,9 @@ void parabolic_squash( double height, Mesh* mesh )
     mesh->vertices_get_coordinates( &*i, &vtx, 1, err );
     CHKERR(err)
     
-    const double b = (1.0 - vtx[1]) * height;
-    const double a = -4 * b;
-    vtx[1] += a * (vtx[0]-0.5)*(vtx[0]-0.5) + b;
+    const double br = (1.0 - vtx[1]) * height;
+    const double a = -4 * br;
+    vtx[1] += a * (vtx[0]-0.5)*(vtx[0]-0.5) + br;
     
     mesh->vertex_set_coordinates( *i, vtx, err );
     CHKERR(err)
