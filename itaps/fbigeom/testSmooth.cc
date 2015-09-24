@@ -110,7 +110,7 @@ public:
 #define ARRAY_INOUT( A ) A.ptr(), &A.capacity(), &A.size()
 #define ARRAY_IN( A ) &A[0], A.size()
 
-bool smooth_test(const std::string filename, FBiGeom_Instance);
+bool smooth_test(const std::string &filename, FBiGeom_Instance);
 
 bool tags_test(FBiGeom_Instance geom);
 bool tag_get_set_test(FBiGeom_Instance geom);
@@ -307,7 +307,7 @@ int main(int argc, char *argv[]) {
  @li Load a mesh file
  */
 
-bool smooth_test(const std::string filename, FBiGeom_Instance geom) {
+bool smooth_test(const std::string &filename, FBiGeom_Instance geom) {
    int err;
    char opts[] = "SMOOTH;";
    FBiGeom_load(geom, &filename[0], opts, &err, filename.length(), 8);
@@ -336,9 +336,7 @@ bool smooth_test(const std::string filename, FBiGeom_Instance geom) {
  @li Load a mesh file
  */
 bool tags_test(FBiGeom_Instance geom) {
-   bool success = true;
-
-   success = tag_info_test(geom);
+   bool success = tag_info_test(geom);
    if (!success)
       return success;
 
@@ -512,7 +510,7 @@ bool gentityset_test(FBiGeom_Instance geom, bool /*multiset*/, bool /*ordered*/)
    int num_type = 4;
    iBase_EntitySetHandle ges_array[4];
    int number_array[4];
-   int num_all_gentities_super = 0;
+   //int num_all_gentities_super = 0;
    int ent_type = iBase_VERTEX;
 
    int err;
@@ -555,7 +553,7 @@ bool gentityset_test(FBiGeom_Instance geom, bool /*multiset*/, bool /*ordered*/)
       }
 
       // add to number of all entities in super set
-      num_all_gentities_super += num_type_gentity;
+      //num_all_gentities_super += num_type_gentity;
    }
 
    // make a super set having all entitysets
@@ -913,7 +911,7 @@ bool topology_adjacencies_test(FBiGeom_Instance geom) {
    // check adjacencies in both directions
    std::vector<iBase_EntityHandle>::iterator vit;
    for (i = iBase_REGION; i >= iBase_VERTEX; i--) {
-      for (vit = gentity_vectors[i].begin(); vit != gentity_vectors[i].end(); vit++) {
+      for (vit = gentity_vectors[i].begin(); vit != gentity_vectors[i].end(); ++vit) {
          iBase_EntityHandle this_gent = *vit;
 
          // check downward adjacencies
@@ -980,7 +978,7 @@ bool geometry_evaluation_test(FBiGeom_Instance geom) {
    std::vector<iBase_EntityHandle>::iterator vit;
    for (i = iBase_REGION; i >= iBase_VERTEX; i--) {
       if (i != iBase_EDGE) {
-         for (vit = gentity_vectors[i].begin(); vit != gentity_vectors[i].end(); vit++) {
+         for (vit = gentity_vectors[i].begin(); vit != gentity_vectors[i].end(); ++vit) {
             iBase_EntityHandle this_gent = *vit;
             FBiGeom_getEntBoundBox(geom, this_gent, &min[0], &min[1], &min[2],
             &max[0], &max[1], &max[2], &err);
@@ -1029,7 +1027,7 @@ bool normals_test(FBiGeom_Instance geom) {
    double normal[3] = {.0, .0, .0};
    std::vector<iBase_EntityHandle>::iterator vit;
    for (i = iBase_REGION; i > iBase_EDGE; i--) {
-      for (vit = gentity_vectors[i].begin(); vit != gentity_vectors[i].end(); vit++) {
+      for (vit = gentity_vectors[i].begin(); vit != gentity_vectors[i].end(); ++vit) {
          iBase_EntityHandle this_gent = *vit;
          FBiGeom_getEntBoundBox(geom, this_gent, &min[0], &min[1], &min[2],
          &max[0], &max[1], &max[2], &err);

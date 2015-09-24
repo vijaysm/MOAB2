@@ -115,7 +115,9 @@ int main(int argc, char **argv) {
   double rmatrix[16];
 
   MBresult = MBI->tag_get_data( coord_tag, &root, 1, &coord_sys);
+  assert(moab::MB_SUCCESS == MBresult);
   MBresult = MBI->tag_get_data( rotation_tag, &root, 1, &rmatrix);
+  assert(moab::MB_SUCCESS == MBresult);
 
   build_time = clock() - load_time;
 
@@ -131,7 +133,6 @@ int main(int argc, char **argv) {
   char* ctmp;
   int elems_read = 0;
   int p = 0;
-  std::string s;
   char line[10000];
 
   // Used only when reading a mesh file to get vertex info
@@ -154,14 +155,18 @@ int main(int argc, char **argv) {
 
     moab::Range cfd_verts;
     MBresult = MBI->get_entities_by_type( meshset, moab::MBVERTEX, cfd_verts, true);
+    assert( moab::MB_SUCCESS == MBresult );
     num_pts = cfd_verts.size();
 
     cfd_coords = new double [ 3 * num_pts ];
-    MBresult = MBI->get_coords( cfd_verts , cfd_coords );  
+    MBresult = MBI->get_coords( cfd_verts , cfd_coords );
+    assert( moab::MB_SUCCESS == MBresult );
 
     cfd_iter = cfd_verts.begin();
     MBresult = MBI->tag_get_handle("heating_tag", 1, moab::MB_TYPE_DOUBLE, cfd_heating_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT); 
+    assert( moab::MB_SUCCESS == MBresult );
     MBresult = MBI->tag_get_handle("error_tag", 1, moab::MB_TYPE_DOUBLE, cfd_error_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT);
+    assert( moab::MB_SUCCESS == MBresult );
 
     std::cout << std::endl << "Read in mesh with query points." << std::endl << std::endl;
 
@@ -240,7 +245,7 @@ int main(int argc, char **argv) {
         assert(moab::MB_SUCCESS == MBresult);
       }
       std::cout << "No leaf found, MCNP coord xyz=" << x << " " << y << " " << z << std::endl;
-      cfd_iter++;
+      ++cfd_iter;
       continue;
     }
 
@@ -252,7 +257,7 @@ int main(int argc, char **argv) {
     // if (range.size() > nmax) nmax = range.size();
     // if (range.size() < nmin) nmin = range.size();
 
-    for (moab::Range::iterator rit = range.begin(); rit != range.end(); rit++) {
+    for (moab::Range::iterator rit = range.begin(); rit != range.end(); ++rit) {
       verts.clear();
       const moab::EntityHandle *connect;
       int num_connect;
@@ -270,8 +275,10 @@ int main(int argc, char **argv) {
       }
 
       if (moab::ElemUtil::point_in_trilinear_hex(hexverts, testvc, 1.e-6)) {
-    	MBresult = MBI -> tag_get_data( MCNP->tally_tag, &(*rit), 1, &taldata);
-	MBresult = MBI -> tag_get_data( MCNP->relerr_tag, &(*rit), 1, &errdata);
+        MBresult = MBI -> tag_get_data( MCNP->tally_tag, &(*rit), 1, &taldata);
+        assert( moab::MB_SUCCESS == MBresult );
+        MBresult = MBI -> tag_get_data( MCNP->relerr_tag, &(*rit), 1, &errdata);
+        assert( moab::MB_SUCCESS == MBresult );
 
 	outfile <<   n         << ","
 	            << testpt[0] << ","
@@ -282,7 +289,9 @@ int main(int argc, char **argv) {
 
         if (!read_qnv) {
           MBresult = MBI->tag_set_data(cfd_heating_tag, &(*cfd_iter), 1, &taldata);
-	  MBresult = MBI->tag_set_data(cfd_error_tag, &(*cfd_iter), 1, &errdata);
+          assert( moab::MB_SUCCESS == MBresult );
+          MBresult = MBI->tag_set_data(cfd_error_tag, &(*cfd_iter), 1, &errdata);
+          assert( moab::MB_SUCCESS == MBresult );
         }
 
         found = true;
@@ -297,7 +306,7 @@ int main(int argc, char **argv) {
       }
     }
 
-    if (!read_qnv) cfd_iter++;
+    if (!read_qnv) ++cfd_iter;
 
     if (!found) {
       std::cout << n << " " << testvc << std::endl;
@@ -386,7 +395,6 @@ MCNPError next_double(std::string s, double &d, int &p) {
 
   unsigned int slen = s.length();
   unsigned int j;
-  std::string sn;
 
   for (unsigned int i = p; i < slen; i++) {
     if ( ( (s[i] >= 48) && (s[i] <= 57) ) || (s[i] == 45) ) {
@@ -410,7 +418,6 @@ MCNPError next_int(std::string s, int &k, int &p) {
 
   unsigned int slen = s.length();
   unsigned int j;
-  std::string sn;
 
   for (unsigned int i = p; i < slen; i++) {
     if ( ( (s[i] >= 48) && (s[i] <= 57) ) || (s[i] == 45) ) {

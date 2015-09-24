@@ -183,7 +183,7 @@ void build_coords(const int nelem, double *&coords)
   for (int i=1; i < nelem; i++) {
     for (int j=1; j < nelem; j++) {
       for (int k=1; k < nelem; k++) {
-        idx = VINDEX(i,j,k);
+        //idx = VINDEX(i,j,k);
         double tse = i*scale1;
         double ada = j*scale2;
         double gamma = k*scale3;
@@ -362,7 +362,7 @@ void query_elem_to_vert()
   const EntityHandle *connect;
   int num_connect;
   double dum_coords[24];
-  for (Range::iterator eit = all_hexes.begin(); eit != all_hexes.end(); eit++) {
+  for (Range::iterator eit = all_hexes.begin(); eit != all_hexes.end(); ++eit) {
     result = gMB->get_connectivity(*eit, connect, num_connect); RC("query_elem_to_vert");
     result = gMB->get_coords(connect, num_connect, dum_coords); RC("query_elem_to_vert");
 
@@ -386,7 +386,7 @@ void query_vert_to_elem()
   double coords[3];
   neighbor_pos.resize(3*8); // average vertex will have 8 adjacent hexes
   ErrorCode result = gMB->get_entities_by_type(0, MBVERTEX, all_verts); RC("query_vert_to_elem");
-  for (Range::iterator vit = all_verts.begin(); vit != all_verts.end(); vit++) {
+  for (Range::iterator vit = all_verts.begin(); vit != all_verts.end(); ++vit) {
     neighbor_hexes.clear();
     result = gMB->get_coords(&(*vit), 1, coords); RC("query_vert_to_elem");
     result = gMB->get_adjacencies(&(*vit), 1, 3, false, neighbor_hexes); RC("query_vert_to_elem");
@@ -473,7 +473,7 @@ ErrorCode normalize_elems(double *coords)
   Range elems;
   ErrorCode result = gMB->get_entities_by_type(0, MBHEX, elems); RR("normalize");
   
-  for (Range::iterator vit = elems.begin(); vit != elems.end(); vit++) {
+  for (Range::iterator vit = elems.begin(); vit != elems.end(); ++vit) {
     result = gMB->tag_get_data(pos2_tag, &(*vit), 1, coords); RR("normalize");
     coords[0] *= 0.125; coords[1] *= 0.125; coords[2] *= 0.125;
     result = gMB->tag_set_data(pos2_tag, &(*vit), 1, coords); RR("normalize");
@@ -489,7 +489,7 @@ void query_struct_elem_to_vert()
   ErrorCode result = gMB->get_entities_by_type(0, MBHEX, all_hexes); RC("query_struct_elem_to_vert");
   double dum_coords[24];
   std::vector<EntityHandle> connect;
-  for (Range::iterator eit = all_hexes.begin(); eit != all_hexes.end(); eit++) {
+  for (Range::iterator eit = all_hexes.begin(); eit != all_hexes.end(); ++eit) {
     result = gMB->get_connectivity(&(*eit), 1, connect); RC("query_struct_elem_to_vert");
     result = gMB->get_coords(&connect[0], connect.size(), dum_coords); RC("query_struct_elem_to_vert");
 
@@ -831,10 +831,12 @@ void testD(const int nelem, const double *coords, int ver)
 #ifndef NDEBUG
     check_answers("D");
     result = gMB->tag_delete(pos_tag);
+    assert(MB_SUCCESS == result);
     result = gMB->tag_get_handle("position_tag", 3, MB_TYPE_DOUBLE, pos_tag,
                                  MB_TAG_DENSE | MB_TAG_CREAT, def_val);
     assert(MB_SUCCESS == result);
     result = gMB->tag_delete(pos2_tag);
+    assert(MB_SUCCESS == result);
     result = gMB->tag_get_handle("position2_tag", 3, MB_TYPE_DOUBLE, pos2_tag,
                                  MB_TAG_DENSE | MB_TAG_CREAT, def_val);
     assert(MB_SUCCESS == result);
@@ -852,10 +854,12 @@ void testD(const int nelem, const double *coords, int ver)
 #ifndef NDEBUG
     check_answers("D");
     result = gMB->tag_delete(pos_tag);
+    assert(MB_SUCCESS == result);
     result = gMB->tag_get_handle("position_tag", 3, MB_TYPE_DOUBLE, pos_tag,
                                  MB_TAG_DENSE | MB_TAG_CREAT, def_val);
     assert(MB_SUCCESS == result);
     result = gMB->tag_delete(pos2_tag);
+    assert(MB_SUCCESS == result);
     result = gMB->tag_get_handle("position2_tag", 3, MB_TYPE_DOUBLE, pos2_tag,
                                  MB_TAG_DENSE | MB_TAG_CREAT, def_val);
     assert(MB_SUCCESS == result);
@@ -877,10 +881,12 @@ void testD(const int nelem, const double *coords, int ver)
 #ifndef NDEBUG
     check_answers("D");
     result = gMB->tag_delete(pos_tag);
+    assert(MB_SUCCESS == result);
     result = gMB->tag_get_handle("position_tag", 3, MB_TYPE_DOUBLE, pos_tag,
                                  MB_TAG_DENSE | MB_TAG_CREAT, def_val);
     assert(MB_SUCCESS == result);
     result = gMB->tag_delete(pos2_tag);
+    assert(MB_SUCCESS == result);
     result = gMB->tag_get_handle("position2_tag", 3, MB_TYPE_DOUBLE, pos2_tag,
                                  MB_TAG_DENSE | MB_TAG_CREAT, def_val);
     assert(MB_SUCCESS == result);
@@ -898,10 +904,12 @@ void testD(const int nelem, const double *coords, int ver)
 #ifndef NDEBUG
     check_answers("D");
     result = gMB->tag_delete(pos_tag);
+    assert(MB_SUCCESS == result);
     result = gMB->tag_get_handle("position_tag", 3, MB_TYPE_DOUBLE, pos_tag,
                                  MB_TAG_DENSE | MB_TAG_CREAT, def_val);
     assert(MB_SUCCESS == result);
     result = gMB->tag_delete(pos2_tag);
+    assert(MB_SUCCESS == result);
     result = gMB->tag_get_handle("position2_tag", 3, MB_TYPE_DOUBLE, pos2_tag,
                                  MB_TAG_DENSE | MB_TAG_CREAT, def_val);
     assert(MB_SUCCESS == result);
@@ -1046,6 +1054,7 @@ void query_elem_to_vert_direct()
 {
   Range all_hexes, all_verts;
   ErrorCode result = gMB->get_entities_by_type(0, MBHEX, all_hexes);
+  assert(MB_SUCCESS == result);
   result = gMB->get_entities_by_type(0, MBVERTEX, all_verts);  RC("query_elem_to_vert_direct");
   EntityHandle *connect;
   int ecount, vcount, vpere;
@@ -1092,6 +1101,7 @@ void query_vert_to_elem_direct()
 
     // make sure vertex-element adjacencies are created
   result = gMB->get_adjacencies(&(*all_verts.begin()), 1, 3, false, tmp_ents);
+  assert(MB_SUCCESS == result);
   
   const std::vector<EntityHandle> **adjs;
   int count;
@@ -1122,9 +1132,9 @@ void query_vert_to_elem_direct()
   int i;
   Range::iterator vit;
   EntityHandle estart = *tmp_ents.begin();
-  for (vit = all_verts.begin(), i = 0; vit != all_verts.end(); vit++, i++) {
+  for (vit = all_verts.begin(), i = 0; vit != all_verts.end(); ++vit, i++) {
     assert(adjs[i]);
-    for (std::vector<EntityHandle>::const_iterator vit2 = adjs[i]->begin(); vit2 != adjs[i]->end(); vit2++)
+    for (std::vector<EntityHandle>::const_iterator vit2 = adjs[i]->begin(); vit2 != adjs[i]->end(); ++vit2)
       if (*vit >= estart) {
         int eind = *vit2 - estart;
         centroid[3*eind+0] += coords[0][i];
@@ -1146,7 +1156,7 @@ void check_answers(const char */*test_name*/)
   
   double coords1[3], coords2[3], del[3];
   double diff = 0.0;
-  for (Range::iterator vit = elems.begin(); vit != elems.end(); vit++) {
+  for (Range::iterator vit = elems.begin(); vit != elems.end(); ++vit) {
     result = gMB->tag_get_data(pos_tag, &(*vit), 1, coords1); RC("check_answers");
     result = gMB->tag_get_data(pos2_tag, &(*vit), 1, coords2); RC("check_answers");
     for (int i = 0; i < 3; i++) del[i] = fabs(coords1[i]-coords2[i]);

@@ -1358,6 +1358,7 @@ ErrorCode WriteHDF5Parallel::create_adjacency_tables()
                         AdjSetCreator(),
                         &groups[0]);CHECK_MB(rval);
 
+  // Cppcheck warning (false positive): variable groups is assigned a value that is never used
   for (int i = 0; i < numtypes; ++i) {
     groups[i]->max_num_adjs = max_ents[i];
     groups[i]->adj_offset = offsets[i];
@@ -1984,7 +1985,6 @@ ErrorCode WriteHDF5Parallel::communicate_shared_set_data(const Range& owned,
 
 ErrorCode WriteHDF5Parallel::create_meshset_tables(double* times)
 {
-  ErrorCode rval = MB_SUCCESS;
   Range::const_iterator riter;
   const unsigned rank = myPcomm->proc_config().proc_rank();
 
@@ -1995,7 +1995,7 @@ ErrorCode WriteHDF5Parallel::create_meshset_tables(double* times)
 
   // Remove remote sets from setSets
   Range shared, owned, remote;
-  rval = myPcomm->get_shared_sets(shared);CHECK_MB(rval);
+  ErrorCode rval = myPcomm->get_shared_sets(shared);CHECK_MB(rval);
   shared = intersect(shared, setSet.range);
   rval = myPcomm->get_owned_sets(rank, owned);CHECK_MB(rval);
   owned = intersect(owned, setSet.range);

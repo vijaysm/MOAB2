@@ -70,15 +70,13 @@ std::string TestDir(".");
 using namespace moab;
 ErrorCode add_field_value(Interface * mb, EntityHandle euler_set, int rank, Tag & tagTracer, Tag & tagElem, Tag & tagArea)
 {
-  ErrorCode rval = MB_SUCCESS;
-
   /*
    * get all plys first, then vertices, then move them on the surface of the sphere
    *  radius is 1., most of the time
    *
    */
   Range polygons;
-  rval = mb->get_entities_by_dimension(euler_set, 2, polygons);
+  ErrorCode rval = mb->get_entities_by_dimension(euler_set, 2, polygons);
   if (MB_SUCCESS != rval)
     return rval;
 
@@ -105,7 +103,7 @@ ErrorCode add_field_value(Interface * mb, EntityHandle euler_set, int rank, Tag 
   if (field_type==1) // quasi smooth
   {
     double params[] = { M_PI, M_PI/3, M_PI, -M_PI/3, 0.1, 0.9, 1., 0.5};
-    for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); vit++ )
+    for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); ++vit)
     {
       EntityHandle oldV=*vit;
       CartVect posi;
@@ -131,7 +129,7 @@ ErrorCode add_field_value(Interface * mb, EntityHandle euler_set, int rank, Tag 
     p2 = spherical_to_cart(spr);
     //                  x1,    y1,     z1,    x2,   y2,    z2,   h_max, b0
     double params[] = { p1[0], p1[1], p1[2], p2[0], p2[1], p2[2], 1,    5.};
-    for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); vit++ )
+    for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); ++vit)
     {
       EntityHandle oldV=*vit;
       CartVect posi;
@@ -149,7 +147,7 @@ ErrorCode add_field_value(Interface * mb, EntityHandle euler_set, int rank, Tag 
   {
     //                   la1, te1,   la2, te2,       b,   c,   r
     double params[] = { M_PI, M_PI/3, M_PI, -M_PI/3, 0.1, 0.9, 0.5};// no h_max
-    for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); vit++ )
+    for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); ++vit)
     {
       EntityHandle oldV=*vit;
       CartVect posi;
@@ -179,7 +177,7 @@ ErrorCode add_field_value(Interface * mb, EntityHandle euler_set, int rank, Tag 
     rval = mb->tag_iterate(tagArea, iter, polygons.end(), count, data);
     CHECK_ERR(rval);
     double * ptrArea=(double*)data;
-    for (int i=0; i<count; i++, iter++, ptr++, ptrArea++)
+    for (int i=0; i<count; i++, ++iter, ptr++, ptrArea++)
     {
       const moab::EntityHandle * conn = NULL;
       int num_nodes = 0;
@@ -222,10 +220,8 @@ ErrorCode add_field_value(Interface * mb, EntityHandle euler_set, int rank, Tag 
 
 ErrorCode compute_velocity_case1(Interface * mb, EntityHandle euler_set, Tag & tagh, int rank, int tStep)
 {
-  ErrorCode rval = MB_SUCCESS;
-
   Range polygons;
-  rval = mb->get_entities_by_dimension(euler_set, 2, polygons);
+  ErrorCode rval = mb->get_entities_by_dimension(euler_set, 2, polygons);
   if (MB_SUCCESS != rval)
     return rval;
 
@@ -244,7 +240,7 @@ ErrorCode compute_velocity_case1(Interface * mb, EntityHandle euler_set, Tag & t
   double * ptr_velo=(double*)data;
   // lambda is for longitude, theta for latitude
 
-  for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); vit++ )
+  for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); ++vit)
   {
     EntityHandle oldV=*vit;
     CartVect posi;
@@ -275,8 +271,6 @@ ErrorCode compute_tracer_case1(Interface * mb, Intx2MeshOnSphere & worker, Entit
     EntityHandle lagr_set, EntityHandle out_set, Tag & tagElem, Tag & tagArea, int rank,
     int tStep, Range & connecVerts)
 {
-  ErrorCode rval = MB_SUCCESS;
-
   EntityHandle dum=0;
   Tag corrTag;
   mb->tag_get_handle(CORRTAGNAME, 1, MB_TYPE_HANDLE, corrTag,
@@ -285,12 +279,12 @@ ErrorCode compute_tracer_case1(Interface * mb, Intx2MeshOnSphere & worker, Entit
   double t = tStep * T / numSteps; // numSteps is global; so is T
   double delta_t = T / numSteps; // this is global too, actually
   Range polys;
-  rval = mb->get_entities_by_dimension(euler_set, 2, polys);
+  ErrorCode rval = mb->get_entities_by_dimension(euler_set, 2, polys);
   CHECK_ERR(rval);
 
   // change coordinates of lagr mesh vertices
   for (Range::iterator vit = connecVerts.begin(); vit != connecVerts.end();
-      vit++)
+      ++vit)
   {
     EntityHandle oldV = *vit;
     CartVect posi;
@@ -577,7 +571,7 @@ int main(int argc, char **argv)
     rval = mb.tag_iterate(tagArea, iter, redEls.end(), count, data);
     CHECK_ERR(rval);
     double * ptrArea=(double*)data;
-    for (int i=0; i<count; i++, iter++, ptrTracer++, ptrArea++, j++)
+    for (int i=0; i<count; i++, ++iter, ptrTracer++, ptrArea++, j++)
     {
       //double area = *ptrArea;
       norm1+=fabs(*ptrTracer - iniVals[j])* (*ptrArea);

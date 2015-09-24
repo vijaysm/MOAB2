@@ -1927,7 +1927,6 @@ static EntityHandle build_tree( const double points[], int num_points, BSPTree& 
     // build tree
   std::vector<EntityHandle> left_pts, right_pts;
   std::vector<CartVect> coords(num_points), tmp_coords;
-  std::vector<double> coeffs;
   for (; MB_SUCCESS == rval; rval = iter.step()) {
     pts.clear();
     rval = tool.moab()->get_entities_by_handle( iter.handle(), pts );

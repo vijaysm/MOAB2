@@ -335,6 +335,7 @@ namespace moab {
 
       // mpi not initialized yet - initialize here
       retval = MPI_Init(&argc, &argv);
+      assert(MPI_SUCCESS == retval);
     }
 
     // Reserve space for vectors
@@ -436,7 +437,6 @@ namespace moab {
   {
     int local_num_elements[4];
     ErrorCode result;
-    std::vector<unsigned char> pstatus;
     for (int dim = 0; dim <= dimension; dim++) {
       local_num_elements[dim] = entities[dim].size();
     }
@@ -687,12 +687,11 @@ namespace moab {
     return MB_FAILURE;
 #else
     // Pack entities to local buffer
-    ErrorCode result = MB_SUCCESS;
     int ind = get_buffers(to_proc);
     localOwnedBuffs[ind]->reset_ptr(sizeof(int));
 
     // Add vertices
-    result = add_verts(orig_ents);MB_CHK_SET_ERR(result, "Failed to add verts in send_entities");
+    ErrorCode result = add_verts(orig_ents);MB_CHK_SET_ERR(result, "Failed to add verts in send_entities");
 
     // Filter out entities already shared with destination
     Range tmp_range;
@@ -1207,11 +1206,8 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     ErrorCode result;
 
     Range set_range;
-    std::vector<Range> set_ranges;
     std::vector<Tag> all_tags;
     std::vector<Range> tag_ranges;
-    std::vector<int> set_sizes;
-    std::vector<unsigned int> options_vec;
 
     Range::const_iterator rit;
 
@@ -1271,7 +1267,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     result = unpack_tags(buff_ptr, new_ents, store_remote_handles, from_proc);MB_CHK_SET_ERR(result, "Unpacking tags failed");
     if (myDebug->get_verbosity() == 3) {
       myDebug->tprintf(4, "unpack_tags buffer space: %ld bytes.\n", (long int)(buff_ptr - tmp_buff));
-      tmp_buff = buff_ptr;
+      //tmp_buff = buff_ptr;
     }
 
     if (myDebug->get_verbosity() == 3)
@@ -1691,7 +1687,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     else {
       Tag shp_tag, shps_tag, shh_tag, shhs_tag, pstat_tag;
       ErrorCode result = get_shared_proc_tags(shp_tag, shps_tag,
-                                              shh_tag, shhs_tag, pstat_tag);
+                                              shh_tag, shhs_tag, pstat_tag);MB_CHK_SET_ERR(result, "Failed to get shared proc tags");
 
       // Get single-proc destination handles and shared procs
       std::vector<int> sharing_procs(num_ents);
@@ -1776,7 +1772,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     else {
       Tag shp_tag, shps_tag, shh_tag, shhs_tag, pstat_tag;
       ErrorCode result = get_shared_proc_tags(shp_tag, shps_tag, 
-                                              shh_tag, shhs_tag, pstat_tag);
+                                              shh_tag, shhs_tag, pstat_tag);MB_CHK_SET_ERR(result, "Failed to get shared proc tags");
 
       // Get single-proc destination handles and shared procs
       std::vector<int> sharing_procs(from_range.size());
@@ -1882,9 +1878,6 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     ReadUtilIface *ru = NULL;
 
     result = mbImpl->query_interface(ru);MB_CHK_SET_ERR(result, "Failed to get ReadUtilIface");
-
-    // procs the sending proc is telling me I'll be receiving from
-    std::set<unsigned int> comm_procs;
 
     // 1. # entities = E
     int num_ents = 0;
@@ -3406,7 +3399,6 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
     int num_tags;
     UNPACK_INT(buff_ptr, num_tags);
-    std::vector<EntityHandle> tag_ents;
     std::vector<const void*> var_len_vals;
     std::vector<unsigned char*> dum_vals;
     std::vector<EntityHandle> dum_ehvals;
@@ -3881,12 +3873,19 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       MPE_Log_get_state_eventIDs(&RHANDLES_START, &RHANDLES_END);
       MPE_Log_get_state_eventIDs(&OWNED_START, &OWNED_END);
       success = MPE_Describe_state(IFACE_START, IFACE_END, "Resolve interface ents", "green");
+      assert(MPE_LOG_OK == success);
       success = MPE_Describe_state(GHOST_START, GHOST_END, "Exchange ghost ents", "red");
+      assert(MPE_LOG_OK == success);
       success = MPE_Describe_state(SHAREDV_START, SHAREDV_END, "Resolve interface vertices", "blue");
+      assert(MPE_LOG_OK == success);
       success = MPE_Describe_state(RESOLVE_START, RESOLVE_END, "Resolve shared ents", "purple");
+      assert(MPE_LOG_OK == success);
       success = MPE_Describe_state(ENTITIES_START, ENTITIES_END, "Exchange shared ents", "yellow");
+      assert(MPE_LOG_OK == success);
       success = MPE_Describe_state(RHANDLES_START, RHANDLES_END, "Remote handles", "cyan");
+      assert(MPE_LOG_OK == success);
       success = MPE_Describe_state(OWNED_START, OWNED_END, "Exchange owned ents", "black");
+      assert(MPE_LOG_OK == success);
     }
 #endif
   }
@@ -4253,7 +4252,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     // On 64 bits, long and int are different
     // On 32 bits, they are not; if size of long is 8, it is a 64 bit machine (really?)
 
-    for (Range::iterator rit = sets.begin(); rit != sets.end(); rit++) {
+    for (Range::iterator rit = sets.begin(); rit != sets.end(); ++rit) {
       if (sizeof(long) == bytes_per_tag && ((MB_TYPE_HANDLE == tag_type) || (MB_TYPE_OPAQUE == tag_type))) { // It is a special id tag
         long dum;
         result = mbImpl->tag_get_data(idtag, &(*rit), 1, &dum);
@@ -4413,7 +4412,6 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     Range::iterator rit;
 
     // Create interface sets, tag them, and tag their contents with iface set tag
-    std::vector<EntityHandle> tag_vals;
     std::vector<unsigned char> pstatus;
     for (std::map<std::vector<int>,std::vector<EntityHandle> >::iterator vit = proc_nvecs.begin();
          vit != proc_nvecs.end(); ++vit) {
@@ -5427,7 +5425,8 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       else {
         MPI_Status mult_status[3*MAX_SHARING_PROCS];
         success = MPI_Waitall(3*buffProcs.size(), &recv_remoteh_reqs[0], mult_status);
-        success = MPI_Waitall(3*buffProcs.size(), &sendReqs[0], mult_status);
+        if (MPI_SUCCESS == success)
+          success = MPI_Waitall(3*buffProcs.size(), &sendReqs[0], mult_status);
       }
       if (MPI_SUCCESS != success) {
         MB_SET_ERR(MB_FAILURE, "Failed in waitall in ghost exchange");
@@ -6585,7 +6584,8 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       else {
         MPI_Status mult_status[3*MAX_SHARING_PROCS];
         success = MPI_Waitall(3*buffProcs.size(), &recv_remoteh_reqs[0], mult_status);
-        success = MPI_Waitall(3*buffProcs.size(), &sendReqs[0], mult_status);
+        if (MPI_SUCCESS == success)
+          success = MPI_Waitall(3*buffProcs.size(), &sendReqs[0], mult_status);
       }
       if (MPI_SUCCESS != success) {
         MB_SET_ERR(MB_FAILURE, "Failed in waitall in owned entity exchange");
@@ -7120,7 +7120,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     // If the tags are different, copy the source to the dest tag locally
     std::vector<Tag>::const_iterator vit = src_tags.begin(), vit2 = dst_tags.begin();
     std::vector<int>::const_iterator vsizes = tags_sizes.begin();
-    for (; vit != src_tags.end(); ++vit, ++vit2, vsizes++) {
+    for (; vit != src_tags.end(); ++vit, ++vit2, ++vsizes) {
       if (*vit == *vit2)
         continue;
       vals.resize(entities.size()*(*vsizes));
@@ -7618,7 +7618,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
     num_neighbors_out = 0;
     int n, j = 0;
-    int tmp[MAX_SHARING_PROCS], curr[MAX_SHARING_PROCS];
+    int tmp[MAX_SHARING_PROCS] = {0}, curr[MAX_SHARING_PROCS] = {0};
     int *parts[2] = { neighbors_out, tmp };
     for (Range::iterator i = iface.begin(); i != iface.end(); ++i) {
       unsigned char pstat;
@@ -7959,7 +7959,6 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     unsigned char pstat;
     Range bad_ents;
     std::vector<std::string> errors;
-    std::string dum_err;
 
     std::vector<EntityHandle>::const_iterator vit;
     for (vit = sharedEnts.begin(); vit != sharedEnts.end(); ++vit) {
@@ -8258,8 +8257,10 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     ((int*)senddata)[0] = (int) gather_ents.size();
     int* ptr_int = (int*)senddata + 1;
     rval = mbImpl->tag_get_data(id_tag, gather_ents, (void*)ptr_int);
+    if (rval != MB_SUCCESS) return rval;
     ptr_int = (int*)(senddata) + 1 + gather_ents.size();
     rval = mbImpl->tag_get_data(tag_handle, gather_ents, (void*)ptr_int);
+    if (rval != MB_SUCCESS) return rval;
     std::vector<int> displs(proc_config().proc_size(), 0);
     MPI_Gather(&sz_buffer, 1, MPI_INT, &displs[0], 1, MPI_INT, root_proc_rank, comm());
     std::vector<int> recvcnts(proc_config().proc_size(), 0);
@@ -8482,7 +8483,6 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       incoming--;
 
       bool done = false;
-      std::vector<EntityHandle> dum_vec;
       result = recv_buffer(MB_MESG_TAGS_SIZE, status,
           remoteOwnedBuffs[ind],
           recv_intx_reqs[3*ind + 1], // This is for receiving the second message

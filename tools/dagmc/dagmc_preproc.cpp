@@ -107,7 +107,7 @@ ErrorCode update_mcnp5_property_names( Interface* MBI )
  */
 static ErrorCode get_signed_volume( Interface *MBI, 
                                     const EntityHandle surf_set,
-                                    const CartVect offset, 
+                                    const CartVect &offset,
                                     double &signed_volume) 
 {
   ErrorCode rval;

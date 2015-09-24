@@ -164,7 +164,7 @@ void testB(TSTTM::Mesh &mesh,
     mesh_arrmod.createVtxArr(num_verts, TSTTM::StorageOrder_BLOCKED,
                              coords, 3*num_verts,
                              sidl_vertices, sidl_vertices_size);
-  } catch (TSTT::Error err) {
+  } catch (TSTT::Error& /* err */) {
     cerr << "Couldn't create vertices in bulk call" << endl;
     return;
   }
@@ -193,7 +193,7 @@ void testB(TSTTM::Mesh &mesh,
     mesh_arrmod.createEntArr(TSTTM::EntityTopology_HEXAHEDRON, sidl_connect, 
                              sidl_connect_size, new_hexes, new_hexes_size,
                              status, status_size);
-  } catch (TSTT::Error err) {
+  } catch (TSTT::Error& /* err */) {
     cerr << "Couldn't create hex elements in bulk call" << endl;
     return;
   }
@@ -233,7 +233,7 @@ void testC(TSTTM::Mesh &mesh,
 
     // array to hold vertices created individually
   sidl::array<Entity_Handle> sidl_vertices;
-  int sidl_vertices_size = num_verts;
+  //int sidl_vertices_size = num_verts;
   CHECK_SIZE(sidl_vertices, num_verts);
 
     // temporary array to hold vertex positions for single vertex
@@ -259,7 +259,7 @@ void testC(TSTTM::Mesh &mesh,
       mesh_arrmod.createVtxArr(1, TSTTM::StorageOrder_BLOCKED,
                                tmp_coords, tmp_coords_size, 
                                tmp_vertices, tmp_vertices_size);
-    } catch (TSTT::Error err) {
+    } catch (TSTT::Error& /* err */) {
       cerr << "Couldn't create vertex in individual call" << endl;
       return;
     }
@@ -301,7 +301,7 @@ void testC(TSTTM::Mesh &mesh,
                                    tmp_conn, tmp_conn_size,
                                    new_hex, new_hex_size,
                                    status, status_size);
-        } catch (TSTT::Error err) {
+        } catch (TSTT::Error& /* err */) {
           cerr << "Couldn't create hex element in individual call" << endl;
           return;
         }
@@ -338,7 +338,7 @@ void query_elem_to_vert(TSTTM::Mesh &mesh)
   try {
     mesh.getEntities(0, TSTTM::EntityType_REGION, TSTTM::EntityTopology_HEXAHEDRON, 
                      all_hexes, all_hexes_size);
-  } catch (TSTT::Error err) {
+  } catch (TSTT::Error& /* err */) {
     cerr << "Couldn't get all hex elements in query_mesh" << endl;
     return;
   }
@@ -351,7 +351,6 @@ void query_elem_to_vert(TSTTM::Mesh &mesh)
       // now loop over elements
     for (int i = 0; i < all_hexes_size; i++) {
       sidl::array<int> dum_offsets;
-      int dum_offsets_size;
       sidl::array<Entity_Handle> dum_connect;
       int dum_connect_size = 0;
         // get the connectivity of this element; will allocate space on 1st iteration,
@@ -389,7 +388,7 @@ void query_elem_to_vert(TSTTM::Mesh &mesh)
         }
       }
     }
-  } catch (TSTT::Error err) {
+  } catch (TSTT::Error& /* err */) {
     cerr << "Problem getting connectivity or vertex coords." << endl;
     return;
   }
@@ -405,7 +404,7 @@ void query_vert_to_elem(TSTTM::Mesh &mesh)
   try {
     mesh.getEntities(0, TSTTM::EntityType_VERTEX, 
                      TSTTM::EntityTopology_POINT, all_verts, all_verts_size);
-  } catch (TSTT::Error err) {
+  } catch (TSTT::Error& /* err */) {
     cerr << "Couldn't get all vertices in query_vert_to_elem" << endl;
     return;
   }
@@ -424,7 +423,7 @@ void query_vert_to_elem(TSTTM::Mesh &mesh)
       mesh_ent.getEntAdj(all_verts_ptr[i], TSTTM::EntityType_REGION,
                      dum_hexes, dum_hexes_size);
     }
-  } catch (TSTT::Error err) {
+  } catch (TSTT::Error& /* err */) {
     cerr << "Problem getting connectivity or vertex coords." << endl;
     return;
   }
@@ -577,7 +576,7 @@ void build_coords(const int nelem, sidl::array<double> &coords)
   for (int i=1; i < nelem; i++) {
     for (int j=1; j < nelem; j++) {
       for (int k=1; k < nelem; k++) {
-        idx = VINDEX(i,j,k);
+        //idx = VINDEX(i,j,k);
         double tse = i*scale1;
         double ada = j*scale2;
         double gamma = k*scale3;

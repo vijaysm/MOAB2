@@ -72,7 +72,7 @@ void verdict_test1()
     if (MB_SUCCESS == rval)
     {
       mb->list_entity(eh);
-      for (std::map<QualityType, double>::iterator mit=qualities.begin(); mit!=qualities.end(); mit++)
+      for (std::map<QualityType, double>::iterator mit=qualities.begin(); mit!=qualities.end(); ++mit)
       {
         std::cout << "   " << vw.quality_name(mit->first) << " " << mit->second << " \n";
       }

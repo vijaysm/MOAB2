@@ -129,10 +129,8 @@ struct set_stats {
 
 static ErrorCode gather_set_stats( EntityHandle set, set_stats& stats )
 {
-  ErrorCode rval = MB_SUCCESS;
-  
   int count;
-  rval = mb.get_number_entities_by_type( set, MBVERTEX, count );
+  ErrorCode rval = mb.get_number_entities_by_type( set, MBVERTEX, count );
   if (MB_SUCCESS != rval) return rval;
   stats.nodes = count;
   

@@ -133,7 +133,7 @@ void test_coords_connect_iterate()
     }
     
     hit += count;
-    total += count;
+    //total += count;
   }
 
     // ok, done

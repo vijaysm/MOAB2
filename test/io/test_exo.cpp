@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
     end_it = MB_MBSet::GlobalMBSets().end();
   MB_MBSet *this_meshset;
   int bc_tag;
-  for (; this_it != end_it; this_it++) {
+  for (; this_it != end_it; ++this_it) {
       // get the next set
     this_meshset = *this_it;
     

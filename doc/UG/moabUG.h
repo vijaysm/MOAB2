@@ -188,7 +188,7 @@ using namespace moab;
           int num_in_range = from_range.size();
           Range to_range;
           Range::iterator rit;
-    for (rit = from_range.begin(); rit != from_range.end(); rit++) {
+    for (rit = from_range.begin(); rit != from_range.end(); ++rit) {
             EntityHandle this_ent = *rit;
             to_range.insert(this_ent);
           }
@@ -266,7 +266,7 @@ rval = moab->tag_create(“TEMPERATURE”, sizeof(double), MB_TAG_DENSE,
                         MB_TYPE_DOUBLE, temperature, &def_val);
 // assign a value to vertices
 for (Range::iterator vit = verts.begin(); 
-     vit != verts.end(); vit++) 
+     vit != verts.end(); ++vit)
   rval = moab->tag_set_data(temperature, &(*rit), 1, &new_val);
 
 \endcode

@@ -60,8 +60,8 @@ bool edge_node_intersect(const EntityHandle                tri,
                          std::vector<EntityHandle>*        neighborhood_tris = 0 ) {
 
   // get the node of the triangle
-  const EntityHandle* conn;
-  int len;
+  const EntityHandle* conn = NULL;
+  int len = 0;
   ErrorCode rval = MBI->get_connectivity( tri, conn, len );
   if(MB_SUCCESS!=rval || 3!=len) return MB_FAILURE;
 
@@ -80,7 +80,7 @@ bool edge_node_intersect(const EntityHandle                tri,
 
     // get tris adjacent to node
     for(unsigned i=0; i<close_tris.size(); ++i) {
-      const EntityHandle* con;
+      const EntityHandle* con = NULL;
       rval = MBI->get_connectivity( close_tris[i], con, len );
       if(MB_SUCCESS!=rval || 3!=len) return MB_FAILURE;
 
@@ -111,7 +111,7 @@ bool edge_node_intersect(const EntityHandle                tri,
 
     // get tris adjacent to edge
     for(unsigned i=0; i<close_tris.size(); ++i) {
-      const EntityHandle* con;
+      const EntityHandle* con = NULL;
       rval = MBI->get_connectivity( close_tris[i], con, len );
       if(MB_SUCCESS!=rval || 3!=len) return MB_FAILURE;
 
@@ -148,7 +148,7 @@ bool edge_node_intersect(const EntityHandle                tri,
   // intersection, the normal of all tris must have the same orientation.
   int sign = 0;
   for(unsigned i=0; i<adj_tris.size(); ++i) {
-    const EntityHandle* con;
+    const EntityHandle* con = NULL;
     rval = MBI->get_connectivity( adj_tris[i], con, len );
     if(MB_SUCCESS!=rval || 3!=len) return MB_FAILURE;
     CartVect coords[3];
@@ -346,8 +346,8 @@ static ErrorCode split_box( Interface* instance,
 
   std::vector<CartVect> coords;
   for (Range::reverse_iterator i = entities.rbegin(); i != entities.rend(); ++i) {
-    const EntityHandle *conn;
-    int conn_len;
+    const EntityHandle *conn = NULL;
+    int conn_len = 0;
     rval = instance->get_connectivity( *i, conn, conn_len );
     if (MB_SUCCESS != rval)
       return rval;
@@ -894,8 +894,8 @@ ErrorCode OrientedBoxTreeTool::ray_intersect_triangles(
         continue;
 #endif
     
-      const EntityHandle* conn;
-      int len;
+      const EntityHandle* conn = NULL;
+      int len = 0;
       rval = instance->get_connectivity( *t, conn, len, true );
       if (MB_SUCCESS != rval)
         return rval;
@@ -1044,8 +1044,8 @@ class RayIntersectSets : public OrientedBoxTreeTool::Op
         tol(tolerance), minTolInt(min_tol_intersections),
         intersections(inters), sets(surfaces), facets(facts), 
         rootSet(root_set), geomVol(geom_volume), senseTag(sense_tag),
-        desiredOrient(desired_orient), prevFacets(prev_facets),
-        raytri_test_count(tmp_count), lastSet(0)
+        desiredOrient(desired_orient), surfTriOrient_val(0), prevFacets(prev_facets),
+        raytri_test_count(tmp_count), lastSet(0), lastSetDepth(0)
       {
 	// specified orientation should be 1 or -1, indicating ray and surface
         // normal in the same or opposite directions, respectively.
@@ -1519,8 +1519,8 @@ ErrorCode OrientedBoxTreeTool::closest_to_location(
       if (MB_SUCCESS != rval)
         return rval;
       
-      const EntityHandle* conn;
-      int len;
+      const EntityHandle* conn = NULL;
+      int len = 0;
       CartVect tmp, diff;
       for (Range::iterator i = facets.begin(); i != facets.end(); ++i) {
         rval = instance->get_connectivity( *i, conn, len, true );
@@ -1655,8 +1655,8 @@ ErrorCode OrientedBoxTreeTool::closest_to_location( const double* point,
       if (MB_SUCCESS != rval)
         return rval;
       
-      const EntityHandle* conn;
-      int len;
+      const EntityHandle* conn = NULL;
+      int len = 0;
       CartVect tmp, diff;
       for (Range::iterator i = facets.begin(); i != facets.end(); ++i) {
         rval = instance->get_connectivity( *i, conn, len, true );
@@ -2198,12 +2198,12 @@ ErrorCode OrientedBoxTreeTool::stats( EntityHandle set,
   unsigned min_leaf_depth = tree_height;
   num_leaves = 0;
   unsigned max_leaf_per_depth = 0;
-  double sum_leaf_depth = 0, sqr_leaf_depth = 0;
+  //double sum_leaf_depth = 0, sqr_leaf_depth = 0;
   for (i = 0; i < d.leaf_depth.size(); ++i) {
     unsigned val = d.leaf_depth[i];
     num_leaves += val;
-    sum_leaf_depth += (double)val*i;
-    sqr_leaf_depth += (double)val*i*i;
+    //sum_leaf_depth += (double)val*i;
+    //sqr_leaf_depth += (double)val*i*i;
     if (val && i < min_leaf_depth)
       min_leaf_depth = i;
     if (max_leaf_per_depth < val)

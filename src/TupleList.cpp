@@ -64,20 +64,19 @@ void TupleList::buffer::reset()
 }
 
 TupleList::TupleList(uint p_mi, uint p_ml, uint p_mul, uint p_mr, uint p_max)
+: vi(NULL), vl(NULL), vul(NULL), vr(NULL),
+  last_sorted(-1)
 {
-  vi = NULL;
-  vl = NULL;
-  vul = NULL;
-  vr = NULL;
   initialize(p_mi, p_ml, p_mul, p_mr, p_max);
 }
 
 TupleList::TupleList()
+: vi_rd(NULL), vl_rd(NULL), vul_rd(NULL), vr_rd(NULL),
+  mi(0), ml(0), mul(0), mr(0),
+  n(0), max(0),
+  vi(NULL), vl(NULL), vul(NULL), vr(NULL),
+  last_sorted(-1)
 {
-  vi = NULL;
-  vl = NULL;
-  vul = NULL;
-  vr = NULL;
   disableWriteAccess();
 }
 

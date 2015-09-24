@@ -117,7 +117,7 @@ ErrorCode EntityCount::create_adjacencies(Range &entities, int adj_dim)
   Range::iterator iter;
   std::vector<EntityHandle> adjacencies;
   
-  for (iter = entities.begin(); iter != entities.end(); iter++)
+  for (iter = entities.begin(); iter != entities.end(); ++iter)
   {
     result = gMB->get_adjacencies(&*iter, 1, adj_dim, true, adjacencies);
     if(result != MB_SUCCESS)
@@ -164,13 +164,13 @@ ErrorCode find_coincident_nodes(Range vertices,
   std::pair<EntityHandle, EntityHandle> coincident_pair;
   ErrorCode result;
 
-  for (iter = vertices.begin(); iter != vertices.end(); iter++)
+  for (iter = vertices.begin(); iter != vertices.end(); ++iter)
   {
     result = gMB->get_coords(&*iter, 1, first_coords);
     if (result != MB_SUCCESS)
       return result;
 
-    for (jter = iter; jter != vertices.end(); jter++)
+    for (jter = iter; jter != vertices.end(); ++jter)
     {
       if (*iter != *jter)
       {
@@ -198,7 +198,7 @@ ErrorCode find_coincident_edges(Range entities,
   std::vector<EntityHandle> conn(2);
   std::pair<EntityHandle, EntityHandle> coincident_pair;
 
-  for(iter = entities.begin(); iter != entities.end(); iter++)
+  for(iter = entities.begin(); iter != entities.end(); ++iter)
   {
     if(gMB->get_connectivity(&*iter, 1, conn) != MB_SUCCESS)
       return MB_FAILURE;
@@ -210,7 +210,7 @@ ErrorCode find_coincident_edges(Range entities,
     if(gMB->get_coords(&conn[1], 1, coords2) != MB_SUCCESS)
       return MB_FAILURE;
 
-    for(jter = iter; jter != entities.end(); jter++)
+    for(jter = iter; jter != entities.end(); ++jter)
     {
       if(*iter != *jter)
       {
@@ -249,7 +249,7 @@ ErrorCode find_coincident_elements(Range entities, int num_nodes,
   std::pair<EntityHandle, EntityHandle> coincident_pair;
   int i = 0, j = 0, ii = 0;
 
-  for(iter = entities.begin(); iter != entities.end(); iter++)
+  for(iter = entities.begin(); iter != entities.end(); ++iter)
   {
     // Get the coordinates for the element corners.
     if(gMB->get_connectivity(&*iter, 1, conn) != MB_SUCCESS)
@@ -260,7 +260,7 @@ ErrorCode find_coincident_elements(Range entities, int num_nodes,
         return MB_FAILURE;
     }
 
-    for(jter = iter; jter != entities.end(); jter++)
+    for(jter = iter; jter != entities.end(); ++jter)
     {
       if(*iter != *jter)
       {
@@ -417,7 +417,7 @@ ErrorCode merge_top_down(EntityCount &init_count,
   }
 
   std::vector< std::pair<EntityHandle,EntityHandle> >::iterator iter;
-  for(iter=coincident.begin(); iter != coincident.end(); iter++)
+  for(iter=coincident.begin(); iter != coincident.end(); ++iter)
     gMB->merge_entities((*iter).first, (*iter).second, false, true);
 
   // Get the new entity totals.
@@ -455,7 +455,7 @@ ErrorCode merge_nodes(EntityCount &init_count, EntityCount &curr_count)
 
   // merge the coincident nodes
   std::vector< std::pair<EntityHandle,EntityHandle> >::iterator iter;
-  for(iter=coincident_nodes.begin(); iter != coincident_nodes.end(); iter++)
+  for(iter=coincident_nodes.begin(); iter != coincident_nodes.end(); ++iter)
   {
     cout << "   Coincident nodes: " << (*iter).first << "-"
          << (*iter).second << endl;
@@ -509,7 +509,7 @@ ErrorCode merge_edges(EntityCount &init_count, EntityCount &curr_count)
   // merge the coincident edges
   unsigned long id1, id2;
   std::vector< std::pair<EntityHandle,EntityHandle> >::iterator iter;
-  for(iter=coincident_edges.begin(); iter != coincident_edges.end(); iter++)
+  for(iter=coincident_edges.begin(); iter != coincident_edges.end(); ++iter)
   {
     id1 = gMB->id_from_handle((*iter).first);
     id2 = gMB->id_from_handle((*iter).second);
@@ -563,7 +563,7 @@ ErrorCode merge_2D_elem(EntityCount &init_count, EntityCount &curr_count)
   unsigned long id1, id2;
   unsigned int tri_diff = coincident.size();
   std::vector< std::pair<EntityHandle,EntityHandle> >::iterator iter;
-  for(iter=coincident.begin(); iter != coincident.end(); iter++)
+  for(iter=coincident.begin(); iter != coincident.end(); ++iter)
   {
     id1 = gMB->id_from_handle((*iter).first);
     id2 = gMB->id_from_handle((*iter).second);
@@ -586,7 +586,7 @@ ErrorCode merge_2D_elem(EntityCount &init_count, EntityCount &curr_count)
 
   // merge the coincident tris
   unsigned int quad_diff = coincident.size();
-  for(iter=coincident.begin(); iter != coincident.end(); iter++)
+  for(iter=coincident.begin(); iter != coincident.end(); ++iter)
   {
     id1 = gMB->id_from_handle((*iter).first);
     id2 = gMB->id_from_handle((*iter).second);
@@ -647,7 +647,7 @@ ErrorCode merge_3D_elem(EntityCount &init_count, EntityCount &curr_count)
   unsigned long id1, id2;
   unsigned int tet_diff = coincident.size();
   std::vector< std::pair<EntityHandle,EntityHandle> >::iterator iter;
-  for(iter=coincident.begin(); iter != coincident.end(); iter++)
+  for(iter=coincident.begin(); iter != coincident.end(); ++iter)
   {
     id1 = gMB->id_from_handle((*iter).first);
     id2 = gMB->id_from_handle((*iter).second);
@@ -670,7 +670,7 @@ ErrorCode merge_3D_elem(EntityCount &init_count, EntityCount &curr_count)
 
   // merge the coincident tris
   unsigned int hex_diff = coincident.size();
-  for(iter=coincident.begin(); iter != coincident.end(); iter++)
+  for(iter=coincident.begin(); iter != coincident.end(); ++iter)
   {
     id1 = gMB->id_from_handle((*iter).first);
     id2 = gMB->id_from_handle((*iter).second);
@@ -755,7 +755,7 @@ ErrorCode write_file(std::string &file_name)
   range_iter = block_range.begin();
   end_iter = block_range.end();
 
-  for(; range_iter != end_iter; range_iter++)
+  for(; range_iter != end_iter; ++range_iter)
   {
     int id;
     result = gMB->tag_get_handle("MATERIAL_SET",  block_tag);
@@ -843,7 +843,7 @@ ErrorCode process_td_auto_merge(std::string &file_name)
 
   cout << "Merging coincident entities(top down)..." << endl;
   std::vector< std::pair<EntityHandle,EntityHandle> >::iterator iter;
-  for(iter=coincident.begin(); iter != coincident.end(); iter++)
+  for(iter=coincident.begin(); iter != coincident.end(); ++iter)
     gMB->merge_entities((*iter).first, (*iter).second, true, true);
 
   // Get the new entity totals.
@@ -917,7 +917,7 @@ ErrorCode process_mo_auto_merge(std::string &file_name)
 
   cout << "Merging coincident entities(middle out)..." << endl;
   std::vector< std::pair<EntityHandle,EntityHandle> >::iterator iter;
-  for(iter=coincident.begin(); iter != coincident.end(); iter++)
+  for(iter=coincident.begin(); iter != coincident.end(); ++iter)
 
     gMB->merge_entities((*iter).first, (*iter).second, true,true);
 
@@ -981,7 +981,7 @@ ErrorCode process_bu_auto_merge(std::string &file_name)
 
   cout << "Merging coincident entities(bottom up)..." << endl;
   std::vector< std::pair<EntityHandle,EntityHandle> >::iterator iter;
-  for(iter=coincident.begin(); iter != coincident.end(); iter++)
+  for(iter=coincident.begin(); iter != coincident.end(); ++iter)
     gMB->merge_entities((*iter).first, (*iter).second, true, true);
 
   // Get the new entity totals.

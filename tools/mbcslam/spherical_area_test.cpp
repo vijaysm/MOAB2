@@ -17,11 +17,10 @@ int main(int/* argc*/, char** /* argv[]*/)
   const char *filename_mesh = STRINGIFY(MESHDIR) "/mbcslam/eulerHomme.vtk";
 
   // read input mesh in a set
-  ErrorCode rval = MB_SUCCESS;
   Core moab;
   Interface* mb = &moab;// global
   EntityHandle sf;
-  rval = mb->create_meshset(MESHSET_SET, sf);
+  ErrorCode rval = mb->create_meshset(MESHSET_SET, sf);
   if (MB_SUCCESS != rval)
     return 1;
 

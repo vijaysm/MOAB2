@@ -95,10 +95,11 @@ void test_read_onevar()
   ErrorCode rval = mb.load_file(example, NULL, opts.c_str());
   CHECK_ERR(rval);
 
-  int procs = 1;
 #ifdef MOAB_HAVE_MPI
   ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
-  procs = pcomm->proc_config().proc_size();
+  int procs = pcomm->proc_config().proc_size();
+#else
+  int procs = 1;
 #endif
 
   // Make check runs this test on one processor
@@ -417,10 +418,11 @@ void test_read_conn()
   ErrorCode rval = mb.load_file(conn_fname, NULL, opts.c_str());
   CHECK_ERR(rval);
 
-  int procs = 1;
 #ifdef MOAB_HAVE_MPI
   ParallelComm* pcomm = ParallelComm::get_pcomm(&mb, 0);
-  procs = pcomm->proc_config().proc_size();
+  int procs = pcomm->proc_config().proc_size();
+#else
+  int procs = 1;
 #endif
 
   // Make check runs this test on one processor

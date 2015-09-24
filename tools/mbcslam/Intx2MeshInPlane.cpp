@@ -25,6 +25,8 @@ double Intx2MeshInPlane::setup_red_cell(EntityHandle red, int & nsRed)
   double cellArea =0;
   int num_nodes;
   ErrorCode rval = mb->get_connectivity(red, redConn, num_nodes);
+  if (MB_SUCCESS != rval)
+    return 1.; // it should be an error
 
   nsRed = num_nodes;
 
@@ -263,8 +265,7 @@ int Intx2MeshInPlane::findNodes(EntityHandle red, int nsRed, EntityHandle blue, 
         {
           // found the edge; now find if there is a point in the list here
           //std::vector<EntityHandle> * expts = extraNodesMap[redEdges[j]];
-          int indx = -1;
-          indx = RedEdges.index(redEdges[j]);
+          int indx = RedEdges.index(redEdges[j]);
           std::vector<EntityHandle> * expts = extraNodesVec[indx];
           // if the points pp is between extra points, then just give that id
           // if not, create a new point, (check the id)

@@ -33,8 +33,6 @@ double t = 0.1, delta_t = 0.43; // check the script
 ErrorCode manufacture_lagrange_mesh_on_sphere(Interface * mb,
     EntityHandle euler_set, EntityHandle & lagr_set)
 {
-  ErrorCode rval = MB_SUCCESS;
-
   /*
    * get all quads first, then vertices, then move them on the surface of the sphere
    *  radius is in, it comes from MeshKit/python/examples/manufHomme.py :
@@ -46,7 +44,7 @@ ErrorCode manufacture_lagrange_mesh_on_sphere(Interface * mb,
    */
   double radius = CubeSide / 2 * sqrt(3.); // our value depends on cube side
   Range quads;
-  rval = mb->get_entities_by_type(euler_set, MBQUAD, quads);
+  ErrorCode rval = mb->get_entities_by_type(euler_set, MBQUAD, quads);
   if (MB_SUCCESS != rval)
     return rval;
 
@@ -68,7 +66,7 @@ ErrorCode manufacture_lagrange_mesh_on_sphere(Interface * mb,
   // then connect them in quads
   std::map<EntityHandle, EntityHandle> newNodes;
   for (Range::iterator vit = connecVerts.begin(); vit != connecVerts.end();
-      vit++)
+      ++vit)
   {
     EntityHandle oldV = *vit;
     CartVect posi;
@@ -85,7 +83,7 @@ ErrorCode manufacture_lagrange_mesh_on_sphere(Interface * mb,
       return rval;
     newNodes[oldV] = new_vert;
   }
-  for (Range::iterator it = quads.begin(); it != quads.end(); it++)
+  for (Range::iterator it = quads.begin(); it != quads.end(); ++it)
   {
     EntityHandle q = *it;
     int nnodes;
@@ -193,7 +191,7 @@ int main(int argc, char **argv)
   if (MB_SUCCESS != rval)
     return 1;
 
-  std::string opts_write("");
+  //std::string opts_write("");
   std::stringstream outf;
   outf << "intersect1" << ".h5m";
   rval = mb.write_file(outf.str().c_str(), 0, 0, &outputSet, 1);

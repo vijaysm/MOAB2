@@ -20,11 +20,9 @@ int field_type = 1;
 
 ErrorCode add_field_value(Interface & mb)
 {
-  ErrorCode rval = MB_SUCCESS;
-
   Tag tagTracer = 0;
   std::string tag_name("Tracer");
-  rval = mb.tag_get_handle(tag_name.c_str(), 1, MB_TYPE_DOUBLE, tagTracer, MB_TAG_DENSE | MB_TAG_CREAT);
+  ErrorCode rval = mb.tag_get_handle(tag_name.c_str(), 1, MB_TYPE_DOUBLE, tagTracer, MB_TAG_DENSE | MB_TAG_CREAT);
   CHECK_ERR(rval);
 
   // tagElem is the average computed at each element, from nodal values
@@ -71,7 +69,7 @@ ErrorCode add_field_value(Interface & mb)
   if (field_type==1) // quasi smooth
   {
     double params[] = { M_PI, M_PI/3, M_PI, -M_PI/3, 0.1, 0.9, 1., 0.5};
-    for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); vit++ )
+    for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); ++vit)
     {
       EntityHandle oldV=*vit;
       CartVect posi;
@@ -97,7 +95,7 @@ ErrorCode add_field_value(Interface & mb)
     p2 = spherical_to_cart(spr);
     //                  x1,    y1,     z1,    x2,   y2,    z2,   h_max, b0
     double params[] = { p1[0], p1[1], p1[2], p2[0], p2[1], p2[2], 1,    5.};
-    for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); vit++ )
+    for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); ++vit)
     {
       EntityHandle oldV=*vit;
       CartVect posi;
@@ -115,7 +113,7 @@ ErrorCode add_field_value(Interface & mb)
   {
     //                   la1, te1,   la2, te2,       b,   c,   r
     double params[] = { M_PI, M_PI/3, M_PI, -M_PI/3, 0.1, 0.9, 0.5};// no h_max
-    for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); vit++ )
+    for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); ++vit)
     {
       EntityHandle oldV=*vit;
       CartVect posi;
@@ -135,7 +133,7 @@ ErrorCode add_field_value(Interface & mb)
 
 
   Range::iterator iter = polygons.begin();
-  double local_mass = 0.; // this is total mass on one proc
+  //double local_mass = 0.; // this is total mass on one proc
   while (iter != polygons.end())
   {
     rval = mb.tag_iterate(tagElem, iter, polygons.end(), count, data);
@@ -145,7 +143,7 @@ ErrorCode add_field_value(Interface & mb)
     rval = mb.tag_iterate(tagArea, iter, polygons.end(), count, data);
     CHECK_ERR(rval);
     double * ptrArea=(double*)data;
-    for (int i=0; i<count; i++, iter++, ptr++, ptrArea++)
+    for (int i=0; i<count; i++, ++iter, ptr++, ptrArea++)
     {
       const moab::EntityHandle * conn = NULL;
       int num_nodes = 0;
@@ -171,7 +169,7 @@ ErrorCode add_field_value(Interface & mb)
 
       // we should have used some
       // total mass:
-      local_mass += *ptrArea * average;
+      //local_mass += *ptrArea * average;
     }
 
   }

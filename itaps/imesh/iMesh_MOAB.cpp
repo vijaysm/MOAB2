@@ -289,6 +289,7 @@ extern "C" {
 
           // mpi not initialized yet - initialize here
         retval = MPI_Init(&argc, &argv);
+        assert(MPI_SUCCESS == retval);
       }
       *mbi = new MBiMesh(NULL);
 #else
@@ -718,10 +719,13 @@ extern "C" {
           array_alloc = entity_handles_size * num_connect;
         else
           array_alloc = std::max(array_alloc*2, prev_off+num_connect);
-        array = (EntityHandle*)realloc( array, array_alloc*sizeof(EntityHandle) );
-        if (!array) {
+        EntityHandle* new_array = (EntityHandle*)realloc( array, array_alloc*sizeof(EntityHandle) );
+        if (!new_array) {
+          free(array);
           RETURN(iBase_MEMORY_ALLOCATION_FAILED);
         }
+        else
+          array = new_array;
         std::copy(connect, connect+num_connect, array+prev_off);
       }
       // else do nothing.  Will catch error later when comparing
@@ -2662,7 +2666,7 @@ extern "C" {
     int k = 0;
 
       // filter out entity sets here
-    for (iter = out_entities.begin(); iter != out_entities.end(); iter++)
+    for (iter = out_entities.begin(); iter != out_entities.end(); ++iter)
       (*entity_handles)[k++] = (iBase_EntityHandle)*iter;
 
       // now it's safe to set the size; set it to k, not out_entities.size(), to
@@ -2876,11 +2880,11 @@ extern "C" {
 
       // filter out entity sets here
     if (iBase_ALL_TYPES == entity_type && iMesh_ALL_TOPOLOGIES == entity_topology) {
-      for (; iter != end_iter && MOABI->type_from_handle(*iter) != MBENTITYSET; iter++)
+      for (; iter != end_iter && MOABI->type_from_handle(*iter) != MBENTITYSET; ++iter)
         (*entity_handles)[k++] = (iBase_EntityHandle)*iter;
     }
     else {
-      for (; iter != end_iter; iter++)
+      for (; iter != end_iter; ++iter)
         (*entity_handles)[k++] = (iBase_EntityHandle)*iter;
     }
 

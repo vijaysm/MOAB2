@@ -289,7 +289,7 @@ void test_string_opt( )
 void test_string_arg( )
 {
   ProgOptions opts;
-  std::string val1, val2;
+  std::string val2;
   opts.addRequiredArg<std::string>( "arg", "my test arg" );
   opts.addRequiredArg( "arg2", "my other test arg",&val2 );
   const char* argv[] = { "test",
@@ -403,7 +403,7 @@ void test_int_vect_opt()
 void test_int_vect_arg()
 {
   ProgOptions opts;
-  std::vector<int> list1, list2;
+  std::vector<int> list1;
   opts.addRequiredArg( "ints", "int list", &list1 );
   const char* argv[] = { "test", "5,6,-3--1,10" };
   

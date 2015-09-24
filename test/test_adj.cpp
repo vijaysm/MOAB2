@@ -33,6 +33,7 @@
 #endif
 
 #include "Internals.hpp"
+#include "TestUtil.hpp"
 
 using namespace moab;
 
@@ -76,7 +77,7 @@ int main()
   std::vector<EntityHandle> nodes;
   int error;
   EntityHandle h = CREATE_HANDLE(MBQUAD, MB_START_ID, error);
-
+  CHECK_EQUAL(0, error);
   std::cout<<"h = "<<h<<std::endl;
 
   err = iface->get_adjacencies( &h, 1, 0, true, nodes);CHECK_ERR(err);

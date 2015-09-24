@@ -513,7 +513,7 @@ ErrorCode SpectralVisuMesh(Interface * mb, Range & input, int NP, EntityHandle &
   std::vector<int> gids(input.size()*(NP-1)*(NP-1));// total number of "linear" elements
   // get all edges? or not? Form all gl points + quads, then merge, then output
   int startGid=0;
-  for (Range::iterator it=input.begin(); it!=input.end(); it++)
+  for (Range::iterator it=input.begin(); it!=input.end(); ++it)
   {
     const moab::EntityHandle * conn4 = NULL;
     int num_nodes = 0;
@@ -597,7 +597,7 @@ ErrorCode ProjectOnSphere(Interface * mb, EntityHandle set, double R) {
 
   // one by one, get the node and project it on the sphere, with a radius given
   // the center of the sphere is at 0,0,0
-  for (Range::iterator nit = nodes.begin(); nit != nodes.end(); nit++) {
+  for (Range::iterator nit = nodes.begin(); nit != nodes.end(); ++nit) {
     EntityHandle nd = *nit;
     CartVect pos;
     rval = mb->get_coords(&nd, 1, (double*) &(pos[0]));
@@ -775,7 +775,7 @@ double area_on_sphere(Interface * mb, EntityHandle set, double R) {
   // compare total area with 4*M_PI * R^2
   double total_area = 0.;
   for (Range::iterator eit = inputRange.begin(); eit != inputRange.end();
-      eit++) {
+      ++eit) {
     EntityHandle eh = *eit;
     // get the nodes, then the coordinates
     const EntityHandle * verts;
@@ -802,7 +802,7 @@ double area_on_sphere_lHuiller(Interface * mb, EntityHandle set, double R) {
 
   double total_area = 0.;
   for (Range::iterator eit = inputRange.begin(); eit != inputRange.end();
-      eit++) {
+      ++eit) {
     EntityHandle eh = *eit;
     // get the nodes, then the coordinates
     const EntityHandle * verts;
@@ -956,7 +956,7 @@ ErrorCode enforce_convexity(Interface * mb, EntityHandle lset, int my_rank) {
     EntityHandle eh;
     if (eit != inputRange.end()) {
       eh = *eit;
-      eit++;
+      ++eit;
     } else {
       eh = newPolys.front();
       newPolys.pop();
@@ -1103,6 +1103,8 @@ ErrorCode create_span_quads(Interface * mb, EntityHandle euler_set, int rank) {
   // now create some if missing
   Range allEdges;
   rval = mb->get_adjacencies(polygons, 1, true, allEdges, Interface::UNION);
+  if (MB_SUCCESS != rval)
+    return rval;
   // create the vertices at the DP points, and the quads after that
   Range verts;
   rval = mb->get_connectivity(polygons, verts);
@@ -1127,6 +1129,7 @@ ErrorCode create_span_quads(Interface * mb, EntityHandle euler_set, int rank) {
   if (MB_SUCCESS != rval)
     return rval;
   // fill it up
+  // Cppcheck warning (false positive): variable coords is assigned a value that is never used
   for (int i = 0; i < num_verts; i++) {
     // block from interleaved
     coords[0][i] = dep_points[3 * i];
@@ -1143,7 +1146,7 @@ ErrorCode create_span_quads(Interface * mb, EntityHandle euler_set, int rank) {
   int quad_index = 0;
   EntityHandle firstVertHandle = verts[0]; // assume vertices are contiguous...
   for (Range::iterator eit = allEdges.begin(); eit != allEdges.end();
-      eit++, quad_index++) {
+      ++eit, quad_index++) {
     EntityHandle edge = *eit;
     int num_nodes;
     rval = mb->get_connectivity(edge, edge_conn, num_nodes);
@@ -1170,7 +1173,7 @@ ErrorCode create_span_quads(Interface * mb, EntityHandle euler_set, int rank) {
   if (MB_SUCCESS != rval)
     return rval;
   int j = 1;
-  for (Range::iterator itq = quads.begin(); itq != quads.end(); itq++, j++) {
+  for (Range::iterator itq = quads.begin(); itq != quads.end(); ++itq, j++) {
     EntityHandle q = *itq;
     rval = mb->tag_set_data(colTag, &q, 1, &j);
     if (MB_SUCCESS != rval)
@@ -1188,6 +1191,8 @@ ErrorCode create_span_quads(Interface * mb, EntityHandle euler_set, int rank) {
 
   Range quadEdges;
   rval = mb->get_adjacencies(quads, 1, true, quadEdges, Interface::UNION);
+  if (MB_SUCCESS != rval)
+    return rval;
   mb->add_entities(outSet2, quadEdges);
 
   std::stringstream outf2;
@@ -1218,7 +1223,7 @@ ErrorCode fix_degenerate_quads(Interface * mb, EntityHandle set) {
   ErrorCode rval = mb->get_entities_by_type(set, MBQUAD, quads);
   if (MB_SUCCESS != rval)
     return rval;
-  for (Range::iterator qit = quads.begin(); qit != quads.end(); qit++) {
+  for (Range::iterator qit = quads.begin(); qit != quads.end(); ++qit) {
     EntityHandle quad = *qit;
     const EntityHandle * conn4 = NULL;
     int num_nodes = 0;
@@ -1250,7 +1255,7 @@ ErrorCode positive_orientation(Interface * mb, EntityHandle set, double R) {
   ErrorCode rval = mb->get_entities_by_dimension(set, 2, cells2d);
   if (MB_SUCCESS != rval)
     return rval;
-  for (Range::iterator qit = cells2d.begin(); qit != cells2d.end(); qit++) {
+  for (Range::iterator qit = cells2d.begin(); qit != cells2d.end(); ++qit) {
     EntityHandle cell = *qit;
     const EntityHandle * conn = NULL;
     int num_nodes = 0;
@@ -1689,7 +1694,7 @@ ErrorCode set_edge_type_flag(Interface * mb, EntityHandle sf1)
   // add edges to the set? not yet, maybe later
   // if edge horizontal, set value to 1
   int type_constant_lat=1;
-  for (Range::iterator eit=edges.begin(); eit!=edges.end(); eit++)
+  for (Range::iterator eit=edges.begin(); eit!=edges.end(); ++eit)
   {
     EntityHandle edge = *eit;
     const EntityHandle *conn=0;
@@ -1784,7 +1789,7 @@ ErrorCode deep_copy_set(Interface * mb, EntityHandle source_set,
 
   std::map<EntityHandle, EntityHandle> newNodes;
   for (Range::iterator vit = connecVerts.begin(); vit != connecVerts.end();
-      vit++) {
+      ++vit) {
     EntityHandle oldV = *vit;
     CartVect posi;
     rval = mb->get_coords(&oldV, 1, &(posi[0]));
@@ -1810,7 +1815,7 @@ ErrorCode deep_copy_set(Interface * mb, EntityHandle source_set,
 
   }
 
-  for (Range::iterator it = polys.begin(); it != polys.end(); it++) {
+  for (Range::iterator it = polys.begin(); it != polys.end(); ++it) {
     EntityHandle q = *it;
     int nnodes;
     const EntityHandle * conn;
@@ -1881,7 +1886,7 @@ ErrorCode deep_copy_set_with_quads(Interface * mb, EntityHandle source_set,
   // fill it up
   int i = 0;
   for (Range::iterator vit = connecVerts.begin(); vit != connecVerts.end();
-      vit++, i++) {
+      ++vit, i++) {
     EntityHandle oldV = *vit;
     CartVect posi;
     rval = mb->get_coords(&oldV, 1, &(posi[0]));
@@ -1890,6 +1895,7 @@ ErrorCode deep_copy_set_with_quads(Interface * mb, EntityHandle source_set,
     rval = mb->tag_get_data(gid, &oldV, 1, &global_id);
     CHECK_ERR(rval);
     EntityHandle new_vert = start_vert + i;
+    // Cppcheck warning (false positive): variable coords is assigned a value that is never used
     coords[0][i] = posi[0];
     coords[1][i] = posi[1];
     coords[2][i] = posi[2];
@@ -1915,7 +1921,7 @@ ErrorCode deep_copy_set_with_quads(Interface * mb, EntityHandle source_set,
   if (MB_SUCCESS != rval)
     return rval;
   int ie = 0;
-  for (Range::iterator it = quads.begin(); it != quads.end(); it++, ie++) {
+  for (Range::iterator it = quads.begin(); it != quads.end(); ++it, ie++) {
     EntityHandle q = *it;
     int nnodes;
     const EntityHandle * conn;

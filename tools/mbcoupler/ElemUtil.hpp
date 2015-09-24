@@ -62,7 +62,7 @@ namespace ElemUtil {
          of the shape functions on the canonical element. This is done by extending this class.
 
          We further assume that the parameterizing map is defined by the location of n vertices,
-         which can be set and retrived on a Map instance.  The number of vertices is fixed at
+         which can be set and retrieved on a Map instance.  The number of vertices is fixed at
          compile time.
     */
     class Map {
@@ -84,7 +84,7 @@ namespace ElemUtil {
       /* FIX: should this be evaluated in real coordinates and be obtained as part of a Newton solve? */
       /**\brief Evaluate the inverse of the Jacobi matrix. */
       virtual Matrix3 ijacobian( const CartVect& xi ) const {return this->jacobian(xi).inverse();};
-      /* det_jacobian and det_ijacobian should be overriden for efficiency. */
+      /* det_jacobian and det_ijacobian should be overridden for efficiency. */
       /**\brief Evaluate the determinate of the Jacobi matrix. */
       virtual double  det_jacobian(const CartVect& xi) const {return this->jacobian(xi).determinant();};
       /* FIX: should this be evaluated in real coordinates and be obtained as part of a Newton solve? */
@@ -180,7 +180,7 @@ namespace ElemUtil {
     /**\brief Shape function space for a linear tetrahedron, obtained by a pushforward of the canonical affine shape functions. */
     class LinearTet : public Map {
     public:
-      LinearTet(const std::vector<CartVect>& vertices) : Map(vertices){ LinearTet::set_vertices(vertex);};
+      LinearTet(const std::vector<CartVect>& vertices) : Map(vertices){ set_vertices(vertex);};
       LinearTet();
       virtual ~LinearTet();
       /* Override the evaluation routines to take advantage of the properties of P1. */
@@ -206,7 +206,7 @@ namespace ElemUtil {
 
     class SpectralHex : public Map {
     public:
-      SpectralHex(const std::vector<CartVect>& vertices) : Map(vertices){};
+      SpectralHex(const std::vector<CartVect>& vertices) : Map(vertices){_xyz[0] = _xyz[1] = _xyz[2] = NULL;};
       SpectralHex(int order, double * x, double * y, double *z) ;
       SpectralHex(int order);
       SpectralHex();
@@ -286,7 +286,7 @@ namespace ElemUtil {
 
     class SpectralQuad : public Map {
       public:
-        SpectralQuad(const std::vector<CartVect>& vertices) : Map(vertices){};
+        SpectralQuad(const std::vector<CartVect>& vertices) : Map(vertices){_xyz[0] = _xyz[1] = _xyz[2] = NULL;};
         SpectralQuad(int order, double * x, double * y, double *z) ;
         SpectralQuad(int order);
         SpectralQuad();

@@ -64,19 +64,19 @@ struct CartVect3D {
       { return sqrt( x*x + y*y + z*z ); }
 };
 
-//static CartVect3D operator-( const CartVect3D a )
+//static CartVect3D operator-( const CartVect3D &a )
 //  { return CartVect3D(-a.z, -a.y, -a.z);  }
 
-//static CartVect3D operator+( const CartVect3D a, const CartVect3D b )
+//static CartVect3D operator+( const CartVect3D &a, const CartVect3D &b )
 //  { return CartVect3D(a.x+b.x, a.y+b.y, a.z+b.z); }
 
-static CartVect3D operator-( const CartVect3D a, const CartVect3D b )
+static CartVect3D operator-( const CartVect3D &a, const CartVect3D &b )
   { return CartVect3D(a.x-b.x, a.y-b.y, a.z-b.z); }
 
-static double operator%( const CartVect3D a, const CartVect3D b )
+static double operator%( const CartVect3D &a, const CartVect3D &b )
   { return a.x*b.x + a.y*b.y + a.z*b.z; }
 
-static CartVect3D operator*( const CartVect3D a, const CartVect3D b )
+static CartVect3D operator*( const CartVect3D &a, const CartVect3D &b )
 {
   CartVect3D result;
   result.x = a.y * b.z - a.z * b.y;
@@ -347,6 +347,10 @@ void  write_gnuplot( std::ostream& stream,
   for (iter = coords.begin(); iter != coords.end(); ++iter) {
     stream << iter->x << ' ' << iter->y << std::endl;
     ++iter;
+    if (iter == coords.end()) {
+      stream << std::endl;
+      break;
+    }
     stream << iter->x << ' ' << iter->y << std::endl;
     stream << std::endl;
   }

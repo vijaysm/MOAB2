@@ -233,11 +233,30 @@ ErrorCode report_nsets(Interface *mbImpl)
   int nsets;
   Tag mtag = 0, gtag = 0, ptag = 0, gidtag;
   ErrorCode result = mbImpl->tag_get_handle("MATERIAL_SET", 1, MB_TYPE_INTEGER, mtag);
+  if (MB_SUCCESS != result) {
+    std::cerr << "Couldn't get MATERIAL_SET tag." << std::endl;
+    return result;
+  }
   result = mbImpl->tag_get_handle("GEOM_DIMENSION", 1, MB_TYPE_INTEGER, gtag);
+  if (MB_SUCCESS != result) {
+    std::cerr << "Couldn't get MATERIAL_SET tag." << std::endl;
+    return result;
+  }
   result = mbImpl->tag_get_handle("PARALLEL_PARTITION", 1, MB_TYPE_INTEGER, ptag);
+  if (MB_SUCCESS != result) {
+    std::cerr << "Couldn't PARALLEL_PARTITION tag." << std::endl;
+    return result;
+  }
   result = mbImpl->tag_get_handle("GLOBAL_ID", 1, MB_TYPE_INTEGER, gidtag);
-
+  if (MB_SUCCESS != result) {
+    std::cerr << "Couldn't get GLOBAL_ID tag." << std::endl;
+    return result;
+  }
   result = mbImpl->get_number_entities_by_type(0, MBENTITYSET, nsets);
+  if (MB_SUCCESS != result) {
+    std::cerr << "Couldn't get number entities by type." << std::endl;
+    return result;
+  }
   std::cout << "Proc " << rank << ": Total of " << nsets
             << " entity sets." << std::endl;
   
@@ -428,7 +447,7 @@ ErrorCode report_iface_ents(Interface *mbImpl,
   for (unsigned int p = 0; p < pcs.size(); p++) {
     // get entities owned by this partition
     for (Range::iterator rit = pcs[p]->partition_sets().begin();
-	 rit != pcs[p]->partition_sets().end(); rit++) {
+	 rit != pcs[p]->partition_sets().end(); ++rit) {
       tmp_result = mbImpl->get_entities_by_dimension(*rit, 3, part_ents, true);
       if (MB_SUCCESS != tmp_result) result = tmp_result;
     }

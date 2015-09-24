@@ -516,6 +516,7 @@ void gather_one_cell_var(int gather_set_rank)
     // Get gather set cells
     Range gather_set_cells;
     rval = mb.get_entities_by_type(gather_set, MBPOLYGON, gather_set_cells);
+    CHECK_ERR(rval);
     CHECK_EQUAL((size_t)642, gather_set_cells.size());
     CHECK_EQUAL((size_t)2, gather_set_cells.psize());
 
@@ -525,6 +526,7 @@ void gather_one_cell_var(int gather_set_rank)
                                 gather_set_cells[12], gather_set_cells[641]};
     double ke0_val[4];
     rval = mb.tag_get_data(ke_tag0, &cell_ents[0], 4, ke0_val);
+    CHECK_ERR(rval);
 
     CHECK_REAL_EQUAL(15.001, ke0_val[0], eps);
     CHECK_REAL_EQUAL(15.012, ke0_val[1], eps);

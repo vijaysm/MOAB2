@@ -86,7 +86,9 @@ int main(int argc, char **argv) {
 
   int nprocs, rank;
   err = MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  assert(MPI_SUCCESS == err);
   err = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  assert(MPI_SUCCESS == err);
 
   // Create an ofstream to write output.  One file each for each proc.
   std::stringstream fname;
@@ -113,7 +115,7 @@ int main(int argc, char **argv) {
   // Print out the input parameters
   std::cout << "    Input Parameters - " << std::endl;
   std::cout << "      Filenames: ";
-  for (std::vector<const char *>::iterator it = filenames.begin(); it != filenames.end(); it++)
+  for (std::vector<const char *>::iterator it = filenames.begin(); it != filenames.end(); ++it)
     std::cout << *it << " ";
   std::cout << std::endl;
   std::cout << "      Norm Tag: " << normTag << std::endl;
@@ -123,11 +125,11 @@ int main(int argc, char **argv) {
   std::vector<const char *>::iterator nameIt = tagNames.begin();
   std::vector<const char *>::iterator valIt = tagValues.begin();
   std::cout << std::setiosflags(std::ios::left);
-  for (; nameIt != tagNames.end(); nameIt++) {
+  for (; nameIt != tagNames.end(); ++nameIt) {
     std::cout << "                      " << std::setw(20) << *nameIt;
     if (*valIt != 0) {
       std::cout << " " << std::setw(20) << *((int*)(*valIt)) << std::endl;
-      valIt++;
+      ++valIt;
     }
     else
       std::cout << " NULL                " << std::endl;
@@ -270,11 +272,11 @@ int main(int argc, char **argv) {
   int icnt;
   for (iter_egi = m1EntityGroups.begin(), iter_esi = m1EntitySets.begin(), icnt = 1; 
        (iter_egi != m1EntityGroups.end()) && (iter_esi != m1EntitySets.end()); 
-       iter_egi++, iter_esi++, icnt++) {
+       ++iter_egi, ++iter_esi, icnt++) {
     std::cout << "      EntityGroup(" << icnt << ") = ";
     std::cout.flush();
     entSetRg.clear();
-    for (iter_egj = (*iter_egi).begin(); iter_egj != (*iter_egi).end(); iter_egj++)
+    for (iter_egj = (*iter_egi).begin(); iter_egj != (*iter_egi).end(); ++iter_egj)
       entSetRg.insert((EntityHandle) *iter_egj);
     debugOut.print(2, "Mesh1 matching Entities: ", entSetRg);
     std::cout.flush();
@@ -282,7 +284,7 @@ int main(int argc, char **argv) {
     std::cout << "      EntitySet(" << icnt << ") = ";
     std::cout.flush();
     entSetRg.clear();
-    for (iter_esj = (*iter_esi).begin(); iter_esj != (*iter_esi).end(); iter_esj++)
+    for (iter_esj = (*iter_esi).begin(); iter_esj != (*iter_esi).end(); ++iter_esj)
       entSetRg.insert((EntityHandle) *iter_esj);
     debugOut.print(2, "Mesh1 matching EntitySets: ", entSetRg);
     std::cout.flush();
@@ -297,11 +299,11 @@ int main(int argc, char **argv) {
   std::cout << "    get_matching_entities returned " << m2EntityGroups.size() << " entity groups" << std::endl;
   for (iter_egi = m2EntityGroups.begin(), iter_esi = m2EntitySets.begin(), icnt = 1; 
        (iter_egi != m2EntityGroups.end()) && (iter_esi != m2EntitySets.end()); 
-       iter_egi++, iter_esi++, icnt++) {
+       ++iter_egi, ++iter_esi, icnt++) {
     std::cout << "      EntityGroup(" << icnt << ") = ";
     std::cout.flush();
     entSetRg.clear();
-    for (iter_egj = (*iter_egi).begin(); iter_egj != (*iter_egi).end(); iter_egj++)
+    for (iter_egj = (*iter_egi).begin(); iter_egj != (*iter_egi).end(); ++iter_egj)
       entSetRg.insert((EntityHandle) *iter_egj);
     debugOut.print(2, "Mesh2 matching Entities: ", entSetRg);
     std::cout.flush();
@@ -309,7 +311,7 @@ int main(int argc, char **argv) {
     std::cout << "      EntitySet(" << icnt << ") = ";
     std::cout.flush();
     entSetRg.clear();
-    for (iter_esj = (*iter_esi).begin(); iter_esj != (*iter_esi).end(); iter_esj++)
+    for (iter_esj = (*iter_esi).begin(); iter_esj != (*iter_esi).end(); ++iter_esj)
       entSetRg.insert((EntityHandle) *iter_esj);
     debugOut.print(2, "Mesh2 matching EntitySets: ", entSetRg);
     std::cout.flush();
@@ -318,7 +320,7 @@ int main(int argc, char **argv) {
   if (debug) {
     // ******************************
     std::cout << "********** Test print_tuples **********" << std::endl;
-    // temporary test funtion
+    // temporary test function
     std::cout << "Testing print_tuples..." << std::endl;
 
     TupleList test_tuple;
@@ -425,7 +427,7 @@ int main(int argc, char **argv) {
   err = mbc.get_group_integ_vals(m1EntityGroups, m1IntegVals, normTag.c_str(), 4, integ_type);
   MB_CHK_SET_ERR((ErrorCode)err, "Failed to get the Mesh 1 group integration values.");
   std::cout << "Mesh 1 integrated field values(" << m1IntegVals.size() << "): ";
-  for (iter_ivals = m1IntegVals.begin(); iter_ivals != m1IntegVals.end(); iter_ivals++) {
+  for (iter_ivals = m1IntegVals.begin(); iter_ivals != m1IntegVals.end(); ++iter_ivals) {
     std::cout << (*iter_ivals) << " ";
   }
   std::cout << std::endl;
@@ -435,7 +437,7 @@ int main(int argc, char **argv) {
   err = mbc.get_group_integ_vals(m2EntityGroups, m2IntegVals, normTag.c_str(), 4, integ_type);
   MB_CHK_SET_ERR((ErrorCode)err, "Failed to get the Mesh 2 group integration values.");
   std::cout << "Mesh 2 integrated field values(" << m2IntegVals.size() << "): ";
-  for (iter_ivals = m2IntegVals.begin(); iter_ivals != m2IntegVals.end(); iter_ivals++) {
+  for (iter_ivals = m2IntegVals.begin(); iter_ivals != m2IntegVals.end(); ++iter_ivals) {
     std::cout << (*iter_ivals) << " ";
   }
   std::cout << std::endl;
@@ -455,13 +457,13 @@ int main(int argc, char **argv) {
   }
 
   std::cout << "Mesh 1 norm factors(" << m1IntegVals.size() << "): ";
-  for (iter_ivals = m1IntegVals.begin(); iter_ivals != m1IntegVals.end(); iter_ivals++) {
+  for (iter_ivals = m1IntegVals.begin(); iter_ivals != m1IntegVals.end(); ++iter_ivals) {
     std::cout << (*iter_ivals) << " ";
   }
   std::cout << std::endl;
 
   std::cout << "Mesh 2 norm factors(" << m2IntegVals.size() << "): ";
-  for (iter_ivals = m2IntegVals.begin(); iter_ivals != m2IntegVals.end(); iter_ivals++) {
+  for (iter_ivals = m2IntegVals.begin(); iter_ivals != m2IntegVals.end(); ++iter_ivals) {
     std::cout << (*iter_ivals) << " ";
   }
   std::cout << std::endl;
@@ -482,8 +484,8 @@ int main(int argc, char **argv) {
   
   // Mesh 1 values
   std::cout << "Mesh 1 norm factors per EntitySet...";
-  for (iter_esi = m1EntitySets.begin(); iter_esi != m1EntitySets.end(); iter_esi++) {
-    for (iter_esj = (*iter_esi).begin(); iter_esj != (*iter_esi).end(); iter_esj++) {
+  for (iter_esi = m1EntitySets.begin(); iter_esi != m1EntitySets.end(); ++iter_esi) {
+    for (iter_esj = (*iter_esi).begin(); iter_esj != (*iter_esi).end(); ++iter_esj) {
       double data = 0;
       EntityHandle eh=* iter_esj;
       result = mbi->tag_get_data(norm_factor_hdl, &eh, 1, &data);
@@ -495,8 +497,8 @@ int main(int argc, char **argv) {
 
   // Mesh 2 values
   std::cout << "Mesh 2 norm factors per EntitySet...";
-  for (iter_esi = m2EntitySets.begin(); iter_esi != m2EntitySets.end(); iter_esi++) {
-    for (iter_esj = (*iter_esi).begin(); iter_esj != (*iter_esi).end(); iter_esj++) {
+  for (iter_esi = m2EntitySets.begin(); iter_esi != m2EntitySets.end(); ++iter_esi) {
+    for (iter_esj = (*iter_esi).begin(); iter_esj != (*iter_esi).end(); ++iter_esj) {
       double data = 0;
       EntityHandle eh = *iter_esj;
       result = mbi->tag_get_data(norm_factor_hdl, &eh, 1, &data);
@@ -522,8 +524,8 @@ int main(int argc, char **argv) {
   // Print the normFactor on each EntitySet after the above call.
   // Mesh 1 values
   std::cout << "Mesh 1 norm factors per EntitySet...";
-  for (iter_esi = m1EntitySets.begin(); iter_esi != m1EntitySets.end(); iter_esi++) {
-    for (iter_esj = (*iter_esi).begin(); iter_esj != (*iter_esi).end(); iter_esj++) {
+  for (iter_esi = m1EntitySets.begin(); iter_esi != m1EntitySets.end(); ++iter_esi) {
+    for (iter_esj = (*iter_esi).begin(); iter_esj != (*iter_esi).end(); ++iter_esj) {
       double data = 0;
       EntityHandle eh = *iter_esj;
       result = mbi->tag_get_data(norm_factor_hdl, &eh, 1, &data);
@@ -545,8 +547,8 @@ int main(int argc, char **argv) {
 
   // Mesh 2 values
   std::cout << "Mesh 2 norm factors per EntitySet...";
-  for (iter_esi = m2EntitySets.begin(); iter_esi != m2EntitySets.end(); iter_esi++) {
-    for (iter_esj = (*iter_esi).begin(); iter_esj != (*iter_esi).end(); iter_esj++) {
+  for (iter_esi = m2EntitySets.begin(); iter_esi != m2EntitySets.end(); ++iter_esi) {
+    for (iter_esj = (*iter_esi).begin(); iter_esj != (*iter_esi).end(); ++iter_esj) {
       double data = 0;
       EntityHandle eh = *iter_esj;
       result = mbi->tag_get_data(norm_factor_hdl, &eh, 1, &data);
@@ -801,7 +803,7 @@ int print_vertex_fields(Interface* mbi,
 
   for (unsigned int i = 0; i < groups.size(); i++) {
     std::cout << "    Group - " << std::endl << "        ";
-    for (iter_j = groups[i].begin(); iter_j != groups[i].end(); iter_j++) {
+    for (iter_j = groups[i].begin(); iter_j != groups[i].end(); ++iter_j) {
       EntityHandle ehandle = (*iter_j);
       // Check that the entity in iter_j is of the same dimension as the 
       // integ_type we are performing
@@ -939,7 +941,7 @@ void unpack_tuples(void *ptr, TupleList** tlp)
   // get mr
   memcpy(&mrt,  buf, sizeof(unsigned)),      buf+=UINT_PER_UNSIGNED;
 
-  // initalize tl
+  // initialize tl
   tl->initialize(mit, mlt, mult, mrt, nt);
   tl->enableWriteAccess();
   tl->set_n( nt );

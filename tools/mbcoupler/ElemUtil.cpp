@@ -766,7 +766,7 @@ namespace Element {
                                            {0,1,0},
                                            {0,0,1}};
 
-  LinearTet::LinearTet() : Map(0) {
+  LinearTet::LinearTet() : Map(0), det_T(0.0), det_T_inverse(0.0) {
 
   }// LinearTet::LinearTet()
 
@@ -824,6 +824,7 @@ namespace Element {
 
   SpectralHex::SpectralHex() : Map(0)
   {
+    _xyz[0] = _xyz[1] = _xyz[2] = NULL;
   }
   // the preferred constructor takes pointers to GL blocked positions
   SpectralHex::SpectralHex(int order, double * x, double *y, double *z) : Map(0)
@@ -1109,6 +1110,7 @@ namespace Element {
 
   SpectralQuad::SpectralQuad() : Map(0)
   {
+    _xyz[0] = _xyz[1] = _xyz[2] = NULL;
   }
   // the preferred constructor takes pointers to GL blocked positions
   SpectralQuad::SpectralQuad(int order, double * x, double *y, double *z) : Map(0)

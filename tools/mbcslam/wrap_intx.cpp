@@ -249,7 +249,7 @@ ErrorCode create_coarse_mesh(Interface * mb, ParallelComm * pcomm,
   // estimate for the vertices that will get created, from euler formula
   // v-e+f = 2 for whole sphere
   // for one task (distributed) v-e+f = 1, for one connected region
-  // if multiple connex reqions (out of HFSC distribution from homme), v-e+f = k, k is number of connectivity regs
+  // if multiple connex regions (out of HFSC distribution from homme), v-e+f = k, k is number of connectivity regs
   // so in any case, e = v+f -k, where k is at least 1 (1, 2, 3, etc)
   // so in any case number of coarse edges is at most e_max = v+f-1
 
@@ -389,7 +389,7 @@ ErrorCode fill_coord_on_edges(Interface * mb, std::vector<double*> & coordv,
   //int num_quads=(int)coarseQuads.size();
   int stride = (nc + 1) * (nc + 1);
   int indexv = 0;
-  for (Range::iterator eit = edges.begin(); eit != edges.end(); eit++) {
+  for (Range::iterator eit = edges.begin(); eit != edges.end(); ++eit) {
     EntityHandle edge = *eit;
     std::vector<EntityHandle> faces;
     rval = mb->get_adjacencies(&edge, 1, 2, false, faces);
@@ -909,6 +909,7 @@ void cleanup_after_intersection(iMesh_Instance instance,
 
   Range polys; // first euler polys
   rval = mb->get_entities_by_dimension((EntityHandle) fine_set, 2, polys);
+  ERRORV(rval, "can't get all polys from fine set");
 
   // add to polys range the lagr polys
   rval = mb->get_entities_by_dimension((EntityHandle) lagr_set, 2, polys); // do not delete lagr set either, with its vertices

@@ -6,7 +6,7 @@
 
 
 /***************************************************************************************
- * Begin test runner implememtation.
+ * Begin test runner implementation.
  * This is a higher-level API that can be used to register tests,
  * test dependencies, and to run-time select a subset of tests to 
  * run.
@@ -17,7 +17,7 @@
   runner_register_test( __FILE__, __LINE__, #TEST_FUNC, (TEST_FUNC), NULL )
 
 /* Mark a dependency between tests.  The second argument must be
- * an alredy-regsitered test.  The first argument will be registered
+ * an already-registered test.  The first argument will be registered
  * as a test if it has not already been registered.  The test specified
  * by the first argument will be run only if the test specified by
  * the second argument is run and succeeds.
@@ -28,7 +28,7 @@
 /* Run registered tests.  
  * Arguments should be argc and argv passed to main.
  * If ARGC is less than or equal to 1 then all tests are run.
- * Otherwse only tests specified in the argument list are run.
+ * Otherwise only tests specified in the argument list are run.
  * Returns number of failed tests.
  */
 #define RUN_TESTS( ARGC, ARGV ) \
@@ -89,7 +89,13 @@ static size_t runner_add_test( test_func f, const char* name ) {
     if (!RunnerTestCount)
       atexit( &free_test_list );
     idx = RunnerTestCount++;
-    RunnerTestList = (RunnerTest*)realloc( RunnerTestList, RunnerTestCount * sizeof(RunnerTest) );
+    RunnerTest* new_RunnerTestList = (RunnerTest*)realloc( RunnerTestList, RunnerTestCount * sizeof(RunnerTest) );
+    if (!new_RunnerTestList) {
+      fprintf(stderr, "TestRunner::runner_add_test(): reallocation of RunnerTestList failed\n");
+      atexit( &free_test_list );
+    }
+    else
+      RunnerTestList = new_RunnerTestList;
     RunnerTestList[idx].testFunc = f;
     RunnerTestList[idx].testName = strdup(name);
     RunnerTestList[idx].testStatus = SELECTED;
@@ -131,7 +137,7 @@ void runner_register_test( const char* filename,
     if (RUNNER_NOT_FOUND == req_idx) {
       fprintf( stderr, "Error registering requisite for test: \"%s\"\n"
                        "\tat %s:%d\n"
-                       "\tRequisite test funciton not registered.\n",
+                       "\tRequisite test function not registered.\n",
                        name, filename, line_number );
       abort();
     }
@@ -193,7 +199,7 @@ int runner_run_tests( int argc, char* argv[] )
   const char* c;
   size_t i, j;
   
-    /* Pricess command line arguments */
+    /* Process command line arguments */
   for (k = 1; k < argc; ++k) {
     if (argv[k][0] == '-') {
       for (c = argv[k] + 1; *c; ++c) {

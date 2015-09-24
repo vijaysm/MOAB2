@@ -90,19 +90,18 @@ int main(int argc, char **argv)
 // will save the LOC tag on the euler nodes
 ErrorCode  compute_lagrange_mesh_on_sphere(Interface * mb, EntityHandle euler_set)
 {
-  ErrorCode rval = MB_SUCCESS;
-
   /*
    * get all quads first, then vertices, then move them on the surface of the sphere
    *  radius is 1, usually
    *  pos (t-dt) = pos(t) -Velo(t)*dt; this will be lagrange mesh, on each processor
    */
   Range quads;
-  rval = mb->get_entities_by_type(euler_set, MBQUAD, quads);
+  ErrorCode rval = mb->get_entities_by_type(euler_set, MBQUAD, quads);
   CHECK_ERR(rval);
 
   Range connecVerts;
   rval = mb->get_connectivity(quads, connecVerts);
+  CHECK_ERR(rval);
 
   // the LOC tag, should be provided by the user?
   Tag tagh = 0;
@@ -133,7 +132,7 @@ ErrorCode  compute_lagrange_mesh_on_sphere(Interface * mb, EntityHandle euler_se
 // now put the vertices in the right place....
   //int vix=0; // vertex index in new array
 
-  for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); vit++ )
+  for (Range::iterator vit=connecVerts.begin();vit!=connecVerts.end(); ++vit)
   {
     EntityHandle oldV=*vit;
     CartVect posi;
@@ -215,7 +214,7 @@ void test_intx_in_parallel_elem_based()
 
   //std::string opts_write("PARALLEL=WRITE_PART");
   //rval = mb.write_file("manuf.h5m", 0, opts_write.c_str(), &outputSet, 1);
-  std::string opts_write("");
+  //std::string opts_write("");
   std::stringstream outf;
   outf<<"intersect" << rank<<".h5m";
   rval = mb.write_file(outf.str().c_str(), 0, 0, &outputSet, 1);
