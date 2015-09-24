@@ -18,6 +18,10 @@ if(ENABLE_IREL AND MOAB_HAVE_CGM )
   add_subdirectory(irel)
 endif()
 
+if (ENABLE_MESQUITE AND MOAB_HAVE_CGM)
+  add_subdirectory(mesquite)
+endif(ENABLE_MESQUITE AND MOAB_HAVE_CGM)
+
 install(
   FILES ${BASE_INCLUDE_HEADERS}
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}

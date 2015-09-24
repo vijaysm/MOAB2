@@ -164,6 +164,10 @@ if (ENABLE_IREL AND MOAB_HAVE_CGM)
   endforeach()
 endif()
 
+if (ENABLE_MESQUITE AND MOAB_HAVE_CGM)
+  add_subdirectory(mesquite)
+endif(ENABLE_MESQUITE AND MOAB_HAVE_CGM)
+
 if ( MOAB_HAVE_MPI AND MPI_FOUND )
 
   add_executable ( mbparallelcomm_test parallel/mbparallelcomm_test.cpp )

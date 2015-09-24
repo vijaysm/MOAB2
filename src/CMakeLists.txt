@@ -34,6 +34,10 @@ add_subdirectory(io)
 add_subdirectory(LocalDiscretization)
 # add_subdirectory(oldinc)
 
+if (ENABLE_MESQUITE AND MOAB_HAVE_CGM)
+  add_subdirectory(mesquite)
+endif(ENABLE_MESQUITE AND MOAB_HAVE_CGM)
+
 ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/MBCN_protos.h
   COMMAND ${CMAKE_COMMAND}
