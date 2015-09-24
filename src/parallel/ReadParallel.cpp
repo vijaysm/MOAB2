@@ -29,6 +29,7 @@ const char *ReadParallel::ParallelActionsNames[] = {
     "PARALLEL RESOLVE_SHARED_ENTS",
     "PARALLEL EXCHANGE_GHOSTS",
     "PARALLEL RESOLVE_SHARED_SETS",
+    "PARALLEL_AUGMENT_SETS_WITH_GHOSTS",
     "PARALLEL PRINT_PARALLEL"
 };
 
@@ -218,8 +219,11 @@ ErrorCode ReadParallel::load_file(const char **file_names,
   if (-1 != ghost_dim)
     pa_vec.push_back(PA_EXCHANGE_GHOSTS);
 
-  if (-2 != resolve_dim)
+  if (-2 != resolve_dim) {
     pa_vec.push_back(PA_RESOLVE_SHARED_SETS);
+    if (-1 != ghost_dim)
+      pa_vec.push_back(PA_AUGMENT_SETS_WITH_GHOSTS);
+  }
 
   if (print_parallel)
     pa_vec.push_back(PA_PRINT_PARALLEL);
@@ -510,6 +514,15 @@ ErrorCode ReadParallel::load_file(const char **file_names,
             tmp_result = myPcomm->resolve_shared_sets(file_set, use_id_tag ? file_id_tag : 0);
           break;
 
+//==================
+      case PA_AUGMENT_SETS_WITH_GHOSTS:
+          myDebug.tprint(1, "Augmenting sets with ghost entities.\n");
+
+          if (1 == myPcomm->size())
+            tmp_result = MB_SUCCESS;
+          else
+            tmp_result = myPcomm->augment_default_sets_with_ghosts(file_set);
+          break;
 //==================
       case PA_PRINT_PARALLEL:
           myDebug.tprint(1, "Printing parallel information.\n");
