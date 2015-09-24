@@ -33,6 +33,7 @@
  
 #define USE_GLOBAL_PATCH
 
+#include "TestUtil.hpp"
 #include "Mesquite.hpp"
 
 #include "PMeanPTemplate.hpp"
@@ -120,7 +121,8 @@ void run_test( Grouping grouping, int of_power, Weight w, const string filename 
 #endif
   
   MeshImpl mesh, expected_mesh;
-  mesh.read_vtk( SRCDIR "/initial.vtk", err ); CHKERR(err)
+  std::string initfname = std::string ( STRINGIFY(SRCDIR) ) + "/initial.vtk";
+  mesh.read_vtk( initfname.c_str(), err ); CHKERR(err)
 //  expected_mesh.read_vtk( (filename + ".vtk").c_str(), err ); CHKERR(err)
   
   PlanarDomain plane( PlanarDomain::XY );

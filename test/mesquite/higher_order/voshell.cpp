@@ -31,6 +31,7 @@
  *  \author Nick Voshell
  */
 
+#include "TestUtil.hpp"
 #include "ShapeImprover.hpp"
 #include "UntangleWrapper.hpp"
 #include "MeshImpl.hpp"
@@ -227,31 +228,31 @@ void get_planar_example( const char* filename,
 
 std::string get_homogenious_example( DomainClassifier& geom, MeshImpl& mesh, MsqError& err )
 {
-  const char filename[] = SRCDIR "homogeneousPart.vtk";
-  get_planar_example( filename, geom, mesh, err ); MSQ_CHKERR(err);
+  std::string filename = std::string ( STRINGIFY(SRCDIR) ) + "/homogeneousPart.vtk";
+  get_planar_example( filename.c_str(), geom, mesh, err ); MSQ_CHKERR(err);
   return filename;
 }
 
 
 std::string get_part_example_tri( DomainClassifier& geom, MeshImpl& mesh, MsqError& err )
 {
-  const char filename[] = SRCDIR "triPart.vtk";
-  get_planar_example( filename, geom, mesh, err ); MSQ_CHKERR(err);
+  std::string filename = std::string ( STRINGIFY(SRCDIR) ) + "/triPart.vtk";
+  get_planar_example( filename.c_str(), geom, mesh, err ); MSQ_CHKERR(err);
   return filename;
 }
 
 
 std::string get_part_example_quad( DomainClassifier& geom, MeshImpl& mesh, MsqError& err )
 {
-  const char filename[] = SRCDIR "quadPart.vtk";
-  get_planar_example( filename, geom, mesh, err ); MSQ_CHKERR(err);
+  std::string filename = std::string ( STRINGIFY(SRCDIR) ) + "/quadPart.vtk";
+  get_planar_example( filename.c_str(), geom, mesh, err ); MSQ_CHKERR(err);
   return filename;
 }
 
 
 std::string get_sphere_cube_example( DomainClassifier& geom, MeshImpl& mesh, MsqError& err )
 {
-  const char filename[] = SRCDIR "sphereCube.vtk";
+  std::string filename = std::string ( STRINGIFY(SRCDIR) ) + "/sphereCube.vtk";
 
   const Vector3D vec_i(5,0,0), vec_ni(-5,0,0);
   const Vector3D vec_j(0,5,0), vec_nj(0,-5,0);
@@ -335,7 +336,7 @@ std::string get_sphere_cube_example( DomainClassifier& geom, MeshImpl& mesh, Msq
 
   //++ MESH & DOMAIN ++
 
-  mesh.read_vtk(filename, err); MSQ_ERRZERO(err);
+  mesh.read_vtk(filename.c_str(), err); MSQ_ERRZERO(err);
   DomainClassifier::classify_skin_geometrically (geom, &mesh, 0.1, base_domains, dim_array, NDOM, err);
   MSQ_ERRZERO(err);
   mesh.set_skin_flags( false, false, true, err ); MSQ_ERRZERO(err);
@@ -346,7 +347,7 @@ std::string get_sphere_cube_example( DomainClassifier& geom, MeshImpl& mesh, Msq
 
 std::string get_cut_cube_example( DomainClassifier& geom, MeshImpl& mesh, MsqError& err )
 {
-  const char filename[] = SRCDIR "cutCube.vtk";
+  std::string filename = std::string ( STRINGIFY(SRCDIR) ) + "/cutCube.vtk";
 
   const Vector3D vec_i(5,0,0), vec_ni(-5,0,0);
   const Vector3D vec_j(0,5,0), vec_nj(0,-5,0);
@@ -429,7 +430,7 @@ std::string get_cut_cube_example( DomainClassifier& geom, MeshImpl& mesh, MsqErr
 
   //++ MESH & DOMAIN ++
 
-  mesh.read_vtk(filename, err); MSQ_ERRZERO(err);
+  mesh.read_vtk(filename.c_str(), err); MSQ_ERRZERO(err);
   DomainClassifier::classify_skin_geometrically (geom, &mesh, 0.1, base_domains, dim_array, NDOM, err);
   MSQ_ERRZERO(err);
   mesh.set_skin_flags( false, false, true, err ); MSQ_ERRZERO(err);
@@ -439,8 +440,8 @@ std::string get_cut_cube_example( DomainClassifier& geom, MeshImpl& mesh, MsqErr
 
 
 std::string get_sphere_cylinder_example( DomainClassifier& geom, MeshImpl& mesh, MsqError& err )
-{
-  const char filename[] = SRCDIR "sphereCylinder_1194_inv.vtk";
+{  
+  std::string filename = std::string ( STRINGIFY(SRCDIR) ) + "/sphereCylinder_1194_inv.vtk";
 
   const Vector3D vec_k(0,0,8), vec_nk(0,0,-8);
   const Vector3D vec_c(0,0,5);
@@ -473,7 +474,7 @@ std::string get_sphere_cylinder_example( DomainClassifier& geom, MeshImpl& mesh,
 
   //++ MESH & DOMAIN ++
 
-  mesh.read_vtk(filename, err); MSQ_ERRZERO(err);
+  mesh.read_vtk(filename.c_str(), err); MSQ_ERRZERO(err);
   DomainClassifier::classify_skin_geometrically (geom, &mesh, 0.001, base_domains, dim_array, NDOM, err);
   MSQ_ERRZERO(err);
   mesh.set_skin_flags( false, false, true, err ); MSQ_ERRZERO(err);
@@ -484,7 +485,7 @@ std::string get_sphere_cylinder_example( DomainClassifier& geom, MeshImpl& mesh,
 
 std::string get_hex_3d_part_example( DomainClassifier& geom, MeshImpl& mesh, MsqError& err )
 {
-  const char filename[] = SRCDIR "hex3Dpart.vtk";
+  std::string filename = std::string ( STRINGIFY(SRCDIR) ) + "/hex3Dpart.vtk";
 
   //2D domains
 
@@ -637,7 +638,7 @@ std::string get_hex_3d_part_example( DomainClassifier& geom, MeshImpl& mesh, Msq
 
   //++ MESH & DOMAIN ++
 
-  mesh.read_vtk(filename, err); MSQ_ERRZERO(err);
+  mesh.read_vtk(filename.c_str(), err); MSQ_ERRZERO(err);
   DomainClassifier::classify_skin_geometrically (geom, &mesh, 0.1, base_domains, dim_array, NDOM, err);
   MSQ_ERRZERO(err);
   mesh.set_skin_flags( false, false, true, err ); MSQ_ERRZERO(err);
