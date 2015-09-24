@@ -17,12 +17,6 @@
 #include "TestUtil.hpp"
 #include "CslamUtils.hpp"
 
-#ifdef MESHDIR
-std::string TestDir( STRINGIFY(MESHDIR) );
-#else
-std::string TestDir(".");
-#endif
-
 //std::string file_name("./uniform_30.g");
 //std::string file_name("./uniform_120.g");
 //std::string file_name("./eulerHomme.vtk");
