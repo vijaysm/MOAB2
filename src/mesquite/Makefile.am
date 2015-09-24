@@ -73,7 +73,6 @@ include/Mesquite_all_headers.hpp: $(MSQ_HDRS)
 # for use when compiling stuff outside of the src/ subdir.
 # Basically, replace value of $(top_srcdir) with the
 # $(top_srcdir) variable in the existing list of include flags.
-$(RECURSIVE_TARGETS) distdir: cppflags.make
 msqcppflags.make: $(MSQ_HDRS) Makefile.am $(top_builddir)/config.status
 	@echo "Generating $@..."
 	@echo "#MSQ_INCLUDES = $(MSQ_INCLUDES)" > $@
