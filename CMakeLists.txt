@@ -115,6 +115,7 @@ option ( MOAB_FORCE_32_BIT_HANDLES "Force MBEntityHandle to be 32 bits (uint32_t
 option ( ENABLE_IMESH        "Should build IMESH?"       ON )
 option ( ENABLE_FBIGEOM      "Should build FBIGEOM?"     OFF )
 option ( ENABLE_IREL         "Should build IREL?"        OFF )
+option ( ENABLE_MESQUITE     "Should build Mesquite mesh optimization interfaces?" OFF )
 
 mark_as_advanced(
   MOAB_FORCE_64_BIT_HANDLES
