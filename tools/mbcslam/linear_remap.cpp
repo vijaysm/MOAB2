@@ -8,7 +8,6 @@
 #include "moab/Interface.hpp"
 #include "Intx2MeshOnSphere.hpp"
 #include <math.h>
-//#include "TestUtil.hpp"
 #include "moab/ParallelComm.hpp"
 #include "moab/ProgOptions.hpp"
 #include "MBParallelConventions.h"
@@ -16,12 +15,6 @@
 #include "MBTagConventions.hpp"
 #include "TestUtil.hpp"
 #include "CslamUtils.hpp"
-
-#ifdef MESHDIR
-std::string TestDir( STRINGIFY(MESHDIR) );
-#else
-std::string TestDir(".");
-#endif
 
 //std::string file_name("./uniform_15.g");
 //std::string file_name("./eulerHomme.vtk");
