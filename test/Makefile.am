@@ -11,10 +11,9 @@ endif
 if PARALLEL
   SUBDIRS += parallel
 endif
-#if OLD_HEADERS
-#  SUBDIRS += oldinc
-#endif
-
+if ENABLE_mesquite
+  SUBDIRS += mesquite
+endif
 LDADD = $(top_builddir)/src/libMOAB.la
 
 MESHDIR = $(abs_top_srcdir)/MeshFiles/unittest

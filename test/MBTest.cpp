@@ -60,31 +60,30 @@
 #include "moab/Error.hpp"
 #include "moab/ScdInterface.hpp"
 
+/* Use the following define to specify that our tests
+   return an error code and not the default void */
+#define TEST_USES_ERR_CODES
+#include "TestUtil.hpp"
+
 using namespace std;
 using namespace moab;
 
-#define STRINGIFY_(A) #A
-#define STRINGIFY(A) STRINGIFY_(A)
-#ifdef MESHDIR
-string TestDir( STRINGIFY(MESHDIR) );
-#else
-#error Specify MESHDIR to compile test
-#endif
-
-#define CHKERR(A) do { if (MB_SUCCESS != (A)) { \
-  std::cerr << "Failure (error code " << (A) << ") at " __FILE__ ":" \
-            << __LINE__ << std::endl; \
-  return A; } } while(false)
+/*
+// #define CHKERR(A) do { if (MB_SUCCESS != (A)) { \
+//   std::cerr << "Failure (error code " << (A) << ") at " __FILE__ ":" \
+//             << __LINE__ << std::endl; \
+//   return A; } } while(false)
 
 
-#define CHECK_EQUAL( A, B ) do { if ((A) != (B)) { \
-            std::cerr << "Equality Test failed at " __FILE__ ":" << __LINE__ << std::endl; \
-            std::cerr << "  Expected: " << (A) << std::endl; \
-            std::cerr << "  Actual:   " << (B) << std::endl; \
-            return MB_FAILURE; } } while(false)
-#define CHECK( A ) do { if (!(A)) { \
-            std::cerr << "Test failed at " __FILE__ ":" << __LINE__ << std::endl; \
-            return MB_FAILURE; } } while(false)
+// #define CHECK_EQUAL( A, B ) do { if ((A) != (B)) { \
+//             std::cerr << "Equality Test failed at " __FILE__ ":" << __LINE__ << std::endl; \
+//             std::cerr << "  Expected: " << (A) << std::endl; \
+//             std::cerr << "  Actual:   " << (B) << std::endl; \
+//             return MB_FAILURE; } } while(false)
+// #define CHECK( A ) do { if (!(A)) { \
+//             std::cerr << "Test failed at " __FILE__ ":" << __LINE__ << std::endl; \
+//             return MB_FAILURE; } } while(false)
+*/
 
 #if MOAB_HAVE_NETCDF
 ErrorCode load_file_one( Interface* iface )
@@ -119,11 +118,11 @@ ErrorCode mb_vertex_coordinate_test()
   Core moab;
   Interface* MB = &moab;
   ErrorCode error = create_some_mesh( MB );
-  CHKERR(error);
+  MB_CHK_ERR(error);
 
   Range vertices;
   error = MB->get_entities_by_type(0,  MBVERTEX, vertices);
-  CHKERR(error);
+  MB_CHK_ERR(error);
 
   std::vector<double> all_coords(3*vertices.size());
   double* coord_iter = &all_coords[0];
@@ -131,7 +130,7 @@ ErrorCode mb_vertex_coordinate_test()
         iter != vertices.end(); ++iter)
   {
     error = MB->get_coords(&(*iter), 1, coord_iter );
-    CHKERR(error);
+    MB_CHK_ERR(error);
     coord_iter += 3;
   }
     
@@ -143,14 +142,14 @@ ErrorCode mb_vertex_coordinate_test()
   x[vertices.size()] = y[vertices.size()] = z[vertices.size()] = -3.14159;
   error = MB->get_coords( vertices, &x[0], &y[0], &z[0] );
   for (size_t i = 0; i < vertices.size(); ++i) {
-    CHECK_EQUAL( all_coords[3*i  ], x[i] );
-    CHECK_EQUAL( all_coords[3*i+1], y[i] );
-    CHECK_EQUAL( all_coords[3*i+2], z[i] );
+    CHECK_REAL_EQUAL( all_coords[3*i  ], x[i], 1E-12 );
+    CHECK_REAL_EQUAL( all_coords[3*i+1], y[i], 1E-12 );
+    CHECK_REAL_EQUAL( all_coords[3*i+2], z[i], 1E-12 );
   }
     // checkthat get_coords did not write past intended end of arrays
-  CHECK_EQUAL( -3.14159, x[vertices.size()] );
-  CHECK_EQUAL( -3.14159, y[vertices.size()] );
-  CHECK_EQUAL( -3.14159, z[vertices.size()] );
+  CHECK_REAL_EQUAL( -3.14159, x[vertices.size()], 1E-12 );
+  CHECK_REAL_EQUAL( -3.14159, y[vertices.size()], 1E-12 );
+  CHECK_REAL_EQUAL( -3.14159, z[vertices.size()], 1E-12 );
     
     // add invalid handle to end of range and try query again
   vertices.insert( vertices.back() + 1 );
@@ -162,11 +161,10 @@ ErrorCode mb_vertex_coordinate_test()
   error = MB->get_entities_by_type( 0, MBHEX, hexes );
   CHKERR(error);
   EntityHandle handle = hexes.front();
-  error = MB->get_coords(&handle, 1, &x[0]);
-  CHKERR(error);
-  CHECK_EQUAL(0.5, x[0]);
-  CHECK_EQUAL(0.5, x[1]);
-  CHECK_EQUAL(0.5, x[2]);
+  error = MB->get_coords(&handle, 1, &x[0]);CHKERR(error);
+  CHECK_REAL_EQUAL(0.5, x[0], 1E-12);
+  CHECK_REAL_EQUAL(0.5, x[1], 1E-12);
+  CHECK_REAL_EQUAL(0.5, x[2], 1E-12);
   
   return MB_SUCCESS;
 }
@@ -854,7 +852,7 @@ ErrorCode mb_upward_adjacencies_test()
   // create a simple mesh containing 2 hexes
   EntityHandle vertices[12], hexes[2], hex1_faces[6], hex2_faces[6], hex1_edges[12], hex2_edges[12];
   rval = create_two_hex_full_mesh( mb, vertices, hexes, hex1_faces, hex2_faces, hex1_edges, hex2_edges );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
 
     // test adjacences from dim to 3
   for (int dim = 0; dim < 3; ++dim) {
@@ -864,9 +862,9 @@ ErrorCode mb_upward_adjacencies_test()
     switch (dim) {
       case 0:
         rval = mb->get_connectivity( hexes[0], list1, n );
-        CHKERR(rval);
+        MB_CHK_ERR(rval);
         rval = mb->get_connectivity( hexes[1], list2, n );
-        CHKERR(rval);
+        MB_CHK_ERR(rval);
         break;
       case 1:
         list1 = hex1_edges;
@@ -893,7 +891,7 @@ ErrorCode mb_upward_adjacencies_test()
     for (size_t j = 0; j < shared.size(); ++j) {
       std::vector<EntityHandle> adj;
       rval = mb->get_adjacencies( &shared[j], 1, 3, false, adj );
-      CHKERR(rval);
+      MB_CHK_ERR(rval);
       if (adj.size() != 2) {
         std::cout << "Expected 2 hexes adjacent to " << dim << "D entity " << j
                   << ". Got " << adj.size() << " hexes." << std::endl;
@@ -909,14 +907,14 @@ ErrorCode mb_upward_adjacencies_test()
     for (size_t j = 0; j < hex1_ent.size(); ++j) {
       std::vector<EntityHandle> adj;
       rval = mb->get_adjacencies( &hex1_ent[j], 1, 3, false, adj );
-      CHKERR(rval);
+      MB_CHK_ERR(rval);
       CHECK(adj.size() == 1 && adj[0] == hexes[0]);
     }
     
     for (size_t j = 0; j < hex2_ent.size(); ++j) {
       std::vector<EntityHandle> adj;
       rval = mb->get_adjacencies( &hex2_ent[j], 1, 3, false, adj );
-      CHKERR(rval);
+      MB_CHK_ERR(rval);
       CHECK(adj.size() == 1 && adj[0] == hexes[1]);
     }
   }
@@ -932,12 +930,12 @@ ErrorCode mb_upward_adjacencies_test()
   for (size_t j = 0; j < all_edges.size(); ++j) {
     std::vector<EntityHandle> edge_hexes, edge_faces, face_hexes;
     rval = mb->get_adjacencies( &all_edges[j], 1, 3, false, edge_hexes );
-    CHKERR(rval);
+    MB_CHK_ERR(rval);
     rval = mb->get_adjacencies( &all_edges[j], 1, 2, false, edge_faces );
-    CHKERR(rval);
+    MB_CHK_ERR(rval);
     rval = mb->get_adjacencies( &edge_faces[0], edge_faces.size(), 3,
                                 false, face_hexes, Interface::UNION );
-    CHKERR(rval);
+    MB_CHK_ERR(rval);
     if (edge_hexes.size() != face_hexes.size()) {
       std::cout << "Inconsistent adjacency data for edge " << j
                 << ". edge->face->hex resulted in " << face_hexes.size() 
@@ -980,18 +978,18 @@ ErrorCode mb_adjacent_create_test()
   EntityHandle verts[8] = {0};
   for (int i = 0; i < 8; ++i) {
     rval = mb.create_vertex( coords[i], verts[i] );
-    CHKERR(rval);
+    MB_CHK_ERR(rval);
   }
     // create a single hex
   const EntityHandle hconn[8] = { verts[0], verts[1], verts[2], verts[3], 
                                   verts[4], verts[5], verts[6], verts[7] };
   EntityHandle hex;
   rval = mb.create_element( MBHEX, hconn, 8, hex );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
     // create hex faces
   std::vector<EntityHandle> quads;
   rval = mb.get_adjacencies( &hex, 1, 2, true, quads, Interface::UNION );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   CHECK_EQUAL( (size_t)6, quads.size() );
     // check that we got each of the 6 expected faces, with outwards
     // normals assuming CCW order and correct connectivity
@@ -1013,7 +1011,7 @@ ErrorCode mb_adjacent_create_test()
     for (; j < 6; ++j) {
       conn.clear();
       rval = mb.get_connectivity( &quads[j], 1, conn );
-      CHKERR(rval);
+      MB_CHK_ERR(rval);
       CHECK_EQUAL( (size_t)4, conn.size() );
       std::vector<EntityHandle> sorted(conn);
       std::sort( sorted.begin(), sorted.end() );
@@ -2219,28 +2217,28 @@ ErrorCode mb_mesh_set_set_replace_test()
     // create 10 vertices to put in set
   std::vector<double> coords(30);
   rval = mb->create_vertices( &coords[0], 10, r );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   std::vector<EntityHandle> verts(r.size());
   std::copy( r.begin(), r.end(), verts.begin() );
   r.clear();
     // create a set
   EntityHandle set;
   rval = mb->create_meshset( MESHSET_SET, set );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
     // put every other vertex in set
   for (size_t i = 0; i < 10; i += 2)
     r.insert( verts[i] );
   rval = mb->add_entities( set, r );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   r.clear();
     // swap 3 of the vertices
   EntityHandle old_ents[3] = { verts[2], verts[4], verts[6] };
   EntityHandle new_ents[3] = { verts[1], verts[9], verts[5] };
   rval = mb->replace_entities( set, old_ents, new_ents, 3 );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
     // check new set contents
   rval = mb->get_entities_by_handle( set, r );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   Range r2;
   r2.insert( verts[0] );
   r2.insert( verts[1] );
@@ -2266,14 +2264,14 @@ ErrorCode mb_mesh_set_list_replace_test()
   Range r;
   std::vector<double> coords(30);
   rval = mb->create_vertices( &coords[0], 10, r );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   std::vector<EntityHandle> verts(r.size());
   std::copy( r.begin(), r.end(), verts.begin() );
   r.clear();
     // create a set
   EntityHandle set;
   rval = mb->create_meshset( MESHSET_ORDERED, set );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
     // put all vertices in set, but add the first one a second time
   std::vector<EntityHandle> list( verts );
   list.push_back( verts.front() );
@@ -2283,11 +2281,11 @@ ErrorCode mb_mesh_set_list_replace_test()
   EntityHandle old_ents[3] = { verts[2], verts[4], verts[6] };
   EntityHandle new_ents[3] = { verts[1], verts[9], verts[5] };
   rval = mb->replace_entities( set, old_ents, new_ents, 3 );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
     // check new set contents
   std::vector<EntityHandle> list2;
   rval = mb->get_entities_by_handle( set, list2 );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   list[2] = verts[1];
   list[4] = verts[9];
   list[6] = verts[5];
@@ -2302,11 +2300,11 @@ ErrorCode mb_mesh_set_list_replace_test()
   }
     // now try replacing a repeated value
   rval = mb->replace_entities( set, &verts[0], &verts[3], 1 );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   list[0] = list[10] = verts[3];
   list2.clear();
   rval = mb->get_entities_by_handle( set, list2 );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   if (list != list2) {
     std::cerr << "Range does not contain expected values." << std::endl;
     std::cerr << "  Expected: ";
@@ -2336,19 +2334,19 @@ ErrorCode mb_mesh_set_flag_test()
   Range verts;
   std::vector<double> coords(30);
   rval = mb->create_vertices( &coords[0], 10, verts );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   
   // CHECK SET->TRACKING
   // create a set and add the verts
   EntityHandle set;
   rval = mb->create_meshset( MESHSET_SET, set );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   rval = mb->add_entities( set, verts);
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   // the verts should not be tracking adjacencies
   Range adj_sets;
   rval = mb->get_adjacencies( verts, 4, false, adj_sets);
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   if(!adj_sets.empty()) {
     std::cerr << "range should be empty but contains:" << std::endl;
     rval = mb->list_entities( adj_sets );
@@ -2357,16 +2355,16 @@ ErrorCode mb_mesh_set_flag_test()
   // check to make sure the flags on MESHSET_SET
   unsigned int flags;
   rval = mb->get_meshset_options( set, flags );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   if(!MESHSET_SET&flags || MESHSET_TRACK_OWNER&flags || MESHSET_ORDERED&flags){
     std::cerr << "set should be MESHSET_SET only, flags=" << flags << std::endl;
     return MB_FAILURE;
   }
   // change to a tracking set and check flags
   rval = mb->set_meshset_options( set, MESHSET_TRACK_OWNER);
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   rval = mb->get_meshset_options( set, flags );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   if(MESHSET_SET&flags || !MESHSET_TRACK_OWNER&flags || MESHSET_ORDERED&flags){
     std::cerr << "set should be MESHSET_TRACK_OWNER only, flags=" << flags 
               << std::endl;
@@ -2374,7 +2372,7 @@ ErrorCode mb_mesh_set_flag_test()
   }
   // check adjacencies
   rval = mb->get_adjacencies( verts, 4, false, adj_sets);
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   if(1 != adj_sets.size()) {
     std::cerr << "range should contain a set, adj_sets.size()=" 
               << adj_sets.size() << std::endl;
@@ -2385,9 +2383,9 @@ ErrorCode mb_mesh_set_flag_test()
   // CHECK TRACKING->SET
   // change to a standard set and check flags
   rval = mb->set_meshset_options( set, MESHSET_SET);
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   rval = mb->get_meshset_options( set, flags );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   if(!MESHSET_SET&flags || MESHSET_TRACK_OWNER&flags || MESHSET_ORDERED&flags){
     std::cerr << "set should be MESHSET_SET only, flags=" << flags 
               << std::endl;
@@ -2396,7 +2394,7 @@ ErrorCode mb_mesh_set_flag_test()
   // the set should no longer be adjacent to the vertices
   adj_sets.clear();
   rval = mb->get_adjacencies( verts, 4, false, adj_sets);
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   if(!adj_sets.empty()) {
     std::cerr << "range should be empty but contains:" << std::endl;
     rval = mb->list_entities( adj_sets );
@@ -2405,7 +2403,7 @@ ErrorCode mb_mesh_set_flag_test()
   // CHECK UNORDERED->ORDERED
   // add a duplicate vert
   rval = mb->add_entities( set, &verts.front(), 1);
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   // unordered sets cannot hold duplicates so size shouldn't change
   std::vector<EntityHandle> entities;
   rval = mb->get_entities_by_handle( set, entities );
@@ -2415,9 +2413,9 @@ ErrorCode mb_mesh_set_flag_test()
   }
   // change to an ordered set and check flags
   rval = mb->set_meshset_options( set, MESHSET_ORDERED);
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   rval = mb->get_meshset_options( set, flags );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   if(MESHSET_SET&flags || MESHSET_TRACK_OWNER&flags || !MESHSET_ORDERED&flags){
     std::cerr << "set should be MESHSET_ORDERED only, flags=" << flags 
               << std::endl;
@@ -2425,13 +2423,13 @@ ErrorCode mb_mesh_set_flag_test()
   }
   // swap the order with some entities to that the handles aren't ordered
   rval = mb->clear_meshset( &set, 1 );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   entities.clear();
   entities.resize(2);
   entities[0] = verts[1];
   entities[1] = verts[0];
   rval = mb->add_entities( set, &entities[0], 2);
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   // check to ensure the entities keep their order
   entities.clear();
   rval = mb->get_entities_by_handle( set, entities );
@@ -2443,9 +2441,9 @@ ErrorCode mb_mesh_set_flag_test()
   // CHECK ORDERED->UNORDERED
   // change to an unordered set and check flags
   rval = mb->set_meshset_options( set, MESHSET_SET);
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   rval = mb->get_meshset_options( set, flags );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   if(!MESHSET_SET&flags || MESHSET_TRACK_OWNER&flags || MESHSET_ORDERED&flags){
     std::cerr << "set should be MESHSET_SET only, flags=" << flags 
               << std::endl;
@@ -2885,22 +2883,20 @@ static ErrorCode check_meshset_internal( Interface& mb,
   ErrorCode rval;
   WriteUtilIface* tool = 0;
   rval = mb.query_interface( tool );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   
   const EntityHandle* contents;
   int length;
   unsigned char flags;
   rval = tool->get_entity_list_pointers( &set, 1, &contents, 
-                      WriteUtilIface::CONTENTS, &length, &flags );
-  ErrorCode rval1 = mb.release_interface( tool );
-  CHKERR(rval);
-  CHKERR(rval1);
+                      WriteUtilIface::CONTENTS, &length, &flags );MB_CHK_ERR(rval);
+  ErrorCode rval1 = mb.release_interface( tool );MB_CHK_ERR(rval1);
   
   if (flags & MESHSET_ORDERED)
     rval = check_list_meshset_internal( expected, num_expected, contents, length );
   else
     rval = check_ranged_meshset_internal( expected, num_expected, contents, length );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   return MB_SUCCESS;
 }
 
@@ -2910,94 +2906,94 @@ ErrorCode mb_mesh_set_set_add_remove_test()
   Interface& mb = core;
   EntityHandle set;
   ErrorCode rval = mb.create_meshset( MESHSET_SET, set );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   
   EntityHandle list1[] = {10, 16, 18, 20, 24, 27};
   size_t len1 = sizeof(list1)/sizeof(list1[0]);
   EntityHandle list2[] = {10, 16, 17, 18, 19, 20, 24, 27};
   size_t len2 = sizeof(list2)/sizeof(list2[0]);
   rval = mb.add_entities( set, list1, len1 );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   rval = check_meshset_internal( mb, set, list1, len1 );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   rval = mb.add_entities( set, list2, len2 );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   EntityHandle exp12[] = {10, 16, 17, 18, 19, 20, 24, 27};
   size_t len12 = sizeof(exp12)/sizeof(exp12[0]);
   rval = check_meshset_internal( mb, set, exp12, len12 );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   
   EntityHandle list3[] = { 15, 16, 18, 20, 21, 24, 28 };
   size_t len3 = sizeof(list3)/sizeof(list3[0]);
   rval = mb.remove_entities( set, list3, len3 );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   EntityHandle exp123[] = { 10, 17, 19, 27 };
   size_t len123 = sizeof(exp123)/sizeof(exp123[0]);
   rval = check_meshset_internal( mb, set, exp123, len123 );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   
   EntityHandle list4[] = { 18, 10, 11, 12, 13, 14, 15, 16 };
   size_t len4 = sizeof(list4)/sizeof(list4[0]);
   rval = mb.add_entities( set, list4, len4 );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   EntityHandle exp14[] = {10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 27};
   size_t len14 = sizeof(exp14)/sizeof(exp14[0]);
   rval = check_meshset_internal( mb, set, exp14, len14 );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   
   EntityHandle list5[] = { 9, 10, 12, 13, 14, 15, 19, 20 };
   rval = mb.remove_entities( set, list5, sizeof(list5)/sizeof(list5[0]) );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   EntityHandle exp5[] = { 11, 16, 17, 18, 27 };
   rval = check_meshset_internal( mb, set, exp5, sizeof(exp5)/sizeof(exp5[0]) );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   
   EntityHandle list6[] = { 9, 10, 15, 16, 18, 19, 28 };
   rval = mb.add_entities( set, list6, sizeof(list6)/sizeof(list6[0]) );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   EntityHandle exp6[] = { 9, 10, 11, 15, 16, 17, 18, 19, 27, 28 };
   rval = check_meshset_internal( mb, set, exp6, sizeof(exp6)/sizeof(exp6[0]) );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   
   EntityHandle list7[] = { 13, 19, 27, 28 };
   rval = mb.add_entities( set, list7, sizeof(list7)/sizeof(list7[0]) );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   EntityHandle exp7[] = { 9, 10, 11, 13, 15, 16, 17, 18, 19, 27, 28 };
   rval = check_meshset_internal( mb, set, exp7, sizeof(exp7)/sizeof(exp7[0]) );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   
   EntityHandle list8[] = { 12, 14, 33 };
   rval = mb.add_entities( set, list8, sizeof(list8)/sizeof(list8[0]) );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   EntityHandle exp8[] = { 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 27, 28, 33 };
   rval = check_meshset_internal( mb, set, exp8, sizeof(exp8)/sizeof(exp8[0]) );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   
   EntityHandle list9[] = { 29, 30, 31, 32, 34 };
   rval = mb.remove_entities( set, list9, sizeof(list9)/sizeof(list9[0]) );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   rval = check_meshset_internal( mb, set, exp8, sizeof(exp8)/sizeof(exp8[0]) );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   
   EntityHandle list10[] = { 9, 11, 13, 17, 18, 19, 28, 33, 100 };
   rval = mb.remove_entities( set, list10, sizeof(list10)/sizeof(list10[0]) );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   EntityHandle exp10[] = { 10, 12, 14, 15, 16, 27 };
   rval = check_meshset_internal( mb, set, exp10, sizeof(exp10)/sizeof(exp10[0]) );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   
   EntityHandle list11[] = { 11, 12, 13, 14, 27, 28 };
   rval = mb.remove_entities( set, list11, sizeof(list11)/sizeof(list11[0]) );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   EntityHandle exp11[] = { 10, 15, 16 };
   rval = check_meshset_internal( mb, set, exp11, sizeof(exp11)/sizeof(exp11[0]) );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   
   EntityHandle list12[] = { 1, 10, 15, 16 };
   rval = mb.remove_entities( set, list12, sizeof(list12)/sizeof(list12[0]) );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   rval = check_meshset_internal( mb, set, 0, 0 );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   
   return MB_SUCCESS;
 }
@@ -4391,7 +4387,7 @@ ErrorCode find_coincident_elements(Interface* gMB, Range entities, int num_nodes
   return MB_SUCCESS;
 }
 
-
+#ifdef MOAB_HAVE_NETCDF
 ErrorCode mb_merge_test()
 { 
   Core moab;
@@ -4451,23 +4447,17 @@ ErrorCode mb_merge_test()
   if (MB_SUCCESS != result)
     return result;
   Skinner_Obj.find_skin(0,entities,false,forward_lower,&reverse_lower);
-  cout <<"num hexes = "<<entities.size()<<"\n";
-  cout <<"fl = "<<forward_lower.size()<<" rl = "<<reverse_lower.size()<<"\n";
+  // cout <<"num hexes = "<<entities.size()<<"\n";
+  // cout <<"fl = "<<forward_lower.size()<<" rl = "<<reverse_lower.size()<<"\n";
   
-    //  Range::const_iterator iter;
+  //  Range::const_iterator iter;
   int dim = 0;
-    //  int num_ents = 1;
+  //  int num_ents = 1;
   result = MB->get_adjacencies(forward_lower, dim, true, nodes, Interface::UNION);
-  cout <<"nodes.size() = "<<nodes.size() <<"\n";
-    
-  if(result == MB_SUCCESS)
-    cout << "---Success---";
-  else
-    cout << "---Failure---";
-  cout << endl << endl;
+  // cout <<"nodes.size() = "<<nodes.size() <<"\n";
 
-    //  result = MB->get_entities_by_type(0, MBQUAD, faces);
-    //  cout <<"num faces = "<<faces.size() <<"\n";
+  //  result = MB->get_entities_by_type(0, MBQUAD, faces);
+  //  cout <<"num faces = "<<faces.size() <<"\n";
 
   std::vector<std::pair<EntityHandle, EntityHandle> > coin_nodes;
     //  cout <<"Begining sort...\n";
@@ -4509,6 +4499,7 @@ ErrorCode mb_merge_test()
   cout <<"TIME: "<<(real_time/clocks_per_sec)<<" seconds.\n";
   return result;
 }
+#endif
 
 ErrorCode mb_merge_update_test()
 {
@@ -6113,9 +6104,9 @@ ErrorCode mb_poly_adjacency_test2()
     rval = mbImpl->get_adjacencies(&polyhedron, 1, dim, true, dum_range, Interface::UNION);
     if (MB_SUCCESS != rval)
       return rval;
-    std::cout << "\n dimension:" << dim << " " << dum_range.size() << " entities";
+    // std::cout << "\n dimension:" << dim << " " << dum_range.size() << " entities";
   }
-  std::cout << "\n";
+  // std::cout << "\n";
   /*rval=mbImpl->write_mesh("polyhedra.vtk");
   if (MB_SUCCESS != rval)
     return rval;*/
@@ -7860,18 +7851,18 @@ ErrorCode mb_type_is_maxtype_test()
     return rval;
   
   Range r1, r2;
-  rval = mb->get_entities_by_type( 0, MBMAXTYPE, r1, false ); CHKERR(rval);
-  rval = mb->get_entities_by_handle( 0, r2, false ); CHKERR(rval);
+  rval = mb->get_entities_by_type( 0, MBMAXTYPE, r1, false ); MB_CHK_ERR(rval);
+  rval = mb->get_entities_by_handle( 0, r2, false ); MB_CHK_ERR(rval);
   CHECK( r1 == r2 );
   
   std::vector<EntityHandle> v1, v2;
-  rval = mb->get_entities_by_type( 0, MBMAXTYPE, v1, false ); CHKERR(rval);
-  rval = mb->get_entities_by_handle( 0, v2, false ); CHKERR(rval);
+  rval = mb->get_entities_by_type( 0, MBMAXTYPE, v1, false ); MB_CHK_ERR(rval);
+  rval = mb->get_entities_by_handle( 0, v2, false ); MB_CHK_ERR(rval);
   CHECK( v1 == v2 );
   
   int c1, c2;
-  rval = mb->get_number_entities_by_type( 0, MBMAXTYPE, c1, false ); CHKERR(rval);
-  rval = mb->get_number_entities_by_handle( 0, c2, false ); CHKERR(rval);
+  rval = mb->get_number_entities_by_type( 0, MBMAXTYPE, c1, false ); MB_CHK_ERR(rval);
+  rval = mb->get_number_entities_by_handle( 0, c2, false ); MB_CHK_ERR(rval);
   CHECK( c1 == c2 );
   
   Range h1, h2;
@@ -7881,99 +7872,99 @@ ErrorCode mb_type_is_maxtype_test()
     h2.insert( ++it, r1.end() );
   
   EntityHandle s1, s2;
-  rval = mb->create_meshset( MESHSET_SET, s1 ); CHKERR(rval);
-  rval = mb->create_meshset( MESHSET_ORDERED, s2 ); CHKERR(rval);
-  rval = mb->add_entities( s1, r1 ); CHKERR(rval);
-  rval = mb->add_entities( s2, r2 ); CHKERR(rval);
-  rval = mb->add_entities( s2, &s1, 1 ); CHKERR(rval);
+  rval = mb->create_meshset( MESHSET_SET, s1 ); MB_CHK_ERR(rval);
+  rval = mb->create_meshset( MESHSET_ORDERED, s2 ); MB_CHK_ERR(rval);
+  rval = mb->add_entities( s1, r1 ); MB_CHK_ERR(rval);
+  rval = mb->add_entities( s2, r2 ); MB_CHK_ERR(rval);
+  rval = mb->add_entities( s2, &s1, 1 ); MB_CHK_ERR(rval);
   
   r1.clear();
   r2.clear();
-  rval = mb->get_entities_by_type( s1, MBMAXTYPE, r1, false ); CHKERR(rval);
-  rval = mb->get_entities_by_handle( s1, r2, false ); CHKERR(rval);
+  rval = mb->get_entities_by_type( s1, MBMAXTYPE, r1, false ); MB_CHK_ERR(rval);
+  rval = mb->get_entities_by_handle( s1, r2, false ); MB_CHK_ERR(rval);
   CHECK( r1 == r2 );
   
   r1.clear();
   r2.clear();
-  rval = mb->get_entities_by_type( s2, MBMAXTYPE, r1, false ); CHKERR(rval);
-  rval = mb->get_entities_by_handle( s2, r2, false ); CHKERR(rval);
+  rval = mb->get_entities_by_type( s2, MBMAXTYPE, r1, false ); MB_CHK_ERR(rval);
+  rval = mb->get_entities_by_handle( s2, r2, false ); MB_CHK_ERR(rval);
   CHECK( r1 == r2 );
   
   r1.clear();
   r2.clear();
-  rval = mb->get_entities_by_type( s2, MBMAXTYPE, r1, true ); CHKERR(rval);
-  rval = mb->get_entities_by_handle( s2, r2, true ); CHKERR(rval);
+  rval = mb->get_entities_by_type( s2, MBMAXTYPE, r1, true ); MB_CHK_ERR(rval);
+  rval = mb->get_entities_by_handle( s2, r2, true ); MB_CHK_ERR(rval);
   CHECK( r1 == r2 );
  
    
   v1.clear();
   v2.clear();
-  rval = mb->get_entities_by_type( s1, MBMAXTYPE, v1, false ); CHKERR(rval);
-  rval = mb->get_entities_by_handle( s1, v2, false ); CHKERR(rval);
+  rval = mb->get_entities_by_type( s1, MBMAXTYPE, v1, false ); MB_CHK_ERR(rval);
+  rval = mb->get_entities_by_handle( s1, v2, false ); MB_CHK_ERR(rval);
   CHECK( v1 == v2 );
   
   v1.clear();
   v2.clear();
-  rval = mb->get_entities_by_type( s2, MBMAXTYPE, v1, false ); CHKERR(rval);
-  rval = mb->get_entities_by_handle( s2, v2, false ); CHKERR(rval);
+  rval = mb->get_entities_by_type( s2, MBMAXTYPE, v1, false ); MB_CHK_ERR(rval);
+  rval = mb->get_entities_by_handle( s2, v2, false ); MB_CHK_ERR(rval);
   CHECK( v1 == v2 );
   
   v1.clear();
   v2.clear();
-  rval = mb->get_entities_by_type( s2, MBMAXTYPE, v1, true ); CHKERR(rval);
-  rval = mb->get_entities_by_handle( s2, v2, true ); CHKERR(rval);
+  rval = mb->get_entities_by_type( s2, MBMAXTYPE, v1, true ); MB_CHK_ERR(rval);
+  rval = mb->get_entities_by_handle( s2, v2, true ); MB_CHK_ERR(rval);
   CHECK( v1 == v2 );
  
    
-  rval = mb->get_number_entities_by_type( s1, MBMAXTYPE, c1, false ); CHKERR(rval);
-  rval = mb->get_number_entities_by_handle( s1, c2, false ); CHKERR(rval);
+  rval = mb->get_number_entities_by_type( s1, MBMAXTYPE, c1, false ); MB_CHK_ERR(rval);
+  rval = mb->get_number_entities_by_handle( s1, c2, false ); MB_CHK_ERR(rval);
   CHECK( c1 == c2 );
   
-  rval = mb->get_number_entities_by_type( s2, MBMAXTYPE, c1, false ); CHKERR(rval);
-  rval = mb->get_number_entities_by_handle( s2, c2, false ); CHKERR(rval);
+  rval = mb->get_number_entities_by_type( s2, MBMAXTYPE, c1, false ); MB_CHK_ERR(rval);
+  rval = mb->get_number_entities_by_handle( s2, c2, false ); MB_CHK_ERR(rval);
   CHECK( c1 == c2 );
   
-  rval = mb->get_number_entities_by_type( s2, MBMAXTYPE, c1, true ); CHKERR(rval);
-  rval = mb->get_number_entities_by_handle( s2, c2, true ); CHKERR(rval);
+  rval = mb->get_number_entities_by_type( s2, MBMAXTYPE, c1, true ); MB_CHK_ERR(rval);
+  rval = mb->get_number_entities_by_handle( s2, c2, true ); MB_CHK_ERR(rval);
   CHECK( c1 == c2 );
  
   r1.clear();
-  rval = mb->get_entities_by_handle( s1, r1 ); CHKERR(rval);
+  rval = mb->get_entities_by_handle( s1, r1 ); MB_CHK_ERR(rval);
   Tag t1;
   rval = mb->tag_get_handle( "maxtype1", 1, MB_TYPE_INTEGER, t1, MB_TAG_SPARSE|MB_TAG_EXCL );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   std::vector<int> d1(r1.size());
   Range::iterator ri;
   std::vector<int>::iterator ii = d1.begin();
   for (ri = r1.begin(); ri != r1.end(); ++ri, ++ii)
     *ii = ((int)ID_FROM_HANDLE(*ri)) % 20;
-  rval = mb->tag_set_data( t1, r1, &d1[0] ); CHKERR(rval);
+  rval = mb->tag_set_data( t1, r1, &d1[0] ); MB_CHK_ERR(rval);
   
   r1.clear(); r2.clear();
-  rval = mb->get_entities_by_type_and_tag( 0, MBMAXTYPE, &t1, 0, 1, r1, Interface::INTERSECT, false ); CHKERR(rval);
-  rval = mb->get_number_entities_by_type_and_tag( 0, MBMAXTYPE, &t1, 0, 1, c1, Interface::INTERSECT, false ); CHKERR(rval);
-  rval = get_by_all_types_and_tag( mb, 0, &t1, 0, 1, r2, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = mb->get_entities_by_type_and_tag( 0, MBMAXTYPE, &t1, 0, 1, r1, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( 0, MBMAXTYPE, &t1, 0, 1, c1, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
+  rval = get_by_all_types_and_tag( mb, 0, &t1, 0, 1, r2, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
   CHECK( r1 == r2 );
   CHECK( (unsigned)c1 == r2.size() );
   
   r1.clear(); r2.clear();
-  rval = mb->get_entities_by_type_and_tag( s1, MBMAXTYPE, &t1, 0, 1, r1, Interface::INTERSECT, false ); CHKERR(rval);
-  rval = mb->get_number_entities_by_type_and_tag( s1, MBMAXTYPE, &t1, 0, 1, c1, Interface::INTERSECT, false ); CHKERR(rval);
-  rval = get_by_all_types_and_tag( mb, s1, &t1, 0, 1, r2, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = mb->get_entities_by_type_and_tag( s1, MBMAXTYPE, &t1, 0, 1, r1, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( s1, MBMAXTYPE, &t1, 0, 1, c1, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
+  rval = get_by_all_types_and_tag( mb, s1, &t1, 0, 1, r2, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
   CHECK( r1 == r2 );
   CHECK( (unsigned)c1 == r2.size() );
   
   r1.clear(); r2.clear();
-  rval = mb->get_entities_by_type_and_tag( s2, MBMAXTYPE, &t1, 0, 1, r1, Interface::INTERSECT, false ); CHKERR(rval);
-  rval = mb->get_number_entities_by_type_and_tag( s2, MBMAXTYPE, &t1, 0, 1, c1, Interface::INTERSECT, false ); CHKERR(rval);
-  rval = get_by_all_types_and_tag( mb, s2, &t1, 0, 1, r2, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = mb->get_entities_by_type_and_tag( s2, MBMAXTYPE, &t1, 0, 1, r1, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( s2, MBMAXTYPE, &t1, 0, 1, c1, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
+  rval = get_by_all_types_and_tag( mb, s2, &t1, 0, 1, r2, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
   CHECK( r1 == r2 );
   CHECK( (unsigned)c1 == r2.size() );
   
   r1.clear(); r2.clear();
-  rval = mb->get_entities_by_type_and_tag( s2, MBMAXTYPE, &t1, 0, 1, r1, Interface::INTERSECT, true ); CHKERR(rval);
-  rval = mb->get_number_entities_by_type_and_tag( s2, MBMAXTYPE, &t1, 0, 1, c1, Interface::INTERSECT, true ); CHKERR(rval);
-  rval = get_by_all_types_and_tag( mb, s2, &t1, 0, 1, r2, Interface::INTERSECT, true ); CHKERR(rval);
+  rval = mb->get_entities_by_type_and_tag( s2, MBMAXTYPE, &t1, 0, 1, r1, Interface::INTERSECT, true ); MB_CHK_ERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( s2, MBMAXTYPE, &t1, 0, 1, c1, Interface::INTERSECT, true ); MB_CHK_ERR(rval);
+  rval = get_by_all_types_and_tag( mb, s2, &t1, 0, 1, r2, Interface::INTERSECT, true ); MB_CHK_ERR(rval);
   CHECK( r1 == r2 );
   CHECK( (unsigned)c1 == r2.size() );
   
@@ -7981,76 +7972,76 @@ ErrorCode mb_type_is_maxtype_test()
   const void* vallist[2] = { &value, 0 };
   
   r1.clear(); r2.clear();
-  rval = mb->get_entities_by_type_and_tag( 0, MBMAXTYPE, &t1, vallist, 1, r1, Interface::INTERSECT, false ); CHKERR(rval);
-  rval = mb->get_number_entities_by_type_and_tag( 0, MBMAXTYPE, &t1, vallist, 1, c1, Interface::INTERSECT, false ); CHKERR(rval);
-  rval = get_by_all_types_and_tag( mb, 0, &t1, vallist, 1, r2, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = mb->get_entities_by_type_and_tag( 0, MBMAXTYPE, &t1, vallist, 1, r1, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( 0, MBMAXTYPE, &t1, vallist, 1, c1, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
+  rval = get_by_all_types_and_tag( mb, 0, &t1, vallist, 1, r2, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
   CHECK( r1 == r2 );
   CHECK( (unsigned)c1 == r2.size() );
   
   r1.clear(); r2.clear();
-  rval = mb->get_entities_by_type_and_tag( s1, MBMAXTYPE, &t1, vallist, 1, r1, Interface::INTERSECT, false ); CHKERR(rval);
-  rval = mb->get_number_entities_by_type_and_tag( s1, MBMAXTYPE, &t1, vallist, 1, c1, Interface::INTERSECT, false ); CHKERR(rval);
-  rval = get_by_all_types_and_tag( mb, s1, &t1, vallist, 1, r2, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = mb->get_entities_by_type_and_tag( s1, MBMAXTYPE, &t1, vallist, 1, r1, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( s1, MBMAXTYPE, &t1, vallist, 1, c1, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
+  rval = get_by_all_types_and_tag( mb, s1, &t1, vallist, 1, r2, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
   CHECK( r1 == r2 );
   CHECK( (unsigned)c1 == r2.size() );
   
   r1.clear(); r2.clear();
-  rval = mb->get_entities_by_type_and_tag( s2, MBMAXTYPE, &t1, vallist, 1, r1, Interface::INTERSECT, false ); CHKERR(rval);
-  rval = mb->get_number_entities_by_type_and_tag( s2, MBMAXTYPE, &t1, vallist, 1, c1, Interface::INTERSECT, false ); CHKERR(rval);
-  rval = get_by_all_types_and_tag( mb, s2, &t1, vallist, 1, r2, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = mb->get_entities_by_type_and_tag( s2, MBMAXTYPE, &t1, vallist, 1, r1, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( s2, MBMAXTYPE, &t1, vallist, 1, c1, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
+  rval = get_by_all_types_and_tag( mb, s2, &t1, vallist, 1, r2, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
   CHECK( r1 == r2 );
   CHECK( (unsigned)c1 == r2.size() );
   
   r1.clear(); r2.clear();
-  rval = mb->get_entities_by_type_and_tag( s2, MBMAXTYPE, &t1, vallist, 1, r1, Interface::INTERSECT, true ); CHKERR(rval);
-  rval = mb->get_number_entities_by_type_and_tag( s2, MBMAXTYPE, &t1, vallist, 1, c1, Interface::INTERSECT, true ); CHKERR(rval);
-  rval = get_by_all_types_and_tag( mb, s2, &t1, vallist, 1, r2, Interface::INTERSECT, true ); CHKERR(rval);
+  rval = mb->get_entities_by_type_and_tag( s2, MBMAXTYPE, &t1, vallist, 1, r1, Interface::INTERSECT, true ); MB_CHK_ERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( s2, MBMAXTYPE, &t1, vallist, 1, c1, Interface::INTERSECT, true ); MB_CHK_ERR(rval);
+  rval = get_by_all_types_and_tag( mb, s2, &t1, vallist, 1, r2, Interface::INTERSECT, true ); MB_CHK_ERR(rval);
   CHECK( r1 == r2 );
   CHECK( (unsigned)c1 == r2.size() );
   
   r1.clear(); r2.clear();
-  rval = mb->get_entities_by_handle( s1, r1 ); CHKERR(rval);
+  rval = mb->get_entities_by_handle( s1, r1 ); MB_CHK_ERR(rval);
   r2.insert( r1.back() );
   r1.clear();
-  rval = mb->get_entities_by_handle( s2, r1 ); CHKERR(rval);
+  rval = mb->get_entities_by_handle( s2, r1 ); MB_CHK_ERR(rval);
   r2.insert( r1.front() );
   
   Tag t2;
   rval = mb->tag_get_handle( "maxtype2", 1, MB_TYPE_INTEGER, t2, MB_TAG_DENSE|MB_TAG_EXCL );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   d1.resize(r2.size());
   ii = d1.begin();;
   for (ri = r2.begin(); ri != r2.end(); ++ri, ++ii)
     *ii = ((int)ID_FROM_HANDLE(*ri)) % 2;
-  rval = mb->tag_set_data( t2, r2, &d1[0] ); CHKERR(rval);
+  rval = mb->tag_set_data( t2, r2, &d1[0] ); MB_CHK_ERR(rval);
   
   Tag tags[] = { t1, t2 };
   
   r1.clear(); r2.clear();
-  rval = mb->get_entities_by_type_and_tag( 0, MBMAXTYPE, tags, 0, 2, r1, Interface::INTERSECT, false ); CHKERR(rval);
-  rval = mb->get_number_entities_by_type_and_tag( 0, MBMAXTYPE, tags, 0, 2, c1, Interface::INTERSECT, false ); CHKERR(rval);
-  rval = get_by_all_types_and_tag( mb, 0, tags, 0, 2, r2, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = mb->get_entities_by_type_and_tag( 0, MBMAXTYPE, tags, 0, 2, r1, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( 0, MBMAXTYPE, tags, 0, 2, c1, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
+  rval = get_by_all_types_and_tag( mb, 0, tags, 0, 2, r2, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
   CHECK( r1 == r2 );
   CHECK( (unsigned)c1 == r2.size() );
   
   r1.clear(); r2.clear();
-  rval = mb->get_entities_by_type_and_tag( s1, MBMAXTYPE, tags, 0, 2, r1, Interface::INTERSECT, false ); CHKERR(rval);
-  rval = mb->get_number_entities_by_type_and_tag( s1, MBMAXTYPE, tags, 0, 2, c1, Interface::INTERSECT, false ); CHKERR(rval);
-  rval = get_by_all_types_and_tag( mb, s1, tags, 0, 2, r2, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = mb->get_entities_by_type_and_tag( s1, MBMAXTYPE, tags, 0, 2, r1, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( s1, MBMAXTYPE, tags, 0, 2, c1, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
+  rval = get_by_all_types_and_tag( mb, s1, tags, 0, 2, r2, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
   CHECK( r1 == r2 );
   CHECK( (unsigned)c1 == r2.size() );
   
   r1.clear(); r2.clear();
-  rval = mb->get_entities_by_type_and_tag( s2, MBMAXTYPE, tags, 0, 2, r1, Interface::INTERSECT, false ); CHKERR(rval);
-  rval = mb->get_number_entities_by_type_and_tag( s2, MBMAXTYPE, tags, 0, 2, c1, Interface::INTERSECT, false ); CHKERR(rval);
-  rval = get_by_all_types_and_tag( mb, s2, tags, 0, 2, r2, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = mb->get_entities_by_type_and_tag( s2, MBMAXTYPE, tags, 0, 2, r1, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( s2, MBMAXTYPE, tags, 0, 2, c1, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
+  rval = get_by_all_types_and_tag( mb, s2, tags, 0, 2, r2, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
   CHECK( r1 == r2 );
   CHECK( (unsigned)c1 == r2.size() );
   
   r1.clear(); r2.clear();
-  rval = mb->get_entities_by_type_and_tag( s2, MBMAXTYPE, tags, 0, 2, r1, Interface::INTERSECT, true ); CHKERR(rval);
-  rval = mb->get_number_entities_by_type_and_tag( s2, MBMAXTYPE, tags, 0, 2, c1, Interface::INTERSECT, true ); CHKERR(rval);
-  rval = get_by_all_types_and_tag( mb, s2, tags, 0, 2, r2, Interface::INTERSECT, true ); CHKERR(rval);
+  rval = mb->get_entities_by_type_and_tag( s2, MBMAXTYPE, tags, 0, 2, r1, Interface::INTERSECT, true ); MB_CHK_ERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( s2, MBMAXTYPE, tags, 0, 2, c1, Interface::INTERSECT, true ); MB_CHK_ERR(rval);
+  rval = get_by_all_types_and_tag( mb, s2, tags, 0, 2, r2, Interface::INTERSECT, true ); MB_CHK_ERR(rval);
   CHECK( r1 == r2 );
   CHECK( (unsigned)c1 == r2.size() );
   
@@ -8058,58 +8049,58 @@ ErrorCode mb_type_is_maxtype_test()
   vallist[1] = &val2;
   
   r1.clear(); r2.clear();
-  rval = mb->get_entities_by_type_and_tag( 0, MBMAXTYPE, tags, vallist, 2, r1, Interface::INTERSECT, false ); CHKERR(rval);
-  rval = mb->get_number_entities_by_type_and_tag( 0, MBMAXTYPE, tags, vallist, 2, c1, Interface::INTERSECT, false ); CHKERR(rval);
-  rval = get_by_all_types_and_tag( mb, 0, tags, vallist, 2, r2, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = mb->get_entities_by_type_and_tag( 0, MBMAXTYPE, tags, vallist, 2, r1, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( 0, MBMAXTYPE, tags, vallist, 2, c1, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
+  rval = get_by_all_types_and_tag( mb, 0, tags, vallist, 2, r2, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
   CHECK( r1 == r2 );
   CHECK( (unsigned)c1 == r2.size() );
   
   r1.clear(); r2.clear();
-  rval = mb->get_entities_by_type_and_tag( s1, MBMAXTYPE, tags, vallist, 2, r1, Interface::INTERSECT, false ); CHKERR(rval);
-  rval = mb->get_number_entities_by_type_and_tag( s1, MBMAXTYPE, tags, vallist, 2, c1, Interface::INTERSECT, false ); CHKERR(rval);
-  rval = get_by_all_types_and_tag( mb, s1, tags, vallist, 2, r2, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = mb->get_entities_by_type_and_tag( s1, MBMAXTYPE, tags, vallist, 2, r1, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( s1, MBMAXTYPE, tags, vallist, 2, c1, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
+  rval = get_by_all_types_and_tag( mb, s1, tags, vallist, 2, r2, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
   CHECK( r1 == r2 );
   CHECK( (unsigned)c1 == r2.size() );
   
   r1.clear(); r2.clear();
-  rval = mb->get_entities_by_type_and_tag( s2, MBMAXTYPE, tags, vallist, 2, r1, Interface::INTERSECT, false ); CHKERR(rval);
-  rval = mb->get_number_entities_by_type_and_tag( s2, MBMAXTYPE, tags, vallist, 2, c1, Interface::INTERSECT, false ); CHKERR(rval);
-  rval = get_by_all_types_and_tag( mb, s2, tags, vallist, 2, r2, Interface::INTERSECT, false ); CHKERR(rval);
+  rval = mb->get_entities_by_type_and_tag( s2, MBMAXTYPE, tags, vallist, 2, r1, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( s2, MBMAXTYPE, tags, vallist, 2, c1, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
+  rval = get_by_all_types_and_tag( mb, s2, tags, vallist, 2, r2, Interface::INTERSECT, false ); MB_CHK_ERR(rval);
   CHECK( r1 == r2 );
   CHECK( (unsigned)c1 == r2.size() );
   
   r1.clear(); r2.clear();
-  rval = mb->get_entities_by_type_and_tag( s2, MBMAXTYPE, tags, vallist, 2, r1, Interface::INTERSECT, true ); CHKERR(rval);
-  rval = mb->get_number_entities_by_type_and_tag( s2, MBMAXTYPE, tags, vallist, 2, c1, Interface::INTERSECT, true ); CHKERR(rval);
-  rval = get_by_all_types_and_tag( mb, s2, tags, vallist, 2, r2, Interface::INTERSECT, true ); CHKERR(rval);
+  rval = mb->get_entities_by_type_and_tag( s2, MBMAXTYPE, tags, vallist, 2, r1, Interface::INTERSECT, true ); MB_CHK_ERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( s2, MBMAXTYPE, tags, vallist, 2, c1, Interface::INTERSECT, true ); MB_CHK_ERR(rval);
+  rval = get_by_all_types_and_tag( mb, s2, tags, vallist, 2, r2, Interface::INTERSECT, true ); MB_CHK_ERR(rval);
   CHECK( r1 == r2 );
   CHECK( (unsigned)c1 == r2.size() );
    
   r1.clear(); r2.clear();
-  rval = mb->get_entities_by_type_and_tag( 0, MBMAXTYPE, tags, vallist, 2, r1, Interface::UNION, false ); CHKERR(rval);
-  rval = mb->get_number_entities_by_type_and_tag( 0, MBMAXTYPE, tags, vallist, 2, c1, Interface::UNION, false ); CHKERR(rval);
-  rval = get_by_all_types_and_tag( mb, 0, tags, vallist, 2, r2, Interface::UNION, false ); CHKERR(rval);
+  rval = mb->get_entities_by_type_and_tag( 0, MBMAXTYPE, tags, vallist, 2, r1, Interface::UNION, false ); MB_CHK_ERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( 0, MBMAXTYPE, tags, vallist, 2, c1, Interface::UNION, false ); MB_CHK_ERR(rval);
+  rval = get_by_all_types_and_tag( mb, 0, tags, vallist, 2, r2, Interface::UNION, false ); MB_CHK_ERR(rval);
   CHECK( r1 == r2 );
   CHECK( (unsigned)c1 == r2.size() );
   
   r1.clear(); r2.clear();
-  rval = mb->get_entities_by_type_and_tag( s1, MBMAXTYPE, tags, vallist, 2, r1, Interface::UNION, false ); CHKERR(rval);
-  rval = mb->get_number_entities_by_type_and_tag( s1, MBMAXTYPE, tags, vallist, 2, c1, Interface::UNION, false ); CHKERR(rval);
-  rval = get_by_all_types_and_tag( mb, s1, tags, vallist, 2, r2, Interface::UNION, false ); CHKERR(rval);
+  rval = mb->get_entities_by_type_and_tag( s1, MBMAXTYPE, tags, vallist, 2, r1, Interface::UNION, false ); MB_CHK_ERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( s1, MBMAXTYPE, tags, vallist, 2, c1, Interface::UNION, false ); MB_CHK_ERR(rval);
+  rval = get_by_all_types_and_tag( mb, s1, tags, vallist, 2, r2, Interface::UNION, false ); MB_CHK_ERR(rval);
   CHECK( r1 == r2 );
   CHECK( (unsigned)c1 == r2.size() );
   
   r1.clear(); r2.clear();
-  rval = mb->get_entities_by_type_and_tag( s2, MBMAXTYPE, tags, vallist, 2, r1, Interface::UNION, false ); CHKERR(rval);
-  rval = mb->get_number_entities_by_type_and_tag( s2, MBMAXTYPE, tags, vallist, 2, c1, Interface::UNION, false ); CHKERR(rval);
-  rval = get_by_all_types_and_tag( mb, s2, tags, vallist, 2, r2, Interface::UNION, false ); CHKERR(rval);
+  rval = mb->get_entities_by_type_and_tag( s2, MBMAXTYPE, tags, vallist, 2, r1, Interface::UNION, false ); MB_CHK_ERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( s2, MBMAXTYPE, tags, vallist, 2, c1, Interface::UNION, false ); MB_CHK_ERR(rval);
+  rval = get_by_all_types_and_tag( mb, s2, tags, vallist, 2, r2, Interface::UNION, false ); MB_CHK_ERR(rval);
   CHECK( r1 == r2 );
   CHECK( (unsigned)c1 == r2.size() );
   
   r1.clear(); r2.clear();
-  rval = mb->get_entities_by_type_and_tag( s2, MBMAXTYPE, tags, vallist, 2, r1, Interface::UNION, true ); CHKERR(rval);
-  rval = mb->get_number_entities_by_type_and_tag( s2, MBMAXTYPE, tags, vallist, 2, c1, Interface::UNION, true ); CHKERR(rval);
-  rval = get_by_all_types_and_tag( mb, s2, tags, vallist, 2, r2, Interface::UNION, true ); CHKERR(rval);
+  rval = mb->get_entities_by_type_and_tag( s2, MBMAXTYPE, tags, vallist, 2, r1, Interface::UNION, true ); MB_CHK_ERR(rval);
+  rval = mb->get_number_entities_by_type_and_tag( s2, MBMAXTYPE, tags, vallist, 2, c1, Interface::UNION, true ); MB_CHK_ERR(rval);
+  rval = get_by_all_types_and_tag( mb, s2, tags, vallist, 2, r2, Interface::UNION, true ); MB_CHK_ERR(rval);
   CHECK( r1 == r2 );
   CHECK( (unsigned)c1 == r2.size() );
   
@@ -8135,7 +8126,7 @@ ErrorCode mb_root_set_test()
     // Create a set to test with
   EntityHandle some_set;
   rval = mb->create_meshset( MESHSET_SET, some_set );
-  CHKERR( rval );
+  MB_CHK_ERR( rval );
   Range sets;
   sets.insert( some_set );
   
@@ -8176,12 +8167,12 @@ ErrorCode mb_root_set_test()
   
   Range sets2;
   rval = mb->get_contained_meshsets( rs, sets2 );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   CHECK( sets == sets2 );
   
   int count;
   rval = mb->num_contained_meshsets( rs, &count );
-  CHKERR(rval);
+  MB_CHK_ERR(rval);
   CHECK( count == (int)sets.size() );
   
     // The expected behavior for parent/child queries on the root set
@@ -8306,14 +8297,14 @@ ErrorCode check_valid_connectivity( Interface* iface )
   // check that all vertices in connectivity are valid
   // handles
   std::vector<EntityHandle> vertices, storage;
-  rval = iface->get_entities_by_type( 0, MBVERTEX, vertices ); CHKERR(rval);
+  rval = iface->get_entities_by_type( 0, MBVERTEX, vertices ); MB_CHK_ERR(rval);
   std::sort( vertices.begin(), vertices.end() );
   
   // get all the elements
   Range elements, tmp;
   for (int d = 1; d < 4; ++d) {
     tmp.clear();
-    rval = iface->get_entities_by_dimension( 0, d, tmp ); CHKERR(rval);
+    rval = iface->get_entities_by_dimension( 0, d, tmp ); MB_CHK_ERR(rval);
     elements.merge(tmp);
   }
   
@@ -8323,7 +8314,7 @@ ErrorCode check_valid_connectivity( Interface* iface )
   for (it = elements.begin(); it != elements.end(); ++it) {
     const EntityHandle* conn;
     int len;
-    rval = iface->get_connectivity( *it, conn, len, false, &storage ); CHKERR(rval);
+    rval = iface->get_connectivity( *it, conn, len, false, &storage ); MB_CHK_ERR(rval);
     for (int i = 0; i < len; ++i) {
       if (!contained( vertices, conn[i] )) {
         printf("Invalid handle (%s %d) in connectivity of %s %d\n",
@@ -8348,37 +8339,19 @@ static void usage(const char* exe) {
 
 int number_tests = 0;
 int number_tests_failed = 0;
-#define RUN_TEST( A ) _run_test( (A), #A )
-
+#define RUN_TEST_ERR( A ) _run_test( (A), #A )
 
 typedef ErrorCode (*TestFunc)();
-static void _run_test( TestFunc func, const char* func_str ) 
+static int _run_test( TestFunc func, const char* func_str ) 
 {
   ++number_tests;
-  cout << "   " << func_str << ": ";
-  cout.flush();
-  ErrorCode error = func( );
-  
-  if (MB_SUCCESS == error)
-    std::cout << "Success" << std::endl;
-  else if (MB_FAILURE == error)
-    std::cout << "Failure" << std::endl;
-  else {
-    Core moab;
-    std::cout << "Failed: " << moab.get_error_string( error ) << std::endl;
-  }
-  
-  if (MB_SUCCESS != error) {
-    ++number_tests_failed;
-  }
+  return run_test ( func, func_str );
 }
 
 
 /*!
   main routine for test harness 
 */
-
-
 int main(int argc, char* argv[])
 {
 #ifdef MOAB_HAVE_MPI
@@ -8402,14 +8375,12 @@ int main(int argc, char* argv[])
     
   for (int i = 1; i < argc; ++i) {
 
-    if (string(argv[i]) == "-d" && (i+1) < argc)
-      TestDir = argv[++i];
+    if (string(argv[i]) == "-h" || string(argv[i]) == "--help")
+      usage( argv[0] );
 #if MOAB_HAVE_NETCDF
     else if (string(argv[i]) == "-nostress")
       stress_test = false;
 #endif
-    else if (string(argv[i]) == "-h" || string(argv[i]) == "--help")
-      usage( argv[0] );
     else {
       cerr << "Invalid argument: " << argv[i] << endl;
       usage( argv[0] );
@@ -8418,84 +8389,85 @@ int main(int argc, char* argv[])
 
     // Print out Header information
 
-  cout << "\n\nMB TEST PROGRAM:\n\n";
+  cout << "\n\nMOAB Comprehensive test suite:\n\n";
 
-  RUN_TEST( mb_adjacent_vertex_test );
-  RUN_TEST( mb_adjacencies_create_delete_test );
-  RUN_TEST( mb_upward_adjacencies_test );
-  RUN_TEST( mb_adjacent_create_test );
-  RUN_TEST( mb_vertex_coordinate_test );
-  RUN_TEST( mb_vertex_tag_test );
-  RUN_TEST( mb_temporary_test );
-  RUN_TEST( mb_mesh_sets_set_test );
-  RUN_TEST( mb_mesh_sets_list_test );
-  RUN_TEST( mb_mesh_set_parent_child_test );
-  RUN_TEST( mb_mesh_set_set_appends );
-  RUN_TEST( mb_mesh_set_list_appends );
-  RUN_TEST( mb_mesh_set_root_appends );
-  RUN_TEST( mb_mesh_set_set_replace_test );
-  RUN_TEST( mb_mesh_set_list_replace_test );
-  RUN_TEST( mb_mesh_set_flag_test );
-  RUN_TEST( mb_mesh_set_set_add_remove_test );
-  RUN_TEST( mb_dense_tag_test );
-  RUN_TEST( mb_sparse_tag_test );
-  RUN_TEST( mb_higher_order_test );
-  RUN_TEST( mb_bit_tags_test );
+  number_tests = number_tests_failed = 0;
+  number_tests_failed += RUN_TEST_ERR( mb_adjacent_vertex_test );
+  number_tests_failed += RUN_TEST_ERR( mb_adjacencies_create_delete_test );
+  number_tests_failed += RUN_TEST_ERR( mb_upward_adjacencies_test );
+  number_tests_failed += RUN_TEST_ERR( mb_adjacent_create_test );
+  number_tests_failed += RUN_TEST_ERR( mb_vertex_coordinate_test );
+  number_tests_failed += RUN_TEST_ERR( mb_vertex_tag_test );
+  number_tests_failed += RUN_TEST_ERR( mb_temporary_test );
+  number_tests_failed += RUN_TEST_ERR( mb_mesh_sets_set_test );
+  number_tests_failed += RUN_TEST_ERR( mb_mesh_sets_list_test );
+  number_tests_failed += RUN_TEST_ERR( mb_mesh_set_parent_child_test );
+  number_tests_failed += RUN_TEST_ERR( mb_mesh_set_set_appends );
+  number_tests_failed += RUN_TEST_ERR( mb_mesh_set_list_appends );
+  number_tests_failed += RUN_TEST_ERR( mb_mesh_set_root_appends );
+  number_tests_failed += RUN_TEST_ERR( mb_mesh_set_set_replace_test );
+  number_tests_failed += RUN_TEST_ERR( mb_mesh_set_list_replace_test );
+  number_tests_failed += RUN_TEST_ERR( mb_mesh_set_flag_test );
+  number_tests_failed += RUN_TEST_ERR( mb_mesh_set_set_add_remove_test );
+  number_tests_failed += RUN_TEST_ERR( mb_dense_tag_test );
+  number_tests_failed += RUN_TEST_ERR( mb_sparse_tag_test );
+  number_tests_failed += RUN_TEST_ERR( mb_higher_order_test );
+  number_tests_failed += RUN_TEST_ERR( mb_bit_tags_test );
 #if MOAB_HAVE_NETCDF
-  RUN_TEST( mb_adjacencies_test );
-  RUN_TEST( mb_tags_test );
-  RUN_TEST( mb_delete_mesh_test );
-  RUN_TEST( mb_entity_conversion_test );
-  RUN_TEST( mb_mesh_set_tracking_test );
+  number_tests_failed += RUN_TEST_ERR( mb_adjacencies_test );
+  number_tests_failed += RUN_TEST_ERR( mb_tags_test );
+  number_tests_failed += RUN_TEST_ERR( mb_delete_mesh_test );
+  number_tests_failed += RUN_TEST_ERR( mb_entity_conversion_test );
+  number_tests_failed += RUN_TEST_ERR( mb_mesh_set_tracking_test );
 #endif
-  RUN_TEST( mb_forced_adjacencies_test );
-  RUN_TEST( mb_canon_number_test );
-  RUN_TEST (mb_side_number_test);
-  RUN_TEST( mb_poly_test );
-  RUN_TEST( mb_topo_util_test );
-  RUN_TEST( mb_split_test );
-  RUN_TEST( mb_range_seq_intersect_test );
-  RUN_TEST( mb_poly_adjacency_test );
-  RUN_TEST( mb_poly_adjacency_test2 );
-  RUN_TEST( mb_memory_use_test );
-  RUN_TEST( mb_skin_curve_test );
-  RUN_TEST( mb_skin_curve_adj_test );
-  RUN_TEST( mb_skin_surface_test );
-  RUN_TEST( mb_skin_surface_adj_test );
-  RUN_TEST( mb_skin_volume_test );
-  RUN_TEST( mb_skin_volume_adj_test );
-  RUN_TEST( mb_skin_surf_verts_test );
-  RUN_TEST( mb_skin_vol_verts_test );
-  RUN_TEST( mb_skin_surf_verts_elems_test );
-  RUN_TEST( mb_skin_vol_verts_elems_test );
-  RUN_TEST( mb_skin_poly_test );
-  RUN_TEST( mb_skin_higher_order_faces_test );
-  RUN_TEST( mb_skin_higher_order_regions_test );
-  RUN_TEST( mb_skin_adj_higher_order_faces_test );
-  RUN_TEST( mb_skin_adj_higher_order_regions_test );
-  RUN_TEST( mb_skin_faces_reversed_test );
-  RUN_TEST( mb_skin_adj_faces_reversed_test );
-  RUN_TEST( mb_skin_regions_reversed_test );
-  RUN_TEST( mb_skin_adj_regions_reversed_test );
-  RUN_TEST( mb_skin_faces_subset_test );
-  RUN_TEST( mb_skin_adj_faces_subset_test );
-  RUN_TEST( mb_skin_regions_subset_test );
-  RUN_TEST( mb_skin_adj_regions_subset_test );
-  RUN_TEST( mb_skin_faces_full_test );
-  RUN_TEST( mb_skin_adj_faces_full_test );
-  RUN_TEST( mb_skin_regions_full_test );
-  RUN_TEST( mb_skin_adj_regions_full_test );
-  RUN_TEST( mb_skin_adjacent_surf_patches );
-  RUN_TEST(mb_skin_scd_test);
-  RUN_TEST(mb_skin_fileset_test);
-  RUN_TEST( mb_read_fail_test );
-  RUN_TEST( mb_enum_string_test );
-  RUN_TEST( mb_merge_update_test );
-  RUN_TEST( mb_type_is_maxtype_test );
-  RUN_TEST( mb_root_set_test );
-  RUN_TEST( mb_merge_test );
+  number_tests_failed += RUN_TEST_ERR( mb_forced_adjacencies_test );
+  number_tests_failed += RUN_TEST_ERR( mb_canon_number_test );
+  number_tests_failed += RUN_TEST_ERR(mb_side_number_test);
+  number_tests_failed += RUN_TEST_ERR( mb_poly_test );
+  number_tests_failed += RUN_TEST_ERR( mb_topo_util_test );
+  number_tests_failed += RUN_TEST_ERR( mb_split_test );
+  number_tests_failed += RUN_TEST_ERR( mb_range_seq_intersect_test );
+  number_tests_failed += RUN_TEST_ERR( mb_poly_adjacency_test );
+  number_tests_failed += RUN_TEST_ERR( mb_poly_adjacency_test2 );
+  number_tests_failed += RUN_TEST_ERR( mb_memory_use_test );
+  number_tests_failed += RUN_TEST_ERR( mb_skin_curve_test );
+  number_tests_failed += RUN_TEST_ERR( mb_skin_curve_adj_test );
+  number_tests_failed += RUN_TEST_ERR( mb_skin_surface_test );
+  number_tests_failed += RUN_TEST_ERR( mb_skin_surface_adj_test );
+  number_tests_failed += RUN_TEST_ERR( mb_skin_volume_test );
+  number_tests_failed += RUN_TEST_ERR( mb_skin_volume_adj_test );
+  number_tests_failed += RUN_TEST_ERR( mb_skin_surf_verts_test );
+  number_tests_failed += RUN_TEST_ERR( mb_skin_vol_verts_test );
+  number_tests_failed += RUN_TEST_ERR( mb_skin_surf_verts_elems_test );
+  number_tests_failed += RUN_TEST_ERR( mb_skin_vol_verts_elems_test );
+  number_tests_failed += RUN_TEST_ERR( mb_skin_poly_test );
+  number_tests_failed += RUN_TEST_ERR( mb_skin_higher_order_faces_test );
+  number_tests_failed += RUN_TEST_ERR( mb_skin_higher_order_regions_test );
+  number_tests_failed += RUN_TEST_ERR( mb_skin_adj_higher_order_faces_test );
+  number_tests_failed += RUN_TEST_ERR( mb_skin_adj_higher_order_regions_test );
+  number_tests_failed += RUN_TEST_ERR( mb_skin_faces_reversed_test );
+  number_tests_failed += RUN_TEST_ERR( mb_skin_adj_faces_reversed_test );
+  number_tests_failed += RUN_TEST_ERR( mb_skin_regions_reversed_test );
+  number_tests_failed += RUN_TEST_ERR( mb_skin_adj_regions_reversed_test );
+  number_tests_failed += RUN_TEST_ERR( mb_skin_faces_subset_test );
+  number_tests_failed += RUN_TEST_ERR( mb_skin_adj_faces_subset_test );
+  number_tests_failed += RUN_TEST_ERR( mb_skin_regions_subset_test );
+  number_tests_failed += RUN_TEST_ERR( mb_skin_adj_regions_subset_test );
+  number_tests_failed += RUN_TEST_ERR( mb_skin_faces_full_test );
+  number_tests_failed += RUN_TEST_ERR( mb_skin_adj_faces_full_test );
+  number_tests_failed += RUN_TEST_ERR( mb_skin_regions_full_test );
+  number_tests_failed += RUN_TEST_ERR( mb_skin_adj_regions_full_test );
+  number_tests_failed += RUN_TEST_ERR( mb_skin_adjacent_surf_patches );
+  number_tests_failed += RUN_TEST_ERR( mb_skin_scd_test );
+  number_tests_failed += RUN_TEST_ERR( mb_skin_fileset_test );
+  number_tests_failed += RUN_TEST_ERR( mb_read_fail_test );
+  number_tests_failed += RUN_TEST_ERR( mb_enum_string_test );
+  number_tests_failed += RUN_TEST_ERR( mb_merge_update_test );
+  number_tests_failed += RUN_TEST_ERR( mb_type_is_maxtype_test );
+  number_tests_failed += RUN_TEST_ERR( mb_root_set_test );
 #if MOAB_HAVE_NETCDF
-  if (stress_test) RUN_TEST( mb_stress_test );
+  number_tests_failed += RUN_TEST_ERR( mb_merge_test );
+  if (stress_test) number_tests_failed += RUN_TEST_ERR( mb_stress_test );
 #endif
 
     // summary

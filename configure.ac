@@ -15,9 +15,14 @@ m4_ifdef([AM_SILENT_RULES],
 AC_CHECK_PROG( [SED], [sed], [sed], [true] )
 
 # Infer the source directory as the path to the ./configure script
-#srcdir=`dirname $0`
-#top_srcdir=`dirname $0`
+project_topsrcdir=`dirname $0`
+project_topbuilddir="$PWD"
 USER_CONFIGURE_CMD="$0 $ac_configure_args"
+
+# Create a temporary file with e.g. HAVE_MPI
+AC_CONFIG_HEADERS([src/moab/MOABConfig.h:config/MOABConfig.h.in])
+# Prefixes everything in the temporary file with MOAB_, e.g. MOAB_HAVE_MPI
+AX_PREFIX_CONFIG_H([src/moab/MOABConfig.h],[MOAB],[src/moab/MOABConfig.h])
 
 ################################################################################
 #                           Compilers
@@ -36,6 +41,7 @@ EXTRA_GNU_FLAGS='-Wall -pipe -pedantic -Wno-long-long -Wextra -Wcast-align  -Wpo
 EXTRA_INTEL_FLAGS='-Wall'
 
 # Find out the appropriate compiler based on user options
+AC_ARG_VAR([FC], [FORTRAN compiler command])
 FATHOM_CHECK_COMPILERS([yes],[yes],[$ENABLE_FORTRAN])
 AM_CONDITIONAL(PARALLEL,[test "x$enablempi" != "xno"])
 AM_CONDITIONAL(ENABLE_FORTRAN,[test "x$ENABLE_FORTRAN" != "xno"])
@@ -44,11 +50,7 @@ AM_CONDITIONAL(ENABLE_FORTRAN,[test "x$ENABLE_FORTRAN" != "xno"])
 FATHOM_COMPILER_FLAGS([yes],[yes],[$ENABLE_FORTRAN])
 
 m4_ifdef([AM_SILENT_RULES],[
-if test "x$DEBUG" = "xyes"; then
   AM_SILENT_RULES(yes)
-else
-  AM_SILENT_RULES(no)
-fi
 ])
 AC_PROG_LN_S
 AC_PROG_MAKE_SET
@@ -100,20 +102,29 @@ fi
 ################################################################################
 #                           Basic Portability Stuff
 ################################################################################
-AC_CHECK_FUNC([vsnprintf],
-              AC_DEFINE([HAVE_VSNPRINTF],[1],[Define if vsnprintf is available.]))
+AC_CHECK_FUNC([vsnprintf], [AC_DEFINE([HAVE_VSNPRINTF],[1],[Define if vsnprintf is available.])] )
+AC_CHECK_FUNC([vsprintf],  [AC_DEFINE([HAVE_VSPRINTF], [1],[Define if vsprintf is available.])] )
+AC_CHECK_FUNC([clock],     [AC_DEFINE([HAVE_CLOCK],    [1],[Define if clock is available.])] )
+AC_CHECK_FUNC([times],     [AC_DEFINE([HAVE_TIMES],    [1],[Define if times is available.])] )
+AC_CHECK_FUNC([cbrt],      [AC_DEFINE([HAVE_CBRT],     [1],[Define if cbrt is available.])] )
 
 FATHOM_VECTOR_TEMPLATE_INSERT
 FATHOM_OLD_STD_COUNT
 
 ################################################################################
-#                              HANDLE SIZE
+#                              Headers
 ################################################################################
+AC_HEADER_STDC
+AC_CHECK_HEADERS(fcntl.h strings.h sys/file.h sys/time.h unistd.h)
 AC_CHECK_HEADER([inttypes.h], [AC_DEFINE(HAVE_INTTYPES_H,  [1], [MOAB qualified HAVE_INTTYPES_H]) ])
 AC_CHECK_HEADER([stdint.h],   [AC_DEFINE(HAVE_STDINT_H,    [1], [MOAB qualified HAVE_STDINT_H])   ])
-AC_CHECK_HEADER([sys/types.h],[AC_DEFINE(HAVE_SYS_TYPES_H, [1], [MOAB qualified HAVE_SYS_TYPES_H])])
 AC_CHECK_HEADER([stddef.h],   [AC_DEFINE(HAVE_STDDEF_H,    [1], [MOAB qualified HAVE_STDDEF_H])   ])
 AC_CHECK_HEADER([stdlib.h],   [AC_DEFINE(HAVE_STDLIB_H,    [1], [MOAB qualified HAVE_STDLIB_H])   ])
+AC_CHECK_HEADER([ieeefp.h],   [AC_DEFINE(HAVE_IEEEFP_H,    [1], [MOAB qualified HAVE_IEEEFP_H])   ])
+AC_CHECK_HEADER([termios.h],  [AC_DEFINE(HAVE_TERMIOS_H,   [1], [MOAB qualified HAVE_TERMIOS_H])  ])
+AC_CHECK_HEADER([sys/types.h],[AC_DEFINE(HAVE_SYS_TYPES_H, [1], [MOAB qualified HAVE_SYS_TYPES_H])])
+AC_CHECK_HEADER([sys/ioctl.h],[AC_DEFINE(HAVE_SYS_IOCTL_H, [1], [MOAB qualified HAVE_SYS_IOCTL_H])])
+
 SIZEOF_MBENTITYHANDLE=0
 AC_CHECK_SIZEOF([void *])
 SIZEOF_VOID_P=$ac_cv_sizeof_void_p
@@ -177,7 +188,7 @@ AC_ARG_ENABLE( [imesh],
 [disable_imesh=yes] )
 
 if (test "xyes" != "x$disable_imesh" && test "xno" != "x$disable_imesh"); then
-  AC_MSG_ERROR([Unknown argument --enable-imesh=$enableval])
+  AC_MSG_ERROR([Unknown argument --disable-imesh=$enableval])
 else
   if (test "$disable_imesh" != "no"); then
     ENABLE_imesh=yes
@@ -255,6 +266,19 @@ else
   DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-irel=$enable_irel"
 fi
 
+################################################################################
+#                           Mesquite Part 1 of 2
+################################################################################
+AC_ARG_ENABLE( [mesquite],
+[AS_HELP_STRING([--enable-mesquite],[Build support for Mesquite interfaces.])],
+[enable_mesquite=$enableval],
+[enable_mesquite=no] )
+
+if (test "xyes" != "x$enable_mesquite" && test "xno" != "x$enable_mesquite"); then
+  AC_MSG_ERROR([Unknown argument --enable-mesquite=$enableval])
+else
+  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-mesquite=$enable_mesquite"
+fi
 
 ################################################################################
 #                              Version Stuff
@@ -313,12 +337,6 @@ AC_SUBST(MOAB_CXX_LIBS)
 ################################################################################
 #                             System Headers
 ################################################################################
-HAVE_IEEEFP=0
-AC_CHECK_HEADER([ieeefp.h],[HAVE_IEEEFP_H=1] )
-AM_CONDITIONAL(HAVE_IEEEFP_H, [test "$HAVE_IEEEFP"!="0"])
-if (test "$HAVE_IEEEFP" != "0"); then
-  AC_DEFINE(HAVE_IEEEFP, [1], [Defined if configured with IEEE Floating point support])
-fi
 HAVE_VALGRIND=0
 if test "xyes" = "x$enable_debug"; then
   AC_CHECK_HEADER( [valgrind/memcheck.h], [HAVE_VALGRIND=1] )
@@ -967,17 +985,37 @@ if test "x$ENABLE_irel" = "xyes"; then
   
   AC_CHECK_FILE([${CGM_DIR}/lib/iGeom-Defs.inc],
               [IGEOM_CONFIG_OPTIONS="include ${CGM_DIR}/lib/iGeom-Defs.inc";
-               FATHOM_MAKE_INC_VAR([${CGM_DIR}/lib/iGeom-Defs.inc],[IGEOM_DEFINES], [IGEOM_DEFINES="$make_val"],
-                  [IGEOM_DEFINES=]) ],
+               FATHOM_MAKE_INC_VAR([${CGM_DIR}/lib/iGeom-Defs.inc],[IGEOM_DEFINES], [IGEOM_DEFINES="$make_val"],[IGEOM_DEFINES=])
+               FATHOM_MAKE_INC_VAR([${CGM_DIR}/lib/iGeom-Defs.inc],[IGEOM_INCLUDES], [IGEOM_INCLUDES="$make_val"],[IGEOM_INCLUDES=]) ],
               [AC_CHECK_FILE([${CGM_DIR}/iGeom-Defs.inc],
                              [IGEOM_CONFIG_OPTIONS="include ${CGM_DIR}/iGeom-Defs.inc"],
                              [AC_MSG_WARN([$CGM_DIR : not a configured iGeom])]
                             )
               ])
   AC_SUBST(IGEOM_DEFINES)
+  AC_SUBST(IGEOM_INCLUDES)
   AC_SUBST(IGEOM_CONFIG_OPTIONS)
 fi
 
+
+################################################################################
+#                           Mesquite Part 2 of 2
+################################################################################
+
+AC_MSG_CHECKING([if Mesquite support is to be built])
+AC_MSG_RESULT([$enable_mesquite])
+if (test "xno" != "x$enable_mesquite"); then
+  if (test "x$ENABLE_imesh" != "xyes" || test "x$CGM_MISSING" != "xno"); then
+    enable_mesquite=no
+    AC_MSG_WARN([** Disabling Mesquite since iGeom or iMesh is not configured correctly.])
+  fi
+  if (test "xno" != "x$enable_mesquite"); then
+    CONFIGURE_MESQUITE
+    AC_DEFINE(HAVE_MESQUITE,[1],"MOAB configured with Mesquite support")
+  fi
+fi
+AM_CONDITIONAL([ENABLE_mesquite],[test "yes" = "$enable_mesquite"])
+AM_CONDITIONAL([HAVE_CPPUNIT],[test "$HAVE_CPPUNIT" = "yes"])
 
 ###############################################################################
 #                           Optional Tools
@@ -1465,19 +1503,14 @@ AC_SUBST([AM_CFLAGS])
 AC_SUBST([AM_FCFLAGS])
 AC_SUBST([AM_FFLAGS])
 
-AC_ARG_VAR([FC], [FORTRAN compiler command])
-# AC_CONFIG_HEADERS([config.h])
-# Create a temporary file with e.g. HAVE_MPI
-#AC_CONFIG_HEADERS([.MOABConfig.h:config/MOABConfig.h.in])
-# Prefixes everything in the temporary file with MOAB_, e.g. MOAB_HAVE_MPI
-#AX_PREFIX_CONFIG_H([src/moab/MOABConfig.h],[MOAB],[.MOABConfig.h])
-
+#src/moab/MOABConfig.h:config/MOABConfig.h.in
 AC_CONFIG_HEADERS([src/moab/Version.h
                    src/moab/EntityHandle.hpp
                    src/parallel/moab_mpi_config.h
                    src/FCDefs.h
-                   src/moab/MOABConfig.h:config/MOABConfig.h.in])
-AX_PREFIX_CONFIG_H([src/moab/MOABConfig.h],[MOAB],[src/moab/MOABConfig.h])
+                   src/mesquite/include/mesquite_config.h
+                   src/mesquite/include/mesquite_version.h
+                  ])
 
 AC_CONFIG_FILES([Makefile 
                  moab.make                  
@@ -1528,6 +1561,46 @@ AC_CONFIG_FILES([Makefile
                  MeshFiles/unittest/h5file/Makefile
                  MeshFiles/examples/Makefile
                  ])
+# Specify the headers to create for mesquite
+AC_CONFIG_FILES([src/mesquite/Makefile
+                 itaps/mesquite/Makefile
+                 test/mesquite/Makefile
+                 test/mesquite/ActiveSetTest/Makefile
+                 test/mesquite/algorithm_test/Makefile
+                 test/mesquite/analytical_grad_3D/Makefile
+                 test/mesquite/convert/Makefile
+                 test/mesquite/benchmark_tests/Makefile
+                 test/mesquite/paraboloid_domain_test/Makefile
+                 test/mesquite/headers/Makefile
+                 test/mesquite/idft_time/Makefile
+                 test/mesquite/igeom/Makefile
+                 test/mesquite/imesh/Makefile
+                 test/mesquite/jacobi/Makefile
+                 test/mesquite/laplacian_test/Makefile
+                 test/mesquite/laplacian_polygon_test/Makefile
+                 test/mesquite/nongradient_test/Makefile
+                 test/mesquite/pyramid/Makefile
+                 test/mesquite/simple_hybrid_test/Makefile
+                 test/mesquite/test_1/Makefile
+                 test/mesquite/transform/Makefile
+                 test/mesquite/unit/Makefile
+                 test/mesquite/untangle_test/Makefile
+                 test/mesquite/parallel_untangle_shape/Makefile 
+                 test/mesquite/parallel_smooth_laplace/Makefile
+                 test/mesquite/wedge/Makefile
+                 test/mesquite/wrapper_tests/Makefile
+                 test/mesquite/2d_target/Makefile
+                 test/mesquite/2d_metrics/Makefile
+                 test/mesquite/2d_formulation/Makefile
+                 test/mesquite/synchronous/Makefile
+                 test/mesquite/high_aspect_ratio/Makefile
+                 test/mesquite/higher_order/Makefile
+                 test/mesquite/slaved/Makefile
+                 tools/mesquite/Makefile
+                 MeshFiles/mesquite/Makefile
+                 ])
+
+
 AC_CONFIG_COMMANDS([src/MOAB_FCDefs.h],
   [sed -e "s/FC_FUNC/MOAB_FC_FUNC/" src/FCDefs.h >src/MOAB_FCDefs.h])
 
