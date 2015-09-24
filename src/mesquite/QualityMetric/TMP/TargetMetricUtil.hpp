@@ -148,21 +148,21 @@ void hessian( size_t num_free_verts,
     
       // Calculate remainder of Hessian row
     for (size_t j = i+1; j < num_free_verts; ++j) {
-      MAT& H = hess[h++];
+      MAT& HH = hess[h++];
       const MsqMatrix<DIM,1>& gj = dNdxi[j];
       switch (DIM) {
         case 3:
-          H(0,2) = tmp[0][2] * gj;
-          H(1,2) = tmp[1][2] * gj;
-          H(2,0) = tmp[2][0] * gj;
-          H(2,1) = tmp[2][1] * gj;
-          H(2,2) = tmp[2][2] * gj;
+          HH(0,2) = tmp[0][2] * gj;
+          HH(1,2) = tmp[1][2] * gj;
+          HH(2,0) = tmp[2][0] * gj;
+          HH(2,1) = tmp[2][1] * gj;
+          HH(2,2) = tmp[2][2] * gj;
         case 2:
-          H(0,1) = tmp[0][1] * gj;
-          H(1,0) = tmp[1][0] * gj;
-          H(1,1) = tmp[1][1] * gj;
+          HH(0,1) = tmp[0][1] * gj;
+          HH(1,0) = tmp[1][0] * gj;
+          HH(1,1) = tmp[1][1] * gj;
         case 1:
-          H(0,0) = tmp[0][0] * gj;
+          HH(0,0) = tmp[0][0] * gj;
         case 0: 
           break;
         default: assert(false);

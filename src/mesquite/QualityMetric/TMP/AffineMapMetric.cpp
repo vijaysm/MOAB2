@@ -86,21 +86,21 @@ void AffineMapMetric::get_evaluations( PatchData& pd,
 }
 
 void AffineMapMetric::get_element_evaluations( PatchData& pd,
-                                               size_t elem,
+                                               size_t p_elem,
                                                std::vector<size_t>& handles,
                                                MsqError& err )
 {
-  get_elem_sample_points( pd, elem, handles, err );
+  get_elem_sample_points( pd, p_elem, handles, err );
 }
 
-bool AffineMapMetric::evaluate( PatchData& pd, size_t handle, double& value, MsqError& err )
+bool AffineMapMetric::evaluate( PatchData& pd, size_t p_handle, double& value, MsqError& err )
 {
-  Sample s = ElemSampleQM::sample( handle );
-  size_t e = ElemSampleQM::  elem( handle );
-  MsqMeshEntity& elem = pd.element_by_index( e );
-  EntityTopology type = elem.get_element_type();
+  Sample s = ElemSampleQM::sample( p_handle );
+  size_t e = ElemSampleQM::  elem( p_handle );
+  MsqMeshEntity& p_elem = pd.element_by_index( e );
+  EntityTopology type = p_elem.get_element_type();
   unsigned edim = TopologyInfo::dimension( type );
-  const size_t* conn = elem.get_vertex_index_array();
+  const size_t* conn = p_elem.get_vertex_index_array();
   
     // This metric only supports sampling at corners, except for simplices.
     // If element is a simpex, then the Jacobian is constant over a linear 
@@ -166,16 +166,16 @@ bool AffineMapMetric::evaluate( PatchData& pd, size_t handle, double& value, Msq
 }
 
 bool AffineMapMetric::evaluate_with_indices( PatchData& pd,
-                                             size_t handle,
+                                             size_t p_handle,
                                              double& value,
                                              std::vector<size_t>& indices,
                                              MsqError& err )
 {
-  Sample   s = ElemSampleQM::sample( handle );
-  size_t   e = ElemSampleQM::  elem( handle );
-  MsqMeshEntity& elem = pd.element_by_index( e );
-  EntityTopology type = elem.get_element_type();
-  const size_t* conn = elem.get_vertex_index_array();
+  Sample   s = ElemSampleQM::sample( p_handle );
+  size_t   e = ElemSampleQM::  elem( p_handle );
+  MsqMeshEntity& p_elem = pd.element_by_index( e );
+  EntityTopology type = p_elem.get_element_type();
+  const size_t* conn = p_elem.get_vertex_index_array();
   
     // this metric only supports sampling at corners
   if (s.dimension != 0) {
@@ -196,7 +196,7 @@ bool AffineMapMetric::evaluate_with_indices( PatchData& pd,
     if (conn[adj[i]] < pd.num_free_vertices())
       indices.push_back(conn[adj[i]]);
   
-  return evaluate( pd, handle, value, err );
+  return evaluate( pd, p_handle, value, err );
 }
 
 } // namespace Mesquite

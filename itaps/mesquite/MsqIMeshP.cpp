@@ -77,7 +77,7 @@ namespace MESQUITE_NS
 void MsqIMeshP::vertices_get_global_id(const VertexHandle vert_array[],
 					      size_t gid[],
 					      size_t num_vtx,
-					      MsqError& err)
+					      MsqError& /*err*/)
 {
   int itaps_err;
   // get a local part id
@@ -111,7 +111,7 @@ void MsqIMeshP::vertices_get_global_id(const VertexHandle vert_array[],
 void MsqIMeshP::vertices_get_processor_id(const VertexHandle vert_array[],
 						 int pid[],
 						 size_t num_vtx,
-						 MsqError& err)
+						 MsqError& /*err*/)
 {
   int itaps_err;
   for (unsigned i = 0; i < num_vtx; i++)

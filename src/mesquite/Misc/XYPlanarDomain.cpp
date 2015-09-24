@@ -34,7 +34,7 @@
 
 Mesquite::XYPlanarDomain::~XYPlanarDomain() {}
 
-void Mesquite::XYPlanarDomain::snap_to(Mesquite::Mesh::VertexHandle entity_handle,
+void Mesquite::XYPlanarDomain::snap_to(Mesquite::Mesh::VertexHandle /*entity_handle*/,
                                        Vector3D &coordinate) const
 {
   coordinate[2] = 0.0;
@@ -66,7 +66,7 @@ void Mesquite::XYPlanarDomain::vertex_normal_at(const Mesquite::Mesh::VertexHand
 void Mesquite::XYPlanarDomain::closest_point( Mesquite::Mesh::VertexHandle ,
                                               const Mesquite::Vector3D& position,
                                               Mesquite::Vector3D& closest,
-                                              Mesquite::Vector3D& normal,
+                                              Mesquite::Vector3D& /*normal*/,
                                               Mesquite::MsqError& ) const
 {
   closest = Vector3D(position[0], position[1], 0.0);

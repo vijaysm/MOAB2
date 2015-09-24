@@ -171,19 +171,19 @@ namespace MESQUITE_NS
     mCoords[1] = 0;
     mCoords[2] = 0;
   }
-  inline Vector3D::Vector3D( double x )
+  inline Vector3D::Vector3D( double p_x )
   {
-    mCoords[0] = x;
-    mCoords[1] = x;
-    mCoords[2] = x;
+    mCoords[0] = p_x;
+    mCoords[1] = p_x;
+    mCoords[2] = p_x;
   }
-  inline Vector3D::Vector3D( double x,
-                             double y,
-                             double z) 
+  inline Vector3D::Vector3D( double p_x,
+                             double p_y,
+                             double p_z) 
   {
-    mCoords[0] = x;
-    mCoords[1] = y;
-    mCoords[2] = z;
+    mCoords[0] = p_x;
+    mCoords[1] = p_y;
+    mCoords[2] = p_z;
   }
   inline Vector3D::Vector3D(const double xyz[3]) 
   { std::memcpy(mCoords, xyz, 3*sizeof(double)); }
@@ -197,11 +197,11 @@ namespace MESQUITE_NS
   { return mCoords[1]; }
   inline double Vector3D::z() const
   { return mCoords[2]; }
-  inline void Vector3D::get_coordinates(double &x, double &y, double &z) const
+  inline void Vector3D::get_coordinates(double &p_x, double &p_y, double &p_z) const
   {
-    x = mCoords[0]; 
-    y = mCoords[1]; 
-    z = mCoords[2];
+    p_x = mCoords[0]; 
+    p_y = mCoords[1]; 
+    p_z = mCoords[2];
   }
   inline void Vector3D::get_coordinates(double xyz[3]) const
   { std::memcpy(xyz, mCoords, 3*sizeof(double)); }
@@ -211,19 +211,19 @@ namespace MESQUITE_NS
   }
   
   // Functions to set coordinates
-  inline void Vector3D::x( const double x )
-  { mCoords[0] = x; }
-  inline void Vector3D::y( const double y )
-  { mCoords[1] = y; }
-  inline void Vector3D::z( const double z )
-  { mCoords[2] = z; }
-  inline void Vector3D::set(const double x,
-                            const double y,
-                            const double z)
+  inline void Vector3D::x( const double p_x )
+  { mCoords[0] = p_x; }
+  inline void Vector3D::y( const double p_y )
+  { mCoords[1] = p_y; }
+  inline void Vector3D::z( const double p_z )
+  { mCoords[2] = p_z; }
+  inline void Vector3D::set(const double p_x,
+                            const double p_y,
+                            const double p_z)
   {
-    mCoords[0] = x;
-    mCoords[1] = y;
-    mCoords[2] = z;
+    mCoords[0] = p_x;
+    mCoords[1] = p_y;
+    mCoords[2] = p_z;
   }
   inline void Vector3D::set(const double xyz[3])
   { std::memcpy(mCoords, xyz, 3*sizeof(double)); }

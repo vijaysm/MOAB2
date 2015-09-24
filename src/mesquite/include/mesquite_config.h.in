@@ -12,3 +12,6 @@
 
 /* System has stdint.h */
 #undef MSQ_HAVE_STDINT_H
+
+/* Location of mesh files for Mesquite tests */
+#undef MESH_FILES_DIR

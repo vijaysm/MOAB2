@@ -53,7 +53,7 @@ void CachingTargetCalculator::notify_sub_patch( PatchData& ,
                                                 PatchData& subpatch, 
                                                 const size_t* ,
                                                 const size_t* element_map,
-                                                MsqError& err )
+                                                MsqError& /*err*/ )
 {
     // If no cached data for this patch, just return
   if (data.has_data())

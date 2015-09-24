@@ -78,8 +78,8 @@ public:
      *  This matrix is the passed matrix with the 
      *  specified row and column removed.
      */
-  MsqMatrix( const MsqMatrix<R+1,C+1>& m, unsigned r, unsigned c )
-                                                      { make_minor(m,r,c); }
+  MsqMatrix( const MsqMatrix<R+1,C+1>& p_m, unsigned p_r, unsigned p_c )
+                                                      { make_minor(p_m,p_r,p_c); }
   
   MsqMatrix<R,C>& operator=( double v )                 { set(v); return *this; }
   MsqMatrix<R,C>& operator=( const double* v )          { set(v); return *this; }
@@ -219,15 +219,15 @@ public:
   MsqVector( const double* v )                        { MsqMatrix<L,1>::set(v); }
   MsqVector( const char* s )                          { MsqMatrix<L,1>::set(s); }
   MsqVector( const std::string& s )               { MsqMatrix<L,1>::set(s); }
-  MsqVector( const MsqMatrix<L,1>& m) : MsqMatrix<L,1>(m) {}
+  MsqVector( const MsqMatrix<L,1>& pm) : MsqMatrix<L,1>(pm) {}
   
   double& operator[](unsigned idx)                    { return MsqMatrix<L,1>::operator()(idx,0); }
   double  operator[](unsigned idx) const              { return MsqMatrix<L,1>::operator()(idx,0); }
   double& operator()(unsigned idx)                    { return MsqMatrix<L,1>::operator()(idx,0); }
   double  operator()(unsigned idx) const              { return MsqMatrix<L,1>::operator()(idx,0); }
 
-  MsqVector<L>& operator=( const MsqMatrix<L,1>& m )
-    { MsqMatrix<L,1>::operator=(m); return *this; }
+  MsqVector<L>& operator=( const MsqMatrix<L,1>& p_m )
+    { MsqMatrix<L,1>::operator=(p_m); return *this; }
 };
 
 /**\brief A subclass of MsqMatrix that behaves more like the old Matrix3D class

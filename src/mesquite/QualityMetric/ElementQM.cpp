@@ -49,7 +49,7 @@ void ElementQM::get_evaluations( PatchData& pd,
 void ElementQM::get_element_evaluations( PatchData& pd, 
                         std::vector<size_t>& handles,
                         bool free_vertices_only, 
-                        MsqError& err )
+                        MsqError& /*err*/ )
 {
   size_t num_elem = pd.num_elements();
   if (!free_vertices_only) {

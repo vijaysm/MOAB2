@@ -39,7 +39,7 @@ namespace MESQUITE_NS {
 void BoundedCylinderDomain::domain_DoF( const Mesh::VertexHandle* handle_array,
                                         unsigned short* dof_array,
                                         size_t count,
-                                        MsqError& err ) const
+                                        MsqError&  ) const
 {
   double t;
   for (size_t i = 0; i < count; ++i)

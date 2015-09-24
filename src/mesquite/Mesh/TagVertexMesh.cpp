@@ -261,7 +261,7 @@ void TagVertexMesh::release()
   MeshDecorator::release();
 }
 
-void TagVertexMesh::initialize_queue( MeshDomainAssoc* mesh_and_domain,
+void TagVertexMesh::initialize_queue( MeshDomainAssoc* ,
                                       const Settings* ,
                                       MsqError&  )
 {

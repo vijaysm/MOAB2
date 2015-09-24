@@ -74,8 +74,8 @@ namespace MESQUITE_NS
     MESQUITE_EXPORT PatchData();
     MESQUITE_EXPORT ~PatchData();
     
-    MESQUITE_EXPORT void attach_settings( const Settings* settings )
-      { mSettings = settings; }
+    MESQUITE_EXPORT void attach_settings( const Settings* p_settings )
+      { mSettings = p_settings; }
     MESQUITE_EXPORT const Settings* settings() const
       { return mSettings; }
     

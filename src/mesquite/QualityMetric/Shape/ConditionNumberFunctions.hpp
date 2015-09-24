@@ -126,9 +126,9 @@ namespace MESQUITE_NS
    //} //namespace
 
    static inline bool condition_number_3d( const Vector3D temp_vec[],
-                                           PatchData &pd,
+                                           PatchData &/*pd*/,
                                            double &fval,
-                                           MsqError &err)
+                                           MsqError &/*err*/)
    {   
        //norm squared of J
      double term1=temp_vec[0]%temp_vec[0]+

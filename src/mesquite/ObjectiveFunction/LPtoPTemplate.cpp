@@ -79,7 +79,7 @@ ObjectiveFunction* LPtoPTemplate::clone() const
   { return new LPtoPTemplate(*this); }
 
 double LPtoPTemplate::get_value( double power_sum, size_t count, EvalType type,
-                                 size_t& global_count, MsqError& err )
+                                 size_t& global_count, MsqError& /*err*/ )
 {
   double result = 0;
   switch (type) 

@@ -51,8 +51,8 @@ public:
      *\param free_vertices_only Skip fixed vertices if true.
      */
     inline 
-    VertexPatches( unsigned num_layers = 1, bool free_vertices_only = true ) 
-      : numLayers(num_layers), freeVertices(free_vertices_only) {}
+    VertexPatches( unsigned p_num_layers = 1, bool p_free_vertices_only = true ) 
+      : numLayers(p_num_layers), freeVertices(p_free_vertices_only) {}
     
     MESQUITE_EXPORT
     ~VertexPatches();

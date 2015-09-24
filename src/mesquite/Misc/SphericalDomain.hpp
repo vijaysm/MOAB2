@@ -48,8 +48,8 @@ namespace MESQUITE_NS
   class MESQUITE_EXPORT SphericalDomain : public Mesquite::MeshDomain
   {
   public:
-    SphericalDomain(const Vector3D& center, double radius )
-        : mCenter(center), mRadius(radius)
+    SphericalDomain(const Vector3D& p_center, double p_radius )
+        : mCenter(p_center), mRadius(p_radius)
       {}
       
     SphericalDomain()
@@ -57,10 +57,10 @@ namespace MESQUITE_NS
 
     virtual ~SphericalDomain();
 
-    void set_sphere(const Vector3D& center, double radius)
+    void set_sphere(const Vector3D& p_center, double p_radius)
       {
-        mCenter = center;
-        mRadius = radius;
+        mCenter = p_center;
+        mRadius = p_radius;
       }
       
     void fit_vertices( Mesh* mesh, 

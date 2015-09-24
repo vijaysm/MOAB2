@@ -44,7 +44,7 @@ TShapeSize3DNB1::~TShapeSize3DNB1() {}
 
 bool TShapeSize3DNB1::evaluate( const MsqMatrix<3,3>& T, 
                                 double& result, 
-                                MsqError& )
+                                MsqError& /*err*/ )
 {
   const double nT = Frobenius(T);
   const double tau = det(T);
@@ -57,7 +57,7 @@ bool TShapeSize3DNB1::evaluate( const MsqMatrix<3,3>& T,
 bool TShapeSize3DNB1::evaluate_with_grad( const MsqMatrix<3,3>& T, 
                                           double& result, 
                                           MsqMatrix<3,3>& wrt_T,
-                                          MsqError&  )
+                                          MsqError& /*err*/ )
 {
   const double nT = Frobenius(T);
   const double tau = det(T);
@@ -75,7 +75,7 @@ bool TShapeSize3DNB1::evaluate_with_hess( const MsqMatrix<3,3>& T,
                                           double& result,
                                           MsqMatrix<3,3>& wrt_T,
                                           MsqMatrix<3,3> second[6],
-                                          MsqError& err )
+                                          MsqError& /*err*/ )
 {
   const double nT = Frobenius(T);
   const double tau = det(T);

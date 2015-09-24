@@ -172,17 +172,17 @@ void MeshImpl::set_all_fixed_flags( bool value, MsqError& err )
   }
 }
 
-void MeshImpl::set_all_slaved_flags( bool value, MsqError& err )
+void MeshImpl::set_all_slaved_flags( bool , MsqError& err )
 {
-  for (size_t i = 0; i < myMesh->max_element_index(); ++i) {
-    if (!myMesh->is_element_valid(i))
+  for (size_t e = 0; e < myMesh->max_element_index(); ++e) {
+    if (!myMesh->is_element_valid(e))
       continue;
     
       // Get element connectivity
-    const std::vector<size_t>& verts = myMesh->element_connectivity( i, err ); MSQ_ERRRTN(err);
+    const std::vector<size_t>& verts = myMesh->element_connectivity( e, err ); MSQ_ERRRTN(err);
     
       // Get element properties
-    EntityTopology type = myMesh->element_topology( i, err ); MSQ_ERRRTN(err);
+    EntityTopology type = myMesh->element_topology( e, err ); MSQ_ERRRTN(err);
     unsigned ncorner = TopologyInfo::corners(type);
     
     for (unsigned i = 0; i < ncorner; ++i) {
@@ -492,16 +492,16 @@ void MeshImpl::write_vtk(const char* out_filename, MsqError &err)
     if (!myTags->tag_has_vertex_data( f->second, err ))
       { ++f; continue; }
     
-    int count = 0;
+    int pcount = 0;
     for (e = f; e != fields.end() && e->first == f->first; ++e)
       if (myTags->tag_has_vertex_data( e->second, err ))
-        ++count;
-    if (!count)
+        ++pcount;
+    if (!pcount)
       continue;
     
     if (myTags->properties(f->second, err).vtkType == TagDescription::FIELD)
-      file << "FIELD " << f->first << " " << count << std::endl;
-    else if (count > 1)
+      file << "FIELD " << f->first << " " << pcount << std::endl;
+    else if (pcount > 1)
     {
       MSQ_SETERR(err)(MsqError::INTERNAL_ERROR,
         "Tag name \"%s\" conflicts with VTK field name in tag \"%s\"\n",
@@ -555,16 +555,16 @@ void MeshImpl::write_vtk(const char* out_filename, MsqError &err)
     if (!myTags->tag_has_element_data( f->second, err ))
       { ++f; continue; }
     
-    int count = 0;
+    int pcount = 0;
     for (e = f; e != fields.end() && e->first == f->first; ++e)
       if (myTags->tag_has_element_data( e->second, err ))
-        ++count;
-    if (!count)
+        ++pcount;
+    if (!pcount)
       continue;
     
     if (myTags->properties( f->second, err ).vtkType == TagDescription::FIELD)
-      file << "FIELD " << f->first << " " << count << std::endl;
-    else if (count > 1)
+      file << "FIELD " << f->first << " " << pcount << std::endl;
+    else if (pcount > 1)
     {
       MSQ_SETERR(err)(MsqError::INTERNAL_ERROR,
         "Tag name \"%s\" conflicts with VTK field name in tag \"%s\"\n",
@@ -1964,10 +1964,10 @@ void MeshImpl::vtk_read_unstructured_grid( FileTokenizer& tokens, MsqError& err 
       }
       
       tconn.resize( size );
-      const std::vector<size_t>& conn = myMesh->element_connectivity( i, err ); MSQ_ERRRTN(err);
+      const std::vector<size_t>& pconn = myMesh->element_connectivity( i, err ); MSQ_ERRRTN(err);
       for (size_t j = 0; j < size; ++j)
       {
-        tconn[j] = conn[info->vtkConnOrder[j]];
+        tconn[j] = pconn[info->vtkConnOrder[j]];
       }
         
       myMesh->reset_element( i, tconn, info->msqType, err );MSQ_ERRRTN(err);

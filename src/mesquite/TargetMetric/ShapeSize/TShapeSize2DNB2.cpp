@@ -73,7 +73,7 @@ bool TShapeSize2DNB2::evaluate( const MsqMatrix<2,2>& T,
 bool TShapeSize2DNB2::evaluate_with_grad( const MsqMatrix<2,2>& T, 
                                           double& result, 
                                           MsqMatrix<2,2>& deriv_wrt_T,
-                                          MsqError& err )
+                                          MsqError& /*err*/ )
 {
   double frob_sqr = sqr_Frobenius(T);
   double psi = sqrt( frob_sqr + 2.0*det(T) );
@@ -110,7 +110,7 @@ bool TShapeSize2DNB2::evaluate_with_hess( const MsqMatrix<2,2>& T,
                                           double& result, 
                                           MsqMatrix<2,2>& deriv_wrt_T,
                                           MsqMatrix<2,2> second[3],
-                                          MsqError& err )
+                                          MsqError& /*err*/ )
 {
   double frob_sqr = sqr_Frobenius(T);
   double psi = sqrt( frob_sqr + 2.0*det(T) );

@@ -113,7 +113,7 @@ void LineDomain::closest_point( Mesh::VertexHandle ,
 void LineDomain::domain_DoF( const Mesh::VertexHandle* ,
                              unsigned short* dof_array,
                              size_t num_handles,
-                             MsqError& err ) const
+                             MsqError&  ) const
   { std::fill( dof_array, dof_array+num_handles, 1 ); }
 
 
@@ -180,7 +180,7 @@ void CircleDomain::closest_point( Mesh::VertexHandle ,
 void CircleDomain::domain_DoF( const Mesh::VertexHandle* ,
                                unsigned short* dof_array,
                                size_t num_handles,
-                               MsqError& err ) const
+                               MsqError&  ) const
   { std::fill( dof_array, dof_array+num_handles, 1 ); }
 
 

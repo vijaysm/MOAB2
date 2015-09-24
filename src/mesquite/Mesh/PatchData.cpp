@@ -488,7 +488,7 @@ void PatchData::project_gradient( std::vector<Vector3D>& gradient, MsqError& err
       */
 double PatchData::get_max_vertex_movement_squared(PatchDataVerticesMemento*
                                                   memento,
-                                                  MsqError &err)
+                                                  MsqError &)
 {
   double max_dist = 0.0;
   for (size_t i = 0; i < memento->vertices.size(); ++i) {
@@ -599,7 +599,7 @@ void PatchData::get_vertex_element_indices(size_t vertex_index,
 
 const size_t* PatchData::get_vertex_element_adjacencies( size_t vertex_index,
                                                          size_t& array_len_out,
-                                                         MsqError& err )
+                                                         MsqError&  )
 {
     // Make sure we've got the data
   if (vertAdjacencyArray.empty())
@@ -1048,8 +1048,6 @@ void PatchData::get_subpatch(size_t center_vertex_index,
                              PatchData &subpatch,
                              MsqError &err)
 {
-  unsigned i;
-
     // Make sure we're in range
   if (center_vertex_index >= num_free_vertices())
   {
@@ -1067,7 +1065,7 @@ void PatchData::get_subpatch(size_t center_vertex_index,
     // a reverse lookup can be done using a binary search (std::lower_bound).
   std::vector<size_t> elements, vertices, offsets;
   vertices.push_back( center_vertex_index );
-  for (i = 0; i < num_adj_elem_layers; ++i)
+  for (unsigned i = 0; i < num_adj_elem_layers; ++i)
   {
     elements.clear();
     for (unsigned v = 0; v < vertices.size(); ++v)
@@ -1094,7 +1092,7 @@ void PatchData::get_subpatch(size_t center_vertex_index,
   
     // Allocate space for element connectivity info.
   size_t num_vert_uses = 0;
-  for (i = 0; i < elements.size(); ++i)
+  for (unsigned i = 0; i < elements.size(); ++i)
     num_vert_uses += element_by_index( elements[i] ).node_count();
   subpatch.elementArray.resize( elements.size() );
   subpatch.elementHandlesArray.resize( elements.size() );
@@ -1104,7 +1102,7 @@ void PatchData::get_subpatch(size_t center_vertex_index,
     // Construct element connectivity data in new patch,
     // and copy element type into new patch
   size_t curr_offset = 0;
-  for (i = 0; i < elements.size(); ++i)
+  for (unsigned i = 0; i < elements.size(); ++i)
   {
     MsqMeshEntity& elem = element_by_index( elements[i] );
     assert( i < elementArray.size() );
@@ -1119,7 +1117,7 @@ void PatchData::get_subpatch(size_t center_vertex_index,
         - vertices.begin();
     }
   }
-  offsets[i] = curr_offset;
+  offsets[elements.size()] = curr_offset;
   
     // Store index in this patch in vertex handle array of subpatch
     // so we can determine how vertices were reordered when setting
@@ -1131,11 +1129,11 @@ void PatchData::get_subpatch(size_t center_vertex_index,
   
     // All vertices except vertex at center_vertex_index are fixed.
   subpatch.byteArray.resize( vertices.size() );
-  for (size_t i = 0; i < vertices.size(); ++i) {
-    if (vertices[i] == center_vertex_index)
-      subpatch.byteArray[i] = vertexArray[vertices[i]].get_flags() & ~MsqVertex::MSQ_PATCH_FIXED;
+  for (size_t pi = 0; pi < vertices.size(); ++pi) {
+    if (vertices[pi] == center_vertex_index)
+      subpatch.byteArray[pi] = vertexArray[vertices[pi]].get_flags() & ~MsqVertex::MSQ_PATCH_FIXED;
     else
-      subpatch.byteArray[i] = vertexArray[vertices[i]].get_flags() | MsqVertex::MSQ_PATCH_FIXED;
+      subpatch.byteArray[pi] = vertexArray[vertices[pi]].get_flags() | MsqVertex::MSQ_PATCH_FIXED;
   }
   
     // Re-order vertices and initialize other data in subpatch
@@ -1146,7 +1144,7 @@ void PatchData::get_subpatch(size_t center_vertex_index,
     // the indices into this PatchData for each vertex, as reordered by the
     // call to initialize_data.
   subpatch.vertexArray.resize( vertices.size() );
-  for (i = 0; i < vertices.size(); ++i)
+  for (unsigned i = 0; i < vertices.size(); ++i)
   {
     size_t vert_index = (size_t)(subpatch.vertexHandlesArray[i]);
     vertices[i] = vert_index;
@@ -1608,7 +1606,7 @@ void print_patch_data( const PatchData& pd )
 
 void PatchData::enslave_higher_order_nodes( const size_t* elem_offset_array,
                                             unsigned char* vertex_flags,
-                                            MsqError& err ) const
+                                            MsqError&  ) const
 {
   for (size_t i = 0; i < elementArray.size(); ++i)
   {
@@ -1625,7 +1623,7 @@ void PatchData::enslave_higher_order_nodes( const size_t* elem_offset_array,
 
 void PatchData::initialize_data( size_t* elem_offset_array, 
                                  unsigned char* vertex_flags,
-                                 MsqError& err )
+                                 MsqError&  )
 {
     // Clear out data specific to patch
   vertexNormalIndices.clear();

@@ -43,8 +43,8 @@ namespace MESQUITE_NS {
 class IndexIterator : public EntityIterator
 {
 public:
-  IndexIterator( size_t mStart, size_t mEnd )
-    : mStart(mStart), mEnd(mEnd), mCurrent(mStart) {}
+  IndexIterator( size_t pStart, size_t pEnd )
+    : mStart(pStart), mEnd(pEnd), mCurrent(pStart) {}
   virtual ~IndexIterator() {}
   virtual void restart() { mCurrent = mStart; }
   virtual Mesh::EntityHandle operator*() const
@@ -294,7 +294,7 @@ void ArrayMesh::get_all_vertices( std::vector<VertexHandle>& vertices, MsqError&
 VertexIterator* ArrayMesh::vertex_iterator( MsqError& )
   { return new IndexIterator( oneBasedArrays, vertexCount + oneBasedArrays ); }
 
-ElementIterator* ArrayMesh::element_iterator( MsqError& err )
+ElementIterator* ArrayMesh::element_iterator( MsqError&  )
   { return new IndexIterator( 0, elementCount ); }
 
 void ArrayMesh::vertices_get_fixed_flag( const VertexHandle vert_array[], 
@@ -374,7 +374,7 @@ void ArrayMesh::vertex_set_byte( VertexHandle vertex, unsigned char byte, MsqErr
 void ArrayMesh::vertices_set_byte( const VertexHandle *vert_array,
                                    const unsigned char *byte_array,
                                    size_t array_size, 
-                                   MsqError &err )
+                                   MsqError & )
 {
   const size_t* indices = (const size_t*)vert_array;
   for (size_t i = 0; i < array_size; ++i) {
@@ -392,7 +392,7 @@ void ArrayMesh::vertex_get_byte( VertexHandle vertex, unsigned char* byte, MsqEr
 void ArrayMesh::vertices_get_byte( const VertexHandle *vert_array,
                                    unsigned char *byte_array,
                                    size_t array_size, 
-                                   MsqError &err )
+                                   MsqError & )
 {
   const size_t* indices = (const size_t*)vert_array;
   for (size_t i = 0; i < array_size; ++i) {
@@ -676,7 +676,7 @@ void ArrayMesh::tag_properties( TagHandle handle,
                                 std::string& name, 
                                 TagType& type, 
                                 unsigned& size, 
-                                MsqError& err )
+                                MsqError&  )
 {
   const Tag* ptr = reinterpret_cast<const Tag*>(handle);
   name = ptr->name;

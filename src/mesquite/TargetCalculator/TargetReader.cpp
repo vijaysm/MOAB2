@@ -282,12 +282,12 @@ void TargetReader::notify_new_patch( PatchData&, TargetReaderData& data )
   data.targetsSurface.clear();
 }
 
-void TargetReader::notify_sub_patch( PatchData& pd, 
+void TargetReader::notify_sub_patch( PatchData& /*pd*/, 
                                      TargetReaderData& data,
                                      PatchData& subpatch,
                                      const size_t*,
                                      const size_t*,
-                                     MsqError& err )
+                                     MsqError& /*err*/ )
 {
   TargetReaderData& other = get_data(subpatch);
   if (other.handles2D.empty() && other.handles3D.empty()) {

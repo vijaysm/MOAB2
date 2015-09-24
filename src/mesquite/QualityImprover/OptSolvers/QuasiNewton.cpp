@@ -115,43 +115,43 @@ void QuasiNewton::solve( Vector3D* z_arr, const Vector3D* v_arr ) const
 
       // ensure positive definite: perturb a bit if
       // diagonal values are zero.
-    SymMatrix3D d = mHess[i];
-    while (fabs(d[0]) < small || fabs(d[3]) < small || fabs(d[5]) < small)
-      d += small;
+    SymMatrix3D dd = mHess[i];
+    while (fabs(dd[0]) < small || fabs(dd[3]) < small || fabs(dd[5]) < small)
+      dd += small;
 
       // factor
-    pd[0] = 1.0 / d[0];
-    pd[1] = d[1] * pd[0];
-    pd[2] = d[2] * pd[0];
+    pd[0] = 1.0 / dd[0];
+    pd[1] = dd[1] * pd[0];
+    pd[2] = dd[2] * pd[0];
     
-    pd[3] = 1.0 / (d[3] - d[1]*pd[1]);
-    pd[5] = d[4] - d[2]*pd[1];
+    pd[3] = 1.0 / (dd[3] - dd[1]*pd[1]);
+    pd[5] = dd[4] - dd[2]*pd[1];
     pd[4] = pd[3] * pd[5];
-    pd[5] = 1.0 / (d[5] - d[2]*pd[2] - pd[4]*pd[5]);
+    pd[5] = 1.0 / (dd[5] - dd[2]*pd[2] - pd[4]*pd[5]);
     
     if (pd[0] <= 0.0 || pd[3] <= 0.0 || pd[5] <= 0.0) {
-      if (d[0] + d[3] + d[5] <= 0) {
+      if (dd[0] + dd[3] + dd[5] <= 0) {
           // switch to diagonal
-        pd[0] = 1.0 / fabs(d[0]);
+        pd[0] = 1.0 / fabs(dd[0]);
         pd[1] = 0.0;
         pd[2] = 0.0;
-        pd[3] = 1.0 / fabs(d[3]);
+        pd[3] = 1.0 / fabs(dd[3]);
         pd[4] = 0.0;
-        pd[5] = 1.0 / fabs(d[5]);
+        pd[5] = 1.0 / fabs(dd[5]);
       }
       else {
           // diagonal preconditioner
-        pd[0] = pd[3] = pd[5] = 1.0 / (d[0] + d[3] + d[5]);
+        pd[0] = pd[3] = pd[5] = 1.0 / (dd[0] + dd[3] + dd[5]);
         pd[1] = pd[2] = pd[4] = 0.0;
       }
     }
 
       // solve
-    const Vector3D& v = v_arr[i];
+    const Vector3D& vv = v_arr[i];
     Vector3D& z = z_arr[i];
-    z[0] = v[0];
-    z[1] = v[1] - pd[1]*z[0];
-    z[2] = v[2] - pd[2]*z[0] - pd[4]*z[1];
+    z[0] = vv[0];
+    z[1] = vv[1] - pd[1]*z[0];
+    z[2] = vv[2] - pd[2]*z[0] - pd[4]*z[1];
 
     z[0] *= pd[0];
     z[1] *= pd[3];
@@ -174,7 +174,7 @@ void QuasiNewton::optimize_vertex_positions( PatchData& pd, MsqError& err )
   const double tol1 = 1e-8;
   const double epsilon = 1e-10;
 
-  double norm_r; //, norm_g;
+  // double norm_r; //, norm_g;
   double alpha, beta;
   double obj, objn;
 
@@ -270,7 +270,7 @@ void QuasiNewton::optimize_vertex_positions( PatchData& pd, MsqError& err )
     v[QNVEC-1].swap( v[0] );
     
     func.update( pd, obj, v[QNVEC], mHess, err ); MSQ_ERRRTN(err);
-    norm_r = length_squared( &(v[QNVEC][0]), nn );
+    // norm_r = length_squared( &(v[QNVEC][0]), nn );
     //norm_g = sqrt(norm_r);
 
     // checks stopping criterion 

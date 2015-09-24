@@ -144,12 +144,12 @@ const unsigned long MOVEMENT_FLAGS = VERTEX_MOVEMENT_ABSOLUTE |
 
 /*!Constructor initializes all of the data members which are not
   necessarily automatically initialized in their constructors.*/
-  TerminationCriterion::TerminationCriterion(std::string name, InnerOuterType innerOuterType)
+  TerminationCriterion::TerminationCriterion(std::string name, InnerOuterType pinnerOuterType)
   : mGrad(8),
     initialVerticesMemento(0),
     previousVerticesMemento(0),
     debugLevel(2),
-    timeStepFileType(NOTYPE), moniker(name), innerOuterType(innerOuterType)
+    timeStepFileType(NOTYPE), moniker(name), innerOuterType(pinnerOuterType)
 {
   terminationCriterionFlag=NONE;
   cullingMethodFlag=NONE;
@@ -1036,7 +1036,7 @@ bool TerminationCriterion::cull_vertices_global(PatchData &global_patch,
   patch.set_domain( domain );
   patch.attach_settings( settings );
 
-  const MsqVertex* global_patch_vertex_array = global_patch.get_vertex_array( err );
+  // const MsqVertex* global_patch_vertex_array = global_patch.get_vertex_array( err );
   Mesh::VertexHandle* global_patch_vertex_handles = global_patch.get_vertex_handles_array();
 
   int num_culled = 0;
@@ -1114,7 +1114,7 @@ size_t TerminationCriterion::count_inverted( PatchData& pd, MsqError& err )
   mGrad vector if neccessary.
   When culling, we remove the soft fixed flags from all of the vertices.
  */
-void TerminationCriterion::cleanup(Mesh* mesh, MeshDomain*, MsqError &err)
+void TerminationCriterion::cleanup(Mesh* , MeshDomain*, MsqError &)
 {
   delete previousVerticesMemento;
   delete initialVerticesMemento;

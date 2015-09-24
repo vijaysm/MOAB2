@@ -245,11 +245,11 @@ bool ObjectiveFunction::evaluate_with_Hessian_diagonal( EvalType type,
   return val;
 }
 
-bool ObjectiveFunction::evaluate_with_Hessian( EvalType type, 
-                                               PatchData& pd,
-                                               double& value_out,
-                                               std::vector<Vector3D>& grad_out,
-                                               MsqHessian& Hessian_out,
+bool ObjectiveFunction::evaluate_with_Hessian( EvalType /*type*/, 
+                                               PatchData& /*pd*/,
+                                               double& /*value_out*/,
+                                               std::vector<Vector3D>& /*grad_out*/,
+                                               MsqHessian& /*Hessian_out*/,
                                                MsqError& err ) 
 {
       MSQ_SETERR(err)("No Hessian available for this objective function.\n"

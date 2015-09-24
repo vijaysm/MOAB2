@@ -200,7 +200,7 @@ bool TargetCalculator::factor_3D( const MsqMatrix<3,3>& A,
                                   MsqMatrix<3,3>& V,
                                   MsqMatrix<3,3>& Q,
                                   MsqMatrix<3,3>& Delta,
-                                  MsqError& err )
+                                  MsqError& /*err*/ )
 {
   MsqVector<3> a1xa2 = A.column(0) * A.column(1);
   double alpha = a1xa2 % A.column(2);
@@ -253,7 +253,7 @@ bool TargetCalculator::factor_surface( const MsqMatrix<3,2>& A,
                                   MsqMatrix<3,2>& V,
                                   MsqMatrix<2,2>& Q,
                                   MsqMatrix<2,2>& Delta,
-                                  MsqError& err )
+                                  MsqError& /*err*/ )
 {
   MsqVector<3> cross = A.column(0) * A.column(1);
   double alpha = length(cross);
@@ -286,7 +286,7 @@ bool TargetCalculator::factor_2D( const MsqMatrix<2,2>& A,
                                   MsqMatrix<2,2>& V,
                                   MsqMatrix<2,2>& Q,
                                   MsqMatrix<2,2>& Delta,
-                                  MsqError& err )
+                                  MsqError& /*err*/ )
 {
   double alpha = det(A);
   Lambda = sqrt(fabs(alpha));

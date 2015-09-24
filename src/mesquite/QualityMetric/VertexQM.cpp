@@ -50,7 +50,7 @@ void VertexQM::get_evaluations( PatchData& pd,
 void VertexQM::get_vertex_evaluations( PatchData& pd, 
                                        std::vector<size_t>& handles,
                                        bool free_vertices_only, 
-                                       MsqError& err )
+                                       MsqError& /*err*/ )
 {
   if (free_vertices_only) {
     handles.resize( pd.num_free_vertices() );

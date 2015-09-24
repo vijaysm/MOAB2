@@ -67,8 +67,8 @@ namespace MESQUITE_NS
 
     /*! Set parallel helper
      */
-    virtual void set_parallel_helper(ParallelHelper* helper) {
-      this->helper = helper;
+    virtual void set_parallel_helper(ParallelHelper* p_helper) {
+      this->helper = p_helper;
     }
 
     /*! Get parallel helper

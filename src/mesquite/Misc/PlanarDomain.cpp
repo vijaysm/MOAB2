@@ -42,8 +42,7 @@ void Mesquite::PlanarDomain::set_plane( const Mesquite::Vector3D& normal,
   mCoeff = -(mNormal % point);
 }
 
-void Mesquite::PlanarDomain::snap_to(Mesquite::Mesh::VertexHandle
-                                       entity_handle,
+void Mesquite::PlanarDomain::snap_to(Mesquite::Mesh::VertexHandle /*entity_handle*/,
                                      Vector3D &coordinate) const
 {
   coordinate -= mNormal * ( mNormal % coordinate + mCoeff );

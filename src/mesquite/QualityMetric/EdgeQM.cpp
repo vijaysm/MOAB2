@@ -135,21 +135,21 @@ void EdgeQM::get_edge_evaluations( PatchData& pd,
 }
 
 bool EdgeQM::evaluate_with_indices( PatchData& pd,
-                                    size_t handle,
+                                    size_t p_handle,
                                     double& value,
                                     std::vector<size_t>& indices,
                                     MsqError& err )
 {
-  const MsqMeshEntity& element = pd.element_by_index( elem(handle) );
+  const MsqMeshEntity& element = pd.element_by_index( elem(p_handle) );
   EntityTopology type = element.get_element_type(); 
-  const unsigned* verts = TopologyInfo::edge_vertices( type, edge(handle) );
+  const unsigned* verts = TopologyInfo::edge_vertices( type, edge(p_handle) );
   const size_t* conn = element.get_vertex_index_array();
   indices.clear();
   if (conn[verts[0]] < pd.num_free_vertices())
     indices.push_back( conn[verts[0]] );
   if (conn[verts[1]] < pd.num_free_vertices())
     indices.push_back( conn[verts[1]] );
-  return evaluate( pd, handle, value, err );
+  return evaluate( pd, p_handle, value, err );
 }
 
 } // namespace MESQUITE_NS

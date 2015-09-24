@@ -49,13 +49,13 @@ int EdgeLengthMetric::get_negate_flag() const
   { return 1; }
 
 bool EdgeLengthMetric::evaluate( PatchData& pd, 
-                 size_t handle, 
+                 size_t p_handle, 
                  double& value, 
                  MsqError& err )
 {
-  MsqMeshEntity& e = pd.element_by_index( elem(handle) );
+  MsqMeshEntity& e = pd.element_by_index( elem(p_handle) );
   const unsigned* vert_nums;
-  vert_nums = TopologyInfo::edge_vertices( e.get_element_type(), edge(handle), err );
+  vert_nums = TopologyInfo::edge_vertices( e.get_element_type(), edge(p_handle), err );
   MSQ_ERRZERO(err);
   size_t svi = e.get_vertex_index( vert_nums[0] );
   size_t evi = e.get_vertex_index( vert_nums[1] );
@@ -70,15 +70,15 @@ bool EdgeLengthMetric::evaluate( PatchData& pd,
 }
 
 bool EdgeLengthMetric::evaluate_with_gradient( PatchData& pd,
-                 size_t handle,
+                 size_t p_handle,
                  double& value,
                  std::vector<size_t>& indices,
                  std::vector<Vector3D>& gradient,
                  MsqError& err )
 {
-  MsqMeshEntity& e = pd.element_by_index( elem(handle) );
+  MsqMeshEntity& e = pd.element_by_index( elem(p_handle) );
   const unsigned* vert_nums;
-  vert_nums = TopologyInfo::edge_vertices( e.get_element_type(), edge(handle), err );
+  vert_nums = TopologyInfo::edge_vertices( e.get_element_type(), edge(p_handle), err );
   MSQ_ERRZERO(err);
   size_t svi = e.get_vertex_index( vert_nums[0] );
   size_t evi = e.get_vertex_index( vert_nums[1] );

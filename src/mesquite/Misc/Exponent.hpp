@@ -55,8 +55,8 @@ class Exponent
         funcPointer( get_func_ptr( exponent ) )
       {}
     
-    inline double raise( double value ) const
-      { return (this->*funcPointer)( value ); }
+    inline double raise( double p_value ) const
+      { return (this->*funcPointer)( p_value ); }
     
     void set_exponent( double exponent );
     

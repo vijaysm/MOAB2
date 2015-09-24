@@ -42,10 +42,10 @@ class BoundedCylinderDomain : public CylinderDomain
        *\param axis_direction - Vector defining the direction of the axis
        *\param axis_point     - A point through which the axis passes.
        */
-    inline BoundedCylinderDomain( double radius,
+    inline BoundedCylinderDomain( double pradius,
                            Vector3D axis_direction = Vector3D(0,0,1), 
                            Vector3D axis_point = Vector3D(0,0,0) )
-      : CylinderDomain( radius, axis_direction, axis_point ) {}
+      : CylinderDomain( pradius, axis_direction, axis_point ) {}
 
     
     virtual void domain_DoF( const Mesh::VertexHandle* handle_array,

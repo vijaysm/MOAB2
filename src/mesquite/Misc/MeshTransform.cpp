@@ -117,7 +117,7 @@ namespace MESQUITE_NS {
       }
     }      
 
-  void MeshTransform::initialize_queue( MeshDomainAssoc* mesh_and_domain,
+  void MeshTransform::initialize_queue( MeshDomainAssoc* ,
                                         const Settings* ,
                                         MsqError&  )
     {

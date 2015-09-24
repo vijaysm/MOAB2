@@ -318,8 +318,8 @@ ParallelHelperImpl::~ParallelHelperImpl()
 {
 }
 
-void ParallelHelperImpl::set_parallel_mesh(ParallelMesh* mesh) {
-  this->mesh = mesh;
+void ParallelHelperImpl::set_parallel_mesh(ParallelMesh* pmesh) {
+  this->mesh = pmesh;
 }
 
 void ParallelHelperImpl::set_communicator(size_t comm) {
@@ -468,10 +468,10 @@ void ParallelHelperImpl::smoothing_init(MsqError& err)
   {
     printf("[%d]i%d local %d remote %d ",rank,iteration,num_vtx_partition_boundary_local,num_vtx_partition_boundary_remote);
     printf("[%d]i%d pb1 ",rank,iteration);
-    for (i=0;i<num_vertex;i++) if (vtx_in_partition_boundary[i] == 1) printf("%d,%Zu ",i,gid[i]);
+    for (i=0;i<num_vertex;i++) if (vtx_in_partition_boundary[i] == 1) printf("%d,%lu ",i,gid[i]);
     printf("\n");
     printf("[%d]i%d pb2 ",rank,iteration);
-    for (i=0;i<num_vertex;i++) if (vtx_in_partition_boundary[i] == 2) printf("%d,%Zu ",i,gid[i]);
+    for (i=0;i<num_vertex;i++) if (vtx_in_partition_boundary[i] == 2) printf("%d,%lu ",i,gid[i]);
     printf("\n");
     fflush(NULL);
   }
@@ -515,7 +515,7 @@ void ParallelHelperImpl::smoothing_init(MsqError& err)
 	vtx_partition_boundary_map_inverse[i] = j;
 	/* only insert those vertices in the map that are smoothed on other processors */
 	vertex_map_insert(vid_map, part_gid[j], part_proc_owner[j], j);
-	// printf("[%d] inserting vertex with gid %Zu and pid %d \n", rank, part_gid[j], part_proc_owner[j]);	  
+	// printf("[%d] inserting vertex with gid %u and pid %d \n", rank, part_gid[j], part_proc_owner[j]);	  
 	j++;
     }
   }
@@ -1412,7 +1412,7 @@ int ParallelHelperImpl::comm_smoothed_vtx_tnb(MsqError& err)
 	part_smoothed_flag[local_id] = 1;
       }
       else {
-	printf("[%d]i%d vertex with gid %Zu and pid %d not in map\n",rank,iteration,packed_vertices_import[k][i].glob_id,neighbourProc[k]);
+	printf("[%d]i%d vertex with gid %lu and pid %d not in map\n",rank,iteration,packed_vertices_import[k][i].glob_id,neighbourProc[k]);
       }
     }
     num_neighbourProcRecv--;
@@ -1612,7 +1612,7 @@ int ParallelHelperImpl::comm_smoothed_vtx_tnb_no_all( MsqError& err )
         part_smoothed_flag[local_id] = 1;
       }
       else {
-	printf("[%d]i%d vertex with gid %Zu and pid %d not in map\n",rank,iteration,packed_vertices_import[k][i].glob_id,neighbourProc[k]);
+	printf("[%d]i%d vertex with gid %lu and pid %d not in map\n",rank,iteration,packed_vertices_import[k][i].glob_id,neighbourProc[k]);
       }
     }
     num_neighbourProcRecv--;
@@ -1822,7 +1822,7 @@ int ParallelHelperImpl::comm_smoothed_vtx_nb(MsqError& err)
 	if (0) printf("[%d]i%d updating vertex with global_id %d to %g %g %g \n", rank, iteration, (int)(packed_vertices_import[k][i].glob_id), packed_vertices_import[k][i].x, packed_vertices_import[k][i].y, packed_vertices_import[k][i].z);
       }
       else {
-	printf("[%d]i%d vertex with gid %Zu and pid %d not in map\n",rank,iteration,packed_vertices_import[k][i].glob_id,neighbourProcRecv[k]);
+	printf("[%d]i%d vertex with gid %lu and pid %d not in map\n",rank,iteration,packed_vertices_import[k][i].glob_id,neighbourProcRecv[k]);
       }
     }
   }
@@ -2036,7 +2036,7 @@ int ParallelHelperImpl::comm_smoothed_vtx_nb_no_all(MsqError& err)
 	if (0) printf("[%d]i%d updating vertex with global_id %d to %g %g %g \n", rank, iteration, (int)(packed_vertices_import[k][i].glob_id), packed_vertices_import[k][i].x, packed_vertices_import[k][i].y, packed_vertices_import[k][i].z);
       }
       else {
-	printf("[%d]i%d vertex with gid %Zu and pid %d not in map\n",rank,iteration,packed_vertices_import[k][i].glob_id,neighbourProcRecv[k]);  
+	printf("[%d]i%d vertex with gid %lu and pid %d not in map\n",rank,iteration,packed_vertices_import[k][i].glob_id,neighbourProcRecv[k]);  
       }
     }
   }
@@ -2136,7 +2136,7 @@ int ParallelHelperImpl::comm_smoothed_vtx_b(MsqError& err)
 
   int num;
   int proc;
-  int tag;
+  // int tag;
   int count;
   int numVtxImport = 0;
   MPI_Status status;
@@ -2156,7 +2156,7 @@ int ParallelHelperImpl::comm_smoothed_vtx_b(MsqError& err)
              &status);          /* info about the received message */
     CHECK_MPI_RZERO( rval, err );
     proc = status.MPI_SOURCE;
-    tag = status.MPI_TAG;
+    // tag = status.MPI_TAG;
     MPI_Get_count(&status, MPI_INT, &count);
 
     //    printf("[%d]i%dp%d Receiving %d vertices from proc %d/%d/%d\n",rank,iteration,pass,num,proc,tag,count); fflush(NULL);
@@ -2186,7 +2186,7 @@ int ParallelHelperImpl::comm_smoothed_vtx_b(MsqError& err)
       CHECK_MPI_RZERO( rval, err );
 
       proc = status.MPI_SOURCE;
-      tag = status.MPI_TAG;
+      // tag = status.MPI_TAG;
       MPI_Get_count(&status, MPI_DOUBLE_PRECISION, &count);
 
       if (count != 4*num) printf("[%d]i%d WARNING: expected %d vertices = %d bytes from proc %d but only got %d bytes\n",rank,iteration,num,num*4,proc,count); fflush(NULL);
@@ -2208,7 +2208,7 @@ int ParallelHelperImpl::comm_smoothed_vtx_b(MsqError& err)
 	  if (0) printf("[%d]i%d updating vertex with global_id %d to %g %g %g \n", rank,iteration, (int)(vertex_pack[i].glob_id), vertex_pack[i].x, vertex_pack[i].y, vertex_pack[i].z);
 	}
 	else {
-	  printf("[%d]i%d vertex with gid %Zu and pid %d not in map\n",rank,iteration,vertex_pack[i].glob_id,proc);
+	  printf("[%d]i%d vertex with gid %lu and pid %d not in map\n",rank,iteration,vertex_pack[i].glob_id,proc);
 	}
       }
     }
@@ -2313,7 +2313,7 @@ int ParallelHelperImpl::comm_smoothed_vtx_b_no_all(MsqError& err)
 
   int num;
   int proc;
-  int tag;
+  // int tag;
   int count;
   int numVtxImport = 0;
   MPI_Status status;
@@ -2339,7 +2339,7 @@ int ParallelHelperImpl::comm_smoothed_vtx_b_no_all(MsqError& err)
              &status);          /* info about the received message */
     CHECK_MPI_RZERO( rval, err );
     proc = status.MPI_SOURCE;
-    tag = status.MPI_TAG;
+    // tag = status.MPI_TAG;
     MPI_Get_count(&status, MPI_INT, &count);
 
     // printf("[%d]i%dp%d Receiving %d vertices from proc %d/%d/%d\n",rank,iteration,pass,num,proc,tag,count); fflush(NULL);
@@ -2369,7 +2369,7 @@ int ParallelHelperImpl::comm_smoothed_vtx_b_no_all(MsqError& err)
       CHECK_MPI_RZERO( rval, err );
 
       proc = status.MPI_SOURCE;
-      tag = status.MPI_TAG;
+      // tag = status.MPI_TAG;
       MPI_Get_count(&status, MPI_DOUBLE_PRECISION, &count);
 
       if (count != 4*num) printf("[%d]i%d WARNING: expected %d vertices = %d bytes from proc %d but only got %d bytes\n",rank,iteration,num,num*4,proc,count); fflush(NULL);
@@ -2391,7 +2391,7 @@ int ParallelHelperImpl::comm_smoothed_vtx_b_no_all(MsqError& err)
 	  if (0 && rank == 1) printf("[%d]i%d updating vertex with global_id %d to %g %g %g \n", rank,iteration, (int)(vertex_pack[i].glob_id), vertex_pack[i].x, vertex_pack[i].y, vertex_pack[i].z);
 	}
 	else {
-	  printf("[%d]i%d vertex with gid %Zu and pid %d not in map\n",rank,iteration,vertex_pack[i].glob_id,proc);
+	  printf("[%d]i%d vertex with gid %lu and pid %d not in map\n",rank,iteration,vertex_pack[i].glob_id,proc);
 	}
       }
     }
@@ -2516,13 +2516,13 @@ int ParallelHelperImpl::get_nprocs() const {
 bool ParallelHelperImpl::is_our_element(Mesquite::Mesh::ElementHandle element_handle,
                                         MsqError& err) const {
   int i;
-  std::vector<Mesh::VertexHandle> vertices;
+  std::vector<Mesh::VertexHandle> pvertices;
   std::vector<size_t> junk;
-  mesh->elements_get_attached_vertices(&element_handle, 1, vertices, junk, err);
+  mesh->elements_get_attached_vertices(&element_handle, 1, pvertices, junk, err);
   MSQ_ERRZERO(err);
-  int num_verts = vertices.size();
+  int num_verts = pvertices.size();
   std::vector<int> proc_ids(num_verts);
-  mesh->vertices_get_processor_id(ARRPTR(vertices), ARRPTR(proc_ids), num_verts, err);
+  mesh->vertices_get_processor_id(ARRPTR(pvertices), ARRPTR(proc_ids), num_verts, err);
   MSQ_ERRZERO(err);
   int max_proc_id = proc_ids[0];
   for (i = 1; i < num_verts; i++)
