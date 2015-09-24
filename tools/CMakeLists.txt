@@ -20,6 +20,10 @@ if ( MOAB_HAVE_MPI AND MPI_FOUND )
   add_subdirectory( refiner )
 endif ( )
 
+if (ENABLE_MESQUITE AND MOAB_HAVE_CGM)
+  add_subdirectory(mesquite)
+endif(ENABLE_MESQUITE AND MOAB_HAVE_CGM)
+
 include_directories(
   ${CMAKE_BINARY_DIR}
   ${CMAKE_BINARY_DIR}/src
