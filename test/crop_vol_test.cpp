@@ -29,19 +29,7 @@ std::string vol_file;
 int number_tests_successful = 0;
 int number_tests_failed = 0;
 
-#define PROCESS_ERROR(A, B)  {if (A!=MB_SUCCESS) {  std::cout << B << std::endl; return 1; } }
-
-#define CHECK( STR ) if (rval != MB_SUCCESS) return print_error( STR, rval, __FILE__, __LINE__ )
-
 using namespace moab;
-
-ErrorCode print_error(const char* desc, ErrorCode rval, const char* file,
-    int line)
-{
-  std::cerr << "ERROR: " << desc << std::endl << "  Error code: " << rval
-      << std::endl << "  At        : " << file << ':' << line << std::endl;
-  return MB_FAILURE; // must always return false or CHECK macro will break
-}
 
 ErrorCode volume_test(FBEngine * pFacet);
 
@@ -87,10 +75,10 @@ int main(int argc, char *argv[])
   Interface * mb = &mbcore;
 
   ErrorCode rval = mb->load_file(filename_bot.c_str());
-  PROCESS_ERROR(rval,"failed to load bed file");
+  MB_CHK_SET_ERR(rval,"failed to load bed file");
 
   rval = mb->load_file(filename_top.c_str());// load the second face (we know we have one face in each file)
-  PROCESS_ERROR(rval,"failed to load top file");
+  MB_CHK_SET_ERR(rval,"failed to load top file");
 
   FBEngine * pFacet = new FBEngine(mb, NULL, true);// smooth facetting, no OBB tree passed
 
@@ -101,7 +89,7 @@ int main(int argc, char *argv[])
   // should the init be part of constructor or not?
   // this is where the obb tree is constructed, and smooth faceting initialized, too.
   rval = pFacet->Init();
-  PROCESS_ERROR(rval,"failed to initialize smoothing");
+  MB_CHK_SET_ERR(rval,"failed to initialize smoothing");
 
   std::cout << "volume creation test: ";
   rval = volume_test(pFacet);
@@ -153,13 +141,13 @@ ErrorCode volume_test (FBEngine * pFacet)
   }
   EntityHandle root_set;
   ErrorCode rval = pFacet->getRootSet(&root_set);
-  CHECK( "ERROR : getRootSet failed!" );
+  MB_CHK_SET_ERR(rval, "ERROR : getRootSet failed!" );
 
   int top = 2; //  iBase_FACE;
 
   Range faces;
   rval = pFacet->getEntities(root_set, top, faces);
-  CHECK("Failed to get faces in volume_test.");
+  MB_CHK_SET_ERR(rval,"Failed to get faces in volume_test.");
 
 
   if (2!=faces.size())
@@ -169,16 +157,16 @@ ErrorCode volume_test (FBEngine * pFacet)
   }
   EntityHandle newFace1;// first test is with closed surface
   rval = pFacet->split_surface_with_direction(faces[0], xyz, direction,  /*closed*/1, min_dot, newFace1);
-  CHECK("Failed to crop first face.");
+  MB_CHK_SET_ERR(rval,"Failed to crop first face.");
 
   EntityHandle newFace2;// first test is with closed surface
   rval = pFacet->split_surface_with_direction(faces[1], xyz, direction, /*closed*/1, min_dot, newFace2);
-  CHECK("Failed to crop second face.");
+  MB_CHK_SET_ERR(rval,"Failed to crop second face.");
 
   // here we make the assumption that the edges, vertices are matching fine...
   EntityHandle volume;
   rval = pFacet->create_volume_with_direction(newFace1, newFace2, direction, volume);
-  CHECK("Failed to create volume.");
+  MB_CHK_SET_ERR(rval,"Failed to create volume.");
 
   Interface * mb = pFacet->moab_instance ();
   pFacet->delete_smooth_tags();
@@ -188,7 +176,7 @@ ErrorCode volume_test (FBEngine * pFacet)
   std::vector<EntityHandle> gents;
   gents.push_back(volume);
   rval = gtt->duplicate_model(duplicate, &gents);
-  CHECK("Failed to extract volume.");
+  MB_CHK_SET_ERR(rval,"Failed to extract volume.");
   EntityHandle newRootSet = duplicate->get_root_model_set() ;
   delete pFacet;
   pFacet = NULL;// try not to write the obb tree
