@@ -1595,8 +1595,6 @@ AC_CONFIG_FILES([src/mesquite/Makefile
                  test/mesquite/simple_hybrid_test/Makefile
                  test/mesquite/test_1/Makefile
                  test/mesquite/transform/Makefile
-                 test/mesquite/tutorial/Makefile
-                 test/mesquite/tutorial/tutorial.make
                  test/mesquite/unit/Makefile
                  test/mesquite/untangle_test/Makefile
                  test/mesquite/parallel_untangle_shape/Makefile 

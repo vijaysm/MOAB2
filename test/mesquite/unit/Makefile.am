@@ -6,8 +6,6 @@ AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
                -DMESHDIR=$(MESHDIR)
 
 LDADD = $(top_builddir)/src/mesquite/libmesquite.la
-AM_LDFLAGS = @AM_LDFLAGS@
-AM_CPPFLAGS = @AM_CPPFLAGS@
 
 if HAVE_CPPUNIT
   check_PROGRAMS = msq_test
