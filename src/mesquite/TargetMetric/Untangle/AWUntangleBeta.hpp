@@ -49,7 +49,7 @@ class AWUntangleBeta : public AWMetric
   public:
   
   MESQUITE_EXPORT
-  AWUntangleBeta( double gamma = 0.5 ) : mGamma(0.5) {}
+  AWUntangleBeta( double gamma = 0.5 ) : mGamma(gamma) {}
 
   MESQUITE_EXPORT virtual
   ~AWUntangleBeta();

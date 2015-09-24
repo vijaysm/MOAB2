@@ -174,7 +174,7 @@ double SlaveBoundaryVertices::loop_over_mesh( MeshDomainAssoc* mesh_and_domain,
   return 0.0;
 }
 
-void SlaveBoundaryVertices::initialize_queue( MeshDomainAssoc* mesh_and_domain,
+void SlaveBoundaryVertices::initialize_queue( MeshDomainAssoc* ,
                                               const Settings* ,
                                               MsqError&  )
 {

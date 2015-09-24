@@ -106,19 +106,19 @@ void XYRectangle::snap_to( Mesh::VertexHandle vertex,
     coordinate[i->second.axis] = i->second.coord;
 }
   
-void XYRectangle::vertex_normal_at( Mesh::VertexHandle handle, Vector3D &norm ) const
+void XYRectangle::vertex_normal_at( Mesh::VertexHandle /*handle*/, Vector3D &norm ) const
 {
   norm.set(0,0,0);
   norm[normalDir] = 1.0;
 }
   
-void XYRectangle::element_normal_at( Mesh::ElementHandle handle, Vector3D &norm ) const
+void XYRectangle::element_normal_at( Mesh::ElementHandle /*handle*/, Vector3D &norm ) const
 {
   norm.set(0,0,0);
   norm[normalDir] = 1.0;
 }
 
-void XYRectangle::vertex_normal_at( const Mesh::VertexHandle* vertices,
+void XYRectangle::vertex_normal_at( const Mesh::VertexHandle* /*vertices*/,
                                     Vector3D normals[],
                                     unsigned count,
                                     MsqError&  ) const

@@ -38,12 +38,12 @@ namespace MESQUITE_NS {
 ConicDomain::~ConicDomain() {}
 
 void ConicDomain::evaluate( Mesh::VertexHandle,
-                            const Vector3D& point,
+                            const Vector3D& p_point,
                             Vector3D& closest,
                             Vector3D& normal ) const
 {
   // translate such that cone point (mPoint) is at origin
-  Vector3D pt = point - mPoint;
+  Vector3D pt = p_point - mPoint;
 
   // find the plane containing both the input point an the axis
   Vector3D n = mAxis * pt;
@@ -71,13 +71,13 @@ void ConicDomain::evaluate( Mesh::VertexHandle,
   Vector3D v1 = p1 - apex;
   Vector3D v2 = p2 - apex;
   // Find closest point on each line to input position
-  double t1 = v1 % (point - apex) / (v1 % v1);
-  double t2 = v2 % (point - apex) / (v2 % v2);
+  double t1 = v1 % (p_point - apex) / (v1 % v1);
+  double t2 = v2 % (p_point - apex) / (v2 % v2);
   // Select the closest of the two
   p1 = apex + t1*v1;
   p2 = apex + t2*v2;
   double t;
-  if ((p1 - point).length_squared() < (p2 - point).length_squared()) {
+  if ((p1 - p_point).length_squared() < (p2 - p_point).length_squared()) {
     normal = v1 * n;
     closest = p1;
     t = t1;

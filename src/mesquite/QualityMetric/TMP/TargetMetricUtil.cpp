@@ -148,7 +148,7 @@ void get_sample_pt_evaluations( PatchData& pd,
 void get_elem_sample_points( PatchData& pd,
                              size_t elem,
                              std::vector<size_t>& handles,
-                             MsqError& err )
+                             MsqError& /*err*/ )
 {
   handles.clear();
   append_elem_samples( pd, elem, handles );

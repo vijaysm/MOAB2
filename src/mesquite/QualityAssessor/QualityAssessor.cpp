@@ -74,14 +74,14 @@ const char* default_name( bool free_only )
   return free_only ? free_name : all_name;
 }
 
-QualityAssessor::QualityAssessor( bool print_summary,
+QualityAssessor::QualityAssessor( bool p_print_summary,
                                   bool free_only,
                                   const char* inverted_tag_name,
-                                  std::string name) :
+                                  std::string p_name) :
   myData(new Data),
-  qualityAssessorName(name),
+  qualityAssessorName(p_name),
   outputStream( std::cout ),
-  printSummary( print_summary ),
+  printSummary( p_print_summary ),
   skipFixedSamples(free_only)
 {
   if (inverted_tag_name)
@@ -145,13 +145,13 @@ QualityAssessor::QualityAssessor( QualityMetric* metric,
                                   double power_mean,
                                   bool free_only,
                                   const char* metric_value_tag_name,
-                                  bool print_summary,
+                                  bool p_print_summary,
                                   const char* inverted_tag_name,
                                   std::string name) :
   myData(new Data),
   qualityAssessorName(name),
   outputStream( std::cout ),
-  printSummary( print_summary ),
+  printSummary( p_print_summary ),
   skipFixedSamples(free_only)
 {
   if (inverted_tag_name)
@@ -704,7 +704,7 @@ double QualityAssessor::loop_over_mesh_internal( MeshDomainAssoc* mesh_and_domai
   {
     vert_patches.get_patch_handles( patches, err ); MSQ_ERRZERO(err);
     
-    bool first_pass = false;
+    first_pass = false;
     do { // might need to loop twice to calculate histograms
       first_pass = !first_pass;
      

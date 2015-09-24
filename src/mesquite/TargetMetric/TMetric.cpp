@@ -190,16 +190,16 @@ do_numerical_hessian( TMetric* metric,
 
 TMetric::~TMetric() {}
 
-bool TMetric::evaluate( const MsqMatrix<2,2>& T, 
-               double& result, 
-               MsqError& err )
+bool TMetric::evaluate( const MsqMatrix<2,2>& /*T*/, 
+               double& /*result*/, 
+               MsqError& /*err*/ )
 {
   return false;
 }
 
-bool TMetric::evaluate( const MsqMatrix<3,3>& T, 
-               double& result, 
-               MsqError& err )
+bool TMetric::evaluate( const MsqMatrix<3,3>& /*T*/, 
+               double& /*result*/, 
+               MsqError& /*err*/ )
 {
   return false;
 }

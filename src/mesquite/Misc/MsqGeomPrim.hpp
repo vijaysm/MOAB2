@@ -48,8 +48,8 @@ class MESQUITE_EXPORT MsqLine
   
   public:
   
-    MsqLine( const Vector3D& point, const Vector3D& dir )
-      : mPoint(point), mDirection(dir/dir.length())
+    MsqLine( const Vector3D& p_point, const Vector3D& p_dir )
+      : mPoint(p_point), mDirection(p_dir/p_dir.length())
     {}
     
     MsqLine()
@@ -96,8 +96,8 @@ class MESQUITE_EXPORT MsqCircle
       : mCenter(0,0,0), mNormal(0,0,0), mRadius(0)
       {}
   
-    MsqCircle( const Vector3D& center, const Vector3D& normal, double radius )
-      : mCenter(center), mNormal(normal/normal.length()), mRadius(radius) 
+    MsqCircle( const Vector3D& p_center, const Vector3D& p_normal, double p_radius )
+      : mCenter(p_center), mNormal(p_normal/p_normal.length()), mRadius(p_radius) 
       {}
       
       //! Find circle passing through three points
@@ -145,8 +145,8 @@ class MESQUITE_EXPORT MsqPlane
   
   public:
   
-    MsqPlane( const Vector3D& normal, double coeff );
-    MsqPlane( const Vector3D& normal, const Vector3D& point );
+    MsqPlane( const Vector3D& p_normal, double coeff );
+    MsqPlane( const Vector3D& p_normal, const Vector3D& p_point );
       //! ax+by+cz+d=0
     MsqPlane( double a, double b, double c, double d );
     
@@ -160,12 +160,12 @@ class MESQUITE_EXPORT MsqPlane
     Vector3D point() const { return -mCoeff * mNormal; }
     
       //! Get distance from point to plane
-    double distance( const Vector3D& point ) const
-      { return fabs( normal() % point + coefficient() ); }
+    double distance( const Vector3D& p_point ) const
+      { return fabs( normal() % p_point + coefficient() ); }
       
       //! Get closest location on plane to input position
-    Vector3D closest( const Vector3D& point ) const
-      { return point - normal() * (normal() % point + coefficient()); }
+    Vector3D closest( const Vector3D& p_point ) const
+      { return p_point - normal() * (normal() % p_point + coefficient()); }
     
       //! Find intersection of this plane with another.
       //!\return false if parallel or invalid plane, true otherwise
@@ -185,8 +185,8 @@ class MESQUITE_EXPORT MsqSphere
   
   public:
   
-    MsqSphere( const Vector3D& center, double radius )
-      : mCenter(center), mRadius(radius) {}
+    MsqSphere( const Vector3D& p_center, double p_radius )
+      : mCenter(p_center), mRadius(p_radius) {}
     
     const Vector3D& center() const { return mCenter; }
     double radius() const { return mRadius; }

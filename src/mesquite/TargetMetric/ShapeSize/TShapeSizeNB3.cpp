@@ -57,7 +57,7 @@ bool TShapeSizeNB3::evaluate( const MsqMatrix<2,2>& T,
 bool TShapeSizeNB3::evaluate_with_grad( const MsqMatrix<2,2>& T, 
                                               double& result, 
                                               MsqMatrix<2,2>& deriv_wrt_T,
-                                              MsqError& err )
+                                              MsqError& /*err*/ )
 {
   const double nT = sqr_Frobenius(T);
   const double tau = det(T);
@@ -75,7 +75,7 @@ bool TShapeSizeNB3::evaluate_with_hess( const MsqMatrix<2,2>& T,
                                               double& result, 
                                               MsqMatrix<2,2>& deriv_wrt_T,
                                               MsqMatrix<2,2> second[3],
-                                              MsqError& err )
+                                              MsqError& /*err*/ )
 {
   const double nT = sqr_Frobenius(T);
   const double tau = det(T);
@@ -97,7 +97,7 @@ bool TShapeSizeNB3::evaluate_with_hess( const MsqMatrix<2,2>& T,
 
 bool TShapeSizeNB3::evaluate( const MsqMatrix<3,3>& T, 
                               double& result, 
-                              MsqError& )
+                              MsqError& /*err*/ )
 {
   const double nT = Frobenius(T);
   const double tau = det(T);
@@ -110,7 +110,7 @@ bool TShapeSizeNB3::evaluate( const MsqMatrix<3,3>& T,
 bool TShapeSizeNB3::evaluate_with_grad( const MsqMatrix<3,3>& T, 
                                         double& result, 
                                         MsqMatrix<3,3>& wrt_T,
-                                        MsqError&  )
+                                        MsqError& /*err*/ )
 {
   const double nT = Frobenius(T);
   const double tau = det(T);
@@ -128,7 +128,7 @@ bool TShapeSizeNB3::evaluate_with_hess( const MsqMatrix<3,3>& T,
                                         double& result,
                                         MsqMatrix<3,3>& wrt_T,
                                         MsqMatrix<3,3> second[6],
-                                        MsqError& err )
+                                        MsqError& /*err*/ )
 {
   const double nT = Frobenius(T);
   const double tau = det(T);

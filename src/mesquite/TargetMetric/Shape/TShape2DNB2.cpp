@@ -57,7 +57,7 @@ bool TShape2DNB2::evaluate( const MsqMatrix<2,2>& T,
 bool TShape2DNB2::evaluate_with_grad( const MsqMatrix<2,2>& T,
                                       double& result,
                                       MsqMatrix<2,2>& deriv_wrt_T,
-                                      MsqError& err )
+                                      MsqError& /*err*/ )
 {
   const MsqMatrix<2,2> TtT = transpose(T) * T;
   const double tau = det(T);
@@ -77,7 +77,7 @@ bool TShape2DNB2::evaluate_with_hess( const MsqMatrix<2,2>& T,
                                       double& result,
                                       MsqMatrix<2,2>& deriv_wrt_T,
                                       MsqMatrix<2,2> second_wrt_T[3],
-                                      MsqError& err )
+                                      MsqError& /*err*/ )
 {
   const MsqMatrix<2,2> TtT = transpose(T) * T;
   const double tau = det(T);

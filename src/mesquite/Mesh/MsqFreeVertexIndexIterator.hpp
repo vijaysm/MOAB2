@@ -61,8 +61,8 @@ namespace MESQUITE_NS
     }  .*/
   class MsqFreeVertexIndexIterator {
   public:
-    MsqFreeVertexIndexIterator(const PatchData& pd, MsqError &err) :
-      iterOriginator(pd), iterCurrentIndex((size_t)-1)
+    MsqFreeVertexIndexIterator(const PatchData& p_pd, MsqError &) :
+      iterOriginator(p_pd), iterCurrentIndex((size_t)-1)
       {}
     //! Resets the iterator. 
     //! The next call to next() will set the iterator on the first free vertex. 

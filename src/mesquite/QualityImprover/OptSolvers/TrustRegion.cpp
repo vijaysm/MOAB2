@@ -119,7 +119,11 @@ static inline void times_eq_minus( Vector3D* v, double s, const Vector3D* x, siz
   }
 }
 
-void TrustRegion::compute_preconditioner( MsqError& err )
+void TrustRegion::compute_preconditioner( MsqError& 
+#ifndef USE_FN_PC1
+                                            err
+#endif
+                                        )
 {
 #ifndef USE_FN_PC1
   mHessian.calculate_preconditioner(err);
@@ -134,7 +138,11 @@ void TrustRegion::compute_preconditioner( MsqError& err )
 #endif
 }
 
-void TrustRegion::apply_preconditioner( Vector3D* z, Vector3D* r, MsqError& err )
+void TrustRegion::apply_preconditioner( Vector3D* z, Vector3D* r, MsqError& 
+#ifndef USE_FN_PC1
+                                            err
+#endif
+                                        )
 {
 #ifndef USE_FN_PC1
   mHessian.apply_preconditioner( z, r, err );

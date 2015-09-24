@@ -135,15 +135,15 @@ bool MsqCircle::closest( const Vector3D& point,
   return true;
 }
 
-MsqPlane::MsqPlane( const Vector3D& normal, double coeff )
+MsqPlane::MsqPlane( const Vector3D& p_normal, double coeff )
 {
-  const double len = normal.length();
-  mNormal = normal / len;
+  const double len = p_normal.length();
+  mNormal = p_normal / len;
   mCoeff = coeff / len;
 }
 
-MsqPlane::MsqPlane( const Vector3D& normal, const Vector3D& point )
-  : mNormal( normal / normal.length() ), mCoeff( -(mNormal % point) )
+MsqPlane::MsqPlane( const Vector3D& p_normal, const Vector3D& p_point )
+  : mNormal( p_normal / p_normal.length() ), mCoeff( -(mNormal % p_point) )
 {
 }
 

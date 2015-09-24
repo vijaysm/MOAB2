@@ -620,7 +620,7 @@ void MeshImplData::all_vertices( std::vector<size_t>& list, MsqError& ) const
       list.push_back( idx );
 }
 
-void MeshImplData::all_elements( std::vector<size_t>& list, MsqError& err ) const
+void MeshImplData::all_elements( std::vector<size_t>& list, MsqError&  ) const
 {
   list.clear();
   for (size_t idx = 0; idx < elementList.size(); ++idx)

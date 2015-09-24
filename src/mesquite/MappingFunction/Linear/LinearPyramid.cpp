@@ -316,7 +316,7 @@ void LinearPyramid::derivatives( Sample loc,
 
 void LinearPyramid::ideal( Sample location,
                            MsqMatrix<3,3>& J,
-                           MsqError& err ) const
+                           MsqError&  ) const
 {
   // For an ideal element with unit edge length at the base and unit
   // height, the Jacobian matrix is:

@@ -157,8 +157,8 @@ namespace MESQUITE_NS
     int mMaxNumEval;  //          |heightMax|+|heightMin|+mThreshold
                       //      or numEval >= mMaxNumEval
     double amotry(std::vector<double>&, std::vector<double>& , double* , int , double, PatchData&, MsqError &err );
-    bool mUseExactPenaltyFunction; 
     int mNonGradDebug;
+    bool mUseExactPenaltyFunction; 
     double mScaleDiameter;
     void printSimplex( std::vector<double>& , std::vector<double>& );
 

@@ -51,11 +51,11 @@ to run mesquite by default.
 namespace MESQUITE_NS
 {
 
-ParallelMeshImpl::ParallelMeshImpl(Mesh* myMesh, const char * gid_name, const char * pid_name)
+ParallelMeshImpl::ParallelMeshImpl(Mesh* p_myMesh, const char * gid_name, const char * pid_name)
 {
   MsqError err;
 
-  this->myMesh = myMesh;
+  this->myMesh = p_myMesh;
   this->helper = 0;
 
   if (gid_name)

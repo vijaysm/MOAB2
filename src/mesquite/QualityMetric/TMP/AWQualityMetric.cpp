@@ -62,16 +62,16 @@ std::string AWQualityMetric::get_name() const
 }
 
 bool AWQualityMetric::evaluate_internal( PatchData& pd,
-                                         size_t handle,
+                                         size_t p_handle,
                                          double& value,
                                          size_t* indices,
                                          size_t& num_indices,
                                          MsqError& err )
 {
-  const Sample s = ElemSampleQM::sample( handle );
-  const size_t e = ElemSampleQM::  elem( handle );
-  MsqMeshEntity& elem = pd.element_by_index( e );
-  EntityTopology type = elem.get_element_type();
+  const Sample s = ElemSampleQM::sample( p_handle );
+  const size_t e = ElemSampleQM::  elem( p_handle );
+  MsqMeshEntity& p_elem = pd.element_by_index( e );
+  EntityTopology type = p_elem.get_element_type();
   unsigned edim = TopologyInfo::dimension( type );
   const NodeSet bits = pd.non_slave_node_set( e );
   
@@ -113,16 +113,16 @@ bool AWQualityMetric::evaluate_internal( PatchData& pd,
 }
 
 bool AWQualityMetric::evaluate_with_gradient( PatchData& pd,
-                                              size_t handle,
+                                              size_t p_handle,
                                               double& value,
                                               std::vector<size_t>& indices,
                                               std::vector<Vector3D>& grad,
                                               MsqError& err )
 {
-  const Sample s = ElemSampleQM::sample( handle );
-  const size_t e = ElemSampleQM::  elem( handle );
-  MsqMeshEntity& elem = pd.element_by_index( e );
-  EntityTopology type = elem.get_element_type();
+  const Sample s = ElemSampleQM::sample( p_handle );
+  const size_t e = ElemSampleQM::  elem( p_handle );
+  MsqMeshEntity& p_elem = pd.element_by_index( e );
+  EntityTopology type = p_elem.get_element_type();
   unsigned edim = TopologyInfo::dimension( type );
   size_t num_idx = 0;
   const NodeSet bits = pd.non_slave_node_set( e );
@@ -174,17 +174,17 @@ bool AWQualityMetric::evaluate_with_gradient( PatchData& pd,
 
 
 bool AWQualityMetric::evaluate_with_Hessian( PatchData& pd,
-                                             size_t handle,
+                                             size_t p_handle,
                                              double& value,
                                              std::vector<size_t>& indices,
                                              std::vector<Vector3D>& grad,
                                              std::vector<Matrix3D>& Hessian,
                                              MsqError& err )
 {
-  const Sample s = ElemSampleQM::sample( handle );
-  const size_t e = ElemSampleQM::  elem( handle );
-  MsqMeshEntity& elem = pd.element_by_index( e );
-  EntityTopology type = elem.get_element_type();
+  const Sample s = ElemSampleQM::sample( p_handle );
+  const size_t e = ElemSampleQM::  elem( p_handle );
+  MsqMeshEntity& p_elem = pd.element_by_index( e );
+  EntityTopology type = p_elem.get_element_type();
   unsigned edim = TopologyInfo::dimension( type );
   size_t num_idx = 0;
   const NodeSet bits = pd.non_slave_node_set( e );
@@ -215,7 +215,7 @@ bool AWQualityMetric::evaluate_with_Hessian( PatchData& pd,
 #ifdef NUMERICAL_2D_HESSIAN
     // return finite difference approximation for now
 
-    return QualityMetric::evaluate_with_Hessian( pd, handle,
+    return QualityMetric::evaluate_with_Hessian( pd, p_handle,
                                            value, indices, grad, Hessian,
                                            err );
 #else
@@ -262,17 +262,17 @@ bool AWQualityMetric::evaluate_with_Hessian( PatchData& pd,
 
 bool AWQualityMetric::evaluate_with_Hessian_diagonal( 
                                            PatchData& pd,
-                                           size_t handle,
+                                           size_t p_handle,
                                            double& value,
                                            std::vector<size_t>& indices,
                                            std::vector<Vector3D>& grad,
                                            std::vector<SymMatrix3D>& diagonal,
                                            MsqError& err )
 {
-  const Sample s = ElemSampleQM::sample( handle );
-  const size_t e = ElemSampleQM::  elem( handle );
-  MsqMeshEntity& elem = pd.element_by_index( e );
-  EntityTopology type = elem.get_element_type();
+  const Sample s = ElemSampleQM::sample( p_handle );
+  const size_t e = ElemSampleQM::  elem( p_handle );
+  MsqMeshEntity& p_elem = pd.element_by_index( e );
+  EntityTopology type = p_elem.get_element_type();
   unsigned edim = TopologyInfo::dimension( type );
   size_t num_idx = 0;
   const NodeSet bits = pd.non_slave_node_set( e );
@@ -301,7 +301,7 @@ bool AWQualityMetric::evaluate_with_Hessian_diagonal(
   else if (edim == 2) {
 #ifdef NUMERICAL_2D_HESSIAN
     // use finite diference approximation for now
-    return QualityMetric::evaluate_with_Hessian_diagonal( pd, handle,
+    return QualityMetric::evaluate_with_Hessian_diagonal( pd, p_handle,
                                            value, indices, grad, diagonal,
                                            err );
 #else

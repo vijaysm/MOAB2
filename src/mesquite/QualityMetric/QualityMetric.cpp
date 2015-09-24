@@ -359,7 +359,7 @@ void QualityMetric::remove_fixed_hessians( EntityTopology elem_type,
 double QualityMetric::weighted_average_metrics(const double coef[],
                                              const double metric_values[],
                                              const int& num_values, 
-                                             MsqError &err)
+                                             MsqError &/*err*/)
 {
   //MSQ_MAX needs to be made global?
   //double MSQ_MAX=1e10;

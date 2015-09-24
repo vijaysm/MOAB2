@@ -52,8 +52,8 @@ namespace MESQUITE_NS
    {
    public:
        //!Construct vertex using three doubles.
-     MsqVertex(double x, double y, double z) 
-       : Vector3D(x, y, z), vertexBitFlags(0)
+     MsqVertex(double p_x, double p_y, double p_z) 
+       : Vector3D(p_x, p_y, p_z), vertexBitFlags(0)
        {}
      
        //!Construct vertex using Vector3D.
@@ -122,8 +122,8 @@ namespace MESQUITE_NS
      FlagMask& flags() 
       { return vertexBitFlags; }
     
-     void set_flags( FlagMask flags )
-      { vertexBitFlags = flags; }
+     void set_flags( FlagMask p_flags )
+      { vertexBitFlags = p_flags; }
      
    private:
      FlagMask vertexBitFlags;

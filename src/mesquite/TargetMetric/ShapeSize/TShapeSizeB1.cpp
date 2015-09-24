@@ -44,7 +44,7 @@ TShapeSizeB1::~TShapeSizeB1() {}
 
 bool TShapeSizeB1::evaluate( const MsqMatrix<2,2>& T, 
                              double& result, 
-                             MsqError& err )
+                             MsqError& /*err*/ )
 {
   const double tau = det(T);
   if (invalid_determinant(tau)) { // barrier
@@ -59,7 +59,7 @@ bool TShapeSizeB1::evaluate( const MsqMatrix<2,2>& T,
 
 bool TShapeSizeB1::evaluate( const MsqMatrix<3,3>& T, 
                              double& result, 
-                             MsqError& err )
+                             MsqError& /*err*/ )
 {
   const double tau = det(T);
   if (invalid_determinant(tau)) { // barrier

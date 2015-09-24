@@ -192,18 +192,18 @@ do_numerical_hessian( AWMetric* metric,
 
 AWMetric::~AWMetric() {}
      
-bool AWMetric::evaluate( const MsqMatrix<2,2>& A, 
-                         const MsqMatrix<2,2>& W,
-                         double& result, 
-                         MsqError& err )
+bool AWMetric::evaluate( const MsqMatrix<2,2>& /*A*/, 
+                         const MsqMatrix<2,2>& /*W*/,
+                         double& /*result*/, 
+                         MsqError& /*err*/ )
 {
   return false;
 }
 
-bool AWMetric::evaluate( const MsqMatrix<3,3>& A, 
-                         const MsqMatrix<3,3>& W,
-                         double& result, 
-                         MsqError& err )
+bool AWMetric::evaluate( const MsqMatrix<3,3>& /*A*/, 
+                         const MsqMatrix<3,3>& /*W*/,
+                         double& /*result*/, 
+                         MsqError& /*err*/ )
 {
   return false;
 }

@@ -219,15 +219,15 @@ bool TInverseMeanRatio::evaluate_with_hess( const MsqMatrix<3,3>& T,
     
     ++i;
 
-    for (int c = r+1; c < 3; ++c) {
-      d2A[i] = outer( AT.row(r), AT.row(c) );
+    for (int cc = r+1; cc < 3; ++cc) {
+      d2A[i] = outer( AT.row(r), AT.row(cc) );
       d2A[i] *= f4;
-      op = outer( AT.row(r), T.row(c) );
-      op += outer( T.row(r), AT.row(c) );
+      op = outer( AT.row(r), T.row(cc) );
+      op += outer( T.row(r), AT.row(cc) );
       op *= f6;
       d2A[i] -= op;
 
-      MsqMatrix<1,3> rt = T.row(3 - r - c);
+      MsqMatrix<1,3> rt = T.row(3 - r - cc);
       rt *= s * f7;
       d2A[i](0,1) -= rt(0,2);
       d2A[i](0,2) += rt(0,1);

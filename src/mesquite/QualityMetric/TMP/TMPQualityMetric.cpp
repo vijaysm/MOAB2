@@ -73,24 +73,24 @@ void TMPQualityMetric::get_patch_evaluations( PatchData& pd,
 }
 
 void TMPQualityMetric::get_element_evaluations( PatchData& pd,
-                                              size_t elem,
+                                              size_t p_elem,
                                               std::vector<size_t>& handles,
                                               MsqError& err )
 {
-  get_elem_sample_points( pd, elem, handles, err );
+  get_elem_sample_points( pd, p_elem, handles, err );
 }
 
-bool TMPQualityMetric::evaluate( PatchData& pd, size_t handle, double& value, MsqError& err )
+bool TMPQualityMetric::evaluate( PatchData& pd, size_t p_handle, double& value, MsqError& err )
 {
   size_t num_idx;
-  bool valid = evaluate_internal( pd, handle, value, mIndices, num_idx, err );
+  bool valid = evaluate_internal( pd, p_handle, value, mIndices, num_idx, err );
   if (MSQ_CHKERR(err) || !valid)
     return false;
   
     // apply target weight to value
   if (weightCalc) {
-    const Sample s = ElemSampleQM::sample( handle );
-    const size_t e = ElemSampleQM::  elem( handle );
+    const Sample s = ElemSampleQM::sample( p_handle );
+    const size_t e = ElemSampleQM::  elem( p_handle );
     double ck = weightCalc->get_weight( pd, e, s, err ); MSQ_ERRZERO(err);
     value *= ck;
   }
@@ -99,14 +99,14 @@ bool TMPQualityMetric::evaluate( PatchData& pd, size_t handle, double& value, Ms
 
 
 bool TMPQualityMetric::evaluate_with_indices( PatchData& pd,
-                                              size_t handle,
+                                              size_t p_handle,
                                               double& value,
                                               std::vector<size_t>& indices,
                                               MsqError& err )
 {
   indices.resize( MAX_ELEM_NODES );
   size_t num_idx = 0;
-  bool result = evaluate_internal( pd, handle, value, arrptr(indices), num_idx, err );
+  bool result = evaluate_internal( pd, p_handle, value, arrptr(indices), num_idx, err );
   if (MSQ_CHKERR(err) || !result)
     return false;
 
@@ -114,8 +114,8 @@ bool TMPQualityMetric::evaluate_with_indices( PatchData& pd,
   
     // apply target weight to value
   if (weightCalc) {
-    const Sample s = ElemSampleQM::sample( handle );
-    const size_t e = ElemSampleQM::  elem( handle );
+    const Sample s = ElemSampleQM::sample( p_handle );
+    const size_t e = ElemSampleQM::  elem( p_handle );
     double ck = weightCalc->get_weight( pd, e, s, err ); MSQ_ERRZERO(err);
     value *= ck;
   }
@@ -316,8 +316,8 @@ TMPQualityMetric::evaluate_surface_common( PatchData& pd,
 }                    
 
 void TMPQualityMetric::weight( PatchData& pd,
-                               Sample sample,
-                               size_t elem,
+                               Sample p_sample,
+                               size_t p_elem,
                                int num_idx,
                                double& value,
                                Vector3D* grad,
@@ -328,7 +328,7 @@ void TMPQualityMetric::weight( PatchData& pd,
   if (!weightCalc)
     return;
   
-  double ck = weightCalc->get_weight( pd, elem, sample, err ); MSQ_ERRRTN(err);
+  double ck = weightCalc->get_weight( pd, p_elem, p_sample, err ); MSQ_ERRRTN(err);
   value *= ck;
   if (grad) {
     for (int i = 0; i < num_idx; ++i)

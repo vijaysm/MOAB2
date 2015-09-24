@@ -109,8 +109,8 @@ class MESQUITE_EXPORT NodeSet {
     //! Count the number of non-zero bits with less significance than
     //! the specified bit.  (Mask out all bits except those of before
     //! the specified position and then count the remaining bits.)
-    unsigned num_before_bit( unsigned position ) const
-      { return popcount(bits & ~((~0u) << position)); }
+    unsigned num_before_bit( unsigned p_position ) const
+      { return popcount(bits & ~((~0u) << p_position)); }
   
   public:
     
@@ -298,25 +298,25 @@ class MESQUITE_EXPORT NodeSet {
 std::ostream& operator<<( std::ostream& s, NodeSet set );
       
     //! Set all corner nodes
-void NodeSet::set_all_corner_nodes( EntityTopology type )
-  { set_bits( CORNER_OFFSET, TopologyInfo::corners(type) ); }
+void NodeSet::set_all_corner_nodes( EntityTopology p_type )
+  { set_bits( CORNER_OFFSET, TopologyInfo::corners(p_type) ); }
 //! Set all mid-edge nodes
-void NodeSet::set_all_mid_edge_nodes( EntityTopology type )
-  { set_bits(   EDGE_OFFSET, TopologyInfo::edges(type) ); }
+void NodeSet::set_all_mid_edge_nodes( EntityTopology p_type )
+  { set_bits(   EDGE_OFFSET, TopologyInfo::edges(p_type) ); }
 //! Set all mid-face nodes
-void NodeSet::set_all_mid_face_nodes( EntityTopology type )
-  { set_bits(   FACE_OFFSET, TopologyInfo::faces(type) ); }
+void NodeSet::set_all_mid_face_nodes( EntityTopology p_type )
+  { set_bits(   FACE_OFFSET, TopologyInfo::faces(p_type) ); }
 //! Set all mid-region nodes
-void NodeSet::set_all_mid_region_nodes( EntityTopology type )
+void NodeSet::set_all_mid_region_nodes( EntityTopology  )
   { set_mid_region_node(); }
 
-void NodeSet::set_all_nodes( EntityTopology type )
+void NodeSet::set_all_nodes( EntityTopology p_type )
 {
-  switch (TopologyInfo::dimension(type)) {
+  switch (TopologyInfo::dimension(p_type)) {
     case 3: set_mid_region_node();
-    case 2: set_all_mid_face_nodes( type );
-    case 1: set_all_mid_edge_nodes( type );
-    case 0: set_all_corner_nodes( type );
+    case 2: set_all_mid_face_nodes( p_type );
+    case 1: set_all_mid_edge_nodes( p_type );
+    case 0: set_all_corner_nodes( p_type );
   }
 }
 

@@ -253,15 +253,15 @@ static void find_skin( Mesh* mesh,
           }
           if (dim == 3 && (ho & 2)) { // if volume element, need mid-edge nodes too
             const unsigned nedges = TopologyInfo::edges( type );
-            for (unsigned e = 0; e < nedges; ++e) {
-              unsigned junk;
-              const unsigned* edge_vtx = TopologyInfo::side_vertices( type, 1, e, junk );
-              assert(edge_vtx && 2 == junk);
+            for (unsigned je = 0; je < nedges; ++je) {
+              unsigned tmp;
+              const unsigned* edge_vtx = TopologyInfo::side_vertices( type, 1, je, tmp );
+              assert(edge_vtx && 2 == tmp);
               unsigned idx = std::find( side_vtx, side_vtx+num_side_vtx, edge_vtx[0] ) - side_vtx;
               if (idx < num_side_vtx) {
                 if ((edge_vtx[1] == side_vtx[(idx+1)%num_side_vtx]) ||
                     (edge_vtx[1] == side_vtx[(idx+num_side_vtx-1)%num_side_vtx])) {
-                  idx = TopologyInfo::higher_order_from_side( type, vertices.size(), 1, e, err ); MSQ_ERRRTN(err);
+                  idx = TopologyInfo::higher_order_from_side( type, vertices.size(), 1, je, err ); MSQ_ERRRTN(err);
                   extra_side_vtx.push_back( idx );
                 }
               }
@@ -402,7 +402,7 @@ static void vert_classify_elements( Mesh* mesh,
 
 static void geom_classify_elements( Mesh* mesh,
                                     DomainClassifier::DomainSet* dim_sorted_domains,
-                                    unsigned num_domain,
+                                    unsigned ,
                                     int dim_indices[4],
                                     const std::vector<Mesh::ElementHandle>& elems,
                                     std::vector<Mesh::ElementHandle>& unknown_elems,
@@ -987,9 +987,9 @@ void DomainClassifier::test_valid_classification( Mesh* mesh,
             continue;
           verts2.clear();
           mesh->elements_get_attached_vertices( &e2, 1, verts2, junk, err ); MSQ_ERRRTN(err);
-          size_t idx = std::find(verts2.begin(), verts2.end(), v1 ) - verts2.begin();
-          if (verts2[(idx+1)%verts2.size()] != v2 &&
-              verts2[(idx+verts2.size()-1)%verts2.size()] != v2)
+          size_t jdx = std::find(verts2.begin(), verts2.end(), v1 ) - verts2.begin();
+          if (verts2[(jdx+1)%verts2.size()] != v2 &&
+              verts2[(jdx+verts2.size()-1)%verts2.size()] != v2)
             continue;
           std::set<Mesh::ElementHandle>::iterator r = remaining.find(e2);
           if (r == remaining.end())
@@ -1094,14 +1094,14 @@ void DomainClassifier::test_valid_classification( Mesh* mesh,
           
             unsigned n2;
             const unsigned* si2 = TopologyInfo::face_vertices( type2, s2, n2 );
-            unsigned idx;
-            for (idx = 0; idx < n2; ++idx)
-              if (verts2[si2[idx]] == v1)
+            unsigned jdx;
+            for (jdx = 0; jdx < n2; ++jdx)
+              if (verts2[si2[jdx]] == v1)
                 break;
-            assert( idx < n2 );
+            assert( jdx < n2 );
             
-            if (verts2[si2[(idx+1)%n2]] == v2 ||
-                verts2[si2[(idx+n2-1)%n2]] == v2) {
+            if (verts2[si2[(jdx+1)%n2]] == v2 ||
+                verts2[si2[(jdx+n2-1)%n2]] == v2) {
               sstack.push_back( *side );
               sides.erase( side );
             }

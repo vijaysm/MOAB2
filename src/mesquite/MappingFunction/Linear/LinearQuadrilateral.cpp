@@ -58,7 +58,7 @@ void LinearQuadrilateral::coefficients( Sample location,
 }
 
 void LinearQuadrilateral::coefficients( Sample location,
-                                        NodeSet nodeset,
+                                        NodeSet ,
                                         double* coeff_out,
                                         size_t* indices_out,
                                         size_t& num_coeff ) 
@@ -175,7 +175,7 @@ void LinearQuadrilateral::derivatives( Sample loc,
 }
 
 void LinearQuadrilateral::derivatives( Sample loc,
-                                       NodeSet nodeset,
+                                       NodeSet ,
                                        size_t* vertex_indices_out,
                                        MsqVector<2>* d_coeff_d_xi_out,
                                        size_t& num_vtx )

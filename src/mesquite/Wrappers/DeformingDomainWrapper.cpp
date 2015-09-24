@@ -181,7 +181,7 @@ DeformingCurveSmoother::~DeformingCurveSmoother()
 void DeformingCurveSmoother::store_initial_mesh( Mesh* mesh,
                                                  const Mesh::VertexHandle* verts,
                                                  int nverts,
-                                                 CurveDomain* geom,
+                                                 CurveDomain* ,
                                                  MsqError& err )
 {
   if (nverts < 2) {
@@ -225,7 +225,7 @@ void DeformingCurveSmoother::smooth_curve( Mesh* mesh,
                                            const Mesh::VertexHandle* verts,
                                            int nverts,
                                            CurveDomain* geom,
-                                           Scheme type,
+                                           Scheme ,
                                            MsqError& err )
 {
   if (nverts < 2) {

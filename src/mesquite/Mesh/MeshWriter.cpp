@@ -998,20 +998,20 @@ void write_eps_triangle( const Vector3D* coords,
   
   if (draw_nodes) {
     for (size_t i = 0; i < num_vtx; ++i) {
-      int w, h;
+      int iw, ih;
         // fill interior with either white or black depending
         // on whether or not the vertex is fixed.
       if (fixed[i]) 
         str << FIXED_GRAY << " setgray"                     << endl;
       else
         str << FREE_GRAY << " setgray"                      << endl;
-      transf.transform( coords[i], w, h );
-      str << w+PT_RAD << ' ' << h << " moveto"              << endl;
-      str << w << ' ' << h << ' ' << PT_RAD << " 0 360 arc" << endl;
+      transf.transform( coords[i], iw, ih );
+      str << w+PT_RAD << ' ' << ih << " moveto"              << endl;
+      str << iw << ' ' << ih << ' ' << PT_RAD << " 0 360 arc" << endl;
       str << "closepath fill"                               << endl;
       str << NODE_GRAY << " setgray"                        << endl;
       str << "newpath"                                      << endl;
-      str << w << ' ' << h << ' ' << PT_RAD << " 0 360 arc" << endl;
+      str << iw << ' ' << ih << ' ' << PT_RAD << " 0 360 arc" << endl;
       str << "stroke"                                       << endl;
     }
   }

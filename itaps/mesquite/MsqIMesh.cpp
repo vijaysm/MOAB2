@@ -153,7 +153,7 @@ iBase_TagValueType MsqIMesh::check_valid_flag_tag( iBase_TagHandle tag,
   return static_cast<iBase_TagValueType>(type);
 }
 
-void MsqIMesh::init_active_mesh( iMesh_Instance mesh, 
+void MsqIMesh::init_active_mesh( iMesh_Instance /*mesh*/, 
                                  MsqError& err,
 				 const iBase_TagHandle* fixed_tag,
 				 const iBase_TagHandle* slaved_tag )
@@ -301,7 +301,7 @@ void MsqIMesh::set_active_set( iBase_EntitySetHandle elem_set,
   
 
 // Returns whether this mesh lies in a 2D or 3D coordinate system.
-int MsqIMesh::get_geometric_dimension(Mesquite::MsqError &err)
+int MsqIMesh::get_geometric_dimension(Mesquite::MsqError &/*err*/)
 {
   return geometricDimension;
 }

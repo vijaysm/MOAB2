@@ -141,7 +141,7 @@ void MeshImplTags::destroy( size_t tag_index, MsqError& err )
   tagList[tag_index] = 0;
 }
 
-size_t MeshImplTags::handle( const std::string& name, MsqError& err ) const
+size_t MeshImplTags::handle( const std::string& name, MsqError&  ) const
 {
   for (size_t i = 0; i < tagList.size(); ++i)
     if (tagList[i] && tagList[i]->desc.name == name)

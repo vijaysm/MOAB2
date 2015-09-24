@@ -301,7 +301,7 @@ void Mesquite::StopWatchCollection::get_keys_sorted_by_time(
 // Moved here and converted to an ostream operator 
 // by J.Kraftcheck, 2004-10-18
 std::ostream& Mesquite::operator<<( std::ostream& str,
-                                          Mesquite::StopWatchCollection& coll )
+                                          Mesquite::StopWatchCollection&  )
 {
   std::vector<Mesquite::StopWatchCollection::Key> sorted_keys;
   Mesquite::GlobalStopWatches.get_keys_sorted_by_time(sorted_keys);

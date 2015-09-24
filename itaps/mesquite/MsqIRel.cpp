@@ -155,7 +155,7 @@ void MsqIRel::domain_DoF( const Mesh::VertexHandle* handle_array,
 void MsqIRel::closest_point( Mesh::VertexHandle handle,
                                  const Vector3D& position,
                                  Vector3D& closest,
-                                 Vector3D& normal,
+                                 Vector3D& p_normal,
                                  MsqError& err ) const
 {
   int ierr, dim;
@@ -172,7 +172,7 @@ void MsqIRel::closest_point( Mesh::VertexHandle handle,
     return;
   }
 
-  ierr = closest_and_normal( geom, position, closest, normal );
+  ierr = closest_and_normal( geom, position, closest, p_normal );
   if (iBase_SUCCESS != ierr) {
     MSQ_SETERR(err)(process_itaps_error( ierr ), MsqError::INTERNAL_ERROR);
     return;

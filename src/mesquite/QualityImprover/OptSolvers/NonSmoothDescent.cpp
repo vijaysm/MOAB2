@@ -64,7 +64,7 @@ std::string NonSmoothDescent::get_name() const
 PatchSet* NonSmoothDescent::get_patch_set()
   { return &patchSet; }
   
-void NonSmoothDescent::initialize(PatchData &/*pd*/, MsqError &err)
+void NonSmoothDescent::initialize(PatchData &/*pd*/, MsqError &/*err*/)
 {
   minStepSize = 1e-6;
   MSQ_DBGOUT(1) << "- Executed NonSmoothDescent::initialize()\n";
@@ -974,14 +974,14 @@ bool NonSmoothDescent::validity_check(PatchData& pd, MsqError &err)
 }
 
 
-void NonSmoothDescent::get_active_directions( const std::vector<Vector3D>& mGradient, 
+void NonSmoothDescent::get_active_directions( const std::vector<Vector3D>& pGradient, 
                                               std::vector<Vector3D>& dir,
                                               MsqError &/*err*/)
 {
     const size_t num_active = mActive.active_ind.size();
     dir.resize(num_active);
     for (size_t i = 0; i < num_active; i++) {
-      dir[i] = mGradient[mActive.active_ind[i]];
+      dir[i] = pGradient[mActive.active_ind[i]];
     }
 }
 
@@ -1079,7 +1079,7 @@ bool NonSmoothDescent::convex_hull_test(const std::vector<Vector3D>& vec, MsqErr
     return (equil);
 }
 
-void NonSmoothDescent::form_grammian(const std::vector<Vector3D>& vec, MsqError &err)
+void NonSmoothDescent::form_grammian(const std::vector<Vector3D>& vec, MsqError &/*err*/)
 {
    /* form the grammian with the dot products of the gradients */
    const size_t num_active = mActive.active_ind.size();
@@ -1272,7 +1272,7 @@ void NonSmoothDescent::form_PD_grammian(MsqError &err)
 }
 
 
-void NonSmoothDescent::search_edges_faces( const Vector3D* dir, Vector3D& mSearch, MsqError &err)
+void NonSmoothDescent::search_edges_faces( const Vector3D* dir, Vector3D& mSearch, MsqError &/*err*/)
 {
     bool viable;
     double a,b,denom;

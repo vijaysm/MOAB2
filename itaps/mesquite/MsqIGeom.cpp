@@ -91,13 +91,13 @@ void MsqIGeom::vertex_normal_at( const Mesh::VertexHandle*,
     MSQ_SETERR(err)(process_itaps_error(ierr), MsqError::INTERNAL_ERROR);
 }
 
-void MsqIGeom::closest_point( Mesh::VertexHandle handle,
+void MsqIGeom::closest_point( Mesh::VertexHandle /*handle*/,
                               const Vector3D& position,
                               Vector3D& closest,
-                              Vector3D& normal,
+                              Vector3D& p_normal,
                               MsqError& err ) const
 {
-  int ierr = closest_and_normal( geomEntHandle, position, closest, normal );
+  int ierr = closest_and_normal( geomEntHandle, position, closest, p_normal );
   if (iBase_SUCCESS != ierr)
     MSQ_SETERR(err)(process_itaps_error(ierr), MsqError::INTERNAL_ERROR);
 }
@@ -189,13 +189,13 @@ int MsqCommonIGeom::normal( const iBase_EntityHandle* geom_handles,
 int MsqCommonIGeom::closest_and_normal( iBase_EntityHandle geom, 
                                      const Vector3D& position,
                                      Vector3D& closest,
-                                     Vector3D& normal ) const
+                                     Vector3D& p_normal ) const
 {
   int ierr;
   iGeom_getEntNrmlPlXYZ( geomIFace, geom, 
-                         position[0], position[1], position[2], 
-                         &closest[0], &closest[1], &closest[2],
-                         &normal[0],  &normal[1],  &normal[2],
+                         position[0],  position[1],  position[2], 
+                         &closest[0],  &closest[1],  &closest[2],
+                         &p_normal[0], &p_normal[1], &p_normal[2],
                          &ierr );
   return ierr;
 }

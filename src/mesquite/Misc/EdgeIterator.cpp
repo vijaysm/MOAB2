@@ -83,11 +83,11 @@ void EdgeIterator::get_adjacent_vertices( MsqError& err )
       size_t vert1 = elem.get_vertex_index( edge[0] );
       size_t vert2 = elem.get_vertex_index( edge[1] );
 
-      size_t mid = ~(size_t)0;
+      size_t pmid = ~(size_t)0;
       if (mid_edge) {
         int p = TopologyInfo::higher_order_from_side( type, elem.node_count(), 1, d, err );
         MSQ_ERRRTN(err);
-        mid = elem.get_vertex_index_array()[p];
+        pmid = elem.get_vertex_index_array()[p];
       }
 
         // If this edge contains the input vertex (vert_idx)
@@ -97,12 +97,12 @@ void EdgeIterator::get_adjacent_vertices( MsqError& err )
       if (vert1 > vert2)
       {
         if (vert2 == vertIdx)
-          adjList.push_back( Edge(vert1,mid) );
+          adjList.push_back( Edge(vert1,pmid) );
       } 
       else 
       {
         if (vert1 == vertIdx)
-          adjList.push_back( Edge(vert2,mid) );
+          adjList.push_back( Edge(vert2,pmid) );
       }
     }
   }
