@@ -31,12 +31,6 @@
 // for M_PI
 #include <math.h>
 
-#ifdef MESHDIR
-std::string TestDir( STRINGIFY(MESHDIR) );
-#else
-std::string TestDir(".");
-#endif
-
 using namespace moab;
 // some input data
 double EPS1=0.2; // this is for box error

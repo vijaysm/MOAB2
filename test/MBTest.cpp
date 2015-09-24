@@ -68,23 +68,6 @@
 using namespace std;
 using namespace moab;
 
-/*
-// #define CHKERR(A) do { if (MB_SUCCESS != (A)) { \
-//   std::cerr << "Failure (error code " << (A) << ") at " __FILE__ ":" \
-//             << __LINE__ << std::endl; \
-//   return A; } } while(false)
-
-
-// #define CHECK_EQUAL( A, B ) do { if ((A) != (B)) { \
-//             std::cerr << "Equality Test failed at " __FILE__ ":" << __LINE__ << std::endl; \
-//             std::cerr << "  Expected: " << (A) << std::endl; \
-//             std::cerr << "  Actual:   " << (B) << std::endl; \
-//             return MB_FAILURE; } } while(false)
-// #define CHECK( A ) do { if (!(A)) { \
-//             std::cerr << "Test failed at " __FILE__ ":" << __LINE__ << std::endl; \
-//             return MB_FAILURE; } } while(false)
-*/
-
 #if MOAB_HAVE_NETCDF
 ErrorCode load_file_one( Interface* iface )
 {
@@ -158,10 +141,9 @@ ErrorCode mb_vertex_coordinate_test()
 
     // Try getting coordinates for a hex (should fail)
   Range hexes;
-  error = MB->get_entities_by_type( 0, MBHEX, hexes );
-  CHKERR(error);
+  error = MB->get_entities_by_type( 0, MBHEX, hexes );MB_CHK_ERR(error);
   EntityHandle handle = hexes.front();
-  error = MB->get_coords(&handle, 1, &x[0]);CHKERR(error);
+  error = MB->get_coords(&handle, 1, &x[0]);MB_CHK_ERR(error);
   CHECK_REAL_EQUAL(0.5, x[0], 1E-12);
   CHECK_REAL_EQUAL(0.5, x[1], 1E-12);
   CHECK_REAL_EQUAL(0.5, x[2], 1E-12);
@@ -2275,13 +2257,11 @@ ErrorCode mb_mesh_set_list_replace_test()
     // put all vertices in set, but add the first one a second time
   std::vector<EntityHandle> list( verts );
   list.push_back( verts.front() );
-  rval = mb->add_entities( set, &list[0], list.size() );
-  CHKERR(rval);
+  rval = mb->add_entities( set, &list[0], list.size() );MB_CHK_ERR(rval);
     // swap 3 of the vertices
   EntityHandle old_ents[3] = { verts[2], verts[4], verts[6] };
   EntityHandle new_ents[3] = { verts[1], verts[9], verts[5] };
-  rval = mb->replace_entities( set, old_ents, new_ents, 3 );
-  MB_CHK_ERR(rval);
+  rval = mb->replace_entities( set, old_ents, new_ents, 3 );MB_CHK_ERR(rval);
     // check new set contents
   std::vector<EntityHandle> list2;
   rval = mb->get_entities_by_handle( set, list2 );
