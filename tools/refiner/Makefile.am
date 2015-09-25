@@ -6,7 +6,6 @@ AM_CPPFLAGS += -I$(top_srcdir)/src \
                -I$(top_srcdir)/test \
                -DMESHDIR=$(MESHDIR)
 
-
 lib_LTLIBRARIES = libMOABrefiner.la
 libMOABrefiner_la_LIBADD = $(top_builddir)/src/libMOAB.la
 
