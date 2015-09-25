@@ -84,7 +84,7 @@ static double point_perp( const CartVect& p,   // closest to this point
 #else
   double t = (m % (p - b)) / (m % m);
 #endif
-  return Util::isfinite(t) ? t : 0.0;
+  return Util::is_finite(t) ? t : 0.0;
 }
 
 OrientedBox::OrientedBox( const CartVect axes[3], const CartVect& mid )

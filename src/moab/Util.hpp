@@ -23,14 +23,14 @@ namespace moab {
 
 /** \class Util
  *
- * \brief Utility functions for normal and centroid for entities
+ * \brief Utility functions for computational geometry and mathematical calculations
  */
 class Util
 {
 public:
 
   template <typename T>
-  static bool isfinite(T value);
+  static bool is_finite(T value);
   
   static void normal(Interface* MB, EntityHandle handle, double& x, double& y, double& z);
 

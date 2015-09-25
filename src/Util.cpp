@@ -100,7 +100,7 @@ void Util::centroid(Interface *MB, EntityHandle handle, CartVect &coord)
 }
 
 template <typename T>
-bool Util::isfinite(T value)
+bool Util::is_finite(T value)
 {
 #ifdef MOAB_HAVE_ISFINITE
   return isfinite(value);
