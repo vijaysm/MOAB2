@@ -17,6 +17,7 @@ include_directories(
     ${MOAB_BINARY_DIR}/src/parallel
     ${MOAB_SOURCE_DIR}/src
     ${MOAB_SOURCE_DIR}/src/parallel
+    ${MOAB_SOURCE_DIR}/test
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
@@ -37,7 +38,7 @@ enable_testing()
 
 add_executable( test_mesh_refiner test_mesh_refiner.cpp )
 set_source_files_properties( test_mesh_refiner.cpp
-  COMPILE_FLAGS "-DTEST ${MOAB_DEFINES}" )
+  COMPILE_FLAGS "-DTEST ${MOAB_DEFINES} -DMESHDIR=${MOAB_ABSSRC_DIR}/MeshFiles/unittest" )
 target_link_libraries( test_mesh_refiner MOAB MOABrefiner ${CGM_LIBRARIES})
 
 add_test( TestMeshRefiner
