@@ -10,7 +10,7 @@ set (HDF5_FOUND NO CACHE INTERNAL "Found HDF5 components successfully." )
 set( SZIP_DIR "" CACHE PATH "Path to search for SZIP header and library files" )
 
 # Try to find HDF5 with the CMake finder
-SET(HDF5_ROOT ${HDF5_DIR})
+set(ENV{HDF5_ROOT} ${HDF5_DIR})
 find_package(HDF5)
 
 if (HDF5_FOUND)
