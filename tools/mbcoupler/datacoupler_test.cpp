@@ -2,6 +2,7 @@
 #include "moab/CpuTimer.hpp"
 #include "DataCoupler.hpp"
 #include "ElemUtil.hpp"
+#include "TestUtil.hpp"
 
 #include <iostream>
 #include <iomanip>
@@ -14,14 +15,6 @@
 #endif
 
 using namespace moab;
-
-#define STRINGIFY_(A) #A
-#define STRINGIFY(A) STRINGIFY_(A)
-#ifdef MESHDIR
-std::string TestDir(STRINGIFY(MESHDIR));
-#else
-#error Specify MESHDIR to run unit tests
-#endif
 
 #define PRINT_LAST_ERROR \
   if (MB_SUCCESS != result) { \
