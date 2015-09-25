@@ -28,15 +28,16 @@ on the sphere; see CSLAM Utils case1
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <math.h>    // for M_PI
+
 #include "moab/Core.hpp"
 #include "moab/Interface.hpp"
 #include "Intx2MeshOnSphere.hpp"
-#include <math.h>
 #include "moab/ProgOptions.hpp"
 #include "MBTagConventions.hpp"
-#include "TestUtil.hpp"
 #include "moab/ParallelComm.hpp"
 
+#include "TestUtil.hpp"
 #include "CslamUtils.hpp"
 
 const char BRIEF_DESC[] =
@@ -46,26 +47,15 @@ std::ostringstream LONG_DESC;
 // non smooth scalar field
 // some input data
 double gtol = 1.e-9; // this is for geometry tolerance
-
 double radius = 1.;// in m:  6371220.
 
 int numSteps = 3; // number of times with velocity displayed at points
 double T = 1;
-
 int case_number = 1; // 1, 2 (non-divergent) 3 divergent
-
 bool writeFiles = false;
 bool parallelWrite = false;
 bool velocity = false;
 int field_type = 1 ; // 1 quasi smooth, 2 - smooth, 3 non-smooth,
-#ifdef MESHDIR
-std::string TestDir( STRINGIFY(MESHDIR) );
-#else
-std::string TestDir(".");
-#endif
-
-// for M_PI
-#include <math.h>
 
 using namespace moab;
 ErrorCode add_field_value(Interface * mb, EntityHandle euler_set, int rank, Tag & tagTracer, Tag & tagElem, Tag & tagArea)
@@ -84,8 +74,6 @@ ErrorCode add_field_value(Interface * mb, EntityHandle euler_set, int rank, Tag 
   rval = mb->get_connectivity(polygons, connecVerts);
   if (MB_SUCCESS != rval)
     return rval;
-
-
 
   void *data; // pointer to the LOC in memory, for each vertex
   int count;

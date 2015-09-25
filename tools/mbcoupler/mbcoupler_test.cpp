@@ -5,6 +5,7 @@
 #include "Coupler.hpp"
 #include "moab_mpi.h"
 #include "ElemUtil.hpp"
+#include "TestUtil.hpp"
 
 // C++ includes
 #include <iostream>
@@ -13,14 +14,6 @@
 #include <assert.h>
 
 using namespace moab;
-
-#define STRINGIFY_(A) #A
-#define STRINGIFY(A) STRINGIFY_(A)
-#ifdef MESHDIR
-std::string TestDir(STRINGIFY(MESHDIR));
-#else
-std::string TestDir(".");
-#endif
 
 /*
   Sample usages:
