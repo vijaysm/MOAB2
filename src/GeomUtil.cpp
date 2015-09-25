@@ -77,7 +77,7 @@ bool segment_box_intersect( CartVect box_min,
     const double t_max = box_max[i] / seg_unit_dir[i];
     
       // check if line is parallel to planes
-    if (!Util::isfinite(t_min)) {
+    if (!Util::is_finite(t_min)) {
       if (box_min[i] > 0.0 || box_max[i] < 0.0)
         return false; 
       continue;

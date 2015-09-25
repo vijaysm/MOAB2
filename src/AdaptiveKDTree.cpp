@@ -2002,7 +2002,7 @@ namespace moab {
           // Note: we maintain seg.beg <= seg.end at all times, so assume that here.
     
           // If segment is parallel to plane
-        if (!Util::isfinite(t)) {
+        if (!Util::is_finite(t)) {
           if (ray_pt[plane.norm] - tol <= plane.coord)
             list.push_back( NodeSeg( children[0], seg.beg, seg.end ) );
           if (ray_pt[plane.norm] + tol >= plane.coord)

@@ -418,7 +418,7 @@ inline Matrix3( double v00, double v01, double v02,
   
   inline bool invert() {
     double i = 1.0 / determinant();
-    if (!Util::isfinite(i) || fabs(i) < std::numeric_limits<double>::epsilon())
+    if (!Util::is_finite(i) || fabs(i) < std::numeric_limits<double>::epsilon())
       return false;
     *this = inverse( i );
     return true;

@@ -162,7 +162,7 @@ ErrorCode BSPTree::set_split_plane( EntityHandle node, const Plane& p )
   p2.coeff   *= inv_len;
   
     // check for zero-length normal
-  if (!Util::isfinite(p2.norm[0]+p2.norm[1]+p2.norm[2]+p2.coeff))
+  if (!Util::is_finite(p2.norm[0]+p2.norm[1]+p2.norm[2]+p2.coeff))
     return MB_FAILURE;
 
     // store plane
