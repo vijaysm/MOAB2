@@ -6,9 +6,7 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/itaps
     ${CMAKE_SOURCE_DIR}/itaps/imesh
     ${CMAKE_BINARY_DIR}/itaps/imesh
-    ${CMAKE_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/parallel
+    ${CMAKE_SOURCE_DIR}/test
 )
 
 set( MBCOUPLER_SRCS Coupler.cpp
