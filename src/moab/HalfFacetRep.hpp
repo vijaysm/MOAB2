@@ -288,7 +288,8 @@ public:
     */
 
   ErrorCode determine_sibling_halffaces( Range &cells);
-  ErrorCode determine_sibling_halffaces(ESet set);
+
+ // ErrorCode determine_sibling_halffaces(ESet set);
 
   //! Given a range of cells, determines the incident half-faces and stores them into V2HF_CID, V2HF_LFID tags.
   /** Compute a map between a vertex and an incident half-face.
@@ -299,7 +300,9 @@ public:
     */
 
   ErrorCode determine_incident_halffaces( Range &cells);
-  ErrorCode determine_incident_halffaces(ESet set);
+ // ErrorCode determine_incident_halffaces(ESet set);
+
+  ErrorCode determine_halfface_maps(std::vector<EntityHandle> &entities);
 
   //! Given a range of cells, tags all border vertices with a true value.
   /** Tag border vertices by using the sibhf_cid map. All vertices on half-faces with no sibling
@@ -389,6 +392,9 @@ public:
   ErrorCode get_neighbor_adjacencies_3d(EntityHandle cid,
                                         std::vector<EntityHandle> &adjents);
 
+
+  ErrorCode get_neighbor_adjacencies_3d(EntityHandle cid, int lfid, EntityHandle *oppcid);
+
   //! Given a cell, finds its edges.
   /** Given a cell, it first finds incident edges on each vertex of the cell, and then
      *  it performs a set intersection to gather all the edges of the given cell.
@@ -409,6 +415,9 @@ public:
 
   ErrorCode get_down_adjacencies_face_3d(EntityHandle cid, std::vector<EntityHandle> &adjents);
 
+  /**************************
+     *  AHF based utilities   *
+     **************************/
   /* Find the number of edges and faces of given range of cells
      * */
   ErrorCode find_total_edges_faces_3d(Range cells, int *nedges, int *nfaces);
@@ -417,41 +426,33 @@ public:
 
   void get_memory_use(unsigned long long& entity_total, unsigned long long& memory_total);
 
-  ErrorCode update_hf_maps(int dim, ESet set);
-
-  ErrorCode update_hf_maps(int dim, ESet setA, ESet setB);
-  ErrorCode update_hf_3dmaps(ESet setA, ESet setB);
+  /**************************
+     *  Dynamic AHF map updates  *
+     **************************/
+  ErrorCode update_hf_maps_patch(int dim, std::vector<EntityHandle> &entities);
+  ErrorCode update_hf_maps_multimesh(int dim, std::vector<EntityHandle> &patchA, std::vector<EntityHandle> &patchB);
+  ErrorCode update_hf_maps_multimesh3d(std::vector<EntityHandle> &patchA, std::vector<EntityHandle> &patchB);
 
   /**************************
      *  Interface to AHF maps   *
      **************************/
+  //Half-facet creation
   HFacet create_halffacet(EntityHandle handle, int lid);
-
   EntityHandle fid_from_halfacet(const HFacet facet, EntityType type);
-
   int lid_from_halffacet(const HFacet facet);
 
+  //Map allocation
   ErrorCode update_entity_ranges(EntityHandle fileset);
-
   ErrorCode resize_hf_maps(EntityHandle start_vert, int nverts, EntityHandle start_edge, int nedges, EntityHandle start_face, int nfaces, EntityHandle start_cell, int ncells);
-
-  ErrorCode resize_hf_maps(int dim, ESet set);
+  ErrorCode resize_hf_maps(int dim, std::vector<EntityHandle> entities);
   ErrorCode resize_hf_maps(int dim, int nverts, int nents);
 
- // bool check_map_size(ESet set);
-//  bool check_map_size(int dim, ESet set, int estimate[2]);
-//  ErrorCode check_map_size(EntityHandle entity);
-
+  //Get/Set map values
   ErrorCode get_sibling_map(EntityType type, EntityHandle ent, EntityHandle *sib_entids, int *sib_lids, int num_halffacets);
-
   ErrorCode get_sibling_map(EntityType type, EntityHandle ent, int lid, EntityHandle &sib_entid, int &sib_lid);
-
   ErrorCode set_sibling_map(EntityType type, EntityHandle ent,  EntityHandle *set_entids, int *set_lids, int num_halffacets);
-
   ErrorCode set_sibling_map(EntityType type, EntityHandle ent, int lid, EntityHandle &set_entid, int &set_lid);
-
   ErrorCode get_incident_map(EntityType type, EntityHandle vid, EntityHandle &inci_entid, int &inci_lid);
-
   ErrorCode set_incident_map(EntityType type, EntityHandle vid, EntityHandle &set_entid, int &set_lid);
 
   /**********************
@@ -507,12 +508,6 @@ public:
   MESHTYPE get_mesh_type(int nverts, int nedges, int nfaces, int ncells);
 
   EntityHandle *get_rset() { return &_rset; }
-
-  struct ESet{
-    Range verts;
-    Range entities;
-    //std::vector<int> hfid;
-  };
 
 protected:
 

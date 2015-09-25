@@ -18,124 +18,141 @@
 
 namespace moab{
 
-
-  // ======================================================== AHF functions needing to be filled in =============
-
-  ErrorCode RefineSlabs::new_refinement_ahf( size_t num_hexes_memory_estimate )
+  /**********************
+    *  AHF related routines   *
+    *********************/
+  ErrorCode RefineSlabs::estimate_allocate_ahf_maps( size_t num_hexes_memory_estimate )
   {
-    //refinement_ahf = new HalfFacetRep(mbImpl /*, num_hexes_memory_estimate*/ ); // AHF todo, make use of the memory estimate
-    //if (!refinement_ahf)
-     // return MB_MEMORY_ALLOCATION_FAILED;
-
     ErrorCode error;
     error = ahf->resize_hf_maps(3, num_hexes_memory_estimate, num_hexes_memory_estimate);MB_CHK_ERR(error);
 
     return MB_SUCCESS;
   }
 
-
-  ErrorCode RefineSlabs::create_hex( EntityHandle fine_nodes[8], EntityHandle & new_hex )
+  ErrorCode RefineSlabs::replace_mesh( Entities /*&coarse_hexes*/, Entities &coarse_bndverts, Entities &coarse_opphexes, Entities /*&fine_hexes*/)
   {
-    ErrorCode error = mbImpl->create_element(MBHEX, fine_nodes, 8, new_hex);    
-    assert( MB_SUCCESS == error );
-    // refinement_AHF
-    // tell AHF about the new hex // AHF todo
-    // alternatively, as in the pseudocode, AHF can do this once after all the hexes have been created
-    //NR: Don't change anything in AHF here.
-    
-    //debug
-    created_fine_hexes.insert(new_hex);
+    ErrorCode error;
+    Entities all_fhexes;
 
-    return error;
-  } 
+    //First, get the corresponding fine duplicate vertices and then collect all the fine hexes incident on it.
+    for (size_t i = 0; i < coarse_bndverts.size(); i++)
+      {
+        EntityHandle cnode, fnode;
+        cnode = coarse_bndverts[i];
+        bool is_fine = get_copy(cnode, fnode);
 
-  // get the dimension of the geometric object that this mesh entity lies on
-  // E.g. 3 if inside the volume, 2 if on its surface, 1 if on an edge of the surface, ...
-  int RefineSlabs::get_geometry_dimension( EntityHandle entity_handle )
-  {
-    // geometry_map[ entity_handle ] == dimension
-    // auto it = 
-    std::map< EntityHandle, int >::iterator 
-    it = geometry_map.find( entity_handle );
-    if ( it == geometry_map.end() )
-      return 3; 
-    return it->second;
-  }
+        if (!is_fine)
+          MB_SET_ERR(MB_FAILURE, "No fine copy of the coarse boundary vertice");
 
-  ErrorCode RefineSlabs::create_node( EntityHandle node, EntityHandle &new_node )
-  {
-    // get coordinates from node
-    const double *xp, *yp, *zp;
-    ErrorCode error = mbImpl->get_coords( node, xp, yp, zp );
-    assert(  MB_SUCCESS == error );
+        Entities fhexes;
+       // get_all_hexes(fnode, fhexes, true);
+         get_all_hexes(fnode, fhexes, false);
+        all_fhexes.insert(all_fhexes.end(), fhexes.begin(), fhexes.end());
 
+        for (size_t j = 0; j < fhexes.size(); j++)
+          {
+            EntityHandle hex_nodes[8];
+            get_hex_nodes(fhexes[j], hex_nodes);
+            for (size_t k = 0; k < 8; k++)
+              {
+                if (hex_nodes[k] == fnode)
+                  {
+                    hex_nodes[k] = cnode;
+                    break;
+                  }
+              }
+            error = mbImpl->set_connectivity(fhexes[j], &hex_nodes[0], 8);MB_CHK_ERR(error);
+          }
+      }
 
-    double coord[3];
-    coord[0] = *xp; 
-    coord[1] = *yp;
-    coord[2] = *zp;
-    error = mbImpl->create_vertex(coord, new_node);
-    assert( MB_SUCCESS == error );
+    std::sort(all_fhexes.begin(), all_fhexes.end());
+    all_fhexes.erase(std::unique(all_fhexes.begin(), all_fhexes.end()), all_fhexes.end());
 
-
-    // refinement_AHF
-    // tell AHF about the new node // AHF todo
-    // alternatively, as in the pseudocode, AHF can do this once after all the hexes have been created
-    
-    //debug
-    created_fine_nodes.insert(new_node);
-    
-    return error;
-  } 
-
-  // replace the coarse hexes and quads with the fine hexes and quads in the global database mbImpl
-  // return the new hexes for the caller. The coarse entities no longer exist.
-  ErrorCode RefineSlabs::replace_mesh( Entities &, Entities &, Entities &, Entities& ) // add which coarse node is which fine node
-  //  ErrorCode RefineSlabs::replace_mesh( Entities &coarse_hexes, Entities &coarse_quads, Entities &fine_hexes, Entities &fine_quads )
-  {
-    // refinement_ahf elements -> moved into ahf elements
-    // we don't use ahf after this function call, so maybe we don't need to build the ahf, just moab core?
-    // AHF todo
-    // return MB_FAILURE;
+    //step 5: join across the shared coarse-fine boundary
+    error = ahf->update_hf_maps_multimesh(3, coarse_opphexes, all_fhexes);MB_CHK_ERR(error);
 
     return MB_SUCCESS;
   }
-  void RefineSlabs::replace_node( EntityHandle, int, EntityHandle )
-  //  void RefineSlabs::replace_node( EntityHandle chex, int node_lid, EntityHandle new_node)
+  ErrorCode RefineSlabs::replace_node( EntityHandle chex, int node_lid, EntityHandle new_node )
   {
-    // refinement_ahf
-    // just replace the node in the individual hex, don't worry about updating the hex-to-hex connectivity until later when we call update_AHF_connectivity
-    // AHF todo
-    ;
+    EntityHandle nodes[8];
+    ErrorCode error = get_hex_nodes(chex, nodes);MB_CHK_ERR(error);
+
+    nodes[node_lid] = new_node;
+    error = mbImpl->set_connectivity(chex, &nodes[0], 8);MB_CHK_ERR(error);
+
+    return MB_SUCCESS;
   }
-  void RefineSlabs::update_AHF_connectivity()
+
+  ErrorCode RefineSlabs::update_ahf_maps(Entities /*&shrink_set*/, Entities &new_hexes)
   {
-    // since we've replaced a lot of nodes in hexes, update the hex-to-hex connectivity in refinement_ahf for traversals
-    // refinement_ahf; 
-    // AHF todo
+    ErrorCode error = ahf->update_hf_maps_patch(3, new_hexes);MB_CHK_ERR(error);
+     return MB_SUCCESS;
+  }
+
+  ErrorCode RefineSlabs::update_ahf_maps(Entities &coarse_hexes)
+  {
+    ErrorCode error = ahf->update_hf_maps_patch(3, coarse_hexes);MB_CHK_ERR(error);
+    error = ahf->print_tags(3);MB_CHK_ERR(error);
+    return MB_SUCCESS;
   }
   
-  void RefineSlabs::get_all_hexes( EntityHandle node, Entities &hexes, bool is_coarse )
+  ErrorCode RefineSlabs::get_all_hexes( EntityHandle node, Entities &hexes, bool iscoarse )
   {
     // debug
-    node_ok(is_coarse, node);
+    node_ok(iscoarse, node);
   
     hexes.clear();
-    //HalfFacetRep *use_ahf = (is_coarse) ? ahf : refinement_ahf;
-   // use_ahf->get_up_adjacencies_vert_3d( node, hexes );
-    // use_ahf->get_up_adjacencies( node, 3, hexes ); 
     ErrorCode error = ahf->get_up_adjacencies_vert_3d(node, hexes);MB_CHK_ERR(error);
+
+    return MB_SUCCESS;
   }
 
-  void RefineSlabs::get_all_quads( EntityHandle node, Entities &quads, bool is_coarse )
+  ErrorCode RefineSlabs::get_all_quads(EntityHandle node, Entities &quads, bool iscoarse )
   {
     // debug
-    node_ok(is_coarse, node);
+    node_ok(iscoarse, node);
 
     quads.clear();
-    HalfFacetRep *use_ahf = (is_coarse) ? ahf : refinement_ahf;
-    use_ahf->get_up_adjacencies_vert_2d( node, quads );
+    ErrorCode error = ahf->get_up_adjacencies_vert_2d( node, quads );MB_CHK_ERR(error);
+
+    return MB_SUCCESS;
   }
+
+  ErrorCode RefineSlabs::get_coarse_opp_hexes(Entities &coarse_hexes, Entities &coarse_opphexes)
+  {
+    ErrorCode error;
+    int index = ahf->get_index_in_lmap(coarse_hexes[0]);
+    int nfpc = ahf->lConnMap3D[index].num_faces_in_cell;
+
+    for (size_t i = 0; i < coarse_hexes.size(); ++i)
+      {
+        EntityHandle hex_nodes[8];
+        error = get_hex_nodes(coarse_hexes[i], hex_nodes);MB_CHK_ERR(error);
+
+        for (int j = 0; j <nfpc; j++)
+          {
+            int count = 0;
+            for (size_t k = 0; k < 4; k++)
+              {
+                int id = ahf->lConnMap3D[index].hf2v[j][k];
+                if (get_membership(hex_nodes[id]) == SlabData::BOUNDARY)
+                  {
+                    count += 1;
+                  }
+              }
+            if (count == 4)
+              {
+               EntityHandle opphex = 0;
+                error = ahf->get_neighbor_adjacencies_3d(coarse_hexes[i], j, &opphex);MB_CHK_ERR(error);
+                coarse_opphexes.push_back(opphex);
+              }
+          }
+      }
+
+    return MB_SUCCESS;
+  }
+
 
     // given a SlabEdge (edge and vertex) of a hex, find the other two edges sharing that vertex
   void RefineSlabs::get_adj( const SlabEdge &edge, SlabEdge &adj1, SlabEdge &adj2 )
@@ -606,6 +623,60 @@ namespace moab{
 
   }
 
+  ErrorCode RefineSlabs::create_hex( EntityHandle fine_nodes[8], EntityHandle & new_hex )
+  {
+    ErrorCode error = mbImpl->create_element(MBHEX, fine_nodes, 8, new_hex);
+    assert( MB_SUCCESS == error );
+    // refinement_AHF
+    // tell AHF about the new hex // AHF todo
+    // alternatively, as in the pseudocode, AHF can do this once after all the hexes have been created
+    //NR: Don't change anything in AHF here.
+
+    //debug
+    created_fine_hexes.insert(new_hex);
+
+    return error;
+  }
+
+  ErrorCode RefineSlabs::create_node( EntityHandle node, EntityHandle &new_node )
+  {
+    // get coordinates from node
+    const double *xp, *yp, *zp;
+    ErrorCode error = mbImpl->get_coords( node, xp, yp, zp );
+    assert(  MB_SUCCESS == error );
+
+
+    double coord[3];
+    coord[0] = *xp;
+    coord[1] = *yp;
+    coord[2] = *zp;
+    error = mbImpl->create_vertex(coord, new_node);
+    assert( MB_SUCCESS == error );
+
+
+    // refinement_AHF
+    // tell AHF about the new node // AHF todo
+    // alternatively, as in the pseudocode, AHF can do this once after all the hexes have been created
+
+    //debug
+    created_fine_nodes.insert(new_node);
+
+    return error;
+  }
+
+  // get the dimension of the geometric object that this mesh entity lies on
+  // E.g. 3 if inside the volume, 2 if on its surface, 1 if on an edge of the surface, ...
+  int RefineSlabs::get_geometry_dimension( EntityHandle entity_handle )
+  {
+    // geometry_map[ entity_handle ] == dimension
+    // auto it =
+    std::map< EntityHandle, int >::iterator
+    it = geometry_map.find( entity_handle );
+    if ( it == geometry_map.end() )
+      return 3;
+    return it->second;
+  }
+
 
   // ========================================================
   // inlined functions placed here for debugging
@@ -959,6 +1030,10 @@ namespace moab{
       MB_SET_ERR(  MB_NOT_IMPLEMENTED, "Encountered a mesh with mixed entity types");
 
     error = ahf->initialize(); MB_CHK_ERR(error);
+
+    //DBG
+    error = ahf->print_tags(3);MB_CHK_ERR(error);
+
     Range _inverts, _inedges, _infaces, _incells;
     error = ahf->get_entity_ranges(_inverts, _inedges, _infaces, _incells);  MB_CHK_ERR(error);
 
@@ -968,24 +1043,14 @@ namespace moab{
 
     // Only hexes are supported
     //Check for supported entity type
-    size_t meshdim;
-    if (!_inedges.empty())
-      {
-        MB_SET_ERR(MB_FAILURE, "Encountered a 1d mesh, but only hexes are supported");
-        meshdim = 1;
-      }
-    else if (!_infaces.empty())
-      {
-        MB_SET_ERR(MB_FAILURE, "Encountered a 2D mesh, but only hexes are supported");
-        meshdim = 2;
-      }
-    else if (!_incells.empty())
+      if (!_incells.empty())
       {
         EntityType type = mbImpl->type_from_handle(_incells[0]);
         if(type != MBHEX)
           MB_SET_ERR(MB_FAILURE, "Encountered a 3D mesh that wasn't hexes, but only hexes are supported");
-        meshdim = 3;
       }
+    else if ((!_inedges.empty())||(!_infaces.empty()))
+        MB_SET_ERR(MB_FAILURE, "Encountered a 1D or 2D mesh, but only hexes are supported");
 
     return MB_SUCCESS;
   }
@@ -994,7 +1059,7 @@ namespace moab{
    *     Interface Functions                                  *
    ************************************************************/
 
-  ErrorCode RefineSlabs::refine_mesh(Entities &coarse_hexes, Entities &coarse_quads, Entities &fine_hexes, Entities &fine_quads, bool is_sweep_edge, NodePair &sweep_edge )
+  ErrorCode RefineSlabs::refine_mesh(Entities &coarse_hexes, Entities &coarse_quads, Entities &fine_hexes, Entities /*&fine_quads*/, bool is_sweep_edge, NodePair &sweep_edge )
   {
     std::cout << "RefineSlabs::refine_mesh, set of " << coarse_hexes.size() << " hexes" << std::endl;
     write_file_slab( coarse_hexes, "refinement_set" );
@@ -1002,7 +1067,8 @@ namespace moab{
     // find boundary
     // define which vertices are on the boundary of the coarse_hexes refinement set?
     ErrorCode err = MB_SUCCESS;
-    err = mark_hex_nodes(coarse_hexes);
+    Entities coarse_bndverts, coarse_opphexes;
+    err = mark_hex_nodes(coarse_hexes, coarse_bndverts, coarse_opphexes);
     if (err == MB_SUCCESS)
       err = mark_surface_nodes(coarse_quads);
 
@@ -1021,15 +1087,13 @@ namespace moab{
     // pillow slabs
     // refine the hexes of each slab, referencing each hex's current refinement
     if (err == MB_SUCCESS)
-      err = pillow_slabs( slabs );
+      err = pillow_slabs( slabs, fine_hexes );
 
     // replace mesh
     if (err == MB_SUCCESS)
-      err = replace_mesh( coarse_hexes, coarse_quads, fine_hexes, fine_quads );
+      err = replace_mesh( coarse_hexes,  coarse_bndverts, coarse_opphexes, fine_hexes);
 
     delete_slabs( slabs );
-   // delete refinement_ahf;
-
 
     return err;
   }
@@ -1175,7 +1239,7 @@ namespace moab{
     //                        refine each hex into 8      transition == outer pillow
 
     // make a new AHF to store the refinement
-    ErrorCode error = new_refinement_ahf( memory_estimate ); 
+    ErrorCode error = estimate_allocate_ahf_maps( memory_estimate );
     assert( error == MB_SUCCESS );
 
     // copy nodes
@@ -1185,10 +1249,14 @@ namespace moab{
     // initial refined hexes = original hexes
     // copy hexes
     // a hex points to its refinement (other way not needed?)
-    copy_hexes( coarse_hexes );
+    Entities dup_hexes;
+    error = copy_hexes( coarse_hexes, dup_hexes);MB_CHK_ERR(error);
 
     // ? anything needed for the quads at this point?
     // should we copy them?
+
+    //update ahf maps for the copied entities
+    error = update_ahf_maps(dup_hexes);MB_CHK_ERR(error);
     return error;
 
   }
@@ -1224,8 +1292,9 @@ namespace moab{
   }
 
 
-  ErrorCode RefineSlabs::copy_hexes( Entities &coarse_hexes )
+  ErrorCode RefineSlabs::copy_hexes( Entities &coarse_hexes, Entities &fine_hexes )
   {
+    fine_hexes.clear();
     for (size_t i = 0; i < coarse_hexes.size(); ++i )
     {
       EntityHandle chex = coarse_hexes[i];
@@ -1237,6 +1306,7 @@ namespace moab{
       EntityHandle fhex;
       create_hex( fine_nodes, fhex );
       add_refined_hex( chex, fhex );
+      fine_hexes.push_back(fhex);
     }
     return MB_SUCCESS;
   }
@@ -1743,34 +1813,34 @@ namespace moab{
     return false;
   }
   
-  ErrorCode RefineSlabs::pillow_slabs( Slabs &slabs )
+  ErrorCode RefineSlabs::pillow_slabs( Slabs &slabs, Entities &new_hexes)
   {
     for (size_t i = 0; i < slabs.size(); ++i)
     {
-      ErrorCode err_i = pillow_slab( *slabs[i] );
+      ErrorCode err_i = pillow_slab( *slabs[i], new_hexes );
       if (err_i != MB_SUCCESS)
         return err_i;
     }
     return MB_SUCCESS;
   }
 
-  void RefineSlabs::get_pillow_hexes( const Slab& slab, Entities &pillow_hexes )
+  void RefineSlabs::get_pillow_hexes( const Slab& slab, Entities &pillowhexes )
   {
     Entities star_hexes;
     for ( EntitySet::const_iterator n = slab.star_nodes.begin(); n != slab.star_nodes.end(); ++n )
     {
       EntityHandle star_node = *n;
       get_all_hexes( star_node, star_hexes, true );
-      pillow_hexes.insert( pillow_hexes.end(), star_hexes.begin(), star_hexes.end() );
+      pillowhexes.insert( pillowhexes.end(), star_hexes.begin(), star_hexes.end() );
     }
 
     // uniquify the slab, removing redundant hexes
-    std::sort( pillow_hexes.begin(), pillow_hexes.end() );
-    pillow_hexes.erase( std::unique( pillow_hexes.begin(), pillow_hexes.end() ), pillow_hexes.end() );    
+    std::sort( pillowhexes.begin(), pillowhexes.end() );
+    pillowhexes.erase( std::unique( pillowhexes.begin(), pillowhexes.end() ), pillowhexes.end() );
 
   }
 
-  void RefineSlabs::shrink_mark_slab( Entities &slab, bool is_coarse )
+  void RefineSlabs::shrink_mark_slab( Entities &slab, bool iscoarse )
   { 
     for (size_t i = 0; i < slab.size(); ++i)
     {
@@ -1801,7 +1871,7 @@ namespace moab{
           if (is_internal)
           {
             Entities node_hexes;
-            get_all_hexes( hex_node, node_hexes, is_coarse );
+            get_all_hexes( hex_node, node_hexes, iscoarse );
             for ( size_t k = 0; k < node_hexes.size(); ++k )
             {
               EntityHandle node_hex = node_hexes[k];
@@ -1817,6 +1887,7 @@ namespace moab{
       }
     }
   }
+
   void RefineSlabs::remove_shrink_mark_slab( Entities &slab, bool /*is_coarse*/ )
   {
     for (size_t i = 0; i < slab.size(); ++i)
@@ -1874,8 +1945,9 @@ namespace moab{
 
   void RefineSlabs::pillow_hexes( Entities &shrink_set, Entities &new_hexes )
   {
-    // shrink set and new hexes are both fine-mesh entities
+    Entities finehexes;
 
+    // shrink set and new hexes are both fine-mesh entities
     // split vertices into edges
     // gather boundary entities
     for (size_t i = 0; i < shrink_set.size(); ++i)
@@ -1928,14 +2000,32 @@ namespace moab{
         {
           EntityHandle fhex;
           create_hex( quad_nodes, fhex );
+          add_refined_hex(chex, fhex);
+          finehexes.push_back(fhex);
           new_hexes.push_back(fhex);
         }
       }
     }
-    // need to update the datastructures for traversal from one hex to another
-    // either do that above during replace_node and create_hex, or below
-    //update_AHF_connectivity();
-    update_AHF_connectivity(shrink_set, new_hexes);
+
+    // update the ahf maps for the new hexes
+    //DBG
+    std::cout<<"Shrink set and new hexes"<<std::endl;
+    for (int i=0; i<shrink_set.size(); i++)
+      {
+        EntityHandle hex_nodes[8];
+        get_hex_nodes( shrink_set[i], hex_nodes );
+        std::cout<<"shrinkset["<<i<<"] = "<<shrink_set[i]<<", conn = ["<<hex_nodes[0]<<", "<<hex_nodes[1]<<", "<<hex_nodes[2]<<", "<<hex_nodes[3]<<", "<<hex_nodes[4]<<", "<<hex_nodes[5]<<", "<<hex_nodes[6]<<", "<<hex_nodes[7]<<" ]"<<std::endl;
+      }
+
+    for (int i=0; i<finehexes.size(); i++)
+      {
+        EntityHandle hex_nodes[8];
+        get_hex_nodes(finehexes[i], hex_nodes );
+        std::cout<<"finehexes["<<i<<"] = "<<finehexes[i]<<", conn = ["<<hex_nodes[0]<<", "<<hex_nodes[1]<<", "<<hex_nodes[2]<<", "<<hex_nodes[3]<<", "<<hex_nodes[4]<<", "<<hex_nodes[5]<<", "<<hex_nodes[6]<<", "<<hex_nodes[7]<<" ]"<<std::endl;
+      }
+
+    ErrorCode err = update_ahf_maps(shrink_set, finehexes);
+    assert(err == MB_SUCCESS);
   }
   void RefineSlabs::get_quad_nodes( EntityHandle /*hex*/, const EntityHandle hex_nodes[8], int face_lid, EntityHandle* quad_nodes )
   {
@@ -2043,7 +2133,7 @@ namespace moab{
   }
 
 
-  ErrorCode RefineSlabs::pillow_slab( Slab &slab )
+  ErrorCode RefineSlabs::pillow_slab( Slab &slab, Entities &new_hexes )
   {
 
     Entities coarse_hexes;
@@ -2058,7 +2148,7 @@ namespace moab{
     shrink_mark_fine_slab( coarse_hexes, shrink_set);
 
     // pillow, splitting vertices, edges, then quads into hexes
-    Entities new_hexes;
+   // Entities new_hexes;
     pillow_hexes( shrink_set, new_hexes );
 
     // cleanup 
@@ -2069,8 +2159,10 @@ namespace moab{
     return MB_SUCCESS;
   }
 
-  ErrorCode RefineSlabs::mark_hex_nodes(Entities &coarse_hexes)
+  ErrorCode RefineSlabs::mark_hex_nodes(Entities &coarse_hexes, Entities &coarse_bndverts, Entities &coarse_opphexes)
   {
+    ErrorCode error;
+
     // mark all hexes as being in the set
     for (size_t i = 0; i < coarse_hexes.size(); ++i)
     {
@@ -2085,7 +2177,7 @@ namespace moab{
     {
       EntityHandle hex = coarse_hexes[i];
       EntityHandle hex_nodes [8];
-      get_hex_nodes( hex, hex_nodes );
+      error = get_hex_nodes( hex, hex_nodes );MB_CHK_ERR(error);
       for (size_t j = 0; j < 8; ++j)
       {
         EntityHandle node = hex_nodes[j];
@@ -2116,10 +2208,14 @@ namespace moab{
 
           set_coarse_node( node );
           set_membership( node, is_internal ? SlabData::INTERNAL : SlabData::BOUNDARY );
+          if (!is_internal)
+            coarse_bndverts.push_back(node);
         }
       }
-
     }
+
+    //Return the coarse set boundary vertices and the opposite hexes incident on the coarse set boundary hexes.
+    error = get_coarse_opp_hexes(coarse_hexes, coarse_opphexes);MB_CHK_ERR(error);
 
     return MB_SUCCESS;
   }
@@ -2368,15 +2464,15 @@ namespace moab{
     return false;
   }
 
-  bool RefineSlabs::node_ok( bool is_coarse, EntityHandle node )
+  bool RefineSlabs::node_ok( bool iscoarse, EntityHandle node )
   {
-    if ( is_coarse && !is_registered_vertex( node ) )
+    if ( iscoarse && !is_registered_vertex( node ) )
     {
       std::cout << "bad coarse node" << std::endl;
       assert(0);
       return false;
     }
-    else if ( !is_coarse && created_fine_nodes.find(node) == created_fine_nodes.end() )
+    else if ( !iscoarse && created_fine_nodes.find(node) == created_fine_nodes.end() )
     {
       std::cout << "bad fine node" << std::endl;
       assert(0);

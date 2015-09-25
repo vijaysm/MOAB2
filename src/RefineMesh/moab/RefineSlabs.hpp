@@ -82,14 +82,14 @@ namespace moab
     typedef std::vector<Slab*> Slabs;
 
     // convert the slab into a set of fine hexes
-    void get_pillow_hexes( const Slab &slab, Entities &pillow_hexes );
+    void get_pillow_hexes(const Slab &slab, Entities &pillowhexes );
 
 
 
   public:
 
     ErrorCode refine_mesh(Entities &coarse_hexes, Entities &coarse_quads, Entities &fine_hexes, Entities &fine_quads);
-    ErrorCode refine_mesh(Entities &coarse_hexes, Entities &coarse_quads, Entities &fine_hexes, Entities &fine_quads, bool is_sweep_edge, NodePair &sweep_edge );
+    ErrorCode refine_mesh(Entities &coarse_hexes, Entities &coarse_quads, Entities &fine_hexes, Entities, bool is_sweep_edge, NodePair &sweep_edge );
 
     // for now, this is how we tell RefineSlabs which nodes are on the boundary of the geometry. 
     // In the future, we may want to do something else. But since this is in MOAB, we don't have real geometry.
@@ -100,7 +100,7 @@ namespace moab
     void register_entity_handles(EntityHandle *hexes, int num_hexes, EntityHandle *vertices, int num_vertices);
     bool is_registered_hex( EntityHandle hex );
     bool is_registered_vertex( EntityHandle vertex );
-    bool node_ok( bool is_coarse, EntityHandle node );
+    bool node_ok(bool iscoarse, EntityHandle node );
     bool hex_ok( EntityHandle hex );
 
 
@@ -111,8 +111,6 @@ namespace moab
     HalfFacetRep *ahf, *refinement_ahf;
     int file_sequence;
     std::map <EntityHandle, int > geometry_map; // map to dimension of owning geometry
-
-    ErrorCode new_refinement_ahf( size_t num_hexes_memory_estimate );
 
     // debugging
     // ensure that any coarse entity we request information from AHF/Core, was one of the coarse hexes passed in.
@@ -128,7 +126,7 @@ namespace moab
     ErrorCode initialize_refinement( Entities &coarse_hexes, Entities &coarse_quads );
     // mark the coarse_hexes as being the hexes we wish to refine
     // identify the boundary (surface) and interior nodes of the hexes
-    ErrorCode mark_hex_nodes(Entities &coarse_hexes);
+    ErrorCode mark_hex_nodes(Entities &coarse_hexes, Entities &coarse_bndverts, Entities &coarse_opphexes);
     // ditto for coarse quads. Recall the coarse quads are on the boundary of the coarse hexes and on the geometric surface.
     // Such quads are treated as if they were in the interior of the set, so they will not change, but new surface quads will be added around it.
     // If none are passed in, the surface mesh will not change.
@@ -137,20 +135,35 @@ namespace moab
     ErrorCode find_slabs( Entities &coarse_hexes, Entities &coarse_quads, bool is_sweep_pair, NodePair &sweep_pair, Slabs &slabs);
 
     // pillow all the slabs    
-    ErrorCode pillow_slabs( Slabs &slabs );
+    ErrorCode pillow_slabs( Slabs &slabs, Entities &new_hexes);
     // pillow an individual slab
-    ErrorCode pillow_slab( Slab &slab ); 
+    ErrorCode pillow_slab( Slab &slab, Entities &new_hexes);
     // pillow the hexes of an individual slab
     void pillow_hexes( Entities &shrink_set, Entities &new_hexes );
 
-    // AHF todo
-    // remove the coarse hexes and quads from the AHF, and replace them with the refined fine_hexes and quad from the refinement_AHF
-    ErrorCode replace_mesh( Entities &coarse_hexes, Entities &coarse_quads, Entities &fine_hexes, Entities &fine_quads ); // AHF todo
-    // For a hex, replace one of its nodes with a new node. 
+    /******************************************
+      *  Updating the Mesh Data Structure: AHF maps   *
+      *****************************************/
+    //Estimate #refined hexes and allocate memory for new entities
+     ErrorCode estimate_allocate_ahf_maps( size_t num_hexes_memory_estimate );
+
+    // Join the refined fine_hexes with the coarse hexes across the shared coarse-refinement set boundary.
+    ErrorCode replace_mesh(Entities, Entities &coarse_bndverts, Entities &coarse_opphexes, Entities);
+
+    // For a hex, replace one of its nodes with a new node.
     // This is a hex-by-hex operation, so the connectivity between hexes might be ill-defined, and the AHF might be out of date,
     // while these sorts of operations are taking place. So, when we're done and the connectivity is well-defined again, call the update_AHF_connectivity function.
-    void replace_node( EntityHandle chex, int node_lid, EntityHandle new_node); // AHF todo
-    void update_AHF_connectivity(); // AHF todo
+
+    //Replace the connectivity of a hex with a new vertex handle
+    ErrorCode replace_node( EntityHandle chex, int node_lid, EntityHandle new_node);
+
+    //Updates the ahf maps for the refined entities after refining the shrink set
+    ErrorCode update_ahf_maps(Entities, Entities &new_hexes);
+
+    //Updates the ahf maps for the duplicate entities of the coarse_hexes
+    ErrorCode update_ahf_maps(Entities &coarse_hexes);
+
+    ErrorCode get_coarse_opp_hexes(Entities &coarse_hexes, Entities &coarse_opphexes);
 
 
   protected:
@@ -312,8 +325,8 @@ namespace moab
     ErrorCode get_quad_nodes( EntityHandle quad, EntityHandle quad_nodes[4] );
 
     // get the hexes (quads) of the node, through ahf(true) or refinement_ahf(false)
-    void get_all_hexes( EntityHandle node, Entities &hexes, bool is_coarse );
-    void get_all_quads( EntityHandle node, Entities &quads, bool is_coarse = true );
+    ErrorCode get_all_hexes(EntityHandle node, Entities &hexes, bool iscoarse );
+    ErrorCode get_all_quads( EntityHandle node, Entities &quads, bool iscoarse = true );
 
     // convert the oriented edge defined by the hex, its local id in the hex, and the starting node, into a SlabEdge
     void get_edge( EntityHandle hex, int edge_lid, int node_01, SlabEdge &slab_edge );
@@ -384,7 +397,7 @@ namespace moab
     ErrorCode create_node( EntityHandle node, EntityHandle &new_node );
 
     // copy the coarse hexes into the fine ahf
-    ErrorCode copy_hexes( Entities &coarse_hexes );
+    ErrorCode copy_hexes(Entities &coarse_hexes , Entities &fine_hexes);
     ErrorCode create_hex( EntityHandle fine_nodes[8], EntityHandle & new_hex  );
 
     // copy a fine node into another fine one, for pillowing a shrink set
@@ -415,7 +428,7 @@ namespace moab
     void set_shrink_membership( EntityHandle entity_handle, SlabData::Membership membership );
 
     // mark the hexes as being in the pillow (shrink) set, determine whether nodes are interior or boundary
-    void shrink_mark_slab( Entities &slab, bool is_coarse );
+    void shrink_mark_slab(Entities &slab, bool iscoarse );
     void shrink_mark_coarse_slab( Entities &pillow_hexes );
     void shrink_mark_fine_slab( Entities &pillow_hexes, Entities &shrink_set);
     void remove_shrink_mark_slab( Entities &pillow_hexes, bool is_coarse );
