@@ -10,6 +10,8 @@
 #include "moab_mpi.h"
 #endif // MOAB_HAVE_MPI
 
+#include "TestUtil.hpp"
+
 #include <iostream>
 #include <sstream>
 #include <map>
@@ -17,14 +19,6 @@
 #include "sys/time.h"
 
 using namespace moab;
-
-#define STRINGIFY_(A) #A
-#define STRINGIFY(A) STRINGIFY_(A)
-#ifdef MESHDIR
-std::string TestDir( STRINGIFY(MESHDIR) );
-#else
-std::string TestDir( "./" );
-#endif
 
 int TestMeshRefiner( int argc, char* argv[] )
 {

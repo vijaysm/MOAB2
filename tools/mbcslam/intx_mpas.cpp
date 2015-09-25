@@ -13,26 +13,16 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <math.h>  // for M_PI
 #include "moab/Core.hpp"
 #include "moab/Interface.hpp"
 #include "Intx2MeshOnSphere.hpp"
-#include <math.h>
 #include "moab/ProgOptions.hpp"
 #include "MBTagConventions.hpp"
-#include "TestUtil.hpp"
 #include "moab/ParallelComm.hpp"
+#include "TestUtil.hpp"
 
 #include "CslamUtils.hpp"
-#include <time.h>
-
-#ifdef MESHDIR
-std::string TestDir( STRINGIFY(MESHDIR) );
-#else
-#error Specify MESHDIR to run unit tests
-#endif
-
-// for M_PI
-#include <math.h>
 
 using namespace moab;
 // some input data
