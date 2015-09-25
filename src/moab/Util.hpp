@@ -17,18 +17,9 @@
 #define MB_UTIL_HPP
 
 #include "moab/Forward.hpp"
+#include "moab/CartVect.hpp"
 
 namespace moab {
-
-/** \struct Coord
- * \brief Structure for storing coordinate data
- */
-struct  Coord
-{
-  double x;
-  double y;
-  double z;
-};
 
 /** \class Util
  *
@@ -37,14 +28,17 @@ struct  Coord
 class Util
 {
 public:
-   
+
+  template <typename T>
+  static bool isfinite(T value);
+  
   static void normal(Interface* MB, EntityHandle handle, double& x, double& y, double& z);
 
-  static void centroid(Interface *MB, EntityHandle handle,Coord &coord);
+  static void centroid(Interface *MB, EntityHandle handle,CartVect &coord);
 
-  //static void edge_centers(Interface *MB, EntityHandle handle, std::vector<Coord> &coords_list);
+  //static void edge_centers(Interface *MB, EntityHandle handle, std::vector<CartVect> &coords_list);
 
-  //static void face_centers(Interface *MB, EntityHandle handle, std::vector<Coord> &coords_list);
+  //static void face_centers(Interface *MB, EntityHandle handle, std::vector<CartVect> &coords_list);
 
 private:
 

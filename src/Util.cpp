@@ -14,28 +14,27 @@
  */
 
 //-------------------------------------------------------------------------
-// Filename      : Util.cpp
-//
-// Purpose       : This file contains utility functions that can be used
-//                 with MB
+// Purpose       : This file contains utility functions for use in MOAB
 //
 // Special Notes : This is a pure virtual class, to prevent instantiation.
 //                 All functions are static, called like this:
 //                 Util::function_name();
-//
-// Creator       : Ray J. Meyers
-//
-// Date          : 09/01/02
-//
-// Owner         : Ray J. meyers
 //-------------------------------------------------------------------------
-
+#include "moab/MOABConfig.h"
 #include "moab/Util.hpp"
 #include "moab/Interface.hpp"
 #include <assert.h>
 #include <math.h>
 #include <algorithm>
 #include <limits>
+
+#if defined(_MSC_VER) || defined(__MINGW32__)
+#  include <float.h>
+#  define finite(A) _finite(A)
+#ifndef MOAB_HAVE_FINITE
+#define MOAB_HAVE_FINITE
+#endif
+#endif
 
 namespace moab {
 
@@ -77,29 +76,41 @@ void Util::normal(Interface* MB, EntityHandle handle, double& x, double& y, doub
    }
 }
 
-void Util::centroid(Interface *MB, EntityHandle handle, Coord &coord)
+void Util::centroid(Interface *MB, EntityHandle handle, CartVect &coord)
 {
    const EntityHandle *connectivity = NULL;
    int number_nodes = 0;
    MB->get_connectivity(handle, connectivity, number_nodes,true);
    
-   coord.x=0.0;
-   coord.y=0.0;
-   coord.z=0.0;
+   coord[0]=coord[1]=coord[2]=0.0;
 
    for(int i = 0; i< number_nodes; i++)
    {
       double node_coords[3];
       MB->get_coords(&(connectivity[i]), 1, node_coords);
      
-      coord.x+=node_coords[0];
-      coord.y+=node_coords[1];
-      coord.z+=node_coords[2];
+      coord[0]+=node_coords[0];
+      coord[1]+=node_coords[1];
+      coord[2]+=node_coords[2];
    }
    
-   coord.x/=(double)number_nodes;
-   coord.y/=(double)number_nodes;
-   coord.z/=(double)number_nodes;
+   coord[0]/=(double)number_nodes;
+   coord[1]/=(double)number_nodes;
+   coord[2]/=(double)number_nodes;
+}
+
+template <typename T>
+bool Util::isfinite(T value)
+{
+#ifdef MOAB_HAVE_ISFINITE
+  return isfinite(value);
+#else
+#  ifdef MOAB_HAVE_FINITE
+     return finite(value);
+#  else
+#    error Both finite and isfinite routines are unavailable
+#  endif
+#endif
 }
 
 /*//This function calculates the coordinates for the centers of each edges of the entity specified by handle. The coordinates are returned in the list coords_list
