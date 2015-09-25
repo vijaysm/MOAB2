@@ -182,6 +182,10 @@ if ( NOT MOAB_FORCE_64_BIT_HANDLES AND NOT MOAB_FORCE_32_BIT_HANDLES )
   set ( HAVE_PTRDIFF_T ${MOAB_HAVE_PTRDIFF_T} )
 endif ( NOT MOAB_FORCE_64_BIT_HANDLES AND NOT MOAB_FORCE_32_BIT_HANDLES )
 
+# Check of presence of finite or isfinite macros
+include (CheckFunctionExists)
+CHECK_FUNCTION_EXISTS(finite MOAB_HAVE_FINITE)
+CHECK_FUNCTION_EXISTS(isfinite MOAB_HAVE_ISFINITE)
 
 ################################################################################
 # Find packages
