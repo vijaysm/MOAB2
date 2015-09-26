@@ -1,50 +1,36 @@
-if HAVE_CGM
-  IGEOM_LIB = libmsqigeom.la
-else
-  IGEOM_LIB = 
-endif
+MSQ_ITAPS_LIB = libmsqitaps.la
+MSQ_ITAPS_HDRS =
+MSQ_ITAPS_SRCS =
+MSQ_LIBDEPS = $(top_builddir)/src/mesquite/libmesquite.la
 
 if ENABLE_irel
-  IREL_LIB = libmsqirel.la
-else
-  IREL_LIB = 
+  MSQ_ITAPS_SRCS += MsqIRel.cpp
+  MSQ_ITAPS_HDRS += MsqIRel.hpp
+  MSQ_LIBDEPS += $(top_builddir)/itaps/irel/libiRel.la
 endif
 
 if ENABLE_imesh
-  IMESH_LIB = libmsqimesh.la
+  MSQ_ITAPS_SRCS += MsqIMesh.cpp
+  MSQ_ITAPS_HDRS += MsqIMesh.hpp
+  MSQ_LIBDEPS += $(top_builddir)/itaps/imesh/libiMesh.la $(top_builddir)/src/libMOAB.la
 if HAVE_MPI
-  IMESHP_LIB = libmsqimeshp.la
-else
-  IMESHP_LIB =
+  MSQ_ITAPS_SRCS += MsqIMeshP.cpp
+  MSQ_ITAPS_HDRS += MsqIMeshP.hpp
 endif
-else
-  IMESH_LIB = 
-  IMESHP_LIB = 
 endif
 
-lib_LTLIBRARIES = $(IMESH_LIB) $(IGEOM_LIB) $(IREL_LIB) $(IMESHP_LIB)
-
-libmsqimesh_la_includedir = $(includedir)
-libmsqimesh_la_SOURCES = MsqIMesh.cpp 
-libmsqimesh_la_include_HEADERS = MsqIMesh.hpp 
-libmsqimesh_la_LIBADD = $(top_builddir)/src/mesquite/libmesquite.la $(top_builddir)/itaps/imesh/libiMesh.la $(top_builddir)/src/libMOAB.la
-
-libmsqigeom_la_includedir = $(includedir)
-libmsqigeom_la_SOURCES = MsqIGeom.cpp 
-libmsqigeom_la_include_HEADERS = MsqIGeom.hpp 
-libmsqigeom_la_LIBADD = $(top_builddir)/src/mesquite/libmesquite.la ${IGEOM_LTFLAGS} ${IGEOM_LDFLAGS} ${CGM_DIR}/lib/libiGeom.la
-
-libmsqirel_la_includedir = $(includedir)
-libmsqirel_la_SOURCES = MsqIRel.cpp 
-libmsqirel_la_include_HEADERS = MsqIRel.hpp 
-libmsqirel_la_LIBADD = libmsqigeom.la libmsqimesh.la $(top_builddir)/itaps/irel/libiRel.la $(top_builddir)/src/libMOAB.la
-
-if HAVE_MPI
-libmsqimeshp_la_includedir = $(includedir)
-libmsqimeshp_la_SOURCES = MsqIMeshP.cpp 
-libmsqimeshp_la_include_HEADERS = MsqIMeshP.hpp 
-libmsqimeshp_la_LIBADD = libmsqimesh.la $(top_builddir)/src/mesquite/libmesquite.la $(top_builddir)/itaps/imesh/libiMesh.la $(top_builddir)/src/libMOAB.la
+if HAVE_CGM
+  MSQ_ITAPS_SRCS += MsqIGeom.cpp
+  MSQ_ITAPS_HDRS += MsqIGeom.hpp
+  MSQ_LIBDEPS += ${IGEOM_LTFLAGS} ${IGEOM_LDFLAGS} ${CGM_DIR}/lib/libiGeom.la
 endif
+
+lib_LTLIBRARIES = $(MSQ_ITAPS_LIB)
+
+libmsqitaps_la_includedir = $(includedir)
+libmsqitaps_la_SOURCES = $(MSQ_ITAPS_SRCS)
+libmsqitaps_la_include_HEADERS = $(MSQ_ITAPS_HDRS) 
+libmsqitaps_la_LIBADD = $(MSQ_LIBDEPS)
 
 AM_CPPFLAGS = $(CPPFLAGS) \
               -I$(top_builddir)/src/mesquite/include \
