@@ -17,15 +17,13 @@
 #include "moab/Core.hpp"
 #include "moab/Range.hpp"
 #include "moab/FileOptions.hpp"
+#include "TestUtil.hpp"
 #include <iostream>
 #include <string>
 
 #ifdef MOAB_HAVE_MPI
 #include "moab_mpi.h"
 #endif
-
-#define STRINGIFY_(A) #A
-#define STRINGIFY(A) STRINGIFY_(A)
 
 using namespace moab;
 
@@ -35,7 +33,7 @@ int main(int argc, char* argv[])
   MPI_Init(&argc, &argv);
 #endif
     // Check command line arg
-  const char* file = STRINGIFY(MESHDIR) "/io/brick_cubit10.2.cub";
+  const char* file = std::string(TestDir + "/io/brick_cubit10.2.cub").c_str();
   if (argc < 2)
   {
     std::cout << "Usage: tqdcfr <cub_file_name>" << std::endl;
