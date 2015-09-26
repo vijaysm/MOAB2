@@ -35,5 +35,6 @@ EXTRA_DIST = HommeMapping.nc \
              poly8-10.vtk \
              gcrm_r3.nc \
              mix.h5m \
-             p8ex1.h5m
+             p8ex1.h5m \
+             oneside.h5m
 
