@@ -77,12 +77,12 @@ using namespace moab;
  * every higher-order node are expected to be the mean of the
  * adjacent corner vertices of the element.
  */
-static const char* input_file_1 = std::string( TestDir + "/io/test.cub" ).c_str();
-static const char* ho_file = std::string( TestDir + "/io/ho_test.cub" ).c_str();
-static const char* cubit12_file = std::string( TestDir + "/io/cubtest12.cub" ).c_str();
-static const char* cubit14_file = std::string( TestDir + "/io/cubtest14.cub" ).c_str();
+static const std::string input_file_1 = std::string( TestDir + "/io/test.cub" );
+static const std::string ho_file = std::string( TestDir + "/io/ho_test.cub" );
+static const std::string cubit12_file = std::string( TestDir + "/io/cubtest12.cub" );
+static const std::string cubit14_file = std::string( TestDir + "/io/cubtest14.cub" );
 
-void read_file( Interface& moab, const char* input_file );
+void read_file( Interface& moab, const std::string& input_file );
 
 
 // Check that adjacent lower-order entities have
@@ -171,10 +171,9 @@ int main()
   return result;
 }
 
-void read_file( Interface& moab, const char* input_file )
+void read_file( Interface& moab, const std::string& input_file )
 {
-  ErrorCode rval = moab.load_file( input_file );
-  CHECK_ERR(rval);
+  ErrorCode rval = moab.load_file( input_file.c_str() );CHECK_ERR(rval);
 }
 
 void test_vertices()
@@ -261,7 +260,7 @@ void test_vertices()
 }
 
 
-void test_element( const char* filename,
+void test_element( const std::string& filename,
                    EntityType type, 
                    int num_elem,
                    int node_per_elem,
