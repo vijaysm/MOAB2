@@ -1,14 +1,14 @@
 @TEST_MAKE_INCLUDE@
-LDADD = $(top_builddir)/itaps/mesquite/libmsqigeom.la \
+LDADD = $(top_builddir)/itaps/mesquite/libmsqitaps.la \
         $(top_builddir)/src/mesquite/libmesquite.la \
-        ${IGEOM_LDFLAGS} \
+        ${IGEOM_LDFLAGS} ${IGEOM_LIBS} \
         ${CGM_LDFLAGS} ${CGM_LIBS}
 
 MESHDIR = $(abs_top_srcdir)/MeshFiles/mesquite
 
 check_PROGRAMS = main
 main_SOURCES = main.cpp
-main_DEPENDENCIES = $(top_builddir)/itaps/mesquite/libmsqigeom.la \
+main_DEPENDENCIES = $(top_builddir)/itaps/mesquite/libmsqitaps.la \
                     $(top_builddir)/src/mesquite/libmesquite.la 
 
 TESTS = main

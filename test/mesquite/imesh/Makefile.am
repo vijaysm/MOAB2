@@ -1,5 +1,5 @@
 @TEST_MAKE_INCLUDE@
-LDADD = $(top_builddir)/itaps/mesquite/libmsqimesh.la \
+LDADD = $(top_builddir)/itaps/mesquite/libmsqitaps.la \
         $(top_builddir)/src/mesquite/libmesquite.la \
         $(top_builddir)/itaps/imesh/libiMesh.la \
         ${IGEOM_LDFLAGS} \
@@ -7,7 +7,7 @@ LDADD = $(top_builddir)/itaps/mesquite/libmsqimesh.la \
 check_PROGRAMS = main
 main_SOURCES = main.cpp
 main_DEPENDENCIES = $(top_builddir)/src/mesquite/libmesquite.la \
-                    $(top_builddir)/itaps/mesquite/libmsqimesh.la
+                    $(top_builddir)/itaps/mesquite/libmsqitaps.la
 TESTS = main
 EXTRA_DIST = CMakeLists.txt
 
