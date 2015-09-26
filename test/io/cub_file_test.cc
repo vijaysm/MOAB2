@@ -77,17 +77,10 @@ using namespace moab;
  * every higher-order node are expected to be the mean of the
  * adjacent corner vertices of the element.
  */
-#ifdef MESHDIR
-static const char input_file_1[] = STRINGIFY(MESHDIR) "/io/test.cub";
-static const char ho_file[] = STRINGIFY(MESHDIR) "/io/ho_test.cub";
-static const char cubit12_file[] = STRINGIFY(MESHDIR) "/io/cubtest12.cub";
-static const char cubit14_file[] = STRINGIFY(MESHDIR) "/io/cubtest14.cub";
-#else
-static const char input_file_1[] = "test.cub";
-static const char ho_file[] = "ho_test.cub";
-static const char cubit12_file[] = "cubtest12.cub";
-static const char cubit12_file[] = "cubtest14.cub";
-#endif
+static const char* input_file_1 = std::string( TestDir + "/io/test.cub" ).c_str();
+static const char* ho_file = std::string( TestDir + "/io/ho_test.cub" ).c_str();
+static const char* cubit12_file = std::string( TestDir + "/io/cubtest12.cub" ).c_str();
+static const char* cubit14_file = std::string( TestDir + "/io/cubtest14.cub" ).c_str();
 
 void read_file( Interface& moab, const char* input_file );
 
