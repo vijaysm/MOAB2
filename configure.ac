@@ -952,6 +952,23 @@ if test "x$CGM_MISSING" = "xno"; then
   fi
   EXPORT_LDFLAGS="$EXPORT_LDFLAGS $CGM_LDFLAGS"
   EXPORT_LTFLAGS="$EXPORT_LTFLAGS $CGM_LTFLAGS"
+
+  AC_CHECK_FILE([${CGM_DIR}/lib/iGeom-Defs.inc],
+              [IGEOM_CONFIG_OPTIONS="include ${CGM_DIR}/lib/iGeom-Defs.inc";
+               FATHOM_MAKE_INC_VAR([${CGM_DIR}/lib/iGeom-Defs.inc],[IGEOM_DEFINES], [IGEOM_DEFINES="$make_val"],[IGEOM_DEFINES=])
+               FATHOM_MAKE_INC_VAR([${CGM_DIR}/lib/iGeom-Defs.inc],[IGEOM_INCLUDES], [IGEOM_INCLUDES="$make_val"],[IGEOM_INCLUDES=])
+               FATHOM_MAKE_INC_VAR([${CGM_DIR}/lib/iGeom-Defs.inc],[IGEOM_LDFLAGS], [IGEOM_LDFLAGS="$make_val"],[IGEOM_LDFLAGS=])
+               FATHOM_MAKE_INC_VAR([${CGM_DIR}/lib/iGeom-Defs.inc],[IGEOM_LIBS], [IGEOM_LIBS="$make_val"],[IGEOM_LIBS=]) ],
+              [AC_CHECK_FILE([${CGM_DIR}/iGeom-Defs.inc],
+                             [IGEOM_CONFIG_OPTIONS="include ${CGM_DIR}/iGeom-Defs.inc";
+                              FATHOM_MAKE_INC_VAR([${CGM_DIR}/iGeom-Defs.inc],[IGEOM_DEFINES], [IGEOM_DEFINES="$make_val"],[IGEOM_DEFINES=])
+                              FATHOM_MAKE_INC_VAR([${CGM_DIR}/iGeom-Defs.inc],[IGEOM_INCLUDES], [IGEOM_INCLUDES="$make_val"],[IGEOM_INCLUDES=])
+                              FATHOM_MAKE_INC_VAR([${CGM_DIR}/iGeom-Defs.inc],[IGEOM_LDFLAGS], [IGEOM_LDFLAGS="$make_val"],[IGEOM_LDFLAGS=])
+                              FATHOM_MAKE_INC_VAR([${CGM_DIR}/iGeom-Defs.inc],[IGEOM_LIBS], [IGEOM_LIBS="$make_val"],[IGEOM_LIBS=]) ],
+                             [AC_MSG_WARN([$CGM_DIR : not a configured iGeom])]
+                            )
+              ])
+
 fi
 
 AC_SUBST(CGM_CPPFLAGS)
@@ -959,6 +976,11 @@ AC_SUBST(CGM_LDFLAGS)
 AC_SUBST(CGM_LTFLAGS)
 AC_SUBST(CGM_LIBS)
 AC_SUBST(CGM_DIR)
+AC_SUBST(IGEOM_DEFINES)
+AC_SUBST(IGEOM_INCLUDES)
+AC_SUBST(IGEOM_CONFIG_OPTIONS)
+AC_SUBST(IGEOM_LDFLAGS)
+AC_SUBST(IGEOM_LIBS)
 
 AM_CONDITIONAL( HAVE_CGM, [test "x$CGM_MISSING" = "xno"] )
 
@@ -982,21 +1004,7 @@ if test "x$ENABLE_irel" = "xyes"; then
     AC_MSG_ERROR([Cannot build iRel API. Enable both iGeom (CGM) and iMesh implementations.])
   fi
   AC_DEFINE([HAVE_IREL],[1],[Define if configured with iRel interfaces.])
-  
-  AC_CHECK_FILE([${CGM_DIR}/lib/iGeom-Defs.inc],
-              [IGEOM_CONFIG_OPTIONS="include ${CGM_DIR}/lib/iGeom-Defs.inc";
-               FATHOM_MAKE_INC_VAR([${CGM_DIR}/lib/iGeom-Defs.inc],[IGEOM_DEFINES], [IGEOM_DEFINES="$make_val"],[IGEOM_DEFINES=])
-               FATHOM_MAKE_INC_VAR([${CGM_DIR}/lib/iGeom-Defs.inc],[IGEOM_INCLUDES], [IGEOM_INCLUDES="$make_val"],[IGEOM_INCLUDES=]) ],
-              [AC_CHECK_FILE([${CGM_DIR}/iGeom-Defs.inc],
-                             [IGEOM_CONFIG_OPTIONS="include ${CGM_DIR}/iGeom-Defs.inc"],
-                             [AC_MSG_WARN([$CGM_DIR : not a configured iGeom])]
-                            )
-              ])
-  AC_SUBST(IGEOM_DEFINES)
-  AC_SUBST(IGEOM_INCLUDES)
-  AC_SUBST(IGEOM_CONFIG_OPTIONS)
 fi
-
 
 ################################################################################
 #                           Mesquite Part 2 of 2
