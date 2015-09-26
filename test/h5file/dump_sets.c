@@ -47,6 +47,7 @@ int main( int argc, char* argv[] )
 void dump_sets( mhdf_FileHandle file )
 {
   long *end_indices, *data;
+  long* new_data;
   int* flags;
   long num_sets, first, num_data;
   hid_t meta, handle;
@@ -71,7 +72,7 @@ void dump_sets( mhdf_FileHandle file )
   puts("\nSet Children:\n");
   mhdf_readSetChildEndIndices( meta, 0, num_sets, H5T_NATIVE_LONG, end_indices, &status ); CHECK;
   handle = mhdf_openSetChildren( file, &num_data, &status ); CHECK;
-  long* new_data = realloc( data, num_data * sizeof(long) );
+  new_data = realloc( data, num_data * sizeof(long) );
   if (!new_data) {
     fprintf(stderr, "dump_sets.c::dump_sets(): reallocation of data failed\n");
     free(data);
