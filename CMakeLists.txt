@@ -159,6 +159,8 @@ set( HAVE_INTTYPES_H    ${MOAB_HAVE_INTTYPES_H} )
 set( HAVE_STDLIB_H    ${MOAB_HAVE_STDLIB_H} )
 check_include_file( memory.h     MOAB_HAVE_MEMORY_H )
 
+INCLUDE(TestBigEndian)
+TEST_BIG_ENDIAN(WORDS_BIGENDIAN)
 ################################################################################
 # Integer size Related Settings
 ################################################################################

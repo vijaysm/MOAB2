@@ -375,9 +375,7 @@
 #  define WORDS_BIGENDIAN 1
 # endif
 #else
-# ifndef WORDS_BIGENDIAN
-#  define WORDS_BIGENDIAN
-# endif
+#cmakedefine WORDS_BIGENDIAN
 #endif
 
 /* Define to 1 if the X Window System is missing or not being used. */
