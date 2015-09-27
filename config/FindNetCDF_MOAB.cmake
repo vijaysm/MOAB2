@@ -11,6 +11,12 @@ set (NETCDF_DIR "" CACHE PATH "Path to search for NetCDF header and library file
 set (NETCDF_FOUND NO CACHE INTERNAL "Found NetCDF components successfully." )
 
 # First try to find netCDF with default CMake logic.
+# Search twice, <http://cmake.org/cmake/help/v3.0/command/find_package.html>.
+find_package(
+  netCDF
+  PATHS ${NETCDF_DIR}
+  NO_DEFAULT_PATH
+  )
 find_package(netCDF)
 
 if (${netCDF_FOUND})
