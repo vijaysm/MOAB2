@@ -172,21 +172,21 @@ int main( int argc, char* argv[] )
           // write first header or this entity type, then the first values, separated by commas
           ofile<<" There are " << ne_local << " entities of type " << vw.entity_type_name(et) << " with " <<
               qualities.size() << " qualities:\n" << " Entity id ";
-          for (std::map<QualityType, double>::iterator qit=qualities.begin(); qit!=qualities.end(); qit++)
+          for (std::map<QualityType, double>::iterator qit=qualities.begin(); qit!=qualities.end(); ++qit)
           {
             ofile<<", " << vw.quality_name(qit->first);
           }
           ofile<<"\n";
           ofile <<  mb.id_from_handle(*it) ;
-          for (std::map<QualityType, double>::iterator qit=qualities.begin(); qit!=qualities.end(); qit++)
+          for (std::map<QualityType, double>::iterator qit=qualities.begin(); qit!=qualities.end(); ++qit)
           {
             ofile<<", " << qit->second;
           }
           ofile<<"\n";
         }
         minq=qualities; maxq=qualities;
-        it++;
-        for ( ;it!=owned.end(); it++)
+        ++it;
+        for ( ;it!=owned.end(); ++it)
         {
           rval = vw.all_quality_measures(*it, qualities);
           if (MB_SUCCESS!=rval )
@@ -200,7 +200,7 @@ int main( int argc, char* argv[] )
           if (ofile.is_open())
           {
             ofile <<  mb.id_from_handle(*it) ;
-            for (std::map<QualityType, double>::iterator qit=qualities.begin(); qit!=qualities.end(); qit++)
+            for (std::map<QualityType, double>::iterator qit=qualities.begin(); qit!=qualities.end(); ++qit)
             {
               ofile<< ", " << qit->second;
             }
@@ -210,7 +210,7 @@ int main( int argc, char* argv[] )
           std::map<QualityType, double>::iterator maxit=maxq.begin();
           for (std::map<QualityType, double>::iterator mit=qualities.begin();
               mit!=qualities.end();
-              mit++, minit++, maxit++)
+              ++mit, ++minit, ++maxit)
           {
             if (mit->second > maxit->second) maxit->second = mit->second;
             if (mit->second < minit->second) minit->second = mit->second;

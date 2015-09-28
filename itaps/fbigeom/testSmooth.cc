@@ -12,7 +12,6 @@
  *
  */
 #include "FBiGeom.h"
-#include "iMesh.h"
 #include <iostream>
 #include <set>
 #include <algorithm>
@@ -44,10 +43,6 @@ static bool print_error(const char* desc, int err, FBiGeom_Instance geom,
 typedef iBase_TagHandle TagHandle;
 typedef iBase_EntityHandle GentityHandle;
 typedef iBase_EntitySetHandle GentitysetHandle;
-
-extern void FBiGeom_newGeomFromMesh( iMesh_Instance mesh, iBase_EntitySetHandle set,
-                          const char *options, FBiGeom_Instance *geom,
-                          int *err, int options_len);
 
 /* Frees allocated arrays for us */
 template<typename T> class SimpleArray {
@@ -115,7 +110,7 @@ public:
 #define ARRAY_INOUT( A ) A.ptr(), &A.capacity(), &A.size()
 #define ARRAY_IN( A ) &A[0], A.size()
 
-bool smooth_test(const std::string filename, FBiGeom_Instance);
+bool smooth_test(const std::string &filename, FBiGeom_Instance);
 
 bool tags_test(FBiGeom_Instance geom);
 bool tag_get_set_test(FBiGeom_Instance geom);
@@ -147,6 +142,7 @@ void handle_error_code(const bool result, int &number_failed,
 
 int main(int argc, char *argv[]) {
    std::string filename = STRINGIFY(MESHDIR) "/shell.h5m";
+   std::string engine_opt;
 
    if (argc == 1) {
       std::cout << "Using default input file: " << filename << std::endl;
@@ -157,42 +153,22 @@ int main(int argc, char *argv[]) {
       return 1;
    }
 
-   int err;
+   bool result;
    int number_tests = 0;
    int number_tests_successful = 0;
    int number_tests_not_implemented = 0;
    int number_tests_failed = 0;
 
-   // initialize the FBiGeom, in a different way
-   iMesh_Instance mesh = NULL;
+   // initialize the Mesh
+   int err;
    FBiGeom_Instance geom;
-   iMesh_newMesh(NULL, &mesh, &err, 0);
-   if (err != iBase_SUCCESS)
-     std::cerr << " Error code: " << err
-              << "  At        : " << __FILE__ << ':' << __LINE__ << std::endl;
-
-   iBase_EntitySetHandle root_set;
-   iMesh_createEntSet(mesh, 0, &root_set, &err);
-   if (err != iBase_SUCCESS)
-     std::cerr << " Error code: " << err << " failed to create a model set"
-                 << "  At        : " << __FILE__ << ':' << __LINE__  << std::endl;
-
-   iMesh_load(mesh, root_set, filename.c_str(), NULL, &err, filename.length(), 0);
-   if (err != iBase_SUCCESS)
-     std::cerr << " Error code: " << err << " failed load the file"
-                    << "  At        : " << __FILE__ << ':' << __LINE__  << std::endl;
-
-   std::string opts("SMOOTH;");
-   // new constructor
-   FBiGeom_newGeomFromMesh(mesh, root_set, opts.c_str(), &geom, &err, opts.length());
-
+   FBiGeom_newGeom(engine_opt.c_str(), &geom, &err, engine_opt.length());
    CHECK( "Interface initialization didn't work properly." );
 
    // Print out Header information
    std::cout << "\n\nITAPS GEOMETRY INTERFACE TEST PROGRAM:\n\n";
    // gLoad test
 
-   bool result;
    std::cout << "   Smooth faceting load and initialization: \n";
    result = smooth_test(filename, geom);
    handle_error_code(result, number_tests_failed, number_tests_not_implemented,
@@ -307,7 +283,6 @@ int main(int argc, char *argv[]) {
     */
    // shutdown test
    std::cout << "   shutdown: ";
-   std::string engine_opt;
    result = shutdown_test(geom, engine_opt);
    handle_error_code(result, number_tests_failed, number_tests_not_implemented,
          number_tests_successful);
@@ -332,7 +307,7 @@ int main(int argc, char *argv[]) {
  @li Load a mesh file
  */
 
-bool smooth_test(const std::string filename, FBiGeom_Instance geom) {
+bool smooth_test(const std::string &filename, FBiGeom_Instance geom) {
    int err;
    char opts[] = "SMOOTH;";
    FBiGeom_load(geom, &filename[0], opts, &err, filename.length(), 8);
@@ -361,9 +336,7 @@ bool smooth_test(const std::string filename, FBiGeom_Instance geom) {
  @li Load a mesh file
  */
 bool tags_test(FBiGeom_Instance geom) {
-   bool success = true;
-
-   success = tag_info_test(geom);
+   bool success = tag_info_test(geom);
    if (!success)
       return success;
 
@@ -537,7 +510,7 @@ bool gentityset_test(FBiGeom_Instance geom, bool /*multiset*/, bool /*ordered*/)
    int num_type = 4;
    iBase_EntitySetHandle ges_array[4];
    int number_array[4];
-   int num_all_gentities_super = 0;
+   //int num_all_gentities_super = 0;
    int ent_type = iBase_VERTEX;
 
    int err;
@@ -580,7 +553,7 @@ bool gentityset_test(FBiGeom_Instance geom, bool /*multiset*/, bool /*ordered*/)
       }
 
       // add to number of all entities in super set
-      num_all_gentities_super += num_type_gentity;
+      //num_all_gentities_super += num_type_gentity;
    }
 
    // make a super set having all entitysets
@@ -938,7 +911,7 @@ bool topology_adjacencies_test(FBiGeom_Instance geom) {
    // check adjacencies in both directions
    std::vector<iBase_EntityHandle>::iterator vit;
    for (i = iBase_REGION; i >= iBase_VERTEX; i--) {
-      for (vit = gentity_vectors[i].begin(); vit != gentity_vectors[i].end(); vit++) {
+      for (vit = gentity_vectors[i].begin(); vit != gentity_vectors[i].end(); ++vit) {
          iBase_EntityHandle this_gent = *vit;
 
          // check downward adjacencies
@@ -1005,7 +978,7 @@ bool geometry_evaluation_test(FBiGeom_Instance geom) {
    std::vector<iBase_EntityHandle>::iterator vit;
    for (i = iBase_REGION; i >= iBase_VERTEX; i--) {
       if (i != iBase_EDGE) {
-         for (vit = gentity_vectors[i].begin(); vit != gentity_vectors[i].end(); vit++) {
+         for (vit = gentity_vectors[i].begin(); vit != gentity_vectors[i].end(); ++vit) {
             iBase_EntityHandle this_gent = *vit;
             FBiGeom_getEntBoundBox(geom, this_gent, &min[0], &min[1], &min[2],
             &max[0], &max[1], &max[2], &err);
@@ -1054,7 +1027,7 @@ bool normals_test(FBiGeom_Instance geom) {
    double normal[3] = {.0, .0, .0};
    std::vector<iBase_EntityHandle>::iterator vit;
    for (i = iBase_REGION; i > iBase_EDGE; i--) {
-      for (vit = gentity_vectors[i].begin(); vit != gentity_vectors[i].end(); vit++) {
+      for (vit = gentity_vectors[i].begin(); vit != gentity_vectors[i].end(); ++vit) {
          iBase_EntityHandle this_gent = *vit;
          FBiGeom_getEntBoundBox(geom, this_gent, &min[0], &min[1], &min[2],
          &max[0], &max[1], &max[2], &err);

@@ -15,7 +15,7 @@
 
 /* 
  * The algorithms for the calculation of the oriented box from a
- * set of points or a set of cells was copied from the implemenation
+ * set of points or a set of cells was copied from the implementation
  " in the "Visualization Toolkit".  J.K. - 2006-07-19
  *
  * Program:   Visualization Toolkit
@@ -294,8 +294,8 @@ ErrorCode OrientedBox::covariance_data_from_tris( CovarienceData& result,
   result.area = 0.0;
   for (Range::iterator i = begin; i != end; ++i)
   {
-    const EntityHandle* conn;
-    int conn_len;
+    const EntityHandle* conn = NULL;
+    int conn_len = 0;
     rval = instance->get_connectivity( *i, conn, conn_len );
     if (MB_SUCCESS != rval)
       return rval;

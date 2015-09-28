@@ -71,7 +71,17 @@ void dump_sets( mhdf_FileHandle file )
   puts("\nSet Children:\n");
   mhdf_readSetChildEndIndices( meta, 0, num_sets, H5T_NATIVE_LONG, end_indices, &status ); CHECK;
   handle = mhdf_openSetChildren( file, &num_data, &status ); CHECK;
-  data = realloc( data, num_data * sizeof(long) );
+  long* new_data = realloc( data, num_data * sizeof(long) );
+  if (!new_data) {
+    fprintf(stderr, "dump_sets.c::dump_sets(): reallocation of data failed\n");
+    free(data);
+    free(end_indices);
+    mhdf_closeData( file, handle, &status ); CHECK;
+    mhdf_closeData( file, meta, &status ); CHECK;
+    return;
+  }
+  else
+    data = new_data;
   mhdf_readSetParentsChildren( handle, 0, num_data, H5T_NATIVE_LONG, data, &status); CHECK;
   mhdf_closeData( file, handle, &status ); CHECK;
   dump_set_contents( first, num_sets, NULL, end_indices, data );
@@ -79,7 +89,17 @@ void dump_sets( mhdf_FileHandle file )
   puts("\nSet Parents:\n");
   mhdf_readSetParentEndIndices( meta, 0, num_sets, H5T_NATIVE_LONG, end_indices, &status ); CHECK;
   handle = mhdf_openSetParents( file, &num_data, &status ); CHECK;
-  data = realloc( data, num_data * sizeof(long) );
+  new_data = realloc( data, num_data * sizeof(long) );
+  if (!new_data) {
+    fprintf(stderr, "dump_sets.c::dump_sets(): reallocation of data failed\n");
+    free(data);
+    free(end_indices);
+    mhdf_closeData( file, handle, &status ); CHECK;
+    mhdf_closeData( file, meta, &status ); CHECK;
+    return;
+  }
+  else
+    data = new_data;
   mhdf_readSetParentsChildren( handle, 0, num_data, H5T_NATIVE_LONG, data, &status); CHECK;
   mhdf_closeData( file, handle, &status ); CHECK;
   dump_set_contents( first, num_sets, NULL, end_indices, data );

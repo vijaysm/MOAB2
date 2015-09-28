@@ -66,7 +66,7 @@ ErrorCode geometry_evaluation_test(FBEngine * pFacet);
 ErrorCode normals_test(FBEngine * pFacet);
 ErrorCode ray_test(FBEngine * pFacet);
 ErrorCode split_test(Interface * mb, FBEngine * pFacet);
-ErrorCode check_split(Interface * mb, FBEngine * pFacet);
+ErrorCode check_split(Interface * mb);
 
 ErrorCode split_quads_test();
 
@@ -165,8 +165,12 @@ int main(int argc, char *argv[])
   handle_error_code(rval, number_tests_failed, number_tests_successful);
   std::cout << "\n";
 
+  // pFacet has been deleted in split_test(), so we should mark it as NULL
+  // Setting pFacet (value parameter) to NULL in split_test() does not work
+  pFacet = NULL;
+
   std::cout << " check split: ";
-  rval = check_split(mb, pFacet);
+  rval = check_split(mb);
   handle_error_code(rval, number_tests_failed, number_tests_successful);
   std::cout << "\n";
 
@@ -201,7 +205,7 @@ ErrorCode gentityset_test(FBEngine * pFacet)
   int num_type = 4;
   EntityHandle ges_array[4];
   int number_array[4];
-  int num_all_gentities_super = 0;
+  //int num_all_gentities_super = 0;
   int ent_type = 0; // iBase_VERTEX;
 
   EntityHandle root_set;
@@ -243,7 +247,7 @@ ErrorCode gentityset_test(FBEngine * pFacet)
     }
 
     // add to number of all entities in super set
-    num_all_gentities_super += num_type_gentity;
+    //num_all_gentities_super += num_type_gentity;
   }
 
   // make a super set having all entitysets
@@ -338,7 +342,7 @@ ErrorCode geometry_evaluation_test(FBEngine * pFacet)
    if (i != iBase_EDGE) {*/
   for (i = 3; i >= 0; i--) {
     if (i != 1) {
-      for (vit = gentity_vectors[i].begin(); vit != gentity_vectors[i].end(); vit++) {
+      for (vit = gentity_vectors[i].begin(); vit != gentity_vectors[i].end(); ++vit) {
         EntityHandle this_gent = *vit;
         rval = pFacet->getEntBoundBox(this_gent, &min[0], &min[1], &min[2],
             &max[0], &max[1], &max[2]);
@@ -354,7 +358,7 @@ ErrorCode geometry_evaluation_test(FBEngine * pFacet)
     else
     {
       // for edges, provide a little better help
-      for (vit = gentity_vectors[i].begin(); vit != gentity_vectors[i].end(); vit++) {
+      for (vit = gentity_vectors[i].begin(); vit != gentity_vectors[i].end(); ++vit) {
         EntityHandle this_gent = *vit;
         // we know that the edge is parametric, with par between 0 and 1
 
@@ -406,7 +410,7 @@ ErrorCode normals_test(FBEngine * pFacet)
   double normal[3] = { .0, .0, .0 };
   std::vector<EntityHandle>::iterator vit;
   for (i = 3/*iBase_REGION*/; i > 1 /*iBase_EDGE*/; i--) {
-    for (vit = gentity_vectors[i].begin(); vit != gentity_vectors[i].end(); vit++) {
+    for (vit = gentity_vectors[i].begin(); vit != gentity_vectors[i].end(); ++vit) {
       EntityHandle this_gent = *vit;
       rval = pFacet->getEntBoundBox(this_gent, &min[0], &min[1], &min[2],
           &max[0], &max[1], &max[2]);
@@ -552,10 +556,12 @@ ErrorCode split_test(Interface * mb, FBEngine * pFacet)
   pFacet = NULL;// try not to write the obb tree
   rval = mb->write_file(filename_out.c_str(), NULL, NULL, &newRootSet, 1);
 
+  delete duplicate;
+
   return rval;
 }
 
-ErrorCode check_split(Interface * mb, FBEngine * pFacet)
+ErrorCode check_split(Interface * mb)
 {
   // check loading the file in an empty db
   //delete pFacet;// should clean up the FBEngine
@@ -565,7 +571,7 @@ ErrorCode check_split(Interface * mb, FBEngine * pFacet)
   rval = mb->load_file(filename_out.c_str());
   CHECK( "ERROR : can't load modified file!" );
 
-  pFacet = new FBEngine(mb, NULL, true);// smooth facetting, no OBB tree passed
+  FBEngine * pFacet = new FBEngine(mb, NULL, true);// smooth facetting, no OBB tree passed
 
   // repeat tests on modified file
 
@@ -599,6 +605,8 @@ ErrorCode check_split(Interface * mb, FBEngine * pFacet)
   handle_error_code(rval, number_tests_failed, number_tests_successful);
   std::cout << "\n";
 
+  delete pFacet;
+  pFacet = NULL;
   if (number_tests_failed>0)
     return MB_FAILURE;
 

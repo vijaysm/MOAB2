@@ -32,7 +32,7 @@ Coupler::Coupler(Interface *impl,
                  int coupler_id,
                  bool init_tree,
                  int max_ent_dim)
-  : mbImpl(impl), myPc(pc), myId(coupler_id), numIts(3), max_dim(max_ent_dim)
+  : mbImpl(impl), myPc(pc), myId(coupler_id), numIts(3), max_dim(max_ent_dim), _ntot(0)
 {
   assert(NULL != impl && (pc || !local_elems.empty()));
 
@@ -336,7 +336,7 @@ ErrorCode Coupler::locate_points(double *xyz, unsigned int num_points,
     if (target_pts.vi_rd[2*i] == (int)my_rank)
       num_to_me++;
 #ifndef NDEBUG
-  printf("rank: %d local points: %d, nb sent target pts: %d mappedPts: %d num to me: %d \n",
+  printf("rank: %u local points: %u, nb sent target pts: %u mappedPts: %u num to me: %d \n",
          my_rank, num_points, target_pts.get_n(), mappedPts->get_n(), num_to_me);
 #endif
   // Perform scatter/gather, to gather points to source mesh procs
@@ -349,7 +349,7 @@ ErrorCode Coupler::locate_points(double *xyz, unsigned int num_points,
         num_to_me++;
     }
 #ifndef NDEBUG
-    printf("rank: %d after first gs nb received_pts: %d; num_from_me = %d\n",
+    printf("rank: %u after first gs nb received_pts: %u; num_from_me = %d\n",
            my_rank, target_pts.get_n(), num_to_me);
 #endif
     // After scatter/gather:
@@ -381,14 +381,14 @@ ErrorCode Coupler::locate_points(double *xyz, unsigned int num_points,
     // No longer need target_pts
     target_pts.reset();
 #ifndef NDEBUG
-    printf("rank: %d nb sent source pts: %d, mappedPts now: %d\n",
+    printf("rank: %u nb sent source pts: %u, mappedPts now: %u\n",
            my_rank, source_pts.get_n(),  mappedPts->get_n());
 #endif
       // Send target points back to target procs
     (myPc->proc_config().crystal_router())->gs_transfer(1, source_pts, 0);
 
 #ifndef NDEBUG
-    printf("rank: %d nb received source pts: %d\n",
+    printf("rank: %u nb received source pts: %u\n",
            my_rank, source_pts.get_n());
 #endif
   }
@@ -446,7 +446,7 @@ ErrorCode Coupler::locate_points(double *xyz, unsigned int num_points,
       local_pts++;
   }
 #ifndef NDEBUG
-  printf("rank: %d point location: wanted %d got %u locally, %d remote, missing %d\n",
+  printf("rank: %u point location: wanted %u got %u locally, %u remote, missing %u\n",
          my_rank, num_points, local_pts, num_points - missing_pts - local_pts, missing_pts);
 #endif
   assert(0 == missing_pts); // Will likely break on curved geometries
@@ -746,6 +746,8 @@ ErrorCode Coupler::nat_param(double xyz[3],
 
       // Get connectivity
       result = mbImpl->get_connectivity(*iter, connect, num_connect, true);
+      if (MB_SUCCESS != result)
+        return result;
 
       // Get coordinates of the vertices
       std::vector<CartVect> coords_vert(num_connect);

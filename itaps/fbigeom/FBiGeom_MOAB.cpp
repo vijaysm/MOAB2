@@ -76,6 +76,13 @@ void FBiGeom_newGeom(char const* options, FBiGeom_Instance* instance_out, int* e
   *err = iBase_SUCCESS;
 }
 
+void FBiGeom_dtor(FBiGeom_Instance instance, int* err) {
+  MBiGeom **mbigeom = reinterpret_cast<MBiGeom**> (&instance);
+  if (*mbigeom)
+    delete *mbigeom;
+  *err = iBase_SUCCESS;
+}
+
 void FBiGeom_newGeomFromMesh(iMesh_Instance mesh, iBase_EntitySetHandle set,
                              const char *options, FBiGeom_Instance *geom,
                              int *err, int )
@@ -97,10 +104,20 @@ void FBiGeom_newGeomFromMesh(iMesh_Instance mesh, iBase_EntitySetHandle set,
     // heavy duty computation
   fbe->Init();
   *err = iBase_SUCCESS;
-
 }
-void FBiGeom_dtor(FBiGeom_Instance instance, int* err) {
-  delete FBE_cast(instance);
+// corresponding to constructor 2, from iMesh instance
+void FBiGeom_dtor2(FBiGeom_Instance instance, int* err) {
+  moab::FBEngine * fbe = FBE_cast(instance);
+  if (fbe)
+  {
+    moab::GeomTopoTool * gtt = fbe->get_gtt();
+    if (gtt)
+      delete gtt;
+    delete fbe;
+  }
+  MBiGeom **mbigeom = reinterpret_cast<MBiGeom**> (&instance);
+  if (*mbigeom)
+    delete *mbigeom;
   *err = iBase_SUCCESS;
 }
 
@@ -113,11 +130,13 @@ void FBiGeom_load(FBiGeom_Instance instance, char const* name, char const* optio
   const char * res = NULL;
 
   char * reducedOptions = NULL;
+  bool localReduce = false;
   if (options)
     res = strstr(options, smth);
   if (res) {
       // extract that option, will not be recognized by our moab/imesh
     reducedOptions = new char[options_len - 6];
+    localReduce = true;
     int preLen = (int) (res - options);
     strncpy(reducedOptions, options, preLen);
     int postLen = options_len - 7 - preLen;
@@ -135,6 +154,8 @@ void FBiGeom_load(FBiGeom_Instance instance, char const* name, char const* optio
     // load mesh-based geometry
   const EntityHandle* file_set = 0;
   ErrorCode rval = MBI->load_file(name, file_set, reducedOptions);
+  if (localReduce)
+    delete [] reducedOptions;
   CHKERR(rval, "can't load mesh file");
 
   FBEngine * fbe = FBE_cast(instance);
@@ -303,13 +324,13 @@ void FBiGeom_getEnt2ndAdj(FBiGeom_Instance instance,
 
   Range::iterator iter, jter, kter, end_jter;
   Range::iterator end_iter = bridge_ents.end();
-  for (iter = bridge_ents.begin(); iter != end_iter; iter++) {
+  for (iter = bridge_ents.begin(); iter != end_iter; ++iter) {
     rval = FBE_cast(instance)->getEntAdj(*iter, to_dimension,
                                          tmp_ents);
 
     CHKERR(rval, "Failed to get adjacent entities in FBiGeom_getEnt2ndAdj.");
 
-    for (jter = tmp_ents.begin(); jter != end_jter; jter++) {
+    for (jter = tmp_ents.begin(); jter != end_jter; ++jter) {
       if (to_ents.find(*jter) == to_ents.end()) {
         to_ents.insert(*jter);
       }

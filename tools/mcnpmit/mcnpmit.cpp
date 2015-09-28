@@ -184,7 +184,7 @@ MCNPError McnpData::read_mcnpfile(bool skip_mesh) {
                 }
 
 /*
-                  for (MBRange::iterator rit=vert_handles.begin(); rit != vert_handles.end(); rit++) {
+                  for (MBRange::iterator rit=vert_handles.begin(); rit != vert_handles.end(); ++rit) {
                         std::cout << *rit << std::endl; 
                   }
 
@@ -350,7 +350,6 @@ MCNPError next_number(std::string s, double &d, int &p) {
 
       unsigned int slen = s.length();
       unsigned int j;
-      std::string sn;
 
       for (unsigned int i = p; i < slen; i++) {
             if ( ( (s[i] >= 48) && (s[i] <= 57) ) || (s[i] == 45) ) {

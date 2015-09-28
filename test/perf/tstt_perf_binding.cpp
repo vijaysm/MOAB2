@@ -419,13 +419,13 @@ void print_time(const bool print_em, double &tot_time, double &utime, double &st
     std::cout << "User, system, total time = " << utime << ", " << stime 
               << ", " << tot_time << std::endl;
 
-  imem = rmem = 0;
 #ifndef LINUX
   imem = r_usage.ru_idrss;
   rmem = r_usage.ru_maxrss;
   std::cout << "Max resident set size = " << r_usage.ru_maxrss << " kbytes" << std::endl;
   std::cout << "Int resident set size = " << r_usage.ru_idrss << " kbytes" << std::endl;
 #else
+  imem = rmem = 0;
   system("ps o args,drs,rss | grep perf | grep -v grep");  // RedHat 9.0 doesnt fill in actual memory data 
 #endif
     //delete [] hex_array;
@@ -548,7 +548,7 @@ void build_coords(const int nelem, double *&coords)
   for (int i=1; i < nelem; i++) {
     for (int j=1; j < nelem; j++) {
       for (int k=1; k < nelem; k++) {
-        idx = VINDEX(i,j,k);
+        //idx = VINDEX(i,j,k);
         double tse = i*scale1;
         double ada = j*scale2;
         double gamma = k*scale3;

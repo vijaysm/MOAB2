@@ -70,17 +70,17 @@ int main(int argc, char **argv)
             << "leafObjectTests" << std::endl;
 
 // outermost iteration: # elements
-  for (std::vector<int>::iterator int_it = ints.begin(); int_it != ints.end(); int_it++) {
+  for (std::vector<int>::iterator int_it = ints.begin(); int_it != ints.end(); ++int_it) {
     Core mb;
     Range elems;
     rval = create_hex_mesh(mb, elems, *int_it, 3);
     if (MB_SUCCESS != rval) return rval;
     
       // iteration: tree depth
-    for (std::vector<int>::iterator dep_it = deps.begin(); dep_it != deps.end(); dep_it++) {
+    for (std::vector<int>::iterator dep_it = deps.begin(); dep_it != deps.end(); ++dep_it) {
   
         // iteration: tree max elems/leaf
-      for (std::vector<int>::iterator leafs_it = leafs.begin(); leafs_it != leafs.end(); leafs_it++) {
+      for (std::vector<int>::iterator leafs_it = leafs.begin(); leafs_it != leafs.end(); ++leafs_it) {
   
           // iteration: tree type
         for (int tree_tp = 0; tree_tp < 2; tree_tp++) {
@@ -103,6 +103,7 @@ int main(int argc, char **argv)
           opts << "MAX_DEPTH=" << *dep_it << ";MAX_PER_LEAF=" << *leafs_it;
           FileOptions fo(opts.str().c_str());
           rval = tree->parse_options(fo);
+          if (MB_SUCCESS != rval) return rval;
           SpatialLocator sl(&mb, elems, tree, eeval);
 
             // call evaluation

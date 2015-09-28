@@ -221,7 +221,7 @@ void test_tree_readwrite()
   Tag tag;
   Core mb;
   AdaptiveKDTree tool(&mb);
-  EntityHandle root = create_tree( tool, DEPTH, INTERVALS, &tag );
+  create_tree( tool, DEPTH, INTERVALS, &tag );
   
   // write to file
   err = mb.write_file( "tree.h5m" );
@@ -244,7 +244,7 @@ void test_tree_readwrite()
   err = tool.find_all_trees( range );
   assert(!err);
   assert(range.size() == 1);
-  root = range.front(); // first (only) handle
+  EntityHandle root = range.front(); // first (only) handle
   
   validate_tree( tool, root, DEPTH, INTERVALS, tag );
 }

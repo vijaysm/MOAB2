@@ -99,7 +99,6 @@ void pack_unpack_noremoteh( Core& moab, Range& entities )
   }
   
   ParallelComm *pcomm = new ParallelComm( &moab, MPI_COMM_WORLD );
-  std::vector<int> addl_procs;
 
     // get the necessary vertices too
   Range tmp_range = entities.subset_by_type(MBENTITYSET);
@@ -1141,12 +1140,14 @@ void test_pack_sets_of_sets()
     // check that set2 contains set1
   sets.clear();
   rval = moab.get_entities_by_type( set2, MBENTITYSET, sets );
+  CHECK_ERR(rval);
   CHECK_EQUAL( 1, (int)sets.size() );
   CHECK_EQUAL( set1, sets.front() );
   
     // check that set3 contains set1 and set2
   sets.clear();
   rval = moab.get_entities_by_type( set3, MBENTITYSET, sets );
+  CHECK_ERR(rval);
   CHECK_EQUAL( 2, (int)sets.size() );
   if (sets.front() == set1) {
     CHECK_EQUAL( set2, sets.back() );
@@ -1312,6 +1313,7 @@ void test_pack_tag_data_sparse()
   CHECK_ERR(rval);
   CHECK_EQUAL( MB_TAG_SPARSE, storage );
   rval = mb.tag_get_data_type( sparse_2_int_tag, type );
+  CHECK_ERR(rval);
   CHECK_EQUAL( MB_TYPE_INTEGER, type );
   int intdata[2];
   rval = mb.tag_get_default_value( sparse_2_int_tag, intdata );
@@ -1395,6 +1397,7 @@ void test_pack_tag_data_dense()
   CHECK_ERR(rval);
   CHECK_EQUAL( MB_TAG_DENSE, storage );
   rval = mb.tag_get_data_type( dense_1_double_tag, type );
+  CHECK_ERR(rval);
   CHECK_EQUAL( MB_TYPE_DOUBLE, type );
   double dval;
   rval = mb.tag_get_default_value( dense_1_double_tag, &dval );
@@ -1473,6 +1476,7 @@ void test_pack_tag_data_default_value()
   CHECK_ERR(rval);
   CHECK_EQUAL( MB_TAG_DENSE, storage );
   rval = mb.tag_get_data_type( dense_5_opaque_tag, type );
+  CHECK_ERR(rval);
   CHECK_EQUAL( MB_TYPE_OPAQUE, type );
   char odata[6]; odata[5] = '\0';
   rval = mb.tag_get_default_value( dense_5_opaque_tag, odata );
@@ -1650,6 +1654,7 @@ void test_pack_variable_length_tag()
   
   DataType type;
   rval = mb.tag_get_data_type( tag, type );
+  CHECK_ERR(rval);
   CHECK_EQUAL( MB_TYPE_INTEGER, type );
 
   const void* defval_ptr;
@@ -1755,6 +1760,7 @@ void test_pack_tag_handle_data()
   
   DataType type;
   rval = mb.tag_get_data_type( tag, type );
+  CHECK_ERR(rval);
   CHECK_EQUAL( MB_TYPE_HANDLE, type );
 
   rval = mb.tag_get_default_value( tag, tagdata );
@@ -1828,6 +1834,7 @@ void test_pack_shared_entities_2d()
 
   Range verts[4], quads[4];
   ErrorCode rval = create_shared_grid_2d(pc, verts, quads);
+  CHECK_ERR(rval);
 
     //moab[0].list_entities(0,1);
   
@@ -1862,6 +1869,7 @@ void test_pack_shared_entities_3d()
 
   Range verts[4], hexes[4];
   ErrorCode rval = create_shared_grid_3d(pc, verts, hexes);
+  CHECK_EQUAL(MB_ALREADY_ALLOCATED, rval);
 
     // exchange interface cells
   rval = ParallelComm::exchange_ghost_cells(pc, 4, -1, -1, 0, 0, true);

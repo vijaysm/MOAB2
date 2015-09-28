@@ -54,7 +54,7 @@ namespace moab {
       size_t tmp_val; \
       gdfail = nc_inq_dimlen(ncFile, ncdim, &tmp_val); \
       if (NC_NOERR != gdfail) { \
-        MB_SET_ERR(MB_FAILURE, "ReadNCDF:: couldn't get dimension length"); \
+        MB_SET_ERR(MB_FAILURE, "ReadNCDF:: Couldn't get dimension length"); \
       } \
       else \
         val = tmp_val; \
@@ -77,6 +77,9 @@ namespace moab {
       if (NC_NOERR == gvfail) { \
         dims.resize(ndims); \
         gvfail = nc_inq_vardimid(ncFile, id, &dims[0]); \
+        if (NC_NOERR != gvfail) { \
+          MB_SET_ERR(MB_FAILURE, "ReadNCDF:: Couldn't get variable dimension IDs"); \
+        } \
       } \
     } \
   }
@@ -87,12 +90,14 @@ namespace moab {
     if (-1 != id) { \
       size_t ntmp; \
       int ivfail = nc_inq_dimlen(ncFile, vals[0], &ntmp); \
+      if (NC_NOERR != ivfail) { \
+        MB_SET_ERR(MB_FAILURE, "ReadNCDF:: Couldn't get dimension length"); \
+      } \
       vals.resize(ntmp); \
       size_t ntmp1 = 0; \
       ivfail = nc_get_vara_int(ncFile, id, &ntmp1, &ntmp, &vals[0]); \
       if (NC_NOERR != ivfail) { \
         MB_SET_ERR(MB_FAILURE, "ReadNCDF:: Problem getting variable " << name); \
-        return MB_FAILURE; \
       } \
     } \
   }
@@ -104,6 +109,9 @@ namespace moab {
     if (-1 != id) { \
       size_t ntmp; \
       int dvfail = nc_inq_dimlen(ncFile, dum_dims[0], &ntmp); \
+      if (NC_NOERR != dvfail) { \
+        MB_SET_ERR(MB_FAILURE, "ReadNCDF:: Couldn't get dimension length"); \
+      } \
       vals.resize(ntmp); \
       size_t ntmp1 = 0; \
       dvfail = nc_get_vara_double(ncFile, id, &ntmp1, &ntmp, &vals[0]); \
@@ -156,6 +164,7 @@ ReadNCDF::ReadNCDF(Interface* impl)
   assert(MB_SUCCESS == result);
   result = impl->tag_get_handle("qaRecord", 0, MB_TYPE_OPAQUE, mQaRecordTag,
                                 MB_TAG_SPARSE | MB_TAG_VARLEN | MB_TAG_CREAT);
+  assert(MB_SUCCESS == result);
   result = impl->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER,
                                 mGlobalIdTag, MB_TAG_SPARSE | MB_TAG_CREAT, &zero);
   assert(MB_SUCCESS == result);
@@ -167,7 +176,6 @@ ReadNCDF::ReadNCDF(Interface* impl)
 
 void ReadNCDF::reset()
 {
-  numberDimensions_loading = -1;
   mCurrentMeshHandle = 0;
   vertexOffset = 0; 
 
@@ -242,6 +250,13 @@ ErrorCode ReadNCDF::read_tag_values(const char* file_name,
     }
   }
 
+  // Close the file
+  fail = nc_close(ncFile);
+  if (NC_NOERR != fail) {
+    MB_SET_ERR(MB_FAILURE, "Trouble closing file");
+  }
+
+  ncFile = 0;
   return MB_SUCCESS;
 }
 
@@ -335,6 +350,12 @@ ErrorCode ReadNCDF::load_file(const char *exodus_file_name,
   }
 
   // What about properties???
+
+  // Close the file
+  fail = nc_close(ncFile);
+  if (NC_NOERR != fail) {
+    MB_SET_ERR(MB_FAILURE, "Trouble closing file");
+  }
 
   ncFile = 0;
   return MB_SUCCESS;
@@ -1063,7 +1084,7 @@ ErrorCode ReadNCDF::create_ss_elements(int *element_ids,
   int side_node_idx[32];
 
   int df_index = 0;
-  int sense;
+  int sense = 0;
   for (i = 0; i < num_sides; i++) {
     ExoIIElementType exoii_type;
     ReadBlockData block_data;
@@ -2046,6 +2067,13 @@ ErrorCode ReadNCDF::update(const char *exodus_file_name,
   std::cout << " Total: " << total_dead_elems << "/" << total_elems
             << " dead elements." << std::endl;
 
+  // Close the file
+  fail = nc_close(ncFile);
+  if (NC_NOERR != fail) {
+    MB_SET_ERR(MB_FAILURE, "Trouble closing file");
+  }
+
+  ncFile = 0;
   return MB_SUCCESS;
 }
 

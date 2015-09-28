@@ -45,7 +45,7 @@ namespace moab {
 void Util::normal(Interface* MB, EntityHandle handle, double& x, double& y, double& z)
 {
    // get connectivity
-   const EntityHandle *connectivity;
+   const EntityHandle *connectivity = NULL;
    int number_nodes = 0;
    MB->get_connectivity(handle, connectivity, number_nodes, true);
    assert(number_nodes >= 3);
@@ -79,7 +79,7 @@ void Util::normal(Interface* MB, EntityHandle handle, double& x, double& y, doub
 
 void Util::centroid(Interface *MB, EntityHandle handle, Coord &coord)
 {
-   const EntityHandle *connectivity;
+   const EntityHandle *connectivity = NULL;
    int number_nodes = 0;
    MB->get_connectivity(handle, connectivity, number_nodes,true);
    

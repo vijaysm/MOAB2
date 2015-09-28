@@ -90,7 +90,11 @@ void test_spectral_hex()
   moab::Core *mb = new moab::Core();
   std::string meshFile = STRINGIFY(MESHDIR) "/spectral.h5m";
   moab::ErrorCode rval = mb->load_mesh(meshFile.c_str());
-  if (moab::MB_SUCCESS != rval) return ;
+  if (moab::MB_SUCCESS != rval) {
+    std::cout << "Problems reading file " << meshFile << "." << std::endl;
+    delete mb;
+    return;
+  }
 
   // get the ent set with SEM_DIMS tag
   moab::Range spectral_sets;
@@ -99,13 +103,15 @@ void test_spectral_hex()
   if (moab::MB_SUCCESS != rval)
   {
     std::cout<< "can't find tag, no spectral set\n";
-    return ;
+    delete mb;
+    return;
   }
   rval = mb->get_entities_by_type_and_tag(0, moab::MBENTITYSET, &sem_tag, NULL, 1, spectral_sets);
   if (moab::MB_SUCCESS != rval || spectral_sets.empty())
   {
     std::cout<< "can't get sem set\n";
-    return ;
+    delete mb;
+    return;
   }
 
   moab::Range ents;
@@ -113,15 +119,22 @@ void test_spectral_hex()
   int sem_dims[3];
   moab::EntityHandle firstSemSet=spectral_sets[0];
   rval = mb->tag_get_data(sem_tag, &firstSemSet, 1, (void*)sem_dims);
-  if (moab::MB_SUCCESS != rval) return ;
+  if (moab::MB_SUCCESS != rval) {
+    delete mb;
+    return;
+  }
 
   rval = mb->get_entities_by_dimension(firstSemSet, 3, ents);
-  if (moab::MB_SUCCESS != rval) return ;
+  if (moab::MB_SUCCESS != rval) {
+    delete mb;
+    return;
+  }
   std::cout << "Found " << ents.size() << " " << 3 << "-dimensional entities:" << std::endl;
   
   if (sem_dims[0]!=sem_dims[1] || sem_dims[0] != sem_dims[2])
   {
     std::cout << " dimensions are different. bail out\n";
+    delete mb;
     return;
   }
 
@@ -132,18 +145,21 @@ void test_spectral_hex()
   if (moab::MB_SUCCESS != rval) 
   {
      std::cout << "can't get xm1tag \n";
+     delete mb;
      return;
   }
   rval = mb->tag_get_handle("SEM_Y", ntot, moab::MB_TYPE_DOUBLE, ym1Tag); 
   if (moab::MB_SUCCESS != rval) 
   {
      std::cout << "can't get ym1tag \n";
+     delete mb;
      return;
   }
   rval = mb->tag_get_handle("SEM_Z", ntot, moab::MB_TYPE_DOUBLE, zm1Tag); 
   if (moab::MB_SUCCESS != rval) 
   {
      std::cout << "can't get zm1tag \n";
+     delete mb;
      return;
   }
   moab::Tag velTag;
@@ -152,12 +168,13 @@ void test_spectral_hex()
   if (moab::MB_SUCCESS != rval) 
   {
      std::cout << "can't get veltag \n";
+     delete mb;
      return;
   }
   moab::Element::SpectralHex specHex(sem_dims[0] );
 
  // compute the data for some elements 
-  for (moab::Range::iterator rit=ents.begin(); rit!=ents.end(); rit++)
+  for (moab::Range::iterator rit=ents.begin(); rit!=ents.end(); ++rit)
   { 
   // get the tag pointers to the internal storage for xm1, to not copy the values
      moab::EntityHandle eh= *rit;
@@ -168,18 +185,21 @@ void test_spectral_hex()
      if (moab::MB_SUCCESS != rval)
      {
        std::cout << "can't get xm1 values \n";
+       delete mb;
        return;
      }
      rval = mb-> tag_get_by_ptr(ym1Tag, &eh, 1, (const void **)&yval );
      if (moab::MB_SUCCESS != rval)
      {
        std::cout << "can't get ym1 values \n";
+       delete mb;
        return;
      }
      rval = mb-> tag_get_by_ptr(zm1Tag, &eh, 1, (const void **)&zval );
      if (moab::MB_SUCCESS != rval)
      {
        std::cout << "can't get zm1 values \n";
+       delete mb;
        return;
      }
      if (rit==ents.begin())
@@ -203,6 +223,7 @@ void test_spectral_hex()
      if (moab::MB_SUCCESS != rval)
      {
        std::cout << "can't get vel values \n";
+       delete mb;
        return;
      }
      double vel1 = specHex.evaluate_scalar_field(rst, vx);
@@ -214,7 +235,7 @@ void test_spectral_hex()
   }
   std::cout << "success...\n";
   
-  return;
+  delete mb;
 }
 
 void test_spectral_quad()
@@ -224,7 +245,11 @@ void test_spectral_quad()
   // use the grid on Sphere from mbcslam folder
   std::string meshFile = STRINGIFY(MESHDIR) "/mbcslam/eulerHomme.vtk";
   moab::ErrorCode rval = mb->load_mesh(meshFile.c_str());
-  if (moab::MB_SUCCESS != rval) return ;
+  if (moab::MB_SUCCESS != rval) {
+    std::cout << "Problems reading file " << meshFile << "." << std::endl;
+    delete mb;
+    return;
+  }
 
   // for each element, compute the gl points and project them on sphere
   // the radius is the same as the one from intersection test on sphere
@@ -236,7 +261,10 @@ void test_spectral_quad()
 
 
   rval = mb->get_entities_by_type(0, moab::MBQUAD, ents);// get all quads
-  if (moab::MB_SUCCESS != rval) return ;
+  if (moab::MB_SUCCESS != rval) {
+    delete mb;
+    return;
+  }
   std::cout << "Found " << ents.size() << " " << 2 << "-dimensional entities:" << std::endl;
 
 //
@@ -244,7 +272,7 @@ void test_spectral_quad()
   moab::Element::SpectralQuad specQuad(NP);
 
  // compute the gl points for some elements
-  for (moab::Range::iterator rit = ents.begin(); rit != ents.end(); rit++)
+  for (moab::Range::iterator rit = ents.begin(); rit != ents.end(); ++rit)
   {
 
     const moab::EntityHandle * conn4 = NULL;
@@ -252,7 +280,8 @@ void test_spectral_quad()
     rval = mb->get_connectivity(*rit, conn4, num_nodes);
     if (moab::MB_SUCCESS != rval)
     {
-      std::cout << "can't get conectivity for quad \n";
+      std::cout << "can't get connectivity for quad \n";
+      delete mb;
       return;
     }
     assert(num_nodes==4);
@@ -262,6 +291,7 @@ void test_spectral_quad()
     if (moab::MB_SUCCESS != rval)
     {
       std::cout << "can't get coords for quad \n";
+      delete mb;
       return;
     }
 
@@ -283,5 +313,5 @@ void test_spectral_quad()
   }
   std::cout << "success...\n";
 
-  return;
+  delete mb;
 }

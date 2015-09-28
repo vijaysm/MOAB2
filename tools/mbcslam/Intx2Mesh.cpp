@@ -19,19 +19,17 @@
 
 namespace moab {
 
-Intx2Mesh::Intx2Mesh(Interface * mbimpl): mb(mbimpl)
+Intx2Mesh::Intx2Mesh(Interface * mbimpl): mb(mbimpl),
+  mbs1(0), mbs2(0), outSet(0),
+  RedFlagTag(0), redParentTag(0), blueParentTag(0), countTag(0),
+  redConn(NULL), blueConn(NULL),
+  dbg_1(0), epsilon_1(0.0), epsilon_area(0.0), box_error(0.0),
+  localRoot(0), my_rank(0)
 #ifdef MOAB_HAVE_MPI
    , parcomm(NULL), remote_cells(NULL), remote_cells_with_tracers(NULL)
 #endif
+  , max_edges(0), counting(0)
 {
-  dbg_1=0;
-  box_error=0;
-  my_rank=0;
-  RedFlagTag=0;
-  redParentTag =0;
-  blueParentTag = 0;
-  countTag = 0;
-  counting = 0;
 }
 
 Intx2Mesh::~Intx2Mesh()
@@ -78,7 +76,7 @@ void Intx2Mesh::createTags()
   int indx = 0;
   extraNodesVec.reserve(RedEdges.size());
   for (Range::iterator eit = RedEdges.begin(); eit != RedEdges.end();
-      eit++, indx++)
+      ++eit, indx++)
   {
     //EntityHandle edge = *eit;
     //extraNodesMap[edge] = new std::vector<EntityHandle>;
@@ -185,11 +183,11 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
       fff << "file0" <<  counting<< ".vtk";
       mb->write_mesh(fff.str().c_str(), &outputSet, 1);
     }
-    for (Range::iterator it = rs1.begin(); it != rs1.end(); it++)
+    for (Range::iterator it = rs1.begin(); it != rs1.end(); ++it)
     {
       startBlue = *it;
       int found = 0;
-      for (Range::iterator it2 = rs22.begin(); it2 != rs22.end() && !found; it2++)
+      for (Range::iterator it2 = rs22.begin(); it2 != rs22.end() && !found; ++it2)
       {
         startRed = *it2;
         double area = 0;
@@ -267,7 +265,7 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
       {
         std::cout << "reset blues: ";
         for (Range::iterator itr = toResetBlues.begin(); itr != toResetBlues.end();
-            itr++)
+            ++itr)
           std::cout << mb->id_from_handle(*itr) << " ";
         std::cout << std::endl;
       }
@@ -375,7 +373,7 @@ ErrorCode Intx2Mesh::intersect_meshes(EntityHandle mbset1, EntityHandle mbset2,
         assert(nextBlue[j].size()>0);
         int nsidesRed2=0;
         setup_red_cell(redNeigh, nsidesRed2); // find possible intersection with blue cell from nextBlue
-        for (Range::iterator nit =nextBlue[j].begin(); nit!=nextBlue[j].end(); nit++)
+        for (Range::iterator nit =nextBlue[j].begin(); nit!=nextBlue[j].end(); ++nit)
         {
           EntityHandle nextB=*nit;
           // we identified red quad n[j] as possibly intersecting with neighbor j of the blue quad
@@ -428,7 +426,7 @@ void Intx2Mesh::clean()
   //
   int indx = 0;
   for (Range::iterator eit = RedEdges.begin(); eit != RedEdges.end();
-      eit++, indx++)
+      ++eit, indx++)
   {
     delete extraNodesVec[indx];
   }
@@ -534,7 +532,7 @@ ErrorCode Intx2Mesh::build_processor_euler_boxes(EntityHandle euler_set, Range &
 
   // also process the max number of vertices per cell (4 for quads, but could be more for polygons)
   int local_max_edges = 3;
-  for (Range::iterator it = localEnts.begin(); it!=localEnts.end(); it++)
+  for (Range::iterator it = localEnts.begin(); it!=localEnts.end(); ++it)
   {
     const EntityHandle * conn;
     int num_nodes;
@@ -606,7 +604,7 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
   std::map<int, Range> Rto;
   int numprocs=parcomm->proc_config().proc_size();
 
-  for (Range::iterator eit = localEnts.begin(); eit!=localEnts.end(); eit++)
+  for (Range::iterator eit = localEnts.begin(); eit!=localEnts.end(); ++eit)
   {
     EntityHandle q=*eit;
     const EntityHandle * conn4;
@@ -674,7 +672,7 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
     Range & range_to_P = Rto[to_proc];
     Range V = range_to_P.subset_by_type(MBVERTEX);
 
-    for (Range::iterator it=V.begin(); it!=V.end(); it++)
+    for (Range::iterator it=V.begin(); it!=V.end(); ++it)
     {
       EntityHandle v=*it;
       unsigned int index = local_verts.find(v)-local_verts.begin();
@@ -688,7 +686,7 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
     }
     // also, prep the quad for sending ...
     Range Q = range_to_P.subset_by_dimension(2);
-    for (Range::iterator it=Q.begin(); it!=Q.end(); it++)
+    for (Range::iterator it=Q.begin(); it!=Q.end(); ++it)
     {
       EntityHandle q=*it;
       int global_id;
@@ -714,7 +712,7 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
         TLq.vi_wr[sizeTuple*n+2+k] = 0; // fill the rest of node ids with 0; we know that the node ids start from 1!
       }
       TLq.vul_wr[n]=q; // save here the entity handle, it will be communicated back
-      // mabe we should forget about global ID
+      // maybe we should forget about global ID
       TLq.inc_n();
 
     }
@@ -751,7 +749,7 @@ ErrorCode Intx2Mesh::create_departure_mesh_2nd_alg(EntityHandle & euler_set, Ent
   Range & local=Rto[my_rank];
   Range local_q = local.subset_by_dimension(2);
   // the local should have all the vertices in local_verts
-  for (Range::iterator it=local_q.begin(); it!=local_q.end(); it++)
+  for (Range::iterator it=local_q.begin(); it!=local_q.end(); ++it)
   {
     EntityHandle q=*it;
     int nnodes;
@@ -917,7 +915,7 @@ ErrorCode Intx2Mesh::create_departure_mesh_3rd_alg(EntityHandle & lagr_set,
   std::map<int, Range> Rto;
   int numprocs = parcomm->proc_config().proc_size();
 
-  for (Range::iterator eit = localDepCells.begin(); eit != localDepCells.end(); eit++)
+  for (Range::iterator eit = localDepCells.begin(); eit != localDepCells.end(); ++eit)
   {
     EntityHandle q = *eit;
     const EntityHandle * conn4;
@@ -988,7 +986,7 @@ ErrorCode Intx2Mesh::create_departure_mesh_3rd_alg(EntityHandle & lagr_set,
     Range & range_to_P = Rto[to_proc];
     Range V = range_to_P.subset_by_type(MBVERTEX);
 
-    for (Range::iterator it = V.begin(); it != V.end(); it++)
+    for (Range::iterator it = V.begin(); it != V.end(); ++it)
     {
       EntityHandle v = *it;
       int index = lagr_verts.index(v);// will be the same index as the corresponding vertex in euler verts
@@ -1003,7 +1001,7 @@ ErrorCode Intx2Mesh::create_departure_mesh_3rd_alg(EntityHandle & lagr_set,
     }
     // also, prep the 2d cells for sending ...
     Range Q = range_to_P.subset_by_dimension(2);
-    for (Range::iterator it = Q.begin(); it != Q.end(); it++)
+    for (Range::iterator it = Q.begin(); it != Q.end(); ++it)
     {
       EntityHandle q = *it; // this is a blue cell
       int global_id;
@@ -1049,7 +1047,7 @@ ErrorCode Intx2Mesh::create_departure_mesh_3rd_alg(EntityHandle & lagr_set,
   // we already have vertices from lagr set; they are already in the processor, even before receiving other
   // verts from neighbors
   int k=0;
-  for (Range::iterator vit=lagr_verts.begin(); vit!=lagr_verts.end(); vit++, k++)
+  for (Range::iterator vit=lagr_verts.begin(); vit!=lagr_verts.end(); ++vit, k++)
   {
     globalID_to_handle[gids[k]] = *vit; // a little bit of overkill
     // we do know that the global ids between euler and lagr verts are parallel
@@ -1078,7 +1076,7 @@ ErrorCode Intx2Mesh::create_departure_mesh_3rd_alg(EntityHandle & lagr_set,
   Range & local = Rto[my_rank];
   Range local_q = local.subset_by_dimension(2);
   // the local should have all the vertices in lagr_verts
-  for (Range::iterator it = local_q.begin(); it != local_q.end(); it++)
+  for (Range::iterator it = local_q.begin(); it != local_q.end(); ++it)
   {
     EntityHandle q = *it;// these are from lagr cells, local
     int gid_el;

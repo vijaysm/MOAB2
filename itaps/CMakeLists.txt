@@ -10,8 +10,12 @@ if(ENABLE_IMESH )
   add_subdirectory(imesh)
 endif()
 
-if(ENABLE_IGEOM )
-  add_subdirectory(igeom)
+if(ENABLE_FBIGEOM )
+  add_subdirectory(fbigeom)
+endif()
+
+if(ENABLE_IREL AND MOAB_HAVE_CGM )
+  add_subdirectory(irel)
 endif()
 
 install(

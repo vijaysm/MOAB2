@@ -144,7 +144,7 @@ void test_hex_nat_coords()
         try {
           result_xi = hex2.ievaluate(x, EPS1/10);
         }
-        catch (Element::Map::EvaluationError err) {
+        catch (Element::Map::EvaluationError& /* err */) {
           valid = false;
         }
 //std::cout << (valid ? 'y' : 'n');

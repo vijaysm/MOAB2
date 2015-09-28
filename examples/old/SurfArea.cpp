@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
   Range::iterator set_it;
     
   // loop thru all the geometric entity sets
-  for (set_it = sets.begin(); set_it != sets.end(); set_it++)  {
+  for (set_it = sets.begin(); set_it != sets.end(); ++set_it) {
 
     EntityHandle this_set = *set_it;
     

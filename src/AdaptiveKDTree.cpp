@@ -248,14 +248,13 @@ namespace moab {
     ErrorCode AdaptiveKDTree::init()
     {
       std::vector<Tag> ctl;
-      ErrorCode rval = MB_SUCCESS;
 
 #ifndef MB_AD_KD_TREE_USE_SINGLE_TAG
         // create two tags, one for axis direction and one for axis coordinate
       std::string n1(treeName), n2(treeName);
       n1 += "_coord";
       n2 += "_norm";
-      rval = make_tag(moab(), n1, MB_TAG_DENSE, MB_TYPE_DOUBLE, 1, 0, planeTag, ctl);
+      ErrorCode rval = make_tag(moab(), n1, MB_TAG_DENSE, MB_TYPE_DOUBLE, 1, 0, planeTag, ctl);
       if (MB_SUCCESS != rval) return rval;
       rval = make_tag(moab(), n2, MB_TAG_DENSE, MB_TYPE_INT, 1, 0, axisTag, ctl);
       if (MB_SUCCESS != rval) return rval;
@@ -263,11 +262,11 @@ namespace moab {
 #elif defined(MB_AD_KD_TREE_USE_TWO_DOUBLE_TAG)
         // create tag to hold two doubles, one for location and one for axis
       std::string double_tag_name = std::string(treeName) + std::string("_coord_norm");
-      rval = make_tag(moab(), double_tag_name, MB_TAG_DENSE, MB_TYPE_DOUBLE, 2, 0, planeTag, ctl);
+      ErrorCode rval = make_tag(moab(), double_tag_name, MB_TAG_DENSE, MB_TYPE_DOUBLE, 2, 0, planeTag, ctl);
       if (MB_SUCCESS != rval) return rval;
 #else
         // create opaque tag to hold struct Plane
-      rval = make_tag(moab(), tagname, MB_TAG_DENSE, MB_TYPE_OPAQUE, sizeof(Plane), 0, planeTag, ctl);
+      ErrorCode rval = make_tag(moab(), tagname, MB_TAG_DENSE, MB_TYPE_OPAQUE, sizeof(Plane), 0, planeTag, ctl);
       if (MB_SUCCESS != rval) return rval;
 
 #ifdef MOAB_HAVE_HDF5  
@@ -614,7 +613,7 @@ namespace moab {
   
         // Find tree node at which the specified side of the box
         // for this node was created.
-      AdaptiveKDTreeIter iter( *this ); // temporary iterator (don't modifiy *this)
+      AdaptiveKDTreeIter iter( *this ); // temporary iterator (don't modify *this)
       node = iter.mStack.back();
       iter.mStack.pop_back();
       for (;;) {
@@ -1553,13 +1552,13 @@ namespace moab {
       
       result_list.reserve(result_list_nodes.size());
       for (std::vector<NodeDistance>::iterator vit = result_list_nodes.begin(); 
-           vit != result_list_nodes.end(); vit++)
+           vit != result_list_nodes.end(); ++vit)
         result_list.push_back((*vit).handle);
   
       if (result_dists && distance > 0.0) {
         result_dists->reserve(result_list_nodes.size());
         for (std::vector<NodeDistance>::iterator vit = result_list_nodes.begin(); 
-             vit != result_list_nodes.end(); vit++)
+             vit != result_list_nodes.end(); ++vit)
           result_dists->push_back((*vit).dist.length());
       }
   
@@ -1575,9 +1574,9 @@ namespace moab {
     {
       ErrorCode rval;
       CartVect pos, diff, verts[3];
-      const EntityHandle* conn;
-      int len;
-      
+      const EntityHandle* conn = NULL;
+      int len = 0;
+
       for (Range::iterator i = tris.begin(); i != tris.end(); ++i) {
         rval = moab->get_connectivity( *i, conn, len );
         if (MB_SUCCESS != rval)
@@ -1688,10 +1687,10 @@ namespace moab {
  *  position and the first entry in 'closest_pts' is the closest
  *  location on that triangle.  Any other values in the lists must
  *  be other triangles for which the closest point is within the
- *  input tolernace of the closest closest point.  This function
+ *  input tolerance of the closest closest point.  This function
  *  will update the lists as appropriate if any closer triangles
  *  or triangles within the tolerance of the current closest location
- *  are found.  The fisrt entry is maintaned as the closest of the
+ *  are found.  The first entry is maintained as the closest of the
  *  list of triangles.
  */
 /*
@@ -2064,7 +2063,6 @@ namespace moab {
       while (MB_SUCCESS == iter.step()) {
         int temp = 0;
         moab()->get_number_entities_by_handle( iter.handle(), temp);
-        num_of_elements += temp;
         max = std::max( max, temp);
         min = std::min( min, temp);
         if (iter.depth() > max_depth)
@@ -2145,7 +2143,7 @@ namespace moab {
 
       Range tree_sets, elem2d, elem3d, verts, all;
       moab()->get_child_meshsets( myRoot, tree_sets, 0 );
-      for (Range::iterator rit = tree_sets.begin(); rit != tree_sets.end(); rit++) {
+      for (Range::iterator rit = tree_sets.begin(); rit != tree_sets.end(); ++rit) {
         moab()->get_entities_by_dimension( *rit, 2, elem2d );
         moab()->get_entities_by_dimension( *rit, 3, elem3d );
         moab()->get_entities_by_type( *rit, MBVERTEX, verts );

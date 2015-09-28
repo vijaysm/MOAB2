@@ -2,7 +2,7 @@
 #include "moab/NestedRefine.hpp"
 #include "moab/Templates.hpp"
 #include "moab/HalfFacetRep.hpp"
-#include "moab/MeasureTime.hpp"
+#include "moab/CpuTimer.hpp"
 #include "moab/ReadUtilIface.hpp"
 #include "Internals.hpp"
 #include "MBTagConventions.hpp"
@@ -57,7 +57,7 @@ namespace moab{
   {
     ErrorCode error;
 
-    tm = new MeasureTime();
+    tm = new CpuTimer();
     if (!tm)
       return MB_MEMORY_ALLOCATION_FAILED;
 
@@ -616,7 +616,7 @@ namespace moab{
     for (int l = 0; l<num_level; l++)
       {
         double tstart;
-        tstart = tm->wtime();
+        tstart = tm->time_elapsed();
 
         // Estimate storage
         int hmest[4] = {0,0,0,0};
@@ -636,7 +636,7 @@ namespace moab{
         //Create the new entities and new vertices
         error = construct_hm_entities(l, level_degrees[l]); MB_CHK_ERR(error);
 
-        timeall.tm_refine += tm->wtime() - tstart;
+        timeall.tm_refine += tm->time_elapsed() - tstart;
 
         // Go into parallel communication
 #ifdef MOAB_HAVE_MPI
@@ -667,7 +667,7 @@ namespace moab{
 
           if (pcomm->size() > 1)
             {
-              double tpstart = tm->wtime();
+              double tpstart = tm->time_elapsed();
 
               // get all entities on the rootset
               moab::Range vtxs, edgs, facs, elms;
@@ -697,7 +697,7 @@ namespace moab{
               ParallelMergeMesh pm(pcomm, 1e-08);
               error = pm.merge(hm_set[l], true);MB_CHK_ERR(error);
 
-              timeall.tm_resolve += tm->wtime() - tpstart;
+              timeall.tm_resolve += tm->time_elapsed() - tpstart;
               //
               // Parallel Communication complete - all entities resolved
               //
@@ -708,7 +708,7 @@ namespace moab{
                 // error = pcomm->assign_global_ids(pents, 3, 1, true, false);MB_CHK_ERR(error);
                 error = pcomm->assign_global_ids(hm_set[l], 0, 1, false, true, false);MB_CHK_ERR(error);
               }
-             // timeall.tm_resolve += tm->wtime() - tpstart;
+             // timeall.tm_resolve += tm->time_elapsed() - tpstart;
             }
           }
 #endif

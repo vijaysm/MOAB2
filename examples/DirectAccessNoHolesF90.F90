@@ -40,18 +40,8 @@
 #define CHECK(a) \
   if (a .ne. iBase_SUCCESS) call exit(a)
 
-module freem
-  interface
-     subroutine c_free(ptr) bind(C, name='free')
-       use ISO_C_BINDING
-       type(C_ptr), value, intent(in) :: ptr
-     end subroutine c_free
-  end interface
-end module freem
-
 program DirectAccessNoHolesF90
   use ISO_C_BINDING
-  use freem
   implicit none
 #include "iMesh_f.h"
 
@@ -90,7 +80,7 @@ program DirectAccessNoHolesF90
 
   ! First vertex/quad is at start of vertex/quad list, and is offset for vertex/quad index calculation
   startv = verts(1); startq = quads(1)
-  call c_free(quads_ptr)  ! free memory we allocated in MOAB
+  call iMesh_freeMemory(%VAL(imesh), quads_ptr)
 
   ! create tag1 (element-based avg), tag2 (vertex-based avg)
   opt = 'moab:TAG_STORAGE_TYPE=DENSE moab:TAG_DEFAULT_VALUE=0'
@@ -140,7 +130,7 @@ program DirectAccessNoHolesF90
        offsets_ptr, offsets_size, offsets_size, ierr); CHECK(ierr) 
   call c_f_pointer(tmp_quads_ptr, tmp_quads, [tmp_quads_size])
   call c_f_pointer(offsets_ptr, offsets, [offsets_size])
-  call c_free(verts_ptr)  ! free memory we allocated in MOAB
+  call iMesh_freeMemory(%VAL(imesh), verts_ptr)
   do v = 0, nverts-1
      do e = 1+offsets(1+v), 1+offsets(1+v+1)-1  ! 1+ because offsets are in terms of 0-based arrays
         e_ind = tmp_quads(e) ! assign to e_ind to allow handle arithmetic
@@ -150,8 +140,8 @@ program DirectAccessNoHolesF90
         tag2(1+3*e_ind+2) = tag2(1+3*e_ind+2) + z(1+v)
      end do
   end do
-  call c_free(tmp_quads_ptr)  ! free memory we allocated in MOAB
-  call c_free(offsets_ptr)    ! free memory we allocated in MOAB
+  call iMesh_freeMemory(%VAL(imesh), tmp_quads_ptr)
+  call iMesh_freeMemory(%VAL(imesh), offsets_ptr)
 
   ! Normalize tag2 by vertex count (vpere); loop over elements using same approach as before
   ! At the same time, compare values of tag1 and tag2
@@ -176,7 +166,6 @@ end program DirectAccessNoHolesF90
 
 subroutine create_mesh_no_holes(imesh, nquads, ierr) 
   use ISO_C_BINDING
-  use freem
   implicit none
 #include "iMesh_f.h"
 
@@ -222,8 +211,8 @@ subroutine create_mesh_no_holes(imesh, nquads, ierr)
 
   ierr = iBase_SUCCESS
 
-  call c_free(tmp_ents_ptr)
-  call c_free(stat_ptr)
+  call iMesh_freeMemory(%VAL(imesh), tmp_ents_ptr)
+  call iMesh_freeMemory(%VAL(imesh), stat_ptr)
   deallocate(connect)
 
   return

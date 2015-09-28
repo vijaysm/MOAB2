@@ -8,7 +8,8 @@
 #define NESTED_REFINE_HPP
 
 #include "moab/Range.hpp"
-#include "moab/HalfFacetRep.hpp"
+#include "moab/CN.hpp"
+#include <map>
 
 namespace moab
 {
@@ -26,7 +27,7 @@ namespace moab
   class Core;
   class HalfFacetRep;
   class ParallelComm;
-  class MeasureTime;
+  class CpuTimer;
 
   class NestedRefine
   {
@@ -135,7 +136,7 @@ namespace moab
     Core *mbImpl;
     ParallelComm *pcomm;
     HalfFacetRep *ahf;
-    MeasureTime *tm;
+    CpuTimer *tm;
 
     EntityHandle _rset;
     Range _inverts, _inedges, _infaces, _incells;

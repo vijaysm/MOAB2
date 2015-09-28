@@ -535,8 +535,8 @@ ErrorCode skin_hex_elems(Interface *MBI, Range elems, const int dim,
 #endif //dead code isolation
 // Given a 1D array of data, axis labels, title, and number of bins, create a
 // histogram.
-void plot_histogram(const std::string title, const std::string x_axis_label,
-    const std::string y_axis_label, const int n_bins, const double data[],
+void plot_histogram(const std::string &title, const std::string &x_axis_label,
+    const std::string &y_axis_label, const int n_bins, const double data[],
     const int n_data)
 {
   // find max and min
@@ -609,7 +609,7 @@ void plot_histogram(const std::string title, const std::string x_axis_label,
 
 // This is a helper function that creates data and labels for histograms.
 void generate_plots(const double orig[], const double defo[], const int n_elems,
-    const std::string time_step)
+    const std::string &time_step)
 {
 
   // find volume ratio then max and min
@@ -691,14 +691,14 @@ double measure(Interface *MBI, const EntityHandle element)
 }
 
 /* Calculate the signed volumes beneath the surface (x 6.0). Use the triangle's
- cannonical sense. Do not take sense tags into account. Code taken from
+ canonical sense. Do not take sense tags into account. Code taken from
  DagMC::measure_volume.
 
  Special Case: If the surface is planar, and the plane includes the origin,
  the signed volume will be ~0. If the signed volume is ~0 then offset everything
  by a random amount and try again. */
 ErrorCode get_signed_volume(Interface *MBI, const EntityHandle surf_set,
-    const CartVect offset, double &signed_volume)
+    const CartVect &offset, double &signed_volume)
 {
   ErrorCode rval;
   Range tris;
@@ -752,7 +752,7 @@ ErrorCode fix_surface_senses(Interface *MBI, const EntityHandle cgm_file_set,
       two_val, 1, cgm_surfs);
   if (MB_SUCCESS != result)
     return result;
-  for (Range::iterator i = cgm_surfs.begin(); i != cgm_surfs.end(); i++)
+  for (Range::iterator i = cgm_surfs.begin(); i != cgm_surfs.end(); ++i)
   {
     int surf_id;
     result = MBI->tag_get_data(idTag, &(*i), 1, &surf_id);
@@ -782,6 +782,8 @@ ErrorCode fix_surface_senses(Interface *MBI, const EntityHandle cgm_file_set,
       return result;
     Range cub_tris;
     result = make_tris_from_quads(MBI, quads, cub_tris);
+    if (MB_SUCCESS != result)
+      return result;
 
     // Add the tris to the same surface meshset as the quads are inside.            
     result = MBI->add_entities(cub_surf.front(), cub_tris);
@@ -972,7 +974,7 @@ ErrorCode add_dead_elems_to_impl_compl(Interface *MBI,
     return result;
 
   // get the corresponding cub volume
-  for (Range::iterator i = cgm_vols.begin(); i != cgm_vols.end(); i++)
+  for (Range::iterator i = cgm_vols.begin(); i != cgm_vols.end(); ++i)
   {
     int vol_id;
     result = MBI->tag_get_data(idTag, &(*i), 1, &vol_id);
@@ -1670,7 +1672,7 @@ int is_acis_txt_file(FILE* file)
   if (version < 1 || version > 0xFFFF)
     return 0;
 
-  // Skip appliation name
+  // Skip application name
   if (fseek(file, length, SEEK_CUR))
     return 0;
 

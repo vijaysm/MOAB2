@@ -45,7 +45,7 @@ MBErrorCode skin_tris( MBInterface *mb, MBRange tris, MBRange &skin_edges ) {
   edge *edges = new edge[3*tris.size()];
   int n_verts;
   int ii = 0;
-  for(MBRange::iterator i=tris.begin(); i!=tris.end(); i++) {
+  for(MBRange::iterator i=tris.begin(); i!=tris.end(); ++i) {
     const MBEntityHandle *conn;
     rval = mb->get_connectivity( *i, conn, n_verts );
     if(MB_SUCCESS != rval) return rval;

@@ -10,7 +10,7 @@
 
 namespace moab {
 
-IntxRllCssphere::IntxRllCssphere(Interface * mbimpl):Intx2Mesh(mbimpl) {
+IntxRllCssphere::IntxRllCssphere(Interface * mbimpl):Intx2Mesh(mbimpl), R(0.0), plane(0) {
   // TODO Auto-generated constructor stub
 
 }
@@ -296,8 +296,7 @@ int IntxRllCssphere::findNodes(EntityHandle red, int nsRed, EntityHandle blue, i
         {
           // found the edge; now find if there is a point in the list here
           //std::vector<EntityHandle> * expts = extraNodesMap[redEdges[j]];
-          int indx = -1;
-          indx = RedEdges.index(redEdges[j]);
+          int indx = RedEdges.index(redEdges[j]);
           std::vector<EntityHandle> * expts = extraNodesVec[indx];
           // if the points pp is between extra points, then just give that id
           // if not, create a new point, (check the id)

@@ -116,7 +116,7 @@ if ENABLE_imesh
 if HAVE_HDF5_PARALLEL
 if ENABLE_FORTRAN
   imeshp_test_SOURCES = imeshp_test.F90
-  imeshp_test_LDADD =   $(top_builddir)/itaps/imesh/libiMesh.la $(LDADD) ${MOAB_CXX_LINKFLAGS} ${MOAB_CXX_LIBS}
+  imeshp_test_LDADD =   $(top_builddir)/itaps/imesh/libiMesh.la $(LDADD) ${MOAB_CXX_LINKFLAGS} ${MOAB_CXX_LIBS} $(FCLIBS)
 endif
 endif
 endif

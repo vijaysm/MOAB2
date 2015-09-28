@@ -1538,7 +1538,7 @@ namespace moab {
     std::vector<EntityHandle> adj_fids;
     std::vector<int> adj_lids;
 
-    for (Range::iterator f = faces.begin(); f != faces.end(); f++){
+    for (Range::iterator f = faces.begin(); f != faces.end(); ++f){
       for (int l = 0; l < nepf; l++){
 
 	adj_fids.clear();
@@ -2781,7 +2781,7 @@ ErrorCode HalfFacetRep::get_up_adjacencies_edg_3d( EntityHandle eid,
     std::vector<EntityHandle> inc_cids, sib_cids;
     std::vector<int> inc_leids, sib_lfids;
 
-    for (Range::iterator it = cells.begin(); it != cells.end(); it++)
+    for (Range::iterator it = cells.begin(); it != cells.end(); ++it)
       {
         //Count edges
         for (int i=0; i<nepc; i++)

@@ -71,6 +71,7 @@ int dagmc_point_in_vol_dir(double origin[3], double dir[3], int vol_idx)
   dir[2] = dir[2] / sqrt(dir_norm);
 
   ErrorCode rval = DAG->ray_fire(vol_h, origin, dir, next_surf, next_surf_dist);
+  CHECK_ERR(rval);
 
   xyz[0] = origin[0] + (next_surf_dist*dir[0]);
   xyz[1] = origin[1] + (next_surf_dist*dir[1]);
@@ -274,6 +275,8 @@ int main(int /* argc */, char** /* argv */)
 	//result += RUN_TEST(dagmc_point_in({0.0, -5.0, 0.0}); // point in centre
 	//result += RUN_TEST(dagmc_point_in({5.0, 0.0, 0.0}); // point in centre
 	//result += RUN_TEST(dagmc_point_in({-5.0, 0.0, 0.0}); // point in centre
+
+  DagMC::destroy();
 
   return result;
 }

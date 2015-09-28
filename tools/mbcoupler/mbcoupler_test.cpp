@@ -111,6 +111,7 @@ int main(int argc, char **argv)
 {
   // Need to init MPI first, to tell how many procs and rank
   int ierr = MPI_Init(&argc, &argv);
+  assert(MPI_SUCCESS == ierr);
 
   std::vector<const char*> ssTagNames, ssTagValues;
   std::vector<std::string> meshFiles;
@@ -122,7 +123,9 @@ int main(int argc, char **argv)
   double toler = 5.e-10;
   int nprocs, rank;
   ierr = MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  assert(MPI_SUCCESS == ierr);
   ierr = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  assert(MPI_SUCCESS == ierr);
 
   result = get_file_options(argc, argv, rank, meshFiles, method, interpTag,
                             gNormTag, ssNormTag, ssTagNames, ssTagValues,
@@ -205,12 +208,15 @@ int main(int argc, char **argv)
     }
   }
 
+  free(roots);
+
   for (unsigned int i = 0; i < meshFiles.size(); i++)
     delete pcs[i];
 
   delete mbImpl;
   
   ierr = MPI_Finalize();
+  assert(MPI_SUCCESS == ierr);
   return 0;
 }
 

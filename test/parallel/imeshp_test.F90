@@ -164,6 +164,11 @@ program imeshp_test
      call exit(1)
   endif
 
+  call iMesh_dtor(%VAL(imesh), ierr);
+  ERROR(ierr);
+  call iMesh_dtor(%VAL(imesh2), ierr);
+  ERROR(ierr);
+
   call MPI_FINALIZE(ierr)
   stop
 end program imeshp_test
@@ -289,6 +294,9 @@ subroutine create_mesh( &
 
   call iMeshP_createGhostEntsAll(%VAL(imesh), %VAL(imeshp), %VAL(2), %VAL(1), %VAL(1), %VAL(0), ierr)
   ERROR(ierr)
+
+  call iMesh_freeMemory(%VAL(imesh), vertsPtr);
+  call iMesh_freeMemory(%VAL(imesh), entsPtr);
 
   return
 end subroutine create_mesh

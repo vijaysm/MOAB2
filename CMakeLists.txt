@@ -4,18 +4,6 @@ SET(PACKAGE_VERSION "4.8.3pre")
 
 if (NOT WIN32)
   #This all breaks on windows.
-  if ( MPI_DIR )
-    message ("Checking for MPI compilers in ${MPI_DIR}/bin")
-    SET(CMAKE_USER_CXX_COMPILER_PATH ${MPI_DIR}/bin ${MPI_DIR})
-    SET(CMAKE_GENERATOR_CC ${CC} mpicc mpixlc_r mpixlc hcc mpxlc_r mpxlc sxmpicc mpifcc mpgcc mpcc cmpicc)
-    SET(CMAKE_GENERATOR_CXX ${CXX} mpicxx mpic++ mpiCC sxmpic++ hcp mpxlC_r mpxlC mpixlcxx_r mpixlcxx mpg++ mpc++ mpCC cmpic++ mpiFCC)
-    SET(CMAKE_GENERATOR_FC ${FC} ${F90} mpif95 mpxlf95_r mpxlf95 ftn mpif90 mpxlf90_r mpxlf90 mpf90 cmpif90c sxmpif90)
-  else ( MPI_DIR )
-    message ("Checking for non-MPI native compilers")
-    SET(CMAKE_GENERATOR_CC ${CC} gcc icc pgcc cc)
-    SET(CMAKE_GENERATOR_CXX ${CXX} CCicpc pgCC pathCC sxc++ xlC_r xlC bgxlC_r bgxlC openCC sunCC crayCC icpc g++ c++ gpp aCC CC cxx cc++ cl.exe FCC KCC RCC)
-    SET(CMAKE_GENERATOR_FC ${FC} ${F90} pathf95 ifort gfortran g95 f95 fort ifc efc openf95 sunf95 crayftn lf95 ftn xlf90 f90 pgf90 pghpf pathf90 epcf90 sxf90 openf90 sunf90)
-  endif ( MPI_DIR )
   SET(CMAKE_Fortran_COMPILER_INIT ${CMAKE_GENERATOR_FC})
   SET(CMAKE_CXX_FLAGS_INIT "-fPIC -DPIC")
   SET(CMAKE_CXX_FLAGS_DEBUG_INIT "-O0 -g")
@@ -112,11 +100,7 @@ option ( BUILD_SHARED_LIBS   "Should shared or static libraries be created?"   O
 option ( ENABLE_SZIP       "Should build with szip support?"                 OFF )
 option ( ENABLE_CGM        "Should build with CGM support?"                  OFF )
 option ( ENABLE_CGNS       "Should build with CGNS support?"                 OFF )
-if ( MPI_DIR )
-  option ( ENABLE_MPI        "Should MOAB be compiled with MPI support?"       ON )
-else ( MPI_DIR )
-  option ( ENABLE_MPI        "Should MOAB be compiled with MPI support?"       OFF )
-endif ( MPI_DIR )
+option ( ENABLE_MPI        "Should MOAB be compiled with MPI support?"       OFF )
 option ( ENABLE_HDF5       "Include HDF I/O interfaces in the build?"                   OFF )
 option ( ENABLE_METIS      "Include Metis partitioning interfaces in the build?"                   OFF )
 option ( ENABLE_PARMETIS   "Include parallel Metis partitioning interfaces in the build?"                   OFF )
@@ -131,14 +115,15 @@ option ( MOAB_FORCE_64_BIT_HANDLES "Force MBEntityHandle to be 64 bits (uint64_t
 option ( MOAB_FORCE_32_BIT_HANDLES "Force MBEntityHandle to be 32 bits (uint32_t)" OFF )
 
 option ( ENABLE_IMESH        "Should build IMESH?"       ON )
-option ( ENABLE_IGEOM        "Should build IGEOM?"       OFF )
+option ( ENABLE_FBIGEOM      "Should build FBIGEOM?"     OFF )
+option ( ENABLE_IREL         "Should build IREL?"        OFF )
 
 mark_as_advanced(
   MOAB_FORCE_64_BIT_HANDLES
   MOAB_FORCE_32_BIT_HANDLES
 )
 
-if ( ENABLE_IMESH OR ENABLE_IGEOM )
+if ( ENABLE_IMESH OR ENABLE_FBIGEOM )
   include (${CMAKE_ROOT}/Modules/CMakeDetermineFortranCompiler.cmake)
 endif ()
 include (config/CheckCompilerFlags.cmake)
@@ -222,7 +207,7 @@ endif (ENABLE_ZLIB)
 #set (MOAB_HAVE_HDF5 0 CACHE INTERNAL "Found necessary HDF5 components. Configure MOAB with it." )
 #set (MOAB_HAVE_HDF5_PARALLEL 0 CACHE INTERNAL "Found necessary parallel HDF5 components. Configure MOAB with it." )
 if ( ENABLE_HDF5 )
-  find_package( HDF5 REQUIRED )
+  find_package( HDF5_MOAB REQUIRED )
   #set( MOAB_DEFINES "-DHDF5_FILE ${MOAB_DEFINES}" )
   set (MOAB_HAVE_HDF5 1)
   # if ( HDF5_IS_PARALLEL AND MOAB_HAVE_MPI )
@@ -358,13 +343,13 @@ CONFIGURE_FILE(config/MOABConfig.cmake.h.in "${PROJECT_BINARY_DIR}/src/moab/MOAB
 
 CONFIGURE_FILE(MOABConfig.new.cmake.in "${PROJECT_BINARY_DIR}/MOABConfig.cmake" @ONLY)
 CONFIGURE_FILE(moab.make.in "${PROJECT_BINARY_DIR}/lib/moab.make" @ONLY)
-if ( MOAB_HAVE_IGEOM )
-  CONFIGURE_FILE(itaps/igeom/iGeom-Defs.inc.in "${PROJECT_BINARY_DIR}/lib/iGeom-Defs.inc" @ONLY)
+if ( MOAB_HAVE_FBIGEOM )
+  CONFIGURE_FILE(itaps/fbigeom/FBiGeom-Defs.inc.in "${PROJECT_BINARY_DIR}/lib/FBiGeom-Defs.inc" @ONLY)
   install(
-    FILES "${PROJECT_BINARY_DIR}/lib/iGeom-Defs.inc"
+    FILES "${PROJECT_BINARY_DIR}/lib/FBiGeom-Defs.inc"
     DESTINATION ${CMAKE_INSTALL_LIBDIR}
     )
-endif ( MOAB_HAVE_IGEOM )
+endif ( MOAB_HAVE_FBIGEOM )
 
 if ( MOAB_HAVE_IMESH )
   CONFIGURE_FILE(itaps/imesh/iMesh-Defs.inc.in "${PROJECT_BINARY_DIR}/lib/iMesh-Defs.inc" @ONLY)

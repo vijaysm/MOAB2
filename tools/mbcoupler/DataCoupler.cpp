@@ -38,7 +38,7 @@ DataCoupler::DataCoupler(Interface *impl,
     if (!source_ents.empty()) {
       Range::pair_iterator pit = source_ents.pair_begin();
       EntityType last_type = MBMAXTYPE;
-      for (; pit != source_ents.pair_end(); pit++) {
+      for (; pit != source_ents.pair_end(); ++pit) {
         EntityType this_type = mbImpl->type_from_handle(pit->first);
         if (last_type == this_type)
           continue;
@@ -51,13 +51,14 @@ DataCoupler::DataCoupler(Interface *impl,
   }
   
   if (-1 == dim && !source_ents.empty()) 
-    dim = mbImpl->dimension_from_handle(*source_ents.rbegin());
+    myDim = mbImpl->dimension_from_handle(*source_ents.rbegin());
 }
 
 /* Destructor
  */
 DataCoupler::~DataCoupler()
 {
+  delete myLocator->elem_eval();
   delete myLocator;
 }
 

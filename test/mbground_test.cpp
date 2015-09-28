@@ -111,6 +111,9 @@ int main(int argc, char *argv[])
   rval = pFacet->Init();
   PROCESS_ERROR(rval,"failed to initialize smoothing");
 
+  delete pFacet;
+  pFacet = NULL;
+
   // split_test_across
   std::cout << " split across test: ";
   rval = split_test_across();

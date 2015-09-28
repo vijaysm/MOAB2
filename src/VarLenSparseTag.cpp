@@ -334,7 +334,6 @@ void get_tagged(const VarLenSparseTag::MapType& mData,
                 Range::const_iterator end,
                 Container& output_range)
 {
-  VarLenSparseTag::MapType::const_iterator iter;
   typename Container::iterator hint = output_range.begin();
   for (Range::const_iterator i = begin; i != end; ++i)
     if (mData.find(*i) != mData.end())
@@ -462,7 +461,7 @@ ErrorCode VarLenSparseTag::get_memory_use(const SequenceManager*,
   total = mData.size() * (3*sizeof(void*) + sizeof(VarLenTag));
   for (MapType::const_iterator i = mData.begin(); i != mData.end(); ++i)
     total += i->second.mem();
-  if (mData.size())
+  if (!mData.empty())
     per_entity = total / mData.size();
   total += sizeof(*this) + TagInfo::get_memory_use();
 

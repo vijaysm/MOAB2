@@ -41,6 +41,13 @@
 * Several updates to the User and Developer guide in documentation to detail aspects of the new features (UMR, Verdict, Error handling)
 * Overall enhanced Windows support (VS2008) (contributions by Kitware)
 
+Lasso
+-----
+* Several code restructuring to conform library better to SIGMA stack of tools
+* Updates to the autoconf build system to make it more robust
+* Warning fixes for Clang/PGI/GNU/Intel
+* Build in optimized mode by default
+
 # Version 4.7.0:
 * Implemented the Array-based Half Facet data structures in MOAB to improve adjacency querying and efficient traversals between related entities (use --enable-ahf during configure)
 * Co-developed (MOAB and PETSc) to introduce a new native MOAB-mesh based Discretization Manager (DM) implementation in PETSc that supports parallel solution to PDE problems on unstructured grids.
@@ -77,6 +84,13 @@
 * Install TupleList for serial builds also
 * New method in MergeMesh that allows stitching a mesh based on an integer tag defined on vertices (GLOBAL_ID)
 * Introduced interface to delete entities in ParallelComm
+
+Lasso
+-----
+* Miscellaneous warning fixes exposed through Buildbot
+* Fix some stack smashing bugs
+* Added [Doxygen support][http://ftp.mcs.anl.gov/pub/fathom/lasso-docs] with nightly API built from repository
+* Better flag determination during configuration
 
 # Version 4.6:
 * Removed deprecated functions from the Interface: (some overloaded variants of) query_interface, release_interface, 

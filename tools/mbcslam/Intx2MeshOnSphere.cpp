@@ -14,7 +14,7 @@
 namespace moab {
 
 
-Intx2MeshOnSphere::Intx2MeshOnSphere(Interface * mbimpl):Intx2Mesh(mbimpl)
+Intx2MeshOnSphere::Intx2MeshOnSphere(Interface * mbimpl):Intx2Mesh(mbimpl), plane(0), R(0.0)
 {
   // TODO Auto-generated constructor stub
 
@@ -296,8 +296,7 @@ int Intx2MeshOnSphere::findNodes(EntityHandle red, int nsRed, EntityHandle blue,
         {
           // found the edge; now find if there is a point in the list here
           //std::vector<EntityHandle> * expts = extraNodesMap[redEdges[j]];
-          int indx = -1;
-          indx = RedEdges.index(redEdges[j]);
+          int indx = RedEdges.index(redEdges[j]);
           std::vector<EntityHandle> * expts = extraNodesVec[indx];
           // if the points pp is between extra points, then just give that id
           // if not, create a new point, (check the id)
@@ -509,9 +508,9 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
   // we need index blue to update index red?
   std::vector<double> newValues(rs2.size()*numTracers, 0.);// initialize with 0 all of them
   // area of the polygon * conc on red (old) current quantity
-  // finaly, divide by the area of the red
+  // finally, divide by the area of the red
   double check_intx_area=0.;
-  for (Range::iterator it= polys.begin(); it!=polys.end(); it++)
+  for (Range::iterator it= polys.begin(); it!=polys.end(); ++it)
   {
     EntityHandle poly=*it;
     int blueIndex, redIndex;
@@ -592,7 +591,7 @@ ErrorCode Intx2MeshOnSphere::update_tracer_data(EntityHandle out_set, Tag & tagE
     rval = mb->tag_iterate(tagArea, iter, rs2.end(), count, data);
     ERRORR(rval, "can't tag iterate");
     double * ptrArea=(double*)data;
-    for (int i=0; i<count; i++, iter++, j++, ptrArea++)
+    for (int i=0; i<count; i++, ++iter, j++, ptrArea++)
     {
       for (int k=0; k<numTracers; k++)
       {

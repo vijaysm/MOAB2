@@ -16,6 +16,11 @@ int main(int argc, char **argv) {
   // instantiate & load a mesh from a file
   moab::Core *mb = new moab::Core();
   moab::ErrorCode rval = mb->load_mesh(argv[1]);
+  if (rval != moab::MB_SUCCESS) {
+    std::cerr << "Couldn't load mesh." << std::endl;
+    delete mb;
+    return 1;
+  }
 
   // get all triangles
   moab::EntityHandle tree_root;
