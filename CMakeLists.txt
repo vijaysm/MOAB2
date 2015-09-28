@@ -249,7 +249,7 @@ endif ( ENABLE_PARMETIS AND ENABLE_METIS AND METIS_FOUND )
 
 #set (MOAB_HAVE_ZOLTAN 0 CACHE INTERNAL "Found necessary Zoltan components. Configure MOAB with it." )
 if ( ENABLE_ZOLTAN )
-  find_package( Zoltan REQUIRED )
+  find_package( Zoltan_MOAB REQUIRED )
   set (MOAB_HAVE_ZOLTAN 1)
 endif (ENABLE_ZOLTAN )
 
