@@ -9,7 +9,7 @@
 #include "PolyElementSeq.hpp"
 #include "SysUtil.hpp"
 #include "moab/Error.hpp"
-#include "moab/Core.hpp"
+#include "CoreOptions.hpp"
 
 #include <assert.h>
 #include <new>
@@ -419,7 +419,7 @@ EntityID SequenceManager::new_sequence_size(EntityHandle start,
                                             int sequence_size) const
 {
 
-  requested_size = (EntityID) (Core::get_sequence_option()*requested_size);
+  requested_size = (EntityID) (coreopts.get_sequence_option()*requested_size);
 
   if (sequence_size < (int)requested_size)
     return requested_size;

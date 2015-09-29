@@ -7,6 +7,7 @@
 #include "moab/ReadUtilIface.hpp"
 #include "moab/ParallelComm.hpp"
 #include "MBParallelConventions.h"
+#include "CoreOptions.hpp"
 
 #include <iostream>
 #include <iomanip>
@@ -173,7 +174,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
   {
     if (factor_seq<1.)
       MB_SET_ERR(MB_FAILURE, "cannot have sequence factor less than 1.");
-    Core::set_sequence_option(factor_seq);
+    coreopts.set_sequence_option(factor_seq);
   }
   switch (parallel_mode) {
     case POPT_BCAST:
