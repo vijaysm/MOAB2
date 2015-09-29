@@ -464,6 +464,24 @@ namespace moab {
      */
     ErrorCode resolve_shared_sets( Range& candidate_sets, Tag id_tag );
   
+    /** extend shared sets with ghost entities
+     * After ghosting, ghost entities do not have yet information about
+     * the material set, partition set, Neumann or Dirichlet set they could
+     * belong to
+     * This method will assign ghosted entities to the those special entity sets
+     * In some case we might even have to create those sets, if they do not exist yet on
+     * the local processor
+     *
+     * The special entity sets all have an unique identifier, in a form of an integer
+     * tag to the set.
+     * The shared sets data is not used, because we do not use the geometry sets, as they are
+     * not uniquely identified
+     *
+     *
+     * \param file_set : file set used per application
+     *
+     */
+    ErrorCode augment_default_sets_with_ghosts( EntityHandle file_set);
     // ==================================
     // \section GET PARALLEL DATA (shared/owned/iface entities, etc.)
     // ==================================
@@ -1003,8 +1021,6 @@ namespace moab {
                                    bool lower_dim_ents = false,
                                    bool verts_too = true,
                                    int operation = Interface::UNION);
-
-    int num_subranges(const Range &this_range);
 
     //! estimate size required to pack entities
     int estimate_ents_buffer_size(Range &entities,
