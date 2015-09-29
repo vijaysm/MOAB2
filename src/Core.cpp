@@ -92,6 +92,7 @@
 #include "ExoIIUtil.hpp"
 #include "EntitySequence.hpp"
 #include "moab/FileOptions.hpp"
+#include "CoreOptions.hpp"
 #ifdef LINUX
 # include <dlfcn.h>
 # include <dirent.h>
@@ -153,6 +154,8 @@ static void warn_null_array_mesh_tag()
 
 namespace moab {
 
+CoreOptions coreopts(1.0);
+
 using namespace std;
 
 static inline const MeshSet* get_mesh_set( const SequenceManager* sm,
@@ -172,8 +175,6 @@ static inline MeshSet* get_mesh_set( SequenceManager* sm,
     return 0;
   return reinterpret_cast<MeshSetSequence*>(seq)->get_set(h);
 }
-
-double Core::option_seq=1.0;
 
 //! Constructor
 Core::Core()

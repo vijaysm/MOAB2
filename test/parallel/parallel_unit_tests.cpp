@@ -868,7 +868,8 @@ ErrorCode test_ghost_tag_exchange( const char* filename )
                          "PARTITION=GEOM_DIMENSION;PARTITION_VAL=3;"
                          "PARTITION_DISTRIBUTE;"
                          "PARALLEL_RESOLVE_SHARED_ENTS;"
-                         "PARALLEL_GHOSTS=3.2.1" );
+                         "PARALLEL_GHOSTS=3.2.1;"
+                         "PARALLEL_SEQUENCE_FACTOR=1.5" );
   CHKERR(rval);
   
     // Get ghost elements

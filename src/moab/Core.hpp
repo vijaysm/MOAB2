@@ -1290,10 +1290,6 @@ public:
 
   void print_database() const;
 
-  static double get_sequence_option() {return Core::option_seq;}
-
-  static void set_sequence_option(double factor) {  Core::option_seq = factor;}
-
 private:
 
   /**\brief Do not allow copying */
@@ -1366,8 +1362,6 @@ private:
 
     //! list of iterators 
   std::vector<SetIterator*> setIterators;
-
-  static double option_seq;
 
 #ifdef MOAB_HAVE_AHF
   HalfFacetRep *ahfRep;
