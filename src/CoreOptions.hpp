@@ -1,8 +1,5 @@
 /*
  * CoreOptions.hpp
- *
- *  Created on: Sep 29, 2015
- *      Author: iulian
  */
 
 #ifndef COREOPTIONS_HPP_
