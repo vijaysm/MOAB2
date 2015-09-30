@@ -6,9 +6,9 @@ Build-Depends: debhelper (>= 9),
   cmake (>= 2.8.12),
   g++ (>= 4.0.0),
   libopenmpi-dev,
+  openmpi-bin,
   doxygen,
-  libhdf5-dev,
-  libnetcdf-dev
+  libhdf5-mpi-dev
 Standards-Version: 3.9.6
 Section: libs
 Homepage: http://sigma.mcs.anl.gov/moab-library/
