@@ -47,6 +47,9 @@ mark_as_advanced(
 )
 
 include (FindPackageHandleStandardArgs)
-find_package_handle_standard_args (ParMetis "ParMetis not found, check environment variables PARMETIS_DIR"
-  PARMETIS_DIR PARMETIS_INCLUDES PARMETIS_LIBRARIES)
+find_package_handle_standard_args (
+  ParMetis "ParMetis not found, check environment variables PARMETIS_DIR"
+  PARMETIS_INCLUDES
+  PARMETIS_LIBRARIES
+  )
 
