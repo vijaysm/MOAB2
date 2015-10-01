@@ -4545,6 +4545,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       delete[] tagVals[i];
     delete[] tagVals;
     delete[] rangeSets;
+    delete [] tags;
     delete[] localMaps;
     return MB_SUCCESS;
   }
