@@ -1505,6 +1505,9 @@ ErrorCode ZoltanPartitioner::write_partition(const int nparts,
     for (i = 0; i < nparts; i++) dum_ids[i] = i;
   
     result = mbImpl->tag_set_data(part_set_tag, partSets, dum_ids); RR;
+    // found out by valgrind when we run mbpart 
+    delete [] dum_ids;
+    dum_ids = NULL;
 
     // assign entities to the relevant sets
     std::vector<EntityHandle> tmp_part_sets;
