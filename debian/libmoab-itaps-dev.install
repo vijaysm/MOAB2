@@ -1,6 +1,0 @@
-usr/include/i*.h
-usr/lib/libi*.a
-usr/lib/libi*.so
-usr/lib/libi*.la
-usr/lib/i*-Defs.inc
-
