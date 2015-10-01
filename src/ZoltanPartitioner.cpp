@@ -334,6 +334,13 @@ ErrorCode  ZoltanPartitioner::repartition(std::vector<double> & x,std::vector<do
   std::copy(export_global_ids, export_global_ids+num_export, range_inserter(exported));
   localGIDs=subtract(iniGids, exported);
   localGIDs=unite(localGIDs, imported);
+  // Free data structures allocated by Zoltan::LB_Partition
+  retval = myZZ-> LB_Free_Part(&import_global_ids, &import_local_ids,
+           &import_procs, &import_to_part);
+  if (ZOLTAN_OK != retval) return MB_FAILURE;
+  retval = myZZ-> LB_Free_Part(&export_global_ids, &export_local_ids,
+           &assign_procs, &assign_parts);
+  if (ZOLTAN_OK != retval) return MB_FAILURE;
 
   return MB_SUCCESS;
 }
