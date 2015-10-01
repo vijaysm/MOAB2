@@ -399,7 +399,16 @@ void save_and_load_on_root( Interface& moab, const char* tmp_filename )
   
   if (procnum == 0 && KeepTmpFiles)
     std::cout << "Wrote file: \"" << tmp_filename << "\"\n";
-  
+
+  // All created pcomm objects should be retrieved (with the pcomm tag) and
+  // deleted at this time. Otherwise, the memory used by them will be leaked
+  // as the pcomm tag will be deleted by moab.delete_mesh() below.
+  std::vector<ParallelComm*> pc_list;
+  ParallelComm::get_all_pcomm(&moab, pc_list);
+  for (std::vector<ParallelComm*>::iterator vit = pc_list.begin();
+       vit != pc_list.end(); ++vit)
+    delete *vit;
+
   moab.delete_mesh();
   std::vector<Tag> tags;
   rval = moab.tag_get_tags( tags );
