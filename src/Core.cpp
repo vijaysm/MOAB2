@@ -92,6 +92,7 @@
 #include "ExoIIUtil.hpp"
 #include "EntitySequence.hpp"
 #include "moab/FileOptions.hpp"
+#include "CoreOptions.hpp"
 #ifdef LINUX
 # include <dlfcn.h>
 # include <dirent.h>
@@ -152,6 +153,8 @@ static void warn_null_array_mesh_tag()
 #endif
 
 namespace moab {
+
+CoreOptions coreopts(1.0);
 
 using namespace std;
 
