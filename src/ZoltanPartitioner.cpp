@@ -334,6 +334,13 @@ ErrorCode  ZoltanPartitioner::repartition(std::vector<double> & x,std::vector<do
   std::copy(export_global_ids, export_global_ids+num_export, range_inserter(exported));
   localGIDs=subtract(iniGids, exported);
   localGIDs=unite(localGIDs, imported);
+  // Free data structures allocated by Zoltan::LB_Partition
+  retval = myZZ-> LB_Free_Part(&import_global_ids, &import_local_ids,
+           &import_procs, &import_to_part);
+  if (ZOLTAN_OK != retval) return MB_FAILURE;
+  retval = myZZ-> LB_Free_Part(&export_global_ids, &export_local_ids,
+           &assign_procs, &assign_parts);
+  if (ZOLTAN_OK != retval) return MB_FAILURE;
 
   return MB_SUCCESS;
 }
@@ -1498,6 +1505,9 @@ ErrorCode ZoltanPartitioner::write_partition(const int nparts,
     for (i = 0; i < nparts; i++) dum_ids[i] = i;
   
     result = mbImpl->tag_set_data(part_set_tag, partSets, dum_ids); RR;
+    // found out by valgrind when we run mbpart 
+    delete [] dum_ids;
+    dum_ids = NULL;
 
     // assign entities to the relevant sets
     std::vector<EntityHandle> tmp_part_sets;
