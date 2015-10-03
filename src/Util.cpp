@@ -20,14 +20,11 @@
 //                 All functions are static, called like this:
 //                 Util::function_name();
 //-------------------------------------------------------------------------
-#include "moab/MOABConfig.h"
 #include "moab/Util.hpp"
 #include "moab/Interface.hpp"
 #include <assert.h>
-#include <math.h>
 #include <algorithm>
 #include <limits>
-
 #if defined(_MSC_VER) || defined(__MINGW32__)
 #  include <float.h>
 #  define finite(A) _finite(A)
@@ -97,20 +94,6 @@ void Util::centroid(Interface *MB, EntityHandle handle, CartVect &coord)
    coord[0]/=(double)number_nodes;
    coord[1]/=(double)number_nodes;
    coord[2]/=(double)number_nodes;
-}
-
-template <typename T>
-bool Util::is_finite(T value)
-{
-#ifdef MOAB_HAVE_ISFINITE
-  return isfinite(value);
-#else
-#  ifdef MOAB_HAVE_FINITE
-     return finite(value);
-#  else
-#    error Both finite and isfinite routines are unavailable
-#  endif
-#endif
 }
 
 /*//This function calculates the coordinates for the centers of each edges of the entity specified by handle. The coordinates are returned in the list coords_list
