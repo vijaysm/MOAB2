@@ -124,6 +124,9 @@
 /* Define if isfinite is supported */
 #cmakedefine MOAB_HAVE_ISFINITE
 
+/* Define if std::isfinite is supported */
+#cmakedefine MOAB_HAVE_STDISFINITE
+
 /* Define to 1 if you have the `gvc' library (-lgvc). */
 #cmakedefine MOAB_HAVE_LIBGVC
 
