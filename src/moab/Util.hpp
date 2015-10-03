@@ -16,8 +16,21 @@
 #ifndef MB_UTIL_HPP
 #define MB_UTIL_HPP
 
+#include "moab/MOABConfig.h"
 #include "moab/Forward.hpp"
 #include "moab/CartVect.hpp"
+
+#include <math.h>
+#if defined MOAB_HAVE_ISFINITE
+#define moab_isfinite(f) isfinite(f)
+#elif defined MOAB_HAVE_STDISFINITE
+#include <cmath>
+#define moab_isfinite(f) std::isfinite(f)
+#elif defined MOAB_HAVE_FINITE
+#define moab_isfinite(f) finite(f)
+#else
+#define moab_isfinite(f) (!isinf(f) && !isnan(f))
+#endif
 
 namespace moab {
 
@@ -45,6 +58,13 @@ private:
   Util(){}
 
 };
+
+template <typename T>
+inline
+bool Util::is_finite(T value)
+{
+  return moab_isfinite(value);
+}
 
 } // namespace moab
 

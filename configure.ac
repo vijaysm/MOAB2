@@ -321,11 +321,9 @@ if (test "$HAVE_IEEEFP" != "0"); then
 fi
 
 ## Check for some mathematical functions
-AC_CHECK_FUNC(finite, [AC_DEFINE([HAVE_FINITE],[1],[Define if function finite is available])],[])
-AC_MSG_CHECKING(for isfinite macro in math.h)
-AC_EGREP_HEADER(isfinite, math.h, 
-                  [AC_DEFINE([HAVE_ISFINITE],[1],[Define if isfinite is supported]) AC_MSG_RESULT(yes)],
-                  [AC_MSG_RESULT(no)])
+AX_CXX_HAVE_STDISFINITE
+AX_CXX_HAVE_ISFINITE
+AX_CXX_HAVE_FINITE
 
 HAVE_VALGRIND=0
 if test "xyes" = "x$enable_debug"; then
