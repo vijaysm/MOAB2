@@ -446,6 +446,8 @@ int relate_geom_mesh_test(iRel_Instance assoc,
   out_mentities=NULL;
   free(mentities_vec);
   mentities_vec=NULL;
+  free(out_gentities);
+  out_gentities=NULL;
   return 1;
 }
 
