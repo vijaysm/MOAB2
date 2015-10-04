@@ -436,7 +436,16 @@ int relate_geom_mesh_test(iRel_Instance assoc,
     printf("Number of input mesh entity sets and output geom entities should be same\n");
     return 0;
   }
-
+  free(mentity_handles);
+  mentity_handles = NULL;
+  free(gentities);
+  gentities=NULL;
+  free(mentity_handles);
+  mentity_handles=NULL;
+  free(out_mentities);
+  out_mentities=NULL;
+  free(mentities_vec);
+  mentities_vec=NULL;
   return 1;
 }
 
@@ -525,6 +534,12 @@ int query_relations_test(iRel_Instance assoc,
     return 0;
   }
 
+  free(gentities);
+  gentities=NULL;
+  free(out_mentities);
+  out_mentities=NULL;
+  free(out_gentities);
+  out_gentities=NULL;
     /* ok, we're done */
   return 1;
 }
@@ -622,6 +637,9 @@ int main( int argc, char *argv[] )
   printf("\n\n");
 
   iRel_destroy(assoc, &result);
+  iMesh_dtor(mesh, &result);
+  iGeom_dtor( geom, &result);
+
 
   return number_tests_failed != 0;
 }
