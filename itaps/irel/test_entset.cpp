@@ -166,6 +166,7 @@ int print_mesh_info(iMesh_Instance mesh, iBase_EntityHandle ment)
     printf("\n");
   }
   printf("(end tags)\n\n");
+  free(ment_tags);
 
   return 1;
 }
