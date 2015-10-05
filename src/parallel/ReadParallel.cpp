@@ -149,6 +149,12 @@ ErrorCode ReadParallel::load_file(const char **file_names,
     }
   }
 
+  // Get skip augmenting with ghosts option
+  bool skip_augment = false;
+  result = opts.get_null_option("SKIP_AUGMENT_WITH_GHOSTS");
+  if (MB_SUCCESS == result)
+    skip_augment = true;
+
   // Get MPI IO processor rank
   int reader_rank;
   result = opts.get_int_option("MPI_IO_RANK", reader_rank);
@@ -229,7 +235,7 @@ ErrorCode ReadParallel::load_file(const char **file_names,
 
   if (-2 != resolve_dim) {
     pa_vec.push_back(PA_RESOLVE_SHARED_SETS);
-    if (-1 != ghost_dim)
+    if (-1 != ghost_dim && !skip_augment)
       pa_vec.push_back(PA_AUGMENT_SETS_WITH_GHOSTS);
   }
 
