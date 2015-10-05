@@ -102,8 +102,6 @@ option ( ENABLE_CGM        "Should build with CGM support?"                  OFF
 option ( ENABLE_CGNS       "Should build with CGNS support?"                 OFF )
 option ( ENABLE_MPI        "Should MOAB be compiled with MPI support?"       OFF )
 option ( ENABLE_HDF5       "Include HDF I/O interfaces in the build?"                   OFF )
-option ( ENABLE_METIS      "Include Metis partitioning interfaces in the build?"                   OFF )
-option ( ENABLE_PARMETIS   "Include parallel Metis partitioning interfaces in the build?"                   OFF )
 option ( ENABLE_NETCDF     "Include NetCDF support (ExodusII) interfaces in the build?" OFF )
 option ( ENABLE_PNETCDF    "Include parallel NetCDF support (ExodusII) interfaces in the build?" OFF )
 option ( ENABLE_METIS      "Include Metis support for partitioning algorithms?" OFF )
