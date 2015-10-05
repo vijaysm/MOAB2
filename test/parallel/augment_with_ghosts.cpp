@@ -110,6 +110,29 @@ void test_read_and_ghost_after()
   delete pc;
   delete mb;
 }
+
+void test_read_with_ghost_no_augment()
+{
+  int nproc, rank;
+  MPI_Comm_size(MPI_COMM_WORLD, &nproc);
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  moab::Core *mb = new moab::Core();
+
+  ErrorCode rval = MB_SUCCESS;
+
+  char read_opts[]="PARALLEL=READ_PART;PARALLEL_RESOLVE_SHARED_ENTS;PARALLEL_GHOSTS=3.0.1.3;PARTITION=PARALLEL_PARTITION;SKIP_AUGMENT_WITH_GHOSTS";
+  rval = mb->load_file(filename.c_str() , 0, read_opts);CHECK_ERR(rval);
+
+  report_sets(mb, rank, nproc);
+  // write in serial the database , on each rank
+  std::ostringstream outfile;
+  outfile <<"testReadGhost_n" <<nproc<<"."<< rank<<".h5m";
+  // the mesh contains ghosts too, but they were not part of mat/neumann set
+  // write in serial the file, to see what tags are missing / or not
+  rval = mb->write_file(outfile.str().c_str()); // everything on root
+  CHECK_ERR(rval);
+  delete mb;
+}
 int main(int argc, char* argv[])
 {
   MPI_Init(&argc, &argv);
@@ -120,6 +143,7 @@ int main(int argc, char* argv[])
 
   result += RUN_TEST(test_read_with_ghost);
   result += RUN_TEST(test_read_and_ghost_after);
+  result += RUN_TEST(test_read_with_ghost_no_augment);
 
   MPI_Finalize();
   return 0;
