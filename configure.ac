@@ -319,6 +319,12 @@ AM_CONDITIONAL(HAVE_IEEEFP_H, [test "$HAVE_IEEEFP"!="0"])
 if (test "$HAVE_IEEEFP" != "0"); then
   AC_DEFINE(HAVE_IEEEFP, [1], [Defined if configured with IEEE Floating point support])
 fi
+
+## Check for some mathematical functions
+AX_CXX_HAVE_STDISFINITE
+AX_CXX_HAVE_ISFINITE
+AX_CXX_HAVE_FINITE
+
 HAVE_VALGRIND=0
 if test "xyes" = "x$enable_debug"; then
   AC_CHECK_HEADER( [valgrind/memcheck.h], [HAVE_VALGRIND=1] )
