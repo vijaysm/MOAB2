@@ -96,6 +96,7 @@ int main(int argc, char **argv)
   bool adjEnts = false;
   bool readb = false;
   bool parmerge = false;
+  bool nosave = false;
 
   MPI_Init(&argc, &argv);
 
@@ -148,6 +149,9 @@ int main(int argc, char **argv)
   opts.addOpt<void>("readback,r", "read back the generated mesh", &readb);
 
   opts.addOpt<void>("parallel_merge,p", "use parallel mesh merge, not vertex ID based merge", &parmerge);
+
+  opts.addOpt<void>("no_save,n", "do not save the file", &nosave);
+
 
   opts.parseCommandLine(argc, argv);
 
@@ -231,9 +235,10 @@ int main(int argc, char **argv)
   // set global ids
   Tag new_id_tag;
   if (!parmerge)
+  {
     rval = mb->tag_get_handle("HANDLEID", sizeof(long), MB_TYPE_OPAQUE,
       new_id_tag, MB_TAG_CREAT|MB_TAG_DENSE);MB_CHK_SET_ERR(rval, "Can't get handle id tag");
-
+  }
   Tag part_tag;
   int dum_id = -1;
   rval = mb->tag_get_handle("PARALLEL_PARTITION", 1, MB_TYPE_INTEGER,
@@ -570,12 +575,18 @@ int main(int argc, char **argv)
     }
   }
 
-  rval = mb->write_file(outFileName.c_str(), 0, ";;PARALLEL=WRITE_PART", wsets);MB_CHK_SET_ERR(rval, "Can't write in parallel");
+  if (!parmerge)
+  {
+    rval = mb->tag_delete(new_id_tag); MB_CHK_SET_ERR(rval, "Can't delete new ID tag");
+  }
+  if (!nosave){
+    rval = mb->write_file(outFileName.c_str(), 0, ";;PARALLEL=WRITE_PART", wsets);MB_CHK_SET_ERR(rval, "Can't write in parallel");
 
-  if (0 == rank) {
-    cout << "write file " << outFileName << " in "
-         << (clock() - tt) / (double)CLOCKS_PER_SEC << " seconds" << endl;
-    tt = clock();
+    if (0 == rank) {
+      cout << "write file " << outFileName << " in "
+           << (clock() - tt) / (double)CLOCKS_PER_SEC << " seconds" << endl;
+      tt = clock();
+    }
   }
   // delete the mesh that we already have in-memory
   size_t nLocalVerts = verts.size();
@@ -583,7 +594,7 @@ int main(int argc, char **argv)
   
   mb->delete_mesh();
 
-  if (readb)
+  if (!nosave && readb)
   {
     // now recreate a core instance and load the file we just wrote out to verify
     Core mb2;
