@@ -76,6 +76,7 @@
 #endif
 #include "moab/ReadUtilIface.hpp"
 #include "moab/MergeMesh.hpp"
+#include "moab/ParallelMergeMesh.hpp"
 
 #include <time.h>
 #include <iostream>
@@ -97,6 +98,7 @@ int main(int argc, char **argv)
   bool tetra = false;
   bool adjEnts = false;
   bool readb = false;
+  bool parmerge = false;
 
   MPI_Init(&argc, &argv);
 
@@ -148,10 +150,13 @@ int main(int argc, char **argv)
 
   opts.addOpt<void>("readback,r", "read back the generated mesh", &readb);
 
+  opts.addOpt<void>("parallel_merge,p", "use parallel mesh merge, not vertex ID based merge", &parmerge);
+
   opts.parseCommandLine(argc, argv);
 
   opts.getOptAllArgs("int_tag_vert,i", intTagNames);
   opts.getOptAllArgs("double_tag_cell,d", doubleTagNames);
+
 
   Interface* mb = new (std::nothrow) Core;
   if (NULL == mb) {
@@ -228,7 +233,8 @@ int main(int argc, char **argv)
 
   // set global ids
   Tag new_id_tag;
-  rval = mb->tag_get_handle("HANDLEID", sizeof(long), MB_TYPE_OPAQUE,
+  if (!parmerge)
+    rval = mb->tag_get_handle("HANDLEID", sizeof(long), MB_TYPE_OPAQUE,
       new_id_tag, MB_TAG_CREAT|MB_TAG_DENSE);MB_CHK_SET_ERR(rval, "Can't get handle id tag");
 
   Tag part_tag;
@@ -277,7 +283,8 @@ int main(int argc, char **argv)
               arrays[1][ix] = (y+jj) * dy;
               arrays[2][ix] = (z+kk) * dz;
               gids[ix] = 1 + (x+ii) + (y+jj) * NX + (z+kk) * (NX*NY);
-              lgids[ix] = 1 + (x+ii) + (y+jj) * NX + (long)(z+kk) * (NX*NY);
+              if (!parmerge)
+                lgids[ix] = 1 + (x+ii) + (y+jj) * NX + (long)(z+kk) * (NX*NY);
               // Set int tags, some nice values?
               EntityHandle v = startv + ix;
               for (size_t i = 0; i < intTags.size(); i++) {
@@ -290,7 +297,10 @@ int main(int argc, char **argv)
         }
 
         rval = mb->tag_set_data(global_id_tag, verts, &gids[0]);MB_CHK_SET_ERR(rval, "Can't set global ids to vertices");
-        rval = mb->tag_set_data(new_id_tag, verts, &lgids[0]);MB_CHK_SET_ERR(rval, "Can't set the new handle id tags");
+        if (!parmerge)
+        {
+          rval = mb->tag_set_data(new_id_tag, verts, &lgids[0]);MB_CHK_SET_ERR(rval, "Can't set the new handle id tags");
+        }
         int num_hexas = blockSize * blockSize * blockSize;
         int num_el = num_hexas * factor;
 
@@ -473,8 +483,9 @@ int main(int argc, char **argv)
         }
 
         rval = mb->tag_set_data(global_id_tag, cells, &gids[0]);MB_CHK_SET_ERR(rval, "Can't set global ids to elements");
-        rval = mb->tag_set_data(new_id_tag, cells, &lgids[0]);MB_CHK_SET_ERR(rval, "Can't set new ids to elements");
-
+        if (!parmerge){
+          rval = mb->tag_set_data(new_id_tag, cells, &lgids[0]);MB_CHK_SET_ERR(rval, "Can't set new ids to elements");
+        }
         int part_num = a + m*A + (b + n*B)*(M*A) + (c + k*C)*(M*A * N*B);
         rval = mb->tag_set_data(part_tag, &part_set, 1, &part_num);MB_CHK_SET_ERR(rval, "Can't set part tag on set");
         wsets.insert(part_set);
@@ -525,14 +536,27 @@ int main(int argc, char **argv)
     EntityHandle mesh_set;
     rval = mb->create_meshset(MESHSET_SET, mesh_set);MB_CHK_SET_ERR(rval, "Can't create new set");
     mb->add_entities(mesh_set, all3dcells);
-    rval = pcomm->resolve_shared_ents(mesh_set, -1, -1, &new_id_tag);MB_CHK_SET_ERR(rval, "Can't resolve shared ents");
 
-    if (0 == rank) {
-       cout << "resolve shared entities: "
-            << (clock() - tt) / (double)CLOCKS_PER_SEC << " seconds" << endl;
-       tt = clock();
+    if (parmerge)
+    {
+      ParallelMergeMesh pm(pcomm, 0.00001);
+      rval = pm.merge();MB_CHK_SET_ERR(rval, "Can't resolve shared ents");
+      if (0 == rank) {
+         cout << "parallel mesh merge: "
+              << (clock() - tt) / (double)CLOCKS_PER_SEC << " seconds" << endl;
+         tt = clock();
+      }
     }
+    else
+    {
+      rval = pcomm->resolve_shared_ents(mesh_set, -1, -1, &new_id_tag);MB_CHK_SET_ERR(rval, "Can't resolve shared ents");
 
+      if (0 == rank) {
+         cout << "resolve shared entities: "
+              << (clock() - tt) / (double)CLOCKS_PER_SEC << " seconds" << endl;
+         tt = clock();
+      }
+    }
     if (!keep_skins) { // Default is to delete the 1- and 2-dimensional entities
       // Delete all quads and edges
       Range toDelete;
