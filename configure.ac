@@ -396,19 +396,19 @@ WARN_PARALLEL_HDF5=no
 WARN_PARALLEL_HDF5_NO_COMPLEX=no
 HAVE_HDF5_PARALLEL=no
 if test "xno" != "x$HAVE_HDF5"; then
-  AC_CHECK_LIB( [hdf5_hl], [H5LTpath_valid], [HAVE_HDF5=yes],
+  old_LDFLAGS="$LDFLAGS"
+  LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"
+  AC_CHECK_LIB( [hdf5_hl], [H5LTpath_valid], [HAVE_HDF5=yes; HDF5_LIBS="-lhdf5_hl $HDF5_LIBS"],
       [WARN_HAVE_HDF5=yes; AC_MSG_WARN("libhdf5 library does not include high level support. Support for native HDF5 file format disabled")],
-      [$HDF5_LIBS]
+      [$HDF5_LIBS $LIBS]
       )
   if test "xno" != "x$enablempi"; then
-    old_LDFLAGS="$LDFLAGS"
-    LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"
     AC_CHECK_LIB( [hdf5], [H5Pset_fapl_mpio], [HAVE_HDF5_PARALLEL=yes],
       [WARN_PARALLEL_HDF5=yes; AC_MSG_WARN("libhdf5 library does not include parallel support.  Parallel HDF5 I/O disabled")],
       [$HDF5_LIBS $LIBS]
       )
-    LDFLAGS="$old_LDFLAGS"
   fi
+  LDFLAGS="$old_LDFLAGS"
 fi
 AM_CONDITIONAL(HAVE_HDF5_PARALLEL, [test "xno" != "x$HAVE_HDF5_PARALLEL"])
 if test "xno" != "x$HAVE_HDF5_PARALLEL"; then
@@ -1570,52 +1570,59 @@ fi
 if (test "xno" != "x$ENABLE_FORTRAN"); then
   AC_MSG_RESULT([Fortran77: $F77 $FFLAGS $FCPPFLAGS])
 fi
-AC_MSG_RESULT([Linker: $LD $EXPORT_LDFLAGS $CXX_LDFLAGS $LDFLAGS -L${PWD}/src/.libs -lMOAB $PNETCDF_LIBS $NETCDF_LIBS $CGNS_LIBS $HDF5_LIBS $CCMIO_LIBS $CGM_LIBS $ZOLTAN_LIBS $PARMETIS_LIBS $METIS_LIBS $LIBS])
+AC_MSG_RESULT([LIBS: $LD $EXPORT_LDFLAGS $CXX_LDFLAGS $LDFLAGS -L${PWD}/src/.libs -lMOAB $PNETCDF_LIBS $NETCDF_LIBS $CGNS_LIBS $HDF5_LIBS $CCMIO_LIBS $CGM_LIBS $ZOLTAN_LIBS $PARMETIS_LIBS $METIS_LIBS $LIBS])
 
-if test "x$HAVE_HDF5" = "xno"; then
+if test "x$HAVE_HDF5" = "xno" || test "x$WARN_HAVE_HDF5" = "xyes"; then
   AC_MSG_WARN([
-*************************************************************************
+************************************************************************************
 *            MOAB has been configured w/out the HDF5 library.
 *              Support for native file format is disabled!
-*************************************************************************])
+************************************************************************************])
+fi
+
+if test "x$HAVE_HDF5" = "xno" || test "x$WARN_HAVE_HDF5" = "xyes"; then
+  AC_MSG_WARN([
+************************************************************************************
+* MOAB has been configured with HDF5 library but without the High-Level API support.
+*          Support for high level HDF5 functions is disabled!
+************************************************************************************])
 fi
 
 if test "x$HAVE_NETCDF" = "xno"; then
   AC_MSG_WARN([
-*************************************************************************
+************************************************************************************
 *           MOAB has been configured w/out the NetCDF library.
 *     Support for ExodusII/Genesis and other file formats is disabled!
-*************************************************************************])
+************************************************************************************])
 elif test "xno" = "x$NETCDF_SUFFICIENT_DIMS_VARS"; then
   AC_MSG_WARN([
-*************************************************************************
+************************************************************************************
 *  The configured NetCDF library does not have sufficient constant limits
 *  to support reading of ExodusII with large numbers of blocks or sidesets
 *  or nodesets.  Please consider re-compiling your NetCDF library after
 *  increasing the constants NC_MAX_DIMS and NC_MAX_VARS in netcdf.h to
 *  65536 and 524288, respectively.  See: 
 *  http://cubit.sandia.gov/help-version11.1/finite_element_model/export/exporting_exodus2_file.htm
-*************************************************************************])
+************************************************************************************])
 fi
 
 if test "x$WARN_PARALLEL_HDF5" = "xyes"; then
   AC_MSG_WARN([
-*************************************************************************
+************************************************************************************
 *        MOAB has been configured with parallel and HDF5 support
 *     but the configured HDF5 library does not support parallel IO.
 *            Some parallel IO capabilities will be disabled.
-*************************************************************************])
+************************************************************************************])
 fi
 
 if test "x$WARN_PARALLEL_HDF5_NO_COMPLEX" = "xyes"; then
   AC_MSG_WARN([
-*************************************************************************
+************************************************************************************
 *     Your parallel HDF5 library is configured without 
 *     H5_MPI_COMPLEX_DERIVED_DATATYPE_WORKS .  For the types of IO
 *     patterns MOAB typically does this will result in degrading
 *     collective IO calls to independent IO, which may have a very
 *     significant impact on IO performance.
-*************************************************************************])
+************************************************************************************])
 fi
-
 

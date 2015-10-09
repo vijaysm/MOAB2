@@ -1747,7 +1747,7 @@ ErrorCode ReadHDF5::read_elems(int i, const Range& elems_in, Range& nodes)
 
   // We don't support version 3 style poly element data
   if (fileInfo->elems[i].desc.vals_per_ent <= 0)
-    return error(MB_TYPE_OUT_OF_RANGE);
+    MB_CHK_ERR(MB_TYPE_OUT_OF_RANGE);
   
   mhdf_ds1Ddt_array = false;
   mhdf_Status status;
