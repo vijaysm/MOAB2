@@ -9,24 +9,22 @@
 # METIS_LIBRARIES   - List of fully qualified libraries to link against.
 # METIS_FOUND       - Do not attempt to use if "no" or undefined.
 
-set (METIS_DIR "" CACHE PATH "Path to search for Metis header and library files" )
+set (METIS_DIR "" CACHE PATH "Path to search for Metis header and library files")
 set (METIS_FOUND NO CACHE INTERNAL "Found Metis components successfully." )
 
 FIND_LIBRARY(METIS_LIBRARY metis
-  /usr/local/lib
-  /usr/lib
+  HINTS
   ${METIS_DIR}
   ${METIS_DIR}/lib
   ${PARMETIS_DIR}
   ${PARMETIS_DIR}/lib
-)
+  )
 
 FIND_PATH(METIS_INCLUDE_DIR metis.h
-  /usr/local/include
-  /usr/include
+  HINTS
   ${METIS_DIR}
   ${METIS_DIR}/include
-)
+  )
 
 IF (NOT METIS_FOUND)
   if ( METIS_INCLUDE_DIR AND METIS_LIBRARY )
