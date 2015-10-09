@@ -1,4 +1,4 @@
-/*! \page userguide User's Guide (MOAB 4.8.2)
+/*! \page userguide User's Guide 
  
   \subpage team 
  
