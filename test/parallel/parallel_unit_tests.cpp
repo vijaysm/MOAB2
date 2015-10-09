@@ -116,13 +116,13 @@ ErrorCode test_ghost_tag_exchange( const char* filename );
 // for all ghost entities (e.g. no default value)
 ErrorCode regression_ghost_tag_exchange_no_default( const char* filename );
 // Test owners for interface entities
-ErrorCode test_interface_owners( const char* );
+ErrorCode test_interface_owners( const char * );
 // Test data for shared interface entitites with one level of ghosting
-ErrorCode regression_owners_with_ghosting( const char* );
+ErrorCode regression_owners_with_ghosting( const char * );
 // Verify all sharing data for vertices with one level of ghosting
 ErrorCode test_ghosted_entity_shared_data( const char* );
 // Test assignment of global IDs
-ErrorCode test_assign_global_ids( const char* );
+ErrorCode test_assign_global_ids( const char * );
 // Test shared sets
 ErrorCode test_shared_sets( const char* );
 // Test reduce_tags
@@ -187,15 +187,21 @@ int main( int argc, char* argv[] )
 
   if (!filename) {
 #ifdef MESHDIR
+#ifdef MOAB_HAVE_HDF5
     filename = STRINGIFY(MESHDIR) "/64bricks_512hex.h5m";
+#else
+    filename = STRINGIFY(MESHDIR) "/64bricks_512hex.vtk";
+#endif
 #else
 #error Specify MESHDIR to compile test
 #endif
   }
 
 #ifdef MESHDIR
+#ifdef MOAB_HAVE_HDF5
   const char* filename2 = STRINGIFY(MESHDIR) "/64bricks_1khex.h5m";
   const char* filename3 = STRINGIFY(MESHDIR) "/twoPolyh.h5m";
+#endif
 #else
 #error Specify MESHDIR to compile test
 #endif
@@ -219,7 +225,8 @@ int main( int argc, char* argv[] )
 
   
   int num_errors = 0;
-  
+ 
+#ifdef MOAB_HAVE_HDF5
   num_errors += RUN_TEST( test_elements_on_several_procs, filename );
   num_errors += RUN_TEST( test_ghost_elements_3_2_1, filename );
   num_errors += RUN_TEST( test_ghost_elements_3_2_2, filename );
@@ -227,17 +234,18 @@ int main( int argc, char* argv[] )
   num_errors += RUN_TEST( test_ghost_elements_2_0_1, filename );
   num_errors += RUN_TEST( test_ghost_tag_exchange, filename );
   num_errors += RUN_TEST( regression_ghost_tag_exchange_no_default, filename );
-  num_errors += RUN_TEST( test_interface_owners, filename );
-  num_errors += RUN_TEST( regression_owners_with_ghosting, filename );
-  num_errors += RUN_TEST( test_ghosted_entity_shared_data, filename );
-  num_errors += RUN_TEST( test_assign_global_ids, filename );
+  num_errors += RUN_TEST( test_delete_entities, filename2);
+  num_errors += RUN_TEST( test_ghost_polyhedra, filename3);
+#endif
+  num_errors += RUN_TEST( test_assign_global_ids, 0 );
   num_errors += RUN_TEST( test_shared_sets, 0 );
   num_errors += RUN_TEST( test_reduce_tags, 0);
   num_errors += RUN_TEST( test_reduce_tag_failures, 0);
   num_errors += RUN_TEST( test_reduce_tag_explicit_dest, 0);
-  num_errors += RUN_TEST( test_delete_entities, filename2);
-  num_errors += RUN_TEST( test_ghost_polyhedra, filename3);
-  
+  num_errors += RUN_TEST( test_interface_owners, 0 );
+  num_errors += RUN_TEST( test_ghosted_entity_shared_data, 0 );
+  num_errors += RUN_TEST( regression_owners_with_ghosting, 0 );
+
   if (rank == 0) {
     if (!num_errors) 
       std::cout << "All tests passed" << std::endl;
@@ -960,12 +968,21 @@ ErrorCode regression_ghost_tag_exchange_no_default( const char* filename )
   Interface& moab = mb_instance;
   ErrorCode rval;
 
+#ifdef MOAB_HAVE_HDF5
   rval = moab.load_file( filename, 0, 
                          "PARALLEL=READ_DELETE;"
                          "PARTITION=GEOM_DIMENSION;PARTITION_VAL=3;"
                          "PARTITION_DISTRIBUTE;"
                          "PARALLEL_RESOLVE_SHARED_ENTS;"
                          "PARALLEL_GHOSTS=3.2.1" );
+#else
+  rval = moab.load_file( filename, 0, 
+                         "PARALLEL=READ_BCAST;"
+                         "PARTITION=GEOM_DIMENSION;PARTITION_VAL=3;"
+                         "PARTITION_DISTRIBUTE;"
+                         "PARALLEL_RESOLVE_SHARED_ENTS;"
+                         "PARALLEL_GHOSTS=3.2.1" );
+#endif
   CHKERR(rval);
   
     // create a tag to exchange
@@ -1107,12 +1124,12 @@ ErrorCode test_interface_owners_common( int num_ghost_layers )
 // Common implementation for both:
 //   test_interface
 //   regression_interface_with_ghosting
-ErrorCode test_interface_owners( const char* )
+ErrorCode test_interface_owners( const char * )
 {
   return test_interface_owners_common(0);
 }
 
-ErrorCode regression_owners_with_ghosting( const char* )
+ErrorCode regression_owners_with_ghosting( const char * )
 {
   return test_interface_owners_common(1);
 }
@@ -1124,7 +1141,7 @@ struct VtxData {
   std::vector<EntityHandle> handles;
 };
 
-ErrorCode test_ghosted_entity_shared_data( const char* )
+ErrorCode test_ghosted_entity_shared_data( const char *)
 {
   ErrorCode rval;  
   Core moab_instance;
@@ -1232,7 +1249,7 @@ ErrorCode check_consistent_ids( Interface& mb,
 }
 
 
-ErrorCode test_assign_global_ids( const char* )
+ErrorCode test_assign_global_ids( const char *)
 {
   ErrorCode rval;  
   Core moab_instance;
@@ -1684,13 +1701,13 @@ ErrorCode test_delete_entities( const char* filename )
 }
 
 
-ErrorCode test_ghost_polyhedra( const char* filename3 )
+ErrorCode test_ghost_polyhedra( const char* filename )
 {
   Core mb_instance;
   Interface& moab = mb_instance;
   ErrorCode rval;
 
-  rval = moab.load_file( filename3, 0,
+  rval = moab.load_file( filename, 0,
                          "PARALLEL=READ_PART;"
                          "PARTITION=PARALLEL_PARTITION;"
                          "PARALLEL_RESOLVE_SHARED_ENTS;"
