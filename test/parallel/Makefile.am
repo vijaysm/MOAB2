@@ -92,7 +92,7 @@ endif
 pcomm_unit_SOURCES = pcomm_unit.cpp
 parallel_hdf5_test_SOURCES = parallel_hdf5_test.cc
 mhdf_parallel_SOURCES = mhdf_parallel.c
-mhdf_parallel_LDADD = $(LDADD) $(HDF5_LIBS)
+mhdf_parallel_LDADD = $(top_builddir)/src/io/mhdf/libmhdf.la $(HDF5_LIBS)
 parallel_unit_tests_SOURCES = parallel_unit_tests.cpp
 parallel_write_test_SOURCES = parallel_write_test.cc
 uber_parallel_test_SOURCES = uber_parallel_test.cpp
