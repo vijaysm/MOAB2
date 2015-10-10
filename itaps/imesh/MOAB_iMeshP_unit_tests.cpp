@@ -765,6 +765,8 @@ int create_mesh_in_memory( int rank, int num_parts,  iMesh_Instance imesh,
   // some mesh sync
   iMeshP_syncPartitionAll(imesh, partition, &ierr);
   CHKERR;
+  iMeshP_syncMeshAll(imesh, partition, &ierr);
+  CHKERR;
 
   ierr = map.build_map( imesh, partition, num_parts );
   CHKERR;
