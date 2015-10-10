@@ -271,8 +271,12 @@ private:
   std::vector<int> localIdReverseMap;
 };
 
+
 /**\brief Create mesh for use in parallel tests */
 int create_mesh( const char* filename, int num_parts );
+
+int create_mesh_in_memory( int rank, int size,  iMesh_Instance imesh,
+    iMeshP_PartitionHandle& prtn, PartMap& map);
 
 /**\brief get unique identifier for each vertex */
 int vertex_tag( iMesh_Instance imesh, iBase_EntityHandle vertex, int& tag );
@@ -379,7 +383,17 @@ int run_test( int (*func)(iMesh_Instance, iMeshP_PartitionHandle, const PartMap&
   int rank, size, ierr;
   MPI_Comm_rank( MPI_COMM_WORLD, &rank );
   MPI_Comm_size( MPI_COMM_WORLD, &size );
+  iMesh_Instance imesh;
+  iMesh_newMesh( 0, &imesh, &ierr, 0 );
+  PCHECK;
+
+  iMeshP_PartitionHandle prtn;
+  iMeshP_createPartitionAll( imesh, MPI_COMM_WORLD, &prtn, &ierr );
+  PCHECK;
   
+  PartMap map;
+
+#ifdef MOAB_HAVE_HDF5
   if (rank == 0) {
     ierr = create_mesh( FILENAME, size );
   }
@@ -392,15 +406,6 @@ int run_test( int (*func)(iMesh_Instance, iMeshP_PartitionHandle, const PartMap&
     abort();
   }
   
-  iMesh_Instance imesh;
-  iMesh_newMesh( 0, &imesh, &ierr, 0 );
-  PCHECK;
-  
-  iMeshP_PartitionHandle prtn;
-  iMeshP_createPartitionAll( imesh, MPI_COMM_WORLD, &prtn, &ierr );
-  PCHECK;
-  
-  PartMap map;
   ierr = test_load( imesh, prtn, map, size );
   if (ierr) {
     if (rank == 0) {
@@ -410,7 +415,20 @@ int run_test( int (*func)(iMesh_Instance, iMeshP_PartitionHandle, const PartMap&
     }
     abort();
   }
+#else
+  // so we have MPI and no HDF5; in order to run the test we need to create the
+  // model in memory, and then call sync to resolve shared ents, as if it was read
+  ierr = create_mesh_in_memory( rank, size, imesh, prtn, map);
+  MPI_Bcast( &ierr, 1, MPI_INT, 0, MPI_COMM_WORLD );
+  if (ierr) {
+    if (rank == 0) {
+      std::cerr << "Failed to create mesh.  Aborting."
+                << std::endl;
+    }
+    abort();
+  }
 
+#endif
   int result = (*func)(imesh,prtn,map);
   int is_err = is_any_proc_error( result );
   if (rank == 0) {
@@ -472,9 +490,11 @@ int main( int argc, char* argv[] )
   std::cout.flush();
   MPI_Barrier( MPI_COMM_WORLD );
   
+#ifdef MOAB_HAVE_HDF5
     // clean up output file
   if (rank == 0)
     remove( FILENAME );
+#endif
   
   if (rank == 0) {
     if (!num_errors) 
@@ -638,7 +658,118 @@ int create_mesh( const char* filename, int num_parts )
   
   return 0;
 }
+int create_mesh_in_memory( int rank, int num_parts,  iMesh_Instance imesh,
+    iMeshP_PartitionHandle & partition, PartMap & map)
+{
+  const char* tagname = "GLOBAL_ID";
+  int ierr;
 
+  const int num_cols = 2;
+  const int num_vtx = 9;
+  // we are on the top or botton row
+  int bottom=rank%2; // 0  2
+                     // 1  3
+  std::vector< EHARR<3> > vertices( 3 );
+  std::vector< EHARR<2> > elements( 2 ); // 4 elements per process
+  std::vector<int> vertex_ids( num_vtx );
+  std::vector<iBase_EntityHandle> vertex_list(num_vtx);
+  int start = 1+2*bottom+10*(rank/2);
+
+  for (int i = 0; i < 3; ++i)
+    for (int j = 0; j < 3; ++j)
+    {
+      vertex_ids[i+3*j]= start+i+5*j;
+    }
+
+    // create vertices
+  int vl_pos = 0;
+  int startI=2*(rank/2); // so it will be 0, 0, 2, 2, ...)
+  for (int i = startI; i <= startI+2; ++i) {
+    double coords[9] = { static_cast<double>(i),   2.*bottom, 0,
+                         static_cast<double>(i), 1+2.*bottom, 0,
+                         static_cast<double>(i), 2+2.*bottom, 0,
+                       };
+    iBase_EntityHandle* ptr = vertices[i];
+    const int n = 3;
+    int junk1 = n, junk2 = n;
+    iMesh_createVtxArr( imesh, n, iBase_INTERLEAVED, coords, 3*n,
+                        &ptr, &junk1, &junk2, &ierr ); CHKERR;
+    assert( ptr == vertices[i] );
+    assert( junk1 == n );
+    assert( junk2 == n );
+    for (int j = 0; j < n; ++j)
+      vertex_list[vl_pos++] = vertices[i][j];
+  }
+
+    // create elements
+  for (int i = 0; i < num_cols; ++i) {
+    iBase_EntityHandle conn[8];
+    for (int j = 0; j < 2; ++j) {
+      conn[4*j  ] = vertices[i  ][j  ];
+      conn[4*j+1] = vertices[i  ][j+1];
+      conn[4*j+2] = vertices[i+1][j+1];
+      conn[4*j+3] = vertices[i+1][j  ];
+    }
+    iBase_EntityHandle* ptr = elements[i];
+    const int n = 2;
+    int junk1 = n, junk2 = n, junk3 = n, junk4 = n;
+    int stat[4];
+    int* ptr2 = stat;
+    iMesh_createEntArr( imesh,
+                        iMesh_QUADRILATERAL,
+                        conn, 4*n,
+                        &ptr, &junk1, &junk2,
+                        &ptr2, &junk3, &junk4,
+                        &ierr ); CHKERR;
+    assert( ptr == elements[i] );
+    assert( junk1 == n );
+    assert( junk2 == n );
+    assert( ptr2 == stat );
+    assert( junk3 == n );
+    assert( junk4 == n );
+  }
+
+  // create partition
+  iMeshP_createPartitionAll( imesh, MPI_COMM_WORLD, &partition, &ierr ); CHKERR;
+
+  iMeshP_PartHandle part;
+  iMeshP_createPart( imesh, partition, &part, &ierr ); CHKERR;
+  iBase_EntityHandle quads[] = { elements[0  ][ 0  ],
+                                 elements[0  ][ 1  ],
+                                 elements[1  ][ 0  ],
+                                 elements[1  ][ 1  ] };
+  iMesh_addEntArrToSet( imesh, quads, 4, part, &ierr ); CHKERR;
+
+
+    // assign global ids to vertices
+  iBase_TagHandle id_tag = 0;
+  iMesh_getTagHandle( imesh, tagname, &id_tag, &ierr, strlen(tagname) );
+  if (iBase_SUCCESS == ierr) {
+    int tag_size, tag_type;
+    iMesh_getTagSizeValues( imesh, id_tag, &tag_size, &ierr );
+    CHKERR;
+    if (tag_size != 1)
+      return iBase_TAG_ALREADY_EXISTS;
+    iMesh_getTagType( imesh, id_tag, &tag_type, &ierr );
+    CHKERR;
+    if (tag_type != iBase_INTEGER)
+      return iBase_TAG_ALREADY_EXISTS;
+  }
+  else {
+    iMesh_createTag( imesh, tagname, 1, iBase_INTEGER, &id_tag, &ierr, strlen(tagname) );
+    CHKERR;
+  }
+  iMesh_setIntArrData( imesh, &vertex_list[0], num_vtx, id_tag, &vertex_ids[0], num_vtx, &ierr );
+  CHKERR;
+
+  // some mesh sync
+  iMeshP_syncPartitionAll(imesh, partition, &ierr);
+  CHKERR;
+
+  ierr = map.build_map( imesh, partition, num_parts );
+  CHKERR;
+  return 0;
+}
 // generate unique for each vertex from coordinates.
 // Assume integer coordinate values with x in [0,inf] and y in [0,4]
 // as generated by create_mean(..).
