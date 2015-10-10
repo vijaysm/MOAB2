@@ -38,8 +38,12 @@ if PARALLEL
 
 #  check_PROGRAMS += partest iMeshP_unit_tests moabtest
 if HAVE_HDF5_PARALLEL
-  check_PROGRAMS += MOAB_iMeshP_unit_tests partest
+  check_PROGRAMS +=  partest
 endif
+
+if PARALLEL
+  check_PROGRAMS +=  MOAB_iMeshP_unit_tests
+endif 
 #  moabtest_SOURCES = moabtest.F
 
 #  check_PROGRAMS += ftest
