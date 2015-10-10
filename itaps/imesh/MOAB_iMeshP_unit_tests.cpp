@@ -684,10 +684,10 @@ int create_mesh_in_memory( int rank, int num_parts,  iMesh_Instance imesh,
     // create vertices
   int vl_pos = 0;
   int startI=2*(rank/2); // so it will be 0, 0, 2, 2, ...)
-  for (int i = startI; i <= startI+2; ++i) {
-    double coords[9] = { static_cast<double>(i),   2.*bottom, 0,
-                         static_cast<double>(i), 1+2.*bottom, 0,
-                         static_cast<double>(i), 2+2.*bottom, 0,
+  for (int i = 0; i <= 2; ++i) {
+    double coords[9] = { static_cast<double>(i+startI),   2.*bottom, 0,
+                         static_cast<double>(i+startI), 1+2.*bottom, 0,
+                         static_cast<double>(i+startI), 2+2.*bottom, 0,
                        };
     iBase_EntityHandle* ptr = vertices[i];
     const int n = 3;
