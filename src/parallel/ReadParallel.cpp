@@ -7,6 +7,7 @@
 #include "moab/ReadUtilIface.hpp"
 #include "moab/ParallelComm.hpp"
 #include "MBParallelConventions.h"
+#include "CoreOptions.hpp"
 
 #include <iostream>
 #include <iomanip>
@@ -29,6 +30,7 @@ const char *ReadParallel::ParallelActionsNames[] = {
     "PARALLEL RESOLVE_SHARED_ENTS",
     "PARALLEL EXCHANGE_GHOSTS",
     "PARALLEL RESOLVE_SHARED_SETS",
+    "PARALLEL_AUGMENT_SETS_WITH_GHOSTS",
     "PARALLEL PRINT_PARALLEL"
 };
 
@@ -147,6 +149,12 @@ ErrorCode ReadParallel::load_file(const char **file_names,
     }
   }
 
+  // Get skip augmenting with ghosts option
+  bool skip_augment = false;
+  result = opts.get_null_option("SKIP_AUGMENT_WITH_GHOSTS");
+  if (MB_SUCCESS == result)
+    skip_augment = true;
+
   // Get MPI IO processor rank
   int reader_rank;
   result = opts.get_int_option("MPI_IO_RANK", reader_rank);
@@ -168,6 +176,13 @@ ErrorCode ReadParallel::load_file(const char **file_names,
     }
   }
 
+  double factor_seq;
+  if (MB_SUCCESS == opts.get_real_option( "PARALLEL_SEQUENCE_FACTOR", factor_seq ) )
+  {
+    if (factor_seq<1.)
+      MB_SET_ERR(MB_FAILURE, "cannot have sequence factor less than 1.");
+    coreopts.set_sequence_option(factor_seq);
+  }
   switch (parallel_mode) {
     case POPT_BCAST:
         myDebug.print(1, "Read mode is BCAST\n");
@@ -218,8 +233,11 @@ ErrorCode ReadParallel::load_file(const char **file_names,
   if (-1 != ghost_dim)
     pa_vec.push_back(PA_EXCHANGE_GHOSTS);
 
-  if (-2 != resolve_dim)
+  if (-2 != resolve_dim) {
     pa_vec.push_back(PA_RESOLVE_SHARED_SETS);
+    if (-1 != ghost_dim && !skip_augment)
+      pa_vec.push_back(PA_AUGMENT_SETS_WITH_GHOSTS);
+  }
 
   if (print_parallel)
     pa_vec.push_back(PA_PRINT_PARALLEL);
@@ -510,6 +528,15 @@ ErrorCode ReadParallel::load_file(const char **file_names,
             tmp_result = myPcomm->resolve_shared_sets(file_set, use_id_tag ? file_id_tag : 0);
           break;
 
+//==================
+      case PA_AUGMENT_SETS_WITH_GHOSTS:
+          myDebug.tprint(1, "Augmenting sets with ghost entities.\n");
+
+          if (1 == myPcomm->size())
+            tmp_result = MB_SUCCESS;
+          else
+            tmp_result = myPcomm->augment_default_sets_with_ghosts(file_set);
+          break;
 //==================
       case PA_PRINT_PARALLEL:
           myDebug.tprint(1, "Printing parallel information.\n");

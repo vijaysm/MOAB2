@@ -25,6 +25,7 @@ using namespace moab;
 #ifdef MESHDIR
 const char* InputFile = STRINGIFY(MESHDIR) "/ptest.cub";
 const char* InputMix = STRINGIFY(MESHDIR) "/io/mix.h5m";
+const char* InputOneSide = STRINGIFY(MESHDIR) "/io/oneside.h5m";
 #else
 #error Specify MESHDIR to compile test
 #endif
@@ -62,6 +63,7 @@ void test_write_different_tags();
 void test_write_polygons();
 void test_write_unbalanced();
 void test_write_dense_tags();
+void test_read_non_adjs_side();
 
 const char PARTITION_TAG[] = "PARTITION";
 
@@ -204,6 +206,8 @@ int main( int argc, char* argv[] )
     result += RUN_TEST( test_write_unbalanced );
     MPI_Barrier(MPI_COMM_WORLD);
     result += RUN_TEST( test_write_dense_tags );
+    MPI_Barrier(MPI_COMM_WORLD);
+    result += RUN_TEST( test_read_non_adjs_side );
     MPI_Barrier(MPI_COMM_WORLD);
   }
   
@@ -399,7 +403,16 @@ void save_and_load_on_root( Interface& moab, const char* tmp_filename )
   
   if (procnum == 0 && KeepTmpFiles)
     std::cout << "Wrote file: \"" << tmp_filename << "\"\n";
-  
+
+  // All created pcomm objects should be retrieved (with the pcomm tag) and
+  // deleted at this time. Otherwise, the memory used by them will be leaked
+  // as the pcomm tag will be deleted by moab.delete_mesh() below.
+  std::vector<ParallelComm*> pc_list;
+  ParallelComm::get_all_pcomm(&moab, pc_list);
+  for (std::vector<ParallelComm*>::iterator vit = pc_list.begin();
+       vit != pc_list.end(); ++vit)
+    delete *vit;
+
   moab.delete_mesh();
   std::vector<Tag> tags;
   rval = moab.tag_get_tags( tags );
@@ -1602,5 +1615,27 @@ void test_write_dense_tags()
   rval = moab2.tag_get_type(found_tag, tagt);
   CHECK_ERR(rval);
   CHECK(tagt == MB_TAG_DENSE);
+
+}
+// this test will load a file that has 2 partitions (oneside.h5m)
+// and one side set, that is adjacent to one part only
+//
+void test_read_non_adjs_side()
+{
+  int err, rank, size;
+  ErrorCode rval;
+  err = MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+  CHECK(!err);
+  err = MPI_Comm_size( MPI_COMM_WORLD, &size );
+  CHECK(!err);
+
+  Core moab;
+  rval =  moab.load_file( InputOneSide, 0,
+      "PARALLEL=READ_PART;"
+      "PARTITION=PARALLEL_PARTITION;"
+      "PARALLEL_RESOLVE_SHARED_ENTS" );
+  CHECK_ERR(rval);
+
+  return;
 
 }

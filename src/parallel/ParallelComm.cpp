@@ -1276,17 +1276,6 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     return MB_SUCCESS;
   }
 
-  int ParallelComm::num_subranges(const Range &this_range)
-  {
-    // OK, have all the ranges we'll pack; count the subranges
-    int num_sub_ranges = 0;
-    for (Range::const_pair_iterator pit = this_range.const_pair_begin(); 
-         pit != this_range.const_pair_end(); ++pit)
-      num_sub_ranges++;
-
-    return num_sub_ranges;
-  }
-
   int ParallelComm::estimate_ents_buffer_size(Range &entities,
                                               const bool store_remote_handles) 
   {
@@ -4362,7 +4351,204 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
     return MB_SUCCESS;
   }
+    // populate sets with ghost entities, if necessary
+  ErrorCode ParallelComm::augment_default_sets_with_ghosts(EntityHandle file_set) {
+    // gather all default sets we are interested in, material, neumann, etc
+    // we will skip geometry sets, because they are not uniquely identified with their tag value
+    // maybe we will add another tag, like category
 
+    if (procConfig.proc_size() < 2)
+      return MB_SUCCESS; // no reason to stop by
+    const char* const shared_set_tag_names[] =
+        { MATERIAL_SET_TAG_NAME, DIRICHLET_SET_TAG_NAME, NEUMANN_SET_TAG_NAME,
+            PARALLEL_PARTITION_TAG_NAME };
+
+    int num_tags = sizeof(shared_set_tag_names) / sizeof(shared_set_tag_names[0]);
+
+    Range * rangeSets = new Range[num_tags];
+    Tag * tags = new Tag[num_tags + 1]; // one extra for global id tag, which is an int, so far
+
+    int my_rank = rank();
+    int ** tagVals = new int*[num_tags];
+    for (int i = 0; i < num_tags; i++)
+      tagVals[i] = NULL;
+    ErrorCode rval;
+
+    // for each tag, we keep a local map, from the value to the actual set with that value
+    // we assume that the tag values are unique, for a given set, otherwise we
+    // do not know to which set to add the entity
+
+    typedef std::map<int, EntityHandle> MVal;
+    typedef std::map<int, EntityHandle>::iterator itMVal;
+    MVal * localMaps = new MVal[num_tags];
+
+    for (int i = 0; i < num_tags; i++) {
+
+      rval = mbImpl->tag_get_handle(shared_set_tag_names[i], 1, MB_TYPE_INTEGER,
+          tags[i], MB_TAG_ANY);
+      if (MB_SUCCESS != rval)
+        continue;
+      rval = mbImpl->get_entities_by_type_and_tag(file_set, MBENTITYSET,
+          &(tags[i]), 0, 1, rangeSets[i], Interface::UNION);
+      MB_CHK_SET_ERR(rval, "can't get sets with a tag");
+
+      if (rangeSets[i].size() > 0) {
+        tagVals[i] = new int[rangeSets[i].size()];
+        // fill up with the tag values
+        rval = mbImpl->tag_get_data(tags[i], rangeSets[i], tagVals[i]);
+        MB_CHK_SET_ERR(rval, "can't get set tag values");
+        // now for inverse mapping:
+        for (int j = 0; j < (int) rangeSets[i].size(); j++) {
+          localMaps[i][tagVals[i][j]] = rangeSets[i][j];
+        }
+      }
+    }
+
+    // get the global id tag too
+    rval = mbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER,
+        tags[num_tags], MB_TAG_ANY);
+    MB_CHK_SET_ERR(rval, "can't get global id tag");
+
+    // collect all shared entities owned on this task, which are ghosts for others
+    Range owned_shared_ents;
+    //                     all procs          all dims, all, owned_only
+    rval = get_shared_entities(-1, owned_shared_ents, -1, false, true);
+    MB_CHK_SET_ERR(rval, "can't get shared entities");
+
+    // consider only entities that are not on the interface
+    // they should already belong to the right sets, after reading, on multiple processors
+    // rval = filter_pstatus(owned_shared_ents, PSTATUS_INTERFACE, PSTATUS_NOT, -1);
+    //   above filtering was wrong, because some vertices that were on the interface
+    //    could be ghosted on other processors, so we effectively remove them
+    //  it is true that some might already have the global id (shared, not owned), so it is
+    // a duplicate, but it should be fine
+    TupleList remoteEnts;
+    int estim = (int) owned_shared_ents.size() * (size() - 1) * num_tags;// maybe overkill?
+    // processor to send to, type of tag (0-mat,) tag value,     remote handle
+    //                         1-diri
+    //                         2-neum
+    //                         3-part
+    //
+    remoteEnts.initialize(3, 0, 1, 0, estim * 3); // pretty generous, so we avoid checking all the time
+    remoteEnts.enableWriteAccess();
+
+    // now, for each owned entity, get the remote handle(s) and Proc(s), and verify if it
+    // belongs to one of the sets; if yes, create a tuple and append it]
+    int ir = 0, jr = 0;
+    for (Range::iterator eit = owned_shared_ents.begin(); eit
+        != owned_shared_ents.end(); eit++) {
+      // ghosted eh
+      EntityHandle geh = *eit;
+      int procs[MAX_SHARING_PROCS];
+      EntityHandle handles[MAX_SHARING_PROCS];
+      int nprocs;
+      unsigned char pstat;
+      rval = get_sharing_data(geh, procs, handles, pstat, nprocs);
+      MB_CHK_SET_ERR(rval, "Failed to get sharing data");
+      for (int i = 0; i < num_tags; i++) {
+        for (int j = 0; j < (int) rangeSets[i].size(); j++) {
+          EntityHandle specialSet = rangeSets[i][j]; // this set has tag i, value tagVals[i][j];
+          if (mbImpl->contains_entities(specialSet, &geh, 1)) {
+            // this ghosted entity is in a special set, so form the tuple
+            // to send to the processors that do not own this
+            for (int k = 0; k < nprocs; k++) {
+              if (procs[k] != my_rank) {
+                remoteEnts.vi_wr[ir++] = procs[k]; // send to proc
+                remoteEnts.vi_wr[ir++] = i; // for the tags [i] (0-3)
+                remoteEnts.vi_wr[ir++] = tagVals[i][j]; // actual value of the tag
+                remoteEnts.vul_wr[jr++] = handles[k];
+                remoteEnts.inc_n();
+              }
+            }
+          }
+        }
+      }
+      // if the local entity has a global id, send it too, so we avoid
+      // another "exchange_tags" for global id
+      int gid;
+      rval = mbImpl->tag_get_data(tags[num_tags], &geh, 1, &gid);
+      MB_CHK_SET_ERR(rval, "Failed to get global id");
+      if (gid != 0) {
+        for (int k = 0; k < nprocs; k++) {
+          if (procs[k] != my_rank) {
+            remoteEnts.vi_wr[ir++] = procs[k]; // send to proc
+            remoteEnts.vi_wr[ir++] = num_tags; // for the tags [j] (4)
+            remoteEnts.vi_wr[ir++] = gid; // actual value of the tag
+            remoteEnts.vul_wr[jr++] = handles[k];
+            remoteEnts.inc_n();
+          }
+        }
+      }
+    }
+
+  #ifndef NDEBUG
+    if (my_rank == 1 && 1 == get_debug_verbosity())
+      remoteEnts.print(" on rank 1, before augment routing");
+    MPI_Barrier(procConfig.proc_comm());
+  #endif
+    int sentEnts = remoteEnts.get_n();
+    assert((sentEnts == jr) && (3 * sentEnts == ir));
+    // exchange the info now, and send to
+    gs_data::crystal_data *cd = this->procConfig.crystal_router();
+    // All communication happens here; no other mpi calls
+    // Also, this is a collective call
+    rval = cd->gs_transfer(1, remoteEnts, 0);
+    MB_CHK_SET_ERR(rval, "Error in tuple transfer");
+  #ifndef NDEBUG
+    if (my_rank == 0 && 1 == get_debug_verbosity())
+      remoteEnts.print(" on rank 0, after augment routing");
+    MPI_Barrier(procConfig.proc_comm());
+  #endif
+    // now process the data received from other processor
+    int received = remoteEnts.get_n();
+    for (int i = 0; i < received; i++) {
+      //int from = ents_to_delete.vi_rd[i];
+      EntityHandle geh = (EntityHandle) remoteEnts.vul_rd[i];
+      int from_proc = remoteEnts.vi_rd[3 * i];
+      if (my_rank == from_proc)
+        std::cout << " unexpected receive from my rank " << my_rank
+            << " during augmenting with ghosts\n ";
+      int tag_type = remoteEnts.vi_rd[3 * i + 1];
+      assert((0 <= tag_type) && (tag_type <= num_tags));
+      int value = remoteEnts.vi_rd[3 * i + 2];
+      if (tag_type == num_tags) {
+        // it is global id
+        rval = mbImpl->tag_set_data(tags[num_tags], &geh, 1, &value);
+        MB_CHK_SET_ERR(rval, "Error in setting gid tag");
+      } else {
+        // now, based on value and tag type, see if we have that value in the map
+        MVal & lmap = localMaps[tag_type];
+        itMVal itm = lmap.find(value);
+        if (itm == lmap.end()) {
+          // the value was not found yet in the local map, so we have to create the set
+          EntityHandle newSet;
+          rval = mbImpl->create_meshset(MESHSET_SET, newSet);
+          MB_CHK_SET_ERR(rval, "can't create new set");
+          lmap[value] = newSet;
+          // set the tag value
+          rval = mbImpl->tag_set_data(tags[tag_type], &newSet, 1, &value);
+          MB_CHK_SET_ERR(rval, "can't set tag for new set");
+
+          // we also need to add the new created set to the file set, if not null
+          if (file_set) {
+            rval = mbImpl->add_entities(file_set, &newSet, 1);
+            MB_CHK_SET_ERR(rval, "can't add new set to the file set");
+          }
+        }
+        // add the entity to the set pointed to by the map
+        rval = mbImpl->add_entities(lmap[value], &geh, 1);
+        MB_CHK_SET_ERR(rval, "can't add ghost ent to the set");
+      }
+    }
+
+    for (int i = 0; i < num_tags; i++)
+      delete[] tagVals[i];
+    delete[] tagVals;
+    delete[] rangeSets;
+    delete [] tags;
+    delete[] localMaps;
+    return MB_SUCCESS;
+  }
   ErrorCode ParallelComm::create_interface_sets(EntityHandle this_set, int resolve_dim, int shared_dim)
   {
     std::map<std::vector<int>, std::vector<EntityHandle> > proc_nvecs;
@@ -5140,6 +5326,12 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     result = get_sent_ents(is_iface, bridge_dim, ghost_dim, num_layers,
                            addl_ents, sent_ents, allsent, entprocs);MB_CHK_SET_ERR(result, "get_sent_ents failed");
 
+    // augment file set with the entities to be sent
+    // we might have created new entities if addl_ents>0, edges and/or faces
+    if (addl_ents> 0 && file_set && !allsent.empty()) {
+      result = mbImpl->add_entities(*file_set, allsent);
+      MB_CHK_SET_ERR(result, "Failed to add new sub-entities to set");
+    }
     myDebug->tprintf(1, "allsent ents compactness (size) = %f (%lu)\n", allsent.compactness(),
                      (unsigned long)allsent.size());
 

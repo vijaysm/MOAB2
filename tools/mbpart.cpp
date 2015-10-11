@@ -42,13 +42,14 @@ std::ostringstream LONG_DESC;
 
 int main(int argc, char* argv[])
 {
+#ifdef MOAB_HAVE_MPI
   int err = MPI_Init(&argc, &argv);
   if (err)
   {
     std::cerr << "MPI_Init failed.  Aborting." << std::endl;
     return 3;
   }
-
+#endif
   Core moab;
   Interface& mb = moab;
   std::vector<int> set_l;
@@ -521,5 +522,9 @@ int main(int argc, char* argv[])
 
   delete tool;
 
+#ifdef MOAB_HAVE_MPI
+  err = MPI_Finalize();
+  assert(MPI_SUCCESS == err);
+#endif
   return 0;
 }

@@ -9,30 +9,27 @@
 /* Configuration information. */
 #cmakedefine MOAB_CONFIGURE_INFO "@MOAB_CONFIGURE_INFO@"
 
-/* Define to dummy `main' function (if any) required to link to the Fortran
-   libraries. */
-#cmakedefine MOAB_F77_DUMMY_MAIN @MOAB_F77_DUMMY_MAIN@
-
 /* Define to a macro mangling the given C identifier (in lower and upper
    case), which must not contain underscores, for linking with Fortran. */
-#cmakedefine MOAB_F77_FUNC @MOAB_F77_FUNC@
+#cmakedefine MOAB_F77_FUNC  @MOAB_F77_FUNC@
 
 /* As F77_FUNC, but for C identifiers containing underscores. */
-#cmakedefine MOAB_F77_FUNC_ @MOAB_F77_FUNC_@
+#cmakedefine MOAB_F77_FUNC_  @MOAB_F77_FUNC_@
 
-/* Define to dummy `main' function (if any) required to link to the Fortran
-   libraries. */
-#cmakedefine MOAB_FC_DUMMY_MAIN @MOAB_FC_DUMMY_MAIN@
-
-/* Define if F77 and FC dummy `main' functions are identical. */
-#cmakedefine MOAB_FC_DUMMY_MAIN_EQ_F77 @MOAB_FC_DUMMY_MAIN_EQ_F77@
+/* Define to alternate name for `main' routine that is called from a `main' in
+   the Fortran libraries. */
+#cmakedefine MOAB_F77_MAIN @MOAB_F77_MAIN@
 
 /* Define to a macro mangling the given C identifier (in lower and upper
    case), which must not contain underscores, for linking with Fortran. */
-#cmakedefine MOAB_FC_FUNC
+#cmakedefine MOAB_FC_FUNC @MOAB_FC_FUNC@
 
 /* As FC_FUNC, but for C identifiers containing underscores. */
-#cmakedefine MOAB_FC_FUNC_
+#cmakedefine MOAB_FC_FUNC_ @MOAB_FC_FUNC_@
+
+/* Define to alternate name for `main' routine that is called from a `main' in
+   the Fortran libraries. */
+#cmakedefine MOAB_FC_MAIN @MOAB_FC_MAIN@
 
 /* Use int32_t for handles */
 #cmakedefine MOAB_FORCE_32_BIT_HANDLES
@@ -40,7 +37,7 @@
 /* Use int64_t for handles */
 #cmakedefine MOAB_FORCE_64_BIT_HANDLES
 
-/* Configure with tool: AHF */
+/* Enable use of AHF data-structures for querying adjacency information */
 #cmakedefine MOAB_HAVE_AHF
 
 /* "Define if configured with CCM I/O support." */
@@ -58,6 +55,15 @@
 /* "Define if configured with CGM support." */
 #cmakedefine MOAB_HAVE_CGM
 
+/* MOAB uses CGM configured with CUBIT */
+#cmakedefine MOAB_HAVE_CGM_CUBIT
+
+/* "Define if configured with CGM and Ray fire support." */
+#cmakedefine MOAB_HAVE_CGM_FIRE_RAY
+
+/* MOAB uses CGM configured with OpenCascade */
+#cmakedefine MOAB_HAVE_CGM_OCC
+
 /* "Define if configured with CGNS support." */
 #cmakedefine MOAB_HAVE_CGNS
 
@@ -72,6 +78,12 @@
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #cmakedefine MOAB_HAVE_DLFCN_H
+
+/* Define if configured with FBiGeom interfaces. */
+#cmakedefine MOAB_HAVE_FBIGEOM
+
+/* Define if function finite is available */
+#cmakedefine MOAB_HAVE_FINITE
 
 /* "Define if configured with GraphViz support." */
 #cmakedefine MOAB_HAVE_GRAPHVIZ
@@ -100,14 +112,20 @@
 /* Defined if configured with IEEE Floating point support */
 #cmakedefine MOAB_HAVE_IEEEFP
 
-/* Define if configured with iGeom interfaces. */
-#cmakedefine MOAB_HAVE_IGEOM
-
 /* Define if configured with iMesh interfaces. */
 #cmakedefine MOAB_HAVE_IMESH
 
 /* MOAB qualified HAVE_INTTYPES_H */
 #cmakedefine MOAB_HAVE_INTTYPES_H
+
+/* Define if configured with iRel interfaces. */
+#cmakedefine MOAB_HAVE_IREL
+
+/* Define if isfinite is supported */
+#cmakedefine MOAB_HAVE_ISFINITE
+
+/* Define if std::isfinite is supported */
+#cmakedefine MOAB_HAVE_STDISFINITE
 
 /* Define to 1 if you have the `gvc' library (-lgvc). */
 #cmakedefine MOAB_HAVE_LIBGVC
@@ -133,6 +151,9 @@
 /* Configure with tool: MBMEM */
 #cmakedefine MOAB_HAVE_MBMEM
 
+/* Configure with tool: MBMERGE */
+#cmakedefine MOAB_HAVE_MBMERGE
+
 /* Configure with tool: MBPART */
 #cmakedefine MOAB_HAVE_MBPART
 
@@ -151,8 +172,11 @@
 /* Configure with tool: MBTAGPROP */
 #cmakedefine MOAB_HAVE_MBTAGPROP
 
+/* Configure with tool: MBUMR */
+#cmakedefine MOAB_HAVE_MBUMR
+
 /* Configure with tool: MCNPMIT */
-#cmakedefine MOAB_HAVE_MCNPMIT @MOAB_HAVE_MCNPMIT@
+#cmakedefine MOAB_HAVE_MCNPMIT
 
 /* Define to 1 if you have the <memory.h> header file. */
 #cmakedefine MOAB_HAVE_MEMORY_H
@@ -161,7 +185,7 @@
 #cmakedefine MOAB_HAVE_METIS
 
 /* Define if configured with support for parallel computations. */
-#cmakedefine MOAB_HAVE_MPI @MOAB_HAVE_MPI@
+#cmakedefine MOAB_HAVE_MPI
 
 /* "Define if configured with NetCDF support." */
 #cmakedefine MOAB_HAVE_NETCDF
@@ -251,27 +275,35 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #cmakedefine MOAB_HAVE_UNISTD_H
 
+/* Specify if unordered map is available */
+#cmakedefine MOAB_HAVE_UNORDERED_MAP @MOAB_HAVE_UNORDERED_MAP@
+
+/* Specify if unordered set is available */
+#cmakedefine MOAB_HAVE_UNORDERED_SET @MOAB_HAVE_UNORDERED_SET@
+
 /* Defined if configured with Valgrind support */
-#cmakedefine MOAB_HAVE_VALGRIND
+#cmakedefine MOAB_HAVE_VALGRIND @MOAB_HAVE_VALGRIND@
 
 /* Define if vsnprintf is available. */
-#cmakedefine MOAB_HAVE_VSNPRINTF
+#cmakedefine MOAB_HAVE_VSNPRINTF @MOAB_HAVE_VSNPRINTF@
 
 /* "Define if configured with VTK I/O library support." */
-#cmakedefine MOAB_HAVE_VTK
+#cmakedefine MOAB_HAVE_VTK  @MOAB_HAVE_VTK@
 
 /* Configure with tool: VTKMOABREADER */
 #cmakedefine MOAB_HAVE_VTKMOABREADER
 
 /* "Define if configured with Zoltan library partitioning support." */
-#cmakedefine MOAB_HAVE_ZOLTAN
-
-/* Define to the sub-directory in which libtool stores uninstalled libraries.
-   */
-#cmakedefine MOAB_LT_OBJDIR
+#cmakedefine MOAB_HAVE_ZOLTAN  @MOAB_HAVE_ZOLTAN@
 
 /* MPICH_IGNORE_CXX_SEEK is not sufficient to avoid conflicts */
 #cmakedefine MOAB_MPI_CXX_CONFLICT
+
+/* Do not use template vector insertions */
+#cmakedefine MOAB_NO_VECTOR_TEMPLATE_INSERT
+
+/* Use old-style C++ std::count calls */
+#cmakedefine MOAB_OLD_STD_COUNT
 
 /* Name of package */
 #cmakedefine MOAB_PACKAGE "@MOAB_PACKAGE@"
@@ -315,6 +347,15 @@
 /* Define to 1 if you have the ANSI C header files. */
 #cmakedefine MOAB_STDC_HEADERS
 
+/* Use template function specializations */
+#cmakedefine MOAB_TEMPLATE_FUNC_SPECIALIZATION
+
+/* Use template class specializations */
+#cmakedefine MOAB_TEMPLATE_SPECIALIZATION
+
+/* Unordered map namespace */
+#cmakedefine MOAB_UNORDERED_MAP_NS
+
 /* MOAB Version */
 #cmakedefine MOAB_VERSION "@MOAB_VERSION@"
 
@@ -337,9 +378,7 @@
 #  define WORDS_BIGENDIAN 1
 # endif
 #else
-# ifndef WORDS_BIGENDIAN
-#  undef WORDS_BIGENDIAN
-# endif
+#cmakedefine WORDS_BIGENDIAN
 #endif
 
 /* Define to 1 if the X Window System is missing or not being used. */

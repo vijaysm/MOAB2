@@ -9,6 +9,7 @@
 #include "PolyElementSeq.hpp"
 #include "SysUtil.hpp"
 #include "moab/Error.hpp"
+#include "CoreOptions.hpp"
 
 #include <assert.h>
 #include <new>
@@ -417,11 +418,8 @@ EntityID SequenceManager::new_sequence_size(EntityHandle start,
                                             EntityID requested_size,
                                             int sequence_size) const
 {
-#ifdef MOAB_HAVE_MPI
-  // If we're compiled parallel, increase requested size by a factor of 1.5, to allow
-  // for ghosts; if non-default value used for sequence_size that'll take precedent anyway
-  requested_size *= 1.5;
-#endif
+
+  requested_size = (EntityID) (coreopts.get_sequence_option()*requested_size);
 
   if (sequence_size < (int)requested_size)
     return requested_size;

@@ -17,16 +17,19 @@
 #define __partitioner_base_hpp__
 
 #include <stdlib.h>
-#include "moab_mpi.h"
-#include "moab/Range.hpp"
 #include <vector>
+
+#include "moab/MOABConfig.h"
+#include "moab/Range.hpp"
 #include "moab/Types.hpp"
 
+#ifdef MOAB_HAVE_MPI
+#include "moab_mpi.h"
 #include "moab/ParallelComm.hpp"
+#endif
 namespace moab {
 
   class Interface;
-  class Range;
 }
 
 using namespace moab;
@@ -80,9 +83,9 @@ using namespace moab;
   protected:
 
     Interface *mbImpl;
-
+#ifdef MOAB_HAVE_MPI
     ParallelComm *mbpc;
-    
+#endif
     bool write_output;
     bool useCoords;
     bool newComm;
@@ -96,19 +99,22 @@ PartitionerBase::PartitionerBase(Interface *impl,
                                   const bool use_coords)
     : mbImpl(impl), useCoords(use_coords), newComm(false)
 {
+#ifdef MOAB_HAVE_MPI
   mbpc = ParallelComm::get_pcomm(mbImpl, 0);
   if (!mbpc) {
     mbpc = new ParallelComm(impl, MPI_COMM_WORLD, 0);
     newComm = true;
   }
+#endif
 }
 
 inline
 PartitionerBase::~PartitionerBase()
 {
+#ifdef MOAB_HAVE_MPI
   if (newComm)
     delete mbpc;
-
+#endif
   mbImpl = NULL;
 }
 

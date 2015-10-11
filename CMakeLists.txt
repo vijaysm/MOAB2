@@ -102,8 +102,6 @@ option ( ENABLE_CGM        "Should build with CGM support?"                  OFF
 option ( ENABLE_CGNS       "Should build with CGNS support?"                 OFF )
 option ( ENABLE_MPI        "Should MOAB be compiled with MPI support?"       OFF )
 option ( ENABLE_HDF5       "Include HDF I/O interfaces in the build?"                   OFF )
-option ( ENABLE_METIS      "Include Metis partitioning interfaces in the build?"                   OFF )
-option ( ENABLE_PARMETIS   "Include parallel Metis partitioning interfaces in the build?"                   OFF )
 option ( ENABLE_NETCDF     "Include NetCDF support (ExodusII) interfaces in the build?" OFF )
 option ( ENABLE_PNETCDF    "Include parallel NetCDF support (ExodusII) interfaces in the build?" OFF )
 option ( ENABLE_METIS      "Include Metis support for partitioning algorithms?" OFF )
@@ -143,6 +141,8 @@ set( HAVE_INTTYPES_H    ${MOAB_HAVE_INTTYPES_H} )
 set( HAVE_STDLIB_H    ${MOAB_HAVE_STDLIB_H} )
 check_include_file( memory.h     MOAB_HAVE_MEMORY_H )
 
+INCLUDE(TestBigEndian)
+TEST_BIG_ENDIAN(WORDS_BIGENDIAN)
 ################################################################################
 # Integer size Related Settings
 ################################################################################
@@ -166,6 +166,11 @@ if ( NOT MOAB_FORCE_64_BIT_HANDLES AND NOT MOAB_FORCE_32_BIT_HANDLES )
   set ( HAVE_PTRDIFF_T ${MOAB_HAVE_PTRDIFF_T} )
 endif ( NOT MOAB_FORCE_64_BIT_HANDLES AND NOT MOAB_FORCE_32_BIT_HANDLES )
 
+# Check of presence of finite or isfinite macros
+include (CheckFunctionExists)
+CHECK_FUNCTION_EXISTS(std::isfinite MOAB_HAVE_STDISFINITE)
+CHECK_FUNCTION_EXISTS(isfinite MOAB_HAVE_ISFINITE)
+CHECK_FUNCTION_EXISTS(finite MOAB_HAVE_FINITE)
 
 ################################################################################
 # Find packages
