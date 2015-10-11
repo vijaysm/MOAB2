@@ -19,6 +19,7 @@
 #include <iostream>
 #include <assert.h>
 #include <sstream>
+#include <map>
 
 #include "moab/MetisPartitioner.hpp"
 #include "moab/Interface.hpp"
@@ -59,16 +60,18 @@ ErrorCode MetisPartitioner::partition_mesh(const int nparts,
                                             const char *aggregating_tag,
                                             const bool print_time)
 {
+#ifdef MOAB_HAVE_MPI
     // should only be called in serial
   if (mbpc->proc_config().proc_size() != 1) {
     std::cout << "MetisPartitioner::partition_mesh_and_geometry must be called in serial." 
               << std::endl;
     return MB_FAILURE;
   }
-  
+#endif
+
   if (NULL != method && strcmp(method, "ML_RB") && strcmp(method, "ML_KWAY"))
   {
-    std::cout << "ERROR node " << mbpc->proc_config().proc_rank() << ": Method must be "
+    std::cout << "ERROR: Method must be "
               << "ML_RB or ML_KWAY"
               << std::endl;
     return MB_FAILURE;
@@ -146,8 +149,10 @@ ErrorCode MetisPartitioner::partition_mesh(const int nparts,
     t = clock();
   }
 
+#ifdef MOAB_HAVE_MPI
     // assign global node ids, starting from one! TODO
   result = mbpc->assign_global_ids(0, 0, 1);MB_CHK_ERR(result);
+#endif
 
   if (metis_RESULT != METIS_OK)
     return MB_FAILURE;
@@ -376,8 +381,10 @@ ErrorCode MetisPartitioner::assemble_graph(const int dimension,
   ErrorCode result = mbImpl->get_entities_by_dimension(0, dimension, elems);
   if (MB_SUCCESS != result || elems.empty()) return result;
   
+#ifdef MOAB_HAVE_MPI
     // assign global ids
   result = mbpc->assign_global_ids(0, dimension, 0); 
+#endif
 
     // now assemble the graph, calling MeshTopoUtil to get bridge adjacencies through d-1 dimensional
     // neighbors
