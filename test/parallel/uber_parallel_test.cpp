@@ -123,10 +123,10 @@ int main( int argc, char* argv[] )
   {
     //=========== bcast_delete, trivial, resolve_shared
     option = "PARALLEL=BCAST_DELETE;PARTITION=TRIVIAL;PARTITION_DISTRIBUTE;PARALLEL_RESOLVE_SHARED_ENTS;";
-    num_errors += RUN_TEST( test_read, filename, option );
+    num_errors += RUN_TEST( test_read, filename2, option );
     //=========== bcast_delete, trivial, resolve_shared + ghosting
     option = "PARALLEL=BCAST_DELETE;PARTITION=TRIVIAL;PARTITION_DISTRIBUTE;PARALLEL_RESOLVE_SHARED_ENTS;PARALLEL_GHOSTS=3.0.1;";
-    num_errors += RUN_TEST( test_read, filename, option );
+    num_errors += RUN_TEST( test_read, filename2, option );
   }
   MPI_Finalize();
 
