@@ -75,16 +75,18 @@ int main( int argc, char* argv[] )
   int num_errors = 0;
 
   const char* filename, *option;
+  const char* filename2=NULL;
   if (1 < argc) 
     filename = argv[1];
   else {
 #ifdef MESHDIR
     filename = STRINGIFY(MESHDIR) "/64bricks_512hex.h5m";
+    filename2 = STRINGIFY(MESHDIR) "/hex_2048.vtk";
 #else
     filename = "/64bricks_512hex.h5m";
 #endif
   }
-  
+
     //=========== read_delete, geom_dimension, resolve_shared
   option = "PARALLEL=READ_DELETE;PARTITION=GEOM_DIMENSION;PARTITION_VAL=3;PARTITION_DISTRIBUTE;PARALLEL_RESOLVE_SHARED_ENTS;";
   num_errors += RUN_TEST( test_read, filename, option );
@@ -114,9 +116,18 @@ int main( int argc, char* argv[] )
   num_errors += RUN_TEST( test_read, filename, option );
 
     //=========== bcast_delete, material_set, resolve_shared, exch ghost
-  option = "PARALLEL=BCAST_DELETE;PARTITION=MATERIAL_SET;PARTITION_DISTRIBUTE;PARALLEL_RESOLVE_SHARED_ENTS;PARALLEL_GHOSTS=3.0.1;";
+  option = "PARALLEL=BCAST_DELETE;PARTITION=MATERIAL_SET;PARTITION_DISTRIBUTE;DEBUG_PIO=3;PARALLEL_RESOLVE_SHARED_ENTS;PARALLEL_GHOSTS=3.0.1;";
   num_errors += RUN_TEST( test_read, filename, option );
 
+  if (filename2)
+  {
+    //=========== bcast_delete, trivial, resolve_shared
+    option = "PARALLEL=BCAST_DELETE;PARTITION=TRIVIAL;PARTITION_DISTRIBUTE;DEBUG_PIO=3;PARALLEL_RESOLVE_SHARED_ENTS;";
+    num_errors += RUN_TEST( test_read, filename, option );
+    //=========== bcast_delete, trivial, resolve_shared + ghosting
+    option = "PARALLEL=BCAST_DELETE;PARTITION=TRIVIAL;PARTITION_DISTRIBUTE;DEBUG_PIO=3;PARALLEL_RESOLVE_SHARED_ENTS;PARALLEL_GHOSTS=3.0.1;";
+    num_errors += RUN_TEST( test_read, filename, option );
+  }
   MPI_Finalize();
 
   return num_errors;
