@@ -88,6 +88,7 @@ int main(int argc, char **argv)
   int A = 2, B = 2, C = 2, M = 1, N = 1, K = 1;
   int blockSize = 4;
   double xsize = 1., ysize = 1., zsize = 1.; // The size of the region
+  int GL = 0; // number of ghost layers
 
   bool newMergeMethod = false;
   bool quadratic = false;
@@ -134,6 +135,9 @@ int main(int argc, char **argv)
   opts.addOpt<void>("tetrahedrons,t", "generate tetrahedrons", &tetra);
 
   opts.addOpt<void>("faces_edges,f", "create all faces and edges", &adjEnts);
+
+  opts.addOpt<int>(string("ghost_layers,g"),
+  string("Number of ghost layers (default=0)"), &GL);
 
   vector<string> intTagNames;
   string firstIntTag;
@@ -573,7 +577,22 @@ int main(int argc, char **argv)
         tt = clock();
       }
     }
+    // do some ghosting if required
+    if (GL>0)
+    {
+      rval = pcomm->exchange_ghost_cells(3, // int ghost_dim
+                                         0, // int bridge_dim
+                                         GL, // int num_layers
+                                         0, // int addl_ents
+                                         true);MB_CHK_ERR(rval); // bool store_remote_handles
+      if (0 == rank) {
+         cout << "exchange  " << GL << " ghost layer(s) :"
+              << (clock() - tt) / (double)CLOCKS_PER_SEC << " seconds" << endl;
+         tt = clock();
+      }
+    }
   }
+
 
   if (!parmerge)
   {
