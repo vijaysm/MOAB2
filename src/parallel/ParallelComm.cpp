@@ -3720,11 +3720,13 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     // On 64 bit is 8 or 4
     if (sizeof(long) == bytes_per_tag && ((MB_TYPE_HANDLE == tag_type) || (MB_TYPE_OPAQUE == tag_type))) { // It is a special id tag
       result = mbImpl->tag_get_data(gid_tag, skin_ents[0], &lgid_data[0]);MB_CHK_SET_ERR(result, "Couldn't get gid tag for skin vertices");
+      myDebug->printf(3, "  on the 'long' branch for %d skin vertices: first one: %d \n", (int)lgid_data.size(), (int)lgid_data[0]);
     }
     else if (4 == bytes_per_tag) { // Must be GLOBAL_ID tag or 32 bits ...
       std::vector<int> gid_data(lgid_data.size());
       result = mbImpl->tag_get_data(gid_tag, skin_ents[0], &gid_data[0]);MB_CHK_SET_ERR(result, "Failed to get gid tag for skin vertices");
       std::copy(gid_data.begin(), gid_data.end(), lgid_data.begin());
+      myDebug->tprintf(3, " tags for %d skin vertices: first one: %d \n", (int)lgid_data.size(), (int)lgid_data[0]);
     }
     else {
       // Not supported flag
@@ -3735,6 +3737,8 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     std::vector<ulong_> handle_vec; // Assumes that we can do conversion from ulong_ to EntityHandle
     std::copy(skin_ents[0].begin(), skin_ents[0].end(),
               std::back_inserter(handle_vec));
+
+    myDebug->tprintf(3, " handle vec size %d : first one %d \n", (int)handle_vec.size(), (int)handle_vec[0]);
 
 #ifdef MOAB_HAVE_MPE
     if (myDebug->get_verbosity() == 2) {
@@ -3784,6 +3788,9 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         shared_verts.inc_n();
       }
 
+    myDebug->tprintf(3, " shared verts size %d \n", (int)shared_verts.get_n());
+
+
     int max_size = skin_ents[0].size()*(MAX_SHARING_PROCS + 1);
     moab::TupleList::buffer sort_buffer;
     sort_buffer.buffer_init(max_size);
@@ -3803,6 +3810,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     result = mbImpl->get_adjacencies(proc_ents, 0, false, proc_verts,
                                      Interface::UNION);MB_CHK_SET_ERR(result, "Failed to get proc_verts");
 
+    myDebug->print( 3, " resolve shared ents:  proc verts ", proc_verts );
     result = tag_shared_verts(shared_verts, skin_ents,
                               proc_nvecs, proc_verts);MB_CHK_SET_ERR(result, "Failed to tag shared verts");
 
@@ -3814,6 +3822,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
     // Get entities shared by 1 or n procs
     result = get_proc_nvecs(resolve_dim, shared_dim, skin_ents, proc_nvecs);MB_CHK_SET_ERR(result, "Failed to tag shared entities");
+
 
     shared_verts.reset();
 
@@ -4665,6 +4674,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       if (vit->first.size() > 1)
         pval |= PSTATUS_MULTISHARED;
       result = mbImpl->tag_set_data(pstat_tag, &new_set, 1, &pval);MB_CHK_SET_ERR(result, "Failed to tag interface set with pstatus");
+      myDebug->tprintf(3, " create intf set %lx for proc_ids [0-2] %d %d %d \n", new_set, proc_ids[0], proc_ids[1], proc_ids[2] );
 
       // Tag the vertices with the same thing
       pstatus.clear();
@@ -5342,6 +5352,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     result = get_sent_ents(is_iface, bridge_dim, ghost_dim, num_layers,
                            addl_ents, sent_ents, allsent, entprocs);MB_CHK_SET_ERR(result, "get_sent_ents failed");
 
+    myDebug->print(3, " sent ents:", sent_ents[0] );
     // augment file set with the entities to be sent
     // we might have created new entities if addl_ents>0, edges and/or faces
     if (addl_ents> 0 && file_set && !allsent.empty()) {
