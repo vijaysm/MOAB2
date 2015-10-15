@@ -770,7 +770,8 @@ namespace moab {
       inline void reserve(unsigned int new_size);
       void set_stored_size() {*((int*)mem_ptr) = (int)(buff_ptr - mem_ptr);}
       int get_stored_size() {return *((int*)mem_ptr);}
-          
+      int get_current_size() {return (int)(buff_ptr - mem_ptr);}
+
       void check_space(unsigned int addl_space);
     };
 

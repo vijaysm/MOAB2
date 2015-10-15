@@ -346,7 +346,10 @@ namespace moab {
     pcommID = add_pcomm(this);
 
     if (!myDebug)
+    {
       myDebug = new DebugOutput("ParallelComm", std::cerr);
+      myDebug->set_rank( procConfig.proc_rank());
+    }
   }
 
   int ParallelComm::add_pcomm(ParallelComm *pc) 
@@ -1376,11 +1379,10 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     if (buff_size < 0)
       MB_SET_ERR(MB_FAILURE, "Failed to estimate ents buffer size");
     buff->check_space(buff_size);
-
-    WriteUtilIface *wu;
-    ErrorCode result = mbImpl->query_interface(wu);MB_CHK_SET_ERR(result, "Failed to get WriteUtilIface");
+    myDebug->tprintf(3, "estimate buffer size for %d entities: %d \n", (int)entities.size(), buff_size  );
 
     unsigned int num_ents;
+    ErrorCode result;
 
     std::vector<EntityHandle> entities_vec(entities.size());
     std::copy(entities.begin(), entities.end(), entities_vec.begin());
@@ -1394,6 +1396,9 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
       // 1. # entities = E
       PACK_INT(buff->buff_ptr, entities.size());
+
+      myDebug->tprintf(3, "after first pack int  %d \n", buff->get_current_size() );
+
 
       Range::iterator rit;
 
@@ -1426,8 +1431,14 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         buff->check_space((num_ents + 1)*sizeof(int) +
                           num_ents*sizeof(EntityHandle));
         PACK_INT(buff->buff_ptr, num_ents);
+        myDebug->tprintf(3, " num_ents %d for entity %lx,  current size  %d \n", num_ents, *rit, buff->get_current_size() );
+
         PACK_INTS(buff->buff_ptr, tmp_procs, num_ents);
+        myDebug->tprintf(3, "after tmp_procs %d \n", buff->get_current_size() );
+
         PACK_EH(buff->buff_ptr, tmp_handles, num_ents);
+        myDebug->tprintf(3, "after tmp_handles %d \n", buff->get_current_size() );
+
 
 #ifndef NDEBUG
         // Check for duplicates in proc list
@@ -1516,6 +1527,8 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     // Pack MBMAXTYPE to indicate end of ranges
     buff->check_space(sizeof(int));
     PACK_INT(buff->buff_ptr, ((int)MBMAXTYPE));
+    myDebug->tprintf(3, "at the end %d \n", buff->get_current_size() );
+
 
     buff->set_stored_size();
     return MB_SUCCESS;
@@ -1624,6 +1637,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
     // Pack the nodes per entity
     PACK_INT(buff->buff_ptr, nodes_per_entity);
+    myDebug->tprintf(3, "after some pack int  %d \n", buff->get_current_size() );
 
     // Pack the connectivity
     std::vector<EntityHandle> connect;
@@ -1635,9 +1649,11 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       result = get_remote_handles(store_remote_handles, &connect[0], &connect[0],
                                   connect.size(), to_proc, entities_vec);MB_CHK_SET_ERR(result, "Failed in get_remote_handles");
       PACK_EH(buff->buff_ptr, &connect[0], connect.size());
+      myDebug->tprintf(3, "after packing %d connectivities  %d \n", (int)connect.size(), buff->get_current_size() );
+
     }
 
-    myDebug->tprintf(4, "Packed %lu ents of type %s\n", (unsigned long)these_ents.size(),
+    myDebug->tprintf(3, "Packed %lu ents of type %s\n", (unsigned long)these_ents.size(),
                      CN::EntityTypeName(TYPE_FROM_HANDLE(*these_ents.begin())));
 
     return result;
