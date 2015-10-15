@@ -227,7 +227,7 @@ int main( int argc, char* argv[] )
   int num_errors = 0;
  
 #ifdef MOAB_HAVE_HDF5
-  num_errors += RUN_TEST( test_elements_on_several_procs, filename );
+/*  num_errors += RUN_TEST( test_elements_on_several_procs, filename );
   num_errors += RUN_TEST( test_ghost_elements_3_2_1, filename );
   num_errors += RUN_TEST( test_ghost_elements_3_2_2, filename );
   num_errors += RUN_TEST( test_ghost_elements_3_0_1, filename );
@@ -235,16 +235,16 @@ int main( int argc, char* argv[] )
   num_errors += RUN_TEST( test_ghost_tag_exchange, filename );
   num_errors += RUN_TEST( regression_ghost_tag_exchange_no_default, filename );
   num_errors += RUN_TEST( test_delete_entities, filename2);
-  num_errors += RUN_TEST( test_ghost_polyhedra, filename3);
+  num_errors += RUN_TEST( test_ghost_polyhedra, filename3);*/
 #endif
   num_errors += RUN_TEST( test_assign_global_ids, 0 );
-  num_errors += RUN_TEST( test_shared_sets, 0 );
+ /* num_errors += RUN_TEST( test_shared_sets, 0 );
   num_errors += RUN_TEST( test_reduce_tags, 0);
   num_errors += RUN_TEST( test_reduce_tag_failures, 0);
   num_errors += RUN_TEST( test_reduce_tag_explicit_dest, 0);
   num_errors += RUN_TEST( test_interface_owners, 0 );
   num_errors += RUN_TEST( test_ghosted_entity_shared_data, 0 );
-  num_errors += RUN_TEST( regression_owners_with_ghosting, 0 );
+  num_errors += RUN_TEST( regression_owners_with_ghosting, 0 );*/
 
   if (rank == 0) {
     if (!num_errors) 
@@ -673,6 +673,7 @@ ErrorCode test_ghost_elements( const char* filename,
             << "PARTITION=GEOM_DIMENSION;PARTITION_VAL=3;"
             << "PARTITION_DISTRIBUTE;"
             << "PARALLEL_RESOLVE_SHARED_ENTS;"
+            << "DEBUG_PIO=3;"
             << "PARALLEL_GHOSTS=" 
             << ghost_dimension << '.'
             << bridge_dimension << '.'
@@ -1260,6 +1261,7 @@ ErrorCode test_assign_global_ids( const char *)
   MPI_Comm_rank( MPI_COMM_WORLD, &rank );
   MPI_Comm_size( MPI_COMM_WORLD, &size );
   
+  pcomm.set_debug_verbosity(3);
     // build distributed quad mesh
   Range quad_range;
   EntityHandle verts[9];
