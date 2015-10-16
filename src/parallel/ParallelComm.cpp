@@ -1431,7 +1431,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         buff->check_space((num_ents + 1)*sizeof(int) +
                           num_ents*sizeof(EntityHandle));
         PACK_INT(buff->buff_ptr, num_ents);
-        myDebug->tprintf(3, " num_ents %d for entity %lx,  current size  %d \n", num_ents, *rit, buff->get_current_size() );
+        myDebug->tprintf(3, " num_ents %d for entity %p,  current size  %d \n", num_ents, (void*)(*rit), buff->get_current_size() );
 
         PACK_INTS(buff->buff_ptr, tmp_procs, num_ents);
         myDebug->tprintf(3, "after tmp_procs %d \n", buff->get_current_size() );
@@ -4674,7 +4674,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       if (vit->first.size() > 1)
         pval |= PSTATUS_MULTISHARED;
       result = mbImpl->tag_set_data(pstat_tag, &new_set, 1, &pval);MB_CHK_SET_ERR(result, "Failed to tag interface set with pstatus");
-      myDebug->tprintf(3, " create intf set %lx for vit->first.size()=%d  shared_proc:vit->first[0]= %d num_ents added: %d\n", new_set, (int)vit->first.size(), vit->first[0], (int)vit->second.size() );
+      myDebug->tprintf(3, " create intf set %p for vit->first.size()=%d  shared_proc:vit->first[0]= %d num_ents added: %d\n", (void*)(new_set), (int)vit->first.size(), vit->first[0], (int)vit->second.size() );
 
       // Tag the vertices with the same thing
       pstatus.clear();
