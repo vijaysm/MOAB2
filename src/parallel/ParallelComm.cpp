@@ -1425,6 +1425,9 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         result = build_sharedhps_list(*rit, pstatus_vals[i], sharedp_vals[i],
                                       dumprocs, num_ents, tmp_procs, tmp_handles);MB_CHK_SET_ERR(result, "Failed to build sharedhps");
 
+        for (unsigned int ii = 0; ii < num_ents+1; ii++)
+          myDebug->printf(3, " index %d tmp_proc %d  tmp_handle %p \n",ii, tmp_procs[ii], (void*)tmp_handles[ii]);
+
         dumprocs.clear();
 
         // Now pack them
