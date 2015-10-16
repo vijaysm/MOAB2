@@ -4674,7 +4674,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       if (vit->first.size() > 1)
         pval |= PSTATUS_MULTISHARED;
       result = mbImpl->tag_set_data(pstat_tag, &new_set, 1, &pval);MB_CHK_SET_ERR(result, "Failed to tag interface set with pstatus");
-      myDebug->tprintf(3, " create intf set %lx for proc_ids [0-2] %d %d %d \n", new_set, proc_ids[0], proc_ids[1], proc_ids[2] );
+      myDebug->tprintf(3, " create intf set %lx for vit->first.size()=%d  shared_proc:vit->first[0]= %d num_ents added: %d\n", new_set, (int)vit->first.size(), vit->first[0], (int)vit->second.size() );
 
       // Tag the vertices with the same thing
       pstatus.clear();
