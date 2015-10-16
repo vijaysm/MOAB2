@@ -5,7 +5,7 @@
 #
 
 MACRO(TEST_BIG_ENDIAN VARIABLE)
-  IF("HAVE_${VARIABLE}" MATCHES "^HAVE_${VARIABLE}$")
+  IF(NOT DEFINED HAVE_${VARIABLE})
     MESSAGE(STATUS "Check if the system is big endian")
     MESSAGE(STATUS "Searching 16 bit integer")
   
@@ -93,6 +93,6 @@ MACRO(TEST_BIG_ENDIAN VARIABLE)
           "Determining if the system is big endian failed with the following output:\n${OUTPUT}\nTestEndianess.c:\n${TEST_ENDIANESS_FILE_CONTENT}\n\n")
         SET(${VARIABLE})
       ENDIF(HAVE_${VARIABLE})
-  ENDIF("HAVE_${VARIABLE}" MATCHES "^HAVE_${VARIABLE}$")
+  ENDIF()
 ENDMACRO(TEST_BIG_ENDIAN)
 
