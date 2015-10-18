@@ -612,8 +612,7 @@ int main(int argc, char **argv)
     rval = mb->tag_delete(new_id_tag); MB_CHK_SET_ERR(rval, "Can't delete new ID tag");
   }
   if (!nosave){
-    rval = mb->write_file(outFileName.c_str(), 0, ";;PARALLEL=WRITE_PART", wsets);MB_CHK_SET_ERR(rval, "Can't write in parallel");
-
+    rval = mb->write_file(outFileName.c_str(), 0, ";;PARALLEL=WRITE_PART;CPUTIME;", wsets);MB_CHK_SET_ERR(rval, "Can't write in parallel");
     if (0 == rank) {
       cout << "write file " << outFileName << " in "
            << (clock() - tt) / (double)CLOCKS_PER_SEC << " seconds" << endl;
@@ -634,7 +633,7 @@ int main(int argc, char **argv)
     // now recreate a core instance and load the file we just wrote out to verify
     Core mb2;
     rval = mb2.load_file(outFileName.c_str(), 0,
-        "PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS");MB_CHK_SET_ERR(rval, "Can't read in parallel");
+        "PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;CPUTIME;");MB_CHK_SET_ERR(rval, "Can't read in parallel");
     if (0 == rank) {
       cout << "read back file " << outFileName << " in "
            << (clock() - tt) / (double)CLOCKS_PER_SEC << " seconds" << endl;
