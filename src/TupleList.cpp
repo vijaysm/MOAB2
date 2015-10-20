@@ -114,11 +114,11 @@ void TupleList::initialize(uint p_mi, uint p_ml, uint p_mul, uint p_mr,
     vl = NULL;
   if (max * mul > 0)
   {
-    sz = max * mul * sizeof(ulong);
+    sz = max * mul * sizeof(Ulong);
     void *resu = malloc(sz);
     if (!resu && max * mul > 0)
       fail("%s: allocation of %d bytes failed\n", __FILE__, (int) sz);
-    vul = (ulong*) resu;
+    vul = (Ulong*) resu;
   }
   else
     vul = NULL;
@@ -173,14 +173,14 @@ ErrorCode TupleList::resize(uint maxIn)
   }
   if (vul || (max * mul > 0))
   {
-    sz = max * mul * sizeof(ulong);
+    sz = max * mul * sizeof(Ulong);
     void *resu = realloc(vul, sz);
     if (!resu && max * mul > 0)
     {
       fail("%s: allocation of %d bytes failed\n", __FILE__, (int) sz);
       return moab::MB_MEMORY_ALLOCATION_FAILED;
     }
-    vul = (ulong*) resu;
+    vul = (Ulong*) resu;
   }
   if (vr || (max * mr > 0))
   {
@@ -245,6 +245,7 @@ void TupleList::reserve()
 // to which the value belongs
 int TupleList::find(unsigned int key_num, sint value)
 {
+  // we are passing an int, no issue, leave it at ulong
   ulong uvalue = (ulong) value;
   if (!(key_num > mi))
   {
@@ -308,7 +309,7 @@ int TupleList::find(unsigned int key_num, slong value)
   return -1; // If the value wasn't present or an invalid key was given
 }
 
-int TupleList::find(unsigned int key_num, ulong value)
+int TupleList::find(unsigned int key_num, Ulong value)
 {
   if (!(key_num > mul))
   {
@@ -367,7 +368,7 @@ slong TupleList::get_int(unsigned int index, unsigned int m)
   return 0;
 }
 
-ulong TupleList::get_ulong(unsigned int index, unsigned int m)
+Ulong TupleList::get_ulong(unsigned int index, unsigned int m)
 {
   if (mul > m && n > index)
     return vul[index * mul + m];
@@ -382,7 +383,7 @@ realType TupleList::get_double(unsigned int index, unsigned int m)
 }
 
 ErrorCode TupleList::get(unsigned int index, const sint *&sp, const slong *&ip,
-    const ulong *&lp, const realType *&dp)
+    const Ulong *&lp, const realType *&dp)
 {
   if (index <= n)
   {
@@ -408,7 +409,7 @@ ErrorCode TupleList::get(unsigned int index, const sint *&sp, const slong *&ip,
   return MB_FAILURE;
 }
 
-unsigned int TupleList::push_back(sint *sp, slong *ip, ulong *lp, realType *dp)
+unsigned int TupleList::push_back(sint *sp, slong *ip, Ulong *lp, realType *dp)
 {
   reserve();
   if (mi)
@@ -416,7 +417,7 @@ unsigned int TupleList::push_back(sint *sp, slong *ip, ulong *lp, realType *dp)
   if (ml)
     memcpy(&vl[ml * (n - 1)], ip, ml * sizeof(long));
   if (mul)
-    memcpy(&vul[mul * (n - 1)], lp, mul * sizeof(ulong));
+    memcpy(&vul[mul * (n - 1)], lp, mul * sizeof(Ulong));
   if (mr)
     memcpy(&vr[mr * (n - 1)], dp, mr * sizeof(realType));
 
@@ -504,7 +505,7 @@ void TupleList::print(const char *name) const
 void TupleList::permute(uint *perm, void *work)
 {
   const unsigned int_size = mi * sizeof(sint), long_size = ml * sizeof(slong),
-      ulong_size = mul * sizeof(ulong), real_size = mr * sizeof(realType);
+      Ulong_size = mul * sizeof(Ulong), real_size = mr * sizeof(realType);
   if (mi)
   {
     uint *p = perm, *pe = p + n;
@@ -526,9 +527,9 @@ void TupleList::permute(uint *perm, void *work)
     uint *p = perm, *pe = p + n;
     char *sorted = (char *) work;
     while (p != pe)
-      memcpy((void *) sorted, &vul[mul * (*p++)], ulong_size), sorted +=
-          ulong_size;
-    memcpy(vul, work, ulong_size * n);
+      memcpy((void *) sorted, &vul[mul * (*p++)], Ulong_size), sorted +=
+          Ulong_size;
+    memcpy(vul, work, Ulong_size * n);
   }
   if (mr)
   {
@@ -546,10 +547,10 @@ ErrorCode TupleList::sort(uint key, TupleList::buffer *buf)
 {
   const unsigned int_size = mi * sizeof(sint);
   const unsigned long_size = ml * sizeof(slong);
-  const unsigned ulong_size = mul * sizeof(ulong);
+  const unsigned Ulong_size = mul * sizeof(Ulong);
   const unsigned real_size = mr * sizeof(realType);
   const unsigned width = umax_2(umax_2(int_size,long_size),
-      umax_2(ulong_size,real_size));
+      umax_2(Ulong_size,real_size));
   const unsigned data_size =
       key >= mi ? sizeof(SortData<long> ) : sizeof(SortData<uint> );
 
@@ -562,8 +563,8 @@ ErrorCode TupleList::sort(uint key, TupleList::buffer *buf)
   else if (key < mi + ml)
     index_sort((long*) &vl[key - mi], n, ml, work, (SortData<long>*) work);
   else if (key < mi + ml + mul)
-    index_sort((ulong*) &vul[key - mi - ml], n, mul, work,
-        (SortData<ulong>*) work);
+    index_sort((Ulong*) &vul[key - mi - ml], n, mul, work,
+        (SortData<Ulong>*) work);
   else
     return MB_NOT_IMPLEMENTED;
 
