@@ -742,7 +742,7 @@ void print_tuples(TupleList *tlp)
   std::cout << "      ["
             << std::setw(11*mi)  << " int data"   << " |"
             << std::setw(11*ml)  << " long data"  << " |"
-            << std::setw(11*mul) << " ulong data" << " |"
+            << std::setw(11*mul) << " Ulong data" << " |"
             << std::setw(11*mr)  << " real data"  << " "
             << std::endl << "        ";
   for (unsigned int i = 0; i < tlp->get_n(); i++) {
@@ -879,6 +879,7 @@ double physField(double x, double y, double z)
 #define UINT_PER_X(X) ((sizeof(X)+sizeof(uint)-1)/sizeof(uint))
 #define UINT_PER_REAL UINT_PER_X(real)
 #define UINT_PER_LONG UINT_PER_X(slong)
+#define UINT_PER_ULONG UINT_PER_X(Ulong)
 #define UINT_PER_UNSIGNED UINT_PER_X(unsigned)
 
 // Function for packing tuple_list
@@ -913,7 +914,7 @@ int pack_tuples(TupleList* tl, void **ptr)
   // copy vl_rd
   memcpy(buf, tl->vl_rd,     tl->get_n()*ml*sizeof(slong)),  buf+=tl->get_n()*ml*UINT_PER_LONG;
   // copy vul_rd
-  memcpy(buf, tl->vul_rd,    tl->get_n()*mul*sizeof(ulong)), buf+=tl->get_n()*mul*UINT_PER_LONG;
+  memcpy(buf, tl->vul_rd,    tl->get_n()*mul*sizeof(Ulong)), buf+=tl->get_n()*mul*UINT_PER_ULONG;
   // copy vr_rd
   memcpy(buf, tl->vr_rd,     tl->get_n()*mr*sizeof(real)),   buf+=tl->get_n()*mr*UINT_PER_REAL;
 
@@ -954,7 +955,7 @@ void unpack_tuples(void *ptr, TupleList** tlp)
   // get vl_wr
   memcpy(tl->vl_wr,     buf, tl->get_n()*ml*sizeof(slong)),  buf+=tl->get_n()*ml*UINT_PER_LONG;
   // get vul_wr
-  memcpy(tl->vul_wr,    buf, tl->get_n()*mul*sizeof(ulong)), buf+=tl->get_n()*mul*UINT_PER_LONG;
+  memcpy(tl->vul_wr,    buf, tl->get_n()*mul*sizeof(Ulong)), buf+=tl->get_n()*mul*UINT_PER_ULONG;
   // get vr_wr
   memcpy(tl->vr_wr,     buf, tl->get_n()*mr*sizeof(real)),   buf+=tl->get_n()*mr*UINT_PER_REAL;
 
