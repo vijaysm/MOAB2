@@ -4657,7 +4657,6 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       if (vit->first.size() > 1)
         pval |= PSTATUS_MULTISHARED;
       result = mbImpl->tag_set_data(pstat_tag, &new_set, 1, &pval);MB_CHK_SET_ERR(result, "Failed to tag interface set with pstatus");
-      myDebug->tprintf(3, " create intf set %p for vit->first.size()=%d  shared_proc:vit->first[0]= %d num_ents added: %d\n", (void*)(new_set), (int)vit->first.size(), vit->first[0], (int)vit->second.size() );
 
       // Tag the vertices with the same thing
       pstatus.clear();
@@ -5335,7 +5334,6 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     result = get_sent_ents(is_iface, bridge_dim, ghost_dim, num_layers,
                            addl_ents, sent_ents, allsent, entprocs);MB_CHK_SET_ERR(result, "get_sent_ents failed");
 
-    myDebug->print(3, " sent ents:", sent_ents[0] );
     // augment file set with the entities to be sent
     // we might have created new entities if addl_ents>0, edges and/or faces
     if (addl_ents> 0 && file_set && !allsent.empty()) {
