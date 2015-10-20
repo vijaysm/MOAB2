@@ -3737,7 +3737,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     }
 
     // Put handles in vector for passing to gs setup
-    std::vector<ulong_> handle_vec; // Assumes that we can do conversion from ulong_ to EntityHandle
+    std::vector<Ulong> handle_vec; // Assumes that we can do conversion from Ulong to EntityHandle
     std::copy(skin_ents[0].begin(), skin_ents[0].end(),
               std::back_inserter(handle_vec));
 
@@ -4255,7 +4255,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
     // Get ids for sets in a vector, to pass to gs
     std::vector<long> larray; // Allocate sufficient space for longs
-    std::vector<unsigned long> handles;
+    std::vector<Ulong> handles;
     Range tmp_sets;
     // The id tag can be size 4 or size 8
     // Based on that, convert to int or to long, similarly to what we do
