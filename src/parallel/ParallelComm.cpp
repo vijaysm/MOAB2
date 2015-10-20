@@ -1397,9 +1397,6 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       // 1. # entities = E
       PACK_INT(buff->buff_ptr, entities.size());
 
-      myDebug->tprintf(3, "after first pack int  %d \n", buff->get_current_size() );
-
-
       Range::iterator rit;
 
       // Pre-fetch sharedp and pstatus
@@ -1425,23 +1422,14 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         result = build_sharedhps_list(*rit, pstatus_vals[i], sharedp_vals[i],
                                       dumprocs, num_ents, tmp_procs, tmp_handles);MB_CHK_SET_ERR(result, "Failed to build sharedhps");
 
-        for (unsigned int ii = 0; ii < num_ents+1; ii++)
-          myDebug->printf(3, " index %d tmp_proc %d  tmp_handle %p \n",ii, tmp_procs[ii], (void*)tmp_handles[ii]);
-
         dumprocs.clear();
 
         // Now pack them
         buff->check_space((num_ents + 1)*sizeof(int) +
                           num_ents*sizeof(EntityHandle));
         PACK_INT(buff->buff_ptr, num_ents);
-        myDebug->tprintf(3, " num_ents %d for entity %p,  current size  %d \n", num_ents, (void*)(*rit), buff->get_current_size() );
-
         PACK_INTS(buff->buff_ptr, tmp_procs, num_ents);
-        myDebug->tprintf(3, "after tmp_procs %d \n", buff->get_current_size() );
-
         PACK_EH(buff->buff_ptr, tmp_handles, num_ents);
-        myDebug->tprintf(3, "after tmp_handles %d \n", buff->get_current_size() );
-
 
 #ifndef NDEBUG
         // Check for duplicates in proc list
@@ -1530,8 +1518,6 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     // Pack MBMAXTYPE to indicate end of ranges
     buff->check_space(sizeof(int));
     PACK_INT(buff->buff_ptr, ((int)MBMAXTYPE));
-    myDebug->tprintf(3, "at the end %d \n", buff->get_current_size() );
-
 
     buff->set_stored_size();
     return MB_SUCCESS;
@@ -1652,8 +1638,6 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       result = get_remote_handles(store_remote_handles, &connect[0], &connect[0],
                                   connect.size(), to_proc, entities_vec);MB_CHK_SET_ERR(result, "Failed in get_remote_handles");
       PACK_EH(buff->buff_ptr, &connect[0], connect.size());
-      myDebug->tprintf(3, "after packing %d connectivities  %d \n", (int)connect.size(), buff->get_current_size() );
-
     }
 
     myDebug->tprintf(3, "Packed %lu ents of type %s\n", (unsigned long)these_ents.size(),
@@ -3723,13 +3707,11 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     // On 64 bit is 8 or 4
     if (sizeof(long) == bytes_per_tag && ((MB_TYPE_HANDLE == tag_type) || (MB_TYPE_OPAQUE == tag_type))) { // It is a special id tag
       result = mbImpl->tag_get_data(gid_tag, skin_ents[0], &lgid_data[0]);MB_CHK_SET_ERR(result, "Couldn't get gid tag for skin vertices");
-      myDebug->printf(3, "  on the 'long' branch for %d skin vertices: first one: %d \n", (int)lgid_data.size(), (int)lgid_data[0]);
     }
     else if (4 == bytes_per_tag) { // Must be GLOBAL_ID tag or 32 bits ...
       std::vector<int> gid_data(lgid_data.size());
       result = mbImpl->tag_get_data(gid_tag, skin_ents[0], &gid_data[0]);MB_CHK_SET_ERR(result, "Failed to get gid tag for skin vertices");
       std::copy(gid_data.begin(), gid_data.end(), lgid_data.begin());
-      myDebug->tprintf(3, " tags for %d skin vertices: first one: %d \n", (int)lgid_data.size(), (int)lgid_data[0]);
     }
     else {
       // Not supported flag
@@ -3740,8 +3722,6 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     std::vector<Ulong> handle_vec; // Assumes that we can do conversion from Ulong to EntityHandle
     std::copy(skin_ents[0].begin(), skin_ents[0].end(),
               std::back_inserter(handle_vec));
-
-    myDebug->tprintf(3, " handle vec size %d : first one %d \n", (int)handle_vec.size(), (int)handle_vec[0]);
 
 #ifdef MOAB_HAVE_MPE
     if (myDebug->get_verbosity() == 2) {
