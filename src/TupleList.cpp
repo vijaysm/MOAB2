@@ -245,8 +245,8 @@ void TupleList::reserve()
 // to which the value belongs
 int TupleList::find(unsigned int key_num, sint value)
 {
-  // we are passing an int, no issue, leave it at ulong
-  ulong uvalue = (ulong) value;
+  // we are passing an int, no issue, leave it at long
+  long uvalue = (long) value;
   if (!(key_num > mi))
   {
     // Binary search: only if the tuple_list is sorted
@@ -256,11 +256,11 @@ int TupleList::find(unsigned int key_num, sint value)
       for (; lb <= ub;)
       {
         index = (lb + ub) / 2;
-        if (vi[index * mi + key_num] == (long) uvalue)
+        if (vi[index * mi + key_num] == uvalue)
           return index;
-        else if (vi[index * mi + key_num] > (long) uvalue)
+        else if (vi[index * mi + key_num] > uvalue)
           ub = index - 1;
-        else if (vi[index * mi + key_num] < (long) uvalue)
+        else if (vi[index * mi + key_num] < uvalue)
           lb = index + 1;
       }
     }
@@ -269,7 +269,7 @@ int TupleList::find(unsigned int key_num, sint value)
       // Sequential search: if tuple_list is not sorted
       for (uint index = 0; index < n; index++)
       {
-        if (vi[index * mi + key_num] == (long) uvalue)
+        if (vi[index * mi + key_num] == uvalue)
           return index;
       }
     }
@@ -279,7 +279,7 @@ int TupleList::find(unsigned int key_num, sint value)
 
 int TupleList::find(unsigned int key_num, slong value)
 {
-  ulong uvalue = (ulong) value;
+  long uvalue = (long) value;
   if (!(key_num > ml))
   {
     if (last_sorted - mi == key_num)
@@ -288,11 +288,11 @@ int TupleList::find(unsigned int key_num, slong value)
       for (; lb <= ub;)
       {
         index = (lb + ub) / 2;
-        if (vl[index * ml + key_num] == (long) uvalue)
+        if (vl[index * ml + key_num] ==  uvalue)
           return index;
-        else if (vl[index * ml + key_num] > (long) uvalue)
+        else if (vl[index * ml + key_num] > uvalue)
           ub = index - 1;
-        else if (vl[index * ml + key_num] < (long) uvalue)
+        else if (vl[index * ml + key_num] < uvalue)
           lb = index + 1;
       }
     }
@@ -301,7 +301,7 @@ int TupleList::find(unsigned int key_num, slong value)
       // Sequential search: if tuple_list is not sorted
       for (uint index = 0; index < n; index++)
       {
-        if (vl[index * ml + key_num] == (long) uvalue)
+        if (vl[index * ml + key_num] == uvalue)
           return index;
       }
     }
