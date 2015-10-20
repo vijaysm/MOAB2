@@ -671,7 +671,6 @@ ErrorCode test_ghost_elements( const char* filename,
             << "PARTITION=GEOM_DIMENSION;PARTITION_VAL=3;"
             << "PARTITION_DISTRIBUTE;"
             << "PARALLEL_RESOLVE_SHARED_ENTS;"
-            << "DEBUG_PIO=3;"
             << "PARALLEL_GHOSTS=" 
             << ghost_dimension << '.'
             << bridge_dimension << '.'
@@ -1259,8 +1258,7 @@ ErrorCode test_assign_global_ids( const char *)
   MPI_Comm_rank( MPI_COMM_WORLD, &rank );
   MPI_Comm_size( MPI_COMM_WORLD, &size );
   
-  pcomm.set_debug_verbosity(3);
-    // build distributed quad mesh
+  // build distributed quad mesh
   Range quad_range;
   EntityHandle verts[9];
   int vert_ids[9];
