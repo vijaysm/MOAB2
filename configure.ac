@@ -32,7 +32,7 @@ if (test "x$enable_fortran" != "xno"); then
 fi
 AC_SUBST(ENABLE_FORTRAN)
 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-fortran=$ENABLE_FORTRAN"
-EXTRA_GNU_FLAGS='-Wall -pipe -pedantic -Wno-long-long -Wextra -Wcast-align  -Wpointer-arith -Wformat -Wformat-security -Wshadow -Wunused-parameter'
+EXTRA_GNU_FLAGS='-Wall -pipe -pedantic -Wno-long-long -Wextra -Wcast-align  -Wpointer-arith -Wformat -Wformat-security -Wshadow -Wunused-parameter -Wno-variadic-macros'
 EXTRA_INTEL_FLAGS='-Wall'
 
 # Find out the appropriate compiler based on user options
