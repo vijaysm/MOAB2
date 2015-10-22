@@ -35,6 +35,7 @@
 #include "moab/CN.hpp"
 
 #ifdef MOAB_HAVE_CGM
+#include "cgm_version.h"
 #include <limits>
 #include "RefEntity.hpp"
 #include "RefFace.hpp"
@@ -942,10 +943,23 @@ double ZoltanPartitioner::estimate_face_mesh_load(RefEntity* face, const double 
 double ZoltanPartitioner::estimate_face_comm_load(RefEntity* face, const double h)
 {
   double peri = 0.;
+#if (CGM_MAJOR_VERSION == 14 && CGM_MINOR_VERSION > 2)
+  DLIList<DLIList<RefEdge*> > ref_edge_loops;
+#else
   DLIList<DLIList<RefEdge*>*> ref_edge_loops;
+#endif
   CAST_TO(face, RefFace)->ref_edge_loops(ref_edge_loops);
   ref_edge_loops.reset();
 
+#if (CGM_MAJOR_VERSION == 14 && CGM_MINOR_VERSION > 2)
+  for (int i = 0; i < ref_edge_loops.size(); i++) {
+    DLIList<RefEdge*> eloop = ref_edge_loops.get_and_step();
+    eloop.reset();
+    for (int j = 0; j < eloop.size(); j++) {
+      peri += eloop.get_and_step()->measure();
+    }
+  }
+#else
   for (int i = 0; i < ref_edge_loops.size(); i++) {
     DLIList<RefEdge*>* eloop = ref_edge_loops.get_and_step();
     eloop->reset();
@@ -953,6 +967,7 @@ double ZoltanPartitioner::estimate_face_comm_load(RefEntity* face, const double 
       peri += eloop->get_and_step()->measure();
     }
   }
+#endif
   
   //return 104*face->measure()/sqrt(3)/h/h + 56/3*peri/h;
   return (104*face->measure()/sqrt(3)/h/h + 56/3*peri/h)/700000.;
