@@ -1367,23 +1367,3 @@ static bool do_closest_point_test( OrientedBoxTreeTool& tool,
   
   return result;
 }
-
-/*
-#define IS_BUILDING_MB
-#include "Internals.hpp"
-
-static void print_mb_range( const Range& range )
-{
-  Range::const_pair_iterator i = range.const_pair_begin();
-  for (; i != range.const_pair_end(); ++i) {
-    EntityType type1 = TYPE_FROM_HANDLE( i->first );
-    EntityType type2 = TYPE_FROM_HANDLE( i->second );
-    int id1 = ID_FROM_HANDLE( i->first );
-    int id2 = ID_FROM_HANDLE( i->second );
-    std::cout << CN::EntityTypeName( type1 ) << " " << id1;
-    if (i->first != i->second) 
-      std::cout << " to " << CN::EntityTypeName( type2 ) << " " << id2;
-    std::cout << std::endl;
-  }
-}
-*/
