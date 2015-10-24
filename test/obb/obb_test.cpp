@@ -22,8 +22,8 @@
 
 using namespace moab;
 
-const char* NAME = "obb_test";
-const char* DEFAULT_FILES[] = { STRINGIFY(MESHDIR) "/3k-tri-sphere.vtk",
+static const char* NAME = "obb_test";
+static const char* DEFAULT_FILES[] = { STRINGIFY(MESHDIR) "/3k-tri-sphere.vtk",
                               //  STRINGIFY(MESHDIR) "../4k-tri-plane.vtk",
 #ifdef MOAB_HAVE_HDF5
                                 STRINGIFY(MESHDIR) "/3k-tri-cube.h5m",
@@ -109,17 +109,17 @@ static bool do_file( const char* filename );
 
 enum TriOption { DISABLE, ENABLE, AUTO };
 
-int verbosity = 1;
-OrientedBoxTreeTool::Settings settings;
-double tolerance = 1e-6;
-bool write_cubit = false;
-bool write_vtk = false;
-bool write_ray_vtk = false;
-std::vector<CartVect> rays;
-const char* save_file_name = 0;
-TriOption surfTree = AUTO;
+static int verbosity = 1;
+static OrientedBoxTreeTool::Settings settings;
+static double tolerance = 1e-6;
+static bool write_cubit = false;
+static bool write_vtk = false;
+static bool write_ray_vtk = false;
+static std::vector<CartVect> rays;
+static const char* save_file_name = 0;
+static TriOption surfTree = AUTO;
 
-void parse_ray( int& i, int argc, char* argv[] );
+static void parse_ray( int& i, int argc, char* argv[] );
 
 int main( int argc, char* argv[] )
 {
@@ -223,7 +223,7 @@ int main( int argc, char* argv[] )
 }
 
 
-void parse_ray( int& i, int argc, char* argv[] )
+static void parse_ray( int& i, int argc, char* argv[] )
 {
   CartVect point, direction;
   if (6 != sscanf( get_option( i, argc, argv ), "%lf:%lf:%lf:%lf:%lf:%lf",
@@ -1173,7 +1173,7 @@ static bool do_ray_fire_test( OrientedBoxTreeTool& tool,
 }
 
 
-ErrorCode save_tree( Interface* instance,
+static ErrorCode save_tree( Interface* instance,
                        const char* filename,
                        EntityHandle tree_root )
 {
@@ -1367,24 +1367,3 @@ static bool do_closest_point_test( OrientedBoxTreeTool& tool,
   
   return result;
 }
-
-#define IS_BUILDING_MB
-#include "Internals.hpp"
-    
-void print_mb_range( const Range& range )
-{
-  Range::const_pair_iterator i = range.const_pair_begin();
-  for (; i != range.const_pair_end(); ++i) {
-    EntityType type1 = TYPE_FROM_HANDLE( i->first );
-    EntityType type2 = TYPE_FROM_HANDLE( i->second );
-    int id1 = ID_FROM_HANDLE( i->first );
-    int id2 = ID_FROM_HANDLE( i->second );
-    std::cout << CN::EntityTypeName( type1 ) << " " << id1;
-    if (i->first != i->second) 
-      std::cout << " to " << CN::EntityTypeName( type2 ) << " " << id2;
-    std::cout << std::endl;
-  }
-}
-
-      
-
