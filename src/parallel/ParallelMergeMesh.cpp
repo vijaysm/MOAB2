@@ -617,7 +617,7 @@ namespace moab{
     a_val = a*mul;
     b_val = b*mul;
     for(unsigned long i=0; i< mul;i++){
-      ulong t =tup.vul_rd[a_val];
+      Ulong t =tup.vul_rd[a_val];
       tup.vul_wr[a_val] = tup.vul_rd[b_val];
       tup.vul_wr[b_val] = t; 
       a_val++;

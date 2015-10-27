@@ -346,7 +346,10 @@ namespace moab {
     pcommID = add_pcomm(this);
 
     if (!myDebug)
+    {
       myDebug = new DebugOutput("ParallelComm", std::cerr);
+      myDebug->set_rank( procConfig.proc_rank());
+    }
   }
 
   int ParallelComm::add_pcomm(ParallelComm *pc) 
@@ -1376,11 +1379,10 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     if (buff_size < 0)
       MB_SET_ERR(MB_FAILURE, "Failed to estimate ents buffer size");
     buff->check_space(buff_size);
-
-    WriteUtilIface *wu;
-    ErrorCode result = mbImpl->query_interface(wu);MB_CHK_SET_ERR(result, "Failed to get WriteUtilIface");
+    myDebug->tprintf(3, "estimate buffer size for %d entities: %d \n", (int)entities.size(), buff_size  );
 
     unsigned int num_ents;
+    ErrorCode result;
 
     std::vector<EntityHandle> entities_vec(entities.size());
     std::copy(entities.begin(), entities.end(), entities_vec.begin());
@@ -1624,6 +1626,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
     // Pack the nodes per entity
     PACK_INT(buff->buff_ptr, nodes_per_entity);
+    myDebug->tprintf(3, "after some pack int  %d \n", buff->get_current_size() );
 
     // Pack the connectivity
     std::vector<EntityHandle> connect;
@@ -1637,7 +1640,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       PACK_EH(buff->buff_ptr, &connect[0], connect.size());
     }
 
-    myDebug->tprintf(4, "Packed %lu ents of type %s\n", (unsigned long)these_ents.size(),
+    myDebug->tprintf(3, "Packed %lu ents of type %s\n", (unsigned long)these_ents.size(),
                      CN::EntityTypeName(TYPE_FROM_HANDLE(*these_ents.begin())));
 
     return result;
@@ -3716,7 +3719,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     }
 
     // Put handles in vector for passing to gs setup
-    std::vector<ulong_> handle_vec; // Assumes that we can do conversion from ulong_ to EntityHandle
+    std::vector<Ulong> handle_vec; // Assumes that we can do conversion from Ulong to EntityHandle
     std::copy(skin_ents[0].begin(), skin_ents[0].end(),
               std::back_inserter(handle_vec));
 
@@ -3768,6 +3771,9 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         shared_verts.inc_n();
       }
 
+    myDebug->tprintf(3, " shared verts size %d \n", (int)shared_verts.get_n());
+
+
     int max_size = skin_ents[0].size()*(MAX_SHARING_PROCS + 1);
     moab::TupleList::buffer sort_buffer;
     sort_buffer.buffer_init(max_size);
@@ -3787,6 +3793,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     result = mbImpl->get_adjacencies(proc_ents, 0, false, proc_verts,
                                      Interface::UNION);MB_CHK_SET_ERR(result, "Failed to get proc_verts");
 
+    myDebug->print( 3, " resolve shared ents:  proc verts ", proc_verts );
     result = tag_shared_verts(shared_verts, skin_ents,
                               proc_nvecs, proc_verts);MB_CHK_SET_ERR(result, "Failed to tag shared verts");
 
@@ -3798,6 +3805,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
     // Get entities shared by 1 or n procs
     result = get_proc_nvecs(resolve_dim, shared_dim, skin_ents, proc_nvecs);MB_CHK_SET_ERR(result, "Failed to tag shared entities");
+
 
     shared_verts.reset();
 
@@ -4227,7 +4235,7 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
 
     // Get ids for sets in a vector, to pass to gs
     std::vector<long> larray; // Allocate sufficient space for longs
-    std::vector<unsigned long> handles;
+    std::vector<Ulong> handles;
     Range tmp_sets;
     // The id tag can be size 4 or size 8
     // Based on that, convert to int or to long, similarly to what we do

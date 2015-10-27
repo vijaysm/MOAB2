@@ -2322,6 +2322,8 @@ int test_entity_copies( iMesh_Instance imesh, iMeshP_PartitionHandle prtn, const
     tmp_type = MPI_UNSIGNED;
   else if (sizeof(iBase_EntityHandle) == sizeof(unsigned long))
     tmp_type = MPI_UNSIGNED_LONG;
+  else if (sizeof(iBase_EntityHandle) == sizeof(unsigned long long))
+    tmp_type = MPI_UNSIGNED_LONG_LONG;
   else
     return iBase_FAILURE;
   const MPI_Datatype type = tmp_type; // make it const

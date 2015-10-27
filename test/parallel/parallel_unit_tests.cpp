@@ -228,7 +228,6 @@ int main( int argc, char* argv[] )
 
   
   int num_errors = 0;
- 
 #ifdef MOAB_HAVE_HDF5
   num_errors += RUN_TEST( test_elements_on_several_procs, filename );
   num_errors += RUN_TEST( test_ghost_elements_3_2_1, filename );
@@ -244,7 +243,6 @@ int main( int argc, char* argv[] )
     num_errors += RUN_TEST ( test_too_few_parts, filename4);
 #endif
   num_errors += RUN_TEST( test_assign_global_ids, 0 );
-  num_errors += RUN_TEST( test_shared_sets, 0 );
   num_errors += RUN_TEST( test_reduce_tags, 0);
   num_errors += RUN_TEST( test_reduce_tag_failures, 0);
   num_errors += RUN_TEST( test_reduce_tag_explicit_dest, 0);
@@ -1266,7 +1264,7 @@ ErrorCode test_assign_global_ids( const char *)
   MPI_Comm_rank( MPI_COMM_WORLD, &rank );
   MPI_Comm_size( MPI_COMM_WORLD, &size );
   
-    // build distributed quad mesh
+  // build distributed quad mesh
   Range quad_range;
   EntityHandle verts[9];
   int vert_ids[9];
