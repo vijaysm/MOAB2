@@ -26,7 +26,10 @@ int main(int argc, char *argv[])
 
   NestedRefine uref(&mb);
 
-  int level_degrees[4] = {2,3,2,3};
+  // Usage: The level degrees array controls number of refinemetns and 
+  // the degree of refinement at each level.
+  // Example: int level_degrees[4] = {2,3,2,3};
+  int level_degrees[2] = {3,2};
   int num_levels = sizeof(level_degrees) / sizeof(int);
   std::vector<EntityHandle> set;
 
@@ -37,11 +40,8 @@ int main(int argc, char *argv[])
   std::cout<<"Finished hierarchy generation"<<std::endl;
 
   std::stringstream file;
-  file <<"mesh_hierarchy.vtk";
-  std::string str = file.str();
-  const char* output_file = str.c_str();
-  error = mbImpl->write_file(output_file); MB_CHK_ERR(error);
-
+  file <<"mesh_hierarchy.h5m";
+  error = mbImpl->write_file(file.str().c_str(), 0, ";;PARALLEL=WRITE_PART"); MB_CHK_ERR(error);
   return 0;
 }
 
