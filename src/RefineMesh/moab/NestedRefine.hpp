@@ -214,7 +214,7 @@ namespace moab
     ErrorCode create_hm_storage_single_level(EntityHandle *set, int cur_level, int estL[4]);
 
     //Generate HM : Construct the hierarchical mesh: 1D, 2D, 3D
-    ErrorCode generate_hm(int *level_degrees, int num_level, EntityHandle *hm_set);
+    ErrorCode generate_hm(int *level_degrees, int num_level, EntityHandle *hm_set, bool optimize);
     ErrorCode construct_hm_entities(int cur_level, int deg);
     ErrorCode construct_hm_1D(int cur_level, int deg);
     ErrorCode construct_hm_1D(int cur_level, int deg, EntityType type, std::vector<EntityHandle> &trackverts);

@@ -602,7 +602,7 @@ namespace moab{
    *   Hierarchical Mesh Generation  *
    * *********************************/
 
-  ErrorCode NestedRefine::generate_hm(int *level_degrees, int num_level, EntityHandle *hm_set)
+  ErrorCode NestedRefine::generate_hm(int *level_degrees, int num_level, EntityHandle *hm_set, bool optimize)
   {
     ErrorCode error;
 
