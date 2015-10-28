@@ -289,10 +289,12 @@ AC_ARG_ENABLE(64bit, AS_HELP_STRING([--enable-64bit],[Force 64-bit objects]),
 if (test "xno" != "x$enable_32bit"); then
   CXXFLAGS="$CXXFLAGS $FATHOM_CXX_32BIT"
   CFLAGS="$CFLAGS $FATHOM_CC_32BIT"
+  LDFLAGS="$LDFLAGS $FATHOM_CC_32BIT"
 fi
 if (test "xno" != "x$enable_64bit"); then
   CXXFLAGS="$CXXFLAGS $FATHOM_CXX_64BIT"
   CFLAGS="$CFLAGS $FATHOM_CC_64BIT"
+  LDFLAGS="$LDFLAGS $FATHOM_CC_64BIT"
 fi
 # Distcheck flags for 32-bit and 64-bit builds
 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-32bit=$enable_32bit --enable-64bit=$enable_64bit"
