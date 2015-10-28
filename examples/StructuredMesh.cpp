@@ -79,7 +79,7 @@ int main(int argc, char **argv)
         // 3b. Get the connectivity of the element
         rval = mb->get_connectivity(&ehandle, 1, connect);MB_CHK_ERR(rval); // Get the connectivity, in canonical order
         // 3c. Get the coordinates of the vertices comprising that element
-        rval = mb->get_coords(connect.data(), connect.size(), coords.data());MB_CHK_ERR(rval); // Get the coordinates of those vertices
+        rval = mb->get_coords(&connect[0], connect.size(), &coords[0]);MB_CHK_ERR(rval); // Get the coordinates of those vertices
       }
     }
   }

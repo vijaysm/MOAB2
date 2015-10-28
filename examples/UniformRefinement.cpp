@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
 
   std::stringstream file;
   file <<"mesh_hierarchy.h5m";
-  error = mbImpl->write_file(file.str().c_str(), 0, ";;PARALLEL=WRITE_PART"); MB_CHK_ERR(error);
+  error = mbImpl->write_file(file.str().c_str()); MB_CHK_ERR(error);
   return 0;
 }
 

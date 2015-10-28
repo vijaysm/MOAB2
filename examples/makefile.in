@@ -185,7 +185,7 @@ run-UniformRefinement: UniformRefinement GenLargeMesh
 ifeq ("$(wildcard GenLargeMesh.h5m)","")
 	${RUNPARALLEL} ./GenLargeMesh -M @NP@ -N 1 -K 1 -A 1 -B 2 -C 2 -b 5
 endif
-	${RUNPARALLEL} ./UniformRefinement GenLargeMesh.h5m
+	${RUNSERIAL} ./UniformRefinement GenLargeMesh.h5m
 
 run: all $(addprefix run-,$(ALLEXAMPLES))
 
