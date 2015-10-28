@@ -1,0 +1,22 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+
+# Uncomment this to turn on verbose mode.
+export DH_VERBOSE=1
+
+# parallel tests, cf.
+# <https://lists.debian.org/debian-science/2015/05/msg00054.html>
+export OMPI_MCA_orte_rsh_agent=/bin/false
+
+%:
+	dh $@ --buildsystem=cmake --parallel
+
+override_dh_auto_configure:
+	dh_auto_configure -- \
+  -DENABLE_MPI:BOOL=ON \
+  -DCMAKE_C_COMPILER=mpicc \
+  -DCMAKE_CXX_COMPILER=mpicxx \
+  -DCMAKE_Fortran_COMPILER=mpif90 \
+  -DENABLE_HDF5:BOOL=ON \
+  -DENABLE_IMESH:BOOL=ON \
+  -DENABLE_FBIGEOM:BOOL=ON ${ADDITIONAL_ENABLES}
