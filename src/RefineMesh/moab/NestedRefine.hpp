@@ -294,6 +294,26 @@ namespace moab
 
     //ErrorCode find_skin_faces(EntityHandle set, int level, int nskinF);
 
+    /** Parallel communication routines
+           * We implement two strategies to resolve the shared entities of the newly created entities.
+           * The first strategy is to use the existing parallel merge capability which essentially uses
+           * a coordinate-based matching of vertices and subsequently the entity handles through
+           * their connectivities. The second strategy is an optimized and a new algorithm. It uses
+           * the existing shared information from the coarse entities and propagates the parallel
+           *  information appropriately.
+         */
+
+       ErrorCode resolve_shared_ents_parmerge(int level);
+       ErrorCode resolve_shared_ents_opt();
+       ErrorCode resolve_shared_new_ents(std::set<unsigned int> &shared_procs, Range all_shared, std::vector<int> &msgsizes, std::vector<EntityHandle> &locVerts, std::vector<EntityHandle> &locEdges, std::vector<EntityHandle> &locFaces, std::vector<EntityHandle> &remVerts, std::vector<EntityHandle> &remEdges, std::vector<EntityHandle> &remFaces );
+
+       ErrorCode get_shared_new_entities(int pindex, Range shared_ents, std::vector<int> &msgsizes, std::vector<EntityHandle> &locVerts, std::vector<EntityHandle> &locEdges, std::vector<EntityHandle> &locFaces);
+
+       ErrorCode find_remote_duplicate_verts(EntityHandle v, int level, std::vector<EntityHandle> &locVerts, EntityHandle *remoteh, int *remotep, std::vector<EntityHandle> & remVerts, EntityHandle duplvert, EntityHandle *remotehv, int sz);
+
+       ErrorCode update_pstatus_tag();
+
+
   };
 } //name space moab
 #endif
