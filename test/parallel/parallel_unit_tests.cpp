@@ -133,8 +133,10 @@ ErrorCode test_reduce_tag_failures( const char* );
 ErrorCode test_reduce_tag_explicit_dest(const char *);
 // Test delete_entities
 ErrorCode test_delete_entities(const char *);
-// Test ghsting polyhedra
+// Test ghosting polyhedra
 ErrorCode test_ghost_polyhedra(const char *);
+// Test failed read with too few parts in partition
+ErrorCode test_too_few_parts(const char *);
 
 /**************************************************************************
                               Main Method
@@ -201,6 +203,7 @@ int main( int argc, char* argv[] )
 #ifdef MOAB_HAVE_HDF5
   const char* filename2 = STRINGIFY(MESHDIR) "/64bricks_1khex.h5m";
   const char* filename3 = STRINGIFY(MESHDIR) "/twoPolyh.h5m";
+  const char* filename4 = STRINGIFY(MESHDIR) "/onepart.h5m";
 #endif
 #else
 #error Specify MESHDIR to compile test
@@ -235,7 +238,10 @@ int main( int argc, char* argv[] )
   num_errors += RUN_TEST( test_ghost_tag_exchange, filename );
   num_errors += RUN_TEST( regression_ghost_tag_exchange_no_default, filename );
   num_errors += RUN_TEST( test_delete_entities, filename2);
-  num_errors += RUN_TEST( test_ghost_polyhedra, filename3);
+  if (2>=size) // run this one only on one or 2 processors; the file has only 2 parts in partition
+   num_errors += RUN_TEST( test_ghost_polyhedra, filename3);
+  if (2==size)
+    num_errors += RUN_TEST ( test_too_few_parts, filename4);
 #endif
   num_errors += RUN_TEST( test_assign_global_ids, 0 );
   num_errors += RUN_TEST( test_shared_sets, 0 );
@@ -1716,3 +1722,19 @@ ErrorCode test_ghost_polyhedra( const char* filename )
 
   return MB_SUCCESS;
 }
+ErrorCode test_too_few_parts( const char* filename )
+{
+  Core mb_instance;
+  Interface& moab = mb_instance;
+  ErrorCode rval;
+
+  rval = moab.load_file( filename, 0,
+                         "PARALLEL=READ_PART;"
+                         "PARTITION=PARALLEL_PARTITION;"
+                         "PARALLEL_RESOLVE_SHARED_ENTS;" );
+  if(rval==MB_SUCCESS)
+    return MB_FAILURE;
+
+  return MB_SUCCESS;
+}
+
