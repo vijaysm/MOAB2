@@ -11,9 +11,11 @@
  *  -o PARALLEL=WRITE_PART;VARIABLE=T,U
  */
 
+#include "moab/Core.hpp"
+#ifdef MOAB_HAVE_MPI
 #include "moab/ParallelComm.hpp"
 #include "MBParallelConventions.h"
-#include "moab/Core.hpp"
+#endif
 #include <iostream>
 #include <time.h>
 
@@ -22,6 +24,7 @@ using namespace std;
 
 int main(int argc, char **argv)
 {
+#ifdef MOAB_HAVE_MPI
   string input_file,output_file,read_opts,write_opts;
 
   MPI_Init(&argc, &argv);
@@ -93,6 +96,9 @@ int main(int argc, char **argv)
   delete mb;
 
   MPI_Finalize();
+#else
+  std::cout << " compile MOAB with mpi for this example to work\n";
+#endif
 
   return 0;
 }

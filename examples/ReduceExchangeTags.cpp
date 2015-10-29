@@ -26,10 +26,9 @@
  */
 
 #include "moab/Core.hpp"
-#ifndef MOAB_HAVE_MPI
-#error Example needs MOAB installation configured with MPI
-#endif
+#ifdef MOAB_HAVE_MPI
 #include "moab/ParallelComm.hpp"
+#endif
 #include "MBParallelConventions.h"
 #include <iostream>
 #include <string>
@@ -88,6 +87,7 @@ ErrorCode get_file_options(int argc, char **argv,
 //
 int main(int argc, char **argv)
 {
+#ifdef MOAB_HAVE_MPI
   ErrorCode err;
   int ierr, rank;
   string filename, tagName;
@@ -218,6 +218,8 @@ int main(int argc, char **argv)
   dbgprint("\n********** reduce_exchange_tags DONE! **********");
 
   MPI_Finalize();
-
+#else
+  std::cout <<" compile with MPI and HDF5 for this example to work \n";
+#endif
   return 0;
 }

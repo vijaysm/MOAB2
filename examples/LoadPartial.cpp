@@ -26,6 +26,7 @@ string test_file_name = string(MESH_DIR) + string("/64bricks_512hex_256part.h5m"
 int main(int argc, char **argv)
 {
   // Get MOAB instance
+#ifdef MOAB_HAVE_HDF5
   Interface* mb = new (std::nothrow) Core;
   if (NULL == mb)
     return 1;
@@ -70,6 +71,9 @@ int main(int argc, char **argv)
   cout << "Wrote successfully part.h5m.\n";
 
   delete mb;
+#else
+  std::cout <<"configure MOAB with hdf5 for this to work\n";
+#endif
 
   return 0;
 }
