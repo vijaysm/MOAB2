@@ -20,7 +20,7 @@ using namespace std;
 #define MESH_DIR "."
 #endif
 
-string test_file_name = string(MESH_DIR) + string("/1hex.g");
+string test_file_name = string(MESH_DIR) + string("/hex01.vtk");
 
 // Tag names for these conventional tags come from MBTagConventions.hpp
 const char *tag_nms[] = {MATERIAL_SET_TAG_NAME, DIRICHLET_SET_TAG_NAME, NEUMANN_SET_TAG_NAME};

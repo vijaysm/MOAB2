@@ -41,7 +41,10 @@
  *
  */
 //
+#include "moab/MOABConfig.h"
+#ifdef MOAB_HAVE_MPI
 #include "moab/ProcConfig.hpp"
+#endif
 #include "moab/TupleList.hpp"
 #include "moab/ProgOptions.hpp"
 #include "moab/ErrorHandler.hpp"
@@ -57,6 +60,7 @@ using namespace std;
 
 int main(int argc, char **argv)
 {
+#ifdef MOAB_HAVE_MPI
   MPI_Init(&argc, &argv);
 
   // Initialize error handler, required for this example (not using a moab instance)
@@ -173,6 +177,9 @@ int main(int argc, char **argv)
   MBErrorHandler_Finalize();
 
   MPI_Finalize();
+#else
+  std::cout<<" Build with MPI for this example to work\n";
+#endif
 
   return 0;
 }

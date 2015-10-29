@@ -71,7 +71,9 @@
 
 #include "moab/Core.hpp"
 #include "moab/ProgOptions.hpp"
+#ifdef MOAB_HAVE_MPI
 #include "moab/ParallelComm.hpp"
+#endif
 #include "moab/ReadUtilIface.hpp"
 #include "moab/MergeMesh.hpp"
 
@@ -84,6 +86,7 @@ using namespace std;
 
 int main(int argc, char **argv)
 {
+#ifdef MOAB_HAVE_MPI
   int A = 2, B = 2, C = 2, M = 1, N = 1, K = 1;
   int blockSize = 4;
   double xsize = 1., ysize = 1., zsize = 1.; // The size of the region
@@ -584,6 +587,8 @@ int main(int argc, char **argv)
 
 
   MPI_Finalize();
-
+#else
+  std::cout << " compile MOAB with mpi for this example to work\n";
+#endif
   return 0;
 }

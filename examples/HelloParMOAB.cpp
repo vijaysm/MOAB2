@@ -8,9 +8,11 @@
  *  mpiexec -np 8 HelloParMOAB [filename] [nbComms]
  */
 
-#include "moab/ParallelComm.hpp"
-#include "MBParallelConventions.h"
 #include "moab/Core.hpp"
+#ifdef MOAB_HAVE_MPI
+#include "moab/ParallelComm.hpp"
+#endif
+#include "MBParallelConventions.h"
 #include <iostream>
 
 using namespace moab;
@@ -20,6 +22,7 @@ string test_file_name = string(MESH_DIR) + string("/64bricks_512hex_256part.h5m"
 
 int main(int argc, char **argv)
 {
+#ifdef MOAB_HAVE_MPI
   MPI_Init(&argc, &argv);
 
   string options;
@@ -128,6 +131,9 @@ int main(int argc, char **argv)
   delete mb;
 
   MPI_Finalize();
+#else
+  std::cout<<" compile with MPI and hdf5 for this example to work\n";
 
+#endif
   return 0;
 }

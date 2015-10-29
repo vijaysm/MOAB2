@@ -18,7 +18,7 @@ using namespace std;
 #define MESH_DIR "."
 #endif
 
-string test_file_name = string(MESH_DIR) + string("/1hex.g");
+string test_file_name = string(MESH_DIR) + string("/hex01.vtk");
 
 int main(int argc, char **argv)
 {
