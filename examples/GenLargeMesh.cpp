@@ -548,7 +548,7 @@ int main(int argc, char **argv)
       }
     }
   }
-
+#ifdef MOAB_HAVE_HDF5_PARALLEL
   rval = mb->write_file(outFileName.c_str(), 0, ";;PARALLEL=WRITE_PART", wsets);MB_CHK_SET_ERR(rval, "Can't write in parallel");
 
   if (0 == rank) {
@@ -584,7 +584,9 @@ int main(int argc, char **argv)
     // delete the mesh that we already have in-memory
     mb2.delete_mesh();
   }
-
+#else
+  mb->delete_mesh();
+#endif 
 
   MPI_Finalize();
 #else
