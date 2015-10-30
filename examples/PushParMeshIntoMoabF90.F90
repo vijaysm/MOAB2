@@ -92,13 +92,6 @@ program PushParMeshIntoMoab
      iend = NUME-1
      lnume = iend - istart + 1
   endif
-#else
-  ! set the starting/ending element numbers
-  istart = 0
-  iend = NUME-1
-  lnume = NUME
-#endif
-
   ! for my elements, figure out which vertices I use and accumulate local indices and coords
   ! lvids stores the local 0-based index for each vertex; -1 means vertex i isn't used locally
   ! also build up connectivity indices for local elements, in lconn
@@ -137,7 +130,6 @@ program PushParMeshIntoMoab
   ERROR(ierr)
   iv = 0
   ie = 0
-#ifdef MOAB_HAVE_MPI
   call iMeshP_getNumOfTypeAll(%VAL(imesh), %VAL(imeshp), %VAL(root_set), %VAL(iBase_VERTEX), iv, ierr)
   ERROR(ierr)
   call iMeshP_getNumOfTypeAll(%VAL(imesh), %VAL(imeshp), %VAL(root_set), %VAL(iBase_FACE), ie, ierr)
@@ -146,21 +138,17 @@ program PushParMeshIntoMoab
      write(0,*) "Number of vertices = ", iv
      write(0,*) "Number of entities = ", ie
   endif
-#else
-  call iMesh_getNumOfTypeAll(%VAL(imesh), %VAL(root_set), %VAL(iBase_VERTEX), iv, ierr)
-  ERROR(ierr)
-  call iMesh_getNumOfTypeAll(%VAL(imesh), %VAL(root_set), %VAL(iBase_FACE), ie, ierr)
-  ERROR(ierr)
-  write(0,*) "Number of vertices = ", iv
-  write(0,*) "Number of entities = ", ie
-#endif
 
   ! from here, can use verts and ents as (1-based) arrays of entity handles for input to other iMesh functions
 
   call MPI_FINALIZE(ierr)
+#else
+  write(0, *) "compile with MPI for better experience\n"
+#endif
   stop
 end program PushParMeshIntoMoab
 
+#ifdef MOAB_HAVE_MPI
 subroutine create_mesh( &
   !     interfaces
      imesh, imeshp, &
@@ -180,12 +168,8 @@ subroutine create_mesh( &
   use ISO_C_BINDING
   implicit none
 
-#ifdef MOAB_HAVE_MPI
 #  include "iMeshP_f.h"
 #  include "mpif.h"
-#else
-#  include "iMesh_f.h"
-#endif
 
   ! subroutine arguments
   iMesh_Instance imesh
@@ -290,3 +274,4 @@ subroutine create_mesh( &
 
   return
 end subroutine create_mesh
+#endif
