@@ -73,7 +73,7 @@ if HAVE_CGM
 endif
 TEST_DEPS += ${MOAB_CXX_LINKFLAGS} ${MOAB_CXX_LIBS}
 
-TESTS = test_entset test_both test_status 
+TESTS = test_entset test_both test_status normals
 if ENABLE_fbigeom
   TESTS+= test_entsetFB
 endif
@@ -94,6 +94,11 @@ test_status_SOURCES = test_status.cpp
 test_status_DEPENDENCIES = libiRel.la
 test_status_LDADD = $(TEST_DEPS)
 test_status_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_srcdir)/test
+
+normals_SOURCES = normals.cpp
+normals_DEPENDENCIES = libiRel.la
+normals_LDADD = $(TEST_DEPS)
+normals_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_srcdir)/test
 
 if ENABLE_fbigeom
 test_entsetFB_SOURCES = test_entsetFB.cpp
