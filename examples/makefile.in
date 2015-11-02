@@ -19,8 +19,8 @@ default: all
 # MESH_DIR is the directory containing mesh files that come with MOAB source
 MESH_DIR="@abs_top_srcdir@/MeshFiles/unittest"
 
-EXAMPLES = HelloMOAB GetEntities SetsNTags LoadPartial StructuredMesh StructuredMeshSimple DirectAccessWithHoles DirectAccessNoHoles PointInElementSearch VisTags UniformRefinement
-PAREXAMPLES = HelloParMOAB ReduceExchangeTags LloydRelaxation CrystalRouterExample ReadWriteTest GenLargeMesh
+EXAMPLES = HelloMOAB GetEntities SetsNTags LoadPartial StructuredMesh StructuredMeshSimple DirectAccessWithHoles DirectAccessNoHoles PointInElementSearch VisTags GenLargeMesh UniformRefinement
+PAREXAMPLES = HelloParMOAB ReduceExchangeTags LloydRelaxation CrystalRouterExample ReadWriteTest
 EXOIIEXAMPLES = TestExodusII
 F90EXAMPLES = DirectAccessNoHolesF90
 F90PAREXAMPLES = PushParMeshIntoMoabF90
@@ -169,8 +169,10 @@ GenLargeMesh: GenLargeMesh.o ${MOAB_LIBDIR}/libMOAB.la
 run-GenLargeMesh: GenLargeMesh
 	${RUNSERIAL} ./GenLargeMesh -r
 	${RUNSERIAL} ./GenLargeMesh -A 2 -B 2 -C 5 -r
+ifeq ("$(MOAB_MPI_ENABLED)-$(MOAB_HDF5_ENABLED)","yes-yes")
 	${RUNPARALLEL} ./GenLargeMesh -M @NP@ -N 1 -K 1 -A 1 -B 2 -C 2
 	${RUNPARALLEL} ./GenLargeMesh -M @NP@ -N 1 -K 1 -A 1 -B 2 -C 2 -d 10.0 -b 2 -r
+endif
 
 ErrorHandlingSimulation: ErrorHandlingSimulation.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
@@ -201,16 +203,18 @@ UniformRefinement: UniformRefinement.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
 run-UniformRefinement: UniformRefinement GenLargeMesh
-ifdef PARALLEL
+ifeq ("$(MOAB_MPI_ENABLED)-$(MOAB_HDF5_ENABLED)","yes-yes")
 ifeq ("$(wildcard GenLargeMesh.h5m)","")
 	${RUNPARALLEL} ./GenLargeMesh -M @NP@ -N 1 -K 1 -A 1 -B 2 -C 2 -b 5
 endif
+	${RUNSERIAL}   ./UniformRefinement GenLargeMesh.h5m
+	${RUNPARALLEL} ./UniformRefinement GenLargeMesh.h5m
 else
 ifeq ("$(wildcard GenLargeMesh.vtk)","")
 	${RUNSERIAL} ./GenLargeMesh -A 1 -B 2 -C 2 -b 5
 endif
-endif
 	${RUNSERIAL} ./UniformRefinement GenLargeMesh.vtk
+endif
 
 run: all $(addprefix run-,$(ALLEXAMPLES))
 
