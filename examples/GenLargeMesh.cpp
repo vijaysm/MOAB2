@@ -71,12 +71,12 @@
 
 #include "moab/Core.hpp"
 #include "moab/ProgOptions.hpp"
+#include "moab/MergeMesh.hpp"
 #ifdef MOAB_HAVE_MPI
 #include "moab/ParallelComm.hpp"
+#include "moab/ParallelMergeMesh.hpp"
 #endif
 #include "moab/ReadUtilIface.hpp"
-#include "moab/MergeMesh.hpp"
-#include "moab/ParallelMergeMesh.hpp"
 
 #include <time.h>
 #include <iostream>
