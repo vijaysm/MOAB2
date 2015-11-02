@@ -19,9 +19,9 @@ default: all
 # MESH_DIR is the directory containing mesh files that come with MOAB source
 MESH_DIR="@abs_top_srcdir@/MeshFiles/unittest"
 
-EXAMPLES = HelloMOAB GetEntities SetsNTags LoadPartial StructuredMesh StructuredMeshSimple DirectAccessWithHoles DirectAccessNoHoles PointInElementSearch VisTags GenLargeMesh UniformRefinement
+EXAMPLES = HelloMOAB GetEntities SetsNTags LoadPartial StructuredMesh StructuredMeshSimple DirectAccessWithHoles DirectAccessNoHoles PointInElementSearch GenLargeMesh UniformRefinement
 PAREXAMPLES = HelloParMOAB ReduceExchangeTags LloydRelaxation CrystalRouterExample ReadWriteTest
-EXOIIEXAMPLES = TestExodusII
+EXOIIEXAMPLES = TestExodusII VisTags
 F90EXAMPLES = DirectAccessNoHolesF90
 F90PAREXAMPLES = PushParMeshIntoMoabF90
 ifeq ("$(MOAB_DEV)","yes")
@@ -72,7 +72,9 @@ LloydRelaxation: LloydRelaxation.o ${MOAB_LIBDIR}/libMOAB.la
 
 run-LloydRelaxation: LloydRelaxation
 	${RUNSERIAL} ./LloydRelaxation
+ifeq ("$(MOAB_MPI_ENABLED)","yes")
 	${RUNPARALLEL} ./LloydRelaxation
+endif
 
 LoadPartial: LoadPartial.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} ${MOAB_LIBS_LINK}
@@ -115,7 +117,9 @@ ReduceExchangeTags: ReduceExchangeTags.o ${MOAB_LIBDIR}/libMOAB.la
 
 run-ReduceExchangeTags: ReduceExchangeTags
 	${RUNSERIAL} ./ReduceExchangeTags
+ifeq ("$(MOAB_MPI_ENABLED)","yes")
 	${RUNPARALLEL} ./ReduceExchangeTags
+endif
 
 HelloParMOAB: HelloParMOAB.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
@@ -128,7 +132,9 @@ CrystalRouterExample: CrystalRouterExample.o ${MOAB_LIBDIR}/libMOAB.la
 
 run-CrystalRouterExample: CrystalRouterExample
 	${RUNSERIAL} ./CrystalRouterExample
+ifeq ("$(MOAB_MPI_ENABLED)","yes")
 	${RUNPARALLEL} ./CrystalRouterExample -n 2 -t 10 -r 0
+endif
 
 TestExodusII: TestExodusII.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
@@ -141,14 +147,18 @@ PointInElementSearch: PointInElementSearch.o ${MOAB_LIBDIR}/libMOAB.la
 
 run-PointInElementSearch: PointInElementSearch
 	${RUNSERIAL} ./PointInElementSearch
+ifeq ("$(MOAB_MPI_ENABLED)","yes")
 	${RUNPARALLEL} ./PointInElementSearch
+endif
 
 PushParMeshIntoMoabF90: PushParMeshIntoMoabF90.o
 	${MOAB_FC} -o $@ $< ${IMESH_LIBS}
 
 run-PushParMeshIntoMoabF90: PushParMeshIntoMoabF90
 	${RUNSERIAL} ./PushParMeshIntoMoabF90
+ifeq ("$(MOAB_MPI_ENABLED)","yes")
 	${RUNPARALLEL} ./PushParMeshIntoMoabF90
+endif
 
 VisTags: VisTags.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
@@ -161,7 +171,9 @@ ReadWriteTest: ReadWriteTest.o ${MOAB_LIBDIR}/libMOAB.la
 
 run-ReadWriteTest: ReadWriteTest
 	${RUNSERIAL} ./ReadWriteTest
+ifeq ("$(MOAB_MPI_ENABLED)-$(MOAB_HDF5_ENABLED)","yes-yes")
 	${RUNPARALLEL} ./ReadWriteTest
+endif
 
 GenLargeMesh: GenLargeMesh.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
