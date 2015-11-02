@@ -76,6 +76,7 @@
 #endif
 #include "moab/ReadUtilIface.hpp"
 #include "moab/MergeMesh.hpp"
+#include "moab/ParallelMergeMesh.hpp"
 
 #include <time.h>
 #include <iostream>
@@ -86,20 +87,22 @@ using namespace std;
 
 int main(int argc, char **argv)
 {
-#ifdef MOAB_HAVE_MPI
   int A = 2, B = 2, C = 2, M = 1, N = 1, K = 1;
   int blockSize = 4;
   double xsize = 1., ysize = 1., zsize = 1.; // The size of the region
+  int GL = 0; // number of ghost layers
 
   bool newMergeMethod = false;
   bool quadratic = false;
   bool keep_skins = false;
   bool tetra = false;
   bool adjEnts = false;
-  bool readb = false;
+  bool parmerge = false;
+  bool nosave = false;
 
+#ifdef MOAB_HAVE_MPI
   MPI_Init(&argc, &argv);
-
+#endif
   ProgOptions opts;
 
   opts.addOpt<int>(string("blockSize,b"),
@@ -135,6 +138,9 @@ int main(int argc, char **argv)
 
   opts.addOpt<void>("faces_edges,f", "create all faces and edges", &adjEnts);
 
+  opts.addOpt<int>(string("ghost_layers,g"),
+  string("Number of ghost layers (default=0)"), &GL);
+
   vector<string> intTagNames;
   string firstIntTag;
   opts.addOpt<string>("int_tag_vert,i", "add integer tag on vertices", &firstIntTag);
@@ -146,7 +152,14 @@ int main(int argc, char **argv)
   string outFileName = "GenLargeMesh.h5m";
   opts.addOpt<string>("outFile,o", "Specify the output file name string (default GenLargeMesh.h5m)", &outFileName);
 
+#ifdef MOAB_HAVE_HDF5_PARALLEL
+  bool readb = false;
   opts.addOpt<void>("readback,r", "read back the generated mesh", &readb);
+#endif
+
+  opts.addOpt<void>("parallel_merge,p", "use parallel mesh merge, not vertex ID based merge", &parmerge);
+
+  opts.addOpt<void>("no_save,n", "do not save the file", &nosave);
 
   opts.parseCommandLine(argc, argv);
 
@@ -155,21 +168,28 @@ int main(int argc, char **argv)
 
   Interface* mb = new (std::nothrow) Core;
   if (NULL == mb) {
+#ifdef MOAB_HAVE_MPI
     MPI_Finalize();
+#endif
     return 1;
   }
 
   ReadUtilIface* iface;
   ErrorCode rval = mb->query_interface(iface);MB_CHK_SET_ERR(rval, "Can't get reader interface");
 
-  int rank, size;
+  int rank=0, size=1;
+
+#ifdef MOAB_HAVE_MPI
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
+#endif
 
   if (M*N*K != size) {
     if (0 == rank)
       cout << "M*N*K = " << M*N*K << " != size = " << size << "\n";
+#ifdef MOAB_HAVE_MPI
     MPI_Finalize();
+#endif
     return 1;
   }
 
@@ -228,9 +248,11 @@ int main(int argc, char **argv)
 
   // set global ids
   Tag new_id_tag;
-  rval = mb->tag_get_handle("HANDLEID", sizeof(long), MB_TYPE_OPAQUE,
+  if (!parmerge)
+  {
+    rval = mb->tag_get_handle("HANDLEID", sizeof(long), MB_TYPE_OPAQUE,
       new_id_tag, MB_TAG_CREAT|MB_TAG_DENSE);MB_CHK_SET_ERR(rval, "Can't get handle id tag");
-
+  }
   Tag part_tag;
   int dum_id = -1;
   rval = mb->tag_get_handle("PARALLEL_PARTITION", 1, MB_TYPE_INTEGER,
@@ -277,7 +299,8 @@ int main(int argc, char **argv)
               arrays[1][ix] = (y+jj) * dy;
               arrays[2][ix] = (z+kk) * dz;
               gids[ix] = 1 + (x+ii) + (y+jj) * NX + (z+kk) * (NX*NY);
-              lgids[ix] = 1 + (x+ii) + (y+jj) * NX + (long)(z+kk) * (NX*NY);
+              if (!parmerge)
+                lgids[ix] = 1 + (x+ii) + (y+jj) * NX + (long)(z+kk) * (NX*NY);
               // Set int tags, some nice values?
               EntityHandle v = startv + ix;
               for (size_t i = 0; i < intTags.size(); i++) {
@@ -290,7 +313,10 @@ int main(int argc, char **argv)
         }
 
         rval = mb->tag_set_data(global_id_tag, verts, &gids[0]);MB_CHK_SET_ERR(rval, "Can't set global ids to vertices");
-        rval = mb->tag_set_data(new_id_tag, verts, &lgids[0]);MB_CHK_SET_ERR(rval, "Can't set the new handle id tags");
+        if (!parmerge)
+        {
+          rval = mb->tag_set_data(new_id_tag, verts, &lgids[0]);MB_CHK_SET_ERR(rval, "Can't set the new handle id tags");
+        }
         int num_hexas = blockSize * blockSize * blockSize;
         int num_el = num_hexas * factor;
 
@@ -473,8 +499,9 @@ int main(int argc, char **argv)
         }
 
         rval = mb->tag_set_data(global_id_tag, cells, &gids[0]);MB_CHK_SET_ERR(rval, "Can't set global ids to elements");
-        rval = mb->tag_set_data(new_id_tag, cells, &lgids[0]);MB_CHK_SET_ERR(rval, "Can't set new ids to elements");
-
+        if (!parmerge){
+          rval = mb->tag_set_data(new_id_tag, cells, &lgids[0]);MB_CHK_SET_ERR(rval, "Can't set new ids to elements");
+        }
         int part_num = a + m*A + (b + n*B)*(M*A) + (c + k*C)*(M*A * N*B);
         rval = mb->tag_set_data(part_tag, &part_set, 1, &part_num);MB_CHK_SET_ERR(rval, "Can't set part tag on set");
         wsets.insert(part_set);
@@ -504,6 +531,7 @@ int main(int argc, char **argv)
   Range verts;
   rval = mb->get_entities_by_dimension(0, 0, verts);MB_CHK_SET_ERR(rval, "Can't get all vertices");
 
+#ifdef MOAB_HAVE_MPI
   if (A*B*C != 1) { // Merge needed
     if (newMergeMethod) {
       rval = mm.merge_using_integer_tag(verts, global_id_tag);MB_CHK_SET_ERR(rval, "Can't merge");
@@ -525,14 +553,27 @@ int main(int argc, char **argv)
     EntityHandle mesh_set;
     rval = mb->create_meshset(MESHSET_SET, mesh_set);MB_CHK_SET_ERR(rval, "Can't create new set");
     mb->add_entities(mesh_set, all3dcells);
-    rval = pcomm->resolve_shared_ents(mesh_set, -1, -1, &new_id_tag);MB_CHK_SET_ERR(rval, "Can't resolve shared ents");
 
-    if (0 == rank) {
-       cout << "resolve shared entities: "
-            << (clock() - tt) / (double)CLOCKS_PER_SEC << " seconds" << endl;
-       tt = clock();
+    if (parmerge)
+    {
+      ParallelMergeMesh pm(pcomm, 0.00001);
+      rval = pm.merge();MB_CHK_SET_ERR(rval, "Can't resolve shared ents");
+      if (0 == rank) {
+         cout << "parallel mesh merge: "
+              << (clock() - tt) / (double)CLOCKS_PER_SEC << " seconds" << endl;
+         tt = clock();
+      }
     }
+    else
+    {
+      rval = pcomm->resolve_shared_ents(mesh_set, -1, -1, &new_id_tag);MB_CHK_SET_ERR(rval, "Can't resolve shared ents");
 
+      if (0 == rank) {
+         cout << "resolve shared entities: "
+              << (clock() - tt) / (double)CLOCKS_PER_SEC << " seconds" << endl;
+         tt = clock();
+      }
+    }
     if (!keep_skins) { // Default is to delete the 1- and 2-dimensional entities
       // Delete all quads and edges
       Range toDelete;
@@ -548,22 +589,47 @@ int main(int argc, char **argv)
         tt = clock();
       }
     }
+    // do some ghosting if required
+    if (GL>0)
+    {
+      rval = pcomm->exchange_ghost_cells(3, // int ghost_dim
+                                         0, // int bridge_dim
+                                         GL, // int num_layers
+                                         0, // int addl_ents
+                                         true);MB_CHK_ERR(rval); // bool store_remote_handles
+      if (0 == rank) {
+         cout << "exchange  " << GL << " ghost layer(s) :"
+              << (clock() - tt) / (double)CLOCKS_PER_SEC << " seconds" << endl;
+         tt = clock();
+      }
+    }
   }
-#ifdef MOAB_HAVE_HDF5_PARALLEL
-  rval = mb->write_file(outFileName.c_str(), 0, ";;PARALLEL=WRITE_PART", wsets);MB_CHK_SET_ERR(rval, "Can't write in parallel");
+#endif
 
-  if (0 == rank) {
-    cout << "write file " << outFileName << " in "
-         << (clock() - tt) / (double)CLOCKS_PER_SEC << " seconds" << endl;
-    tt = clock();
+#ifdef MOAB_HAVE_HDF5_PARALLEL
+  if (!parmerge)
+  {
+    rval = mb->tag_delete(new_id_tag); MB_CHK_SET_ERR(rval, "Can't delete new ID tag");
+  }
+  if (!nosave){
+    rval = mb->write_file(outFileName.c_str(), 0, ";;PARALLEL=WRITE_PART", wsets);MB_CHK_SET_ERR(rval, "Can't write in parallel");
+
+    if (0 == rank) {
+      cout << "write file " << outFileName << " in "
+           << (clock() - tt) / (double)CLOCKS_PER_SEC << " seconds" << endl;
+      tt = clock();
+    }
   }
   // delete the mesh that we already have in-memory
   size_t nLocalVerts = verts.size();
   size_t nLocalCells = all3dcells.size();
-  
+#else
+  rval = mb->write_file("GenLargeMesh.vtk", 0, "", wsets);MB_CHK_SET_ERR(rval, "Can't write in serial");
+#endif
   mb->delete_mesh();
 
-  if (readb)
+#ifdef MOAB_HAVE_HDF5_PARALLEL
+  if (!nosave && readb)
   {
     // now recreate a core instance and load the file we just wrote out to verify
     Core mb2;
@@ -585,13 +651,10 @@ int main(int argc, char **argv)
     // delete the mesh that we already have in-memory
     mb2.delete_mesh();
   }
-#else
-  mb->delete_mesh();
 #endif 
 
+#ifdef MOAB_HAVE_MPI
   MPI_Finalize();
-#else
-  std::cout << " compile MOAB with mpi for this example to work\n";
 #endif
   return 0;
 }
