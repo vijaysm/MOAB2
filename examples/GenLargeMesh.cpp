@@ -77,6 +77,7 @@
 #endif
 #include "moab/ReadUtilIface.hpp"
 #include "moab/MergeMesh.hpp"
+#include "moab/ParallelMergeMesh.hpp"
 
 #include <time.h>
 #include <iostream>
@@ -598,8 +599,6 @@ int main(int argc, char **argv)
   }
 
 #ifdef MOAB_HAVE_HDF5_PARALLEL
-  rval = mb->write_file(outFileName.c_str(), 0, ";;PARALLEL=WRITE_PART", wsets);MB_CHK_SET_ERR(rval, "Can't write in parallel");
-
   if (!parmerge)
   {
     rval = mb->tag_delete(new_id_tag); MB_CHK_SET_ERR(rval, "Can't delete new ID tag");
