@@ -2,15 +2,19 @@
 MOAB_BUILD_DIR := @abs_top_builddir@
 MOAB_DIR := @prefix@
 
+MOAB_DEV = no
 ifneq ($(wildcard ${MOAB_DIR}/lib/moab.make),)
 include ${MOAB_DIR}/lib/moab.make
 include ${MOAB_DIR}/lib/iMesh-Defs.inc
 else
 include ${MOAB_BUILD_DIR}/moab.make
 include ${MOAB_BUILD_DIR}/itaps/imesh/iMesh-Defs.inc
+MOAB_DEV = yes
 endif
 
 .SUFFIXES: .o .cpp .F90
+
+default: all
 
 # MESH_DIR is the directory containing mesh files that come with MOAB source
 MESH_DIR="@abs_top_srcdir@/MeshFiles/unittest"
@@ -20,15 +24,30 @@ PAREXAMPLES = HelloParMOAB ReduceExchangeTags LloydRelaxation CrystalRouterExamp
 EXOIIEXAMPLES = TestExodusII
 F90EXAMPLES = DirectAccessNoHolesF90
 F90PAREXAMPLES = PushParMeshIntoMoabF90
+ifeq ("$(MOAB_DEV)","yes")
 ERROREXAMPLES = ErrorHandlingSimulation TestErrorHandling TestErrorHandlingPar
-ALLEXAMPLES = ${EXAMPLES} ${EXOIIEXAMPLES} ${F90EXAMPLES} ${PAREXAMPLES} ${F90PAREXAMPLES}
-RUNSERIAL = 
-RUNPARALLEL = @MPIEXEC@ @MPIEXEC_NP@ @NP@
+endif
+ALLEXAMPLES = ${EXAMPLES} ${ERROREXAMPLES}
 
-serial: ${EXAMPLES} ${EXOIIEXAMPLES} ${F90EXAMPLES} ${ERROREXAMPLES}
+ifeq ("$(MOAB_FORTRAN_ENABLED)","yes")
+ALLEXAMPLES += ${F90EXAMPLES} 
+endif
+
+ifeq ("$(MOAB_NETCDF_ENABLED)","yes")
+ALLEXAMPLES += $(EXOIIEXAMPLES)
+endif
+
+RUNSERIAL =
+ifeq ("$(MOAB_MPI_ENABLED)","yes")
 parallel: ${PAREXAMPLES} ${F90PAREXAMPLES}
-default: serial
-all: serial parallel
+RUNPARALLEL = @MPIEXEC@ @MPIEXEC_NP@ @NP@
+ALLEXAMPLES += ${PAREXAMPLES} ${F90PAREXAMPLES}
+else
+parallel:
+RUNPARALLEL =
+endif
+
+all: $(ALLEXAMPLES)
 
 HelloMOAB: HelloMOAB.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
@@ -182,10 +201,16 @@ UniformRefinement: UniformRefinement.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
 run-UniformRefinement: UniformRefinement GenLargeMesh
+ifdef PARALLEL
 ifeq ("$(wildcard GenLargeMesh.h5m)","")
 	${RUNPARALLEL} ./GenLargeMesh -M @NP@ -N 1 -K 1 -A 1 -B 2 -C 2 -b 5
 endif
-	${RUNSERIAL} ./UniformRefinement GenLargeMesh.h5m
+else
+ifeq ("$(wildcard GenLargeMesh.vtk)","")
+	${RUNSERIAL} ./GenLargeMesh -A 1 -B 2 -C 2 -b 5
+endif
+endif
+	${RUNSERIAL} ./UniformRefinement GenLargeMesh.vtk
 
 run: all $(addprefix run-,$(ALLEXAMPLES))
 
