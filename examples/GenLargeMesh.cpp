@@ -317,6 +317,7 @@ int main(int argc, char **argv)
         int ye = n*B*blockSize + b*blockSize;
         int ze = k*C*blockSize + c*blockSize;
         gids.resize(num_el);
+        lgids.resize(num_el);
         int ie = 0; // Index now in the elements, for global ids
         for (int kk = 0; kk < blockSize; kk++) {
           for (int jj = 0; jj < blockSize; jj++) {
