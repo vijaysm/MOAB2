@@ -87,7 +87,6 @@ using namespace std;
 
 int main(int argc, char **argv)
 {
-#ifdef MOAB_HAVE_MPI
   int A = 2, B = 2, C = 2, M = 1, N = 1, K = 1;
   int blockSize = 4;
   double xsize = 1., ysize = 1., zsize = 1.; // The size of the region
@@ -98,12 +97,12 @@ int main(int argc, char **argv)
   bool keep_skins = false;
   bool tetra = false;
   bool adjEnts = false;
-  bool readb = false;
   bool parmerge = false;
   bool nosave = false;
 
+#ifdef MOAB_HAVE_MPI
   MPI_Init(&argc, &argv);
-
+#endif
   ProgOptions opts;
 
   opts.addOpt<int>(string("blockSize,b"),
@@ -153,36 +152,44 @@ int main(int argc, char **argv)
   string outFileName = "GenLargeMesh.h5m";
   opts.addOpt<string>("outFile,o", "Specify the output file name string (default GenLargeMesh.h5m)", &outFileName);
 
+#ifdef MOAB_HAVE_HDF5_PARALLEL
+  bool readb = false;
   opts.addOpt<void>("readback,r", "read back the generated mesh", &readb);
+#endif
 
   opts.addOpt<void>("parallel_merge,p", "use parallel mesh merge, not vertex ID based merge", &parmerge);
 
   opts.addOpt<void>("no_save,n", "do not save the file", &nosave);
-
 
   opts.parseCommandLine(argc, argv);
 
   opts.getOptAllArgs("int_tag_vert,i", intTagNames);
   opts.getOptAllArgs("double_tag_cell,d", doubleTagNames);
 
-
   Interface* mb = new (std::nothrow) Core;
   if (NULL == mb) {
+#ifdef MOAB_HAVE_MPI
     MPI_Finalize();
+#endif
     return 1;
   }
 
   ReadUtilIface* iface;
   ErrorCode rval = mb->query_interface(iface);MB_CHK_SET_ERR(rval, "Can't get reader interface");
 
-  int rank, size;
+  int rank=0, size=1;
+
+#ifdef MOAB_HAVE_MPI
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
+#endif
 
   if (M*N*K != size) {
     if (0 == rank)
       cout << "M*N*K = " << M*N*K << " != size = " << size << "\n";
+#ifdef MOAB_HAVE_MPI
     MPI_Finalize();
+#endif
     return 1;
   }
 
@@ -524,6 +531,7 @@ int main(int argc, char **argv)
   Range verts;
   rval = mb->get_entities_by_dimension(0, 0, verts);MB_CHK_SET_ERR(rval, "Can't get all vertices");
 
+#ifdef MOAB_HAVE_MPI
   if (A*B*C != 1) { // Merge needed
     if (newMergeMethod) {
       rval = mm.merge_using_integer_tag(verts, global_id_tag);MB_CHK_SET_ERR(rval, "Can't merge");
@@ -596,6 +604,7 @@ int main(int argc, char **argv)
       }
     }
   }
+#endif
 
 #ifdef MOAB_HAVE_HDF5_PARALLEL
   if (!parmerge)
@@ -614,9 +623,12 @@ int main(int argc, char **argv)
   // delete the mesh that we already have in-memory
   size_t nLocalVerts = verts.size();
   size_t nLocalCells = all3dcells.size();
-  
+#else
+  rval = mb->write_file("GenLargeMesh.vtk", 0, "", wsets);MB_CHK_SET_ERR(rval, "Can't write in serial");
+#endif
   mb->delete_mesh();
 
+#ifdef MOAB_HAVE_HDF5_PARALLEL
   if (!nosave && readb)
   {
     // now recreate a core instance and load the file we just wrote out to verify
@@ -639,13 +651,10 @@ int main(int argc, char **argv)
     // delete the mesh that we already have in-memory
     mb2.delete_mesh();
   }
-#else
-  mb->delete_mesh();
 #endif 
 
+#ifdef MOAB_HAVE_MPI
   MPI_Finalize();
-#else
-  std::cout << " compile MOAB with mpi for this example to work\n";
 #endif
   return 0;
 }
