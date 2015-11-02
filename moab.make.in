@@ -28,6 +28,12 @@ MOAB_CC  = @CC@
 MOAB_FC  = @FC@
 MOAB_F77  = @F77@
 
+# Feature list
+MOAB_MPI_ENABLED = @enablempi@
+MOAB_FORTRAN_ENABLED = @ENABLE_FORTRAN@
+MOAB_HDF5_ENABLED = @HAVE_HDF5@
+MOAB_NETCDF_ENABLED = @HAVE_NETCDF@
+
 # Override MOAB_LIBDIR and MOAB_INCLUDES from above with the correct
 # values for the installed MOAB.
 

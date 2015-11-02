@@ -39,6 +39,7 @@ EXTRA_INTEL_FLAGS='-Wall'
 FATHOM_CHECK_COMPILERS([yes],[yes],[$ENABLE_FORTRAN])
 AM_CONDITIONAL(PARALLEL,[test "x$enablempi" != "xno"])
 AM_CONDITIONAL(ENABLE_FORTRAN,[test "x$ENABLE_FORTRAN" != "xno"])
+AC_SUBST(enablempi)
 
 # Invoke and find all necessary flags for C, C++, FC
 FATHOM_COMPILER_FLAGS([yes],[yes],[$ENABLE_FORTRAN])
@@ -386,6 +387,7 @@ else
   AC_DEFINE([HAVE_HDF5],[1],[Define if configured with HDF5 support.])
 fi
 AM_CONDITIONAL(HAVE_HDF5, [test "xno" != "x$HAVE_HDF5"])
+AC_SUBST(HAVE_HDF5)
 AM_CPPFLAGS="$HDF5_CPPFLAGS $AM_CPPFLAGS"
 EXPORT_LDFLAGS="$EXPORT_LDFLAGS $HDF5_LDFLAGS"
 AC_SUBST(HDF5_LIBS)
@@ -417,6 +419,7 @@ if test "xno" != "x$HAVE_HDF5_PARALLEL"; then
 #endif])],[AC_MSG_RESULT(yes)],[AC_MSG_RESULT(no); WARN_PARALLEL_HDF5_NO_COMPLEX=yes])
   CPPFLAGS="$old_CPPFLAGS"
 fi
+AC_SUBST(HAVE_HDF5_PARALLEL)
 
 ################################################################################
 #                             CCMIO OPTIONS
@@ -477,6 +480,7 @@ AM_CONDITIONAL(HAVE_NETCDF, [test "xno" != "x$HAVE_NETCDF"])
 AM_CPPFLAGS="$NETCDF_CPPFLAGS $AM_CPPFLAGS"
 EXPORT_LDFLAGS="$NETCDF_LDFLAGS $EXPORT_LDFLAGS"
 AC_SUBST(NETCDF_LIBS)
+AC_SUBST(HAVE_NETCDF)
 
 
 ################################################################################
