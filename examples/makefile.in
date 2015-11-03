@@ -27,7 +27,7 @@ F90PAREXAMPLES = PushParMeshIntoMoabF90
 ifeq ("$(MOAB_DEV)","yes")
 ERROREXAMPLES = ErrorHandlingSimulation TestErrorHandling TestErrorHandlingPar
 endif
-ALLEXAMPLES = ${EXAMPLES} ${ERROREXAMPLES}
+ALLEXAMPLES = ${EXAMPLES}
 
 ifeq ("$(MOAB_FORTRAN_ENABLED)","yes")
 ALLEXAMPLES += ${F90EXAMPLES} 
@@ -192,27 +192,11 @@ endif
 ErrorHandlingSimulation: ErrorHandlingSimulation.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
-run-ErrorHandlingSimulation: ErrorHandlingSimulation
-	${RUNSERIAL} ./ErrorHandlingSimulation 1
-	${RUNSERIAL} ./ErrorHandlingSimulation 2
-	${RUNSERIAL} ./ErrorHandlingSimulation 3
-	${RUNSERIAL} ./ErrorHandlingSimulation 4
-
 TestErrorHandling: TestErrorHandling.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
-run-TestErrorHandling: TestErrorHandling
-	${RUNSERIAL} ./TestErrorHandling 1
-	${RUNSERIAL} ./TestErrorHandling 2
-	${RUNSERIAL} ./TestErrorHandling 3
-	${RUNSERIAL} ./TestErrorHandling 4
-
 TestErrorHandlingPar: TestErrorHandlingPar.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} 
-
-run-TestErrorHandlingPar: TestErrorHandlingPar
-	${RUNPARALLEL} ./TestErrorHandlingPar 1
-	${RUNPARALLEL} ./TestErrorHandlingPar 2
 
 UniformRefinement: UniformRefinement.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
