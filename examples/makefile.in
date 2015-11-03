@@ -29,7 +29,7 @@ ERROREXAMPLES = ErrorHandlingSimulation TestErrorHandling TestErrorHandlingPar
 endif
 ALLEXAMPLES = ${EXAMPLES}
 
-ifeq ("$(MOAB_FORTRAN_ENABLED)","yes")
+ifeq ("$(MOAB_FORTRAN_ENABLED)-$(MOAB_IMESH_ENABLED)","yes-yes")
 ALLEXAMPLES += ${F90EXAMPLES} 
 endif
 
@@ -42,7 +42,7 @@ ifeq ("$(MOAB_MPI_ENABLED)","yes")
 parallel: ${PAREXAMPLES} ${F90PAREXAMPLES}
 RUNPARALLEL = @MPIEXEC@ @MPIEXEC_NP@ @NP@
 ALLEXAMPLES += ${PAREXAMPLES}
-ifeq ("$(MOAB_FORTRAN_ENABLED)","yes")
+ifeq ("$(MOAB_FORTRAN_ENABLED)-$(MOAB_IMESH_ENABLED)","yes-yes")
 ALLEXAMPLES += ${F90PAREXAMPLES}
 endif
 else

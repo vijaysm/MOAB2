@@ -988,6 +988,15 @@ if test "x$ENABLE_irel" = "xyes"; then
   AC_SUBST(IGEOM_CONFIG_OPTIONS)
 fi
 
+HAVE_IGEOM="no"
+HAVE_IMESH="no"
+HAVE_IREL="no"
+test "x$CGM_MISSING" != "xno" || HAVE_IGEOM="yes"
+test "x$ENABLE_imesh" != "xyes" || HAVE_IMESH="yes"
+test "x$ENABLE_irel" != "xyes" || HAVE_IREL="yes"
+AC_SUBST(HAVE_IGEOM)
+AC_SUBST(HAVE_IMESH)
+AC_SUBST(HAVE_IREL)
 
 ###############################################################################
 #                           Optional Tools
