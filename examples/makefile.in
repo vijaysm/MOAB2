@@ -74,8 +74,8 @@ LloydRelaxation: LloydRelaxation.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
 run-LloydRelaxation: LloydRelaxation
+ifeq ("$(MOAB_MPI_ENABLED)-$(MOAB_HDF5_ENABLED)","yes-yes")
 	${RUNSERIAL} ./LloydRelaxation
-ifeq ("$(MOAB_MPI_ENABLED)","yes")
 	${RUNPARALLEL} ./LloydRelaxation
 endif
 
@@ -119,8 +119,8 @@ ReduceExchangeTags: ReduceExchangeTags.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
 run-ReduceExchangeTags: ReduceExchangeTags
+ifeq ("$(MOAB_MPI_ENABLED)-$(MOAB_HDF5_ENABLED)","yes-yes")
 	${RUNSERIAL} ./ReduceExchangeTags
-ifeq ("$(MOAB_MPI_ENABLED)","yes")
 	${RUNPARALLEL} ./ReduceExchangeTags
 endif
 
@@ -128,7 +128,9 @@ HelloParMOAB: HelloParMOAB.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
 run-HelloParMOAB: HelloParMOAB
+ifeq ("$(MOAB_MPI_ENABLED)-$(MOAB_HDF5_ENABLED)","yes-yes")
 	${RUNPARALLEL} ./HelloParMOAB
+endif
 
 CrystalRouterExample: CrystalRouterExample.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
@@ -173,8 +175,7 @@ ReadWriteTest: ReadWriteTest.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
 run-ReadWriteTest: ReadWriteTest
-	${RUNSERIAL} ./ReadWriteTest
-ifeq ("$(MOAB_MPI_ENABLED)-$(MOAB_HDF5_ENABLED)","yes-yes")
+ifeq ("$(MOAB_MPI_ENABLED)-$(MOAB_HDF5_ENABLED)-$(MOAB_NETCDF_ENABLED)","yes-yes-yes")
 	${RUNPARALLEL} ./ReadWriteTest
 endif
 
