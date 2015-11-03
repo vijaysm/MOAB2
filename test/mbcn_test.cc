@@ -296,7 +296,7 @@ void test_sub_entity_type_tet()
 
 void test_sub_entity_type_pyr()
 {
-  const EntityType types[] = { MBQUAD, MBTRI, MBTRI, MBTRI, MBTRI };
+  const EntityType types[] = { MBTRI, MBTRI, MBTRI, MBTRI, MBQUAD,};
   do_test_sub_entity_type_3d( MBPYRAMID, sizeof(types)/sizeof(types[0]), types );
 }
 
@@ -465,11 +465,11 @@ void test_sub_entity_indices_pyr()
                            { 1, 4 },
                            { 2, 4 },
                            { 3, 4 } };
-  const int faces[][5] = { { 4, 3, 2, 1, 0 },
-                           { 3, 0, 1, 4, 0 },
+  const int faces[][5] = { { 3, 0, 1, 4, 0 },
                            { 3, 1, 2, 4, 0 },
                            { 3, 2, 3, 4, 0 },
-                           { 3, 3, 0, 4, 0 } };
+                           { 3, 3, 0, 4, 0 },
+                           { 4, 3, 2, 1, 0 }};
   test_0d_sub_entity_indices( type, num_vtx );
   test_1d_sub_entity_indices( type, sizeof(edges)/sizeof(edges[0]), edges );
   test_2d_sub_entity_indices( type, sizeof(faces)/sizeof(faces[0]), faces );
