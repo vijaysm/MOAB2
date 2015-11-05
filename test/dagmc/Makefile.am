@@ -9,6 +9,7 @@ AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
                -I$(top_srcdir)/src \
                -I$(top_srcdir)/src/io \
                -I$(top_srcdir)/src/parallel \
+               -I$(top_builddir)/tools/dagmc \
                -I$(top_srcdir)/tools/dagmc 
 TESTS = 
 if HAVE_HDF5
