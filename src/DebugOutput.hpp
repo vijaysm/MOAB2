@@ -1,6 +1,8 @@
 #ifndef moab_DEBUG_OUTPUT_HPP
 #define moab_DEBUG_OUTPUT_HPP
 
+#include "moab_export.h"
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <vector>
@@ -39,7 +41,7 @@ class DebugOutputStream;
  *       formatting (e.g. converting arguments to strings, etc.) must
  *       be done even when output is disabled.
  */
-class DebugOutput {
+class MOAB_EXPORT DebugOutput {
   
 public:
 

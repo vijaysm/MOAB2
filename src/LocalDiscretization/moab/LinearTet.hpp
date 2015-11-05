@@ -2,13 +2,15 @@
 #define LINEAR_TET_HPP
   /**\brief Shape function space for trilinear tetrahedron, obtained by a pushforward of the canonical linear (affine) functions. */
 
+#include "moab_export.h"
+
 #include "moab/ElemEvaluator.hpp"
 #include "moab/CN.hpp"
 
 namespace moab 
 {
     
-class LinearTet 
+class MOAB_EXPORT LinearTet 
 {
 public:
     /** \brief Forward-evaluation of field at parametric coordinates */

@@ -226,7 +226,8 @@ nobase_libMOAB_la_include_HEADERS = \
   MOAB_FCDefs.h \
   MBCN_protos.h \
   moab/MOABConfig.h \
-  MBTagConventions.hpp
+  MBTagConventions.hpp \
+  moab_export.h
 
 if ENABLE_metis
   libMOAB_la_SOURCES += MetisPartitioner.cpp
@@ -258,4 +259,5 @@ MBCN_protos.h: MBCN.h $(top_srcdir)/itaps/mkprotos.sh
 MOAB_FCDefs.h: FCDefs.h
 	$(AM_V_GEN)cd .. && ./config.status src/MOAB_FCDefs.h
 
-DISTCLEANFILES = MOAB_FCDefs.h
+DISTCLEANFILES = MOAB_FCDefs.h \
+                 moab_export.h

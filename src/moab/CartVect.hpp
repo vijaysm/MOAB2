@@ -1,6 +1,8 @@
 #ifndef MB_CART_VECT_HPP
 #define MB_CART_VECT_HPP
 
+#include "moab_export.h"
+
 #include <cmath>
 #include <iosfwd>
 #include <float.h>
@@ -11,7 +13,7 @@ namespace moab {
 /**
  * \brief Cartesian Vector
  */
-class CartVect
+class MOAB_EXPORT CartVect
 {
   private:
     double d[3];
@@ -154,6 +156,7 @@ inline CartVect unit( const CartVect& v )
 }
 
 
+MOAB_EXPORT
 std::ostream& operator<<( std::ostream& s, const CartVect& v );
 
 } // namespace moab

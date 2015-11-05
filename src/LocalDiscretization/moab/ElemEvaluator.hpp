@@ -1,6 +1,8 @@
 #ifndef ELEM_EVALUATOR_HPP
 #define ELEM_EVALUATOR_HPP
 
+#include "moab_export.h"
+
 #include "moab/Interface.hpp"
 #include "moab/CartVect.hpp"
 #include "moab/Matrix3.hpp"
@@ -30,7 +32,7 @@ namespace moab {
         
   typedef ErrorCode (*NormalFcn)(const int ientDim, const int facet, const int nverts, const double *verts,  double normal[3]);
 
-    class EvalSet
+    class MOAB_EXPORT EvalSet
     {
   public:
         /** \brief Forward-evaluation of field at parametric coordinates */

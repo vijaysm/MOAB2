@@ -101,9 +101,7 @@ set_source_files_properties( VarLenTagTest.cpp
 target_link_libraries( var_len_test_no_template MOAB ${CGM_LIBRARIES} )
 add_test( var_len_test_no_template ${EXECUTABLE_OUTPUT_PATH}/var_len_test_no_template )
 
-add_executable( mbcn_test ${CMAKE_SOURCE_DIR}/src/moab/CN.hpp
-                          ${CMAKE_SOURCE_DIR}/src/CN.cpp
-                          mbcn_test.cc )
+add_executable( mbcn_test mbcn_test.cc )
 set_target_properties( mbcn_test PROPERTIES 
   COMPILE_FLAGS "-DMOAB_TEMPLATE_SPECIALIZATION ${MOAB_DEFINES} ${TEST_COMP_FLAGS}" )
 target_link_libraries( mbcn_test MOAB ${CGM_LIBRARIES} )

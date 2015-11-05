@@ -5,7 +5,8 @@ AM_CPPFLAGS += -I$(top_srcdir)/src \
 lib_LTLIBRARIES = libdagmc.la
 libdagmc_la_SOURCES = DagMC.cpp
 libdagmc_la_includedir = $(includedir)
-libdagmc_la_include_HEADERS = DagMC.hpp
+libdagmc_la_include_HEADERS = DagMC.hpp \
+                              dagmc_export.h
 
 if HAVE_CGM
   AM_CPPFLAGS += $(CGM_INCLUDES) $(CGM_CPPFLAGS) 
@@ -55,3 +56,4 @@ ray_fire_test_SOURCES = ray_fire_test.cc
 
 dagmc_preproc_SOURCES = dagmc_preproc.cpp obb_analysis.cpp dagmc_preproc.hpp
 
+DISTCLEANFILES = dagmc_export.h

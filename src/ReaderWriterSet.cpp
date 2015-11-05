@@ -261,7 +261,7 @@ ReaderWriterSet::Handler::Handler( reader_factory_t read_f,
     mExtensions[i] = ext[i];
 }
 
-#ifdef WIN32
+#ifdef _WIN32
 #define strcasecmp(A,B) _stricmp( A, B )
 #endif
 

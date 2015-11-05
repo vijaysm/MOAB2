@@ -45,7 +45,7 @@ ADD_CUSTOM_COMMAND(
           -Dinput_file:STRING=${CMAKE_CURRENT_SOURCE_DIR}/MBCN.h
           -Doutput_file:STRING=${CMAKE_CURRENT_BINARY_DIR}/MBCN_protos.h
           -Dprefix:STRING=MBCN
-          -P ${CMAKE_SOURCE_DIR}/config/ITAPSFortranMangling.cmake
+          -P ${MOAB_SOURCE_DIR}/config/ITAPSFortranMangling.cmake
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/MBCN.h )
 
 if( MOAB_HAVE_HDF5 )
@@ -247,13 +247,32 @@ target_link_libraries(
   MOAB
   ${MOAB_DEP_LIBRARIES} ${MOAB_LIBS} ${MOAB_CGM_LIBS} ${MPI_LIBRARIES}
   )
+include(GenerateExportHeader)
+generate_export_header(MOAB)
+list(APPEND MOAB_GENERATED_INSTALL_HEADERS
+  ${CMAKE_CURRENT_BINARY_DIR}/moab_export.h)
 set_target_properties(
   MOAB
   PROPERTIES
   COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES}"
   VERSION ${MOAB_VERSION}
   SOVERSION ${MOAB_VERSION_MAJOR}
+  DEFINE_SYMBOL "IS_BUILDING_MB_SHARED"
   )
+
+# On OS X, set the directory included as part of the installed library's path.
+# We only do this to libraries we plan on installing.
+if (BUILD_SHARED_LIBS)
+  set_target_properties(MOAB
+    PROPERTIES
+    INSTALL_NAME_DIR "${CMAKE_INSTALL_PREFIX}/lib"
+    )
+endif ()
+
+target_include_directories(MOAB PUBLIC
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>"
+  "$<INSTALL_INTERFACE:include>")
 
 install(
   TARGETS MOAB

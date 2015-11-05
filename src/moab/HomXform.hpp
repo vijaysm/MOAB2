@@ -27,6 +27,8 @@
  * transforms.
  */
 
+#include "moab_export.h"
+
 #define XFORM(a,b) xForm[4*a+b]
 #define XFORM_INDEX(a,b) 4*a+b
 
@@ -40,7 +42,7 @@ class HomXform;
 /** \class HomCoord
  * \brief Homogeneous coordinate vector
  */
-class HomCoord 
+class MOAB_EXPORT HomCoord 
 {
 private:
 
@@ -126,7 +128,7 @@ public:
 /** \class HomXform
  * \brief Homogeneous coordinate transformation matrix
  */
-class HomXform
+class MOAB_EXPORT HomXform
 {
 
 private:

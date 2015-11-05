@@ -7,7 +7,7 @@ ADD_CUSTOM_COMMAND(
           -Dinput_file:STRING=${CMAKE_CURRENT_SOURCE_DIR}/iMesh.h
           -Doutput_file:STRING=${CMAKE_CURRENT_BINARY_DIR}/iMesh_protos.h
           -Dprefix:STRING=iMesh
-          -P ${CMAKE_SOURCE_DIR}/config/ITAPSFortranMangling.cmake
+          -P ${MOAB_SOURCE_DIR}/config/ITAPSFortranMangling.cmake
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/iMesh.h )
 ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/iMesh_extensions_protos.h
@@ -16,7 +16,7 @@ ADD_CUSTOM_COMMAND(
           -Dinput_file:STRING=${CMAKE_CURRENT_SOURCE_DIR}/iMesh_extensions.h
           -Doutput_file:STRING=${CMAKE_CURRENT_BINARY_DIR}/iMesh_extensions_protos.h
           -Dprefix:STRING=iMesh
-          -P ${CMAKE_SOURCE_DIR}/config/ITAPSFortranMangling.cmake
+          -P ${MOAB_SOURCE_DIR}/config/ITAPSFortranMangling.cmake
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/iMesh_extensions.h )
 
 set ( MOAB_IMESH_SRCS
@@ -39,7 +39,7 @@ if ( MOAB_HAVE_MPI )
             -Dinput_file:STRING=${CMAKE_CURRENT_SOURCE_DIR}/iMeshP_extensions.h
             -Doutput_file:STRING=${CMAKE_CURRENT_BINARY_DIR}/iMeshP_extensions_protos.h
             -Dprefix:STRING=iMesh
-            -P ${CMAKE_SOURCE_DIR}/config/ITAPSFortranMangling.cmake
+            -P ${MOAB_SOURCE_DIR}/config/ITAPSFortranMangling.cmake
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/iMesh_extensions.h)
   ADD_CUSTOM_COMMAND(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/iMeshP_protos.h
@@ -48,24 +48,16 @@ if ( MOAB_HAVE_MPI )
             -Dinput_file:STRING=${CMAKE_CURRENT_SOURCE_DIR}/iMeshP.h
             -Doutput_file:STRING=${CMAKE_CURRENT_BINARY_DIR}/iMeshP_protos.h
             -Dprefix:STRING=iMeshP
-            -P ${CMAKE_SOURCE_DIR}/config/ITAPSFortranMangling.cmake
+            -P ${MOAB_SOURCE_DIR}/config/ITAPSFortranMangling.cmake
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/iMeshP.h )
   set(MOAB_IMESH_SRCS ${MOAB_IMESH_SRCS}
                       iMeshP_MOAB.cpp)
   set(MOAB_IMESH_LIB_INCLUDES
           ${MOAB_IMESH_LIB_INCLUDES}
+          iMeshP.h
           ${CMAKE_CURRENT_BINARY_DIR}/iMeshP_protos.h
           ${CMAKE_CURRENT_BINARY_DIR}/iMeshP_extensions_protos.h )
 endif()
-
-include_directories(
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_CURRENT_BINARY_DIR}
-  ${CMAKE_BINARY_DIR}/src
-  ${CMAKE_SOURCE_DIR}/src
-  ${CMAKE_SOURCE_DIR}/itaps
-  ${CMAKE_BINARY_DIR}/itaps
-  )
 
 if ( MOAB_HAVE_HDF5 AND HDF5_FOUND )
   include_directories( ${HDF5_INCLUDE_DIRECTORIES}
@@ -81,8 +73,25 @@ add_library(
   ${MOAB_IMESH_SRCS}
   ${MOAB_IMESH_LIB_INCLUDES}
   )
+include(GenerateExportHeader)
+generate_export_header(iMesh)
+list(APPEND MOAB_IMESH_LIB_INCLUDES
+  ${CMAKE_CURRENT_BINARY_DIR}/imesh_export.h)
 
-target_link_libraries( iMesh MOAB )
+if (MOAB_USE_MPI)
+  target_include_directories(iMesh
+    PUBLIC
+      ${MPI_INCLUDE_PATH})
+  target_link_libraries(iMesh
+    PUBLIC
+      ${MPI_LIBRARIES})
+endif ()
+
+target_link_libraries( iMesh PUBLIC MOAB )
+target_include_directories(iMesh PUBLIC
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>"
+  "$<INSTALL_INTERFACE:include>")
 
 set_target_properties(
   iMesh

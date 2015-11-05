@@ -21,6 +21,8 @@
 #ifndef MOAB_BSP_TREE_HPP
 #define MOAB_BSP_TREE_HPP
 
+#include "moab_export.h"
+
 #include "moab/Types.hpp"
 #include "moab/Interface.hpp"
 
@@ -38,7 +40,7 @@ class BSPTreePoly;
 /** \class BSPTree
  * \brief BSP tree, for sorting and searching entities spatially
  */
-class BSPTree
+class MOAB_EXPORT BSPTree
 {
 private:
   Interface* mbInstance;
@@ -72,7 +74,7 @@ public:
    * If plane is defined as Ax+By+Cz+D=0, then
    * norm={A,B,C} and coeff=-D.
    */
-  struct Plane {
+  struct MOAB_EXPORT Plane {
     Plane() {}
     Plane( const double n[3], double d ) : coeff(d)
       { norm[0] = n[0]; norm[1] = n[1]; norm[2] = n[2]; }
@@ -231,7 +233,7 @@ public:
 /** \class BSPTreeIter
  * \brief Iterate over leaves of a BSPTree
  */
-class BSPTreeIter
+class MOAB_EXPORT BSPTreeIter
 {
 public:
   
@@ -337,7 +339,7 @@ public:
 /** \class BSPTreeBoxIter
  * \brief Iterate over leaves of a BSPTree
  */
-class BSPTreeBoxIter : public BSPTreeIter
+class MOAB_EXPORT BSPTreeBoxIter : public BSPTreeIter
 {
   private:
     

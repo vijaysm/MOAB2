@@ -5,8 +5,8 @@ ADD_CUSTOM_COMMAND(
           -Dinput_file:STRING=${CMAKE_CURRENT_SOURCE_DIR}/FBiGeom.h
           -Doutput_file:STRING=${CMAKE_CURRENT_BINARY_DIR}/FBiGeom_protos.h
           -Dprefix:STRING=FBiGeom
-          -P ${CMAKE_SOURCE_DIR}/config/ITAPSFortranMangling.cmake
-  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/../imesh/iMesh.h )
+          -P ${MOAB_SOURCE_DIR}/config/ITAPSFortranMangling.cmake
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/FBiGeom.h )
 
 set( FBiGEOM_SOURCE FBiGeom_MOAB.hpp FBiGeom_MOAB.cpp )
 set(
@@ -34,15 +34,24 @@ include_directories(
  )
 
 if ( MOAB_HAVE_MPI )
-  include_directories( ${CMAKE_SOURCE_DIR}/src/parallel
-                       ${CMAKE_BINARY_DIR}/src/parallel)
+  include_directories( ${MOAB_SOURCE_DIR}/src/parallel
+                       ${MOAB_BINARY_DIR}/src/parallel)
 endif ()
 
-target_link_libraries( FBiGeomMOAB MOAB )
+target_link_libraries( FBiGeomMOAB MOAB iMesh )
 
 set_target_properties(
   FBiGeomMOAB
   PROPERTIES
   VERSION ${MOAB_VERSION}
   SOVERSION ${MOAB_VERSION_MAJOR}
+  )
+
+moab_install_headers(${FBiGEOM_INCLUDE_HEADERS})
+install(
+  TARGETS FBiGeomMOAB
+  EXPORT MOABTargets
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
   )

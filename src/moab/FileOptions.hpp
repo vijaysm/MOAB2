@@ -21,6 +21,8 @@
 #ifndef FILE_OPTIONS_HPP
 #define FILE_OPTIONS_HPP
 
+#include "moab_export.h"
+
 #include <string>
 #include <vector>
 #include "moab/Types.hpp"
@@ -33,7 +35,7 @@ namespace moab {
  * parse the options string passed to Core::load_file and
  * Core::write_file
  */
-class FileOptions {
+class MOAB_EXPORT FileOptions {
 public:
 
   /*\param options_string The concatenation of a list of 

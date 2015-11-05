@@ -21,6 +21,8 @@
 #ifndef MB_ORIENTED_BOX_HPP
 #define MB_ORIENTED_BOX_HPP
 
+#include "moab_export.h"
+
 #include "moab/Forward.hpp"
 #include "moab/CartVect.hpp"
 #include "moab/Matrix3.hpp"
@@ -37,7 +39,7 @@ class Range;
 
 /**\brief Oriented bounding box
  */
-class OrientedBox
+class MOAB_EXPORT OrientedBox
 {
 public:
   CartVect center;  //!< Box center

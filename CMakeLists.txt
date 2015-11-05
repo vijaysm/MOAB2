@@ -2,7 +2,7 @@ cmake_minimum_required( VERSION 2.8.12 )
 SET(PACKAGE_NAME "MOAB")
 SET(PACKAGE_VERSION "4.8.3pre")
 
-if (NOT WIN32)
+if (NOT WIN32 AND FALSE)
   #This all breaks on windows.
   SET(CMAKE_Fortran_COMPILER_INIT ${CMAKE_GENERATOR_FC})
   SET(CMAKE_CXX_FLAGS_INIT "-fPIC -DPIC")
@@ -26,7 +26,8 @@ project( MOAB )
 include(GNUInstallDirs)
 
 #Add our Cmake directory to the module search path
-set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/config ${CMAKE_MODULE_PATH})
+set(CMAKE_MODULE_PATH ${MOAB_SOURCE_DIR}/config ${CMAKE_MODULE_PATH})
+
 ################################################################################
 # Set up version info
 ################################################################################
@@ -214,11 +215,10 @@ endif (ENABLE_ZLIB)
 #set (MOAB_HAVE_HDF5_PARALLEL 0 CACHE INTERNAL "Found necessary parallel HDF5 components. Configure MOAB with it." )
 if ( ENABLE_HDF5 )
   find_package( HDF5_MOAB REQUIRED )
-  #set( MOAB_DEFINES "-DHDF5_FILE ${MOAB_DEFINES}" )
+  set( MOAB_DEFINES "-DMOAB_HAVE_HDF5 ${MOAB_DEFINES}" )
   set (MOAB_HAVE_HDF5 1)
-  # if ( HDF5_IS_PARALLEL AND MOAB_HAVE_MPI )
-  if ( MOAB_HAVE_MPI )
-    #set( MOAB_DEFINES "-DHDF5_PARALLEL ${MOAB_DEFINES}" )
+  if ( HDF5_IS_PARALLEL AND MOAB_HAVE_MPI )
+    set( MOAB_DEFINES "-DMOAB_HAVE_HDF5_PARALLEL ${MOAB_DEFINES}" )
     set (MOAB_HAVE_HDF5_PARALLEL 1)
   endif ( )
   set( MOAB_LIBS ${MOAB_LIBS} ${HDF5_LIBRARIES} )
