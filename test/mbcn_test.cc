@@ -296,7 +296,7 @@ void test_sub_entity_type_tet()
 
 void test_sub_entity_type_pyr()
 {
-  const EntityType types[] = { MBTRI, MBTRI, MBTRI, MBTRI, MBQUAD,};
+  const EntityType types[] = { MBTRI, MBTRI, MBTRI, MBTRI, MBQUAD};
   do_test_sub_entity_type_3d( MBPYRAMID, sizeof(types)/sizeof(types[0]), types );
 }
 
