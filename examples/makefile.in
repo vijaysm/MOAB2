@@ -185,9 +185,11 @@ GenLargeMesh: GenLargeMesh.o ${MOAB_LIBDIR}/libMOAB.la
 run-GenLargeMesh: GenLargeMesh
 	${RUNSERIAL} ./GenLargeMesh
 	${RUNSERIAL} ./GenLargeMesh -A 2 -B 2 -C 5
+	${RUNSERIAL} ./GenLargeMesh -A 2 -B 2 -C 5 -f
 ifeq ("$(MOAB_MPI_ENABLED)-$(MOAB_HDF5_ENABLED)","yes-yes")
 	${RUNPARALLEL} ./GenLargeMesh -M @NP@ -N 1 -K 1 -A 1 -B 2 -C 2 -r
 	${RUNPARALLEL} ./GenLargeMesh -M @NP@ -N 1 -K 1 -A 1 -B 2 -C 2 -d 10.0 -b 2 -r
+	${RUNPARALLEL} ./GenLargeMesh -M @NP@ -N 1 -K 1 -A 1 -B 2 -C 2 -d 10.0 -b 2 -r -f
 endif
 
 ErrorHandlingSimulation: ErrorHandlingSimulation.o ${MOAB_LIBDIR}/libMOAB.la
