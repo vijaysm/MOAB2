@@ -7344,6 +7344,75 @@ ErrorCode mb_skin_higher_order_regions_common( bool use_adj )
   return all_okay ? MB_SUCCESS : MB_FAILURE;
 }
 
+// Test that skinning of higher-order elements works
+ErrorCode mb_skin_higher_order_pyramids( )
+{
+  // create mesh containing 13-node pyramid
+  /*
+
+  */
+
+  ErrorCode rval;
+  Core moab;
+  Interface& mb = moab;
+  Range pyramids;
+
+
+  // easier to create a 27 node grid, and then pick a 13-node pyramid
+  EntityHandle verts[3][3][3];
+  for (int i = 0; i < 3; ++i)
+    for (int j = 0; j < 3; ++j)
+      for (int k = 0; k < 3; ++k) {
+        double coords[] = { static_cast<double>(i), static_cast<double>(j), static_cast<double>(k) };
+        rval = mb.create_vertex( coords, verts[i][j][k] );
+        if (MB_SUCCESS != rval) return rval;
+      }
+
+
+  EntityHandle piramid1[13]={19, 25, 27, 21, 1, 22, 26, 24, 20, 10, 13, 14, 11};
+
+  EntityHandle h;
+
+  rval = mb.create_element( MBPYRAMID, piramid1, 13, h );
+  if (MB_SUCCESS != rval)
+    return rval;
+  pyramids.insert( h );
+
+  Range faces;
+  rval = mb.get_adjacencies(pyramids,2, true, faces , Interface::UNION);
+  // triangles should have 6 nodes, quads 8 nodes
+
+  if (MB_SUCCESS != rval)
+    return rval;
+
+  Range tris=faces.subset_by_type(MBTRI);
+  Range quads = faces.subset_by_type(MBQUAD);
+
+  for (Range::iterator tit=tris.begin(); tit!=tris.end(); tit++)
+  {
+    EntityHandle triangle = *tit;
+    const EntityHandle * conn;
+    int num_verts;
+    rval = mb.get_connectivity(triangle, conn, num_verts);
+    if (MB_SUCCESS != rval)
+      return rval;
+    if (6!=num_verts)
+      return MB_FAILURE;
+  }
+  for (Range::iterator qit=quads.begin(); qit!=quads.end(); qit++)
+  {
+    EntityHandle quad = *qit;
+    const EntityHandle * conn;
+    int num_verts;
+    rval = mb.get_connectivity(quad, conn, num_verts);
+    if (MB_SUCCESS != rval)
+      return rval;
+    if (8!=num_verts)
+      return MB_FAILURE;
+  }
+
+  return  MB_SUCCESS;
+}
 ErrorCode mb_skin_higher_order_regions_test()
   { return mb_skin_higher_order_regions_common(false); }
 ErrorCode mb_skin_adj_higher_order_regions_test()
@@ -8472,6 +8541,7 @@ int main(int argc, char* argv[])
   RUN_TEST( mb_skin_higher_order_faces_test );
   RUN_TEST( mb_skin_higher_order_regions_test );
   RUN_TEST( mb_skin_adj_higher_order_faces_test );
+  RUN_TEST(mb_skin_higher_order_pyramids);
   RUN_TEST( mb_skin_adj_higher_order_regions_test );
   RUN_TEST( mb_skin_faces_reversed_test );
   RUN_TEST( mb_skin_adj_faces_reversed_test );
