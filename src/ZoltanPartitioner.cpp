@@ -943,7 +943,7 @@ double ZoltanPartitioner::estimate_face_mesh_load(RefEntity* face, const double 
 double ZoltanPartitioner::estimate_face_comm_load(RefEntity* face, const double h)
 {
   double peri = 0.;
-#if (CGM_MAJOR_VERSION == 14 && CGM_MINOR_VERSION > 2)
+#if ((CGM_MAJOR_VERSION == 14 && CGM_MINOR_VERSION > 2) || CGM_MAJOR_VERSION == 15)
   DLIList<DLIList<RefEdge*> > ref_edge_loops;
 #else
   DLIList<DLIList<RefEdge*>*> ref_edge_loops;
@@ -951,7 +951,7 @@ double ZoltanPartitioner::estimate_face_comm_load(RefEntity* face, const double 
   CAST_TO(face, RefFace)->ref_edge_loops(ref_edge_loops);
   ref_edge_loops.reset();
 
-#if (CGM_MAJOR_VERSION == 14 && CGM_MINOR_VERSION > 2)
+#if ((CGM_MAJOR_VERSION == 14 && CGM_MINOR_VERSION > 2) || CGM_MAJOR_VERSION == 15)
   for (int i = 0; i < ref_edge_loops.size(); i++) {
     DLIList<RefEdge*> eloop = ref_edge_loops.get_and_step();
     eloop.reset();
