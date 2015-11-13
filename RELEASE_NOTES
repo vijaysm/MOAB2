@@ -4,12 +4,15 @@
   * PR #109: Optimized AHF data structure. UMR parallel using parmerge. UMR tool. (Major)
 ** Configuration
   @ CMake
+    * PR #166: missing file in CMakeLists.txt and remove exe flag from sources
     * PR #154: don't require METIS_DIR, PARMETIS_DIR to be set
     * PR #150: Improve CMake HDF5 detection
     * PR #146: remove usage of MPI_DIR, remove config/FindMPI.cmake
     * PR #135: CMake cleanup
     * PR #124: CMake support for verdict, Metis/ParMetis
   @ Autotools
+    * PR #168: remove obsolete code related to netcdf workaround in moab_mpi.h
+    * PR #163: prepare to use "make run" target in examples folder
     * PR #149: Replace the deprecated finite routine (C99 standard)
     * PR #148: Modify obb tests to not be run with regular suite
     * PR #144: fortran libs for imeshp test
@@ -19,6 +22,8 @@
     * PR #122: Enable MOAB_HAVE_VSNPRINTF for ErrorOutput.cpp
 ** Fixes
   @ General
+    * PR #169: Quadratic pyramid bug, related to order of faces
+    * PR #165: GenLargeExample tetra option fix       
     * PR #157: Fix metis partitioner for serial builds
     * PR #147: Rename __SDIR__ macro
     * PR #132: CartVect duplicate removal
@@ -33,7 +38,8 @@
     * PR #125: Bug in Coupler
     * PR #119: Fix dual_test issue due to missing mesh file
   @ Parallel fixes
-    * PR #159: run more parallel tests when built without MPI
+    * PR #160: fix hdf5 parallel reader if number of partitions is too small 
+    * PR #159: run more parallel tests when built without HDF5
     * PR #158: add option to skip augmenting the default sets with ghosts
     * PR #145: factor in sequence manager for ghosting
     * PR #141: populate sets with ghost entities
