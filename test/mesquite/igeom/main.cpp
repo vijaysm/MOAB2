@@ -27,7 +27,7 @@
 #include "Mesquite.hpp"
 #include "MsqIGeom.hpp"
 #include "MeshImpl.hpp"
-#include "MsqIMeshP.hpp"
+//#include "MsqIMeshP.hpp"
 #include "MsqError.hpp"
 #include "ShapeImprovementWrapper.hpp"
 #include "MsqVertex.hpp"
