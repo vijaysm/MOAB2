@@ -1,7 +1,7 @@
 ################################################################################
 #                           Standard Stuff
 ################################################################################
-AC_INIT([MOAB],[4.8.3pre],[moab-dev@mcs.anl.gov],[moab],[http://sigma.mcs.anl.gov])
+AC_INIT([MOAB],[4.9.0],[moab-dev@mcs.anl.gov],[moab],[http://sigma.mcs.anl.gov])
 AC_CONFIG_SRCDIR([moab.make.in])
 AC_CONFIG_SRCDIR([MOABConfig.cmake.in])
 AC_CONFIG_SRCDIR([examples/makefile.in])
@@ -32,7 +32,7 @@ if (test "x$enable_fortran" != "xno"); then
 fi
 AC_SUBST(ENABLE_FORTRAN)
 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-fortran=$ENABLE_FORTRAN"
-EXTRA_GNU_FLAGS='-Wall -pipe -pedantic -Wno-long-long -Wextra -Wcast-align  -Wpointer-arith -Wformat -Wformat-security -Wshadow -Wunused-parameter'
+EXTRA_GNU_FLAGS='-Wall -pipe -pedantic -Wno-long-long -Wextra -Wcast-align  -Wpointer-arith -Wformat -Wformat-security -Wshadow -Wunused-parameter -Wno-variadic-macros'
 EXTRA_INTEL_FLAGS='-Wall'
 
 # Find out the appropriate compiler based on user options
