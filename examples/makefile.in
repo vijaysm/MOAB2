@@ -2,33 +2,55 @@
 MOAB_BUILD_DIR := @abs_top_builddir@
 MOAB_DIR := @prefix@
 
+MOAB_DEV = no
 ifneq ($(wildcard ${MOAB_DIR}/lib/moab.make),)
 include ${MOAB_DIR}/lib/moab.make
 include ${MOAB_DIR}/lib/iMesh-Defs.inc
 else
 include ${MOAB_BUILD_DIR}/moab.make
 include ${MOAB_BUILD_DIR}/itaps/imesh/iMesh-Defs.inc
+MOAB_DEV = yes
 endif
 
 .SUFFIXES: .o .cpp .F90
 
+default: all
+
 # MESH_DIR is the directory containing mesh files that come with MOAB source
 MESH_DIR="@abs_top_srcdir@/MeshFiles/unittest"
 
-EXAMPLES = HelloMOAB GetEntities SetsNTags LoadPartial StructuredMesh StructuredMeshSimple DirectAccessWithHoles DirectAccessNoHoles PointInElementSearch VisTags UniformRefinement
-PAREXAMPLES = HelloParMOAB ReduceExchangeTags LloydRelaxation CrystalRouterExample ReadWriteTest GenLargeMesh
-EXOIIEXAMPLES = TestExodusII
+EXAMPLES = HelloMOAB GetEntities SetsNTags LoadPartial StructuredMesh StructuredMeshSimple DirectAccessWithHoles DirectAccessNoHoles PointInElementSearch GenLargeMesh UniformRefinement
+PAREXAMPLES = HelloParMOAB ReduceExchangeTags LloydRelaxation CrystalRouterExample ReadWriteTest
+EXOIIEXAMPLES = TestExodusII VisTags
 F90EXAMPLES = DirectAccessNoHolesF90
 F90PAREXAMPLES = PushParMeshIntoMoabF90
+ifeq ("$(MOAB_DEV)","yes")
 ERROREXAMPLES = ErrorHandlingSimulation TestErrorHandling TestErrorHandlingPar
-ALLEXAMPLES = ${EXAMPLES} ${EXOIIEXAMPLES} ${F90EXAMPLES} ${PAREXAMPLES} ${F90PAREXAMPLES}
-RUNSERIAL = 
-RUNPARALLEL = @MPIEXEC@ @MPIEXEC_NP@ @NP@
+endif
+ALLEXAMPLES = ${EXAMPLES}
 
-serial: ${EXAMPLES} ${EXOIIEXAMPLES} ${F90EXAMPLES} ${ERROREXAMPLES}
+ifeq ("$(MOAB_FORTRAN_ENABLED)-$(MOAB_IMESH_ENABLED)","yes-yes")
+ALLEXAMPLES += ${F90EXAMPLES} 
+endif
+
+ifeq ("$(MOAB_NETCDF_ENABLED)","yes")
+ALLEXAMPLES += $(EXOIIEXAMPLES)
+endif
+
+RUNSERIAL =
+ifeq ("$(MOAB_MPI_ENABLED)","yes")
 parallel: ${PAREXAMPLES} ${F90PAREXAMPLES}
-default: serial
-all: serial parallel
+RUNPARALLEL = @MPIEXEC@ @MPIEXEC_NP@ @NP@
+ALLEXAMPLES += ${PAREXAMPLES}
+ifeq ("$(MOAB_FORTRAN_ENABLED)-$(MOAB_IMESH_ENABLED)","yes-yes")
+ALLEXAMPLES += ${F90PAREXAMPLES}
+endif
+else
+parallel:
+RUNPARALLEL =
+endif
+
+all: $(ALLEXAMPLES)
 
 HelloMOAB: HelloMOAB.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
@@ -52,8 +74,10 @@ LloydRelaxation: LloydRelaxation.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
 run-LloydRelaxation: LloydRelaxation
+ifeq ("$(MOAB_MPI_ENABLED)-$(MOAB_HDF5_ENABLED)","yes-yes")
 	${RUNSERIAL} ./LloydRelaxation
 	${RUNPARALLEL} ./LloydRelaxation
+endif
 
 LoadPartial: LoadPartial.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} ${MOAB_LIBS_LINK}
@@ -95,21 +119,27 @@ ReduceExchangeTags: ReduceExchangeTags.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
 run-ReduceExchangeTags: ReduceExchangeTags
+ifeq ("$(MOAB_MPI_ENABLED)-$(MOAB_HDF5_ENABLED)","yes-yes")
 	${RUNSERIAL} ./ReduceExchangeTags
 	${RUNPARALLEL} ./ReduceExchangeTags
+endif
 
 HelloParMOAB: HelloParMOAB.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
 run-HelloParMOAB: HelloParMOAB
+ifeq ("$(MOAB_MPI_ENABLED)-$(MOAB_HDF5_ENABLED)","yes-yes")
 	${RUNPARALLEL} ./HelloParMOAB
+endif
 
 CrystalRouterExample: CrystalRouterExample.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
 run-CrystalRouterExample: CrystalRouterExample
 	${RUNSERIAL} ./CrystalRouterExample
+ifeq ("$(MOAB_MPI_ENABLED)","yes")
 	${RUNPARALLEL} ./CrystalRouterExample -n 2 -t 10 -r 0
+endif
 
 TestExodusII: TestExodusII.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
@@ -122,14 +152,18 @@ PointInElementSearch: PointInElementSearch.o ${MOAB_LIBDIR}/libMOAB.la
 
 run-PointInElementSearch: PointInElementSearch
 	${RUNSERIAL} ./PointInElementSearch
+ifeq ("$(MOAB_MPI_ENABLED)","yes")
 	${RUNPARALLEL} ./PointInElementSearch
+endif
 
 PushParMeshIntoMoabF90: PushParMeshIntoMoabF90.o
 	${MOAB_FC} -o $@ $< ${IMESH_LIBS}
 
 run-PushParMeshIntoMoabF90: PushParMeshIntoMoabF90
 	${RUNSERIAL} ./PushParMeshIntoMoabF90
+ifeq ("$(MOAB_MPI_ENABLED)","yes")
 	${RUNPARALLEL} ./PushParMeshIntoMoabF90
+endif
 
 VisTags: VisTags.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
@@ -141,51 +175,46 @@ ReadWriteTest: ReadWriteTest.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
 run-ReadWriteTest: ReadWriteTest
-	${RUNSERIAL} ./ReadWriteTest
+ifeq ("$(MOAB_MPI_ENABLED)-$(MOAB_HDF5_ENABLED)-$(MOAB_NETCDF_ENABLED)","yes-yes-yes")
 	${RUNPARALLEL} ./ReadWriteTest
+endif
 
 GenLargeMesh: GenLargeMesh.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
 run-GenLargeMesh: GenLargeMesh
-	${RUNSERIAL} ./GenLargeMesh -r
-	${RUNSERIAL} ./GenLargeMesh -A 2 -B 2 -C 5 -r
-	${RUNPARALLEL} ./GenLargeMesh -M @NP@ -N 1 -K 1 -A 1 -B 2 -C 2
+	${RUNSERIAL} ./GenLargeMesh
+	${RUNSERIAL} ./GenLargeMesh -A 2 -B 2 -C 5
+ifeq ("$(MOAB_MPI_ENABLED)-$(MOAB_HDF5_ENABLED)","yes-yes")
+	${RUNPARALLEL} ./GenLargeMesh -M @NP@ -N 1 -K 1 -A 1 -B 2 -C 2 -r
 	${RUNPARALLEL} ./GenLargeMesh -M @NP@ -N 1 -K 1 -A 1 -B 2 -C 2 -d 10.0 -b 2 -r
+endif
 
 ErrorHandlingSimulation: ErrorHandlingSimulation.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
-run-ErrorHandlingSimulation: ErrorHandlingSimulation
-	${RUNSERIAL} ./ErrorHandlingSimulation 1
-	${RUNSERIAL} ./ErrorHandlingSimulation 2
-	${RUNSERIAL} ./ErrorHandlingSimulation 3
-	${RUNSERIAL} ./ErrorHandlingSimulation 4
-
 TestErrorHandling: TestErrorHandling.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
-run-TestErrorHandling: TestErrorHandling
-	${RUNSERIAL} ./TestErrorHandling 1
-	${RUNSERIAL} ./TestErrorHandling 2
-	${RUNSERIAL} ./TestErrorHandling 3
-	${RUNSERIAL} ./TestErrorHandling 4
-
 TestErrorHandlingPar: TestErrorHandlingPar.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK} 
-
-run-TestErrorHandlingPar: TestErrorHandlingPar
-	${RUNPARALLEL} ./TestErrorHandlingPar 1
-	${RUNPARALLEL} ./TestErrorHandlingPar 2
 
 UniformRefinement: UniformRefinement.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
 
 run-UniformRefinement: UniformRefinement GenLargeMesh
+ifeq ("$(MOAB_MPI_ENABLED)-$(MOAB_HDF5_ENABLED)","yes-yes")
 ifeq ("$(wildcard GenLargeMesh.h5m)","")
 	${RUNPARALLEL} ./GenLargeMesh -M @NP@ -N 1 -K 1 -A 1 -B 2 -C 2 -b 5
 endif
-	${RUNSERIAL} ./UniformRefinement GenLargeMesh.h5m
+	${RUNSERIAL}   ./UniformRefinement GenLargeMesh.h5m
+	${RUNPARALLEL} ./UniformRefinement GenLargeMesh.h5m
+else
+ifeq ("$(wildcard GenLargeMesh.vtk)","")
+	${RUNSERIAL} ./GenLargeMesh -A 1 -B 2 -C 2 -b 5
+endif
+	${RUNSERIAL} ./UniformRefinement GenLargeMesh.vtk
+endif
 
 run: all $(addprefix run-,$(ALLEXAMPLES))
 
