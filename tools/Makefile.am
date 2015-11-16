@@ -97,6 +97,9 @@ if ENABLE_mbpart
   AM_LDFLAGS += $(ZOLTAN_LIB_FLAGS)
   mbpart_SOURCES = mbpart.cpp
   mbpart_LDADD = $(top_builddir)/src/libMOAB.la $(ZOLTAN_LIBS)
+if HAVE_CGM
+  mbpart_LDADD += $(CGM_LIBS)
+endif 
 else
 if ENABLE_metis
   bin_PROGRAMS += mbpart
