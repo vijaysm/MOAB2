@@ -1,3 +1,58 @@
+# Version 4.9.0:
+** Features
+  * PR #140: Merge Lasso sources to MOAB completely (Major)
+  * PR #109: Optimized AHF data structure. UMR parallel using parmerge. UMR tool. (Major)
+** Configuration
+  @ CMake
+    * PR #166: missing file in CMakeLists.txt and remove exe flag from sources
+    * PR #154: don't require METIS_DIR, PARMETIS_DIR to be set
+    * PR #150: Improve CMake HDF5 detection
+    * PR #146: remove usage of MPI_DIR, remove config/FindMPI.cmake
+    * PR #135: CMake cleanup
+    * PR #124: CMake support for verdict, Metis/ParMetis
+  @ Autotools
+    * PR #168: remove obsolete code related to netcdf workaround in moab_mpi.h
+    * PR #163: prepare to use "make run" target in examples folder
+    * PR #149: Replace the deprecated finite routine (C99 standard)
+    * PR #148: Modify obb tests to not be run with regular suite
+    * PR #144: fortran libs for imeshp test
+    * PR #129: Use correct linker flags for Fortran examples in debug mode
+    * PR #121: Fixes for examples and upgrade makefile with options to run targets
+    * PR #114: Fix compiler warnings related to HAVE_UNORDERED_MAP
+    * PR #122: Enable MOAB_HAVE_VSNPRINTF for ErrorOutput.cpp
+** Fixes
+  @ General
+    * PR #169: Quadratic pyramid bug, related to order of faces
+    * PR #165: GenLargeExample tetra option fix       
+    * PR #157: Fix metis partitioner for serial builds
+    * PR #147: Rename __SDIR__ macro
+    * PR #132: CartVect duplicate removal
+    * PR #142: simplify CpuTimer
+    * PR #138: Updates to TestUtil and testMatrix3 to make sure eigenvectors (normalized) are checked correctly.
+    * PR #136: Add checks for dense double tags
+    * PR #130: Fix for the way Eigenvectors are returned in the Eigenvalue decomposition function.
+    * PR #133: Face-to-volume Sense Corrections (MOAB)
+    * PR #120: Fixed the test_adj.
+    * PR #126: remove redundant definition of CpuTimer in WriteHDF5Parallel.cpp
+    * PR #123: Fix element_test issue due to missing mesh files
+    * PR #125: Bug in Coupler
+    * PR #119: Fix dual_test issue due to missing mesh file
+  @ Parallel fixes
+    * PR #160: fix hdf5 parallel reader if number of partitions is too small 
+    * PR #159: run more parallel tests when built without HDF5
+    * PR #158: add option to skip augmenting the default sets with ghosts
+    * PR #145: factor in sequence manager for ghosting
+    * PR #141: populate sets with ghost entities
+    * PR #131: merge_all method added to merge mesh class
+  @ I/O
+    * PR #151: HDF5 parallel reader bug
+    * PR #128: hdf5 file with more than 2^32 entities
+  @ Memory leaks
+    * PR #156: Various fixes for memory leaks in serial and parallel examples
+    * PR #153: Valgrind fix for parallel_hdf5_test
+    * PR #127: Gen large mesh memory reduction
+    * PR #116: changes for large mesh example
+
 # Version 4.8.2:
 ** Fixes
   * PR #106: Ghosting polyhedra elements
