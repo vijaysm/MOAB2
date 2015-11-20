@@ -551,8 +551,12 @@ ErrorCode TupleList::sort(uint key, TupleList::buffer *buf)
   const unsigned real_size = mr * sizeof(realType);
   const unsigned width = umax_2(umax_2(int_size,long_size),
       umax_2(Ulong_size,real_size));
-  const unsigned data_size =
+  unsigned data_size =
       key >= mi ? sizeof(SortData<long> ) : sizeof(SortData<uint> );
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32)
+  if (key>=mi+ml)
+    data_size = sizeof(SortData<Ulong> );
+#endif 
 
   uint work_min = n * umax_2(2*data_size,sizeof(sint)+width);
   uint *work;
