@@ -1,10 +1,11 @@
 #ifndef FBGEOMASSOCPAIRSIDE_HPP
 #define FBGEOMASSOCPAIRSIDE_HPP
 
+#include "irel_export.h"
 #include "AssocPairSide.hpp"
 #include <FBiGeom.h>
 
-class FBGeomAssocPairSide : public AssocPairSide
+class IREL_EXPORT FBGeomAssocPairSide : public AssocPairSide
 {
 public:
   FBGeomAssocPairSide(iRel_Instance relation, iBase_Instance instance, int id);

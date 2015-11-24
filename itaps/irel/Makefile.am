@@ -30,7 +30,8 @@ libiRel_la_SOURCES = \
 
 libiRel_la_include_HEADERS = iRel.h \
 														 iRel_f.h \
-														 iRel_protos.h
+														 iRel_protos.h \
+														 irel_export.h
 
 # The directory in which to install headers
 libiRel_la_includedir = $(includedir)

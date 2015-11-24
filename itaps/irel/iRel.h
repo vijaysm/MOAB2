@@ -1,6 +1,8 @@
 #ifndef _ITAPS_iRel
 #define _ITAPS_iRel
 
+#include "irel_export.h"
+
 /***************************************************************************//**
  * \ingroup VersionNumbers
  * \brief Compile time version number digits
@@ -141,7 +143,7 @@ enum iRel_RelationStatus {
  * Get the error type returned from the last iRel function.  Value
  * returned is a member of the iBase_ErrorType enumeration.
  ******************************************************************************/
-void iRel_getErrorType(
+void IREL_EXPORT iRel_getErrorType(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     int* error_type
@@ -153,7 +155,7 @@ void iRel_getErrorType(
  *
  * Get a description of the error returned from the last iRel function
  ******************************************************************************/
-void iRel_getDescription(
+void IREL_EXPORT iRel_getDescription(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     char* descr,
@@ -168,7 +170,7 @@ void iRel_getDescription(
  *
  * Create a new iRel instance.  Currently no options are implemented.
  ******************************************************************************/
-void iRel_create(
+void IREL_EXPORT iRel_create(
     const char* options,
         /**< const Options for the implementation */
     iRel_Instance* instance,
@@ -184,7 +186,7 @@ void iRel_create(
  *
  * Calls destructor on interface object
  ******************************************************************************/
-void iRel_destroy(
+void IREL_EXPORT iRel_destroy(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     int* err
@@ -200,7 +202,7 @@ void iRel_destroy(
  * iRel_NOTEXIST, the relation for that side is never stored, and the status
  * cannot change over the life of the relation pair.  
  ******************************************************************************/
-void iRel_createPair(
+void IREL_EXPORT iRel_createPair(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     iBase_Instance iface1,
@@ -234,7 +236,7 @@ void iRel_createPair(
  * relation.  Relation type for each side is passed back as integers,
  * but values will be from RelationType enumeration.
  ******************************************************************************/
-void iRel_getPairInfo(
+void IREL_EXPORT iRel_getPairInfo(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     iRel_PairHandle pair,
@@ -266,7 +268,7 @@ void iRel_getPairInfo(
  * result in no lost information are allowed, e.g. changing a type from SET
  * to BOTH or vice versa.
  ******************************************************************************/
-void iRel_changePairType(
+void IREL_EXPORT iRel_changePairType(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     iRel_PairHandle pair,
@@ -291,7 +293,7 @@ void iRel_changePairType(
  * else is an error, since in that case neither will be able to be updated to
  * iRel_ACTIVE.
  ******************************************************************************/
-void iRel_changePairStatus(
+void IREL_EXPORT iRel_changePairStatus(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     iRel_PairHandle pair,
@@ -309,7 +311,7 @@ void iRel_changePairStatus(
  *
  * Destroy the relation pair corresponding to the handle input
  ******************************************************************************/
-void iRel_destroyPair(
+void IREL_EXPORT iRel_destroyPair(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     iRel_PairHandle pair,
@@ -323,7 +325,7 @@ void iRel_destroyPair(
  *
  * Get relations containing the specified interface
  ******************************************************************************/
-void iRel_findPairs(
+void IREL_EXPORT iRel_findPairs(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     iBase_Instance iface,
@@ -345,7 +347,7 @@ void iRel_findPairs(
  * Set a relation between an entity and several entities. It is an error
  * to set a relation on a pair with both sides not iRel_ACTIVE.
  ******************************************************************************/
-void iRel_setEntEntRelation(
+void IREL_EXPORT iRel_setEntEntRelation(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     iRel_PairHandle pair,
@@ -363,7 +365,7 @@ void iRel_setEntEntRelation(
  *
  * Description unavailable.
  ******************************************************************************/
-void iRel_setEntSetRelation(
+void IREL_EXPORT iRel_setEntSetRelation(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     iRel_PairHandle pair,
@@ -381,7 +383,7 @@ void iRel_setEntSetRelation(
  *
  * Description unavailable.
  ******************************************************************************/
-void iRel_setSetEntRelation(
+void IREL_EXPORT iRel_setSetEntRelation(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     iRel_PairHandle pair,
@@ -401,7 +403,7 @@ void iRel_setSetEntRelation(
  * Set a relation between an entity and several entities.  It is an error to set
  * a relation on a pair with both sides not iRel_ACTIVE.
  ******************************************************************************/
-void iRel_setSetSetRelation(
+void IREL_EXPORT iRel_setSetSetRelation(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     iRel_PairHandle pair,
@@ -424,7 +426,7 @@ void iRel_setSetSetRelation(
  * set relations for individual entities in those sets too.  It is an error to
  * set a relation on a pair with both sides not iRel_ACTIVE.
  ******************************************************************************/
-void iRel_setEntArrEntArrRelation(
+void IREL_EXPORT iRel_setEntArrEntArrRelation(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     iRel_PairHandle pair,
@@ -446,7 +448,7 @@ void iRel_setEntArrEntArrRelation(
  *
  * Description unavailable.
  ******************************************************************************/
-void iRel_setSetArrEntArrRelation(
+void IREL_EXPORT iRel_setSetArrEntArrRelation(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     iRel_PairHandle pair,
@@ -468,7 +470,7 @@ void iRel_setSetArrEntArrRelation(
  *
  * Description unavailable.
  ******************************************************************************/
-void iRel_setEntArrSetArrRelation(
+void IREL_EXPORT iRel_setEntArrSetArrRelation(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     iRel_PairHandle pair,
@@ -495,7 +497,7 @@ void iRel_setEntArrSetArrRelation(
  * set relations for individual entities in those sets too.  It is an error to
  * set a relation on a pair with both sides not iRel_ACTIVE.
  ******************************************************************************/
-void iRel_setSetArrSetArrRelation(
+void IREL_EXPORT iRel_setSetArrSetArrRelation(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     iRel_PairHandle pair,
@@ -519,7 +521,7 @@ void iRel_setSetArrSetArrRelation(
  * returns whether the related entity is an entity or a set.  It is an error to
  * get a relation for a side with status iRel_NOTEXIST.
  ******************************************************************************/
-void iRel_getEntEntRelation(
+void IREL_EXPORT iRel_getEntEntRelation(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     iRel_PairHandle pair,
@@ -540,7 +542,7 @@ void iRel_getEntEntRelation(
  *
  * Description unavailable.
  ******************************************************************************/
-void iRel_getEntSetRelation(
+void IREL_EXPORT iRel_getEntSetRelation(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     iRel_PairHandle pair,
@@ -561,7 +563,7 @@ void iRel_getEntSetRelation(
  *
  * Description unavailable.
  ******************************************************************************/
-void iRel_getSetEntRelation(
+void IREL_EXPORT iRel_getSetEntRelation(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     iRel_PairHandle pair,
@@ -582,7 +584,7 @@ void iRel_getSetEntRelation(
  *
  * Description unavailable.
  ******************************************************************************/
-void iRel_getSetSetRelation(
+void IREL_EXPORT iRel_getSetSetRelation(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     iRel_PairHandle pair,
@@ -604,7 +606,7 @@ void iRel_getSetSetRelation(
  *
  * Description unavailable.
  ******************************************************************************/
-void iRel_getEntSetIterRelation(
+void IREL_EXPORT iRel_getEntSetIterRelation(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     iRel_PairHandle pair,
@@ -629,7 +631,7 @@ void iRel_getEntSetIterRelation(
  * ent_array_1.  It is an error to get a relation for a side with status
  * iRel_NOTEXIST.
  ******************************************************************************/
-void iRel_getEntArrEntArrRelation(
+void IREL_EXPORT iRel_getEntArrEntArrRelation(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     iRel_PairHandle pair,
@@ -657,7 +659,7 @@ void iRel_getEntArrEntArrRelation(
  *
  * Description unavailable.
  ******************************************************************************/
-void iRel_getEntArrSetArrRelation(
+void IREL_EXPORT iRel_getEntArrSetArrRelation(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     iRel_PairHandle pair,
@@ -685,7 +687,7 @@ void iRel_getEntArrSetArrRelation(
  *
  * Description unavailable.
  ******************************************************************************/
-void iRel_getSetArrEntArrRelation(
+void IREL_EXPORT iRel_getSetArrEntArrRelation(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     iRel_PairHandle pair,
@@ -713,7 +715,7 @@ void iRel_getSetArrEntArrRelation(
  *
  * Description unavailable.
  ******************************************************************************/
-void iRel_getSetArrSetArrRelation(
+void IREL_EXPORT iRel_getSetArrSetArrRelation(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     iRel_PairHandle pair,
@@ -741,7 +743,7 @@ void iRel_getSetArrSetArrRelation(
  *
  * Description unavailable.
  ******************************************************************************/
-void iRel_getEntArrSetIterArrRelation(
+void IREL_EXPORT iRel_getEntArrSetIterArrRelation(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     iRel_PairHandle pair,
@@ -769,7 +771,7 @@ void iRel_getEntArrSetIterArrRelation(
  *
  * Remove a relation from an entity
  ******************************************************************************/
-void iRel_rmvEntRelation(
+void IREL_EXPORT iRel_rmvEntRelation(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     iRel_PairHandle pair,
@@ -788,7 +790,7 @@ void iRel_rmvEntRelation(
  *
  * Remove a relation from an entity set
  ******************************************************************************/
-void iRel_rmvSetRelation(
+void IREL_EXPORT iRel_rmvSetRelation(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     iRel_PairHandle pair,
@@ -807,7 +809,7 @@ void iRel_rmvSetRelation(
  *
  * Remove a relation from an array of entities
  ******************************************************************************/
-void iRel_rmvEntArrRelation(
+void IREL_EXPORT iRel_rmvEntArrRelation(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     iRel_PairHandle pair,
@@ -828,7 +830,7 @@ void iRel_rmvEntArrRelation(
  *
  * Remove a relation from an array of entity sets
  ******************************************************************************/
-void iRel_rmvSetArrRelation(
+void IREL_EXPORT iRel_rmvSetArrRelation(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     iRel_PairHandle pair,
@@ -852,7 +854,7 @@ void iRel_rmvSetArrRelation(
  * the pair, the iRel implementation, and the source of the data in those
  * interfaces.
  ******************************************************************************/
-void iRel_inferAllRelations(
+void IREL_EXPORT iRel_inferAllRelations(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     iRel_PairHandle pair,
@@ -870,7 +872,7 @@ void iRel_inferAllRelations(
  * infer these relations depends on the interfaces in the pair, the iRel
  * implementation, and the source of the data in those interfaces.
  ******************************************************************************/
-void iRel_inferAllRelationsAndType(
+void IREL_EXPORT iRel_inferAllRelationsAndType(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     iRel_PairHandle* pair,
@@ -887,7 +889,7 @@ void iRel_inferAllRelationsAndType(
  * the pair, the iRel implementation, and the source of the data in those
  * interfaces.
  ******************************************************************************/
-void iRel_inferEntRelations(
+void IREL_EXPORT iRel_inferEntRelations(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     iRel_PairHandle pair,
@@ -906,7 +908,7 @@ void iRel_inferEntRelations(
  *
  * Description unavailable
  ******************************************************************************/
-void iRel_inferSetRelations(
+void IREL_EXPORT iRel_inferSetRelations(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     iRel_PairHandle pair,
@@ -927,7 +929,7 @@ void iRel_inferSetRelations(
  * the pair, the iRel implementation, and the source of the data in those
  * interfaces.
  ******************************************************************************/
-void iRel_inferEntArrRelations(
+void IREL_EXPORT iRel_inferEntArrRelations(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     iRel_PairHandle pair,
@@ -948,7 +950,7 @@ void iRel_inferEntArrRelations(
  *
  * Description unavailable
  ******************************************************************************/
-void iRel_inferSetArrRelations(
+void IREL_EXPORT iRel_inferSetArrRelations(
     iRel_Instance instance,
         /**< [in] iRel instance handle */
     iRel_PairHandle pair,
