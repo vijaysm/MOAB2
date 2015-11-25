@@ -105,6 +105,7 @@ list(APPEND lasso_includes
 
 install(
   TARGETS   iRel
+  EXPORT    MOABTargets
   RUNTIME   DESTINATION bin
   LIBRARY   DESTINATION lib
   ARCHIVE   DESTINATION lib
