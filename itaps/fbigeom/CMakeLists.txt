@@ -39,6 +39,11 @@ if ( MOAB_HAVE_MPI )
 endif ()
 
 target_link_libraries( FBiGeomMOAB MOAB iMesh )
+target_include_directories(FBiGeomMOAB
+  PUBLIC
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>"
+    "$<INSTALL_INTERFACE:include>")
 
 set_target_properties(
   FBiGeomMOAB
