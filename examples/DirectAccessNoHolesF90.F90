@@ -161,7 +161,7 @@ program DirectAccessNoHolesF90
 
     ! Ok, we are done, shut down MOAB
   call iMesh_dtor(%VAL(imesh), ierr)
-  return
+  CHECK(ierr)
 end program DirectAccessNoHolesF90
 
 subroutine create_mesh_no_holes(imesh, nquads, ierr) 

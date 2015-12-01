@@ -1,21 +1,9 @@
 cmake_minimum_required( VERSION 2.8.12 )
 SET(PACKAGE_NAME "MOAB")
-SET(PACKAGE_VERSION "4.8.3pre")
+SET(PACKAGE_VERSION "4.9.1pre")
 
 if (NOT WIN32)
   #This all breaks on windows.
-  if ( MPI_DIR )
-    message ("Checking for MPI compilers in ${MPI_DIR}/bin")
-    SET(CMAKE_USER_CXX_COMPILER_PATH ${MPI_DIR}/bin ${MPI_DIR})
-    SET(CMAKE_GENERATOR_CC ${CC} mpicc mpixlc_r mpixlc hcc mpxlc_r mpxlc sxmpicc mpifcc mpgcc mpcc cmpicc)
-    SET(CMAKE_GENERATOR_CXX ${CXX} mpicxx mpic++ mpiCC sxmpic++ hcp mpxlC_r mpxlC mpixlcxx_r mpixlcxx mpg++ mpc++ mpCC cmpic++ mpiFCC)
-    SET(CMAKE_GENERATOR_FC ${FC} ${F90} mpif95 mpxlf95_r mpxlf95 ftn mpif90 mpxlf90_r mpxlf90 mpf90 cmpif90c sxmpif90)
-  else ( MPI_DIR )
-    message ("Checking for non-MPI native compilers")
-    SET(CMAKE_GENERATOR_CC ${CC} gcc icc pgcc cc)
-    SET(CMAKE_GENERATOR_CXX ${CXX} CCicpc pgCC pathCC sxc++ xlC_r xlC bgxlC_r bgxlC openCC sunCC crayCC icpc g++ c++ gpp aCC CC cxx cc++ cl.exe FCC KCC RCC)
-    SET(CMAKE_GENERATOR_FC ${FC} ${F90} pathf95 ifort gfortran g95 f95 fort ifc efc openf95 sunf95 crayftn lf95 ftn xlf90 f90 pgf90 pghpf pathf90 epcf90 sxf90 openf90 sunf90)
-  endif ( MPI_DIR )
   SET(CMAKE_Fortran_COMPILER_INIT ${CMAKE_GENERATOR_FC})
   SET(CMAKE_CXX_FLAGS_INIT "-fPIC -DPIC")
   SET(CMAKE_CXX_FLAGS_DEBUG_INIT "-O0 -g")
@@ -112,14 +100,8 @@ option ( BUILD_SHARED_LIBS   "Should shared or static libraries be created?"   O
 option ( ENABLE_SZIP       "Should build with szip support?"                 OFF )
 option ( ENABLE_CGM        "Should build with CGM support?"                  OFF )
 option ( ENABLE_CGNS       "Should build with CGNS support?"                 OFF )
-if ( MPI_DIR )
-  option ( ENABLE_MPI        "Should MOAB be compiled with MPI support?"       ON )
-else ( MPI_DIR )
-  option ( ENABLE_MPI        "Should MOAB be compiled with MPI support?"       OFF )
-endif ( MPI_DIR )
+option ( ENABLE_MPI        "Should MOAB be compiled with MPI support?"       OFF )
 option ( ENABLE_HDF5       "Include HDF I/O interfaces in the build?"                   OFF )
-option ( ENABLE_METIS      "Include Metis partitioning interfaces in the build?"                   OFF )
-option ( ENABLE_PARMETIS   "Include parallel Metis partitioning interfaces in the build?"                   OFF )
 option ( ENABLE_NETCDF     "Include NetCDF support (ExodusII) interfaces in the build?" OFF )
 option ( ENABLE_PNETCDF    "Include parallel NetCDF support (ExodusII) interfaces in the build?" OFF )
 option ( ENABLE_METIS      "Include Metis support for partitioning algorithms?" OFF )
@@ -160,6 +142,8 @@ set( HAVE_INTTYPES_H    ${MOAB_HAVE_INTTYPES_H} )
 set( HAVE_STDLIB_H    ${MOAB_HAVE_STDLIB_H} )
 check_include_file( memory.h     MOAB_HAVE_MEMORY_H )
 
+INCLUDE(TestBigEndian)
+TEST_BIG_ENDIAN(WORDS_BIGENDIAN)
 ################################################################################
 # Integer size Related Settings
 ################################################################################
@@ -183,6 +167,11 @@ if ( NOT MOAB_FORCE_64_BIT_HANDLES AND NOT MOAB_FORCE_32_BIT_HANDLES )
   set ( HAVE_PTRDIFF_T ${MOAB_HAVE_PTRDIFF_T} )
 endif ( NOT MOAB_FORCE_64_BIT_HANDLES AND NOT MOAB_FORCE_32_BIT_HANDLES )
 
+# Check of presence of finite or isfinite macros
+include (CheckFunctionExists)
+CHECK_FUNCTION_EXISTS(std::isfinite MOAB_HAVE_STDISFINITE)
+CHECK_FUNCTION_EXISTS(isfinite MOAB_HAVE_ISFINITE)
+CHECK_FUNCTION_EXISTS(finite MOAB_HAVE_FINITE)
 
 ################################################################################
 # Find packages
@@ -224,7 +213,7 @@ endif (ENABLE_ZLIB)
 #set (MOAB_HAVE_HDF5 0 CACHE INTERNAL "Found necessary HDF5 components. Configure MOAB with it." )
 #set (MOAB_HAVE_HDF5_PARALLEL 0 CACHE INTERNAL "Found necessary parallel HDF5 components. Configure MOAB with it." )
 if ( ENABLE_HDF5 )
-  find_package( HDF5 REQUIRED )
+  find_package( HDF5_MOAB REQUIRED )
   #set( MOAB_DEFINES "-DHDF5_FILE ${MOAB_DEFINES}" )
   set (MOAB_HAVE_HDF5 1)
   # if ( HDF5_IS_PARALLEL AND MOAB_HAVE_MPI )

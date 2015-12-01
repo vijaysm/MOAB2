@@ -35,6 +35,7 @@
 #include "moab/CN.hpp"
 
 #ifdef MOAB_HAVE_CGM
+#include "cgm_version.h"
 #include <limits>
 #include "RefEntity.hpp"
 #include "RefFace.hpp"
@@ -334,6 +335,13 @@ ErrorCode  ZoltanPartitioner::repartition(std::vector<double> & x,std::vector<do
   std::copy(export_global_ids, export_global_ids+num_export, range_inserter(exported));
   localGIDs=subtract(iniGids, exported);
   localGIDs=unite(localGIDs, imported);
+  // Free data structures allocated by Zoltan::LB_Partition
+  retval = myZZ-> LB_Free_Part(&import_global_ids, &import_local_ids,
+           &import_procs, &import_to_part);
+  if (ZOLTAN_OK != retval) return MB_FAILURE;
+  retval = myZZ-> LB_Free_Part(&export_global_ids, &export_local_ids,
+           &assign_procs, &assign_parts);
+  if (ZOLTAN_OK != retval) return MB_FAILURE;
 
   return MB_SUCCESS;
 }
@@ -935,10 +943,23 @@ double ZoltanPartitioner::estimate_face_mesh_load(RefEntity* face, const double 
 double ZoltanPartitioner::estimate_face_comm_load(RefEntity* face, const double h)
 {
   double peri = 0.;
+#if ((CGM_MAJOR_VERSION == 14 && CGM_MINOR_VERSION > 2) || CGM_MAJOR_VERSION == 15)
+  DLIList<DLIList<RefEdge*> > ref_edge_loops;
+#else
   DLIList<DLIList<RefEdge*>*> ref_edge_loops;
+#endif
   CAST_TO(face, RefFace)->ref_edge_loops(ref_edge_loops);
   ref_edge_loops.reset();
 
+#if ((CGM_MAJOR_VERSION == 14 && CGM_MINOR_VERSION > 2) || CGM_MAJOR_VERSION == 15)
+  for (int i = 0; i < ref_edge_loops.size(); i++) {
+    DLIList<RefEdge*> eloop = ref_edge_loops.get_and_step();
+    eloop.reset();
+    for (int j = 0; j < eloop.size(); j++) {
+      peri += eloop.get_and_step()->measure();
+    }
+  }
+#else
   for (int i = 0; i < ref_edge_loops.size(); i++) {
     DLIList<RefEdge*>* eloop = ref_edge_loops.get_and_step();
     eloop->reset();
@@ -946,6 +967,7 @@ double ZoltanPartitioner::estimate_face_comm_load(RefEntity* face, const double 
       peri += eloop->get_and_step()->measure();
     }
   }
+#endif
   
   //return 104*face->measure()/sqrt(3)/h/h + 56/3*peri/h;
   return (104*face->measure()/sqrt(3)/h/h + 56/3*peri/h)/700000.;
@@ -1498,6 +1520,9 @@ ErrorCode ZoltanPartitioner::write_partition(const int nparts,
     for (i = 0; i < nparts; i++) dum_ids[i] = i;
   
     result = mbImpl->tag_set_data(part_set_tag, partSets, dum_ids); RR;
+    // found out by valgrind when we run mbpart 
+    delete [] dum_ids;
+    dum_ids = NULL;
 
     // assign entities to the relevant sets
     std::vector<EntityHandle> tmp_part_sets;

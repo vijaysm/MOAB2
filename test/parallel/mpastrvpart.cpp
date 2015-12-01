@@ -197,11 +197,8 @@ void read_one_cell_var(bool rcbzoltan, bool no_mixed_elements)
     CHECK_ERR(rval);
 
     if (rcbzoltan) {
-      if (no_mixed_elements)
-        CHECK_EQUAL((size_t)1, local_cells.psize());
-      else
-        CHECK_EQUAL((size_t)2, local_cells.psize());
 
+      CHECK_EQUAL((size_t)1, local_cells.psize());
       CHECK_EQUAL((size_t)37, local_cell_gids.psize());
 
       if (0 == rank) {
@@ -233,10 +230,7 @@ void read_one_cell_var(bool rcbzoltan, bool no_mixed_elements)
       CHECK_EQUAL((size_t)1, local_cell_gids.psize());
 
       if (0 == rank) {
-        if (no_mixed_elements)
-          CHECK_EQUAL((size_t)1, local_cells.psize());
-        else
-          CHECK_EQUAL((size_t)2, local_cells.psize());
+        CHECK_EQUAL((size_t)1, local_cells.psize());
         CHECK_EQUAL(1, (int)local_cell_gids[0]);
         CHECK_EQUAL(161, (int)local_cell_gids[160]);
         CHECK_EQUAL(321, (int)local_cell_gids[320]);
@@ -375,23 +369,7 @@ void read_mesh_parallel(bool rcbzoltan, bool no_mixed_elements)
   int cells_num = local_cells.size();
   if (2 == procs) {
     CHECK_EQUAL(321, cells_num);
-
-    if (rcbzoltan) {
-      if (no_mixed_elements)
-        CHECK_EQUAL((size_t)1, local_cells.psize());
-      else
-        CHECK_EQUAL((size_t)2, local_cells.psize());
-     }
-    else {
-      if (0 == rank) {
-        if (no_mixed_elements)
-          CHECK_EQUAL((size_t)1, local_cells.psize());
-        else
-          CHECK_EQUAL((size_t)2, local_cells.psize());
-      }
-      else if (1 == rank)
-        CHECK_EQUAL((size_t)1, local_cells.psize());
-    }
+    CHECK_EQUAL((size_t)1, local_cells.psize());
   }
 
   rval = pcomm->filter_pstatus(local_cells, PSTATUS_NOT_OWNED, PSTATUS_NOT);
@@ -400,23 +378,7 @@ void read_mesh_parallel(bool rcbzoltan, bool no_mixed_elements)
   cells_num = local_cells.size();
   if (2 == procs) {
     CHECK_EQUAL(321, cells_num);
-
-    if (rcbzoltan) {
-      if (no_mixed_elements)
-        CHECK_EQUAL((size_t)1, local_cells.psize());
-      else
-        CHECK_EQUAL((size_t)2, local_cells.psize());
-    }
-    else {
-      if (0 == rank) {
-        if (no_mixed_elements)
-          CHECK_EQUAL((size_t)1, local_cells.psize());
-        else
-          CHECK_EQUAL((size_t)2, local_cells.psize());
-      }
-      else if (1 == rank)
-        CHECK_EQUAL((size_t)1, local_cells.psize());
-    }
+    CHECK_EQUAL((size_t)1, local_cells.psize());
   }
 
   std::cout << "proc: " << rank << " verts:" << verts_num << "\n";
@@ -518,7 +480,7 @@ void gather_one_cell_var(int gather_set_rank)
     rval = mb.get_entities_by_type(gather_set, MBPOLYGON, gather_set_cells);
     CHECK_ERR(rval);
     CHECK_EQUAL((size_t)642, gather_set_cells.size());
-    CHECK_EQUAL((size_t)2, gather_set_cells.psize());
+    CHECK_EQUAL((size_t)1, gather_set_cells.psize());
 
     // Check ke0 tag values on 4 gather set cells: first pentagon, last pentagon,
     // first hexagon and last hexagon
@@ -604,11 +566,7 @@ void multiple_loads_of_same_file(bool no_mixed_elements)
     if (0 == rank) {
       CHECK_EQUAL((size_t)1120, local_verts.size());
       CHECK_EQUAL((size_t)1438, local_edges.size());
-      if (no_mixed_elements)
-        CHECK_EQUAL((size_t)1, local_cells.psize());
-      else
-        CHECK_EQUAL((size_t)2, local_cells.psize());
-
+      CHECK_EQUAL((size_t)1, local_cells.psize());
       CHECK_REAL_EQUAL(15.001, ke0_val[0], eps);
       CHECK_REAL_EQUAL(16.161, ke0_val[1], eps);
       CHECK_REAL_EQUAL(16.321, ke0_val[2], eps);

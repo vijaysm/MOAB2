@@ -16,41 +16,55 @@
 #ifndef MB_UTIL_HPP
 #define MB_UTIL_HPP
 
+#include "moab/MOABConfig.h"
 #include "moab/Forward.hpp"
+#include "moab/CartVect.hpp"
+
+#include <math.h>
+#if defined MOAB_HAVE_ISFINITE
+#define moab_isfinite(f) isfinite(f)
+#elif defined MOAB_HAVE_STDISFINITE
+#include <cmath>
+#define moab_isfinite(f) std::isfinite(f)
+#elif defined MOAB_HAVE_FINITE
+#define moab_isfinite(f) finite(f)
+#else
+#define moab_isfinite(f) (!isinf(f) && !isnan(f))
+#endif
 
 namespace moab {
 
-/** \struct Coord
- * \brief Structure for storing coordinate data
- */
-struct  Coord
-{
-  double x;
-  double y;
-  double z;
-};
-
 /** \class Util
  *
- * \brief Utility functions for normal and centroid for entities
+ * \brief Utility functions for computational geometry and mathematical calculations
  */
 class Util
 {
 public:
-   
+
+  template <typename T>
+  static bool is_finite(T value);
+  
   static void normal(Interface* MB, EntityHandle handle, double& x, double& y, double& z);
 
-  static void centroid(Interface *MB, EntityHandle handle,Coord &coord);
+  static void centroid(Interface *MB, EntityHandle handle,CartVect &coord);
 
-  //static void edge_centers(Interface *MB, EntityHandle handle, std::vector<Coord> &coords_list);
+  //static void edge_centers(Interface *MB, EntityHandle handle, std::vector<CartVect> &coords_list);
 
-  //static void face_centers(Interface *MB, EntityHandle handle, std::vector<Coord> &coords_list);
+  //static void face_centers(Interface *MB, EntityHandle handle, std::vector<CartVect> &coords_list);
 
 private:
 
   Util(){}
 
 };
+
+template <typename T>
+inline
+bool Util::is_finite(T value)
+{
+  return moab_isfinite(value);
+}
 
 } // namespace moab
 

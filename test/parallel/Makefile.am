@@ -33,14 +33,14 @@ TESTS = pcomm_unit \
         scdtest \
         pcomm_serial \
 	par_spatial_locator_test \
+	parallel_unit_tests \
         $(NETCDF_TESTS) \
         $(HDF5_TESTS) \
         $(MBCSLAM_TESTS) $(IMESH_TESTS)
 
 if HAVE_HDF5_PARALLEL
   HDF5_TESTS = parallel_hdf5_test mhdf_parallel parallel_write_test \
-        parallel_unit_tests \
-        uber_parallel_test parallel_adj parmerge_test
+        uber_parallel_test parallel_adj parmerge_test augment_with_ghosts
 else
   HDF5_TESTS = 
 endif
@@ -111,6 +111,7 @@ write_nc_par_SOURCES = ../io/write_nc.cpp
 par_spatial_locator_test_SOURCES = par_spatial_locator_test.cpp
 parallel_adj_SOURCES = ../adj_moab_test.cpp
 parmerge_test_SOURCES = parmerge_test.cpp
+augment_with_ghosts_SOURCES = augment_with_ghosts.cpp
 
 if ENABLE_imesh
 if HAVE_HDF5_PARALLEL
@@ -155,4 +156,8 @@ MOSTLYCLEANFILES = mhdf_ll.h5m tmp0.h5m tmp1.h5m tmp2.h5m tmp3.h5m \
                    test_par_mpas_vars.nc \
                    test2.h5m  \
                    testpm.h5m \
-                   newfile.h5m
+                   newfile.h5m \
+                   TaskMesh_n2.0.h5m \
+                   TaskMesh_n2.1.h5m \
+                   testReadGhost_n2.0.h5m \
+                   testReadGhost_n2.1.h5m

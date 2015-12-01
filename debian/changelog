@@ -1,4 +1,10 @@
-moab (4.99) unstable; urgency=low
+moab (4.8.0) unstable; urgency=low
+
+  * Initial Release.
+
+ -- Nico Schlömer <nico.schloemer@gmail.com>  Mon, 07 Sep 2015 20:21:22 +0100
+
+moab (4.0.0) unstable; urgency=low
 
   * Initial Release.
 

@@ -34,6 +34,7 @@ using namespace std;
 string test_file_name = string(MESH_DIR) + string("/mbtest2.g");
 int main(int argc, char **argv)
 {
+#ifdef MOAB_HAVE_NETCDF
   // Get MOAB instance
   Interface* mb = new (std::nothrow) Core;
   if (NULL == mb)
@@ -85,6 +86,9 @@ int main(int argc, char **argv)
   }
 
   delete mb;
+#else
+  cout<< " This test needs moab configured with netcdf \n"; 
+#endif
 
   return 0;
 }
