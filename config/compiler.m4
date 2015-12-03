@@ -326,13 +326,23 @@ if (test "x$ENABLE_FORTRAN" != "xno" && test "x$CHECK_FC" != "xno"); then
 
     if (test "$fcxxlinkage" != "yes"); then
       my_save_ldflags="$LDFLAGS"
-      LDFLAGS="$LDFLAGS -lstdc++"
-      AC_MSG_CHECKING([whether $FC supports -stdlib=libstdc++])
-      AC_LINK_IFELSE([AC_LANG_PROGRAM([])],
-          [AC_MSG_RESULT([yes])]
-          [FFLAGS="$FFLAGS -lstdc++"; FCFLAGS="$FCFLAGS -lstdc++"; FLIBS="$FLIBS -lstdc++"; FCLIBS="$FCLIBS -lstdc++"],
-          [AC_MSG_RESULT([no])]
-      )
+    	if (test "$cc_compiler" != "Clang"); then
+        LDFLAGS="$LDFLAGS -lstdc++"
+        AC_MSG_CHECKING([whether $FC supports -stdlib=libstdc++])
+        AC_LINK_IFELSE([AC_LANG_PROGRAM([])],
+            [AC_MSG_RESULT([yes])]
+            [fcxxlinkage=yes; FFLAGS="$FFLAGS -lstdc++"; FCFLAGS="$FCFLAGS -lstdc++"; FLIBS="$FLIBS -lstdc++"; FCLIBS="$FCLIBS -lstdc++"],
+            [AC_MSG_RESULT([no])]
+        )
+      else
+        LDFLAGS="$LDFLAGS -lc++"
+        AC_MSG_CHECKING([whether $FC supports -stdlib=libc++])
+        AC_LINK_IFELSE([AC_LANG_PROGRAM([])],
+            [AC_MSG_RESULT([yes])]
+            [fcxxlinkage=yes; FFLAGS="$FFLAGS -lc++"; FCFLAGS="$FCFLAGS -lc++"; FLIBS="$FLIBS -lc++"; FCLIBS="$FCLIBS -lc++"],
+            [AC_MSG_RESULT([no])]
+        )
+      fi
       LDFLAGS="$my_save_ldflags"
     fi
 
@@ -641,7 +651,7 @@ case "$cxx_compiler:$host_cpu" in
     FATHOM_CXX_64BIT=-xarch=generic64
     ;;
   Clang:*)
-    FATHOM_CXX_SPECIAL="$EXTRA_GNU_FLAGS -stdlib=libstdc++"
+    FATHOM_CXX_SPECIAL="$EXTRA_GNU_FLAGS"
     FATHOM_CXX_32BIT=-m32
     FATHOM_CXX_64BIT=-m64
     ;;
@@ -657,7 +667,7 @@ AC_MSG_RESULT([$cxx_compiler:$host_os:$host_cpu])
 # Check for specific overrides
 CXX_LDFLAGS=""
 if (test "$cxx_compiler:${host_os:0:6}" == "Clang:darwin"); then
-  CXX_LDFLAGS="$CXX_LDFLAGS -stdlib=libstdc++"
+  CXX_LDFLAGS="$CXX_LDFLAGS -stdlib=libc++"
   LIBS="$LIBS -lc++"
 fi
 AC_SUBST(CXX_LDFLAGS)
