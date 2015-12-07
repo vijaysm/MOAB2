@@ -1,12 +1,4 @@
-set(extra_langs)
-
-option(LASSO_ENABLE_FORTRAN "Enable Fortran" OFF)
-if (LASSO_ENABLE_FORTRAN)
-  list(APPEND extra_langs
-    Fortran)
-endif ()
-
-project(Lasso CXX ${extra_langs})
+project(Lasso CXX)
 
 if (MOAB_HAS_MPI)
   find_package(MPI REQUIRED)
