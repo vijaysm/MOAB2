@@ -95,12 +95,18 @@ generate_export_header(iRel)
 list(APPEND lasso_includes
   "${CMAKE_CURRENT_BINARY_DIR}/irel_export.h")
 
+set_target_properties(iRel
+  PROPERTIES
+    VERSION   ${MOAB_VERSION}
+    SOVERSION ${MOAB_VERSION_MAJOR}
+  )
+
 install(
   TARGETS   iRel
   EXPORT    MOABTargets
-  RUNTIME   DESTINATION bin
-  LIBRARY   DESTINATION lib
-  ARCHIVE   DESTINATION lib
+  RUNTIME   DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY   DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  ARCHIVE   DESTINATION ${CMAKE_INSTALL_LIBDIR}
   COMPONENT Runtime)
 install(
   FILES       ${lasso_includes}
