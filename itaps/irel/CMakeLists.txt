@@ -2,7 +2,6 @@ project(Lasso CXX)
 
 if (MOAB_HAS_MPI)
   find_package(MPI REQUIRED)
-  add_definitions(-DUSE_MPI)
 endif ()
 
 if (CGM_FOUND)
