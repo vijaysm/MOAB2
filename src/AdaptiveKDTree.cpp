@@ -480,7 +480,7 @@ namespace moab {
           return rval;
     
         iter.childVect.clear();
-        moab()->get_child_meshsets( h, iter.childVect );
+        rval = moab()->get_child_meshsets( h, iter.childVect );MB_CHK_ERR(rval);
         if (!iter.childVect.empty()) {
           moab()->remove_child_meshset( h, iter.childVect[0] );
           moab()->remove_child_meshset( h, iter.childVect[1] );
