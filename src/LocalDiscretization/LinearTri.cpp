@@ -31,7 +31,7 @@ namespace moab
       
       *Tinv = T->inverse();
       *detT = T->determinant();
-      *detTinv = (0.0 == *detT ? HUGE : 1.0 / *detT);
+      *detTinv = (*detT < 1e-12 ? std::numeric_limits<double>::max() : 1.0 / *detT);
 
       return MB_SUCCESS;
     }

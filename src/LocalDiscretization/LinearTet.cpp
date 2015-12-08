@@ -29,7 +29,7 @@ namespace moab
                    verts[1*3+2]-verts[0*3+2],verts[2*3+2]-verts[0*3+2],verts[3*3+2]-verts[0*3+2]);
       *Tinv = T->inverse();
       *detT = T->determinant();
-      *detTinv = (0.0 == *detT ? HUGE : 1.0 / *detT);
+      *detTinv = (*detT < 1e-12 ? std::numeric_limits<double>::max() : 1.0 / *detT);
 
       return MB_SUCCESS;
     }
