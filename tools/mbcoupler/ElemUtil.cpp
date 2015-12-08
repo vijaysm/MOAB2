@@ -781,7 +781,7 @@ namespace Element {
                       v[1][2]-v[0][2],v[2][2]-v[0][2],v[3][2]-v[0][2]);
     this->T_inverse = this->T.inverse();
     this->det_T = this->T.determinant();
-    this->det_T_inverse = (0.0 == this->det_T ? HUGE : 1.0/this->det_T);
+    this->det_T_inverse = (this->det_T < 1e-12 ? std::numeric_limits<double>::max() : 1.0/this->det_T);
   }// LinearTet::set_vertices()
 
 
