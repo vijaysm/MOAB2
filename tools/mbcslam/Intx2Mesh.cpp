@@ -543,7 +543,7 @@ ErrorCode Intx2Mesh::build_processor_euler_boxes(EntityHandle euler_set, Range &
   }
 
   // now reduce max_edges over all processors
-  mpi_err = MPI_Allreduce(&local_max_edges, &max_edges, 1, MPI_INTEGER, MPI_MAX, parcomm->proc_config().proc_comm());
+  mpi_err = MPI_Allreduce(&local_max_edges, &max_edges, 1, MPI_INT, MPI_MAX, parcomm->proc_config().proc_comm());
   if (MPI_SUCCESS != mpi_err) return MB_FAILURE;
 
   if (my_rank==0)

@@ -172,11 +172,7 @@ using namespace moab;
     Zoltan *myZZ;
 
     Range partSets;
-  
-    bool newMoab;
 
-    bool newComm;
-  
     int myNumPts;
 
     int argcArg;
