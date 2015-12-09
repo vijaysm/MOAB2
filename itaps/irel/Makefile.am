@@ -3,7 +3,7 @@
 AUTOMAKE_OPTIONS = foreign
 BUILT_SOURCES = iRel_protos.h
 
-MESHDIR = $(abs_top_srcdir)/MeshFiles/unittest/irel
+MESHDIR = $(abs_top_srcdir)/MeshFiles/irel
 AM_CPPFLAGS = -DSRCDIR=$(srcdir)
 
 # Don't loose the autoconf include path

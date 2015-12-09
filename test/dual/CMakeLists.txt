@@ -1,4 +1,4 @@
-set(TEST_COMP_FLAGS "-DMESHDIR=${MOAB_ABSSRC_DIR}/MeshFiles/unittest")
+set(TEST_COMP_FLAGS "-DMESHDIR=${MOAB_ABSSRC_DIR}/MeshFiles")
 add_executable( dual_test ${CMAKE_SOURCE_DIR}/test/TestUtil.hpp dual_test.cpp)
 set_target_properties( dual_test PROPERTIES COMPILE_FLAGS "${TEST_COMP_FLAGS} ${MOAB_DEFINES}" )
 target_link_libraries( dual_test MOAB ${CGM_LIBRARIES} )

@@ -1,5 +1,5 @@
 
-MESHDIR = $(abs_top_srcdir)/MeshFiles/unittest
+MESHDIR = $(abs_top_srcdir)/MeshFiles
 AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
                -DMESHDIR=$(MESHDIR) \
                -I.. -I$(srcdir)/.. \

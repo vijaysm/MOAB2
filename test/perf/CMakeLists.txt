@@ -13,7 +13,7 @@ if ( MOAB_HAVE_CGM )
   set(LIBS ${LIBS} ${CGM_LIBRARIES})
 endif()
 
-set(TEST_COMP_FLAGS "-DMESHDIR=${MOAB_ABSSRC_DIR}/MeshFiles/unittest")
+set(TEST_COMP_FLAGS "-DMESHDIR=${MOAB_ABSSRC_DIR}/MeshFiles")
 
 foreach( fname ${TESTS} )
   string( REPLACE ".cpp" "" tmp ${fname} )

@@ -3,7 +3,7 @@ AUTOMAKE_OPTIONS = foreign no-dependencies
 
 LDADD = $(top_builddir)/src/libMOAB.la
 
-MESHDIR = $(abs_top_srcdir)/MeshFiles/unittest
+MESHDIR = $(abs_top_srcdir)/MeshFiles
 
 AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
                -DMESHDIR=$(MESHDIR) \

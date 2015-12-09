@@ -14,7 +14,7 @@ conversion to vtk, if needed.
 True writing/reading works in parallel only with hdf5 format
 
 example for advection:
-create_dp  ~/source/MOABsource/MeshFiles/unittest/mpas_p8.h5m HN16DP.h5m -t 0.1 -dt 0.05 
+create_dp  ~/source/MOABsource/MeshFiles/mpas_p8.h5m HN16DP.h5m -t 0.1 -dt 0.05 
 
 then 
 intx_imesh 

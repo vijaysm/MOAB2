@@ -8,7 +8,7 @@
  * This procedure is used  when reading in parallel, as each processor will load only
  * its part of the file, identified either by partition or by material/block sets
  *  by default, this example will load parallel partition sets
- *  with values 1, 2, and 5 from ../MeshFiles/unittest/64bricks_1khex.h5m
+ *  with values 1, 2, and 5 from ../MeshFiles/64bricks_1khex.h5m
  *  The example will always write the output to a file name part.h5m
  */
 

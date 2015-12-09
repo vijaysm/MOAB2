@@ -8,6 +8,7 @@
 #define CHECK(a) \
   if (ierr .ne. 0) print *, a
 
+#define MESHFILE MESHDIR + '/125hex.g'
 program findadjacency
   implicit none
 #include "iMesh_f.h"
@@ -44,7 +45,7 @@ program findadjacency
   CHECK("Problems getting root set")
 
   call iMesh_load(%VAL(mesh), %VAL(root_set), &
-       "../../MeshFiles/unittest/125hex.g", "", ierr)
+       "../../MeshFiles/125hex.g", "", ierr)
   CHECK("Load failed")
 
   ! get all 3d elements

@@ -1,7 +1,7 @@
 ISO-10303-21;
 HEADER;
 FILE_DESCRIPTION(('STEP AP203'),'1');
-FILE_NAME('/data/opt/moab/moab/MeshFiles/unittest/io/cone.stp','2015-05-26T21:49:05',(' '),(' '),'Spatial InterOp 3D',' ',' ');
+FILE_NAME('/data/opt/moab/moab/MeshFiles/io/cone.stp','2015-05-26T21:49:05',(' '),(' '),'Spatial InterOp 3D',' ',' ');
 FILE_SCHEMA(('CONFIG_CONTROL_DESIGN'));
 ENDSEC;
 DATA;

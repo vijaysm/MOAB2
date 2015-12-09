@@ -20,7 +20,7 @@ endif()
 add_subdirectory(obb)
 add_subdirectory(perf)
 
-set(TEST_COMP_FLAGS "-DMESHDIR=${MOAB_ABSSRC_DIR}/MeshFiles/unittest")
+set(TEST_COMP_FLAGS "-DMESHDIR=${MOAB_ABSSRC_DIR}/MeshFiles")
 
 set( TESTS range_test.cpp
            verdict_test.cpp
@@ -75,14 +75,14 @@ find_program( ZCAT_EXE NAMES zcap ZCAT PATHS /bin /usr/bin )
 
 if(ZCAT_EXE)
   add_custom_command( OUTPUT mb_big_test.g
-                      COMMAND ${ZCAT_EXE} < ${MOAB_SOURCE_DIR}/MeshFiles/unittest/mb_big_test.g.gz > mb_big_test.g
-                      DEPENDS ${MOAB_SOURCE_DIR}/MeshFiles/unittest/mb_big_test.g.gz )
+                      COMMAND ${ZCAT_EXE} < ${MOAB_SOURCE_DIR}/MeshFiles/mb_big_test.g.gz > mb_big_test.g
+                      DEPENDS ${MOAB_SOURCE_DIR}/MeshFiles/mb_big_test.g.gz )
   add_custom_command( OUTPUT cell1.gen
-                      COMMAND ${ZCAT_EXE} < ${MOAB_SOURCE_DIR}/MeshFiles/unittest/cell1.gen.gz > cell1.gen
-                      DEPENDS ${MOAB_SOURCE_DIR}/MeshFiles/unittest/cell1.gen.gz )
+                      COMMAND ${ZCAT_EXE} < ${MOAB_SOURCE_DIR}/MeshFiles/cell1.gen.gz > cell1.gen
+                      DEPENDS ${MOAB_SOURCE_DIR}/MeshFiles/cell1.gen.gz )
   add_custom_command( OUTPUT cell2.gen
-                      COMMAND ${ZCAT_EXE} < ${MOAB_SOURCE_DIR}/MeshFiles/unittest/cell2.gen.gz > cell2.gen
-                      DEPENDS ${MOAB_SOURCE_DIR}/MeshFiles/unittest/cell2.gen.gz)
+                      COMMAND ${ZCAT_EXE} < ${MOAB_SOURCE_DIR}/MeshFiles/cell2.gen.gz > cell2.gen
+                      DEPENDS ${MOAB_SOURCE_DIR}/MeshFiles/cell2.gen.gz)
                     
   add_custom_target(moab_test_files DEPENDS mb_big_test.g cell1.gen cell2.gen)
 
@@ -215,6 +215,6 @@ if ( MOAB_HAVE_MPI AND MPI_FOUND )
   target_link_libraries( pcomm_serial MOAB ${CGM_LIBRARIES} )
   add_test( TestPCommSerial
     ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 1 ${MPIEXEC_PREFLAGS}
-    ${EXECUTABLE_OUTPUT_PATH}/pcomm_serial ${MPIEXEC_POSTFLAGS} 1 ${MOAB_SOURCE_DIR}/MeshFiles/unittest/ptest.cub )
+    ${EXECUTABLE_OUTPUT_PATH}/pcomm_serial ${MPIEXEC_POSTFLAGS} 1 ${MOAB_SOURCE_DIR}/MeshFiles/ptest.cub )
 
 endif ( MOAB_HAVE_MPI AND MPI_FOUND )

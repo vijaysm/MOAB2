@@ -17,7 +17,7 @@ endif
 default: all
 
 # MESH_DIR is the directory containing mesh files that come with MOAB source
-MESH_DIR="@abs_top_srcdir@/MeshFiles/unittest"
+MESH_DIR="@abs_top_srcdir@/MeshFiles"
 
 EXAMPLES = HelloMOAB GetEntities SetsNTags LoadPartial StructuredMesh StructuredMeshSimple DirectAccessWithHoles DirectAccessNoHoles PointInElementSearch GenLargeMesh UniformRefinement
 PAREXAMPLES = HelloParMOAB ReduceExchangeTags LloydRelaxation CrystalRouterExample ReadWriteTest

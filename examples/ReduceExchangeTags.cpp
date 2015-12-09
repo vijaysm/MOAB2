@@ -21,7 +21,7 @@
  *    -#  Destroy the MOAB instance and finalize MPI
  *
  * <b>To run:</b> \n mpiexec -n 2 ./ReduceExchangeTags <mesh_file> <tag_name> <tag_value> \n
- * <b>Example:</b> \n mpiexec -n 2 ./ReduceExchangeTags ../MeshFiles/unittest/64bricks_1khex.h5m USERTAG 100 \n
+ * <b>Example:</b> \n mpiexec -n 2 ./ReduceExchangeTags ../MeshFiles/64bricks_1khex.h5m USERTAG 100 \n
  *
  */
 

@@ -1,7 +1,7 @@
 ISO-10303-21;
 HEADER;
 FILE_DESCRIPTION(('STEP AP214'),'1');
-FILE_NAME('/home/iulian/source/MOABsource/MeshFiles/unittest/io/cube.stp','2014-02-11T15:06:47',(' '),(' '),'Spatial InterOp 3D',' ',' ');
+FILE_NAME('/home/iulian/source/MOABsource/MeshFiles/io/cube.stp','2014-02-11T15:06:47',(' '),(' '),'Spatial InterOp 3D',' ',' ');
 FILE_SCHEMA(('automotive_design'));
 ENDSEC;
 DATA;

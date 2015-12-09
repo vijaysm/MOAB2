@@ -4,7 +4,7 @@ For a paper describing this capability, see http://www.mcs.anl.gov/~tautges/down
 
 To run mbcoupler_test, do the following:
 
-   mpiexec -np 2  mbcoupler_test -meshes <MOAB_DIR>/MeshFiles/unittest/64bricks_1khex.h5m <MOAB_DIR>/MeshFiles/unittest/64bricks_12ktet.h5m -itag vertex_field -outfile dum.h5m
+   mpiexec -np 2  mbcoupler_test -meshes <MOAB_DIR>/MeshFiles/64bricks_1khex.h5m <MOAB_DIR>/MeshFiles/64bricks_12ktet.h5m -itag vertex_field -outfile dum.h5m
 
 where <MOAB_DIR> is your MOAB source directory.
 
