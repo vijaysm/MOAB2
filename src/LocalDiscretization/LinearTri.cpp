@@ -1,4 +1,4 @@
-#include "moab/LinearTri.hpp"
+#include "moab/LocalDiscretization/LinearTri.hpp"
 #include "moab/Forward.hpp"
 #include <algorithm>
 #include <math.h>

@@ -13,8 +13,8 @@
 
 #include "moab/Core.hpp"
 #include "moab/Interface.hpp"
-#include "../verdict/moab/VerdictWrapper.hpp"
-#include "../RefineMesh/moab/NestedRefine.hpp"
+#include "moab/verdict/VerdictWrapper.hpp"
+#include "moab/NestedRefine.hpp"
 
 #ifdef MOAB_HAVE_MPI
 #include "moab_mpi.h"

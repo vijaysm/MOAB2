@@ -24,8 +24,7 @@
 #include "MBTagConventions.hpp"
 #include "moab/Interface.hpp"
 
-
-#include "moab/VerdictWrapper.hpp"
+#include "moab/verdict/VerdictWrapper.hpp"
 
 using namespace moab;
 

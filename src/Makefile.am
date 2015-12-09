@@ -211,8 +211,8 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/point_locater/element_maps/quadratic_hex_map.hpp  \
   moab/point_locater/point_locater.hpp \
   moab/point_locater/parametrizer.hpp \
-  RefineMesh/moab/NestedRefine.hpp \
-  RefineMesh/moab/Templates.hpp \
+  moab/NestedRefine.hpp \
+  moab/RefineMesh/Templates.hpp \
   moab/Matrix3.hpp \
   moab/MergeMesh.hpp \
   moab/MeshTopoUtil.hpp \
@@ -241,14 +241,14 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/Version.h \
   moab/WriteUtilIface.hpp \
   moab/WriterIface.hpp \
-  LocalDiscretization/moab/ElemEvaluator.hpp \
-  LocalDiscretization/moab/LinearHex.hpp \
-  LocalDiscretization/moab/LinearQuad.hpp \
-  LocalDiscretization/moab/LinearTet.hpp \
-  LocalDiscretization/moab/LinearTri.hpp \
-  LocalDiscretization/moab/QuadraticHex.hpp \
-  verdict/moab/verdict.h \
-  verdict/moab/VerdictWrapper.hpp \
+  moab/ElemEvaluator.hpp \
+  moab/LocalDiscretization/LinearHex.hpp \
+  moab/LocalDiscretization/LinearQuad.hpp \
+  moab/LocalDiscretization/LinearTet.hpp \
+  moab/LocalDiscretization/LinearTri.hpp \
+  moab/LocalDiscretization/QuadraticHex.hpp \
+  moab/verdict.h \
+  moab/verdict/VerdictWrapper.hpp \
   MBEntityType.h \
   MBCN.h \
   MOAB_FCDefs.h \

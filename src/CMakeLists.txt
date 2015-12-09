@@ -1,7 +1,6 @@
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}
                     ${CMAKE_CURRENT_BINARY_DIR}
                     parallel
-                    LocalDiscretization
                     io io/mhdf
                     ${MOAB_BINARY_DIR}/src/parallel )
 
@@ -31,7 +30,6 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/moab/Version.h.cmake.in "${CMAKE_CURR
 
 set(moab_link_lib)
 add_subdirectory(io)
-add_subdirectory(LocalDiscretization)
 # add_subdirectory(oldinc)
 
 ADD_CUSTOM_COMMAND(
@@ -56,6 +54,8 @@ if( MOAB_HAVE_NETCDF )
     set( MOAB_NETCDF_LIBS ${NETCDF_LIBRARIES} )
   endif ( MOAB_HAVE_MPI )
 endif()
+
+
 
 set(MOAB_LIB_SOURCES
         AdaptiveKDTree.cpp
@@ -98,6 +98,12 @@ set(MOAB_LIB_SOURCES
         lotte/findpt.c
         lotte/errmem.c
         lotte/tensor.c
+        LocalDiscretization/ElemEvaluator.cpp
+        LocalDiscretization/LinearHex.cpp
+        LocalDiscretization/LinearQuad.cpp
+        LocalDiscretization/LinearTet.cpp
+        LocalDiscretization/LinearTri.cpp
+        LocalDiscretization/QuadraticHex.cpp
         PolyElementSeq.hpp  PolyElementSeq.cpp
         ProgOptions.cpp
         Range.cpp
@@ -171,6 +177,12 @@ set( MOAB_INSTALL_HEADERS
         moab/point_locater/element_maps/quadratic_hex_map.hpp 
         moab/point_locater/point_locater.hpp
         moab/point_locater/parametrizer.hpp
+        moab/ElemEvaluator.hpp
+        moab/LocalDiscretization/LinearHex.hpp
+        moab/LocalDiscretization/LinearQuad.hpp
+        moab/LocalDiscretization/LinearTet.hpp
+        moab/LocalDiscretization/LinearTri.hpp
+        moab/LocalDiscretization/QuadraticHex.hpp
         moab/Matrix3.hpp
         moab/MergeMesh.hpp
         moab/MeshTopoUtil.hpp
@@ -233,7 +245,6 @@ add_library(
   MOAB
   ${MOAB_LIB_SOURCES} ${MOAB_INSTALL_HEADERS} ${MOAB_GENERATED_INSTALL_HEADERS}
   $<TARGET_OBJECTS:moabio>
-  $<TARGET_OBJECTS:moab_loc_discr>
   $<TARGET_OBJECTS:moabverdict>
   ${MOABPAR_OBJECTS}
   ${MDHF_OBJ}

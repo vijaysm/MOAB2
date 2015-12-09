@@ -6,11 +6,11 @@
 
 // need to include eval set types here to support get_eval_set; alternative would be to have some
 // type of registration, but we'd still need static registration for the built-in types
-#include "moab/LinearTri.hpp"
-#include "moab/LinearQuad.hpp"
-#include "moab/LinearTet.hpp"
-#include "moab/LinearHex.hpp"
-#include "moab/QuadraticHex.hpp"
+#include "moab/LocalDiscretization/LinearTri.hpp"
+#include "moab/LocalDiscretization/LinearQuad.hpp"
+#include "moab/LocalDiscretization/LinearTet.hpp"
+#include "moab/LocalDiscretization/LinearHex.hpp"
+#include "moab/LocalDiscretization/QuadraticHex.hpp"
 //#include "moab/SpectralQuad.hpp"
 //#include "moab/SpectralHex.hpp"
 

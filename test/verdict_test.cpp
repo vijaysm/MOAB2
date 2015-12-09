@@ -1,7 +1,7 @@
 #include "moab/Core.hpp"
 #include "moab/CartVect.hpp"
 #include "moab/Range.hpp"
-#include "moab/VerdictWrapper.hpp"
+#include "moab/verdict/VerdictWrapper.hpp"
 #include <iostream>
 #include <iomanip>
 #include <cstdio>
