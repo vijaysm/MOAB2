@@ -7,7 +7,7 @@
 #include "moab/Range.hpp"
 #include "moab/MeshTopoUtil.hpp"
 #include "moab/HalfFacetRep.hpp"
-#include "RefineMesh/moab/NestedRefine.hpp"
+#include "moab/NestedRefine.hpp"
 #include "../TestUtil.hpp"
 #include <sys/time.h>
 
