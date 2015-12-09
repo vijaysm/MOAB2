@@ -20,7 +20,7 @@ static ErrorCode not_found(const std::string& name, EntityHandle h)
 {
   // MB_TAG_NOT_FOUND could be a non-error condition, do not call MB_SET_ERR on
   // it
-#ifndef NDEBUG
+#if 0
   if (h)
     fprintf(stderr, "[Warning]: No dense tag %s value for %s %ld\n",
         name.c_str(),
@@ -37,7 +37,7 @@ static ErrorCode ent_not_found(const std::string& name, EntityHandle h)
 {
   // MB_ENTITY_NOT_FOUND could be a non-error condition, do not call MB_SET_ERR
   // on it
-#ifndef NDEBUG
+#if 0
   fprintf(
       stderr,
       "[Warning]: Invalid entity handle setting tag %s: %s %ld\n",

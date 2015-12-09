@@ -29,7 +29,7 @@ namespace moab {
 static ErrorCode not_found(std::string name, EntityHandle h)
 {
   // MB_TAG_NOT_FOUND could be a non-error condition, do not call MB_SET_ERR on it
-#ifndef NDEBUG
+#if 0
   if (h)
     fprintf(stderr, "[Warning]: No variable-length sparse tag %s value for %s %lu\n",
         name.c_str(),
