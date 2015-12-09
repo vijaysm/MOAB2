@@ -7,11 +7,6 @@ lib_LTLIBRARIES = libMOAB.la
 # Subdirectories to build
 SUBDIRS =
 libMOAB_la_LIBADD =
-if PARALLEL
-  SUBDIRS += parallel
-  libMOAB_la_LIBADD += parallel/libMOABpar.la
-  AM_CPPFLAGS += -I$(srcdir)/parallel
-endif
 
 SUBDIRS += io .
 libMOAB_la_LIBADD += io/libmoabio.la 
@@ -171,6 +166,7 @@ libMOAB_la_SOURCES = \
   WriteUtil.hpp \
   moab_mpe.h
 
+
 # The list of header files which are to be installed
 nobase_libMOAB_la_include_HEADERS = \
   moab/AdaptiveKDTree.hpp \
@@ -253,6 +249,36 @@ nobase_libMOAB_la_include_HEADERS = \
   MBCN_protos.h \
   moab/MOABConfig.h \
   MBTagConventions.hpp
+
+if PARALLEL
+  libMOAB_la_SOURCES += \
+     parallel/ParallelComm.cpp \
+     parallel/ProcConfig.cpp \
+     parallel/ParallelData.cpp \
+     parallel/ParallelMergeMesh.cpp \
+     parallel/ReadParallel.cpp \
+     parallel/ReadParallel.hpp \
+     parallel/SharedSetData.cpp \
+     parallel/SharedSetData.hpp \
+     parallel/gs.cpp
+
+if HAVE_HDF5_PARALLEL
+  libMOAB_la_SOURCES += parallel/WriteHDF5Parallel.cpp \
+                        parallel/WriteHDF5Parallel.hpp
+endif
+
+nobase_libMOAB_la_include_HEADERS += \
+     parallel/moab/gs.hpp \
+     parallel/moab_mpi.h \
+     parallel/moab_mpi_config.h \
+     parallel/moab/ParallelComm.hpp \
+     parallel/moab/ParallelMergeMesh.hpp \
+     parallel/moab/ProcConfig.hpp \
+     parallel/moab/ParallelData.hpp \
+     parallel/MBParallelConventions.h
+
+  AM_CPPFLAGS += -I$(srcdir)/parallel
+endif
 
 if ENABLE_metis
   libMOAB_la_SOURCES += MetisPartitioner.cpp
