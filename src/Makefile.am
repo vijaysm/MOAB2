@@ -25,9 +25,7 @@ AM_CPPFLAGS += -DIS_BUILDING_MB \
                -I$(srcdir)/io \
                -I$(srcdir)/io/mhdf/include \
                -I$(srcdir)/parallel \
-               -I$(srcdir)/LocalDiscretization \
-               -I$(srcdir)/verdict \
-               -I$(srcdir)/RefineMesh
+               -I$(srcdir)/verdict
 
 # The directory in which to install headers
 libMOAB_la_includedir = $(includedir)

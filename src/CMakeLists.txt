@@ -4,7 +4,6 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}
                     io io/mhdf
                     ${MOAB_BINARY_DIR}/src/parallel )
 
-add_subdirectory(verdict)
 if(MOAB_HAVE_MPI AND MPI_FOUND)
   add_subdirectory(parallel)
   set( MOAB_MPI moabpar )
@@ -83,6 +82,7 @@ set(MOAB_LIB_SOURCES
         FileOptions.cpp
         GeomUtil.cpp
         GeomTopoTool.cpp
+        HalfFacetRep.cpp
         HigherOrderFactory.cpp
         HomXform.cpp
         Internals.hpp
@@ -111,6 +111,7 @@ set(MOAB_LIB_SOURCES
         ReadUtil.hpp              ReadUtil.cpp
         ReaderWriterSet.cpp
         ReorderTool.cpp
+        RefineMesh/NestedRefine.cpp
         ScdElementData.hpp        ScdElementData.cpp
         ScdInterface.cpp
         ScdVertexData.hpp         ScdVertexData.cpp
@@ -141,6 +142,21 @@ set(MOAB_LIB_SOURCES
         VarLenTag.hpp      
         VertexSequence.hpp        VertexSequence.cpp
         WriteUtil.hpp             WriteUtil.cpp
+        verdict/v_vector.h
+        verdict/V_EdgeMetric.cpp
+        verdict/V_GaussIntegration.cpp
+        verdict/V_HexMetric.cpp
+        verdict/V_KnifeMetric.cpp
+        verdict/V_PyramidMetric.cpp
+        verdict/V_QuadMetric.cpp
+        verdict/V_TetMetric.cpp
+        verdict/V_TriMetric.cpp
+        verdict/V_WedgeMetric.cpp
+        verdict/VerdictVector.cpp
+        verdict/VerdictWrapper.cpp
+        verdict/verdict_defines.hpp
+        verdict/VerdictVector.hpp
+        verdict/V_GaussIntegration.hpp
         moab_mpe.h )
 
 set( MOAB_INSTALL_HEADERS
@@ -194,6 +210,8 @@ set( MOAB_INSTALL_HEADERS
         moab/ReaderIface.hpp
         moab/ReaderWriterSet.hpp
         moab/ReorderTool.hpp
+        moab/NestedRefine.hpp
+        moab/RefineMesh/Templates.hpp
         moab/ScdInterface.hpp
         moab/SetIterator.hpp
         moab/Skinner.hpp
@@ -207,6 +225,8 @@ set( MOAB_INSTALL_HEADERS
         moab/Util.hpp
         moab/WriteUtilIface.hpp
         moab/WriterIface.hpp
+        moab/verdict.h
+        moab/verdict/VerdictWrapper.hpp
         MBEntityType.h
         MBCN.h
         MBTagConventions.hpp )
@@ -245,7 +265,6 @@ add_library(
   MOAB
   ${MOAB_LIB_SOURCES} ${MOAB_INSTALL_HEADERS} ${MOAB_GENERATED_INSTALL_HEADERS}
   $<TARGET_OBJECTS:moabio>
-  $<TARGET_OBJECTS:moabverdict>
   ${MOABPAR_OBJECTS}
   ${MDHF_OBJ}
   )
