@@ -1534,13 +1534,12 @@ AC_CONFIG_FILES([Makefile
                  doc/user.dox
                  doc/config.tex
                  MeshFiles/Makefile
-                 MeshFiles/unittest/Makefile
-                 MeshFiles/unittest/io/Makefile
-                 MeshFiles/unittest/fbigeom/Makefile
-                 MeshFiles/unittest/irel/Makefile
-                 MeshFiles/unittest/dagmc/Makefile
-                 MeshFiles/unittest/mbcslam/Makefile
-                 MeshFiles/unittest/h5file/Makefile
+                 MeshFiles/io/Makefile
+                 MeshFiles/fbigeom/Makefile
+                 MeshFiles/irel/Makefile
+                 MeshFiles/dagmc/Makefile
+                 MeshFiles/mbcslam/Makefile
+                 MeshFiles/h5file/Makefile
                  MeshFiles/examples/Makefile
                  ])
 AC_CONFIG_COMMANDS([src/MOAB_FCDefs.h],
