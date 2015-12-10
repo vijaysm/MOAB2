@@ -181,6 +181,10 @@ namespace moab
       //! Helper: stores child half-facets incident on parent half-facet. First column contain the number of such children
       int ents_on_pent[MAX_HF][MAX_CHILDRENS];
       //! Helper: stores child ents incident on new verts on edge.
+      // Each triad in the column consists of :
+      // 1) a local child incident on the vertex on the edge
+      // 2) the local face id from the child
+      // 3) the local vertex id wrt the child connectivity
       int ents_on_vedge[MAX_HE][MAX_VHF*3];
     };
     //! refPatterns
@@ -266,9 +270,11 @@ namespace moab
 
     ErrorCode update_local_ahf(int deg, EntityType type, int pat_id, EntityHandle *vbuffer, EntityHandle *ent_buffer, int etotal);
 
-    ErrorCode update_global_ahf(EntityType type, int cur_level, int deg);
+  //  ErrorCode update_global_ahf(EntityType type, int cur_level, int deg);
 
-    ErrorCode update_global_ahf(int cur_level, int deg, std::vector<int> &pattern_ids);
+  //  ErrorCode update_global_ahf(int cur_level, int deg, std::vector<int> &pattern_ids);
+
+    ErrorCode update_global_ahf(EntityType type, int cur_level, int deg, std::vector<int> *pattern_ids=NULL);
 
     ErrorCode update_global_ahf_1D(int cur_level, int deg);
 
@@ -280,9 +286,11 @@ namespace moab
 
     ErrorCode update_global_ahf_2D_sub(int cur_level, int deg);
 
-    ErrorCode update_global_ahf_3D(int cur_level, int deg);
+    ErrorCode update_global_ahf_3D(int cur_level, int deg, std::vector<int> *pattern_ids=NULL);
 
-    ErrorCode update_global_ahf_3D(int cur_level, int deg, std::vector<int> &pattern_ids);
+//    ErrorCode update_global_ahf_3D(int cur_level, int deg);
+
+//    ErrorCode update_global_ahf_3D(int cur_level, int deg, std::vector<int> &pattern_ids);
 
     /** Boundary extraction functions
         * Given a vertex at a certain level, it returns a boolean value true if it lies on the domain boundary.
