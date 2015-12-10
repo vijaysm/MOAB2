@@ -50,7 +50,7 @@ if ( MOAB_ENABLE_TESTING )
   if (MOAB_USE_CGM)
     target_link_libraries( test_geom ${CGM_LIBRARIES})
   endif ()
-  add_test( test_geom ${EXECUTABLE_OUTPUT_PATH}/test_geom )
+  add_test( test_geom test_geom )
 endif()
 
 if ( MOAB_HAVE_CGM )

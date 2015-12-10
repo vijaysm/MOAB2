@@ -69,21 +69,13 @@ execute_process( COMMAND dirname ${MOAB_ABSSRC_DIR2}
 
 ## Set the directory where the binaries will be stored
 set( EXECUTABLE_OUTPUT_PATH
-  ${PROJECT_BINARY_DIR}/bin
-  CACHE PATH
-  "Directory where all executable will be stored"
-)
+  ${PROJECT_BINARY_DIR}/bin)
 
 ## Set the directory where the libraries will be stored
 set( LIBRARY_OUTPUT_PATH
-  ${PROJECT_BINARY_DIR}/lib
-  CACHE PATH
-  "Directory where all the libraries will be stored"
-)
+  ${PROJECT_BINARY_DIR}/lib)
 mark_as_advanced(
-  MOAB_ABSSRC_DIR
-  EXECUTABLE_OUTPUT_PATH
-  LIBRARY_OUTPUT_PATH)
+  MOAB_ABSSRC_DIR)
 
 include ( CheckIncludeFile )
 include ( CheckFunctionExists )
