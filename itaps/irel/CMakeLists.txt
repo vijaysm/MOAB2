@@ -17,7 +17,11 @@ endif ()
 
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/iBase_FCDefs.h.in" fcdefs)
 string(REPLACE "FC_FUNC" "IREL_FC_FUNC" fcdefs "${fcdefs}")
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/iRel_FCDefs.h" "${fcdefs}")
+set(CMAKE_CONFIGURABLE_FILE_CONTENT "${fcdefs}")
+configure_file(
+  "${CMAKE_ROOT}/Modules/CMakeConfigurableFile.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/iRel_FCDefs.h"
+  @ONLY)
 
 add_custom_command(
   OUTPUT  "${CMAKE_CURRENT_BINARY_DIR}/iRel_protos.h"
