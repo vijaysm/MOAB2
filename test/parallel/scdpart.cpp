@@ -85,7 +85,7 @@ void test_read_parallel(int num_verts)
   rval = pcomm->filter_pstatus(verts, PSTATUS_NOT_OWNED, PSTATUS_NOT);
   CHECK_ERR(rval);
   int my_num = verts.size(), total_verts;
-  MPI_Reduce(&my_num, &total_verts, 1, MPI_INTEGER, MPI_SUM, 0, pcomm->proc_config().proc_comm());
+  MPI_Reduce(&my_num, &total_verts, 1, MPI_INT, MPI_SUM, 0, pcomm->proc_config().proc_comm());
   
   if (0 == pcomm->proc_config().proc_rank()) CHECK_EQUAL(total_verts, num_verts);
 }
