@@ -32,11 +32,9 @@ static inline bool all_root_set(std::string name, const EntityHandle* array, siz
 static ErrorCode not_found(const std::string& name)
 {
   // MB_TAG_NOT_FOUND could be a non-error condition, do not call MB_SET_ERR on it
-  // Print warning messages for debugging only
-  bool mydebug = false;
-  if (mydebug) {
-    fprintf(stderr, "[Warning]: No mesh tag %s value for global/mesh tag\n", name.c_str());
-  }
+#if 0
+  fprintf(stderr, "[Warning]: No mesh tag %s value for global/mesh tag\n", name.c_str());
+#endif
 
   return MB_TAG_NOT_FOUND;
 }

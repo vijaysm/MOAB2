@@ -31,16 +31,15 @@ static ErrorCode not_found(const std::string& name, EntityHandle h)
 {
   // MB_TAG_NOT_FOUND could be a non-error condition, do not call MB_SET_ERR on it
   // Print warning messages for debugging only
-  bool mydebug = false;
-  if (mydebug) {
-    if (h)
-      fprintf(stderr, "[Warning]: No sparse tag %s value for %s %lu\n",
-                      name.c_str(),
-                      CN::EntityTypeName(TYPE_FROM_HANDLE(h)),
-                      (unsigned long)ID_FROM_HANDLE(h));
-    else
-      fprintf(stderr, "[Warning]: No sparse tag %s value for root set\n", name.c_str());
-  }
+#if 0
+  if (h)
+    fprintf(stderr, "[Warning]: No sparse tag %s value for %s %lu\n",
+        name.c_str(),
+        CN::EntityTypeName(TYPE_FROM_HANDLE(h)),
+        (unsigned long)ID_FROM_HANDLE(h));
+  else
+    fprintf(stderr, "[Warning]: No sparse tag %s value for root set\n", name.c_str());
+#endif
 
   return MB_TAG_NOT_FOUND;
 }
