@@ -115,11 +115,9 @@ ErrorCode SequenceManager::check_valid_entities(Error* /* error_handler */,
     if (MB_SUCCESS != rval && !(root_set_okay && !*entities)) {
       if (MB_ENTITY_NOT_FOUND == rval) {
         // MB_ENTITY_NOT_FOUND could be a non-error condition, do not call MB_SET_ERR on it
-        // Print warning messages for debugging only
-        bool mydebug = false;
-        if (mydebug) {
-          fprintf(stderr, "[Warning]: Invalid entity handle: 0x%lx\n", (unsigned long)*entities);
-        }
+#       if 0
+        fprintf(stderr, "[Warning]: Invalid entity handle: 0x%lx\n", (unsigned long)*entities);
+#       endif
       }
       return rval;
     }
@@ -837,11 +835,9 @@ ErrorCode SequenceManager::release_tag_array(Error* /* error_handler */,
 {
   if ((unsigned)index >= tagSizes.size() || UNUSED_SIZE == tagSizes[index]) {
     // MB_TAG_NOT_FOUND could be a non-error condition, do not call MB_SET_ERR on it
-    // Print warning messages for debugging only
-    bool mydebug = false;
-    if (mydebug) {
-      fprintf(stderr, "[Warning]: Invalid dense tag index: %d\n", index);
-    }
+#if 0
+    fprintf(stderr, "[Warning]: Invalid dense tag index: %d\n", index);
+#endif
     return MB_TAG_NOT_FOUND;
   }
 
