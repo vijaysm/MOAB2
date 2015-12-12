@@ -19,7 +19,7 @@ LDADD = $(top_builddir)/src/libMOAB.la
 
 MESHDIR = $(abs_top_srcdir)/MeshFiles/unittest
 
-AM_CPPFLAGS += -DIS_BUILDING_MB \
+AM_CPPFLAGS  = -DIS_BUILDING_MB \
                -DSRCDIR=$(srcdir) \
                -DMESHDIR=$(MESHDIR) \
                -I$(top_builddir)/src \
