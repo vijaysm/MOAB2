@@ -1,11 +1,10 @@
 MESHDIR = $(abs_top_srcdir)/MeshFiles/unittest
 
-AM_CPPFLAGS += -DIS_BUILDING_MB \
-               -I$(top_builddir)/src \
-               -I$(top_srcdir)/src 
-
-AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
+AM_CPPFLAGS =  -DIS_BUILDING_MB \
+               -DSRCDIR=$(srcdir) \
                -DMESHDIR=$(MESHDIR) \
+               -I$(top_builddir)/src \
+               -I$(top_srcdir)/src \
                -I$(top_srcdir)/src \
                -I$(top_builddir)/src \
                -I$(top_srcdir)/src/parallel \

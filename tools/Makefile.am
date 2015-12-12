@@ -1,9 +1,10 @@
 AUTOMAKE_OPTIONS = foreign
-AM_CPPFLAGS += -I$(top_srcdir)/src \
+AM_CPPFLAGS =  -I$(top_srcdir)/src \
                -I$(top_builddir)/src \
                -I$(top_srcdir)/src/parallel \
-	       -I$(top_srcdir)/itaps \
-               -I$(top_builddir)/itaps/imesh
+               -I$(top_srcdir)/itaps \
+               -I$(top_builddir)/itaps/imesh \
+               -I$(top_builddir)/src/parallel
 
 LDADD = $(top_builddir)/src/libMOAB.la
 if ENABLE_imesh
