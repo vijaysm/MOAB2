@@ -638,8 +638,8 @@ case "$cxx_compiler:$host_cpu" in
   VisualAge:*)
     FATHOM_CXX_32BIT=-q32
     FATHOM_CXX_64BIT=-q64
-    FATHOM_CXX_SPECIAL="-qrtti=all"
-    AR="ar -X 32_64"
+    FATHOM_CXX_SPECIAL="$EXTRA_BG_FLAGS -qrtti=all -qminimaltoc -qpic=large -qmaxmem=-1"
+    AR="ar"
     NM="nm -B -X 32_64"
     ;;
   VisualAge8:*)
@@ -791,15 +791,15 @@ case "$cc_compiler:$host_cpu" in
       bgq)
         FATHOM_CC_32BIT=-q32
         FATHOM_CC_64BIT=-q64
-	FATHOM_CC_SPECIAL=-qarch=qp
-	FATHOM_CXX_SPECIAL="-qarch=qp -qpic=large -qmaxmem=-1"
+	FATHOM_CC_SPECIAL="$EXTRA_BG_FLAGS -qarch=qp -qpic=large -qmaxmem=-1 -qminimaltoc"
+	FATHOM_CXX_SPECIAL="$EXTRA_BG_FLAGS -qarch=qp -qpic=large -qmaxmem=-1 -qminimaltoc"
         AR="ar"
         NM="nm -B"
         ;;
       *)
         FATHOM_CC_32BIT=-q32
         FATHOM_CC_64BIT=-q64
-        AR="ar -X 32_64"
+        AR="ar"
         NM="nm -B -X 32_64"
         ;;
     esac
@@ -829,6 +829,9 @@ case "$cc_compiler:$host_cpu" in
     ;;
 esac
 AC_MSG_RESULT([$cc_compiler:$host_cpu])
+
+FATHOM_FC_SPECIAL="$FATHOM_CC_SPECIAL"
+FATHOM_F77_SPECIAL="$FATHOM_FC_SPECIAL"
 ]) # end FATHOM_CC_FLAGS
 
 
