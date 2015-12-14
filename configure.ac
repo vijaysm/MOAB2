@@ -34,7 +34,7 @@ AC_SUBST(ENABLE_FORTRAN)
 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-fortran=$ENABLE_FORTRAN"
 EXTRA_GNU_FLAGS='-Wall -pipe -pedantic -Wno-long-long -Wextra -Wcast-align  -Wpointer-arith -Wformat -Wformat-security -Wshadow -Wunused-parameter -Wno-variadic-macros'
 EXTRA_INTEL_FLAGS='-Wall'
-EXTRA_BG_FLAGS=''
+EXTRA_BG_FLAGS='-qarch=auto -qtune=auto -qpic=large'
 
 # Find out the appropriate compiler based on user options
 FATHOM_CHECK_COMPILERS([yes],[yes],[$ENABLE_FORTRAN])
