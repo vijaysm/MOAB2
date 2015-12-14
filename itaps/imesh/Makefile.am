@@ -2,8 +2,8 @@ BUILT_SOURCES = iMesh_protos.h iMeshP_protos.h iMesh_extensions_protos.h iMeshP_
 
 MESHDIR = $(abs_top_srcdir)/MeshFiles/unittest
 
-AM_CPPFLAGS  = -DSRCDIR=$(srcdir) \
-               -DMESHDIR=$(MESHDIR) \
+AM_CPPFLAGS  = $(BGDEF)-DSRCDIR=$(srcdir) \
+               $(BGDEF)-DMESHDIR=$(MESHDIR) \
                -I$(srcdir)/.. \
                -I$(top_srcdir)/src \
                -I$(top_builddir)/src  \
