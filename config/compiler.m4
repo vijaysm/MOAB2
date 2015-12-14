@@ -139,6 +139,8 @@ fi
     FATHOM_SET_MPI_COMPILER([F77],[$F77_LIST],[$COMPILERPATHS])
     AC_PROG_FC
     AC_PROG_F77
+    AC_FC_PP_DEFINE
+    AC_FC_PP_SRCEXT
   fi
 
 ]) # FATHOM_CHECK_COMPILERS
@@ -638,13 +640,14 @@ case "$cxx_compiler:$host_cpu" in
   VisualAge:*)
     FATHOM_CXX_32BIT=-q32
     FATHOM_CXX_64BIT=-q64
-    FATHOM_CXX_SPECIAL="$EXTRA_BG_FLAGS -qrtti=all -qminimaltoc -qpic=large -qmaxmem=-1"
+    FATHOM_CXX_SPECIAL="$EXTRA_BG_FLAGS -qminimaltoc -qpic=large -qmaxmem=-1 -qlanglvl=variadictemplates"
     AR="ar"
     NM="nm -B -X 32_64"
     ;;
   VisualAge8:*)
     FATHOM_CXX_32BIT=-q32
     FATHOM_CXX_64BIT=-q64
+    FATHOM_CXX_SPECIAL="$EXTRA_BG_FLAGS -qminimaltoc -qpic=large -qmaxmem=-1 -qlanglvl=variadictemplates"
     NM="nm -B -X 32_64"
     ;;
   MIPSpro:mips)
@@ -756,49 +759,57 @@ case "$cc_compiler:$host_cpu" in
     FATHOM_CC_32BIT=-m32
     FATHOM_CC_64BIT=-m64
     FATHOM_CC_SPECIAL="$EXTRA_GNU_FLAGS"
+    FATHOM_FC_SPECIAL="$EXTRA_GNU_FLAGS"
     ;;
   GNU:powerpc*)
     FATHOM_CC_32BIT=-m32
     FATHOM_CC_64BIT=-m64
     FATHOM_CC_SPECIAL="$EXTRA_GNU_FLAGS"
+    FATHOM_FC_SPECIAL="$EXTRA_GNU_FLAGS"
     ;;
   GNU:i?86|GNU:x86_64)
     FATHOM_CC_32BIT=-m32
     FATHOM_CC_64BIT=-m64
     FATHOM_CC_SPECIAL="$EXTRA_GNU_FLAGS"
+    FATHOM_FC_SPECIAL="$EXTRA_GNU_FLAGS"
     ;;
   Intel:*)
     FATHOM_CC_32BIT=-m32
     FATHOM_CC_64BIT=-m64
     FATHOM_CC_SPECIAL="$EXTRA_INTEL_FLAGS -wd981 -wd279 -wd1418 -wd383 -wd1572"
+    FATHOM_FC_SPECIAL="$EXTRA_INTEL_FLAGS -wd981 -wd279 -wd1418 -wd383 -wd1572"
     ;;
   GNU:mips*)
     FATHOM_CC_32BIT="-mips32 -mabi=32"
     FATHOM_CC_64BIT="-mips64 -mabi=64"
     FATHOM_CC_SPECIAL="$EXTRA_GNU_FLAGS"
+    FATHOM_FC_SPECIAL="$EXTRA_GNU_FLAGS"
     ;;
   GNU:*)
     FATHOM_CC_SPECIAL="$EXTRA_GNU_FLAGS"
+    FATHOM_FC_SPECIAL="$EXTRA_GNU_FLAGS"
     ;;
   VisualAge:*)
     case "$target_vendor" in
       bgp)
         FATHOM_CC_32BIT=-q32
-	FATHOM_CC_64BIT=-q64
-	AR="ar"
-	NM="nm -B"
+        FATHOM_CC_64BIT=-q64
+        AR="ar"
+        NM="nm -B"
         ;;
       bgq)
         FATHOM_CC_32BIT=-q32
         FATHOM_CC_64BIT=-q64
-	FATHOM_CC_SPECIAL="$EXTRA_BG_FLAGS -qarch=qp -qpic=large -qmaxmem=-1 -qminimaltoc"
-	FATHOM_CXX_SPECIAL="$EXTRA_BG_FLAGS -qarch=qp -qpic=large -qmaxmem=-1 -qminimaltoc"
+        FATHOM_CC_SPECIAL="$EXTRA_BG_FLAGS -qmaxmem=-1 -qminimaltoc"
+        FATHOM_FC_SPECIAL="$EXTRA_BG_FLAGS -qnoescape -WF,-C! -qddim -qalias=intptr"
         AR="ar"
         NM="nm -B"
         ;;
       *)
         FATHOM_CC_32BIT=-q32
         FATHOM_CC_64BIT=-q64
+        FATHOM_CC_SPECIAL="$EXTRA_BG_FLAGS -qmaxmem=-1 -qminimaltoc"
+        FATHOM_FC_SPECIAL="$EXTRA_BG_FLAGS -qnoescape -WF,-C! -qddim -qalias=intptr"
         AR="ar"
         NM="nm -B -X 32_64"
         ;;
@@ -808,12 +819,15 @@ case "$cc_compiler:$host_cpu" in
     FATHOM_CC_32BIT=-n32
     FATHOM_CC_64BIT=-64
     FATHOM_CC_SPECIAL=-LANG:std
+    FATHOM_FC_SPECIAL=-LANG:std
     ;;
   MIPSpro:*)
     FATHOM_CC_SPECIAL=-LANG:std
+    FATHOM_FC_SPECIAL=-LANG:std
     ;;
   Clang:*)
     FATHOM_CC_SPECIAL="$EXTRA_GNU_FLAGS"
+    FATHOM_FC_SPECIAL="$EXTRA_GNU_FLAGS"
     FATHOM_CC_32BIT=-m32
     FATHOM_CC_64BIT=-m64
     ;;
@@ -830,7 +844,6 @@ case "$cc_compiler:$host_cpu" in
 esac
 AC_MSG_RESULT([$cc_compiler:$host_cpu])
 
-FATHOM_FC_SPECIAL="$FATHOM_CC_SPECIAL"
 FATHOM_F77_SPECIAL="$FATHOM_FC_SPECIAL"
 ]) # end FATHOM_CC_FLAGS
 
