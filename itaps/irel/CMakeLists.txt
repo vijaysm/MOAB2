@@ -1,5 +1,3 @@
-project(Lasso CXX)
-
 if (MOAB_HAS_MPI)
   find_package(MPI REQUIRED)
 endif ()
@@ -33,12 +31,12 @@ add_custom_command(
           "${CMAKE_CURRENT_SOURCE_DIR}/generate_irel_protos.cmake"
   COMMENT "Generating ${CMAKE_CURRENT_BINARY_DIR}/itaps/irel/iRel_protos.h")
 
-set(lasso_srcs
+set(irel_srcs
   AssocPair.cpp
   iRel_Lasso.cpp
   Lasso.cpp)
 
-set(lasso_includes
+set(irel_includes
   ArrayManager.hpp
   AssocPair.hpp
   AssocPairSide.hpp
@@ -53,27 +51,27 @@ set(lasso_includes
 set(link_libs)
 
 if (CGM_FOUND)
-  list(APPEND lasso_srcs
+  list(APPEND irel_srcs
     GeomAssocPairSide.cpp)
-  list(APPEND lasso_includes
+  list(APPEND irel_includes
     GeomAssocPairSide.hpp)
   list(APPEND link_libs
     iGeom)
 endif ()
 
 if (ENABLE_FBIGEOM)
-  list(APPEND lasso_srcs
+  list(APPEND irel_srcs
     FBGeomAssocPairSide.cpp)
-  list(APPEND lasso_includes
+  list(APPEND irel_includes
     FBGeomAssocPairSide.hpp)
   list(APPEND link_libs
     FBiGeomMOAB)
 endif ()
 
 if (ENABLE_IMESH)
-  list(APPEND lasso_srcs
+  list(APPEND irel_srcs
     MeshAssocPairSide.cpp)
-  list(APPEND lasso_includes
+  list(APPEND irel_includes
     MeshAssocPairSide.hpp)
   list(APPEND link_libs
     iMesh)
@@ -86,8 +84,8 @@ include_directories(
   "${CMAKE_CURRENT_BINARY_DIR}")
 
 add_library(iRel
-  ${lasso_srcs}
-  ${lasso_includes})
+  ${irel_srcs}
+  ${irel_includes})
 target_link_libraries(iRel
   ${link_libs})
 target_include_directories(iRel
@@ -95,7 +93,7 @@ target_include_directories(iRel
     "$<INSTALL_INTERFACE:include>")
 include(GenerateExportHeader)
 generate_export_header(iRel)
-list(APPEND lasso_includes
+list(APPEND irel_includes
   "${CMAKE_CURRENT_BINARY_DIR}/irel_export.h")
 
 set_target_properties(iRel
@@ -112,6 +110,6 @@ install(
   ARCHIVE   DESTINATION ${CMAKE_INSTALL_LIBDIR}
   COMPONENT Runtime)
 install(
-  FILES       ${lasso_includes}
+  FILES       ${irel_includes}
   DESTINATION include
   COMPONENT   Development)
