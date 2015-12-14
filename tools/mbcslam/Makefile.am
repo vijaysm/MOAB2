@@ -84,6 +84,14 @@ endif
 endif
 endif 
 
+FCDEFS = $(addprefix $(FC_DEFINE),DEFS)
+PPFCCOMPILE = $(FC) $(FCDEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
+    $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_FCFLAGS) $(FCFLAGS)
+LTPPFCCOMPILE = $(LIBTOOL) $(AM_V_lt) --tag=FC $(AM_LIBTOOLFLAGS) \
+    $(LIBTOOLFLAGS) --mode=compile $(FC) $(FCDEFS) \
+    $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) \
+    $(AM_FCFLAGS) $(FCFLAGS)
+
 # Other files to clean up (e.g. output from tests)
 MOSTLYCLEANFILES = intersect1.h5m \
                    lagr.h5m \
@@ -96,4 +104,3 @@ MOSTLYCLEANFILES = intersect1.h5m \
                    intx1.vtk \
                    SpanEdges0.h5m \
                    SpanQuads0.h5m 
-           
