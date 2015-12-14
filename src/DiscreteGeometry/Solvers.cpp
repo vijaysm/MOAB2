@@ -238,19 +238,6 @@ namespace moab {
     }
   }
 
-
-  void Solvers::vec_dotprod(const int len, const double* a, const double* b, double* c)
-  {
-    if(!a||!b||!c){
-      std::cerr << __FILE__ << ":" << __LINE__ << "\nNULL Pointer" << std::endl;
-      return;
-    }
-    for(int i=0;i<len;++i){
-        c[i] = a[i]*b[i];
-    }
- 
-  }
-
   void Solvers::backsolve_polyfit_safeguarded(int dim, int degree, bool interp, int mrows, int ncols, double *R, int bncols, double *bs, const double *ws, int *degree_out)
   {
 
@@ -369,6 +356,18 @@ namespace moab {
 
         delete [] bs_bak;
       }
+
+  }
+
+  void Solvers::vec_dotprod(const int len, const double* a, const double* b, double* c)
+  {
+    if(!a||!b||!c){
+      std::cerr << __FILE__ << ":" << __LINE__ << "\nNULL Pointer" << std::endl;
+      return;
+    }
+    for(int i=0;i<len;++i){
+        c[i] = a[i]*b[i];
+    }
 
   }
 
