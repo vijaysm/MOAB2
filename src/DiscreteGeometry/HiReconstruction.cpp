@@ -53,7 +53,7 @@ namespace moab
 		error = ahf->initialize(); MB_CHK_ERR(error);
 		if(CURVE==ahf->thismeshtype){
 			_dim = 1; _MAXPNTS = 13;
-		}else if(SURFACE==ahf->thismeshtype){
+		}else if(SURFACE==ahf->thismeshtype||SURFACE_MIXED==ahf->thismeshtype){
 			_dim = 2; _MAXPNTS = 128;
 		}else{
 			MB_SET_ERR(MB_FAILURE,"Encountered a non-manifold mesh or a mesh with volume elements");
@@ -263,21 +263,28 @@ namespace moab
 	ErrorCode HiReconstruction::hiproj_walf_in_element(EntityHandle elem, const int nvpe, const int npts2fit, const double* naturalcoords2fit, double* newcoords){
 		assert(newcoords);
 		ErrorCode error;
+		//get connectivity table
+		std::vector<EntityHandle> elemconn;
+		error = mbImpl->get_connectivity(&elem,1,elemconn); MB_CHK_ERR(error);
+		if(nvpe!=elemconn.size()){
+			MB_SET_ERR(MB_FAILURE,"element connectivity table size doesn't match input size");
+		}
+
 		if(!_hasfittings){
 			MB_SET_ERR(MB_FAILURE,"There is no existing fitting results");
+		}else{
+			std::ostringstream convert; convert << elem; std::string ID = convert.str();
+			for(int i=0;i<nvpe;++i){
+				if(-1==_verts2rec.index(elemconn[i])){
+					MB_SET_ERR(MB_FAILURE,"There is no existing fitting results for element "+ID);
+				}
+			}
 		}
 		//check correctness of input
 		for(int i=0;i<npts2fit;++i){
 			if(!check_barycentric_coords(nvpe,naturalcoords2fit+i*nvpe)){
 				MB_SET_ERR(MB_FAILURE,"Wrong barycentric coordinates");
 			}
-		}
-
-		//get connectivity table
-		std::vector<EntityHandle> elemconn;
-		error = mbImpl->get_connectivity(&elem,1,elemconn); MB_CHK_ERR(error);
-		if(nvpe!=elemconn.size()){
-			MB_SET_ERR(MB_FAILURE,"element connectivity table size doesn't match input size");
 		}
 
 		double *elemcoords = new double[nvpe*3];
@@ -313,6 +320,9 @@ namespace moab
 	ErrorCode HiReconstruction::hiproj_walf_around_vertex(EntityHandle vid, const int npts2fit, const double* coords2fit, double* hiproj_new){
 		if(!_hasfittings){
 			MB_SET_ERR(MB_FAILURE,"There is no existing fitting results");
+		}else if(-1==_verts2rec.index(vid)){
+			std::ostringstream convert; convert << vid; std::string VID = convert.str();
+			MB_SET_ERR(MB_FAILURE,"There is no existing fitting results for vertex "+VID);
 		}
 		ErrorCode error;
 		//get center of local coordinates system
