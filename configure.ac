@@ -64,16 +64,14 @@ LT_INIT([dlopen])
 AC_C_BIGENDIAN
 
 MB_CPPFLAGS=""
+MB_DEFS=""
 
 # Check if platform is BlueGene
 AC_MSG_CHECKING([if platform is IBM BlueGene])
 FATHOM_TRY_COMPILER_DEFINE([__bg__],
-  [MB_CPPFLAGS="$MB_CPPFLAGS -DBLUEGENE"
-   BGDEF="-WF,"
-   MB_BLUEGENE_CONF=yes
-   ],
-  [MB_BLUEGENE_CONF=no
-   BGDEF=""])
+  [MB_DEFS="$MB_DEFS -DBLUEGENE"
+   MB_BLUEGENE_CONF=yes],
+  [MB_BLUEGENE_CONF=no])
 AC_MSG_RESULT([$MB_BLUEGENE_CONF])
 
 AC_CHECK_PROG([ZCAT],[gunzip],[gunzip -c],[])
@@ -87,7 +85,7 @@ AM_CONDITIONAL([HAVE_ZCAT],[test "x" = "x$ZCAT"])
 
 FATHOM_TEMPLATE_SPECIALIZATION
 FATHOM_TEMPLATE_FUNC_SPECIALIZATION
-MB_CPPFLAGS="$MB_CPPFLAGS $TEMPLATE_SPECIALIZATION $TEMPLATE_FUNC_SPECIALIZATION"
+MB_DEFS="$MB_DEFS $TEMPLATE_SPECIALIZATION $TEMPLATE_FUNC_SPECIALIZATION"
 
 FATHOM_CHECK_CXX_WORKS([], [AC_MSG_ERROR([Cannot build without C++ compiler])])
 
@@ -114,7 +112,7 @@ AC_CHECK_FUNC([vsnprintf],
 
 FATHOM_VECTOR_TEMPLATE_INSERT
 FATHOM_OLD_STD_COUNT
-MB_CPPFLAGS="$MB_CPPFLAGS $NO_VECTOR_TEMPLATE_INSERT $OLD_STD_COUNT"
+MB_DEFS="$MB_DEFS $NO_VECTOR_TEMPLATE_INSERT $OLD_STD_COUNT"
 
 ################################################################################
 #                              HANDLE SIZE
@@ -170,7 +168,7 @@ fi
 # in serial_open_file and other places will fail on 32-bit systems if the file
 # is larger that 2GB.
 if (test "x$enable_32bit_handles" != "x"); then
-  MB_CPPFLAGS="$MB_CPPFLAGS -D_FILE_OFFSET_BITS=64"
+  MB_DEFS="$MB_DEFS -D_FILE_OFFSET_BITS=64"
   # AC_DEFINE_UNQUOTED([FILE_OFFSET_BITS], [64], [Support for handling files larger than 2GB on 32-bit machines])
 fi
 
@@ -382,7 +380,7 @@ if test "xyes" = "x$enablempi"; then
   FATHOM_CHECK_MPE
   AC_SUBST([WITH_MPE])
   AC_SUBST([MPE_LIBS])
-  test "xyes" != "x$WITH_MPE" || MB_CPPFLAGS="$MB_CPPFLAGS -DUSE_MPE"
+  test "xyes" != "x$WITH_MPE" || MB_DEFS="$MB_DEFS -DUSE_MPE"
 fi
 
 ################################################################################
@@ -1307,28 +1305,17 @@ if test "x" = "x$examplesdir"; then
   AC_SUBST(examplesdir)
 fi
 
-AM_CPPFLAGS=""
-AC_SUBST([AM_CPPFLAGS])
-AC_SUBST([MB_CPPFLAGS])
-AM_CFLAGS="$MB_CPPFLAGS"
-AM_CXXFLAGS="$MB_CPPFLAGS"
-if (test "$MB_BLUEGENE_CONF" != "no"); then
-  AM_FCFLAGS=`echo $MB_CPPFLAGS | sed -e "s/-D/-WF,-D/g"`
-  AM_FFLAGS=`echo $MB_CPPFLAGS | sed -e "s/-D/-WF,-D/g"`
-else
-  AM_FCFLAGS="$MB_CPPFLAGS"
-  AM_FFLAGS="$MB_CPPFLAGS"
-fi
+CPPFLAGS="$MB_CPPFLAGS"
+FCPPFLAGS=`echo $MB_CPPFLAGS | sed -e "s/-D/$FC_DEFINE/g"`
+FCDEFS=`echo $MB_DEFS | sed -e "s/-D/$FC_DEFINE/g"`
+AC_SUBST([CPPFLAGS])
 AC_SUBST([FCPPFLAGS])
+AC_SUBST([MB_DEFS])
+AC_SUBST([FCDEFS])
 AM_LDFLAGS="$AM_LDFLAGS $EXPORT_LTFLAGS $EXPORT_LDFLAGS"
 AC_SUBST([AM_LDFLAGS])
 AC_SUBST([EXPORT_LTFLAGS])
 AC_SUBST([EXPORT_LDFLAGS])
-AC_SUBST([AM_CXXFLAGS])
-AC_SUBST([AM_CFLAGS])
-AC_SUBST([AM_FCFLAGS])
-AC_SUBST([AM_FFLAGS])
-AC_SUBST([BGDEF])
 
 AC_ARG_VAR([FC], [FORTRAN compiler command])
 # AC_CONFIG_HEADERS([config.h])

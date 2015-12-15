@@ -3,7 +3,10 @@ BUILT_SOURCES = iMesh_protos.h iMeshP_protos.h iMesh_extensions_protos.h iMeshP_
 MESHDIR = $(abs_top_srcdir)/MeshFiles/unittest
 
 DEFS += -DSRCDIR=$(srcdir) \
-        -DMESHDIR=$(MESHDIR) 
+        -DMESHDIR=$(MESHDIR)
+
+FCDEFS += $(FC_DEFINE)SRCDIR=$(srcdir) \
+          $(FC_DEFINE)MESHDIR=$(MESHDIR) 
 
 AM_CPPFLAGS  = -I$(srcdir)/.. \
                -I$(top_srcdir)/src \
@@ -106,14 +109,14 @@ iMeshP_protos.h: iMeshP.h ../mkprotos.sh
 iMeshP_extensions_protos.h: iMeshP_extensions.h ../mkprotos.sh
 	$(AM_V_GEN)$(srcdir)/../mkprotos.sh iMeshP MOAB $< $@ MOAB_FCDefs.h
 
-FCDEFS = $(addprefix $(FC_DEFINE),DEFS)
-PPFCCOMPILE = $(FC) $(FCDEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
+FORTDEFS = $(FCDEFS) 
+PPFCCOMPILE = $(FC) $(FORTDEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
     $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_FCFLAGS) $(FCFLAGS)
 LTPPFCCOMPILE = $(LIBTOOL) $(AM_V_lt) --tag=FC $(AM_LIBTOOLFLAGS) \
     $(LIBTOOLFLAGS) --mode=compile $(FC) $(FCDEFS) \
     $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) \
     $(AM_FCFLAGS) $(FCFLAGS)
-PPF77COMPILE = $(F77) $(FCDEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
+PPF77COMPILE = $(F77) $(FORTDEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
    $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_FFLAGS) $(FFLAGS)
 LTPPF77COMPILE = $(LIBTOOL) $(AM_V_lt) --tag=F77 $(AM_LIBTOOLFLAGS) \
    $(LIBTOOLFLAGS) --mode=compile $(F77) $(FCDEFS) \

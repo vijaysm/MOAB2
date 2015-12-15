@@ -75,10 +75,10 @@ if ENABLE_imesh
 if HAVE_HDF5_PARALLEL
 if ENABLE_FORTRAN
    IMESH_TESTS += imeshp_test
-   AM_FCFLAGS += -I$(top_srcdir)/itaps \
-                 -I$(top_srcdir)/itaps/imesh \
-                 -I$(top_builddir)/itaps \
-                 -I$(top_builddir)/itaps/imesh
+   FCFLAGS += -I$(top_srcdir)/itaps \
+              -I$(top_srcdir)/itaps/imesh \
+              -I$(top_builddir)/itaps \
+              -I$(top_builddir)/itaps/imesh
 endif
 endif 
 endif
