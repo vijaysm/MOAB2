@@ -7,6 +7,7 @@ libdagmc_la_SOURCES = DagMC.cpp
 libdagmc_la_includedir = $(includedir)
 libdagmc_la_include_HEADERS = DagMC.hpp
 
+AM_CXXFLAGS =
 if HAVE_CGM
   AM_CPPFLAGS += $(CGM_INCLUDES) $(CGM_CPPFLAGS) 
   AM_CXXFLAGS += $(CGM_CXXFLAGS)

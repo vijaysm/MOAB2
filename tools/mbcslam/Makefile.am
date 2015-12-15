@@ -52,9 +52,9 @@ endif
 endif
 
 check_PROGRAMS = $(TESTS) 
-AM_CXXFLAGS += -DBUILDING_MB \
-               -DSRCDIR=$(srcdir) \
-               -DMESHDIR=$(MESHDIR)
+DEFS += -DBUILDING_MB \
+        -DSRCDIR=$(srcdir) \
+        -DMESHDIR=$(MESHDIR)
 
 intx_on_sphere_test_SOURCES = intx_on_sphere_test.cpp
 intx_in_plane_test_SOURCES = intx_in_plane_test.cpp
@@ -78,18 +78,17 @@ if HAVE_HDF5
   intx_mpas_SOURCES = intx_mpas.cpp
 if ENABLE_FORTRAN
   advection_SOURCES = advection.F90
-  advection_FCFLAGS = $(AM_FCFLAGS)
   advection_LDADD = libmbcslam.la  $(top_builddir)/itaps/imesh/libiMesh.la $(top_builddir)/src/libMOAB.la $(FCLIBS)
 endif
 endif
 endif 
 
-FCDEFS = $(addprefix $(FC_DEFINE),DEFS)
-PPFCCOMPILE = $(FC) $(FCDEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
-    $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_FCFLAGS) $(FCFLAGS)
+FORTDEFS = $(FCDEFS) #$(DEFS:-D=$(FC_DEFINE))
+PPFCCOMPILE = $(FC) $(FORTDEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
+    $(AM_CPPFLAGS) $(FCPPFLAGS) $(AM_FCFLAGS) $(FCFLAGS)
 LTPPFCCOMPILE = $(LIBTOOL) $(AM_V_lt) --tag=FC $(AM_LIBTOOLFLAGS) \
-    $(LIBTOOLFLAGS) --mode=compile $(FC) $(FCDEFS) \
-    $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) \
+    $(LIBTOOLFLAGS) --mode=compile $(FC) $(FORTDEFS) \
+    $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(FCPPFLAGS) \
     $(AM_FCFLAGS) $(FCFLAGS)
 
 # Other files to clean up (e.g. output from tests)
