@@ -325,16 +325,11 @@ if (test "x$ENABLE_FORTRAN" != "xno" && test "x$CHECK_FC" != "xno"); then
   else
 
     if (test "$fcxxlinkage" != "yes"); then
-      my_save_ldflags="$LDFLAGS"
-    	if (test "$cc_compiler" != "Clang"); then
-        LDFLAGS="$LDFLAGS -lstdc++"
-        AC_MSG_CHECKING([whether $FC supports -stdlib=libstdc++])
-        AC_LINK_IFELSE([AC_LANG_PROGRAM([])],
-            [AC_MSG_RESULT([yes])]
-            [fcxxlinkage=yes; FFLAGS="$FFLAGS -lstdc++"; FCFLAGS="$FCFLAGS -lstdc++"; FLIBS="$FLIBS -lstdc++"; FCLIBS="$FCLIBS -lstdc++"],
-            [AC_MSG_RESULT([no])]
-        )
-      else
+      # With Clang compilers, we specifically look at two cases: OSX and Ubuntu
+      # On OSX (Mavericks and beyond), -lc++ provides the standard C++ library definitions
+      # But on Ubuntu, we need -lstdc++, so "fcxxlinkage" will not be set to "yes" below
+      if (test "$cc_compiler" == "Clang"); then
+        my_save_ldflags="$LDFLAGS"
         LDFLAGS="$LDFLAGS -lc++"
         AC_MSG_CHECKING([whether $FC supports -stdlib=libc++])
         AC_LINK_IFELSE([AC_LANG_PROGRAM([])],
@@ -342,8 +337,22 @@ if (test "x$ENABLE_FORTRAN" != "xno" && test "x$CHECK_FC" != "xno"); then
             [fcxxlinkage=yes; FFLAGS="$FFLAGS -lc++"; FCFLAGS="$FCFLAGS -lc++"; FLIBS="$FLIBS -lc++"; FCLIBS="$FCLIBS -lc++"],
             [AC_MSG_RESULT([no])]
         )
+        LDFLAGS="$my_save_ldflags"
       fi
-      LDFLAGS="$my_save_ldflags"
+
+      # GNU and other non-intel compilers will use the standard -lstdc++ linkage
+      # This case also includes the Ubuntu+Clang combination as mentioned before
+      if (test "$cc_compiler" != "Clang" || test "$fcxxlinkage" != "yes"); then
+        my_save_ldflags="$LDFLAGS"
+        LDFLAGS="$LDFLAGS -lstdc++"
+        AC_MSG_CHECKING([whether $FC supports -stdlib=libstdc++])
+        AC_LINK_IFELSE([AC_LANG_PROGRAM([])],
+            [AC_MSG_RESULT([yes])]
+            [fcxxlinkage=yes; FFLAGS="$FFLAGS -lstdc++"; FCFLAGS="$FCFLAGS -lstdc++"; FLIBS="$FLIBS -lstdc++"; FCLIBS="$FCLIBS -lstdc++"],
+            [AC_MSG_RESULT([no])]
+        )
+        LDFLAGS="$my_save_ldflags"
+      fi
     fi
 
   fi
