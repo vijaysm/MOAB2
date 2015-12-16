@@ -61,7 +61,7 @@ int main(int argc, char* argv[])
   bool moab_use_metis=false;
 #endif
 
-  LONG_DESC << "This utility invokes the ZoltanPartitioner or MetisPartitioner component of MOAB/CGM"
+  LONG_DESC << "This utility invokes the ZoltanPartitioner or MetisPartitioner component of MOAB/CGM "
             "to partition a mesh/geometry." << std::endl
             << "If no partitioning method is specified, the defaults are: "
             << "for Zoltan=\"" << DEFAULT_ZOLTAN_METHOD 
@@ -283,6 +283,12 @@ int main(int argc, char* argv[])
       std::cerr << " No material set id's to load" << std::endl;
       return 1;
     }
+  }
+
+  if (num_parts <= 1) {
+    std::cerr << "** Please specify #parts = " << num_parts << " to be greater than 1." << std::endl << std::endl;
+    opts.printHelp();
+    return 0;
   }
 
   clock_t t = clock();
