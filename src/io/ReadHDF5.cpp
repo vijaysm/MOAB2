@@ -2399,6 +2399,14 @@ ErrorCode ReadHDF5::read_set_data(const Range& set_file_ids,
   size_t count, offset;
 
   int nn = 0;
+#ifdef  MOAB_HAVE_MPI
+  if (nativeParallel && mode==CONTENT && myPcomm->proc_config().proc_size()>1 && data_offsets.empty())
+  {
+    MB_SET_ERR_CONT( "ReadHDF5 Failure: Attempt reading an empty dataset on proc " <<
+        myPcomm->proc_config().proc_rank());
+    MPI_Abort(myPcomm->proc_config().proc_comm(), 1);
+  }
+#endif
   while (!data.done()) {
     dbgOut.printf(3, "Reading chunk %d of %s\n", ++nn, data.get_debug_desc());
     try {
