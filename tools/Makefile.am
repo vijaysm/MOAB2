@@ -2,7 +2,7 @@ AUTOMAKE_OPTIONS = foreign
 AM_CPPFLAGS += -I$(top_srcdir)/src \
                -I$(top_builddir)/src \
                -I$(top_srcdir)/src/parallel \
-	       -I$(top_srcdir)/itaps \
+               -I$(top_srcdir)/itaps \
                -I$(top_builddir)/itaps/imesh
 
 LDADD = $(top_builddir)/src/libMOAB.la
@@ -29,7 +29,6 @@ EXTRA_DIST = README.hexmodops \
              README.mbsurfplot \
              README.mbtagprop \
              README.spheredecomp
-
 
 if ENABLE_mbconvert
   bin_PROGRAMS += mbconvert
@@ -110,12 +109,6 @@ if ENABLE_metis
 endif
 endif
 
-if ENABLE_qvdual
-  qvdual_DIR = qvdual
-else
-  qvdual_DIR=
-endif
-
 if ENABLE_mcnpmit
   mcnpmit_DIR = mcnpmit
 else
@@ -154,7 +147,6 @@ if ENABLE_mbmerge
   bin_PROGRAMS += mbmerge
 endif
 
-
 noinst_PROGRAMS = $(parread)
 
 SUBDIRS = . \
@@ -162,9 +154,8 @@ SUBDIRS = . \
           $(mbcoupler_DIR) \
           $(mbcslam_DIR) \
           $(mbzoltan_DIR) \
-	  $(mcnpmit_DIR) \
-          $(qvdual_DIR) \
-	  $(vtkMOABReader_DIR) \
+          $(mcnpmit_DIR) \
+          $(vtkMOABReader_DIR) \
           $(dagmc_DIR) 
 
 mbconvert_SOURCES = convert.cpp
