@@ -5,10 +5,15 @@ LDADD = $(top_builddir)/src/libMOAB.la
 
 MESHDIR = $(abs_top_srcdir)/MeshFiles/unittest
 
-AM_CPPFLAGS  = $(BGDEF)-DIS_BUILDING_MB \
-               $(BGDEF)-DSRCDIR=$(srcdir) \
-               $(BGDEF)-DMESHDIR=$(MESHDIR) \
-               -I. \
+DEFS += -DIS_BUILDING_MB \
+				-DSRCDIR=$(srcdir) \
+        -DMESHDIR=$(MESHDIR)
+
+FCDEFS += $(FC_DEFINE)IS_BUILDING_MB \
+					$(FC_DEFINE)SRCDIR=$(srcdir) \
+          $(FC_DEFINE)MESHDIR=$(MESHDIR) 
+
+AM_CPPFLAGS  = -I. \
                -I.. -I$(srcdir)/.. \
                -I$(top_builddir)/src \
                -I$(top_srcdir)/src \
@@ -161,3 +166,18 @@ MOSTLYCLEANFILES = mhdf_ll.h5m tmp0.h5m tmp1.h5m tmp2.h5m tmp3.h5m \
                    TaskMesh_n2.1.h5m \
                    testReadGhost_n2.0.h5m \
                    testReadGhost_n2.1.h5m
+
+FORTDEFS = $(FCDEFS) 
+PPFCCOMPILE = $(FC) $(FORTDEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
+    $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_FCFLAGS) $(FCFLAGS)
+LTPPFCCOMPILE = $(LIBTOOL) $(AM_V_lt) --tag=FC $(AM_LIBTOOLFLAGS) \
+    $(LIBTOOLFLAGS) --mode=compile $(FC) $(FCDEFS) \
+    $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) \
+    $(AM_FCFLAGS) $(FCFLAGS)
+PPF77COMPILE = $(F77) $(FORTDEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
+   $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_FFLAGS) $(FFLAGS)
+LTPPF77COMPILE = $(LIBTOOL) $(AM_V_lt) --tag=F77 $(AM_LIBTOOLFLAGS) \
+   $(LIBTOOLFLAGS) --mode=compile $(F77) $(FCDEFS) \
+   $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) \
+   $(AM_FFLAGS) $(FFLAGS)
+

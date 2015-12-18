@@ -2,8 +2,8 @@ LDADD = $(top_builddir)/src/libMOAB.la $(top_builddir)/tools/dagmc/DagMC.lo
 
 MESHDIR = $(abs_top_srcdir)/MeshFiles/unittest
 
-AM_CPPFLAGS  = $(BGDEF)-DSRCDIR=$(srcdir) \
-               $(BGDEF)-DMESHDIR=$(MESHDIR) \
+AM_CPPFLAGS  = -DSRCDIR=$(srcdir) \
+               -DMESHDIR=$(MESHDIR) \
                -I$(builddir) -I.. -I$(srcdir)/.. \
                -I$(top_builddir)/src \
                -I$(top_srcdir)/src \
