@@ -124,12 +124,9 @@ if ENABLE_fbigeom
 	$(AM_V_at)echo "FBIGEOM_LIBS=-lFBiGeomMOAB" >> $(DESTDIR)$(cfgdir)/iRel-Defs.inc
 endif
 
-CLEANFILES=iRel_protos.h
+CLEANFILES = iRel_protos.h
 
-#itaps/irel/iRel_FCDefs.h: itaps/iBase_FCDefs.h
-#	./config.status itaps/irel/iRel_FCDefs.h
-
-# DISTCLEANFILES = iRel_FCDefs.h
+DISTCLEANFILES = irel_export.h
 
 iRel_protos.h: iRel.h $(top_srcdir)/itaps/mkprotos.sh Makefile.am
 	$(AM_V_GEN)$(top_srcdir)/itaps/mkprotos.sh iRel MOAB $< $@ MOAB_FCDefs.h
