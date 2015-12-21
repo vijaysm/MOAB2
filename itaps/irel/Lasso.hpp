@@ -1,6 +1,7 @@
 #ifndef LASSO_HPP
 #define LASSO_HPP
 
+#include "irel_export.h"
 #include "iRel.h"
 
 #include <set>
@@ -9,7 +10,7 @@
 
 class AssocPair;
 
-class Lasso
+class IREL_EXPORT Lasso
 {
 public:
   Lasso() : lastErrorType(iBase_SUCCESS)

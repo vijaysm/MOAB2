@@ -34,7 +34,7 @@ typedef void* iRel_EntityHandle;
 */
 void handle_error_code(const int result,
                        int *number_failed,
-                       int *number_not_implemented,
+                       int * /*number_not_implemented*/,
                        int *number_successful)
 {
   if (result) {

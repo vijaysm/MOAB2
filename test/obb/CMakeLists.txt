@@ -8,7 +8,7 @@ foreach( fname ${TESTS} )
   add_executable( ${base} ${CMAKE_SOURCE_DIR}/test/TestUtil.hpp ${fname})
   set_target_properties( ${base} PROPERTIES COMPILE_FLAGS "${TEST_COMP_FLAGS} ${MOAB_DEFINES} -DTEST" )
   target_link_libraries( ${base} MOAB ${CGM_LIBRARIES} )
-  add_test( ${base} ${EXECUTABLE_OUTPUT_PATH}/${base} )
+  add_test( NAME ${base} COMMAND ${base} )
 endforeach()
 
 add_executable( obb_time obb_time.cpp)

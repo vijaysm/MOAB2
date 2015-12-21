@@ -30,7 +30,7 @@ foreach( fname ${TESTS} )
   add_executable( ${base} ${CMAKE_SOURCE_DIR}/test/TestUtil.hpp ${fname})
   set_target_properties( ${base} PROPERTIES COMPILE_FLAGS "${TEST_COMP_FLAGS} ${MOAB_DEFINES}" )
   target_link_libraries( ${base} MOAB ${CGM_LIBRARIES} )
-  add_test( ${base} ${EXECUTABLE_OUTPUT_PATH}/${base} )
+  add_test( NAME ${base} COMMAND ${base} )
 endforeach()
 
 
@@ -39,4 +39,4 @@ set_source_files_properties( tqdcfr_test.cpp
     COMPILE_FLAGS "${MOAB_DEFINES}" )
 set_target_properties( tqdcfr PROPERTIES COMPILE_FLAGS "${TEST_COMP_FLAGS} ${MOAB_DEFINES}" )
 target_link_libraries( tqdcfr MOAB ${CGM_LIBRARIES} )
-add_test( TestTQDCFR ${EXECUTABLE_OUTPUT_PATH}/tqdcfr )
+add_test( NAME TestTQDCFR COMMAND tqdcfr )

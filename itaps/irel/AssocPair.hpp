@@ -1,6 +1,7 @@
 #ifndef ASSOCPAIR_HPP
 #define ASSOCPAIR_HPP
 
+#include "irel_export.h"
 #include "iRel_Lasso.hpp"
 #include "AssocPairSide.hpp"
 
@@ -8,7 +9,7 @@
 
 class Lasso;
 
-class AssocPair
+class IREL_EXPORT AssocPair
 {
 public:
   friend class Lasso;

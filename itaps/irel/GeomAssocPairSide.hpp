@@ -1,10 +1,11 @@
 #ifndef GEOMASSOCPAIRSIDE_HPP
 #define GEOMASSOCPAIRSIDE_HPP
 
+#include "irel_export.h"
 #include "AssocPairSide.hpp"
 #include <iGeom.h>
 
-class GeomAssocPairSide : public AssocPairSide
+class IREL_EXPORT GeomAssocPairSide : public AssocPairSide
 {
 public:
   GeomAssocPairSide(iRel_Instance relation, iBase_Instance instance, int id);

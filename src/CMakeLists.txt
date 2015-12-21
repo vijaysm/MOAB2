@@ -18,7 +18,11 @@ configure_file(FCDefs.h.in "${CMAKE_CURRENT_BINARY_DIR}/FCDefs.h" @ONLY)
 #sed -e "s/FC_FUNC/MOAB_FC_FUNC/" src/FCDefs.h >src/MOAB_FCDefs.h
 file(READ ${CMAKE_CURRENT_BINARY_DIR}/FCDefs.h infile)
 string( REGEX REPLACE "FC_FUNC" "MOAB_FC_FUNC" outstring "${infile}" )
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/MOAB_FCDefs.h" "${outstring}")
+set(CMAKE_CONFIGURABLE_FILE_CONTENT "${outstring}")
+configure_file(
+  "${CMAKE_ROOT}/Modules/CMakeConfigurableFile.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/MOAB_FCDefs.h"
+  @ONLY)
 
 #Create the moab/EntityHandle.hpp file
 file(READ ${CMAKE_CURRENT_SOURCE_DIR}/moab/EntityHandle.hpp.in infile2)

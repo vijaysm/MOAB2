@@ -69,21 +69,13 @@ execute_process( COMMAND dirname ${MOAB_ABSSRC_DIR2}
 
 ## Set the directory where the binaries will be stored
 set( EXECUTABLE_OUTPUT_PATH
-  ${PROJECT_BINARY_DIR}/bin
-  CACHE PATH
-  "Directory where all executable will be stored"
-)
+  ${PROJECT_BINARY_DIR}/bin)
 
 ## Set the directory where the libraries will be stored
 set( LIBRARY_OUTPUT_PATH
-  ${PROJECT_BINARY_DIR}/lib
-  CACHE PATH
-  "Directory where all the libraries will be stored"
-)
+  ${PROJECT_BINARY_DIR}/lib)
 mark_as_advanced(
-  MOAB_ABSSRC_DIR
-  EXECUTABLE_OUTPUT_PATH
-  LIBRARY_OUTPUT_PATH)
+  MOAB_ABSSRC_DIR)
 
 include ( CheckIncludeFile )
 include ( CheckFunctionExists )
@@ -215,10 +207,8 @@ endif (ENABLE_ZLIB)
 #set (MOAB_HAVE_HDF5_PARALLEL 0 CACHE INTERNAL "Found necessary parallel HDF5 components. Configure MOAB with it." )
 if ( ENABLE_HDF5 )
   find_package( HDF5_MOAB REQUIRED )
-  set( MOAB_DEFINES "-DMOAB_HAVE_HDF5 ${MOAB_DEFINES}" )
   set (MOAB_HAVE_HDF5 1)
   if ( HDF5_IS_PARALLEL AND MOAB_HAVE_MPI )
-    set( MOAB_DEFINES "-DMOAB_HAVE_HDF5_PARALLEL ${MOAB_DEFINES}" )
     set (MOAB_HAVE_HDF5_PARALLEL 1)
   endif ( )
   set( MOAB_LIBS ${MOAB_LIBS} ${HDF5_LIBRARIES} )

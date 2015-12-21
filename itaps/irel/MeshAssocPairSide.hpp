@@ -1,10 +1,11 @@
 #ifndef MESHASSOCPAIRSIDE_HPP
 #define MESHASSOCPAIRSIDE_HPP
 
+#include "irel_export.h"
 #include "AssocPairSide.hpp"
 #include <iMesh.h>
 
-class MeshAssocPairSide : public AssocPairSide
+class IREL_EXPORT MeshAssocPairSide : public AssocPairSide
 {
 public:
   MeshAssocPairSide(iRel_Instance relation, iBase_Instance instance, int id);

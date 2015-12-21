@@ -15,7 +15,7 @@ foreach( fname ${TESTS} )
   add_executable( ${base} ${CMAKE_SOURCE_DIR}/test/TestUtil.hpp ${fname})
   set_target_properties( ${base} PROPERTIES COMPILE_FLAGS "-DSRCDIR=${CMAKE_CURRENT_SOURCE_DIR} ${TEST_COMP_FLAGS} ${MOAB_DEFINES} -DTEST -DMESHDIR=${MOAB_ABSSRC_DIR}/MeshFiles/unittest" )
   target_link_libraries( ${base} MOAB ${CGM_LIBRARIES} )
-  add_test( ${base} ${EXECUTABLE_OUTPUT_PATH}/${base} )
+  add_test( ${base} ${base} )
   set_tests_properties ( ${base} PROPERTIES TIMEOUT 120)
 endforeach()
 
