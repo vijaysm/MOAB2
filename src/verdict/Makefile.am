@@ -33,6 +33,6 @@ nobase_libmoabverdict_la_include_HEADERS = \
         moab/VerdictWrapper.hpp
 
 # Boilerplate stuff that doesn't depend on what the targets are
-AM_CPPFLAGS += -DIS_BUILDING_MB -DSRCDIR=$(srcdir) \
-               -I$(srcdir)/.. -I..
-
+AM_CPPFLAGS = -DIS_BUILDING_MB -DSRCDIR=$(srcdir) \
+               -I$(srcdir)/.. -I.. -I$(srcdir)/../io \
+               -I$(srcdir)/../io/mhdf/include

@@ -1,6 +1,6 @@
-AM_CPPFLAGS += -I$(top_srcdir)/src \
-               -I$(top_builddir)/src \
-	       -I$(top_srcdir)/tools
+AM_CPPFLAGS = -I$(top_srcdir)/src \
+              -I$(top_builddir)/src \
+	            -I$(top_srcdir)/tools
 
 lib_LTLIBRARIES = libdagmc.la
 libdagmc_la_SOURCES = DagMC.cpp
@@ -8,6 +8,7 @@ libdagmc_la_includedir = $(includedir)
 libdagmc_la_include_HEADERS = DagMC.hpp \
                               dagmc_export.h
 
+AM_CXXFLAGS =
 if HAVE_CGM
   AM_CPPFLAGS += $(CGM_INCLUDES) $(CGM_CPPFLAGS) 
   AM_CXXFLAGS += $(CGM_CXXFLAGS)

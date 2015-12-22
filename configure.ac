@@ -37,8 +37,11 @@ if (test "x$enable_fortran" != "xno"); then
 fi
 AC_SUBST(ENABLE_FORTRAN)
 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-fortran=$ENABLE_FORTRAN"
-EXTRA_GNU_FLAGS='-Wall -pipe -pedantic -Wno-long-long -Wextra -Wcast-align  -Wpointer-arith -Wformat -Wformat-security -Wshadow -Wunused-parameter -Wno-variadic-macros'
+EXTRA_GNU_CXX_FLAGS='-Wno-long-long -Wpointer-arith -Wformat -Wformat-security -Wno-variadic-macros'
+EXTRA_GNU_FLAGS='-Wall -pipe -pedantic -Wextra -Wcast-align -Wshadow -Wunused-parameter'
 EXTRA_INTEL_FLAGS='-Wall'
+EXTRA_INTEL_FFLAGS='-check all'
+EXTRA_BG_FLAGS='-qarch=auto -qtune=auto -qpic=large'
 
 # Find out the appropriate compiler based on user options
 AC_ARG_VAR([FC], [FORTRAN compiler command])
@@ -64,12 +67,16 @@ LT_INIT([dlopen])
 
 AC_C_BIGENDIAN
 
+MB_CPPFLAGS=""
+MB_DEFS=""
+
 # Check if platform is BlueGene
 AC_MSG_CHECKING([if platform is IBM BlueGene])
 FATHOM_TRY_COMPILER_DEFINE([__bg__],
-  [AM_CPPFLAGS="$AM_CPPFLAGS -DBLUEGENE"
-   AC_MSG_RESULT([yes])],
-  [AC_MSG_RESULT([no])])
+  [MB_DEFS="$MB_DEFS -DBLUEGENE"
+   MB_BLUEGENE_CONF=yes],
+  [MB_BLUEGENE_CONF=no])
+AC_MSG_RESULT([$MB_BLUEGENE_CONF])
 
 AC_CHECK_PROG([ZCAT],[gunzip],[gunzip -c],[])
 AC_CHECK_PROG([ZCAT],[gzip],[gzip -cd],[])
@@ -82,6 +89,7 @@ AM_CONDITIONAL([HAVE_ZCAT],[test "x" = "x$ZCAT"])
 
 FATHOM_TEMPLATE_SPECIALIZATION
 FATHOM_TEMPLATE_FUNC_SPECIALIZATION
+MB_DEFS="$MB_DEFS $TEMPLATE_SPECIALIZATION $TEMPLATE_FUNC_SPECIALIZATION"
 
 FATHOM_CHECK_CXX_WORKS([], [AC_MSG_ERROR([Cannot build without C++ compiler])])
 
@@ -111,6 +119,7 @@ AC_CHECK_FUNC([cbrt],      [AC_DEFINE([HAVE_CBRT],     [1],[Define if cbrt is av
 
 FATHOM_VECTOR_TEMPLATE_INSERT
 FATHOM_OLD_STD_COUNT
+MB_DEFS="$MB_DEFS $NO_VECTOR_TEMPLATE_INSERT $OLD_STD_COUNT"
 
 ################################################################################
 #                              Headers
@@ -172,7 +181,7 @@ fi
 # in serial_open_file and other places will fail on 32-bit systems if the file
 # is larger that 2GB.
 if (test "x$enable_32bit_handles" != "x"); then
-  AM_CPPFLAGS="$AM_CPPFLAGS -D_FILE_OFFSET_BITS=64"
+  MB_DEFS="$MB_DEFS -D_FILE_OFFSET_BITS=64"
   # AC_DEFINE_UNQUOTED([FILE_OFFSET_BITS], [64], [Support for handling files larger than 2GB on 32-bit machines])
 fi
 
@@ -397,7 +406,7 @@ if test "xyes" = "x$enablempi"; then
   FATHOM_CHECK_MPE
   AC_SUBST([WITH_MPE])
   AC_SUBST([MPE_LIBS])
-  test "xyes" != "x$WITH_MPE" || AM_CPPFLAGS="$AM_CPPFLAGS -DUSE_MPE"
+  test "xyes" != "x$WITH_MPE" || MB_DEFS="$MB_DEFS -DUSE_MPE"
 fi
 
 ################################################################################
@@ -412,7 +421,7 @@ else
 fi
 AM_CONDITIONAL(HAVE_HDF5, [test "xno" != "x$HAVE_HDF5"])
 AC_SUBST(HAVE_HDF5)
-AM_CPPFLAGS="$HDF5_CPPFLAGS $AM_CPPFLAGS"
+MB_CPPFLAGS="$HDF5_CPPFLAGS $MB_CPPFLAGS"
 EXPORT_LDFLAGS="$EXPORT_LDFLAGS $HDF5_LDFLAGS"
 AC_SUBST(HDF5_LIBS)
 
@@ -457,7 +466,7 @@ if test "xno" != "x$HAVE_CCMIO"; then
   AC_DEFINE([HAVE_CCMIO],[1],["Define if configured with CCM I/O support."])
 fi
 AM_CONDITIONAL(HAVE_CCMIO, [test "xno" != "x$HAVE_CCMIO"])
-AM_CPPFLAGS="$CCMIO_CPPFLAGS $AM_CPPFLAGS"
+MB_CPPFLAGS="$CCMIO_CPPFLAGS $MB_CPPFLAGS"
 EXPORT_LDFLAGS="$CCMIO_LDFLAGS $EXPORT_LDFLAGS"
 AC_SUBST(CCMIO_LIBS)
 
@@ -474,7 +483,7 @@ if test "xno" != "x$HAVE_DAMSEL"; then
   AC_DEFINE([HAVE_DAMSEL],[1],["Define if configured with Damsel I/O format support."])
 fi
 AM_CONDITIONAL(HAVE_DAMSEL, [test "xno" != "x$HAVE_DAMSEL"])
-AM_CPPFLAGS="$DAMSEL_CPPFLAGS $AM_CPPFLAGS"
+MB_CPPFLAGS="$DAMSEL_CPPFLAGS $MB_CPPFLAGS"
 EXPORT_LDFLAGS="$DAMSEL_LDFLAGS $EXPORT_LDFLAGS"
 AC_SUBST(DAMSEL_LIBS)
 
@@ -489,7 +498,7 @@ if test "xyes" = "x$HAVE_PNETCDF"; then
   AC_DEFINE([HAVE_PNETCDF],[1],["Define if configured with Parallel NetCDF support."])
 fi
 AM_CONDITIONAL(HAVE_PNETCDF, [test "xyes" = "x$HAVE_PNETCDF"])
-AM_CPPFLAGS="$PNETCDF_CPPFLAGS $AM_CPPFLAGS"
+MB_CPPFLAGS="$PNETCDF_CPPFLAGS $MB_CPPFLAGS"
 EXPORT_LDFLAGS="$PNETCDF_LDFLAGS $EXPORT_LDFLAGS"
 AC_SUBST(PNETCDF_LIBS)
 
@@ -501,7 +510,7 @@ if test "xyes" = "x$HAVE_NETCDF"; then
   AC_DEFINE([HAVE_NETCDF],[1],["Define if configured with NetCDF support."])
 fi
 AM_CONDITIONAL(HAVE_NETCDF, [test "xno" != "x$HAVE_NETCDF"])
-AM_CPPFLAGS="$NETCDF_CPPFLAGS $AM_CPPFLAGS"
+MB_CPPFLAGS="$NETCDF_CPPFLAGS $MB_CPPFLAGS"
 EXPORT_LDFLAGS="$NETCDF_LDFLAGS $EXPORT_LDFLAGS"
 AC_SUBST(NETCDF_LIBS)
 AC_SUBST(HAVE_NETCDF)
@@ -519,7 +528,7 @@ if test "xno" != "x$HAVE_CGNS"; then
   AC_DEFINE([HAVE_CGNS],[1],["Define if configured with CGNS support."])
 fi
 AM_CONDITIONAL(HAVE_CGNS, [test "xno" != "x$HAVE_CGNS"])
-AM_CPPFLAGS="$CGNS_CPPFLAGS $AM_CPPFLAGS"
+MB_CPPFLAGS="$CGNS_CPPFLAGS $MB_CPPFLAGS"
 EXPORT_LDFLAGS="$CGNS_LDFLAGS $EXPORT_LDFLAGS"
 AC_SUBST(CGNS_LIBS)
 
@@ -1351,16 +1360,17 @@ if test "x" = "x$examplesdir"; then
   AC_SUBST(examplesdir)
 fi
 
-
-AC_SUBST([AM_CPPFLAGS])
+CPPFLAGS="$MB_CPPFLAGS"
+FCPPFLAGS=`echo $MB_CPPFLAGS | sed -e "s/-D/$FC_DEFINE/g"`
+FCDEFS=`echo $MB_DEFS | sed -e "s/-D/$FC_DEFINE/g"`
+AC_SUBST([CPPFLAGS])
+AC_SUBST([FCPPFLAGS])
+AC_SUBST([MB_DEFS])
+AC_SUBST([FCDEFS])
 AM_LDFLAGS="$AM_LDFLAGS $EXPORT_LTFLAGS $EXPORT_LDFLAGS"
 AC_SUBST([AM_LDFLAGS])
 AC_SUBST([EXPORT_LTFLAGS])
 AC_SUBST([EXPORT_LDFLAGS])
-AC_SUBST([AM_CXXFLAGS])
-AC_SUBST([AM_CFLAGS])
-AC_SUBST([AM_FCFLAGS])
-AC_SUBST([AM_FFLAGS])
 
 #src/moab/MOABConfig.h:config/MOABConfig.h.in
 # AC_CONFIG_HEADERS([config.h])
