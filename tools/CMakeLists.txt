@@ -3,7 +3,6 @@
 option ( MOAB_BUILD_MBCONVERT    "Build the MOAB mesh converter tool?"           ON )
 option ( MOAB_BUILD_HEXMODOPS    "Build the hexahedral modops tool?"             ON )
 option ( MOAB_BUILD_MBCHACO      "Build MOAB Chaco interface?"                  OFF )
-option ( MOAB_BUILD_QVDUAL       "Build the qvdual application?"                OFF )
 option ( MOAB_BUILD_MBSIZE       "Build the mbsize tool?"                        ON )
 option ( MOAB_BUILD_MBMEM        "Build the mbmem tool?"                         ON )
 option ( MOAB_BUILD_MBSKIN       "Build the mbskin tool?"                        ON )
@@ -169,11 +168,6 @@ if ( MOAB_BUILD_MBPART AND ( MOAB_HAVE_ZOLTAN OR MOAB_HAVE_METIS ) )
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     )
 endif ( MOAB_BUILD_MBPART AND ( MOAB_HAVE_ZOLTAN OR MOAB_HAVE_METIS ) )
-
-# QVDual
-if ( MOAB_BUILD_QVDUAL )
-  add_subdirectory( qvdual )
-endif( )
 
 # MBCoupler
 if ( ENABLE_IMESH AND MOAB_HAVE_MPI AND MPI_FOUND AND MOAB_BUILD_MBCOUPLER )

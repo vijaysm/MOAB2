@@ -1035,7 +1035,6 @@ AS_HELP_STRING([--disable-tools],[Disable all tools by default])],
   # Individual tools
 MB_OPTIONAL_TOOL([mbconvert],    [yes], [yes])
 MB_OPTIONAL_TOOL([hexmodops],    [yes], [yes])
-MB_OPTIONAL_TOOL([qvdual],       [no], [no])
 MB_OPTIONAL_TOOL([vtkMOABReader],[${VTKMOAB_DEFAULT}], [${VTKMOAB_DEFAULT}])
 MB_OPTIONAL_TOOL([mbsize],       [yes], [yes])
 MB_OPTIONAL_TOOL([mbskin],       [yes], [yes])
@@ -1091,14 +1090,6 @@ if test "xyes" = "x$ENABLE_vtkMOABReader"; then
   fi
 fi
 
-if test "xyes" = "x$ENABLE_qvdual"; then
-  if test "xno" == "x$WITH_VTK"; then
-    AC_MSG_ERROR([qvdual requires VTK])
-  elif test "x" == "x$WITH_VTK"; then 
-    WITH_VTK=yes
-  fi
-fi
-
 dnl Define a function that checks for the existence of a library
 dnl and if it exists, prepends the corresponding link flag to a 
 dnl sepecified variable
@@ -1135,7 +1126,7 @@ dnl  - Optional library path linker argument (e.g. -L/opt/foo)
   
 
 ################################################################################
-#                    VTK for qvdual and/or vtkMOABReader
+#                    VTK for vtkMOABReader
 ################################################################################
 AC_DEFUN([FATHOM_MERGE_LISTS],[
   $1="$2"
@@ -1282,172 +1273,6 @@ if  (test "x$WITH_VTK" != "xno" && test "x$WITH_VTK" != "x"); then
 fi
 
 ################################################################################
-#                               qvdual
-################################################################################
-
-if test $ENABLE_qvdual = yes; then
-
-
-################################################################################
-#                               GraphViz
-################################################################################
-  AC_ARG_WITH([graphviz],
-  [AS_HELP_STRING([--with-graphviz=DIR],[Specify directory containing GraphViz])],
-  [GRAPH_DIR=$withval
-   DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-graphviz=\"${withval}\""
-  ],[GRAPH_DIR=])
-
-  case "x$GRAPH_DIR" in
-    xno)
-      GRAPHVIZ_MISSING=yes
-      ;;
-    xyes|x)
-      GRAPH_INC_DIR=
-      GRAPH_DIR=
-      for dir in /usr /usr/local; do
-        if test "x" = "x$GRAPH_DIR"; then
-          AC_CHECK_FILE([${dir}/include/graphviz/gvc.h],[GRAPH_DIR="$dir"])
-        fi
-      done
-      AC_MSG_CHECKING([for GraphViz include dir])
-      if test "x" != x"$GRAPH_DIR"; then
-        GRAPH_INC_DIR="-I${GRAPH_DIR}/include/graphviz"
-      fi
-      AC_MSG_RESULT([$GRAPH_INC_DIR])
-      AC_MSG_CHECKING([for GraphViz library dir])
-      GRAPH_LIB_DIR=
-      for dir in ${GRAPH_DIR}/lib64/graphviz ${GRAPH_DIR}/lib/graphviz /usr/lib64/graphviz /usr/lib/graphviz /usr/local/lib64/graphviz /usr/local/lib/graphviz /lib64/graphviz /lib/graphviz; do
-        if test "x" = "x$GRAPH_LIB_DIR"; then
-          if test -d $dir; then
-            GRAPH_LIB_DIR=-L$dir
-            AC_DEFINE([HAVE_GRAPHVIZ],[1],["Define if configured with GraphViz support."])
-          fi
-        fi
-      done
-      AC_MSG_RESULT([$GRAPH_LIB_DIR])
-      ;;
-    x?*)
-      GRAPH_INC_DIR=
-      for dir in ${GRAPH_DIR}/include/graphviz ${GRAPH_DIR}/include ${GRAPH_DIR}; do
-        if test "x" = "x$GRAPH_INC_DIR"; then
-          AC_CHECK_FILE([${dir}/gvc.h],[GRAPH_INC_DIR="-I$dir"])
-        fi
-      done
-      AC_MSG_CHECKING([for GraphViz include dir])
-      if test "x" = x"$GRAPH_INC_DIR"; then
-        AC_MSG_RESULT([no])
-        AC_MSG_ERROR([Graphviz includes for qvdual not found])
-      else
-        AC_MSG_RESULT([$GRAPH_INC_DIR])
-      fi
-      AC_MSG_CHECKING([for GraphViz library dir])
-      GRAPH_LIB_DIR=
-      for dir in ${GRAPH_DIR}/lib/graphviz ${GRAPH_DIR}/lib ${GRAPH_DIR}; do
-        if test "x" = "x$GRAPH_LIB_DIR"; then
-          if test -d $dir; then
-            GRAPH_LIB_DIR=-L$dir
-          fi
-        fi
-      done
-      if test "x" = x"$GRAPH_LIB_DIR"; then
-        AC_MSG_RESULT([no])
-        AC_MSG_ERROR([Graphviz lib for qvdual not found])
-      else
-        AC_MSG_RESULT([$GRAPH_LIB_DIR])
-      fi
-      ;;
-  esac
-
-  GRAPH_LIBS="$GRAPH_LIB_DIR -lgvc -lgraph"
-  old_CXXFLAGS="$CXXFLAGS"
-  old_CPPFLAGS="$CPPFLAGS"
-  CXXFLAGS="$GRAPH_INC_DIR"
-  CPPFLAGS="$GRAPH_INC_DIR"
-  old_LIBS="$LIBS"
-  LIBS=$GRAPH_LIBS
-  AC_CHECK_HEADERS([gvc.h],[],[AC_MSG_WARN([Missing GraphViz header]); GRAPHVIZ_MISSING=yes])
-  AC_CHECK_LIB([gvc],[gvContext],[],[AC_MSG_WARN([Cannot find GraphViz library: -lgraph]); GRAPHVIZ_MISSING=yes])
-  LIBS="$old_LIBS"
-  CXXFLAGS="$old_CXXFLAGS"
-  CPPFLAGS="$old_CPPFLAGS"
-  
-  
-################################################################################
-#                                   QT
-################################################################################
-  AC_LANG_PUSH([C++])
-  AC_ARG_VAR([QTDIR],[QT installation directory])
-  if test x"$QTDIR" = x; then
-    search_path="$PATH"
-    qlibdir=
-    incdir=
-    for dir in /usr/include/qt3 /usr/local/include/qt3 /include/qt3; do
-      if test x = x${incdir}; then
-        if test -d $dir; then
-          incdir=-I$dir
-        fi
-      fi
-    done
-  else
-    search_path="${QTDIR}/bin"
-    qlibdir="-L${QTDIR}/lib"
-    incdir="-I${QTDIR}/include"
-  fi
-  
-  AC_PATH_PROG([MOC],[moc],[],[$search_path])
-  if test x = x"$MOC";then
-    AC_MSG_WARN([Cannot find moc (Qt meta object compiler)])
-    QT_MISSING=yes
-  fi
-  AC_SUBST(MOC)
-  AC_PATH_PROG([UIC],[uic],[],[$search_path])
-  if test x = x"$UIC";then
-    AC_MSG_WARN([Cannot find uic (Qt user interface compiler)])
-    QT_MISSING=yes
-  fi
-  AC_SUBST(UIC)
-  
-  old_CXXFLAGS="$CXXFLAGS"
-  old_CPPFLAGS="$CPPFLAGS"
-  CXXFLAGS="$incdir"
-  CPPFLAGS="$incdir"
-  AC_CHECK_HEADERS([qlineedit.h qevent.h qapplication.h \
-                    qwidget.h qtimer.h qpixmap.h qwidgetplugin.h \
-                    qobject.h qmetaobject.h],[],
-                   [QT_MISSING=yes])
-  CXXFLAGS="$old_CXXFLAGS"
-  CPPFLAGS="$old_CPPFLAGS"
-  QT_INCLUDES="$incdir"
-  
-  old_LIBS="$LIBS"
-  LIBS="$LIBS $qlibdir"
-  # Cannot use CHECK-LIB here to loop over qt-mt because of
-  # autoconf bug with libraries that have a '-' in their name.
-  AC_MSG_CHECKING([for main in -lqt-mt])
-  QT_LIBS="$qlibdir -lqt-mt"
-  AC_TRY_LINK_FUNC(main,[AC_MSG_RESULT([yes])],[
-    AC_MSG_RESULT([no])
-    LIBS="$old_LIBS $qlibdir"
-    AC_CHECK_LIB([qt],[main],[QT_LIBS="$qlibdir -lqt"],[QT_MISSING=yes],[])ac_cv_lib_qt=ac_cv_lib_qt_main
-    AC_DEFINE([HAVE_QT],[1],["Define if configured with Qt library support."])
-  ])
-  LIBS="$VTK_LIBS $QT_LIBS"
-  AC_CHECK_LIB([QVTK],[main],[QT_LIBS="-lQVTL $QT_LIBS"],[AC_MSG_ERROR([QVTK library for qvdual not found])],[])ac_cv_lib_QVTK=ac_cv_lib_QVTK_main
-
-  LIBS="$old_LIBS"
-  AC_LANG_POP([C++])
-  
-################################################################################
-#                                 X/VTK/QT
-################################################################################
-
-  QVDUAL_LIBS="$LIBS $GRAPH_LIBS $QT_LIBS $VTK_LIBS"
-  QVDUAL_INCLUDES="$GRAPH_INC_DIR $VTK_INCLUDES $QT_INCLUDES"
-  AC_SUBST(QVDUAL_LIBS)
-  AC_SUBST(QVDUAL_INCLUDES)
-fi
-
-################################################################################
 #                           Output Files
 ################################################################################
 rm -r -f a.out
@@ -1532,7 +1357,6 @@ AC_CONFIG_FILES([Makefile
                  tools/mbcoupler/Makefile
                  tools/mbcslam/Makefile
                  tools/mcnpmit/Makefile
-                 tools/qvdual/Makefile
                  tools/dagmc/Makefile
                  tools/vtkMOABReader/CMakeLists.txt
                  doc/user.dox
