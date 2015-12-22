@@ -121,7 +121,7 @@ void run_test( Grouping grouping, int of_power, Weight w, const string filename 
 #endif
   
   MeshImpl mesh, expected_mesh;
-  std::string initfname = std::string ( STRINGIFY(SRCDIR) ) + "/initial.vtk";
+  std::string initfname = std::string ( STRINGIFY(SRCDIR) ) + "/2d_formulation_initial.vtk";
   mesh.read_vtk( initfname.c_str(), err ); CHKERR(err)
 //  expected_mesh.read_vtk( (filename + ".vtk").c_str(), err ); CHKERR(err)
   

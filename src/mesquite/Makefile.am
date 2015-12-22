@@ -42,7 +42,7 @@ nodist_libmesquite_la_include_HEADERS = include/Mesquite_all_headers.hpp \
                                         include/mesquite_version.h 
 
 libmesquite_la_LIBADD = $(MESQUITE_LIBS)
-AM_CPPFLAGS += -I$(top_srcdir)/src/mesquite/include \
+AM_CPPFLAGS  = -I$(top_srcdir)/src/mesquite/include \
                -I$(top_builddir)/src/mesquite/include  \
                $(MSQ_INCLUDES) \
                -I$(top_srcdir)/itaps \
