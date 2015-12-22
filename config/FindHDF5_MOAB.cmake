@@ -112,9 +112,7 @@ else (HDF5_FOUND)
     ENDIF (NOT HDF5_FOUND)
 
     #now we create fake targets to be used
-    if(EXISTS ${HDF5_ROOT}/share/cmake/hdf5/hdf5-targets.cmake)
-      include(${HDF5_ROOT}/share/cmake/hdf5/hdf5-targets.cmake)
-    endif()
+    include(${HDF5_ROOT}/share/cmake/hdf5/hdf5-targets.cmake OPTIONAL)
 
   endif(EXISTS "${HDF5_ROOT}/share/cmake/hdf5/hdf5-config.cmake")
 endif (HDF5_FOUND)
