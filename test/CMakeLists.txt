@@ -172,17 +172,17 @@ if ( MOAB_HAVE_MPI AND MPI_FOUND )
   target_link_libraries( mbparallelcomm_test MOAB ${CGM_LIBRARIES} )
   set_source_files_properties( parallel/mbparallelcomm_test.cpp
     COMPILE_FLAGS "-DIS_BUILDING_MB ${MOAB_DEFINES} ${TEST_COMP_FLAGS}" )
-  add_test( TestParallelComm-BcastDelete
-    ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 2 ${MPIEXEC_PREFLAGS}
+  add_test( NAME TestParallelComm-BcastDelete
+    COMMAND ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 2 ${MPIEXEC_PREFLAGS}
     $<TARGET_FILE:mbparallelcomm_test> ${MPIEXEC_POSTFLAGS} 0 ${CMAKE_SOURCE_DIR}/parallel/ptest.cub )
-  add_test( TestParallelComm-ReadDelete
-    ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 2 ${MPIEXEC_PREFLAGS}
+  add_test( NAME TestParallelComm-ReadDelete
+    COMMAND ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 2 ${MPIEXEC_PREFLAGS}
     $<TARGET_FILE:mbparallelcomm_test> ${MPIEXEC_POSTFLAGS} -1 ${CMAKE_SOURCE_DIR}/parallel/ptest.cub )
-  add_test( TestParallelComm-ReadParallel
-    ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 2 ${MPIEXEC_PREFLAGS}
+  add_test( NAME TestParallelComm-ReadParallel
+    COMMAND ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 2 ${MPIEXEC_PREFLAGS}
     $<TARGET_FILE:mbparallelcomm_test> ${MPIEXEC_POSTFLAGS} -2 ${CMAKE_SOURCE_DIR}/parallel/ptest.cub )
-  add_test( TestParallelComm-Broadcast
-    ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 2 ${MPIEXEC_PREFLAGS}
+  add_test( NAME TestParallelComm-Broadcast
+    COMMAND ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 2 ${MPIEXEC_PREFLAGS}
     $<TARGET_FILE:mbparallelcomm_test> ${MPIEXEC_POSTFLAGS} -3 ${CMAKE_SOURCE_DIR}/parallel/ptest.cub )
 
   if ( MOAB_HAVE_HDF5 )
@@ -194,13 +194,13 @@ if ( MOAB_HAVE_MPI AND MPI_FOUND )
       COMPILE_FLAGS "-DTEST ${MOAB_DEFINES} ${TEST_COMP_FLAGS}" )
     add_executable( mhdf_parallel parallel/mhdf_parallel.c )
     target_link_libraries( mhdf_parallel MOAB ${HDF5_LIBRARIES} ${CGM_LIBRARIES} )
-    add_test( TestMHDFParallel mhdf_parallel )
+    add_test( NAME TestMHDFParallel COMMAND mhdf_parallel )
     
     set_source_files_properties( parallel/parmerge_test.cpp
       COMPILE_FLAGS "-DTEST ${MOAB_DEFINES} ${TEST_COMP_FLAGS}" )
     add_executable( parmerge_test parallel/parmerge_test.cpp )
     target_link_libraries( parmerge_test MOAB ${HDF5_LIBRARIES} ${CGM_LIBRARIES} )
-    add_test( Testparmerge_test ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 2 ${MPIEXEC_PREFLAGS} $<TARGET_FILE:parmerge_test> ${MPIEXEC_POSTFLAGS}  )
+    add_test( NAME Testparmerge_test COMMAND ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 2 ${MPIEXEC_PREFLAGS} $<TARGET_FILE:parmerge_test> ${MPIEXEC_POSTFLAGS}  )
     
   endif ( MOAB_HAVE_HDF5 )
 
@@ -208,15 +208,15 @@ if ( MOAB_HAVE_MPI AND MPI_FOUND )
     COMPILE_FLAGS "-DTEST ${MOAB_DEFINES} ${TEST_COMP_FLAGS}" )
   add_executable ( parallel_unit_tests parallel/parallel_unit_tests.cpp )
   target_link_libraries( parallel_unit_tests MOAB ${CGM_LIBRARIES} ${MPI_LIBRARIES} )
-  add_test( TestParallel
-    ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 2 ${MPIEXEC_PREFLAGS} $<TARGET_FILE:parallel_unit_tests> ${MPIEXEC_POSTFLAGS} )
+  add_test( NAME TestParallel
+    COMMAND ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 2 ${MPIEXEC_PREFLAGS} $<TARGET_FILE:parallel_unit_tests> ${MPIEXEC_POSTFLAGS} )
 
   set_source_files_properties( parallel/pcomm_serial.cpp
     COMPILE_FLAGS "-DTEST ${MOAB_DEFINES} ${TEST_COMP_FLAGS}" )
   add_executable ( pcomm_serial parallel/pcomm_serial.cpp )
   target_link_libraries( pcomm_serial MOAB ${CGM_LIBRARIES} )
-  add_test( TestPCommSerial
-    ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 1 ${MPIEXEC_PREFLAGS}
+  add_test( NAME TestPCommSerial
+    COMMAND ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 1 ${MPIEXEC_PREFLAGS}
     $<TARGET_FILE:pcomm_serial> ${MPIEXEC_POSTFLAGS} 1 ${MOAB_SOURCE_DIR}/MeshFiles/unittest/ptest.cub )
 
 endif ( MOAB_HAVE_MPI AND MPI_FOUND )
