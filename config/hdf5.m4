@@ -23,9 +23,6 @@ if test "xyes" != "x$HAVE_LIB_HDF5"; then
   
   HAVE_LIB_HDF5=no
   FATHOM_HDF5_LIBS_HELPER([$LIBS])
-  if test $HAVE_SZIP = yes; then
-    FATHOM_HDF5_LIBS_HELPER([-lsz $LIBS])
-  fi
 fi
 ])
 
@@ -59,7 +56,7 @@ HAVE_ZLIB=no
 if test "x$WITH_ZLIB" != "xno"; then
   old_LDFLAGS="$LDFLAGS"
   LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"
-  AC_CHECK_LIB([z],[deflate],[HAVE_ZLIB=yes],
+  AC_CHECK_LIB([z],[deflate],[HAVE_ZLIB=yes; HDF5_LIBS="$HDF5_LIBS -lz"],
     [if test "x$WITH_ZLIB" != "x"; then AC_MSG_ERROR([Could not find zlib]); fi])
   LDFLAGS="$old_LDFLAGS"
 fi
@@ -84,7 +81,7 @@ HAVE_SZIP=no
 if test "x$WITH_SZIP" != "xno"; then
   old_LDFLAGS="$LDFLAGS"
   LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"
-  AC_CHECK_LIB([sz],[SZ_Decompress],[HAVE_SZIP=yes],
+  AC_CHECK_LIB([sz],[SZ_Decompress],[HAVE_SZIP=yes; HDF5_LIBS="$HDF5_LIBS -lsz"],
     [if test "x$WITH_SZIP" != "x"; then AC_MSG_ERROR([Could not find libsz]); fi])
   LDFLAGS="$old_LDFLAGS"
 fi
