@@ -1,10 +1,10 @@
-@UTIL_MAKE_INCLUDE@
+include $(top_srcdir)/src/mesquite/make.inc
+
 LDADD = libmsqutil.la $(top_builddir)/src/mesquite/libmesquite.la
 bin_PROGRAMS = vtkrandom vtkxform msqshape msqquality
 noinst_LTLIBRARIES = libmsqutil.la
 
-AM_CPPFLAGS += -I$(top_srcdir)/src/mesquite/include \
-               -I$(top_builddir)/src/mesquite/include  \
+AM_CPPFLAGS += $(MSQ_INCLUDES) \
                -I$(top_srcdir)/itaps \
                -I$(top_srcdir)/itaps/imesh \
                -I$(top_builddir)/itaps/imesh \
@@ -20,6 +20,5 @@ msqshape_SOURCES = shape-improve.cpp domain.hpp domain.cpp
 vtkxform_SOURCES = transform.cpp
 msqquality_SOURCES = quality.cpp domain.hpp domain.cpp
 
-MOSTLYCLEANFILES = $(dist_man1_MANS)
-
-EXTRA_DIST = CMakeLists.txt
+MOSTLYCLEANFILES = $(dist_man1_MANS) 
+EXTRA_DIST = CMakeLists.txt 

@@ -1,5 +1,3 @@
-@TEST_MAKE_INCLUDE@
-
 if ENABLE_imesh
   IMESH_TEST = imesh
 else
@@ -35,13 +33,17 @@ endif
 MESHDIR = $(abs_top_srcdir)/MeshFiles/mesquite
 
 AM_CPPFLAGS  = -DSRCDIR=$(srcdir) \
-               -DMESHDIR=$(MESHDIR)
+               -DMESHDIR=$(MESHDIR) \
+               $(MSQ_INCLUDES) \
+               -I$(top_srcdir)/src \
+               -I$(top_srcdir)/test
 
 LDADD = $(top_builddir)/src/mesquite/libmesquite.la
 check_PROGRAMS = algorithm_test activeset analytical_grad3D paraboloid_domain high_aspect_ratio idft_time jacobi
 check_PROGRAMS += laplacian laplacian_polygon nongradient pyramid wedge simple_hybrid synchronous transform untangle
-check_PROGRAMS += benchmark_tests feasible_newton 2d_target 2d_metrics 2d_formulation 
+check_PROGRAMS += headers_basic_test benchmark_tests feasible_newton 2d_target 2d_metrics 2d_formulation 
 
+headers_basic_test_SOURCES = headers_basic_test.cpp
 2d_target_SOURCES = 2d_target_test.cpp
 2d_metrics_SOURCES = 2d_metrics_test.cpp
 2d_formulation_SOURCES = 2d_formulation_test.cpp
@@ -64,7 +66,8 @@ transform_SOURCES = transform_test.cpp
 untangle_SOURCES = untangle_test.cpp
 wedge_SOURCES = wedge_test.cpp
 
-SUBDIRS = \
+TESTS = $(check_PROGRAMS)
+SUBDIRS = . \
     $(EXO_TEST) \
     higher_order \
     $(IGEOM_TEST) \
@@ -75,23 +78,9 @@ SUBDIRS = \
     wrapper_tests\
     $(UNIT_TEST)
 
-TESTS = $(check_PROGRAMS)
-EXTRA_DIST = 2d_formulation_initial.vtk 2d_metrics_reference.vtk
-
-# EXTRA_DIST = CMakeLists.txt expected_linear_output.vtk \
-#             expected_quadratic_output.vtk \
-#             hour-quad8.vtk \
-#	     linear_input.vtk \
-#	     quadratic_input.vtk \
-#	     cutCube.vtk \
-#	     hex3Dpart.vtk \
-#	     homogeneousPart.vtk \
-#	     quadPart.vtk \
-#	     sphereCube.vtk \
-#	     sphereCylinder_1194_inv.vtk \
-#	     triPart.vtk \
-#	     2d_formulation_initial.vtk 2d_metrics_reference.vtk
-
+EXTRA_DIST = 2d_formulation_initial.vtk 2d_metrics_reference.vtk msqcppflags.make
 MOSTLYCLEANFILES = original_mesh.vtk smoothed_mesh.vtk smooth_ho.vtk *results.vtk transformed_mesh.vtk *.gpt Exp*.vtk out.vtk \
-									 *.gnuplot synchronous.vtk high_aspect.vtk
+									 *.gnuplot synchronous.vtk high_aspect.vtk msqcppflags.make
+
+include $(top_srcdir)/src/mesquite/make.inc
 
