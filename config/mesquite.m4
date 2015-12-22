@@ -117,56 +117,12 @@ AC_TRY_COMPILE([#include <fstream>],
                [CPPFLAGS="$CPPFLAGS -DFSTREAM_HAS_FD"; AC_MSG_RESULT(yes)],
                [AC_MSG_RESULT(no)])
 
-# AC_ARG_WITH(cppunit,
-#   [AC_HELP_STRING([--with-cppunit(=DIR)],[Specify directory where CppUnit is installed.])
-# AC_HELP_STRING([--without-cppunit],   [Disable CppUnit tests])],
-#   [CPPUNIT_ARG=${withval}], [CPPUNIT_ARG=])
-
 #-------------------------------------------------------------------------------
 # Configure different options
 #-------------------------------------------------------------------------------
 
 # CPPUnit
 HAVE_CPPUNIT="no"
-# CPPUNIT_CPPFLAGS=
-# CPPUNIT_LDFLAGS=
-# if test "x$CPPUNIT_ARG" = "xno"; then
-#   HAVE_CPPUNIT=no
-# else
-#     # Incorporate user-specified search paths
-#   old_CPPFLAGS="$CPPFLAGS"
-#   old_LDFLAGS="$LDFLAGS"
-#   old_LIBS="$LIBS"
-#   if test "x$CPPUNIT_ARG" != "x"; then
-#     if test "x$CPPUNIT_ARG" != "xyes"; then
-#       CPPUNIT_CPPFLAGS="-I$CPPUNIT_ARG/include"
-#       CPPUNIT_LDFLAGS="-L$CPPUNIT_ARG/lib"
-#       CPPFLAGS="$CPPFLAGS $CPPUNIT_CPPFLAGS"
-#       LDFLAGS="$CPPFLAGS $CPPUNIT_LDFLAGS"
-#     fi
-#   fi
-#     # Set some variables 
-#   HAVE_CPPUNIT=yes
-#   CPPUNIT_LDFLAGS="$CPPUNIT_LDFLAGS -lcppunit"
-#     # Check that CppUnit exists
-#   AC_CHECK_LIB( [dl], [dlopen], 
-#     [LDFLAGS="$LDFLAGS -ldl"; CPPUNIT_LDFLAGS="$CPPUNIT_LDFLAGS -ldl"] )
-#   AC_LANG_PUSH(C++)
-#   AC_CHECK_HEADER( [cppunit/Test.h], [], [HAVE_CPPUNIT=no] )
-#   AC_CHECK_LIB( [cppunit], [main], [], [HAVE_CPPUNIT=no] )
-#   AC_LANG_POP(C++)
-#     # If user explicitly specified --with-cppunit, fail if it was not found
-#   if test "x$CPPUNIT_ARG" != "x"; then
-#     if test "x$HAVE_CPPUNIT" == "xno"; then
-#       AC_MSG_ERROR([CppUnit not found])
-#     fi
-#   fi
-#     # restore some modified state
-#   CPPFLAGS="$old_CPPFLAGS"
-#   LDFLAGS="$old_LDFLAGS"
-#   LIBS="$old_LIBS"
-# fi
-
 MSQ_AM_CPPFLAGS="${MSQ_AM_CPPFLAGS}"
 
 #------------------------------------------------------------------------------
@@ -184,13 +140,6 @@ AC_SUBST(MSQ_AM_LDFLAGS)
 AC_SUBST(MESQUITE_LIBS)
 AC_SUBST(MSQ_LIBTOOL_PREFIX)
 AC_SUBST(MSQ_LIBTOOL_FLAGS)
-# AC_SUBST(CPPUNIT_CPPFLAGS)
-# AC_SUBST(CPPUNIT_LDFLAGS)
 AC_SUBST(MESQUITE_IMESH_MAKE_INCLUDE)
-
-TEST_MAKE_INCLUDE='include $(abs_top_builddir)/src/mesquite/msqcppflags.make'
-UTIL_MAKE_INCLUDE='include $(abs_top_builddir)/src/mesquite/msqcppflags.make'
-AC_SUBST(TEST_MAKE_INCLUDE)
-AC_SUBST(UTIL_MAKE_INCLUDE)
 
 ])
