@@ -2,7 +2,7 @@
 
 MESHDIR = $(abs_top_srcdir)/MeshFiles/mesquite
 
-AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
+AM_CPPFLAGS  = -DSRCDIR=$(srcdir) \
                -DMESHDIR=$(MESHDIR)
 
 LDADD = $(top_builddir)/src/mesquite/libmesquite.la

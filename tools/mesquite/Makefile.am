@@ -4,7 +4,7 @@ LDADD = libmsqutil.la $(top_builddir)/src/mesquite/libmesquite.la
 bin_PROGRAMS = vtkrandom vtkxform msqshape msqquality
 noinst_LTLIBRARIES = libmsqutil.la
 
-AM_CPPFLAGS += $(MSQ_INCLUDES) \
+AM_CPPFLAGS  = $(MSQ_INCLUDES) \
                -I$(top_srcdir)/itaps \
                -I$(top_srcdir)/itaps/imesh \
                -I$(top_builddir)/itaps/imesh \

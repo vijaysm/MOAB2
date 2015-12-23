@@ -14,7 +14,7 @@ main_DEPENDENCIES = $(top_builddir)/itaps/mesquite/libmsqitaps.la \
 TESTS = main
 EXTRA_DIST = CMakeLists.txt 
 
-AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
+AM_CPPFLAGS =  -DSRCDIR=$(srcdir) \
                -DMESHDIR=$(MESHDIR) \
                $(IGEOM_DEFINES) $(IGEOM_INCLUDES) $(MSQ_INCLUDES) \
                -I$(top_srcdir)/itaps/imesh \
