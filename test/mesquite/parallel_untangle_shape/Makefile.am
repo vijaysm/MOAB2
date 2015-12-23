@@ -2,7 +2,7 @@ include $(top_srcdir)/src/mesquite/make.inc
 
 MESHDIR = $(abs_top_srcdir)/MeshFiles/mesquite
 
-AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
+AM_CPPFLAGS  = -DSRCDIR=$(srcdir) \
                -DMESHDIR=$(MESHDIR) \
                $(MSQ_INCLUDES) \
                -I$(top_srcdir)/src \
