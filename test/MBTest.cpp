@@ -8494,7 +8494,7 @@ int main(int argc, char* argv[])
   number_tests_failed += RUN_TEST_ERR( mb_skin_higher_order_regions_test );
   number_tests_failed += RUN_TEST_ERR( mb_skin_adj_higher_order_faces_test );
   number_tests_failed += RUN_TEST_ERR( mb_skin_adj_higher_order_regions_test );
-  number_tests_failed += RUN_TEST_ERR( mb_skin_higher_order_pyramids);
+  number_tests_failed += RUN_TEST_ERR( mb_skin_higher_order_pyramids );
   number_tests_failed += RUN_TEST_ERR( mb_skin_faces_reversed_test );
   number_tests_failed += RUN_TEST_ERR( mb_skin_adj_faces_reversed_test );
   number_tests_failed += RUN_TEST_ERR( mb_skin_regions_reversed_test );
@@ -8521,7 +8521,6 @@ int main(int argc, char* argv[])
 #endif
 
     // summary
-
   cout << "\nMB TEST SUMMARY: \n"
        << "   Number Tests:           " << number_tests << "\n"
        << "   Number Successful:      " << number_tests - number_tests_failed << "\n"

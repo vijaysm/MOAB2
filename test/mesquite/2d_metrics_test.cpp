@@ -103,7 +103,7 @@ void scale( double s, Mesh* mesh );
 void reference( MeshImpl* mesh )
 {
   MsqError err;
-  std::string filename = std::string ( STRINGIFY(SRCDIR) ) + "/reference.vtk";
+  std::string filename = std::string ( STRINGIFY(SRCDIR) ) + "/2d_metrics_reference.vtk";
   mesh->read_vtk( filename.c_str(), err );
   CHKERR(err)
 }
@@ -111,7 +111,7 @@ void reference( MeshImpl* mesh )
 void exp_1_init( MeshImpl* mesh )
 {
   MsqError err;
-  std::string filename = std::string ( STRINGIFY(SRCDIR) ) + "/reference.vtk";
+  std::string filename = std::string ( STRINGIFY(SRCDIR) ) + "/2d_metrics_reference.vtk";
   mesh->read_vtk( filename.c_str(), err );CHKERR(err)
 
   vector<Mesh::VertexHandle> handles;

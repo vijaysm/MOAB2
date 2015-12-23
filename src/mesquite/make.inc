@@ -1,5 +1,10 @@
+MSQ_SRCS=
+MSQ_HDRS=
+MSQ_INCLUDES =
 
-MSQ_INCLUDES += -I$(top_srcdir)/src/mesquite/Mesh
+MSQ_INCLUDES += -I$(top_srcdir)/src/mesquite/include \
+                -I$(top_builddir)/src/mesquite/include \
+                -I$(top_srcdir)/src/mesquite/Mesh
 
 if HAVE_MPI
   MPI_SRCS = Mesh/ParallelHelper.cpp

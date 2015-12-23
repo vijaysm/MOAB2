@@ -46,8 +46,8 @@ class CLArgFlag
     std::string mDesc;
   
   protected:  
-    CLArgFlag( char flag, const char* desc )
-      : mFlag(flag), mDesc(desc)
+    CLArgFlag( char pflag, const char* pdesc )
+      : mFlag(pflag), mDesc(pdesc)
       {}
 
   public:
@@ -84,19 +84,19 @@ class CLArgToggle : public CLArgFlag
     CLArgs::ToggleArgI* mCallback;
     CLArgToggle* mOpposite;
   public:
-    CLArgToggle( char flag, 
-                 const char* desc,
+    CLArgToggle( char pflag, 
+                 const char* pdesc,
                  bool value,
-                 CLArgs::ToggleArgI* callback )
-      : CLArgFlag( flag, desc ),
+                 CLArgs::ToggleArgI* pcallback )
+      : CLArgFlag( pflag, pdesc ),
         mValue( value ),
-        mCallback( callback ),
+        mCallback( pcallback ),
         mOpposite( 0 )
       { }
-    CLArgToggle( char flag, 
-                 const char* desc,
+    CLArgToggle( char pflag, 
+                 const char* pdesc,
                  CLArgToggle* opposite )
-      : CLArgFlag( flag, desc ),
+      : CLArgFlag( pflag, pdesc ),
         mValue( !opposite->mValue ),
         mCallback( opposite->mCallback ),
         mOpposite( opposite )
@@ -121,11 +121,11 @@ class CLArgString : public CLArgFlag
     CLArgs::StringArgI* mCallback;
   
   public:
-    CLArgString( char fl, const char* name, const char* desc,
-                 CLArgs::StringArgI* callback )
-                : CLArgFlag( fl, desc ),
+    CLArgString( char fl, const char* name, const char* pdesc,
+                 CLArgs::StringArgI* pcallback )
+                : CLArgFlag( fl, pdesc ),
                   mName( name ),
-                  mCallback( callback )
+                  mCallback( pcallback )
                   {}
 
     virtual const CLArgs::ArgIBase* callback() const { return mCallback; }
@@ -144,10 +144,10 @@ class CLArgLong : public CLArgFlag
     std::string mName;
   
   public:
-    CLArgLong( char fl, const char* name, const char* desc,
-               CLArgs::LongArgI* callback )
-      : CLArgFlag( fl, desc ),
-        mCallback( callback ),
+    CLArgLong( char fl, const char* name, const char* pdesc,
+               CLArgs::LongArgI* pcallback )
+      : CLArgFlag( fl, pdesc ),
+        mCallback( pcallback ),
         mName( name )
     {}
 
@@ -166,10 +166,10 @@ class CLArgInt : public CLArgFlag
     std::string mName;
   
   public:
-    CLArgInt(  char fl, const char* name, const char* desc,
-               CLArgs::IntArgI* callback )
-      : CLArgFlag( fl, desc ),
-        mCallback( callback ),
+    CLArgInt(  char fl, const char* name, const char* pdesc,
+               CLArgs::IntArgI* pcallback )
+      : CLArgFlag( fl, pdesc ),
+        mCallback( pcallback ),
         mName( name )
     {}
 
@@ -188,10 +188,10 @@ class CLArgDouble : public CLArgFlag
     std::string mName;
   
   public:
-    CLArgDouble( char fl, const char* name, const char* desc,
-                 CLArgs::DoubleArgI* callback )
-      : CLArgFlag( fl, desc ),
-        mCallback( callback ),
+    CLArgDouble( char fl, const char* name, const char* pdesc,
+                 CLArgs::DoubleArgI* pcallback )
+      : CLArgFlag( fl, pdesc ),
+        mCallback( pcallback ),
         mName( name )
     {}
 
@@ -210,8 +210,8 @@ class CLArgIDList : public CLArgFlag
     CLArgs::IntListArgI* mCallback;
     
   public:
-    CLArgIDList( char fl, const char* desc, CLArgs::IntListArgI* callback )
-      : CLArgFlag( fl, desc ), mCallback( callback )
+    CLArgIDList( char fl, const char* pdesc, CLArgs::IntListArgI* pcallback )
+      : CLArgFlag( fl, pdesc ), mCallback( pcallback )
       {}
 
     virtual const CLArgs::ArgIBase* callback() const { return mCallback; }
@@ -245,8 +245,8 @@ class CLArgIntList : public CLArgFlag
     CLArgs::IntListArgI* mCallback;
   
   public:
-    CLArgIntList( char fl, const char* desc, CLArgs::IntListArgI* callback )
-      : CLArgFlag( fl, desc ), mCallback( callback )
+    CLArgIntList( char fl, const char* pdesc, CLArgs::IntListArgI* pcallback )
+      : CLArgFlag( fl, pdesc ), mCallback( pcallback )
     {}
 
     virtual const CLArgs::ArgIBase* callback() const { return mCallback; }
@@ -268,10 +268,10 @@ class CLArgDoubleList : public CLArgFlag
   
   public:
     CLArgDoubleList( char fl, 
-                     const char* desc,
-                     CLArgs::DoubleListArgI* callback )
-      : CLArgFlag( fl, desc ),
-        mCallback( callback )
+                     const char* pdesc,
+                     CLArgs::DoubleListArgI* pcallback )
+      : CLArgFlag( fl, pdesc ),
+        mCallback( pcallback )
         {}
 
     virtual const CLArgs::ArgIBase* callback() const { return mCallback; }

@@ -1,4 +1,4 @@
-@TEST_MAKE_INCLUDE@
+include $(top_srcdir)/src/mesquite/make.inc
 LDADD = $(top_builddir)/itaps/mesquite/libmsqitaps.la \
         $(top_builddir)/src/mesquite/libmesquite.la \
         ${IGEOM_LDFLAGS} ${IGEOM_LIBS} \
@@ -16,8 +16,10 @@ EXTRA_DIST = CMakeLists.txt
 
 AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
                -DMESHDIR=$(MESHDIR) \
-               $(IGEOM_DEFINES) $(IGEOM_INCLUDES) \
+               $(IGEOM_DEFINES) $(IGEOM_INCLUDES) $(MSQ_INCLUDES) \
                -I$(top_srcdir)/itaps/imesh \
+               -I$(top_srcdir)/src \
+               -I$(top_srcdir)/test \
                -I$(top_builddir)/itaps/imesh \
                -I$(top_srcdir)/itaps/mesquite \
                -I$(top_srcdir)/src/parallel
