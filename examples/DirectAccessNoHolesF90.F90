@@ -52,11 +52,11 @@ program DirectAccessNoHolesF90
   iBase_EntitySetHandle root_set
   integer :: nverts, tmpflag
   integer ierr, nquads, nquads_tmp
-  iBase_TagHandle tag1h, tag2h, tag3h
-  TYPE(C_PTR) verts_ptr, quads_ptr, conn_ptr, x_ptr, y_ptr, z_ptr, tag1_ptr, tag2_ptr, tag3_ptr
+  iBase_TagHandle tag1h, tag2h
+  TYPE(C_PTR) verts_ptr, quads_ptr, conn_ptr, x_ptr, y_ptr, z_ptr, tag1_ptr, tag2_ptr
   TYPE(C_PTR) tmp_quads_ptr, offsets_ptr  ! pointers that are equivalence'd to arrays using c_f_pointer
   real(C_DOUBLE), pointer :: x(:), y(:), z(:), tag1(:), tag2(:) ! arrays equivalence'd to pointers
-  integer, pointer :: tag3(:), offsets(:)                       ! arrays equivalence'd to pointers
+  integer, pointer :: offsets(:)                       ! arrays equivalence'd to pointers
   iBase_EntityHandle, pointer :: quads(:), verts(:), conn(:), tmp_quads(:)  ! arrays equivalence'd to pointers
   iBase_EntityArrIterator viter, qiter
   integer(C_SIZE_T) :: startv, startq, v_ind, e_ind  ! needed to do handle arithmetic
@@ -66,7 +66,7 @@ program DirectAccessNoHolesF90
   ! initialize interface and get root set
   call iMesh_newMesh("", %REF(imesh), ierr)
   CHECK(ierr)
-  call iMesh_getRootSet(%VAL(imesh), root_set, ierr)
+  call iMesh_getRootSet(%val(imesh), root_set, ierr)
   CHECK(ierr)
 
   ! create mesh
@@ -76,12 +76,12 @@ program DirectAccessNoHolesF90
 
   ! get all vertices and quads as arrays
   nverts = 0
-  call iMesh_getEntities(%VAL(imesh), %VAL(root_set), %VAL(0), %VAL(iBase_VERTEX), &
+  call iMesh_getEntities(%val(imesh), %val(root_set), %val(0), %val(iBase_VERTEX), &
        verts_ptr, nverts, nverts, ierr)
   CHECK(ierr)
   call c_f_pointer(verts_ptr, verts, [nverts])
   nquads = 0
-  call iMesh_getEntities(%VAL(imesh), %VAL(root_set), %VAL(2), %VAL(iMesh_QUADRILATERAL), &
+  call iMesh_getEntities(%val(imesh), %val(root_set), %val(2), %val(iMesh_QUADRILATERAL), &
        quads_ptr, nquads, nquads, ierr)
   CHECK(ierr)
   call c_f_pointer(quads_ptr, quads, [nquads])
@@ -89,22 +89,22 @@ program DirectAccessNoHolesF90
   ! First vertex/quad is at start of vertex/quad list, and is offset for vertex/quad index calculation
   startv = verts(1)
   startq = quads(1)
-  call iMesh_freeMemory(%VAL(imesh), quads_ptr)
+  call iMesh_freeMemory(%val(imesh), quads_ptr)
 
   ! create tag1 (element-based avg), tag2 (vertex-based avg)
-  opt = 'moab:TAG_STORAGE_TYPE=DENSE moab:TAG_DEFAULT_VALUE=0'
-  call iMesh_createTagWithOptions(%VAL(imesh), 'tag1', opt, %VAL(3), %VAL(iBase_DOUBLE), &
-       tag1h, ierr, %VAL(4), %VAL(56))
+  opt = 'moab:TAG_STORAGE_TYPE=DENSE moab:TAG_DEFAULT_valUE=0'
+  call iMesh_createTagWithOptions(%val(imesh), 'tag1', opt, %val(3), %val(iBase_DOUBLE), &
+       tag1h, ierr, %val(4), %val(56))
   CHECK(ierr)
-  call iMesh_createTagWithOptions(%VAL(imesh), 'tag2', opt, %VAL(3), %VAL(iBase_DOUBLE), &
-       tag2h, ierr, %VAL(4), %VAL(56))
+  call iMesh_createTagWithOptions(%val(imesh), 'tag2', opt, %val(3), %val(iBase_DOUBLE), &
+       tag2h, ierr, %val(4), %val(56))
   CHECK(ierr)
 
   ! Get iterator to verts, then pointer to coordinates
-  call iMesh_initEntArrIter(%VAL(imesh), %VAL(root_set), %VAL(iBase_VERTEX), %VAL(iMesh_ALL_TOPOLOGIES), &
-       %VAL(nverts), %VAL(0), viter, ierr)
+  call iMesh_initEntArrIter(%val(imesh), %val(root_set), %val(iBase_VERTEX), %val(iMesh_ALL_TOPOLOGIES), &
+       %val(nverts), %val(0), viter, ierr)
   CHECK(ierr)
-  call iMesh_coordsIterate(%VAL(imesh), %VAL(viter), x_ptr, y_ptr, z_ptr, count, ierr)
+  call iMesh_coordsIterate(%val(imesh), %val(viter), x_ptr, y_ptr, z_ptr, count, ierr)
   CHECK(ierr)
   CHECK(count-nverts) ! check that all verts are in one contiguous chunk
   call c_f_pointer(x_ptr, x, [nverts])
@@ -112,16 +112,16 @@ program DirectAccessNoHolesF90
   call c_f_pointer(z_ptr, z, [nverts])
 
   ! Get iterator to quads, then pointers to connectivity and tags
-  call iMesh_initEntArrIter(%VAL(imesh), %VAL(root_set), %VAL(iBase_FACE), %VAL(iMesh_ALL_TOPOLOGIES), &
-       %VAL(nquads), %VAL(0), qiter, ierr)
+  call iMesh_initEntArrIter(%val(imesh), %val(root_set), %val(iBase_FACE), %val(iMesh_ALL_TOPOLOGIES), &
+       %val(nquads), %val(0), qiter, ierr)
   CHECK(ierr)
-  call iMesh_connectIterate(%VAL(imesh), %VAL(qiter), conn_ptr, vpere, count, ierr)
+  call iMesh_connectIterate(%val(imesh), %val(qiter), conn_ptr, vpere, count, ierr)
   CHECK(ierr)
   call c_f_pointer(conn_ptr, conn, [vpere*nquads])
-  call iMesh_tagIterate(%VAL(imesh), %VAL(tag1h), %VAL(qiter), tag1_ptr, count, ierr)
+  call iMesh_tagIterate(%val(imesh), %val(tag1h), %val(qiter), tag1_ptr, count, ierr)
   CHECK(ierr)
   call c_f_pointer(tag1_ptr, tag1, [3*nquads])
-  call iMesh_tagIterate(%VAL(imesh), %VAL(tag2h), %VAL(qiter), tag2_ptr, count, ierr)
+  call iMesh_tagIterate(%val(imesh), %val(tag2h), %val(qiter), tag2_ptr, count, ierr)
   CHECK(ierr)
   call c_f_pointer(tag2_ptr, tag2, [3*nquads])
   
@@ -149,14 +149,14 @@ program DirectAccessNoHolesF90
   tmp_quads_size = 0
   offsets_size = 0
   tmpflag = iMesh_QUADRILATERAL
-  call iMesh_getEntArrAdj(%VAL(imesh), verts, %VAL(nverts), %VAL(tmpflag), &
+  call iMesh_getEntArrAdj(%val(imesh), verts, %val(nverts), %val(tmpflag), &
        tmp_quads_ptr, tmp_quads_size, tmp_quads_size, &
        offsets_ptr, offsets_size, offsets_size, ierr)
   CHECK(ierr)
 
   call c_f_pointer(tmp_quads_ptr, tmp_quads, [tmp_quads_size])
   call c_f_pointer(offsets_ptr, offsets, [offsets_size])
-  call iMesh_freeMemory(%VAL(imesh), verts_ptr)
+  call iMesh_freeMemory(%val(imesh), verts_ptr)
   do v = 0, nverts-1
      do e = 1+offsets(1+v), 1+offsets(1+v+1)-1  ! 1+ because offsets are in terms of 0-based arrays
         e_ind = tmp_quads(e) ! assign to e_ind to allow handle arithmetic
@@ -166,8 +166,8 @@ program DirectAccessNoHolesF90
         tag2(1+3*e_ind+2) = tag2(1+3*e_ind+2) + z(1+v)
      end do
   end do
-  call iMesh_freeMemory(%VAL(imesh), tmp_quads_ptr)
-  call iMesh_freeMemory(%VAL(imesh), offsets_ptr)
+  call iMesh_freeMemory(%val(imesh), tmp_quads_ptr)
+  call iMesh_freeMemory(%val(imesh), offsets_ptr)
 
   ! Normalize tag2 by vertex count (vpere); 
   ! loop over elements using same approach as before
@@ -189,7 +189,7 @@ program DirectAccessNoHolesF90
   endif
 
     ! Ok, we are done, shut down MOAB
-  call iMesh_dtor(%VAL(imesh), ierr)
+  call iMesh_dtor(%val(imesh), ierr)
   CHECK(ierr)
 end program DirectAccessNoHolesF90
 
@@ -204,7 +204,6 @@ subroutine create_mesh_no_holes(imesh, nquads, ierr)
   real(C_DOUBLE), pointer :: coords(:,:)
   TYPE(C_PTR) tmp_ents_ptr, stat_ptr
   iBase_EntityHandle, pointer :: connect(:), tmp_ents(:)
-  integer, pointer :: stat(:)
   integer nverts, tmp_size, stat_size, i
 
   ! first make the mesh, a 1d array of quads with left hand side x = elem_num;
@@ -228,9 +227,9 @@ subroutine create_mesh_no_holes(imesh, nquads, ierr)
   coords(2, nverts-2) = 0.0
   coords(2, nverts-1) = 0.0 ! z values, all zero (2d mesh)
   tmp_size = 0
-  !!!!!! VSM: This si the culprint call that screws up IBM xlf compiler
-!  call iMesh_createVtxArr(%VAL(imesh), %VAL(nverts), %VAL(iBase_INTERLEAVED), &
-!       coords, %VAL(3*nverts), tmp_ents_ptr, tmp_size, tmp_size, ierr)
+  !!!!!! VSM: This is the culprit call that screws up IBM xlf compiler
+  call iMesh_createVtxArr(%val(imesh), %val(nverts), %val(iBase_INTERLEAVED), &
+       coords, %val(3*nverts), tmp_ents_ptr, tmp_size, tmp_size, ierr)
   CHECK(ierr)
   call c_f_pointer(tmp_ents_ptr, tmp_ents, [nverts])
   deallocate(coords)
@@ -245,14 +244,14 @@ subroutine create_mesh_no_holes(imesh, nquads, ierr)
   stat_ptr = C_NULL_PTR
   ! re-use tmp_ents here;
   ! we know it'll always be larger than nquads so it's ok
-!  call iMesh_createEntArr(%VAL(imesh), %VAL(iMesh_QUADRILATERAL), connect, %VAL(4*nquads), &
-!       tmp_ents_ptr, tmp_size, tmp_size, stat_ptr, stat_size, stat_size, ierr)
+  call iMesh_createEntArr(%val(imesh), %val(iMesh_QUADRILATERAL), connect, %val(4*nquads), &
+       tmp_ents_ptr, tmp_size, tmp_size, stat_ptr, stat_size, stat_size, ierr)
   CHECK(ierr)
 
   ierr = iBase_SUCCESS
 
-  call iMesh_freeMemory(%VAL(imesh), tmp_ents_ptr)
-  call iMesh_freeMemory(%VAL(imesh), stat_ptr)
+  call iMesh_freeMemory(%val(imesh), tmp_ents_ptr)
+  call iMesh_freeMemory(%val(imesh), stat_ptr)
   deallocate(connect)
 
   return
