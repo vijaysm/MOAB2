@@ -78,9 +78,9 @@ SUBDIRS = . \
     wrapper_tests\
     $(UNIT_TEST)
 
-EXTRA_DIST = 2d_formulation_initial.vtk 2d_metrics_reference.vtk msqcppflags.make
+EXTRA_DIST = 2d_formulation_initial.vtk 2d_metrics_reference.vtk
 MOSTLYCLEANFILES = original_mesh.vtk smoothed_mesh.vtk smooth_ho.vtk *results.vtk transformed_mesh.vtk *.gpt Exp*.vtk out.vtk \
-									 *.gnuplot synchronous.vtk high_aspect.vtk msqcppflags.make
+									 *.gnuplot synchronous.vtk high_aspect.vtk
 
 include $(top_srcdir)/src/mesquite/make.inc
 
