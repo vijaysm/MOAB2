@@ -150,7 +150,7 @@ program DirectAccessNoHolesF90
      do j = 0, 2
         tag2(1+3*e+j) = tag2(1+3*e+j) / vpere;  ! normalize by # verts
      end do
-     if (tag1(1+3*e) .ne. tag2(1+3*e) .or. tag1(1+3*e+1) .ne. tag2(1+3*e+1) .or. tag1(1+3*e+2) .ne. tag2(1+3*i+2)) then
+     if (tag1(1+3*e) .ne. tag2(1+3*e) .or. tag1(1+3*e+1) .ne. tag2(1+3*e+1) .or. tag1(1+3*e+2) .ne. tag2(1+3*e+2)) then
         print *, "Tag1, tag2 disagree for element ", e
         print *, "tag1: ", tag1(1+3*e), tag1(1+3*e+1), tag1(1+3*e+2)
         print *, "tag2: ", tag2(1+3*e), tag2(1+3*e+1), tag2(1+3*e+2)
