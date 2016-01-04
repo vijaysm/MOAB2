@@ -120,6 +120,7 @@ namespace moab{
   ErrorCode NestedRefine::generate_mesh_hierarchy(int num_level, int *level_degrees, std::vector<EntityHandle> &level_sets)
   { 
     assert(num_level > 0);
+    nlevels = num_level;
 
     ErrorCode error;
     moab::EntityHandle *hmsets = new moab::EntityHandle[num_level];
@@ -448,7 +449,37 @@ namespace moab{
     return MB_SUCCESS;
   }
 
+  ErrorCode NestedRefine::update_materials()
+  {
+    ErrorCode error;
+    Tag mtag;
+    std::vector<EntityHandle> childs;
 
+    error = mbImpl->tag_get_handle(MATERIAL_SET_TAG_NAME, 1, MB_TYPE_INTEGER, mtag);MB_CHK_ERR(error);
+
+    Range sets, set_ents;
+    error = mbImpl->get_entities_by_type_and_tag(_rset, MBENTITYSET, &mtag, NULL, 1, sets);MB_CHK_ERR(error);
+
+    if (sets.empty())
+      MB_SET_ERR(MB_FAILURE, "No entities with material tag");
+
+    Range::iterator set_it;
+    for (set_it = sets.begin(); set_it != sets.end(); ++set_it) {
+        // Get the entities in the set, recursively
+        rval = mb->get_entities_by_handle(*set_it, set_ents, true);MB_CHK_ERR(rval);
+
+        for (Range::iterator sit = set_ents.begin(); sit != set_ents.end(); sit++)
+          {
+            for (int l=0; l<nlevels; l++)
+              {
+                childs.clear();
+                error = parent_to_child(*sit, 0, l+1, childs);MB_CHK_ERR(error);
+                error = mbImpl->add_entities(set_ents, &childs[0], childs.size());MB_CHK_ERR(error);
+              }
+          }
+      }
+    return MB_SUCCESS;
+  }
 
   /***********************************************
    *  Basic functionalities: generate HM         *

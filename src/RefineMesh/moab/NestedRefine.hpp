@@ -124,6 +124,8 @@ namespace moab
 
       ErrorCode exchange_ghosts(std::vector<EntityHandle> &lsets, int num_glayers);
 
+      ErrorCode update_materials();
+
       struct codeperf{
         double tm_total;
         double tm_refine;
@@ -142,7 +144,7 @@ namespace moab
     Range _inverts, _inedges, _infaces, _incells;
 
     EntityType elementype;
-    int meshdim;
+    int meshdim, nlevels;
     int level_dsequence[MAX_LEVELS];
     std::map<int,int> deg_index;
     bool hasghost;
