@@ -45,34 +45,10 @@
 /* floating point type to use for everything */
 #if   defined(USE_FLOAT)
 typedef float realType;
-#  define moab_floorr floorf
-#  define moab_ceilr  ceilf
-#  define moab_sqrtr  sqrtf
-#  define moab_fabsr  fabsf
-#  define moab_cosr   cosf
-#  define moab_sinr   sinf
-#  define MOAB_EPS   (128*FLT_EPSILON)
-#  define MOAB_PI 3.1415926535897932384626433832795028841971693993751058209749445923F
 #elif defined(USE_LONG_DOUBLE)
 typedef long double realType;
-#  define moab_floorr floorl
-#  define moab_ceilr  ceill
-#  define moab_sqrtr  sqrtl
-#  define moab_fabsr  fabsl
-#  define moab_cosr   cosl
-#  define moab_sinr   sinl
-#  define MOAB_EPS   (128*LDBL_EPSILON)
-#  define MOAB_PI 3.1415926535897932384626433832795028841971693993751058209749445923L
 #else
 typedef double realType;
-#  define moab_floorr floor
-#  define moab_ceilr  ceil
-#  define moab_sqrtr  sqrt
-#  define moab_fabsr  fabs
-#  define moab_cosr   cos
-#  define moab_sinr   sin
-#  define MOAB_EPS   (128*DBL_EPSILON)
-#  define MOAB_PI 3.1415926535897932384626433832795028841971693993751058209749445923
 #endif
 
 /* apparently uint and ulong can be defined already in standard headers */
