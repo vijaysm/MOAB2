@@ -1133,7 +1133,8 @@ ErrorCode SmoothFace::project_to_facets(std::vector<EntityHandle> & facet_list,
     CartVect *closest_point_ptr, CartVect * normal_ptr)
 {
 
-  bool outside_facet, best_outside_facet = true;
+  bool outside_facet = false;
+  bool best_outside_facet = true;
   double mindist = 1.e20;
   CartVect close_point, best_point(mindist, mindist, mindist), best_areacoord;
   EntityHandle best_facet = 0L;// no best facet found yet

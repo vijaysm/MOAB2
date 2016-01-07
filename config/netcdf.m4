@@ -56,7 +56,7 @@ AS_HELP_STRING([--without-netcdf], [Disable support for ExodusII file format])],
 [NETCDF_ARG=$withval
 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-netcdf=\"${withval}\""
 ]
-, [NETCDF_ARG=])
+, [NETCDF_ARG=no])
 if test "xno" != "x$NETCDF_ARG"; then
   AC_MSG_RESULT([yes])
 else
@@ -66,7 +66,6 @@ fi
  # if NetCDF support is not disabled
 HAVE_NETCDF=no
 if test "xno" != "x$NETCDF_ARG"; then
-  HAVE_NETCDF=yes
   
     # if a path is specified, update LIBS and INCLUDES accordingly
   if test "xyes" != "x$NETCDF_ARG" && test "x" != "x$NETCDF_ARG"; then
@@ -94,8 +93,8 @@ if test "xno" != "x$NETCDF_ARG"; then
     AC_SUBST([NETCDF_CPPFLAGS])
     AC_SUBST([NETCDF_LDFLAGS])
     AC_SUBST([NETCDF_VERSION])
+    HAVE_NETCDF=yes
   else
-    HAVE_NETCDF=no
     AC_MSG_WARN("NetCDF configuration utility not found")
   fi
    
@@ -107,28 +106,29 @@ if test "xno" != "x$NETCDF_ARG"; then
    # Check for C library
   AC_LANG_PUSH([C])
   AC_CHECK_HEADERS( [netcdf.h], 
-                    [FATHOM_CHECK_NETCDF_LIMITS([$1],[$2],[netcdf.h],[NETCDF_SUFFICIENT_DIM_VARS])], 
-                    [AC_MSG_WARN([[NetCDF header not found.]]); HAVE_NETCDF=no] )
+                    [FATHOM_CHECK_NETCDF_LIMITS([$1],[$2],[netcdf.h],[HAVE_NETCDF=yes; NETCDF_SUFFICIENT_DIM_VARS])], 
+                    [AC_MSG_WARN([[NetCDF header not found. Disabling NetCDF configuration.]]); HAVE_NETCDF=no; NETCDF_ARG="";] )
 
-      # Check if netcdf is usable by itself
-  # AC_CHECK_LIB( [netcdf], [nc_create], [NETCDF_LIBS="-lnetcdf"], [NETCDF_LIBS=${NETCDF_LDFLAGS}] )
-  AC_CHECK_LIB( [netcdf], [nc_create], [NETCDF_LIBS="-lnetcdf $PNETCDF_LIBS"], [
-     # Check if netcdf is usable with HDF5
-    unset ac_cv_lib_netcdf
-    unset ac_cv_lib_netcdf_nc_create
-    # If we haven't already looked for HDF5 libraries, again now incase
-    # they're in the NetCDF lib directory.
-    FATHOM_DETECT_HDF5_LIBS
-    LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"
-    AC_CHECK_LIB( [netcdf], [nc_create], [NETCDF_LIBS="-lnetcdf $PNETCDF_LIBS -lhdf5_hl $HDF5_LIBS"], [
-      # Try one more time with HDF5 and libcurl
+  # Check if netcdf is usable by itself
+  if test "x$HAVE_NETCDF" != "xno"; then
+    AC_CHECK_LIB( [netcdf], [nc_create], [NETCDF_LIBS="-lnetcdf $PNETCDF_LIBS"; HAVE_NETCDF=yes;], [
+      # Check if netcdf is usable with HDF5
       unset ac_cv_lib_netcdf
       unset ac_cv_lib_netcdf_nc_create
-      AC_CHECK_LIB( [netcdf], [nc_create], [NETCDF_LIBS="-lnetcdf $PNETCDF_LIBS -lhdf5_hl $HDF5_LIBS -lcurl "],
-        [HAVE_NETCDF=no], [$PNETCDF_LIBS -lhdf5_hl $HDF5_LIBS -lcurl ] )],
-      [$PNETCDF_LIBS -lhdf5_hl $HDF5_LIBS] )],
-    )
-  
+      # If we haven't already looked for HDF5 libraries, again now incase
+      # they're in the NetCDF lib directory.
+      FATHOM_DETECT_HDF5_LIBS
+      LDFLAGS="$LDFLAGS $HDF5_LDFLAGS"
+      AC_CHECK_LIB( [netcdf], [nc_create], [NETCDF_LIBS="-lnetcdf $PNETCDF_LIBS -lhdf5_hl $HDF5_LIBS"; HAVE_NETCDF=yes;], [
+        # Try one more time with HDF5 and libcurl
+        unset ac_cv_lib_netcdf
+        unset ac_cv_lib_netcdf_nc_create
+        AC_CHECK_LIB( [netcdf], [nc_create], [NETCDF_LIBS="-lnetcdf $PNETCDF_LIBS -lhdf5_hl $HDF5_LIBS -lcurl"; HAVE_NETCDF=yes;],
+          [HAVE_NETCDF=no], [$PNETCDF_LIBS -lhdf5_hl $HDF5_LIBS -lcurl ] )],
+        [$PNETCDF_LIBS -lhdf5_hl $HDF5_LIBS] )],
+      )
+  fi
+
   CPPFLAGS="$old_CPPFLAGS"
   LDFLAGS="$old_LDFLAGS"
   AC_LANG_POP([C])

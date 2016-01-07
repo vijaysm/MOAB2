@@ -122,7 +122,7 @@ void test_read_parallel(int num_verts, bool test_nb_nodes)
   std::cout << "proc: " << rank << " verts:" << my_num << "\n";
 
   int total_verts;
-  MPI_Reduce(&my_num, &total_verts, 1, MPI_INTEGER, MPI_SUM, 0, pcomm->proc_config().proc_comm());
+  MPI_Reduce(&my_num, &total_verts, 1, MPI_INT, MPI_SUM, 0, pcomm->proc_config().proc_comm());
 
   if (0 == rank) {
     std::cout << "total vertices: " << total_verts << "\n";

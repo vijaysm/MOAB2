@@ -114,10 +114,8 @@ int main(int argc, char **argv) {
   int    coord_sys;
   double rmatrix[16];
 
-  MBresult = MBI->tag_get_data( coord_tag, &root, 1, &coord_sys);
-  assert(moab::MB_SUCCESS == MBresult);
-  MBresult = MBI->tag_get_data( rotation_tag, &root, 1, &rmatrix);
-  assert(moab::MB_SUCCESS == MBresult);
+  MBresult = MBI->tag_get_data( coord_tag, &root, 1, &coord_sys);MB_CHK_ERR(MBresult);
+  MBresult = MBI->tag_get_data( rotation_tag, &root, 1, &rmatrix);MB_CHK_ERR(MBresult);
 
   build_time = clock() - load_time;
 
@@ -149,24 +147,19 @@ int main(int argc, char **argv) {
   else {
 
     meshset = 0;
-    MBresult = MBI->load_file( CAD_filename.c_str(), &meshset );
-    assert( moab::MB_SUCCESS == MBresult );
+    MBresult = MBI->load_file( CAD_filename.c_str(), &meshset );MB_CHK_ERR(MBresult);
     assert( 0 != meshset );
 
     moab::Range cfd_verts;
-    MBresult = MBI->get_entities_by_type( meshset, moab::MBVERTEX, cfd_verts, true);
-    assert( moab::MB_SUCCESS == MBresult );
+    MBresult = MBI->get_entities_by_type( meshset, moab::MBVERTEX, cfd_verts, true);MB_CHK_ERR(MBresult);
     num_pts = cfd_verts.size();
 
     cfd_coords = new double [ 3 * num_pts ];
-    MBresult = MBI->get_coords( cfd_verts , cfd_coords );
-    assert( moab::MB_SUCCESS == MBresult );
+    MBresult = MBI->get_coords( cfd_verts , cfd_coords );MB_CHK_ERR(MBresult);
 
     cfd_iter = cfd_verts.begin();
-    MBresult = MBI->tag_get_handle("heating_tag", 1, moab::MB_TYPE_DOUBLE, cfd_heating_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT); 
-    assert( moab::MB_SUCCESS == MBresult );
-    MBresult = MBI->tag_get_handle("error_tag", 1, moab::MB_TYPE_DOUBLE, cfd_error_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT);
-    assert( moab::MB_SUCCESS == MBresult );
+    MBresult = MBI->tag_get_handle("heating_tag", 1, moab::MB_TYPE_DOUBLE, cfd_heating_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT);MB_CHK_ERR(MBresult);
+    MBresult = MBI->tag_get_handle("error_tag", 1, moab::MB_TYPE_DOUBLE, cfd_error_tag, moab::MB_TAG_DENSE|moab::MB_TAG_CREAT);MB_CHK_ERR(MBresult);
 
     std::cout << std::endl << "Read in mesh with query points." << std::endl << std::endl;
 
@@ -230,11 +223,11 @@ int main(int argc, char **argv) {
     moab::EntityHandle tree_node;
     MBresult = kdtree.point_search(transformed_pt, tree_node);
     if (moab::MB_SUCCESS != MBresult) {
-      double x, y, z;
+      double x=0.0, y=0.0, z=0.0;
       if (CARTESIAN == coord_sys) {
         x = testvc[0];
         y = testvc[1];
-	z = testvc[2];
+        z = testvc[2];
       }
       else if (CYLINDRICAL == coord_sys) {
         x = testvc[0]*cos(2*M_PI*testvc[2]);
@@ -242,7 +235,8 @@ int main(int argc, char **argv) {
         z = testvc[1];
       } 
       else {
-        assert(moab::MB_SUCCESS == MBresult);
+        std::cout << "MOAB WARNING: Unhandled error code during point search in KdTree, ErrorCode = " << MBresult 
+                  << " and Coord xyz=" << x << " " << y << " " << z << std::endl;
       }
       std::cout << "No leaf found, MCNP coord xyz=" << x << " " << y << " " << z << std::endl;
       ++cfd_iter;
@@ -250,8 +244,7 @@ int main(int argc, char **argv) {
     }
 
     range.clear();
-    MBresult = MBI -> get_entities_by_type(tree_node, moab::MBHEX, range );
-    assert(MBresult == moab::MB_SUCCESS);
+    MBresult = MBI -> get_entities_by_type(tree_node, moab::MBHEX, range );MB_CHK_ERR(MBresult);
 
     // davg += (double) range.size();
     // if (range.size() > nmax) nmax = range.size();
@@ -261,12 +254,10 @@ int main(int argc, char **argv) {
       verts.clear();
       const moab::EntityHandle *connect;
       int num_connect;
-      MBresult = MBI -> get_connectivity( *rit, connect, num_connect, true); 
-      assert(MBresult == moab::MB_SUCCESS);
+      MBresult = MBI -> get_connectivity( *rit, connect, num_connect, true);MB_CHK_ERR(MBresult);
 
       coords.resize(3*num_connect);
-      MBresult = MBI -> get_coords( connect, num_connect, &coords[0]);
-      assert(MBresult == moab::MB_SUCCESS);
+      MBresult = MBI -> get_coords( connect, num_connect, &coords[0]);MB_CHK_ERR(MBresult);
 
       for (unsigned int j = 0; j < (unsigned int) num_connect; j++) {
 	  hexverts[j][0] = coords[3*j];
@@ -275,10 +266,8 @@ int main(int argc, char **argv) {
       }
 
       if (moab::ElemUtil::point_in_trilinear_hex(hexverts, testvc, 1.e-6)) {
-        MBresult = MBI -> tag_get_data( MCNP->tally_tag, &(*rit), 1, &taldata);
-        assert( moab::MB_SUCCESS == MBresult );
-        MBresult = MBI -> tag_get_data( MCNP->relerr_tag, &(*rit), 1, &errdata);
-        assert( moab::MB_SUCCESS == MBresult );
+        MBresult = MBI -> tag_get_data( MCNP->tally_tag, &(*rit), 1, &taldata);MB_CHK_ERR(MBresult);
+        MBresult = MBI -> tag_get_data( MCNP->relerr_tag, &(*rit), 1, &errdata);MB_CHK_ERR(MBresult);
 
 	outfile <<   n         << ","
 	            << testpt[0] << ","
@@ -288,10 +277,8 @@ int main(int argc, char **argv) {
 		    << errdata   << std::endl;
 
         if (!read_qnv) {
-          MBresult = MBI->tag_set_data(cfd_heating_tag, &(*cfd_iter), 1, &taldata);
-          assert( moab::MB_SUCCESS == MBresult );
-          MBresult = MBI->tag_set_data(cfd_error_tag, &(*cfd_iter), 1, &errdata);
-          assert( moab::MB_SUCCESS == MBresult );
+          MBresult = MBI->tag_set_data(cfd_heating_tag, &(*cfd_iter), 1, &taldata);MB_CHK_ERR(MBresult);
+          MBresult = MBI->tag_set_data(cfd_error_tag, &(*cfd_iter), 1, &errdata);MB_CHK_ERR(MBresult);
         }
 
         found = true;

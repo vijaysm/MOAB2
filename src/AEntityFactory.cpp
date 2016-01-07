@@ -713,7 +713,7 @@ ErrorCode AEntityFactory::get_down_adjacency_elements(EntityHandle source_entity
                                             create_adjacency_option);
   
     // make this a fixed size to avoid cost of working with STL vectors
-  EntityHandle vertex_array[27];
+  EntityHandle vertex_array[27] = {};
   ErrorCode temp_result;
 
   const EntityHandle *vertices = NULL;
@@ -833,6 +833,7 @@ ErrorCode AEntityFactory::get_down_adjacency_elements_poly(EntityHandle source_e
         const EntityHandle *explicit_adjs;
         int num_exp;
         for (Range::iterator rit = adj_edges.begin(); rit != adj_edges.end(); ++rit) {
+          // TODO check return value
           this->get_adjacencies(*rit, explicit_adjs, num_exp);
           if (NULL != explicit_adjs &&
               std::find(explicit_adjs, explicit_adjs+num_exp, source_entity) != 

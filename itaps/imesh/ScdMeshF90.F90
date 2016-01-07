@@ -29,7 +29,7 @@ iBase_EntityHandle :: root_set
 iBase_EntityArrIterator :: iter
 iBase_TagHandle :: tagh
 integer :: local_dims(6),global_dims(6)
-integer :: geom_dim,num_regions, num_verts, count, i, num_quads, rsum
+integer :: geom_dim, num_verts, count, i, num_quads, rsum
 real xm
 pointer (rpxm1, xm(*))
 real reinterpret_ptr
@@ -62,7 +62,7 @@ call iMesh_getRootSet(%VAL(mesh), root_set, ier); ERROR(ier);
 
 call iMesh_getGeometricDimension(%VAL(mesh), geom_dim, ier); ERROR(ier);
 
-call iMesh_getNumOfType(%VAL(mesh), %VAL(root_set), %VAL(iBase_FACE), num_regions, ier); ERROR(ier);
+call iMesh_getNumOfType(%VAL(mesh), %VAL(root_set), %VAL(iBase_FACE), num_quads, ier); ERROR(ier);
 
 call iMesh_getNumOfType(%VAL(mesh), %VAL(root_set), %VAL(iBase_VERTEX), num_verts, ier); ERROR(ier);
 

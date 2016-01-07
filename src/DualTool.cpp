@@ -1535,7 +1535,8 @@ ErrorCode DualTool::atomic_pillow(EntityHandle odedge, EntityHandle &quad1,
   result = mbImpl->create_element(MBHEX, &tmp_verts[0], 8, new_hexes[1]); RR;
 
     // set the global id tag on the new hexes
-  int new_hex_ids[2] = {++maxHexId, ++maxHexId};
+  int new_hex_ids[2] = {maxHexId+1, maxHexId+2};
+  maxHexId += 2;
   result = mbImpl->tag_set_data(globalId_tag(), new_hexes, 2, new_hex_ids);
   if (MB_SUCCESS != result) return result;
 

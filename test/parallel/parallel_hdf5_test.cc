@@ -1267,7 +1267,7 @@ void test_read_bc_sets()
     contents.clear();
   }
 
-  MPI_Reduce(num_ents, global_num_ents, 3, MPI_INTEGER, MPI_SUM, 0, MPI_COMM_WORLD );
+  MPI_Reduce(num_ents, global_num_ents, 3, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD );
   if (0 == rank) {
 //    std::cout << "Global:" << global_num_ents[0] << " " << global_num_ents[1] << " " << global_num_ents[2] << " " << std::endl;
 //    std::cout << "Expected:" << expected_num_ents[0] << " " << expected_num_ents[1] << " " << expected_num_ents[2] << " " << std::endl;
