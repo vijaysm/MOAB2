@@ -8,10 +8,6 @@ ENABLE_SHARED=no
 ENABLE_STATIC=yes
 
 # Compiler specifications
-CC=mpicc
-CXX=mpicxx
-FC=mpif90
-F77=mpif77
 ENABLE_MPI=yes
 ENABLE_FORTRAN=yes
 
@@ -48,24 +44,133 @@ if (test "x$PREFIX_INSTALL_PATH" != "x"); then
 	INTERNAL_OPTIONS="$INTERNAL_OPTIONS --prefix=$PREFIX_INSTALL_PATH"
 fi
 
-test "x$ENABLE_MPI" != "xyes" || INTERNAL_OPTIONS="$INTERNAL_OPTIONS --with-mpi"
+# PRESET CONFIGURATION COMMANDS
+CONFIGURE_CMD="$PWD/configure"
 
-INTERNAL_OPTIONS="$INTERNAL_OPTIONS CC=$CC CXX=$CXX"
+# Variables to set
+MBHOSTSYS=""
+MBCC="mpicc"
+MBCXX="mpicxx"
+MBFC="mpif90"
+MBF77="mpif77"
+MBMPI_DIR=""
+MBHDF5_DIR=""
+MBSZIP_DIR=""
+MBZLIB_DIR=""
+MBNETCDF_DIR=""
+MBPNETCDF_DIR=""
+MBMETIS_DIR=""
+MBPARMETIS_DIR=""
+MBZOLTAN_DIR=""
+MBSCOTCH_DIR=""
+MBPTSCOTCH_DIR=""
+MBVTK_DIR=""
+MBCGM_DIR=""
+
+case "$HOSTNAME" in
+  *vesta* | *mira*)
+    MBNMPICC="xlc_r"
+    MBNMPICXX="xlc++_r"
+    MBNMPIFC="xlf_r"
+    MBNMPIF77="xlf_r"
+    MBHOSTSYS="powerpc64-bgq-linux"
+    MBHDF5_DIR="/soft/libraries/hdf5/1.8.10/cnk-xl/current"
+    MBZLIB_DIR="/soft/libraries/alcf/current/xl/ZLIB"
+    MBPNETCDF_DIR="/soft/libraries/pnetcdf/current/cnk-xl/current"
+    MBNETCDF_DIR="/soft/libraries/netcdf/4.3.0-f4.2/cnk-xl/V1R2M0-20131211"
+    MBPARMETIS_DIR="/soft/libraries/alcf/current/xl/PARMETIS"
+    MBMETIS_DIR="/soft/libraries/alcf/current/xl/METIS"
+    ;;
+  *blogin*)
+    MBNMPICC="icc"
+    MBNMPICXX="icpc"
+    MBNMPIFC="ifort"
+    MBNMPIF77="ifort"
+    MBMPI_DIR="/software/mvapich2-intel-psm-1.9.5"
+    MBHDF5_DIR="/soft/hdf5/1.8.12-parallel/intel-13.1/mvapich2-1.9"
+    MBSZIP_DIR="/soft/szip/2.1/intel-13.1"
+    MBNETCDF_DIR="/soft/netcdf/4.3.1-parallel/intel-13.1/mvapich2-1.9"
+    MBPNETCDF_DIR="/soft/pnetcdf/1.6.1-gnu4.4-mvapich2"
+    MBMETIS_DIR="/soft/metis/5.0.3"
+    ;;
+  *)  # Nothing to do
+    ;;
+esac
+
+# Finalize the configuration command
+if (test "x$MBHOSTSYS" != "x"); then
+  INTERNAL_OPTIONS="$INTERNAL_OPTIONS --host=$MBHOSTSYS"
+fi
+
+if (test "x$ENABLE_MPI" != "xno"); then
+  if (test "x$MBMPI_DIR" != "x"); then
+    INTERNAL_OPTIONS="$INTERNAL_OPTIONS --with-mpi=$MBMPI_DIR"
+  else
+    INTERNAL_OPTIONS="$INTERNAL_OPTIONS --with-mpi"
+  fi
+else
+  MBCC=$MBNMPICC
+  MBCXX=$MBNMPICXX
+  MBF77=$MBNMPIF77
+  MBFC=$MBNMPIFC
+fi
+
+INTERNAL_OPTIONS="$INTERNAL_OPTIONS CC=$MBCC CXX=$MBCXX"
+
+# test "x$ENABLE_MPI" != "xyes" || INTERNAL_OPTIONS="$INTERNAL_OPTIONS --with-mpi"
 
 if (test "x$ENABLE_FORTRAN" != "xno"); then
-	INTERNAL_OPTIONS="$INTERNAL_OPTIONS FC=$FC F77=$F77"
+	INTERNAL_OPTIONS="$INTERNAL_OPTIONS FC=$MBFC F77=$MBF77"
 else
 	INTERNAL_OPTIONS="$INTERNAL_OPTIONS --disable-fortran"
 fi
 
-# PRESET CONFIGURATION COMMANDS
-CONFIGURE_CMD="$PWD/configure "
+if (test "x$MBHDF5_DIR" != "x"); then
+  INTERNAL_OPTIONS="$INTERNAL_OPTIONS --with-hdf5=$MBHDF5_DIR"
+fi
 
-case "$HOSTNAME" in
-  *vesta*)  CONFIGURE_CMD="$CONFIGURE_CMD --host=powerpc64-bgq-linux $INTERNAL_OPTIONS --with-hdf5=/soft/libraries/hdf5/1.8.10/cnk-xl/current --with-pnetcdf=/soft/libraries/pnetcdf/current/cnk-xl/current --with-netcdf=/soft/libraries/netcdf/4.3.0-f4.2/cnk-xl/V1R2M0-20131211 --with-zlib=/soft/libraries/alcf/current/xl/ZLIB --with-parmetis=/soft/libraries/alcf/current/xl/PARMETIS --with-metis=/soft/libraries/alcf/current/xl/METIS" ;;
-  *mira*)   CONFIGURE_CMD="$CONFIGURE_CMD --host=powerpc64-bgq-linux $INTERNAL_OPTIONS --with-hdf5=/soft/libraries/hdf5/1.8.10/cnk-xl/current --with-pnetcdf=/soft/libraries/pnetcdf/current/cnk-xl/current --with-netcdf=/soft/libraries/netcdf/4.3.0-f4.2/cnk-xl/V1R2M0-20131211 --with-zlib=/soft/libraries/alcf/current/xl/ZLIB --with-parmetis=/soft/libraries/alcf/current/xl/PARMETIS --with-metis=/soft/libraries/alcf/current/xl/METIS" ;;
-  *)        CONFIGURE_CMD="$CONFIGURE_CMD $INTERNAL_OPTIONS" ;;
-esac
+if (test "x$MBZLIB_DIR" != "x"); then
+  INTERNAL_OPTIONS="$INTERNAL_OPTIONS --with-zlib=$MBZLIB_DIR"
+fi
+
+if (test "x$MBSZIP_DIR" != "x"); then
+  INTERNAL_OPTIONS="$INTERNAL_OPTIONS --with-szip=$MBSZIP_DIR"
+fi
+
+if (test "x$MBNETCDF_DIR" != "x"); then
+  INTERNAL_OPTIONS="$INTERNAL_OPTIONS --with-netcdf=$MBNETCDF_DIR"
+fi
+
+if (test "x$MBPNETCDF_DIR" != "x"); then
+  INTERNAL_OPTIONS="$INTERNAL_OPTIONS --with-pnetcdf=$MBPNETCDF_DIR"
+fi
+
+if (test "x$MBMETIS_DIR" != "x"); then
+  INTERNAL_OPTIONS="$INTERNAL_OPTIONS --with-metis=$MBMETIS_DIR"
+fi
+
+if (test "x$MBPARMETIS_DIR" != "x"); then
+  INTERNAL_OPTIONS="$INTERNAL_OPTIONS --with-parmetis=$MBPARMETIS_DIR"
+fi
+
+if (test "x$MBZOLTAN_DIR" != "x"); then
+  INTERNAL_OPTIONS="$INTERNAL_OPTIONS --with-zoltan=$MBZOLTAN_DIR"
+fi
+
+if (test "x$MBSCOTCH_DIR" != "x"); then
+  INTERNAL_OPTIONS="$INTERNAL_OPTIONS --with-scotch=$MBSCOTCH_DIR"
+fi
+
+if (test "x$MBPTSCOTCH_DIR" != "x"); then
+  INTERNAL_OPTIONS="$INTERNAL_OPTIONS --with-ptscotch=$MBPTSCOTCH_DIR"
+fi
+
+if (test "x$MBVTK_DIR" != "x"); then
+  INTERNAL_OPTIONS="$INTERNAL_OPTIONS --with-vtk=$MBVTK_DIR"
+fi
+
+# Put them all together
+CONFIGURE_CMD="$CONFIGURE_CMD $INTERNAL_OPTIONS"
 
 # PRINT OUT INFORMATION
 echo "###########################################"
@@ -79,7 +184,7 @@ echo "Enable shared build    = $ENABLE_SHARED"
 echo "Enable static build    = $ENABLE_STATIC"
 echo "Enable MPI parallelism = $ENABLE_MPI"
 echo "Enable Fortran support = $ENABLE_FORTRAN"
-echo "Compilers: CC=$CC, CXX=$CXX, FC=$FC, F77=$F77"
+echo "Compilers: CC=$MBCC, CXX=$MBCXX, FC=$MBFC, F77=$MBF77"
 echo ""
 echo "Configure command to use:"
 echo "-------------------------"
