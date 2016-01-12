@@ -178,8 +178,9 @@ int main(int argc, char* argv[])
   if (part_geom_mesh_size != -1.0 && part_geom_mesh_size <= 0.0)
   {
     std::cerr << part_geom_mesh_size
-              << ": invalid geometry partition mesh size." << std::endl;
-    return 1;
+              << ": invalid geometry partition mesh size." << std::endl << std::endl;
+    opts.printHelp();
+    return EXIT_FAILURE;
   }
 
   if (moab_use_zoltan) {
@@ -195,14 +196,16 @@ int main(int argc, char* argv[])
       CubitStatus status = InitCGMA::initialize_cgma();
       if (CUBIT_SUCCESS != status)
       {
-        std::cerr << "CGM couldn't be initialized." << std::endl;
-        return 1;
+        std::cerr << "CGM couldn't be initialized." << std::endl << std::endl;
+        opts.printHelp();
+        return EXIT_FAILURE;
       }
       GeometryQueryTool *gti = GeometryQueryTool::instance();
       tool = new ZoltanPartitioner (&mb, false, argc, argv, gti);
 #else
-      std::cerr << "CGM should be configured to partition geometry." << std::endl;
-      return 1;
+      std::cerr << "CGM should be configured to partition geometry." << std::endl << std::endl;
+      opts.printHelp();
+      return EXIT_FAILURE;
 #endif // MOAB_HAVE_CGM
     }
   }
@@ -254,8 +257,9 @@ int main(int argc, char* argv[])
   {
     std::cerr << power
               << ": invalid power for multiple partitions. Expected value in [1,18]"
-              << std::endl;
-    return 1;
+              << std::endl << std::endl;
+    opts.printHelp();
+    return EXIT_FAILURE;
   }
   else
   {
@@ -264,14 +268,16 @@ int main(int argc, char* argv[])
 
   if (part_dim < 0 || part_dim > 3)
   {
-    std::cerr << part_dim << " : invalid dimension" << std::endl;
-    return 1;
+    std::cerr << part_dim << " : invalid dimension" << std::endl << std::endl;
+    opts.printHelp();
+    return EXIT_FAILURE;
   }
 
   if (imbal_tol < 0.0)
   {
-    std::cerr << imbal_tol << ": invalid imbalance tolerance" << std::endl;
-    return 1;
+    std::cerr << imbal_tol << ": invalid imbalance tolerance" << std::endl << std::endl;
+    opts.printHelp();
+    return EXIT_FAILURE;
   }
 
   bool load_msets = false;
@@ -280,15 +286,16 @@ int main(int argc, char* argv[])
     load_msets = true;
     if (set_l.size() <= 0)
     {
-      std::cerr << " No material set id's to load" << std::endl;
-      return 1;
+      std::cerr << " No material set id's to load" << std::endl << std::endl;
+      opts.printHelp();
+      return EXIT_FAILURE;
     }
   }
 
   if (num_parts <= 1) {
     std::cerr << "** Please specify #parts = " << num_parts << " to be greater than 1." << std::endl << std::endl;
     opts.printHelp();
-    return 0;
+    return EXIT_FAILURE;
   }
 
   clock_t t = clock();
