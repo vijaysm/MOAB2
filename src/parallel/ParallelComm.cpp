@@ -4411,27 +4411,13 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
         }
       }
     }
-
     // get the global id tag too
     rval = mbImpl->tag_get_handle(GLOBAL_ID_TAG_NAME, 1, MB_TYPE_INTEGER,
         tags[num_tags], MB_TAG_ANY);
     MB_CHK_SET_ERR(rval, "can't get global id tag");
 
-    // collect all shared entities owned on this task, which are ghosts for others
-    Range owned_shared_ents;
-    //                     all procs          all dims, all, owned_only
-    rval = get_shared_entities(-1, owned_shared_ents, -1, false, true);
-    MB_CHK_SET_ERR(rval, "can't get shared entities");
-
-    // consider only entities that are not on the interface
-    // they should already belong to the right sets, after reading, on multiple processors
-    // rval = filter_pstatus(owned_shared_ents, PSTATUS_INTERFACE, PSTATUS_NOT, -1);
-    //   above filtering was wrong, because some vertices that were on the interface
-    //    could be ghosted on other processors, so we effectively remove them
-    //  it is true that some might already have the global id (shared, not owned), so it is
-    // a duplicate, but it should be fine
     TupleList remoteEnts;
-    int estim = (int) owned_shared_ents.size() * (size() - 1) * num_tags;// maybe overkill?
+    int estim = (int) sharedEnts.size() * 10 * num_tags;// maybe overkill?
     // processor to send to, type of tag (0-mat,) tag value,     remote handle
     //                         1-diri
     //                         2-neum
@@ -4441,18 +4427,26 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     remoteEnts.enableWriteAccess();
 
     // now, for each owned entity, get the remote handle(s) and Proc(s), and verify if it
-    // belongs to one of the sets; if yes, create a tuple and append it]
+    // belongs to one of the sets; if yes, create a tuple and append it
+
+    std::set<EntityHandle> own_and_sha;
     int ir = 0, jr = 0;
-    for (Range::iterator eit = owned_shared_ents.begin(); eit
-        != owned_shared_ents.end(); eit++) {
+    for (std::vector<EntityHandle>::iterator vit = sharedEnts.begin();
+        vit != sharedEnts.end(); ++vit)
+    {
       // ghosted eh
-      EntityHandle geh = *eit;
+      EntityHandle geh = *vit;
+      if (own_and_sha.find(geh)!=own_and_sha.end())// already encountered
+        continue;
       int procs[MAX_SHARING_PROCS];
       EntityHandle handles[MAX_SHARING_PROCS];
       int nprocs;
       unsigned char pstat;
       rval = get_sharing_data(geh, procs, handles, pstat, nprocs);
       MB_CHK_SET_ERR(rval, "Failed to get sharing data");
+      if (pstat & PSTATUS_NOT_OWNED)
+        continue; // we will send info only for entities that we own
+      own_and_sha.insert(geh);
       for (int i = 0; i < num_tags; i++) {
         for (int j = 0; j < (int) rangeSets[i].size(); j++) {
           EntityHandle specialSet = rangeSets[i][j]; // this set has tag i, value tagVals[i][j];
@@ -4507,7 +4501,8 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       remoteEnts.print(" on rank 0, after augment routing");
     MPI_Barrier(procConfig.proc_comm());
   #endif
-    // now process the data received from other processor
+
+    // now process the data received from other processors
     int received = remoteEnts.get_n();
     for (int i = 0; i < received; i++) {
       //int from = ents_to_delete.vi_rd[i];

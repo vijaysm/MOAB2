@@ -75,6 +75,7 @@
 #ifdef MOAB_HAVE_MPI
 #include "moab/ParallelComm.hpp"
 #include "moab/ParallelMergeMesh.hpp"
+#include "MBParallelConventions.h"
 #endif
 #include "moab/ReadUtilIface.hpp"
 
@@ -155,6 +156,9 @@ int main(int argc, char **argv)
 #ifdef MOAB_HAVE_HDF5_PARALLEL
   bool readb = false;
   opts.addOpt<void>("readback,r", "read back the generated mesh", &readb);
+
+  bool readAndGhost = false;
+  opts.addOpt<void>("readAndGhost,G", "read back the generated mesh and ghost one layer", &readAndGhost);
 #endif
 
   opts.addOpt<void>("parallel_merge,p", "use parallel mesh merge, not vertex ID based merge", &parmerge);
@@ -648,17 +652,28 @@ int main(int argc, char **argv)
   {
     // now recreate a core instance and load the file we just wrote out to verify
     Core mb2;
-    rval = mb2.load_file(outFileName.c_str(), 0,
-        "PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;CPUTIME;");MB_CHK_SET_ERR(rval, "Can't read in parallel");
+    std::string read_opts("PARALLEL=READ_PART;PARTITION=PARALLEL_PARTITION;PARALLEL_RESOLVE_SHARED_ENTS;CPUTIME;");
+    if (readAndGhost)
+      read_opts+="PARALLEL_GHOSTS=3.0.1;";
+    rval = mb2.load_file(outFileName.c_str(), 0, read_opts.c_str());MB_CHK_SET_ERR(rval, "Can't read in parallel");
     if (0 == rank) {
-      cout << "read back file " << outFileName << " in "
-           << (clock() - tt) / (double)CLOCKS_PER_SEC << " seconds" << endl;
+      cout << "read back file " << outFileName << " with options: \n" << read_opts <<
+          " in "  << (clock() - tt) / (double)CLOCKS_PER_SEC << " seconds" << endl;
       tt = clock();
     }
     moab::Range nverts, ncells;
     rval = mb2.get_entities_by_dimension(0, 0, nverts);MB_CHK_SET_ERR(rval, "Can't get all vertices");
     rval = mb2.get_entities_by_dimension(0, 3, ncells);MB_CHK_SET_ERR(rval, "Can't get all 3d cells elements");
 
+    if (readAndGhost && size > 1)
+    {
+      // filter out the ghost nodes and elements, for comparison with original mesh
+      // first get the parallel comm
+      ParallelComm* pcomm2 = ParallelComm::get_pcomm(&mb2, 0);
+      if (NULL == pcomm2) MB_SET_ERR(MB_FAILURE, "can't get parallel comm.");
+      rval = pcomm2->filter_pstatus(nverts, PSTATUS_GHOST, PSTATUS_NOT);MB_CHK_SET_ERR(rval, "Can't filter ghost vertices");
+      rval = pcomm2->filter_pstatus(ncells, PSTATUS_GHOST, PSTATUS_NOT);MB_CHK_SET_ERR(rval, "Can't filter ghost cells");
+    }
     if (nverts.size() != nLocalVerts && ncells.size() != nLocalCells ) {
       MB_SET_ERR(MB_FAILURE, "Reading back the output file led to inconsistent number of entities.");
     }
