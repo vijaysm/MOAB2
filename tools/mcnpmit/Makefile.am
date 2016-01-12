@@ -1,4 +1,4 @@
-AM_CPPFLAGS += -I$(top_srcdir)/src -I$(top_builddir)/src -I$(top_srcdir)/tools/mbcoupler -I$(top_builddir)/src/moab/point_locater/lotte
+AM_CPPFLAGS = -I$(top_srcdir)/src -I$(top_builddir)/src -I$(top_srcdir)/tools/mbcoupler -I$(top_builddir)/src/moab/point_locater/lotte
 
 bin_PROGRAMS = mcnpmit
 mcnpmit_SOURCES = mcnpmit.hpp mcnpmit.cpp main.cpp

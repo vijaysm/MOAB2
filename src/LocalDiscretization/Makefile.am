@@ -5,7 +5,7 @@ AUTOMAKE_OPTIONS = foreign
 noinst_LTLIBRARIES = libLocalDiscretization.la
          
 # Some variables
-AM_CPPFLAGS += -DIS_BUILDING_MB -DSRCDIR=$(srcdir) \
+AM_CPPFLAGS  = -DIS_BUILDING_MB -DSRCDIR=$(srcdir) \
                -I$(srcdir)/.. -I.. -I$(srcdir)/../moab -I$(srcdir)/moab
 
 # The directory in which to install headers

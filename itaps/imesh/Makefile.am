@@ -2,9 +2,13 @@ BUILT_SOURCES = iMesh_protos.h iMeshP_protos.h iMesh_extensions_protos.h iMeshP_
 
 MESHDIR = $(abs_top_srcdir)/MeshFiles/unittest
 
-AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
-               -DMESHDIR=$(MESHDIR) \
-               -I$(srcdir)/.. \
+DEFS += -DSRCDIR=$(srcdir) \
+        -DMESHDIR=$(MESHDIR)
+
+FCDEFS += $(FC_DEFINE)SRCDIR=$(srcdir) \
+          $(FC_DEFINE)MESHDIR=$(MESHDIR) 
+
+AM_CPPFLAGS  = -I$(srcdir)/.. \
                -I$(top_srcdir)/src \
                -I$(top_builddir)/src  \
                -I$(top_builddir)/itaps  \
@@ -67,11 +71,8 @@ MOAB_iMesh_extensions_tests_SOURCES = MOAB_iMesh_extensions_tests.cpp
 MOAB_iMesh_extensions_tests_DEPENDENCIES = $(TESTDEPS)
 
 ScdMeshF90_SOURCES = ScdMeshF90.F90
-
 ScdMeshF77_SOURCES = ScdMeshF77.F
-
 FindAdjacencyF90_SOURCES = FindAdjacencyF90.F90
-
 lib_LTLIBRARIES = libiMesh.la
 
 libiMesh_la_includedir = $(includedir)
@@ -107,5 +108,19 @@ iMeshP_protos.h: iMeshP.h ../mkprotos.sh
 
 iMeshP_extensions_protos.h: iMeshP_extensions.h ../mkprotos.sh
 	$(AM_V_GEN)$(srcdir)/../mkprotos.sh iMeshP MOAB $< $@ MOAB_FCDefs.h
+
+FORTDEFS = $(FCDEFS) 
+PPFCCOMPILE = $(FC) $(FORTDEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
+    $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_FCFLAGS) $(FCFLAGS)
+LTPPFCCOMPILE = $(LIBTOOL) $(AM_V_lt) --tag=FC $(AM_LIBTOOLFLAGS) \
+    $(LIBTOOLFLAGS) --mode=compile $(FC) $(FCDEFS) \
+    $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) \
+    $(AM_FCFLAGS) $(FCFLAGS)
+PPF77COMPILE = $(F77) $(FORTDEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
+   $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_FFLAGS) $(FFLAGS)
+LTPPF77COMPILE = $(LIBTOOL) $(AM_V_lt) --tag=F77 $(AM_LIBTOOLFLAGS) \
+   $(LIBTOOLFLAGS) --mode=compile $(F77) $(FCDEFS) \
+   $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) \
+   $(AM_FFLAGS) $(FFLAGS)
 
 include $(abs_top_builddir)/itaps/imesh/iMesh-Defs.inc

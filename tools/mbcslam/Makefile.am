@@ -1,13 +1,7 @@
 MESHDIR = $(abs_top_srcdir)/MeshFiles/unittest
 
-AM_CPPFLAGS += -DIS_BUILDING_MB \
-               -I$(top_builddir)/src \
-               -I$(top_srcdir)/src 
-
-AM_CPPFLAGS += -DSRCDIR=$(srcdir) \
-               -DMESHDIR=$(MESHDIR) \
+AM_CPPFLAGS  = -I$(top_builddir)/src \
                -I$(top_srcdir)/src \
-               -I$(top_builddir)/src \
                -I$(top_srcdir)/src/parallel \
                -I$(top_srcdir)/tools/mbcoupler \
                -I$(top_srcdir)/itaps \
@@ -49,7 +43,6 @@ if HAVE_NETCDF
 endif
 endif
 
-   
 noinst_PROGRAMS =  proj1 create_dp 
 if PARALLEL
   noinst_PROGRAMS += cslam_par_test intx_imesh linear_advection
@@ -59,6 +52,9 @@ endif
 endif
 
 check_PROGRAMS = $(TESTS) 
+DEFS += -DBUILDING_MB \
+        -DSRCDIR=$(srcdir) \
+        -DMESHDIR=$(MESHDIR)
 
 intx_on_sphere_test_SOURCES = intx_on_sphere_test.cpp
 intx_in_plane_test_SOURCES = intx_in_plane_test.cpp
@@ -87,6 +83,14 @@ endif
 endif
 endif 
 
+FORTDEFS = $(FCDEFS) #$(DEFS:-D=$(FC_DEFINE))
+PPFCCOMPILE = $(FC) $(FORTDEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
+    $(AM_CPPFLAGS) $(FCPPFLAGS) $(AM_FCFLAGS) $(FCFLAGS)
+LTPPFCCOMPILE = $(LIBTOOL) $(AM_V_lt) --tag=FC $(AM_LIBTOOLFLAGS) \
+    $(LIBTOOLFLAGS) --mode=compile $(FC) $(FORTDEFS) \
+    $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(FCPPFLAGS) \
+    $(AM_FCFLAGS) $(FCFLAGS)
+
 # Other files to clean up (e.g. output from tests)
 MOSTLYCLEANFILES = intersect1.h5m \
                    lagr.h5m \
@@ -99,4 +103,3 @@ MOSTLYCLEANFILES = intersect1.h5m \
                    intx1.vtk \
                    SpanEdges0.h5m \
                    SpanQuads0.h5m 
-           

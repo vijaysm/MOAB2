@@ -5,7 +5,7 @@ AUTOMAKE_OPTIONS = foreign
 noinst_LTLIBRARIES = libMOABpar.la
          
 # Some variables
-AM_CPPFLAGS += -DIS_BUILDING_MB -DSRCDIR=$(srcdir) -DLOCDIR=src/parallel/ \
+AM_CPPFLAGS  = -DIS_BUILDING_MB -DSRCDIR=$(srcdir) -DLOCDIR=src/parallel/ \
                -I$(srcdir)/.. -I.. -I$(srcdir)/../io \
                -I$(srcdir)/../io/mhdf/include 
 
