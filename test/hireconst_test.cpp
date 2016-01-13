@@ -44,6 +44,8 @@ ErrorCode test_unitsq_quads();
 ErrorCode test_unitsphere();
 ErrorCode test_unitcircle();
 
+ErrorCode exact_error_torus(const double R, const double r, const double center[3],  int npnts, double *pnt,  double &error_l1, double &error_l2, double &error_li );
+
 int main(int argc, char *argv[]){
 #ifdef MOAB_HAVE_MPI
 	MPI_Init(&argc,&argv);
@@ -87,9 +89,9 @@ int main(int argc, char *argv[]){
 			std::cout << "Input dimesion should be positive and less than 3;" << std::endl;
 			return 0;
 		}
-		std::cout << "Testing on " << infile << " with dimension " << dim << "\n";
+		//std::cout << "Testing on " << infile << " with dimension " << dim << "\n";
 		std::string opts = interp?"interpolation":"least square fitting";
-		std::cout << "High order reconstruction with degree " << degree << " " << opts << std::endl;
+		//std::cout << "High order reconstruction with degree " << degree << " " << opts << std::endl;
 	}
 	
 	error = test_mesh(infile,degree,interp,dim); MB_CHK_ERR(error);
@@ -150,30 +152,54 @@ ErrorCode test_mesh(const char* infile,const int degree, const bool interp, cons
 	Range elems;
 	error = mbimpl->get_entities_by_dimension(meshset,dim,elems); MB_CHK_ERR(error);
 	int nelems = elems.size();
-	std::cout << "Mesh has " << nelems << " elements" << std::endl;
+	//std::cout << "Mesh has " << nelems << " elements" << std::endl;
 	//reconstruction
 	if(dim==2){
-		error = hirec.reconstruct3D_surf_geom(degree, interp, false); MB_CHK_ERR(error);
+		//error = hirec.reconstruct3D_surf_geom(degree, interp, false); MB_CHK_ERR(error);
+		error = hirec.reconstruct3D_surf_geom(degree, interp, true); MB_CHK_ERR(error);
 	}else if(dim==1){
 		error = hirec.reconstruct3D_curve_geom(degree, interp, false); MB_CHK_ERR(error);
 	}	
+
+
 	//fitting
-	double mxdist=0;
+	double mxdist=0, errl1=0, errl2=0, errli=0;
+
+	double *pnts_proj = new double[elems.size()*3];
+
 	for(Range::iterator ielem=elems.begin();ielem!=elems.end();++ielem){
 		int nvpe; const EntityHandle* conn;
 		error = mbimpl->get_connectivity(*ielem,conn,nvpe); MB_CHK_ERR(error);
+
 		double w = 1.0/(double) nvpe;
 		std::vector<double> naturalcoords2fit(nvpe,w);
+
 		double newcoords[3],linearcoords[3];
 		error = hirec.hiproj_walf_in_element(*ielem,nvpe,1,&(naturalcoords2fit[0]),newcoords); MB_CHK_ERR(error);
+
+		pnts_proj[3*(*ielem-*elems.begin())] = newcoords[0];
+		pnts_proj[3*(*ielem-*elems.begin())+1] = newcoords[1];
+		pnts_proj[3*(*ielem-*elems.begin())+2] = newcoords[2];
+
 		std::vector<double> coords(3*nvpe);
 		error = mbimpl->get_coords(conn,nvpe,&(coords[0])); MB_CHK_ERR(error);
 		compute_linear_coords(nvpe,&(coords[0]),&(naturalcoords2fit[0]),linearcoords);
-		mxdist = std::max(mxdist,Solvers::vec_distance(3,newcoords,linearcoords));
+		mxdist = std::max(mxdist,Solvers::vec_distance(3,newcoords,linearcoords));	
 	}
-	std::cout << "Maximum projection lift is " << mxdist << std::endl;
+
+	double center[3]={0,0,0};
+	double R=1, r=0.3;
+
+	error = exact_error_torus(R, r, center, (int)elems.size(), pnts_proj, errl1, errl2, errli);MB_CHK_ERR(error);
+
+	//std::cout << "Maximum projection lift is " << mxdist << std::endl;
+	std::cout<<"Errors using exact torus: L1 = "<<errl1<<", L2 = "<<errl2<<", Linf = "<<errli<<std::endl;
+
 	return error;
 }
+
+
+
 ErrorCode create_unitsq_tris(Interface *mbImpl, size_t n, std::vector<EntityHandle>& tris){
 	if(n<2){
 		MB_SET_ERR(MB_FAILURE,"n must be at least 2");
@@ -463,4 +489,30 @@ ErrorCode test_unitcircle(){
 		}
 	}
 	return error;
+}
+
+ErrorCode exact_error_torus(const double R, const double r, const double center[], int npnts, double *pnts, double &error_l1, double &error_l2, double &error_li)
+{
+  error_l1 = 0;
+  error_l2 = 0;
+  error_li = 0;
+
+  double x=0, y=0, z=0;
+  double error_single=0;
+
+  for (int i = 0; i< npnts; i++)
+    {
+      x = pnts[3*i]-center[0]; y = pnts[3*i+1]-center[1]; z = pnts[3*i+2]-center[2];
+
+      error_single = fabs (sqrt(pow(sqrt(pow(x,2)+pow(y,2)) - R, 2)+pow(z,2)) - r);
+      error_l1=error_l1+error_single;
+      error_l2=error_l2+error_single*error_single;
+
+      if (error_li<error_single)
+        error_li = error_single;
+    }
+  error_l1 = error_l1/(double)npnts;
+  error_l2 = sqrt(error_l2/(double)npnts);
+
+  return MB_SUCCESS;
 }

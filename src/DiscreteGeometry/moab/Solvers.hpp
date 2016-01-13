@@ -52,11 +52,11 @@ public:
 
     static void compute_qtransposeB(int mrows, int ncols, const double *Q, int bncols, double *bs);
 
-    static void qr_polyfit_safeguarded(int mrows, int ncols, double *V, double *D, int *rank);
+    static void qr_polyfit_safeguarded(const int mrows, const int ncols, double *V, double *D, int *rank);
 
     static void backsolve(int mrows, int ncols, double *R, int bncols, double *bs, double *ws);
 
-    static void backsolve_polyfit_safeguarded(int dim, int degree, bool interp, int mrows, int ncols, double *R, int bncols, double *bs, const double *ws, int *degree_out);
+    static void backsolve_polyfit_safeguarded(int dim, int degree, int mrows, int ncols, double *R, int bncols, double *bs, const double *ws, int *degree_out);
 
     static void vec_dotprod(const int len, const double* a, const double* b, double* c);
 
