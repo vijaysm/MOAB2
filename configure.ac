@@ -38,6 +38,17 @@ EXTRA_INTEL_FLAGS='-Wall'
 EXTRA_INTEL_FFLAGS='-check all'
 EXTRA_BG_FLAGS='-qarch=auto -qtune=auto -qpic=large'
 
+MB_CPPFLAGS=""
+MB_DEFS=""
+
+# Check if platform is BlueGene
+AC_MSG_CHECKING([if platform is IBM BlueGene])
+FATHOM_TRY_COMPILER_DEFINE([__bg__],
+  [MB_DEFS="$MB_DEFS -DBLUEGENE"
+   MB_BLUEGENE_CONF=yes],
+  [MB_BLUEGENE_CONF=no])
+AC_MSG_RESULT([$MB_BLUEGENE_CONF])
+
 # Find out the appropriate compiler based on user options
 FATHOM_CHECK_COMPILERS([yes],[yes],[$ENABLE_FORTRAN])
 AM_CONDITIONAL(PARALLEL,[test "x$enablempi" != "xno"])
@@ -64,17 +75,6 @@ AC_DISABLE_SHARED
 LT_INIT([dlopen])
 
 AC_C_BIGENDIAN
-
-MB_CPPFLAGS=""
-MB_DEFS=""
-
-# Check if platform is BlueGene
-AC_MSG_CHECKING([if platform is IBM BlueGene])
-FATHOM_TRY_COMPILER_DEFINE([__bg__],
-  [MB_DEFS="$MB_DEFS -DBLUEGENE"
-   MB_BLUEGENE_CONF=yes],
-  [MB_BLUEGENE_CONF=no])
-AC_MSG_RESULT([$MB_BLUEGENE_CONF])
 
 AC_CHECK_PROG([ZCAT],[gunzip],[gunzip -c],[])
 AC_CHECK_PROG([ZCAT],[gzip],[gzip -cd],[])
@@ -1339,6 +1339,7 @@ AC_CONFIG_FILES([Makefile
                  examples/makefile
                  examples/old/deform_mesh/makefile
                  src/Makefile
+                 src/MBCN_protos.h
                  src/io/Makefile
                  src/io/mhdf/Makefile
                  src/LocalDiscretization/Makefile

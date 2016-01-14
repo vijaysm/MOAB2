@@ -304,7 +304,7 @@ fi
 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-32bit=$enable_32bit --enable-64bit=$enable_64bit"
 
 # Special overrides for flags
-if (test "x$enable_static" != "xno" && "x$MB_BLUEGENE_CONF" != "xno"); then
+if (test "x$enable_static" != "xno" && test "x$MB_BLUEGENE_CONF" != "xno"); then
   LDFLAGS="$LDFLAGS -qnostaticlink -qnostaticlink=libgcc"
 fi
 
