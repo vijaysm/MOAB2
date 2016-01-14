@@ -1,5 +1,3 @@
-BUILT_SOURCES = iMesh_protos.h iMeshP_protos.h iMesh_extensions_protos.h iMeshP_extensions_protos.h
-
 MESHDIR = $(abs_top_srcdir)/MeshFiles/unittest
 
 DEFS += -DSRCDIR=$(srcdir) \
@@ -30,14 +28,13 @@ libiMesh_la_SOURCES = \
 
 libiMesh_la_include_HEADERS = iMesh.h \
                               iMesh_extensions.h \
-                              iMesh_extensions_protos.h \
-                              iMesh_f.h \
                               iMesh_protos.h \
-			      MBiMesh.hpp
+                              iMesh_f.h \
+                              MBiMesh.hpp
 
 if PARALLEL
   libiMesh_la_SOURCES += iMeshP_MOAB.cpp
-  libiMesh_la_include_HEADERS += iMeshP.h iMeshP_extensions.h iMeshP_extensions_protos.h iMeshP_f.h iMeshP_protos.h
+  libiMesh_la_include_HEADERS += iMeshP.h iMeshP_extensions.h iMeshP_f.h iMeshP_protos.h
   AM_CPPFLAGS += -I$(top_srcdir)/src/parallel -I$(top_srcdir)/src/parallel/moab
 
 #  check_PROGRAMS += partest iMeshP_unit_tests moabtest
@@ -96,18 +93,6 @@ install-data-hook:
 	$(AM_V_at)echo "IMESH_INCLUDEDIR2=" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
 	$(AM_V_at)echo "IMESH_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
 	$(AM_V_at)echo "MOAB_LIBDIR=${libdir}" >> $(DESTDIR)$(cfgdir)/iMesh-Defs.inc
-
-iMesh_protos.h: iMesh.h ../mkprotos.sh Makefile.am
-	$(AM_V_GEN)$(srcdir)/../mkprotos.sh iMesh MOAB $< $@ MOAB_FCDefs.h
-
-iMesh_extensions_protos.h: iMesh_extensions.h ../mkprotos.sh
-	$(AM_V_GEN)$(srcdir)/../mkprotos.sh iMesh MOAB $< $@ MOAB_FCDefs.h
-
-iMeshP_protos.h: iMeshP.h ../mkprotos.sh
-	$(AM_V_GEN)$(srcdir)/../mkprotos.sh iMeshP MOAB $< $@ MOAB_FCDefs.h
-
-iMeshP_extensions_protos.h: iMeshP_extensions.h ../mkprotos.sh
-	$(AM_V_GEN)$(srcdir)/../mkprotos.sh iMeshP MOAB $< $@ MOAB_FCDefs.h
 
 FORTDEFS = $(FCDEFS) 
 PPFCCOMPILE = $(FC) $(FORTDEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \

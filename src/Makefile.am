@@ -17,8 +17,6 @@ endif
 SUBDIRS += io LocalDiscretization verdict RefineMesh .
 libMOAB_la_LIBADD += io/libmoabio.la LocalDiscretization/libLocalDiscretization.la verdict/libmoabverdict.la RefineMesh/libRefineMesh.la
 
-BUILT_SOURCES = MBCN_protos.h
-
 # Some variables
 AM_CPPFLAGS += -DIS_BUILDING_MB \
                -DLOCDIR=src/ \
@@ -220,7 +218,6 @@ nobase_libMOAB_la_include_HEADERS = \
   moab/WriterIface.hpp \
   MBEntityType.h \
   MBCN.h \
-  MOAB_FCDefs.h \
   MBCN_protos.h \
   moab/MOABConfig.h \
   MBTagConventions.hpp
@@ -249,10 +246,3 @@ if HAVE_CGM
   AM_CPPFLAGS += @CGM_CPPFLAGS@ 
 endif
 
-MBCN_protos.h: MBCN.h $(top_srcdir)/itaps/mkprotos.sh
-	$(AM_V_GEN)$(top_srcdir)/itaps/mkprotos.sh MBCN MOAB $< $@ MOAB_FCDefs.h
-
-MOAB_FCDefs.h: FCDefs.h
-	$(AM_V_GEN)cd .. && ./config.status src/MOAB_FCDefs.h
-
-DISTCLEANFILES = MOAB_FCDefs.h
