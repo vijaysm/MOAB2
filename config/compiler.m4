@@ -303,6 +303,14 @@ fi
 # Distcheck flags for 32-bit and 64-bit builds
 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --enable-32bit=$enable_32bit --enable-64bit=$enable_64bit"
 
+# Check if platform is BlueGene
+AC_MSG_CHECKING([if platform is IBM BlueGene])
+FATHOM_TRY_COMPILER_DEFINE([__bg__],
+  [MB_DEFS="$MB_DEFS -DBLUEGENE"
+   MB_BLUEGENE_CONF=yes],
+  [MB_BLUEGENE_CONF=no])
+AC_MSG_RESULT([$MB_BLUEGENE_CONF])
+
 # Special overrides for flags
 if (test "x$enable_static" != "xno" && test "x$MB_BLUEGENE_CONF" != "xno"); then
   LDFLAGS="$LDFLAGS -qnostaticlink -qnostaticlink=libgcc"
@@ -775,19 +783,19 @@ case "$cc_compiler:$host_cpu" in
     FATHOM_CC_32BIT=-m32
     FATHOM_CC_64BIT=-m64
     FATHOM_CC_SPECIAL="$EXTRA_GNU_FLAGS $EXTRA_GNU_CXX_FLAGS"
-    FATHOM_FC_SPECIAL="$EXTRA_GNU_FLAGS"
+    FATHOM_FC_SPECIAL="$EXTRA_GNU_FLAGS -Wno-unused-parameter"
     ;;
   GNU:powerpc*)
     FATHOM_CC_32BIT=-m32
     FATHOM_CC_64BIT=-m64
     FATHOM_CC_SPECIAL="$EXTRA_GNU_FLAGS $EXTRA_GNU_CXX_FLAGS"
-    FATHOM_FC_SPECIAL="$EXTRA_GNU_FLAGS"
+    FATHOM_FC_SPECIAL="$EXTRA_GNU_FLAGS -Wno-unused-parameter"
     ;;
   GNU:i?86|GNU:x86_64)
     FATHOM_CC_32BIT=-m32
     FATHOM_CC_64BIT=-m64
     FATHOM_CC_SPECIAL="$EXTRA_GNU_FLAGS $EXTRA_GNU_CXX_FLAGS"
-    FATHOM_FC_SPECIAL="$EXTRA_GNU_FLAGS"
+    FATHOM_FC_SPECIAL="$EXTRA_GNU_FLAGS -Wno-unused-parameter"
     ;;
   Intel:*)
     FATHOM_CC_32BIT=-m32
@@ -799,11 +807,11 @@ case "$cc_compiler:$host_cpu" in
     FATHOM_CC_32BIT="-mips32 -mabi=32"
     FATHOM_CC_64BIT="-mips64 -mabi=64"
     FATHOM_CC_SPECIAL="$EXTRA_GNU_FLAGS $EXTRA_GNU_CXX_FLAGS"
-    FATHOM_FC_SPECIAL="$EXTRA_GNU_FLAGS"
+    FATHOM_FC_SPECIAL="$EXTRA_GNU_FLAGS -Wno-unused-parameter"
     ;;
   GNU:*)
     FATHOM_CC_SPECIAL="$EXTRA_GNU_FLAGS $EXTRA_GNU_CXX_FLAGS"
-    FATHOM_FC_SPECIAL="$EXTRA_GNU_FLAGS"
+    FATHOM_FC_SPECIAL="$EXTRA_GNU_FLAGS -Wno-unused-parameter"
     ;;
   VisualAge:*)
     case "$target_vendor" in
@@ -843,7 +851,7 @@ case "$cc_compiler:$host_cpu" in
     ;;
   Clang:*)
     FATHOM_CC_SPECIAL="$EXTRA_GNU_FLAGS $EXTRA_GNU_CXX_FLAGS"
-    FATHOM_FC_SPECIAL="$EXTRA_GNU_FLAGS"
+    FATHOM_FC_SPECIAL="$EXTRA_GNU_FLAGS -Wno-unused-parameter"
     FATHOM_CC_32BIT=-m32
     FATHOM_CC_64BIT=-m64
     ;;
