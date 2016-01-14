@@ -3,7 +3,7 @@
 
 #include "moab/MOABConfig.h"
 #include "iMesh.h"
-#include "iMesh_extensions_protos.h"
+#include "iMesh_protos.h"
 #ifdef MOAB_HAVE_MPI
 #include "iMeshP.h"
 #include "moab_mpi.h"
