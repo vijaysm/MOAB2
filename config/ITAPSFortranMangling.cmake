@@ -1,5 +1,5 @@
 # Generate GNU autoconf-style Fortran name mangling for ITAPS headers
-
+# sed -r "s/#undef ([A-Z].*)/#cmakedefine MOAB_\1 @MOAB_\1@/" MOABConfig.h.in > MOABConfig.cmake.h.in 
 # MACRO ( itaps_fortran_mangle input_file output_file prefix )
 
 SET( match_expr "^[ \\t]*void[ \\t]+${prefix}_([a-zA-Z][_a-zA-Z0-9]*)[ \\t]*\\(.*$" )

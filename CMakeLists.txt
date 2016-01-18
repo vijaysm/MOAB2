@@ -230,6 +230,7 @@ if ( ENABLE_NETCDF )
   find_package( NetCDF REQUIRED )
   # set( MOAB_DEFINES "-DNETCDF_FILE ${MOAB_DEFINES}" )
   set (MOAB_HAVE_NETCDF 1)
+  set (MOAB_HAVE_NETCDF_H 1)
   include_directories( ${NETCDF_INCLUDES} )
   set( MOAB_LIBS ${MOAB_LIBS} ${NETCDF_LIBRARIES} )
   # 
@@ -334,10 +335,49 @@ CONFIGURE_FILE(
     IMMEDIATE @ONLY
     )
 
+if ( ENABLE_IMESH OR ENABLE_FBIGEOM )
+  enable_language(Fortran)
+  include(FortranCInterface)
+  discover_fortran_mangling(prefix isupper suffix extra_under_score found)
+  if(extra_under_score)
+      set(extrasuffix "_")
+  endif(extra_under_score)
+  if(prefix)
+    set(prefix "${prefix} ##")
+  endif(prefix)
+
+  if(isupper)
+    if(extra_under_score)
+      set(MOAB_F77_FUNC  "${prefix} NAME ## ${suffix}${extrasuffix}")
+      set(MOAB_F77_FUNC_  "${prefix} NAME ## ${suffix}${extrasuffix}")
+      set(MOAB_FC_FUNC  "${prefix} NAME ## ${suffix}${extrasuffix}")
+      set(MOAB_FC_FUNC_  "${prefix} NAME ## ${suffix}${extrasuffix}")
+    else(extra_under_score)
+      set(MOAB_F77_FUNC   "${prefix} NAME ## ${suffix}")
+      set(MOAB_F77_FUNC_   "${prefix} NAME ## ${suffix}")
+      set(MOAB_FC_FUNC   "${prefix} NAME ## ${suffix}")
+      set(MOAB_FC_FUNC_   "${prefix} NAME ## ${suffix}")
+    endif(extra_under_score)
+  else(isupper)
+    if(extra_under_score)
+      set(MOAB_F77_FUNC  "${prefix} name ## ${suffix}${extrasuffix}")
+      set(MOAB_F77_FUNC_  "${prefix} name ## ${suffix}${extrasuffix}")
+      set(MOAB_FC_FUNC  "${prefix} name ## ${suffix}${extrasuffix}")
+      set(MOAB_FC_FUNC_  "${prefix} name ## ${suffix}${extrasuffix}")
+    else(extra_under_score)
+      set(MOAB_F77_FUNC   "${prefix} name ## ${suffix}")
+      set(MOAB_F77_FUNC_   "${prefix} name ## ${suffix}")
+      set(MOAB_FC_FUNC   "${prefix} name ## ${suffix}")
+      set(MOAB_FC_FUNC_   "${prefix} name ## ${suffix}")
+    endif(extra_under_score)
+  endif(isupper)
+
+endif ( ENABLE_IMESH OR ENABLE_FBIGEOM )
 # Generate the CMake input header file and then pass it through configuration
-#execute_process( COMMAND cat MOABConfig.h.in COMMAND sed -e "s/#undef /#cmakedefine MOAB_/g"
+## execute_process( COMMAND cat MOABConfig.h.in COMMAND sed -e "s/#undef /#cmakedefine MOAB_/g"
+#execute_process( COMMAND cat MOABConfig.h.in COMMAND sed -r "s/#undef ([A-Z].*)/#cmakedefine MOAB_\\1 @MOAB_\\1@/"
 #  WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/config
-#  OUTPUT_FILE MOABConfig.cmake.h.in
+#  OUTPUT_FILE MOABConfig.cmake2.h.in
 #  OUTPUT_STRIP_TRAILING_WHITESPACE
 #  )
 CONFIGURE_FILE(config/MOABConfig.cmake.h.in "${PROJECT_BINARY_DIR}/src/moab/MOABConfig.h" @ONLY)

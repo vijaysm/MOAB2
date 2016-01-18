@@ -13,13 +13,6 @@ if(MOAB_HAVE_MPI AND MPI_FOUND)
   set( MPI_LIBRARIES ${MPI_LIBRARY} ${MPI_EXTRA_LIBRARY} )
 endif()
 
-#create the FCDefs.h and src/MOAB_FCDefs.h files
-configure_file(FCDefs.h.in "${CMAKE_CURRENT_BINARY_DIR}/FCDefs.h" @ONLY)
-#sed -e "s/FC_FUNC/MOAB_FC_FUNC/" src/FCDefs.h >src/MOAB_FCDefs.h
-file(READ ${CMAKE_CURRENT_BINARY_DIR}/FCDefs.h infile)
-string( REGEX REPLACE "FC_FUNC" "MOAB_FC_FUNC" outstring "${infile}" )
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/MOAB_FCDefs.h" "${outstring}")
-
 #Create the moab/EntityHandle.hpp file
 file(READ ${CMAKE_CURRENT_SOURCE_DIR}/moab/EntityHandle.hpp.in infile2)
 string( REGEX REPLACE "#undef" "#cmakedefine" outstring2 "${infile2}" )
@@ -33,16 +26,6 @@ set(moab_link_lib)
 add_subdirectory(io)
 add_subdirectory(LocalDiscretization)
 # add_subdirectory(oldinc)
-
-ADD_CUSTOM_COMMAND(
-  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/MBCN_protos.h
-  COMMAND ${CMAKE_COMMAND}
-          -DDEF:STRING=MOAB
-          -Dinput_file:STRING=${CMAKE_CURRENT_SOURCE_DIR}/MBCN.h
-          -Doutput_file:STRING=${CMAKE_CURRENT_BINARY_DIR}/MBCN_protos.h
-          -Dprefix:STRING=MBCN
-          -P ${CMAKE_SOURCE_DIR}/config/ITAPSFortranMangling.cmake
-  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/MBCN.h )
 
 if( MOAB_HAVE_HDF5 )
   include_directories(${HDF5_INCLUDES})
@@ -197,10 +180,10 @@ set( MOAB_INSTALL_HEADERS
         moab/WriterIface.hpp
         MBEntityType.h
         MBCN.h
+        MBCN_protos.h
         MBTagConventions.hpp )
 
 set( MOAB_GENERATED_INSTALL_HEADERS
-     ${CMAKE_CURRENT_BINARY_DIR}/MOAB_FCDefs.h
      ${CMAKE_CURRENT_BINARY_DIR}/MBCN_protos.h
      ${CMAKE_CURRENT_BINARY_DIR}/moab/EntityHandle.hpp
      ${CMAKE_CURRENT_BINARY_DIR}/moab/MOABConfig.h
