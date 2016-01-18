@@ -22,7 +22,7 @@ USER_CONFIGURE_CMD="$0 $ac_configure_args"
 ################################################################################
 #                           Compilers
 ################################################################################
-
+INITIALIZE_EXTERNAL_PACKAGES
 ENABLE_FORTRAN=no
 AC_ARG_ENABLE([fortran],
               [AS_HELP_STRING([--disable-fortran], [Disable Fortran support and name mangling in ITAPS/MBCN C headers])])

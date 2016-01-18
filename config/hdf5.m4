@@ -36,6 +36,29 @@ fi
 #######################################################################################
 AC_DEFUN([FATHOM_CHECK_HDF5],[
 
+  # Check whether user wants to autodownload HDF5
+  # Call package Download/Configure/Installation procedures for MOAB, if requested by user
+  PPREFIX=HDF5
+  
+  # VERSIONS: 1.8.4 (versions greater need CMake)
+  m4_pushdef([HDF5_DOWNLOAD_VERSION],[1.8.12])dnl
+ 
+  # Invoke the download-hdf5 command
+  m4_case( HDF5_DOWNLOAD_VERSION, [1.8.15], [ CONFIGURE_EXTERNAL_PACKAGE([HDF5], [http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.15-patch1/src/hdf5-1.8.15-patch1.tar.gz], "hdf5-1.8.15.tar.gz") ],
+                                  [1.8.14], [ CONFIGURE_EXTERNAL_PACKAGE([HDF5], [http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.14/src/hdf5-1.8.14.tar.gz], "hdf5-1.8.14.tar.gz") ],
+                                  [1.8.12], [ CONFIGURE_EXTERNAL_PACKAGE([HDF5], [http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.12/src/hdf5-1.8.12.tar.gz], "hdf5-1.8.12.tar.gz") ],
+                                  [1.8.10], [ CONFIGURE_EXTERNAL_PACKAGE([HDF5], [http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.10/src/hdf5-1.8.10.tar.gz], "hdf5-1.8.10.tar.gz") ],
+                                  [1.8.4],  [ CONFIGURE_EXTERNAL_PACKAGE([HDF5], [http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.4/src/hdf5-1.8.4.tar.gz], "hdf5-1.8.4.tar.gz") ], 
+                                  [ CONFIGURE_EXTERNAL_PACKAGE([HDF5], [http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.4/src/hdf5-1.8.14.tar.gz], "hdf5-1.8.14.tar.gz") ] )
+  if (test "x$downloadhdf5" == "xyes") ; then
+    # download the latest HDF5 sources, configure and install
+    HDF5_SRCDIR="$hdf5_src_dir"
+    AC_SUBST(HDF5_SRCDIR)
+    # The default HDF5 installation is under libraries
+    HDF5_DIR="$hdf5_install_dir"
+    enablehdf5=yes
+  fi  # if (test "$downloadhdf5" != no) ; then 
+
   # CLI option for linking zlib
 AC_ARG_WITH(zlib,
   [AS_HELP_STRING([--with-zlib=DIR],[HDF5 requires zlib, and zlib can be found at...])],
@@ -112,7 +135,7 @@ AC_ARG_WITH(hdf5,
 AS_HELP_STRING([--without-hdf5], [Disable support for native HDF5 file format])],
 [HDF5_ARG=$withval
  DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-hdf5=\"${withval}\""
-], [HDF5_ARG=])
+], [HDF5_ARG=$HDF5_DIR])
 if test "xno" = "x$HDF5_ARG"; then
   AC_MSG_RESULT([no])
 else
@@ -187,3 +210,145 @@ if test "xno" != "x$HDF5_ARG"; then
 fi
 
 ]) # FATHOM_CHECK_HDF5
+
+
+dnl ---------------------------------------------------------------------------
+dnl AUTOMATED SETUP PREPROCESS HDF5
+dnl   Figure out what needs to be done to get a valid HDF5 installation.
+dnl   Arguments: [PACKAGE, SRC_DIR, INSTALL_DIR, NEED_CONFIGURATION)
+dnl ---------------------------------------------------------------------------
+AC_DEFUN([AUTOMATED_SETUP_PREPROCESS_HDF5],[
+  # uncompress and configure PACKAGE
+  hdf5_src_dir="$2"
+  hdf5_build_dir="$2/build"
+  hdf5_install_dir="$3"
+  hdf5_archive_name="$4"
+  PPREFIX=HDF5
+
+  if (test ! -d "$hdf5_src_dir" || test ! -f "$hdf5_src_dir/configure" ); then
+    AC_MSG_ERROR([Invalid source configuration for HDF5. Source directory $hdf5_src_dir is invalid])
+  fi
+
+  # determine what steps we need to take to install hdf5
+  hdf5_configured=false
+  hdf5_made=false
+  hdf5_installed=false
+  if (test ! -d "$hdf5_build_dir" ); then
+    AS_MKDIR_P( $hdf5_build_dir )
+  else
+    if (test -f "$hdf5_build_dir/src/H5config.h" ); then
+      hdf5_configured=true
+      if (test -f "$hdf5_build_dir/src/.libs/libhdf5.a" || test -f "$hdf5_build_dir/src/.libs/libhdf5.so" || test -f "$hdf5_build_dir/src/.libs/libhdf5.dylib" ); then
+        hdf5_made=true
+        if (test -f "$hdf5_install_dir/lib/libhdf5.settings"); then
+          hdf5_installed=true
+        fi
+      fi
+    fi
+  fi
+  # send the information back
+  AS_IF([ ! $hdf5_configured || $need_configuration ], [need_configuration=true], [need_configuration=false])
+  AS_IF([ ! $hdf5_made || $need_configuration ], [need_build=true], [need_build=false])
+  AS_IF([ ! $hdf5_installed || $need_configuration ], [need_installation=true], [need_installation=false])
+])
+
+
+dnl ---------------------------------------------------------------------------
+dnl AUTOMATED SETUP POSTPROCESS HDF5
+dnl   Dummy macro to fit standard call pattern.  Tells MOAB we have HDF5.
+dnl   Arguments: [PACKAGE, SRC_DIR, INSTALL_DIR, NEED_CONFIGURATION)
+dnl ---------------------------------------------------------------------------
+AC_DEFUN([AUTOMATED_SETUP_POSTPROCESS_HDF5],[
+  # we have already checked configure/build/install logs for errors before getting here..
+  enablehdf5=yes
+])
+
+
+dnl ---------------------------------------------------------------------------
+dnl AUTOMATED CONFIGURE HDF5
+dnl   Runs configure for HDF5 and looks for header files.
+dnl   Arguments: [NEED_CONFIGURATION)
+dnl ---------------------------------------------------------------------------
+AC_DEFUN([AUTOMATED_CONFIGURE_HDF5],[
+if [ $1 ]; then
+  # configure HDF5
+  if [ $need_configuration ]; then
+    # configure PACKAGE with a minimal build: MPI
+    export CC=$CC CXX=$CXX FC=$FC CFLAGS="$CFLAGS -fPIC -DPIC" CXXFLAGS="$CXXFLAGS -fPIC -DPIC" FCFLAGS="$FCFLAGS -fPIC" LDFLAGS=$LDFLAGS
+    configure_command="$hdf5_src_dir/configure --prefix=$hdf5_install_dir --libdir=$hdf5_install_dir/lib --with-pic=1"
+    # configure_command="$configure_command --enable-cxx --enable-unsupported"
+    if (test "$enabledebug" != "no"); then
+      configure_command="$configure_command --enable-debug=all"
+    fi
+    if (test "$enablefortran" != "no"); then
+      configure_command="$configure_command --enable-fortran"
+    fi
+    if (test "$enableoptimize" != "no"); then
+      configure_command="$configure_command --enable-production=yes"
+    fi
+    if (test "$enablempi" != "no"); then
+      configure_command="$configure_command --enable-parallel"
+    fi
+    
+    hdf5_configlog=`echo "Using configure command :==> cd $hdf5_build_dir ; $configure_command > $hdf5_src_dir/../config_hdf5.log ; cd \"\$OLDPWD\"" > "$hdf5_src_dir/../config_hdf5.log"`
+    ##echo "Trying to use configure command:==> cd $hdf5_build_dir ; $configure_command > $hdf5_src_dir/../config_hdf5.log ; cd \"\$OLDPWD\""
+    PREFIX_PRINT(Configuring with default options  {debug=$enabledebug production=$enableoptimize shared=$enable_shared parallel=$enablempi} )
+    hdf5_configlog="`cd $hdf5_build_dir ; $configure_command >> $hdf5_src_dir/../config_hdf5.log 2>&1 ; cd \"\$OLDPWD\"`"
+  fi
+
+  # check if configuration - current or previous was successful
+  if (test ! -f "$hdf5_build_dir/src/H5config.h" ); then
+    AC_MSG_ERROR([HDF5 configuration was unsuccessful. Please refer to $hdf5_build_dir/config.log and $hdf5_src_dir/../config_hdf5.log for further details.])
+  fi
+  hdf5_configured=true
+fi
+])
+
+
+dnl ---------------------------------------------------------------------------
+dnl AUTOMATED BUILD HDF5
+dnl   Calls make on HDF5 and looks for libraries.
+dnl   Arguments: [NEED_BUILD)
+dnl ---------------------------------------------------------------------------
+AC_DEFUN([AUTOMATED_BUILD_HDF5],
+[
+  # if we need to build then call make all
+  if [ $1 ]; then
+    if [ $recompile_and_install || $need_build ]; then
+      PREFIX_PRINT(Building the sources in parallel )
+      hdf5_makelog="`cd $hdf5_build_dir ; make all -j4 > $hdf5_src_dir/../make_hdf5.log 2>&1 ; cd \"\$OLDPWD\"`"
+    fi
+  fi
+  # check if it worked
+  if (test -f "$hdf5_build_dir/src/.libs/libhdf5.a" || test -f "$hdf5_build_dir/src/.libs/libhdf5.so" || test -f "$hdf5_build_dir/src/.libs/libhdf5.dylib") ; then
+    hdf5_made=true
+  else
+    AC_MSG_ERROR([HDF5 build was unsuccessful. Please refer to $hdf5_src_dir/../make_hdf5.log for further details.])
+  fi
+])
+
+
+dnl ---------------------------------------------------------------------------
+dnl AUTOMATED INSTALL HDF5
+dnl   Calls make install on HDF5 and checks for libhdf5.settings
+dnl   Arguments: [NEED_INSTALLATION)
+dnl ---------------------------------------------------------------------------
+AC_DEFUN([AUTOMATED_INSTALL_HDF5],
+[
+  # if we need to install then call make install
+  if [ $1 ]; then
+    if [ $recompile_and_install ]; then
+      if [ $hdf5_installed ]; then
+        hdf5_installlog="`cd $hdf5_build_dir ; make uninstall > $hdf5_src_dir/../uninstall_hdf5.log 2>&1 ; cd \"\$OLDPWD\"`"
+      fi
+      PREFIX_PRINT(Installing the headers and libraries in to directory ($hdf5_install_dir) )
+      hdf5_installlog="`cd $hdf5_build_dir ; make install > $hdf5_src_dir/../install_hdf5.log 2>&1 ; cd \"\$OLDPWD\"`"
+    fi
+  fi
+  # check if it worked
+  if (test -f "$hdf5_install_dir/lib/libhdf5.settings"); then
+    hdf5_installed=true
+  else
+    AC_MSG_ERROR([HDF5 installation was unsuccessful. Please refer to $hdf5_src_dir/../install_hdf5.log for further details.])
+  fi
+])
