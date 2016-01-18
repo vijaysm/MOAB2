@@ -34,6 +34,7 @@ namespace moab {
 
 using namespace moab;
 
+  template <typename T>
   class PartitionerBase 
   {
 
@@ -44,7 +45,7 @@ using namespace moab;
     virtual ~PartitionerBase();
 
     virtual ErrorCode partition_mesh_and_geometry(const double part_geom_mesh_size,
-                                                  const int nparts,
+                                                  const T nparts,
                                                   const char *zmethod,
                                                   const char *other_method,
                                                   double imbal_tol,
@@ -58,7 +59,7 @@ using namespace moab;
                                                   const bool spherical_coords = false,
                                                   const bool print_time = false) = 0;
 
-    virtual ErrorCode partition_mesh( const int nparts,
+    virtual ErrorCode partition_mesh( const T nparts,
                                       const char *method,
                                       const int part_dim = 3, 
                                       const bool write_as_sets = true,
@@ -68,8 +69,8 @@ using namespace moab;
                                       const char *aggregating_tag = NULL,
                                       const bool print_time = false) = 0;
 
-    virtual ErrorCode write_partition(const int nparts, Range &elems, 
-                                const int *assignment,
+    virtual ErrorCode write_partition(const T nparts, Range &elems, 
+                                const T *assignment,
                                 const bool write_as_sets,
                                 const bool write_as_tags) = 0;
 
@@ -94,8 +95,9 @@ using namespace moab;
 
   };
 
+template <typename T>
 inline
-PartitionerBase::PartitionerBase(Interface *impl,
+PartitionerBase<T>::PartitionerBase(Interface *impl,
                                   const bool use_coords)
     : mbImpl(impl), useCoords(use_coords), newComm(false)
 {
@@ -108,8 +110,9 @@ PartitionerBase::PartitionerBase(Interface *impl,
 #endif
 }
 
+template <typename T>
 inline
-PartitionerBase::~PartitionerBase()
+PartitionerBase<T>::~PartitionerBase()
 {
 #ifdef MOAB_HAVE_MPI
   if (newComm)
