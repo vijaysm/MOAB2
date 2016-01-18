@@ -4417,13 +4417,17 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
     MB_CHK_SET_ERR(rval, "can't get global id tag");
 
     TupleList remoteEnts;
-    int estim = (int) sharedEnts.size() * 10 * num_tags;// maybe overkill?
     // processor to send to, type of tag (0-mat,) tag value,     remote handle
     //                         1-diri
     //                         2-neum
     //                         3-part
     //
-    remoteEnts.initialize(3, 0, 1, 0, estim * 3); // pretty generous, so we avoid checking all the time
+    int initialSize = (int)sharedEnts.size(); // estimate that on average, each shared ent
+    // will be sent to one processor, for one tag
+    // we will actually send only entities that are owned locally, and from those
+    // only those that do have a special tag (material, neumann, etc)
+    // if we exceed the capacity, we resize the tuple
+    remoteEnts.initialize(3, 0, 1, 0, initialSize);
     remoteEnts.enableWriteAccess();
 
     // now, for each owned entity, get the remote handle(s) and Proc(s), and verify if it
@@ -4455,6 +4459,13 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
             // to send to the processors that do not own this
             for (int k = 0; k < nprocs; k++) {
               if (procs[k] != my_rank) {
+                if (remoteEnts.get_n()>=remoteEnts.get_max()-1)
+                {
+                  // resize, so we do not overflow
+                  int oldSize = remoteEnts.get_max();
+                  // increase with 50% the capacity
+                  remoteEnts.resize(oldSize+oldSize/2+1);
+                }
                 remoteEnts.vi_wr[ir++] = procs[k]; // send to proc
                 remoteEnts.vi_wr[ir++] = i; // for the tags [i] (0-3)
                 remoteEnts.vi_wr[ir++] = tagVals[i][j]; // actual value of the tag
@@ -4473,6 +4484,13 @@ ErrorCode ParallelComm::send_entities(std::vector<unsigned int>& send_procs,
       if (gid != 0) {
         for (int k = 0; k < nprocs; k++) {
           if (procs[k] != my_rank) {
+            if (remoteEnts.get_n()>=remoteEnts.get_max()-1)
+            {
+              // resize, so we do not overflow
+              int oldSize = remoteEnts.get_max();
+              // increase with 50% the capacity
+              remoteEnts.resize(oldSize+oldSize/2+1);
+            }
             remoteEnts.vi_wr[ir++] = procs[k]; // send to proc
             remoteEnts.vi_wr[ir++] = num_tags; // for the tags [j] (4)
             remoteEnts.vi_wr[ir++] = gid; // actual value of the tag
