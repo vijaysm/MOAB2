@@ -79,7 +79,7 @@ namespace moab {
 
 using namespace moab;
 
-  class ZoltanPartitioner : public PartitionerBase
+  class ZoltanPartitioner : public PartitionerBase<int>
   {
 
   public:
