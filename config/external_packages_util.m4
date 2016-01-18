@@ -138,9 +138,9 @@ AC_DEFUN([INITIALIZE_EXTERNAL_PACKAGES],
   GREEN=$(tput setaf 2)
   RED=$(tput setaf 1)
 
-  MOAB_ARCH="installdeps"
-  MOAB_ARCH_DIR="$PWD/libraries/$MOAB_ARCH"
-  MOAB_PACKAGES_DIR="$PWD/libraries/packages"
+  MOAB_ARCH="$host"
+  MOAB_ARCH_DIR="$PWD/sandbox/$MOAB_ARCH"
+  MOAB_PACKAGES_DIR="$PWD/sandbox/archives"
 
   # The default PACKAGE installation is under libraries
   AS_MKDIR_P("$MOAB_ARCH_DIR")
@@ -197,13 +197,13 @@ AC_DEFUN([DOWNLOAD_EXTERNAL_PACKAGE],
         bnamerem="`basename $2`"
         bnameloc="`basename $3`"
         if (test "$bnamerem" != "$bnameloc"); then
-          op_downloadlog$1="`wget -q -c -N -nv --progress=bar $2 ; mv $bnamerem $bnameloc`"
+          op_downloadlog$1="`wget -q -c -N --progress=bar $2 ; mv $bnamerem $bnameloc`"
         else
-          op_downloadlog$1="`wget -q -c -N -nv --progress=bar $2`"
+          op_downloadlog$1="`wget -q -c -N --progress=bar $2`"
         fi
       else
         # No need to check for time-stamping
-        eval "wget -q -S -nv $2 --progress=bar -O $3"
+        eval "wget -q -S --progress=bar $2 -O $3"
       fi
       filedownloaded=yes
     fi
@@ -320,10 +320,11 @@ AC_DEFUN([PRINT_AUTOMATION_STATUS],
 
 
 dnl -------------------------------------------------------------
-dnl CONFIGURE_EXTERNAL_PACKAGE(PACKAGE_NAME, DOWNLOAD_URL, PACKAGE_SRC_DIR, PACKAGE_INSTALL_DIR)
-dnl Example: CONFIGURE_EXTERNAL_PACKAGE(MOAB, "http://ftp.mcs.anl.gov/pub/fathom/moab-4.6-nightly.tar.gz", "$MOAB_DIR/libraries/packages/moab-4.6-nightly.tar.gz")
+dnl AUSCM_CONFIGURE_EXTERNAL_PACKAGE(PACKAGE_NAME, DOWNLOAD_URL, PACKAGE_SRC_DIR, PACKAGE_INSTALL_DIR)
+dnl Example: 
+dnl AUSCM_CONFIGURE_EXTERNAL_PACKAGE(MOAB, "http://ftp.mcs.anl.gov/pub/fathom/moab-4.6-nightly.tar.gz", "moab-4.6-nightly.tar.gz")
 dnl -------------------------------------------------------------
-AC_DEFUN([CONFIGURE_EXTERNAL_PACKAGE],
+AC_DEFUN([AUSCM_CONFIGURE_EXTERNAL_PACKAGE],
 [
   #m4_pushdef([pkg_short_name],[m4_tolower(m4_defn([CURRENT_PACKAGE]))])dnl
   pkg_short_name=m4_tolower($1)
@@ -368,6 +369,8 @@ AC_DEFUN([CONFIGURE_EXTERNAL_PACKAGE],
 
 	  MSG_ECHO_SEPARATOR
 
+    pkg_archive_name="`basename $pkg_download_url`"
+
     # Check if we need to download an archive file
     DOWNLOAD_EXTERNAL_PACKAGE([$1], [$pkg_download_url], [$MOAB_PACKAGES_DIR/$pkg_archive_name])
     
@@ -381,24 +384,24 @@ AC_DEFUN([CONFIGURE_EXTERNAL_PACKAGE],
     # Due to differences in autoconf we need to check if we should use m4_expand to call the package specific macros
     # Run the package preprocess and configure macros found in the package specific .m4 files
     m4_version_prereq(2.64, [ 
-    	m4_expand(m4_toupper([AUTOMATED_SETUP_PREPROCESS_$1])([$1],"$pkg_srcdir","$pkg_install_dir", "$pkg_archive_name"))dnl
-    	m4_expand(m4_toupper([AUTOMATED_CONFIGURE_$1])([$need_configuration]))dnl
+    	m4_expand(m4_toupper([AUSCM_AUTOMATED_SETUP_PREPROCESS_$1])([$1],"$pkg_srcdir","$pkg_install_dir", "$pkg_archive_name"))dnl
+    	m4_expand(m4_toupper([AUSCM_AUTOMATED_CONFIGURE_$1])([$need_configuration]))dnl
     ],[
-      	m4_toupper([AUTOMATED_SETUP_PREPROCESS_$1])([$1],"$pkg_srcdir","$pkg_install_dir", "$pkg_archive_name")dnl
-    	  m4_toupper([AUTOMATED_CONFIGURE_$1])([$need_configuration])dnl
+      	m4_toupper([AUSCM_AUTOMATED_SETUP_PREPROCESS_$1])([$1],"$pkg_srcdir","$pkg_install_dir", "$pkg_archive_name")dnl
+    	  m4_toupper([AUSCM_AUTOMATED_CONFIGURE_$1])([$need_configuration])dnl
     ])
 
     CHECK_SOURCE_RECOMPILATION_HASH([$1],[$pkg_srcdir],[$MOAB_PACKAGES_DIR/$pkg_archive_name])
     
     # Run the build, install, and postprocess macros found in the package specific .m4 files.
     m4_version_prereq(2.64, [
-    	m4_expand(m4_toupper([AUTOMATED_BUILD_$1])([$need_build]))dnl
-    	m4_expand(m4_toupper([AUTOMATED_INSTALL_$1])([$need_installation]))dnl
-    	m4_expand(m4_toupper([AUTOMATED_SETUP_POSTPROCESS_$1])([$1]))dnl
+    	m4_expand(m4_toupper([AUSCM_AUTOMATED_BUILD_$1])([$need_build]))dnl
+    	m4_expand(m4_toupper([AUSCM_AUTOMATED_INSTALL_$1])([$need_installation]))dnl
+    	m4_expand(m4_toupper([AUSCM_AUTOMATED_SETUP_POSTPROCESS_$1])([$1]))dnl
     ],[
-	    m4_toupper([AUTOMATED_BUILD_$1])([$need_build])dnl
-	    m4_toupper([AUTOMATED_INSTALL_$1])([$need_installation])dnl
-	    m4_toupper([AUTOMATED_SETUP_POSTPROCESS_$1])([$1])dnl
+	    m4_toupper([AUSCM_AUTOMATED_BUILD_$1])([$need_build])dnl
+	    m4_toupper([AUSCM_AUTOMATED_INSTALL_$1])([$need_installation])dnl
+	    m4_toupper([AUSCM_AUTOMATED_SETUP_POSTPROCESS_$1])([$1])dnl
     ])
     PRINT_AUTOMATION_STATUS([$1])
 
@@ -425,7 +428,6 @@ dnl  Defines macros for printing colors,
 dnl  copying symlinks, and custom 
 dnl  printing definitions.
 dnl ------------------------------------------------------------
-
 AC_DEFUN([COLOR_PRINT],
 [
   if (test "x$PPREFIX" != "x"); then

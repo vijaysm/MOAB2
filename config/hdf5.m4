@@ -44,12 +44,12 @@ AC_DEFUN([FATHOM_CHECK_HDF5],[
   m4_pushdef([HDF5_DOWNLOAD_VERSION],[1.8.12])dnl
  
   # Invoke the download-hdf5 command
-  m4_case( HDF5_DOWNLOAD_VERSION, [1.8.15], [ CONFIGURE_EXTERNAL_PACKAGE([HDF5], [http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.15-patch1/src/hdf5-1.8.15-patch1.tar.gz], "hdf5-1.8.15.tar.gz") ],
-                                  [1.8.14], [ CONFIGURE_EXTERNAL_PACKAGE([HDF5], [http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.14/src/hdf5-1.8.14.tar.gz], "hdf5-1.8.14.tar.gz") ],
-                                  [1.8.12], [ CONFIGURE_EXTERNAL_PACKAGE([HDF5], [http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.12/src/hdf5-1.8.12.tar.gz], "hdf5-1.8.12.tar.gz") ],
-                                  [1.8.10], [ CONFIGURE_EXTERNAL_PACKAGE([HDF5], [http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.10/src/hdf5-1.8.10.tar.gz], "hdf5-1.8.10.tar.gz") ],
-                                  [1.8.4],  [ CONFIGURE_EXTERNAL_PACKAGE([HDF5], [http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.4/src/hdf5-1.8.4.tar.gz], "hdf5-1.8.4.tar.gz") ], 
-                                  [ CONFIGURE_EXTERNAL_PACKAGE([HDF5], [http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.4/src/hdf5-1.8.14.tar.gz], "hdf5-1.8.14.tar.gz") ] )
+  m4_case( HDF5_DOWNLOAD_VERSION, [1.8.15], [ AUSCM_CONFIGURE_EXTERNAL_PACKAGE([HDF5], [http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.15-patch1/src/hdf5-1.8.15-patch1.tar.gz], "hdf5-1.8.15.tar.gz") ],
+                                  [1.8.14], [ AUSCM_CONFIGURE_EXTERNAL_PACKAGE([HDF5], [http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.14/src/hdf5-1.8.14.tar.gz], "hdf5-1.8.14.tar.gz") ],
+                                  [1.8.12], [ AUSCM_CONFIGURE_EXTERNAL_PACKAGE([HDF5], [http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.12/src/hdf5-1.8.12.tar.gz], "hdf5-1.8.12.tar.gz") ],
+                                  [1.8.10], [ AUSCM_CONFIGURE_EXTERNAL_PACKAGE([HDF5], [http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.10/src/hdf5-1.8.10.tar.gz], "hdf5-1.8.10.tar.gz") ],
+                                  [1.8.4],  [ AUSCM_CONFIGURE_EXTERNAL_PACKAGE([HDF5], [http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.4/src/hdf5-1.8.4.tar.gz], "hdf5-1.8.4.tar.gz") ], 
+                                  [ AUSCM_CONFIGURE_EXTERNAL_PACKAGE([HDF5], [http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.4/src/hdf5-1.8.14.tar.gz], "hdf5-1.8.14.tar.gz") ] )
   if (test "x$downloadhdf5" == "xyes") ; then
     # download the latest HDF5 sources, configure and install
     HDF5_SRCDIR="$hdf5_src_dir"
@@ -213,11 +213,11 @@ fi
 
 
 dnl ---------------------------------------------------------------------------
-dnl AUTOMATED SETUP PREPROCESS HDF5
+dnl AUSCM_AUTOMATED SETUP PREPROCESS HDF5
 dnl   Figure out what needs to be done to get a valid HDF5 installation.
 dnl   Arguments: [PACKAGE, SRC_DIR, INSTALL_DIR, NEED_CONFIGURATION)
 dnl ---------------------------------------------------------------------------
-AC_DEFUN([AUTOMATED_SETUP_PREPROCESS_HDF5],[
+AC_DEFUN([AUSCM_AUTOMATED_SETUP_PREPROCESS_HDF5],[
   # uncompress and configure PACKAGE
   hdf5_src_dir="$2"
   hdf5_build_dir="$2/build"
@@ -254,22 +254,22 @@ AC_DEFUN([AUTOMATED_SETUP_PREPROCESS_HDF5],[
 
 
 dnl ---------------------------------------------------------------------------
-dnl AUTOMATED SETUP POSTPROCESS HDF5
+dnl AUSCM_AUTOMATED SETUP POSTPROCESS HDF5
 dnl   Dummy macro to fit standard call pattern.  Tells MOAB we have HDF5.
 dnl   Arguments: [PACKAGE, SRC_DIR, INSTALL_DIR, NEED_CONFIGURATION)
 dnl ---------------------------------------------------------------------------
-AC_DEFUN([AUTOMATED_SETUP_POSTPROCESS_HDF5],[
+AC_DEFUN([AUSCM_AUTOMATED_SETUP_POSTPROCESS_HDF5],[
   # we have already checked configure/build/install logs for errors before getting here..
   enablehdf5=yes
 ])
 
 
 dnl ---------------------------------------------------------------------------
-dnl AUTOMATED CONFIGURE HDF5
+dnl AUSCM_AUTOMATED CONFIGURE HDF5
 dnl   Runs configure for HDF5 and looks for header files.
 dnl   Arguments: [NEED_CONFIGURATION)
 dnl ---------------------------------------------------------------------------
-AC_DEFUN([AUTOMATED_CONFIGURE_HDF5],[
+AC_DEFUN([AUSCM_AUTOMATED_CONFIGURE_HDF5],[
 if [ $1 ]; then
   # configure HDF5
   if [ $need_configuration ]; then
@@ -277,13 +277,13 @@ if [ $1 ]; then
     export CC=$CC CXX=$CXX FC=$FC CFLAGS="$CFLAGS -fPIC -DPIC" CXXFLAGS="$CXXFLAGS -fPIC -DPIC" FCFLAGS="$FCFLAGS -fPIC" LDFLAGS=$LDFLAGS
     configure_command="$hdf5_src_dir/configure --prefix=$hdf5_install_dir --libdir=$hdf5_install_dir/lib --with-pic=1"
     # configure_command="$configure_command --enable-cxx --enable-unsupported"
-    if (test "$enabledebug" != "no"); then
+    if (test "$enable_debug" != "no"); then
       configure_command="$configure_command --enable-debug=all"
     fi
     if (test "$enablefortran" != "no"); then
       configure_command="$configure_command --enable-fortran"
     fi
-    if (test "$enableoptimize" != "no"); then
+    if (test "$enable_cxx_optimize" != "no"); then
       configure_command="$configure_command --enable-production=yes"
     fi
     if (test "$enablempi" != "no"); then
@@ -291,8 +291,7 @@ if [ $1 ]; then
     fi
     
     hdf5_configlog=`echo "Using configure command :==> cd $hdf5_build_dir ; $configure_command > $hdf5_src_dir/../config_hdf5.log ; cd \"\$OLDPWD\"" > "$hdf5_src_dir/../config_hdf5.log"`
-    ##echo "Trying to use configure command:==> cd $hdf5_build_dir ; $configure_command > $hdf5_src_dir/../config_hdf5.log ; cd \"\$OLDPWD\""
-    PREFIX_PRINT(Configuring with default options  {debug=$enabledebug production=$enableoptimize shared=$enable_shared parallel=$enablempi} )
+    PREFIX_PRINT(Configuring with default options  {debug=$enable_debug production=$enable_cxx_optimize shared=$enable_shared parallel=$enablempi} )
     hdf5_configlog="`cd $hdf5_build_dir ; $configure_command >> $hdf5_src_dir/../config_hdf5.log 2>&1 ; cd \"\$OLDPWD\"`"
   fi
 
@@ -306,11 +305,11 @@ fi
 
 
 dnl ---------------------------------------------------------------------------
-dnl AUTOMATED BUILD HDF5
+dnl AUSCM_AUTOMATED BUILD HDF5
 dnl   Calls make on HDF5 and looks for libraries.
 dnl   Arguments: [NEED_BUILD)
 dnl ---------------------------------------------------------------------------
-AC_DEFUN([AUTOMATED_BUILD_HDF5],
+AC_DEFUN([AUSCM_AUTOMATED_BUILD_HDF5],
 [
   # if we need to build then call make all
   if [ $1 ]; then
@@ -329,11 +328,11 @@ AC_DEFUN([AUTOMATED_BUILD_HDF5],
 
 
 dnl ---------------------------------------------------------------------------
-dnl AUTOMATED INSTALL HDF5
+dnl AUSCM_AUTOMATED INSTALL HDF5
 dnl   Calls make install on HDF5 and checks for libhdf5.settings
 dnl   Arguments: [NEED_INSTALLATION)
 dnl ---------------------------------------------------------------------------
-AC_DEFUN([AUTOMATED_INSTALL_HDF5],
+AC_DEFUN([AUSCM_AUTOMATED_INSTALL_HDF5],
 [
   # if we need to install then call make install
   if [ $1 ]; then
