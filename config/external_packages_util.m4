@@ -139,8 +139,9 @@ AC_DEFUN([INITIALIZE_EXTERNAL_PACKAGES],
   RED=$(tput setaf 1)
 
   MOAB_ARCH="$host"
-  MOAB_ARCH_DIR="$PWD/sandbox/$MOAB_ARCH"
-  MOAB_PACKAGES_DIR="$PWD/sandbox/archives"
+  MOAB_SANDBOX="$PWD/sandbox"
+  MOAB_ARCH_DIR="$MOAB_SANDBOX/$MOAB_ARCH"
+  MOAB_PACKAGES_DIR="$MOAB_SANDBOX/archives"
 
   # The default PACKAGE installation is under libraries
   AS_MKDIR_P("$MOAB_ARCH_DIR")
@@ -194,16 +195,10 @@ AC_DEFUN([DOWNLOAD_EXTERNAL_PACKAGE],
           AC_ERROR([ --  Requested URL does not exist in remote host. Try again later. ($2)  -- ])
         fi
         #op_needdownload="`wget --spider -N -q $2 && echo yes || echo no; cd $currdir`"
-        bnamerem="`basename $2`"
-        bnameloc="`basename $3`"
-        if (test "$bnamerem" != "$bnameloc"); then
-          op_downloadlog$1="`wget -q -c -N --progress=bar $2 ; mv $bnamerem $bnameloc`"
-        else
-          op_downloadlog$1="`wget -q -c -N --progress=bar $2`"
-        fi
+        op_downloadlog$1="`wget -q -c -N --progress=bar $2 -O $3`"
       else
         # No need to check for time-stamping
-        eval "wget -q -S --progress=bar $2 -O $3"
+        op_downloadlog$1="`wget -q --progress=bar $2 -O $3`"
       fi
       filedownloaded=yes
     fi
@@ -225,6 +220,8 @@ AC_DEFUN([DOWNLOAD_EXTERNAL_PACKAGE],
   
   if (test "$filedownloaded" != "yes"); then
     AC_ERROR([ --  The archive URL ($2) specified cannot be handled by wget, curl or scp  -- ])
+  else
+    MSG_ECHO_LOG(${op_downloadlog$1})
   fi
 
   hashtarfile2="`$HASHPRGM $3 | cut -d ' ' -f1`"
@@ -252,9 +249,10 @@ AC_DEFUN([DEFLATE_EXTERNAL_PACKAGE],
   if (test "x`basename $2|grep -E '\.tar'`" != "x" && test "$HAVE_TAR" != "no" ); then
     ##op_pkg_subdir="`tar -tf $2 | head -n 1 | $SED -e 's/\/$//'`"
     op_pkg_subdir="`tar -tf $2 | $SED -e 's@/.*@@' | uniq`"
-    PREFIX_PRINT([   Untar file: $2, and $1-SRCDIR=$pkg_srcdir ])
+    PREFIX_PRINT([   Untar file: $2 ])
+    PREFIX_PRINT([   Source dir: $pkg_srcdir ])
     if (test ! -d "$3/$op_pkg_subdir"); then
-      op_unziplog$1="`cd $3 && tar -xf $2 && cd $currdir`"
+      op_deflatelog$1="`cd $3 && tar -xf $2 && cd $currdir`"
       need_configuration=true
     fi
     if [ $new_download ]; then
@@ -263,13 +261,13 @@ AC_DEFUN([DEFLATE_EXTERNAL_PACKAGE],
   elif (test "x`basename $2|grep -E '\.zip'`" != "x" && test "$HAVE_UNZIP" != "no" ); then
     PREFIX_PRINT([   Unzip file: $2, and $1-SRCDIR=$pkg_srcdir <<<])
     if ($new_download -eq true || test ! -d "$pkg_srcdir"); then
-      op_unziplog$1="`cd $3 && unzip -q $2 -d $3 && cd $currdir`"
+      op_deflatelog$1="`cd $3 && unzip -q $2 -d $3 && cd $currdir`"
       need_configuration=true
     fi
   elif (test "x`basename $2|grep -E '\.bz'`" != "x" && test "$HAVE_BZIP2" != "no" ); then
     PREFIX_PRINT([   Bunzip file: $2, and $1-SRCDIR=$pkg_srcdir <<<])
     if ( $new_download -eq true || test ! -d "$pkg_srcdir"); then
-      op_bziplog$1="`cd $3 && bzip2 -d -q $2 && cd $currdir`"
+      op_deflatelog$1="`cd $3 && bzip2 -d -q $2 && cd $currdir`"
       need_configuration=true
     fi
   else
@@ -278,6 +276,7 @@ AC_DEFUN([DEFLATE_EXTERNAL_PACKAGE],
 
   if (test "x$op_pkg_subdir" != "x"); then
     pkg_srcdir="$3/$op_pkg_subdir"
+    MSG_ECHO_LOG(${op_deflatelog$1})
   else
     AC_ERROR([ --  Unhandled file format for getting the source tree name for package $1 -- Filename = $2 -- ])
   fi
@@ -320,9 +319,9 @@ AC_DEFUN([PRINT_AUTOMATION_STATUS],
 
 
 dnl -------------------------------------------------------------
-dnl AUSCM_CONFIGURE_EXTERNAL_PACKAGE(PACKAGE_NAME, DOWNLOAD_URL, PACKAGE_SRC_DIR, PACKAGE_INSTALL_DIR)
+dnl AUSCM_CONFIGURE_EXTERNAL_PACKAGE(PACKAGE_NAME, DOWNLOAD_URL)
 dnl Example: 
-dnl AUSCM_CONFIGURE_EXTERNAL_PACKAGE(MOAB, "http://ftp.mcs.anl.gov/pub/fathom/moab-4.6-nightly.tar.gz", "moab-4.6-nightly.tar.gz")
+dnl AUSCM_CONFIGURE_EXTERNAL_PACKAGE(MOAB, "http://ftp.mcs.anl.gov/pub/fathom/moab-4.6-nightly.tar.gz" )
 dnl -------------------------------------------------------------
 AC_DEFUN([AUSCM_CONFIGURE_EXTERNAL_PACKAGE],
 [
@@ -330,12 +329,12 @@ AC_DEFUN([AUSCM_CONFIGURE_EXTERNAL_PACKAGE],
   pkg_short_name=m4_tolower($1)
   pkg_download_url="$2"
   current_build_dir=`pwd`
-  pkg_archive_name="$3"
-  pkg_srcdir="$current_build_dir/libraries/$pkg_short_name"
+  pkg_basesrcdir="$MOAB_SANDBOX/$pkg_short_name"
+  pkg_srcdir="$pkg_basesrcdir"
   download_ext_package=no
 
   # The default PACKAGE installation is under libraries
-  pkg_install_dir="$current_build_dir/libraries/$MOAB_ARCH"
+  pkg_install_dir="$MOAB_ARCH_DIR"
  
   AC_ARG_DOWNLOAD(m4_tolower($1),
     [AS_HELP_STRING([--download-m4_tolower($1)],[Download and configure $1 with default options (URL:$2)])],
@@ -366,10 +365,9 @@ AC_DEFUN([AUSCM_CONFIGURE_EXTERNAL_PACKAGE],
     need_installation=false
     
     PPREFIX="$1"
+    pkg_archive_name="`basename $pkg_download_url`"
 
 	  MSG_ECHO_SEPARATOR
-
-    pkg_archive_name="`basename $pkg_download_url`"
 
     # Check if we need to download an archive file
     DOWNLOAD_EXTERNAL_PACKAGE([$1], [$pkg_download_url], [$MOAB_PACKAGES_DIR/$pkg_archive_name])
@@ -405,9 +403,14 @@ AC_DEFUN([AUSCM_CONFIGURE_EXTERNAL_PACKAGE],
     ])
     PRINT_AUTOMATION_STATUS([$1])
 
+    if ( [$]m4_tolower($1)[]_configured && [$]m4_tolower($1)[]_made && [$]m4_tolower($1)[]_installed ) ; then
+      pkg_status="yes"
+    else
+      pkg_status="no"
+    fi
+
     # Determine if the installation process was successful
-    if ( (test -f "$current_build_dir/libraries/$pkg_short_name/install_[]$pkg_short_name.log" ) &&
-         ( "[$]m4_tolower($1)[]_configured" && "[$]m4_tolower($1)[]_made" && "[$]m4_tolower($1)[]_installed" ) ); then
+    if ( test -f $pkg_basesrcdir/install_[]m4_tolower($1).log && test "$pkg_status" != "no" ); then
       PREFIX_PRINT([Successful configure/build/install automated  (status=${GREEN}SUCCESS${NORMAL})])
       PREFIX_PRINT([Installed package under: $pkg_install_dir])
     else
@@ -438,9 +441,9 @@ AC_DEFUN([COLOR_PRINT],
     fi
   else
     if [ ${$2} ]; then
-      echo "$1 ${GREEN}SUCCESS${NORMAL}"
+      MSG_ECHO_CUSTOM([$1 ${GREEN}SUCCESS${NORMAL}])
     else
-      echo "$1 ${RED}FAIL${NORMAL}"
+      MSG_ECHO_CUSTOM([$1 ${RED}FAIL${NORMAL}])
     fi
   fi
 ])
@@ -495,13 +498,18 @@ m4_define([PREFIX_PRINTN],
   AS_ECHO_N(["[[ $PPREFIX ]] --   $1 "])])
 
 
-# MSG_ECHO_CUSTOM(FEATURE)
+# MSG_ECHO_LOG(MESSAGE)
+# ------------------------
+m4_define([MSG_ECHO_LOG],
+[ _AS_ECHO_LOG([$1]) ])
+
+# MSG_ECHO_CUSTOM(MESSAGE)
 # ------------------------
 m4_define([MSG_ECHO_CUSTOM],
 [_AS_ECHO_LOG([$1]);
   AS_ECHO(["$1"])])
 
-# MSG_ECHON_CUSTOM(FEATURE)
+# MSG_ECHON_CUSTOM(MESSAGE)
 # ------------------------
 m4_define([MSG_ECHON_CUSTOM],
 [_AS_ECHO_LOG([$1]);
@@ -520,3 +528,172 @@ m4_define([ECHO_EVAL],
   eval $2
 ])
 
+##########################################
+###    HDF5 AUTOMATED CONFIGURATION
+##########################################
+AC_DEFUN([AUSCM_CONFIGURE_DOWNLOAD_HDF5],[
+
+  # Check whether user wants to autodownload HDF5
+  # Call package Download/Configure/Installation procedures for MOAB, if requested by user
+  PPREFIX=HDF5
+
+  # Set the default HDF5 download version
+  m4_pushdef([HDF5_DOWNLOAD_VERSION],[$1])dnl
+
+  # Invoke the download-hdf5 command
+  m4_case( HDF5_DOWNLOAD_VERSION, [1.8.15], [ AUSCM_CONFIGURE_EXTERNAL_PACKAGE([HDF5], [http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.15-patch1/src/hdf5-1.8.15-patch1.tar.gz] ) ],
+                                  [1.8.14], [ AUSCM_CONFIGURE_EXTERNAL_PACKAGE([HDF5], [http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.14/src/hdf5-1.8.14.tar.gz] ) ],
+                                  [1.8.12], [ AUSCM_CONFIGURE_EXTERNAL_PACKAGE([HDF5], [http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.12/src/hdf5-1.8.12.tar.gz]) ],
+                                  [1.8.10], [ AUSCM_CONFIGURE_EXTERNAL_PACKAGE([HDF5], [http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.10/src/hdf5-1.8.10.tar.gz] ) ],
+                                  [ AUSCM_CONFIGURE_EXTERNAL_PACKAGE([HDF5], [http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.4/src/hdf5-1.8.14.tar.gz] ) ] )
+
+  if (test "x$downloadhdf5" == "xyes") ; then
+    # download the latest HDF5 sources, configure and install
+    HDF5_SRCDIR="$hdf5_src_dir"
+    AC_SUBST(HDF5_SRCDIR)
+    # The default HDF5 installation is under libraries
+    HDF5_DIR="$hdf5_install_dir"
+    enablehdf5=yes
+  fi  # if (test "$downloadhdf5" != no)
+])
+
+
+dnl ---------------------------------------------------------------------------
+dnl AUSCM_AUTOMATED SETUP PREPROCESS HDF5
+dnl   Figure out what needs to be done to get a valid HDF5 installation.
+dnl   Arguments: [PACKAGE, SRC_DIR, INSTALL_DIR, NEED_CONFIGURATION)
+dnl ---------------------------------------------------------------------------
+AC_DEFUN([AUSCM_AUTOMATED_SETUP_PREPROCESS_HDF5],[
+  # uncompress and configure PACKAGE
+  hdf5_src_dir=$2
+  hdf5_build_dir=$2/build
+  hdf5_install_dir=$3
+  hdf5_archive_name=$4
+  PPREFIX=HDF5
+
+  if (test ! -d "$hdf5_src_dir" || test ! -f "$hdf5_src_dir/configure" ); then
+    AC_MSG_ERROR([Invalid source configuration for HDF5. Source directory $hdf5_src_dir is invalid])
+  fi
+
+  # determine what steps we need to take to install hdf5
+  hdf5_configured=false
+  hdf5_made=false
+  hdf5_installed=false
+  if (test ! -d "$hdf5_build_dir" ); then
+    AS_MKDIR_P( $hdf5_build_dir )
+  else
+    if (test -f "$hdf5_build_dir/src/H5config.h" ); then
+      hdf5_configured=true
+      if (test -f "$hdf5_build_dir/src/.libs/libhdf5.a" || test -f "$hdf5_build_dir/src/.libs/libhdf5.so" || test -f "$hdf5_build_dir/src/.libs/libhdf5.dylib" ); then
+        hdf5_made=true
+        if (test -f "$hdf5_install_dir/lib/libhdf5.settings"); then
+          hdf5_installed=true
+        fi
+      fi
+    fi
+  fi
+  # send the information back
+  AS_IF([ ! $hdf5_configured || $need_configuration ], [need_configuration=true], [need_configuration=false])
+  AS_IF([ ! $hdf5_made || $need_configuration ], [need_build=true], [need_build=false])
+  AS_IF([ ! $hdf5_installed || $need_configuration ], [need_installation=true], [need_installation=false])
+])
+
+
+dnl ---------------------------------------------------------------------------
+dnl AUSCM_AUTOMATED SETUP POSTPROCESS HDF5
+dnl   Dummy macro to fit standard call pattern.  Tells MOAB we have HDF5.
+dnl   Arguments: [PACKAGE, SRC_DIR, INSTALL_DIR, NEED_CONFIGURATION)
+dnl ---------------------------------------------------------------------------
+AC_DEFUN([AUSCM_AUTOMATED_SETUP_POSTPROCESS_HDF5],[
+  # we have already checked configure/build/install logs for errors before getting here..
+  enablehdf5=yes
+])
+
+
+dnl ---------------------------------------------------------------------------
+dnl AUSCM_AUTOMATED CONFIGURE HDF5
+dnl   Runs configure for HDF5 and looks for header files.
+dnl   Arguments: [NEED_CONFIGURATION)
+dnl ---------------------------------------------------------------------------
+AC_DEFUN([AUSCM_AUTOMATED_CONFIGURE_HDF5],[
+if [ $1 ]; then
+  # configure HDF5
+  if [ $need_configuration ]; then
+    # configure PACKAGE with a minimal build: MPI
+    export CC=$CC CXX=$CXX FC=$FC CFLAGS="$CFLAGS -fPIC -DPIC" CXXFLAGS="$CXXFLAGS -fPIC -DPIC" FCFLAGS="$FCFLAGS -fPIC" LDFLAGS=$LDFLAGS
+    configure_command="$hdf5_src_dir/configure --prefix=$hdf5_install_dir --libdir=$hdf5_install_dir/lib --with-pic=1"
+    # configure_command="$configure_command --enable-cxx --enable-unsupported"
+    if (test "$enable_debug" != "no"); then
+      configure_command="$configure_command --enable-debug=all"
+    fi
+    if (test "$enablefortran" != "no"); then
+      configure_command="$configure_command --enable-fortran"
+    fi
+    if (test "$enable_cxx_optimize" != "no"); then
+      configure_command="$configure_command --enable-production=yes"
+    fi
+    if (test "$enablempi" != "no"); then
+      configure_command="$configure_command --enable-parallel"
+    fi
+    
+    hdf5_configlog=`echo "Using configure command :==> cd $hdf5_build_dir ; $configure_command > $hdf5_src_dir/../config_hdf5.log ; cd \"\$OLDPWD\"" > "$hdf5_src_dir/../config_hdf5.log"`
+    PREFIX_PRINT(Configuring with default options  {debug=$enable_debug production=$enable_cxx_optimize shared=$enable_shared parallel=$enablempi} )
+    hdf5_configlog="`cd $hdf5_build_dir ; $configure_command >> $hdf5_src_dir/../config_hdf5.log 2>&1 ; cd \"\$OLDPWD\"`"
+  fi
+
+  # check if configuration - current or previous was successful
+  if (test ! -f "$hdf5_build_dir/src/H5config.h" ); then
+    AC_MSG_ERROR([HDF5 configuration was unsuccessful. Please refer to $hdf5_build_dir/config.log and $hdf5_src_dir/../config_hdf5.log for further details.])
+  fi
+  hdf5_configured=true
+fi
+])
+
+
+dnl ---------------------------------------------------------------------------
+dnl AUSCM_AUTOMATED BUILD HDF5
+dnl   Calls make on HDF5 and looks for libraries.
+dnl   Arguments: [NEED_BUILD)
+dnl ---------------------------------------------------------------------------
+AC_DEFUN([AUSCM_AUTOMATED_BUILD_HDF5],
+[
+  # if we need to build then call make all
+  if [ $1 ]; then
+    if [ $recompile_and_install || $need_build ]; then
+      PREFIX_PRINT(Building the sources in parallel )
+      hdf5_makelog="`cd $hdf5_build_dir ; make all -j4 > $hdf5_src_dir/../make_hdf5.log 2>&1 ; cd \"\$OLDPWD\"`"
+    fi
+  fi
+  # check if it worked
+  if (test -f "$hdf5_build_dir/src/.libs/libhdf5.a" || test -f "$hdf5_build_dir/src/.libs/libhdf5.so" || test -f "$hdf5_build_dir/src/.libs/libhdf5.dylib") ; then
+    hdf5_made=true
+  else
+    AC_MSG_ERROR([HDF5 build was unsuccessful. Please refer to $hdf5_src_dir/../make_hdf5.log for further details.])
+  fi
+])
+
+
+dnl ---------------------------------------------------------------------------
+dnl AUSCM_AUTOMATED INSTALL HDF5
+dnl   Calls make install on HDF5 and checks for libhdf5.settings
+dnl   Arguments: [NEED_INSTALLATION)
+dnl ---------------------------------------------------------------------------
+AC_DEFUN([AUSCM_AUTOMATED_INSTALL_HDF5],
+[
+  # if we need to install then call make install
+  if [ $1 ]; then
+    if [ $recompile_and_install ]; then
+      if [ $hdf5_installed ]; then
+        hdf5_installlog="`cd $hdf5_build_dir ; make uninstall > $hdf5_src_dir/../uninstall_hdf5.log 2>&1 ; cd \"\$OLDPWD\"`"
+      fi
+      PREFIX_PRINT(Installing the headers and libraries in to directory ($hdf5_install_dir) )
+      hdf5_installlog="`cd $hdf5_build_dir ; make install > $hdf5_src_dir/../install_hdf5.log 2>&1 ; cd \"\$OLDPWD\"`"
+    fi
+  fi
+  # check if it worked
+  if (test -f "$hdf5_install_dir/lib/libhdf5.settings"); then
+    hdf5_installed=true
+  else
+    AC_MSG_ERROR([HDF5 installation was unsuccessful. Please refer to $hdf5_src_dir/../install_hdf5.log for further details.])
+  fi
+])
