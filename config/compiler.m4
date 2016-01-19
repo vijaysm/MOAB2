@@ -189,17 +189,17 @@ FCLIBS=""
 
   # Check for debug flags
 AC_ARG_ENABLE( debug, AS_HELP_STRING([--enable-debug],[Debug symbols (-g)]),
-               [enable_debug=$enableval], [enable_debug=] )
+               [enable_debug=$enableval], [enable_debug="no"] )
 AC_ARG_ENABLE( optimize, AS_HELP_STRING([--enable-optimize],[Compile optimized (-O2)]),
-               [enable_cxx_optimize=$enableval; enable_cc_optimize=$enableval; enable_fc_optimize=$enableval;],
-               [enable_cxx_optimize=""; enable_cc_optimize=""; enable_fc_optimize="";	]
+               [enable_optimize=$enableval; enable_cxx_optimize=$enableval; enable_cc_optimize=$enableval; enable_fc_optimize=$enableval;],
+               [enable_optimize=""; enable_cxx_optimize="no"; enable_cc_optimize="no"; enable_fc_optimize="no";	]
              )
 
 # Do enable_optimize by default, unless user has specified
 # custom CXXFLAGS or CFLAGS
 DEBUG=no
-if test "x$enable_debug" = "x"; then
-  if test "x$enable_cxx_optimize" = "x"; then
+if (test "x$enable_debug" != "xyes"); then
+  if (test "x$enable_optimize" = "x"); then
     enable_cxx_optimize=yes
     enable_cc_optimize=yes
     enable_fc_optimize=yes
