@@ -49,6 +49,10 @@ AC_DEFUN([FATHOM_CHECK_NETCDF_LIMITS],[
 #######################################################################################
 AC_DEFUN([FATHOM_CHECK_NETCDF],[
 
+  # Supported NetCDF versions: 4.3.3, 4.3.2, 4.2.1
+  # Arguments: 1) Default Version Number, 2) Download by default ?
+  AUSCM_CONFIGURE_DOWNLOAD_NETCDF([4.3.2],[no])
+
 AC_MSG_CHECKING([if NetCDF support is enabled])
 AC_ARG_WITH(netcdf, 
 [AS_HELP_STRING([--with-netcdf@<:@=DIR@:>@], [Specify NetCDF library to use for ExodusII file format])
@@ -56,8 +60,8 @@ AS_HELP_STRING([--without-netcdf], [Disable support for ExodusII file format])],
 [NETCDF_ARG=$withval
 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS --with-netcdf=\"${withval}\""
 ]
-, [NETCDF_ARG=no])
-if test "xno" != "x$NETCDF_ARG"; then
+, [NETCDF_ARG=$NETCDF_DIR])
+if test "x" != "x$NETCDF_ARG"; then
   AC_MSG_RESULT([yes])
 else
   AC_MSG_RESULT([no])
@@ -65,7 +69,7 @@ fi
 
  # if NetCDF support is not disabled
 HAVE_NETCDF=no
-if test "xno" != "x$NETCDF_ARG"; then
+if (test "x" != "x$NETCDF_ARG" || test "xno" != "x$NETCDF_ARG"); then
   
     # if a path is specified, update LIBS and INCLUDES accordingly
   if test "xyes" != "x$NETCDF_ARG" && test "x" != "x$NETCDF_ARG"; then
