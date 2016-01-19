@@ -142,10 +142,6 @@ AC_DEFUN([INITIALIZE_EXTERNAL_PACKAGES],
   MOAB_SANDBOX="$PWD/sandbox"
   MOAB_ARCH_DIR="$MOAB_SANDBOX/$MOAB_ARCH"
   MOAB_PACKAGES_DIR="$MOAB_SANDBOX/archives"
-
-  # The default PACKAGE installation is under libraries
-  AS_MKDIR_P("$MOAB_ARCH_DIR")
-  AS_MKDIR_P("$MOAB_PACKAGES_DIR")
 ])
 
 # AC_PROG_MKDIR_P
@@ -319,7 +315,7 @@ AC_DEFUN([PRINT_AUTOMATION_STATUS],
 
 
 dnl -------------------------------------------------------------
-dnl AUSCM_CONFIGURE_EXTERNAL_PACKAGE(PACKAGE_NAME, DOWNLOAD_URL)
+dnl AUSCM_CONFIGURE_EXTERNAL_PACKAGE(PACKAGE_NAME, DOWNLOAD_URL, DEFAULT_BEHAVIOR)
 dnl Example: 
 dnl AUSCM_CONFIGURE_EXTERNAL_PACKAGE(MOAB, "http://ftp.mcs.anl.gov/pub/fathom/moab-4.6-nightly.tar.gz" )
 dnl -------------------------------------------------------------
@@ -340,14 +336,18 @@ AC_DEFUN([AUSCM_CONFIGURE_EXTERNAL_PACKAGE],
     [AS_HELP_STRING([--download-m4_tolower($1)],[Download and configure $1 with default options (URL:$2)])],
     [case "x${downloadval}" in
 		  xyes)  pkg_download_url="$2";   m4_tolower(enable$1)=yes;    download_ext_package=yes ;;
-		  x)  pkg_download_url="$2";      m4_tolower(enable$1)=yes;    download_ext_package=yes ;;
-		  *)  pkg_download_url="$downloadval"; m4_tolower(enable$1)=yes;   download_ext_package=yes ;;
-		  xno)  pkg_download_url="none";  download_ext_package=no ;;
+      x)     pkg_download_url="$2";      m4_tolower(enable$1)=yes;    download_ext_package=yes ;;
+      *)     pkg_download_url="$downloadval"; m4_tolower(enable$1)=yes;   download_ext_package=yes ;;
+      xno)   pkg_download_url="none";  download_ext_package=no ;;
 		esac],
-    [pkg_download_url="$2"; download_ext_package=${m4_tolower(download$1)}])
+    [pkg_download_url="$2"; download_ext_package=$3])
 
   if (test "$download_ext_package" != "no") ; then
-  
+
+    # The default PACKAGE installation is under libraries
+    AS_MKDIR_P("$MOAB_ARCH_DIR")
+    AS_MKDIR_P("$MOAB_PACKAGES_DIR")
+
     # Check if the directory already exists
     # if found, we have already configured and linked the sources - do nothing
     # else, download, configure and make PACKAGE sources
@@ -531,21 +531,27 @@ m4_define([ECHO_EVAL],
 ##########################################
 ###    HDF5 AUTOMATED CONFIGURATION
 ##########################################
+
+dnl
+dnl Arguments:
+dnl   1) Default Version Number,
+dnl   2) Download by default ?
+dnl
 AC_DEFUN([AUSCM_CONFIGURE_DOWNLOAD_HDF5],[
 
   # Check whether user wants to autodownload HDF5
-  # Call package Download/Configure/Installation procedures for MOAB, if requested by user
+  # Call package Download/Configure/Installation procedures for HDF5, if requested by user
   PPREFIX=HDF5
 
   # Set the default HDF5 download version
   m4_pushdef([HDF5_DOWNLOAD_VERSION],[$1])dnl
 
   # Invoke the download-hdf5 command
-  m4_case( HDF5_DOWNLOAD_VERSION, [1.8.15], [ AUSCM_CONFIGURE_EXTERNAL_PACKAGE([HDF5], [http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.15-patch1/src/hdf5-1.8.15-patch1.tar.gz] ) ],
-                                  [1.8.14], [ AUSCM_CONFIGURE_EXTERNAL_PACKAGE([HDF5], [http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.14/src/hdf5-1.8.14.tar.gz] ) ],
-                                  [1.8.12], [ AUSCM_CONFIGURE_EXTERNAL_PACKAGE([HDF5], [http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.12/src/hdf5-1.8.12.tar.gz]) ],
-                                  [1.8.10], [ AUSCM_CONFIGURE_EXTERNAL_PACKAGE([HDF5], [http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.10/src/hdf5-1.8.10.tar.gz] ) ],
-                                  [ AUSCM_CONFIGURE_EXTERNAL_PACKAGE([HDF5], [http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.4/src/hdf5-1.8.14.tar.gz] ) ] )
+  m4_case( HDF5_DOWNLOAD_VERSION, [1.8.15], [ AUSCM_CONFIGURE_EXTERNAL_PACKAGE([HDF5], [http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.15-patch1/src/hdf5-1.8.15-patch1.tar.gz], [$2] ) ],
+                                  [1.8.14], [ AUSCM_CONFIGURE_EXTERNAL_PACKAGE([HDF5], [http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.14/src/hdf5-1.8.14.tar.gz], [$2] ) ],
+                                  [1.8.12], [ AUSCM_CONFIGURE_EXTERNAL_PACKAGE([HDF5], [http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.12/src/hdf5-1.8.12.tar.gz], [$2] ) ],
+                                  [1.8.10], [ AUSCM_CONFIGURE_EXTERNAL_PACKAGE([HDF5], [http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.10/src/hdf5-1.8.10.tar.gz], [$2] ) ],
+                                  [ AUSCM_CONFIGURE_EXTERNAL_PACKAGE([HDF5], [http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.4/src/hdf5-1.8.14.tar.gz], [$2] ) ] )
 
   if (test "x$downloadhdf5" == "xyes") ; then
     # download the latest HDF5 sources, configure and install
@@ -695,5 +701,174 @@ AC_DEFUN([AUSCM_AUTOMATED_INSTALL_HDF5],
     hdf5_installed=true
   else
     AC_MSG_ERROR([HDF5 installation was unsuccessful. Please refer to $hdf5_src_dir/../install_hdf5.log for further details.])
+  fi
+])
+
+
+##########################################
+###    NetCDF AUTOMATED CONFIGURATION
+##########################################
+
+dnl
+dnl Arguments:
+dnl   1) Default Version Number,
+dnl   2) Download by default ?
+dnl
+AC_DEFUN([AUSCM_CONFIGURE_DOWNLOAD_NETCDF],[
+
+  # Check whether user wants to autodownload NetCDF
+  # Call package Download/Configure/Installation procedures for NetCDF, if requested by user
+  PPREFIX=NetCDF
+
+  # Set the default NetCDF download version
+  m4_pushdef([NETCDF_DOWNLOAD_VERSION],[$1])dnl
+
+  # Invoke the download-netcdf command
+  m4_case( NETCDF_DOWNLOAD_VERSION, [4.3.3], [ AUSCM_CONFIGURE_EXTERNAL_PACKAGE([NetCDF], [ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-4.3.3.1.tar.gz], [$2] ) ],
+                                  [4.3.2], [ AUSCM_CONFIGURE_EXTERNAL_PACKAGE([NetCDF], [ftp://ftp.unidata.ucar.edu/pub/netcdf/old/netcdf-4.3.2.tar.gz], [$2] ) ],
+                                  [4.2.0], [ AUSCM_CONFIGURE_EXTERNAL_PACKAGE([NetCDF], [ftp://ftp.unidata.ucar.edu/pub/netcdf/old/netcdf-4.2.1.1.tar.gz], [$2] ) ],
+                                  [ AUSCM_CONFIGURE_EXTERNAL_PACKAGE([NetCDF], [ftp://ftp.unidata.ucar.edu/pub/netcdf/old/netcdf-4.3.2.tar.gz], [$2] ) ] )
+
+  if (test "x$downloadnetcdf" == "xyes") ; then
+    # download the latest NetCDF sources, configure and install
+    NETCDF_SRCDIR="$netcdf_src_dir"
+    AC_SUBST(NETCDF_SRCDIR)
+    # The default NETCDF installation is under libraries
+    NETCDF_DIR="$netcdf_install_dir"
+    enablenetcdf=yes
+  fi  # if (test "$downloadnetcdf" != no)
+])
+
+
+dnl ---------------------------------------------------------------------------
+dnl AUSCM_AUTOMATED SETUP PREPROCESS NetCDF
+dnl   Prepares the system for an existing NETCDF install or sets flags to
+dnl   install a new copy of NetCDF
+dnl   Arguments: [PACKAGE, SRC_DIR, INSTALL_DIR, NEED_CONFIGURATION]
+dnl ---------------------------------------------------------------------------
+AC_DEFUN([AUSCM_AUTOMATED_SETUP_PREPROCESS_NETCDF],
+[
+  # configure PACKAGE
+  netcdf_src_dir="$2"
+  netcdf_build_dir="$2/build"
+  netcdf_install_dir="$3"
+  netcdf_archive_name="$4"
+
+  # Check if the NetCDF directory is valid
+  if (test ! -d "$netcdf_src_dir" || test ! -f "$netcdf_src_dir/configure" ); then
+    AC_MSG_ERROR([Invalid source configuration for NetCDF. Source directory $netcdf_src_dir is invalid])
+  fi
+
+  # Check if we need to configure, build, and/or install NETCDF
+  netcdf_configured=false
+  netcdf_made=false
+  netcdf_installed=false
+  if (test ! -d "$netcdf_build_dir" ); then
+   AS_MKDIR_P( $netcdf_build_dir )
+  else
+    if (test -f "$netcdf_build_dir/nc-config" ); then
+      netcdf_configured=true
+      if (test -f "$netcdf_build_dir/liblib/.libs/libnetcdf.*" ); then
+        netcdf_made=true
+        if (test -f "$netcdf_install_dir/include/netcdf.h"); then
+          netcdf_installed=true
+        fi
+      fi
+    fi
+  fi
+  AS_IF([ ! $netcdf_configured || $need_configuration ], [need_configuration=true], [need_configuration=false])
+  AS_IF([ ! $netcdf_made || $need_configuration ], [need_build=true], [need_build=false])
+  AS_IF([ ! $netcdf_installed || $need_configuration ], [need_installation=true], [need_installation=false])
+])
+
+
+dnl ---------------------------------------------------------------------------
+dnl AUSCM_AUTOMATED SETUP POSTPROCESS NETCDF
+dnl   Postprocessing for NETCDF is minimal.  Exists for standardization of all
+dnl   package macros.
+dnl   Arguments: [PACKAGE]
+dnl ---------------------------------------------------------------------------
+AC_DEFUN([AUSCM_AUTOMATED_SETUP_POSTPROCESS_NETCDF],
+[
+  # we have already checked configure/build/install logs for
+  # errors before getting here..
+  enablenetcdf=yes
+])
+
+
+dnl ---------------------------------------------------------------------------
+dnl AUSCM_AUTOMATED CONFIGURE NETCDF
+dnl   Sets up the configure command and then ensures it ran correctly.
+dnl   Arguments: [NEED_CONFIGURATION)
+dnl ---------------------------------------------------------------------------
+AC_DEFUN([AUSCM_AUTOMATED_CONFIGURE_NETCDF],
+[
+if [ $1 ]; then
+  # configure NETCDF
+  if [ $need_configuration ]; then
+    # configure PACKAGE with a minimal build: MPI, HDF5, NETCDF
+    configure_command="$netcdf_src_dir/configure --prefix=$netcdf_install_dir --libdir=$netcdf_install_dir/lib --with-pic=1 --enable-netcdf-4 --enable-shared=$enable_shared"
+    compiler_opts="CC='$CC' CXX='$CXX' FC='$FC' CXXFLAGS='$CXXFLAGS' CFLAGS='$CFLAGS'"
+    if (test "$enablehdf5" != "no"); then
+      configure_command="$compiler_opts LDFLAGS=\"$HDF5_LDFLAGS\" CPPFLAGS=\"$HDF5_CPPFLAGS\" LIBS=\"$HDF5_LIBS -ldl -lm -lz\" $configure_command"
+    fi
+    #echo "Trying to use configure command:==> cd $netcdf_build_dir ; $configure_command > $netcdf_src_dir/../config_netcdf.log ; cd \"\$OLDPWD\""
+    eval "echo 'Using configure command :==> cd $netcdf_build_dir ; $configure_command > $netcdf_src_dir/../config_netcdf.log ; cd \"\$OLDPWD\"' > $netcdf_src_dir/../config_netcdf.log"
+    PREFIX_PRINT([Configuring with default options  (debug=$enable_debug with-HDF5=$enablehdf5 shared=$enable_shared) ])
+    eval "cd $netcdf_build_dir; $configure_command >> $netcdf_src_dir/../config_netcdf.log 2>&1 ; cd \"\$OLDPWD\""
+  fi
+
+  if (test ! -f "$netcdf_build_dir/nc-config" ); then
+    AC_MSG_ERROR([NetCDF configuration was unsuccessful. Please refer to $netcdf_build_dir/config.log and $netcdf_src_dir/../config_netcdf.log for further details.])
+  fi
+  netcdf_configured=true
+
+fi
+])
+
+dnl ---------------------------------------------------------------------------
+dnl AUSCM_AUTOMATED BUILD NETCDF
+dnl   Builds NETCDF and looks for libNETCDF.
+dnl   Arguments: [NEED_BUILD)
+dnl ---------------------------------------------------------------------------
+AC_DEFUN([AUSCM_AUTOMATED_BUILD_NETCDF],
+[
+  if [ $1 ]; then
+    if [ $recompile_and_install || $need_build ]; then
+      PREFIX_PRINT(Building the sources in parallel)
+      netcdf_makelog="`cd $netcdf_build_dir; make all -j4 > $netcdf_src_dir/../make_netcdf.log 2>&1 ; cd \"\$OLDPWD\"`"
+    fi
+  fi
+
+  #if (test -f "$netcdf_build_dir/liblib/.libs/libnetcdf.*" ); then
+  libexist_check="`ls "$netcdf_build_dir/liblib/.libs/libnetcdf.la" &> /dev/null 2>&1`"
+  if (test "x$libexist_check" == "x") ; then
+    netcdf_made=true
+  else
+    AC_MSG_ERROR([NetCDF build was unsuccessful. Please refer to $netcdf_src_dir/../make_netcdf.log for further details.])
+  fi
+])
+
+dnl ---------------------------------------------------------------------------
+dnl AUSCM_AUTOMATED INSTALL NETCDF
+dnl   Installs NETCDF and checks headers.
+dnl   Arguments: [NEED_INSTALLATION)
+dnl ---------------------------------------------------------------------------
+AC_DEFUN([AUSCM_AUTOMATED_INSTALL_NETCDF],
+[
+  if [ $1 ]; then
+    if [ $recompile_and_install ]; then
+      if [ $netcdf_installed ]; then
+        netcdf_installlog="`cd $netcdf_build_dir ; make uninstall > $netcdf_src_dir/../uninstall_netcdf.log 2>&1 ; cd \"\$OLDPWD\"`"
+      fi
+      PREFIX_PRINT(Installing the headers and libraries in to directory {$netcdf_install_dir} )
+      netcdf_installlog="`cd $netcdf_build_dir; make install > $netcdf_src_dir/../install_netcdf.log 2>&1 ; cd \"\$OLDPWD\"`"
+    fi
+  fi
+
+  if (test -f "$netcdf_install_dir/include/netcdf.h"); then
+    netcdf_installed=true
+  else
+    AC_MSG_ERROR([NetCDF installation was unsuccessful. Please refer to $netcdf_src_dir/../install_netcdf.log for further details.])
   fi
 ])
