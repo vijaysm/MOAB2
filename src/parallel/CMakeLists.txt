@@ -31,10 +31,8 @@ include_directories(
 
 if ( MOAB_HAVE_HDF5 AND MOAB_HAVE_HDF5_PARALLEL )
   set( moab_PARALLEL_SRCS ${moab_PARALLEL_SRCS}
-                          WriteHDF5Parallel.cpp )
-  
-  set( moab_PARALLEL_INSTALL_HDRS ${moab_PARALLEL_INSTALL_HDRS}
-                                  WriteHDF5Parallel.hpp )
+                          WriteHDF5Parallel.cpp 
+                          WriteHDF5Parallel.hpp )
 endif()
 
 if ( MOAB_HAVE_HDF5 )

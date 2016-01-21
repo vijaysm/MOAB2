@@ -50,8 +50,7 @@ if PARALLEL
 
 if HAVE_HDF5_PARALLEL
 #  libMOABpar_la_LIBADD = $(top_builddir)/mhdf/libmhdf.la
-  MOAB_PARALLEL_SRCS += WriteHDF5Parallel.cpp 
-  MOAB_PARALLEL_HDRS += WriteHDF5Parallel.hpp
+  MOAB_PARALLEL_SRCS += WriteHDF5Parallel.cpp WriteHDF5Parallel.hpp
 endif
 
 endif
