@@ -191,6 +191,7 @@ set( MOAB_INSTALL_HEADERS
         moab/TreeStats.hpp
         moab/TupleList.hpp
         moab/Types.hpp
+        moab/mhdf_public.h
         moab/UnknownInterface.hpp
         moab/Util.hpp
         moab/WriteUtilIface.hpp
