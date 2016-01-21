@@ -223,8 +223,11 @@ nobase_libMOAB_la_include_HEADERS = \
   MOAB_FCDefs.h \
   MBCN_protos.h \
   moab/MOABConfig.h \
-  MBTagConventions.hpp \
-  moab/mhdf_public.h
+  MBTagConventions.hpp 
+
+if HAVE_HDF5
+  nobase_libMOAB_la_include_HEADERS += moab/mhdf_public.h
+endif
 
 if ENABLE_metis
   libMOAB_la_SOURCES += MetisPartitioner.cpp

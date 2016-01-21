@@ -234,6 +234,17 @@ struct mhdf_FileDesc*
 mhdf_getFileSummary( mhdf_FileHandle file_handle,
                      hid_t file_id_type,
                      mhdf_Status* status );
+
+/** \brief Close the file
+ * \param handle     The file to close.
+ * \param status     Passed back status of API call.
+ */
+void
+mhdf_closeFile( mhdf_FileHandle handle,
+                mhdf_Status* status );
+
+/**\brief Check for open handles in file
+ **/
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

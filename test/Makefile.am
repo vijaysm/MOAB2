@@ -68,7 +68,8 @@ if HAVE_HDF5
         cropvol_test \
         mergemesh_test \
         mbground_test \
-        lloyd_smoother_test
+        lloyd_smoother_test \
+        mhdf_public_test
 endif
 
 
