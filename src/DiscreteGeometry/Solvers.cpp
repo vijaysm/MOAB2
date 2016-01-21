@@ -220,28 +220,26 @@ namespace moab {
 
   void Solvers::backsolve(int mrows, int ncols, double *R, int bncols, double *bs, double *ws)
   {
- /*   std::cout<<"Input R = [ ";
+    std::cout.precision(16);
+    std::cout<<"Before backsolve  "<<std::endl;
+    std::cout<<" V = "<<std::endl;
     for (int k=0; k< ncols; k++){
         for (int j=0; j<mrows; ++j){
-            std::cout<<R[mrows*k+j]<<", ";
+            std::cout<<R[mrows*k+j]<<std::endl;
           }
+        std::cout<<std::endl;
       }
-    std::cout<<" ] "<<std::endl;
+    std::cout<<std::endl;
 
-    std::cout<<"Input bs = [ ";
+    //std::cout<<"#pnts = "<<mrows<<std::endl;
+    std::cout<<"bs = "<<std::endl;
+    std::cout<<std::endl;
     for (int k=0; k< bncols; k++){
         for (int j=0; j<mrows; ++j){
-            std::cout<<bs[mrows*k+j]<<", ";
+            std::cout<<"  "<<bs[mrows*k+j]<<std::endl;
           }
       }
-    std::cout<<" ] "<<std::endl;
-
-
-    std::cout<<"Input ws = [ ";
-    for (int k=0; k< ncols; k++){
-            std::cout<<ws[k]<<", ";
-          }
-    std::cout<<" ] "<<std::endl;*/
+    std::cout<<std::endl;
 
 
     for (int k=0; k< bncols; k++)
@@ -272,7 +270,7 @@ namespace moab {
 
   void Solvers::backsolve_polyfit_safeguarded(int dim, int degree, int mrows, int ncols, double *R, int bncols, double *bs, const double *ws, int *degree_out)
   {
-    std::cout.precision(16);
+    std::cout.precision(12);
     std::cout<<"Before backsolve  "<<std::endl;
     std::cout<<" V = "<<std::endl;
     for (int k=0; k< ncols; k++){
