@@ -107,12 +107,12 @@ static const char* string_tag_value( const void* value,
                                      int size )
 {
   static char buffer[1024];
-  const char* data = value;
+  const char* data = (const char*) value;
   char* offset = buffer;
   int print, i;
-  const int* intptr = value;
-  const double* dblptr = value;
-  const unsigned long* idptr = value;
+  const int* intptr = (const int *) value;
+  const double* dblptr = (const double*) value;
+  const unsigned long* idptr = (const unsigned long *) value;
   
 
   if (size <= 0) {
