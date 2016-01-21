@@ -105,6 +105,10 @@ namespace moab
 		double *coeffs,*coords;
 		int *degree_out;
 		int ncoeffs = (degree+2)*(degree+1)/2;
+
+		//DBG
+		int dcount = 0;
+
 		for(Range::iterator ivert=_verts2rec.begin();ivert!=_verts2rec.end();++ivert){
 			int index = _verts2rec.index(*ivert);
 			size_t istr = _vertID2coeffID[index];
@@ -112,9 +116,17 @@ namespace moab
 			coeffs = &(_local_fit_coeffs[istr]);
 			degree_out = &(_degrees_out[index]);
 			_interps[index] = interp;
-			error  = polyfit3d_walf_surf_vertex(*ivert,interp,degree,_MINPNTS,safeguard,9,coords,degree_out,ncoeffs,coeffs);
-			MB_CHK_ERR(error);
+			error  = polyfit3d_walf_surf_vertex(*ivert,interp,degree,_MINPNTS,safeguard,9,coords,degree_out,ncoeffs,coeffs);MB_CHK_ERR(error);
+
+			//DBG
+			if (degree_out[0] < degree)
+			  dcount += 1;
+
 		}
+
+		//DBG
+		std::cout<<"Total #points ="<<_verts2rec.size()<<", #degraded points = "<<dcount<<std::endl;
+
 		_geom = HISURFACE;
 		_hasfittings = true;
 		return error;
@@ -277,7 +289,7 @@ namespace moab
 		//get connectivity table
 		std::vector<EntityHandle> elemconn;
 		error = mbImpl->get_connectivity(&elem,1,elemconn); MB_CHK_ERR(error);
-		if(nvpe!=elemconn.size()){
+		if(nvpe!=(int)elemconn.size()){
 			MB_SET_ERR(MB_FAILURE,"element connectivity table size doesn't match input size");
 		}
 
@@ -473,7 +485,7 @@ namespace moab
 	 				}
 	 			}
 	 		}
-	 		if(_MAXPNTS<=ngbvs.size()){
+			if(_MAXPNTS<=(int)ngbvs.size()){
 	 			//obtain enough points
 	 			return error;
 	 		}
@@ -481,7 +493,7 @@ namespace moab
 	 			//current ring cannot introduce any points, return incase deadlock
 	 			return error;
 	 		}
-	 		if(i==ring&&minpnts>ngbvs.size()){
+			if((i==ring)&& (minpnts>(int)ngbvs.size())){
 	 			//reach maximum ring but not enough points
 	 			++ring;
 	 		}
@@ -565,12 +577,14 @@ namespace moab
 	 	}
 	 }
 
-	 ErrorCode HiReconstruction::set_geom_data_surf(const EntityHandle vid, const double* coords, const double degree_out, const double* coeffs, bool interp){
-
+	 ErrorCode HiReconstruction::set_geom_data_surf(const EntityHandle vid, const double* coords, const double degree_out, const double* coeffs, bool interp)
+	 {
+	   return MB_SUCCESS;
 	 }
 
-	 ErrorCode HiReconstruction::set_geom_data_3Dcurve(const EntityHandle vid, const double* coords, const double degree_out, const double* coeffs, bool interp){
-
+	 ErrorCode HiReconstruction::set_geom_data_3Dcurve(const EntityHandle vid, const double* coords, const double degree_out, const double* coeffs, bool interp)
+	 {
+	   return MB_SUCCESS;
 	 }
 
    /*********************************************************
@@ -886,7 +900,8 @@ namespace moab
 	 	}
 	 	*degree_qr = degree;
 
-		std::cout<<"before Qtb"<<std::endl;
+		/* DBG
+		 * std::cout<<"before Qtb"<<std::endl;
 		std::cout<<std::endl;
 		std::cout<<"bs = "<<std::endl;
 		std::cout<<std::endl;
@@ -895,12 +910,13 @@ namespace moab
 			std::cout<<"  "<<bs[npts2fit*k+j]<<std::endl;
 		      }
 		  }
-		std::cout<<std::endl;
+		std::cout<<std::endl;*/
 
 	 	//step 7. compute Q'b
 	 	Solvers::compute_qtransposeB(npts2fit,ncols_sub,&(V[0]),ndim,bs);
 
-		std::cout<<"after Qtb"<<std::endl;
+		/* DBG
+		 * std::cout<<"after Qtb"<<std::endl;
 		std::cout<<"bs = "<<std::endl;
 		std::cout<<std::endl;
 		for (int k=0; k< ndim; k++){
@@ -908,7 +924,7 @@ namespace moab
 			std::cout<<"  "<<bs[npts2fit*k+j]<<std::endl;
 		      }
 		  }
-		std::cout<<std::endl;
+		std::cout<<std::endl;*/
 
 	 	//step 8. perform backward substitution and scale the solution
 	 	//assign diagonals of V

@@ -193,7 +193,7 @@ ErrorCode test_mesh(const char* infile,const int degree, const bool interp, cons
 	error = exact_error_torus(R, r, center, (int)elems.size(), pnts_proj, errl1, errl2, errli);MB_CHK_ERR(error);
 
 	//std::cout << "Maximum projection lift is " << mxdist << std::endl;
-	std::cout<<"Errors using exact torus: L1 = "<<errl1<<", L2 = "<<errl2<<", Linf = "<<errli<<std::endl;
+	std::cout<<"Errors using exact torus for degree "<<degree<<" fit : L1 = "<<errl1<<", L2 = "<<errl2<<", Linf = "<<errli<<std::endl;
 
 	return error;
 }
