@@ -2,10 +2,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-#include <H5Tpublic.h>
 #include "moab/mhdf_public.h"
 
-static int print_file_summary( struct mhdf_FileDesc* data );
+static int print_file_summary( MHDF_FileDesc* data );
 
 int main( int argc, char* argv[] )
 {
@@ -13,7 +12,7 @@ int main( int argc, char* argv[] )
   mhdf_FileHandle file;
   mhdf_Status status;
   unsigned long max_id;
-  struct mhdf_FileDesc* data;
+  MHDF_FileDesc* data;
   
   if (argc != 2) {
     fprintf( stderr,"Usage: %s <filename>\n", argv[0] );
@@ -42,10 +41,10 @@ int main( int argc, char* argv[] )
 
 static void print_ent_desc( const char* name,
                             const char* subname,
-                            struct mhdf_EntDesc* data,
+                            MHDF_EntDesc* data,
                             const char* vals_label,
                             const char* extra_label,
-                            struct mhdf_FileDesc* all )
+                            MHDF_FileDesc* all )
 {
   int i, len = 10;
   
@@ -76,13 +75,13 @@ static void print_ent_desc( const char* name,
   printf ("\n");  
 }
 
-static void print_elem_desc( struct mhdf_ElemDesc* data, struct mhdf_FileDesc* all )
+static void print_elem_desc( MHDF_ElemDesc* data, MHDF_FileDesc* all )
 {
   const char* adj = data->have_adj ? "adjacencies" : "no adjencies";
   print_ent_desc( data->handle, data->type, &data->desc, "nodes per element", adj, all );
 }
 
-static const char* tag_type_name( enum mhdf_TagDataType type )
+static const char* tag_type_name( MHDF_TagDataType type )
 {
   static const char opaque[] = "opaque";
   static const char integer[] = "integer";
@@ -103,7 +102,7 @@ static const char* tag_type_name( enum mhdf_TagDataType type )
 }
 
 static const char* string_tag_value( const void* value, 
-                                     enum mhdf_TagDataType type,
+                                     MHDF_TagDataType type,
                                      int size )
 {
   static char buffer[1024];
@@ -201,7 +200,7 @@ static const char* string_tag_value( const void* value,
   return buffer;
 }
 
-static const char* ent_desc_name( struct mhdf_FileDesc* all, int idx )
+static const char* ent_desc_name( MHDF_FileDesc* all, int idx )
 {
   static const char nodes[] = "Nodes";
   static const char sets[] = "Sets";
@@ -212,7 +211,7 @@ static const char* ent_desc_name( struct mhdf_FileDesc* all, int idx )
   return all->elems[idx].handle;
 }
 
-static void print_tag_desc( struct mhdf_TagDesc* data, struct mhdf_FileDesc* all )
+static void print_tag_desc( MHDF_TagDesc* data, MHDF_FileDesc* all )
 {
   int i, width = 8;
 
@@ -245,7 +244,7 @@ static void print_tag_desc( struct mhdf_TagDesc* data, struct mhdf_FileDesc* all
   printf( "\n" );
 }
 
-static int print_file_summary( struct mhdf_FileDesc* data )
+static int print_file_summary( MHDF_FileDesc* data )
 {
   int i;
   

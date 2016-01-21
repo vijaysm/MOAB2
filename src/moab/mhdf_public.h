@@ -1,6 +1,8 @@
 #ifndef MHDF_PUBLIC_H
 #define MHDF_PUBLIC_H
 
+#include <H5Tpublic.h>
+
 #ifdef __cplusplus
   extern "C" {
 #endif
@@ -55,14 +57,14 @@ mhdf_message( mhdf_Status const* );
  *
  * Enumerates known types for tag data
  */
-enum mhdf_TagDataType {
+typedef enum mhdf_TagDataType {
   mhdf_OPAQUE = 0, /**< Opaque/unknown type */
   mhdf_INTEGER,    /**< Integer type */
   mhdf_FLOAT,      /**< Floating point value */
   mhdf_BITFIELD,   /**< Bit field */
   mhdf_BOOLEAN,    /**< Boolean values stored as one byte each */
   mhdf_ENTITY_ID   /**< Global ID referencing another entity in file */
-};
+} MHDF_TagDataType;
 
 /**\brief Type used when creating index tables
  *
@@ -177,15 +179,15 @@ int
 mhdf_countOpenHandles( mhdf_FileHandle h );
 
 /** Data common to sets, nodes, and each element type */
-struct mhdf_EntDesc {
+typedef struct mhdf_EntDesc {
   long start_id;           /**< First file ID for table of data */
   long count;              /**< Number of entities in table */
   int vals_per_ent;        /**< Connectivity length for elems, dimension for verts, unused for sets, -1 for variable length poly* data */
   int* dense_tag_indices;  /**< Indices into mhdf_FileDesc::tags for each tag for which dense data is present for these entities */
   int num_dense_tags;      /**< Length of dense_tag_indices */
-};
+} MHDF_EntDesc;
 /** Struct describing a tag */
-struct mhdf_TagDesc {
+typedef struct mhdf_TagDesc {
   const char* name;           /**< Tag name */
   enum mhdf_TagDataType type; /**< Data type */
   int size;                   /**< Tag size (num of data type) */
@@ -199,14 +201,14 @@ struct mhdf_TagDesc {
   int* dense_elem_indices;    /**< Array of indices indicating element types for which dense
                                    data is stored.  -2 for sets, -1 for nodes. */
   int num_dense_indices;
-};
-struct mhdf_ElemDesc {
+} MHDF_TagDesc;
+typedef struct mhdf_ElemDesc {
   const char* handle;       /**< String table identifier */
   const char* type;         /**< String type designator */
   int have_adj;             /**< File contains adjacency data for this element group */
   struct mhdf_EntDesc desc;
-};
-struct mhdf_FileDesc {
+} MHDF_ElemDesc;
+typedef struct mhdf_FileDesc {
   struct mhdf_EntDesc nodes;
   struct mhdf_EntDesc sets;
   int have_set_contents;
@@ -218,7 +220,7 @@ struct mhdf_FileDesc {
   int num_tag_desc;
   size_t total_size;           /**< Size of memory block containing all struct data */
   unsigned char* offset;       /**< Unused, may be used by application */
-};
+} MHDF_FileDesc;
 
 /** \brief Get summary of data tables contained within file.
  *
@@ -230,7 +232,7 @@ struct mhdf_FileDesc {
  * assuming all nested pointers in the copy are updated to the correct
  * relative offset from the beginning of the struct.
  */
-struct mhdf_FileDesc*
+MHDF_FileDesc *
 mhdf_getFileSummary( mhdf_FileHandle file_handle,
                      hid_t file_id_type,
                      mhdf_Status* status );
@@ -245,8 +247,10 @@ mhdf_closeFile( mhdf_FileHandle handle,
 
 /**\brief Check for open handles in file
  **/
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
+
 
 #endif /* MHDF_PUBLIC_H*/
