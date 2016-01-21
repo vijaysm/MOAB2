@@ -1081,6 +1081,7 @@ else
 fi
 MB_OPTIONAL_TOOL([h5mtools],     [${HAVE_HDF5}], [${HAVE_HDF5}])
 MB_OPTIONAL_TOOL([mbcslam],      [no], [yes])
+MB_OPTIONAL_TOOL([mbmeshtogeom],    [yes], [yes])
 MB_OPTIONAL_TOOL([mbquality],    [yes], [yes])
 
 MB_OPTIONAL_TOOL([ahf],          [no], [no])

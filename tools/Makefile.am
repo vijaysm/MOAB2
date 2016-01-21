@@ -138,6 +138,36 @@ if ENABLE_mbquality
   bin_PROGRAMS += mbquality
 endif
 
+if ENABLE_mbmeshtogeom
+if HAVE_CGM
+  bin_PROGRAMS += mbmeshtogeom
+endif
+endif
+
+# The directory in which to install headers
+
+TEST_DEPS =
+if ENABLE_imesh
+    AM_CPPFLAGS += -DENABLE_IMESH -I$(top_srcdir)/itaps/imesh
+if HAVE_MPI
+    AM_CPPFLAGS += -I$(top_srcdir)/src/parallel
+endif
+    TEST_DEPS += $(top_builddir)/itaps/imesh/libiMesh.la
+endif
+
+if ENABLE_fbigeom
+    AM_CPPFLAGS += -DENABLE_FBIGEOM -I$(top_srcdir)/itaps/fbigeom
+    TEST_DEPS += $(top_builddir)/itaps/fbigeom/libFBiGeomMOAB.la
+endif
+TEST_DEPS += $(top_builddir)/src/libMOAB.la
+
+if HAVE_CGM
+    AM_CPPFLAGS += -DENABLE_IGEOM -I${CGM_DIR}/include
+    LIBS += ${CGM_LIBS}
+    TEST_DEPS += ${CGM_DIR}/lib/libiGeom.la
+endif
+TEST_DEPS += ${MOAB_CXX_LINKFLAGS} ${MOAB_CXX_LIBS}
+
 if ENABLE_mbumr
   AM_CPPFLAGS += -I$(top_srcdir)/src/RefineMesh
   bin_PROGRAMS += mbumr
@@ -158,6 +188,13 @@ SUBDIRS = . \
           $(vtkMOABReader_DIR) \
           $(dagmc_DIR) 
 
+AM_CPPFLAGS += -I$(top_builddir) $(IGEOM_DEFINES) $(IGEOM_INCLUDES) \
+               -DMESHDIR=$(MESHDIR) \
+               -I$(top_srcdir)/src \
+               -I$(top_srcdir)/itaps -I$(top_builddir)/itaps/fbigeom \
+               -I$(top_srcdir)/itaps/imesh -I$(top_builddir)/itaps/imesh \
+               -I$(top_srcdir)/itaps/irel -I$(top_builddir)/itaps/irel
+
 mbconvert_SOURCES = convert.cpp
 mbmerge_SOURCES = merge.cpp
 mbgsets_SOURCES = gsets.cc
@@ -170,6 +207,8 @@ mbsurfplot_SOURCES = surfplot.cpp
 mbtagprop_SOURCES = parse.cpp parse.hpp propagate_tags.cpp
 mbmem_SOURCES = mbmem.cpp
 parread_SOURCES = parread.cpp
-mbquality_SOURCES = quality.cpp
+mbmeshtogeom_SOURCES = meshtogeom.cpp
+mbmeshtogeom_LDADD = $(TEST_DEPS)
+mbquality_SOURCES =  quality.cpp
 mbumr_SOURCES = umr.cpp
 
