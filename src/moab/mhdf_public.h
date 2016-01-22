@@ -12,6 +12,8 @@
 
 /** \brief Struct used to return error status. */
 typedef struct struct_mhdf_Status { char message[MHDF_MESSAGE_BUFFER_LEN]; } mhdf_Status;
+/* another name/alias/typedef for mhdf_Status*/
+typedef mhdf_Status MHDF_Status;
 
 /** \brief Return 1 if passed status object indicates an error.  Zero otherwise. */
 int
@@ -83,7 +85,8 @@ typedef long mhdf_index_t;
 
 /** \brief Opaque handle to an open file */
 typedef void* mhdf_FileHandle;
-
+/* another name/alias/typedef for mhdf_FileHandle*/
+typedef mhdf_FileHandle MHDF_FileHandle;
 
 
 /* Top level file operations */

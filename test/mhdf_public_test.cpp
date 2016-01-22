@@ -9,8 +9,8 @@ static int print_file_summary( MHDF_FileDesc* data );
 int main( int argc, char* argv[] )
 {
   int result;
-  mhdf_FileHandle file;
-  mhdf_Status status;
+  MHDF_FileHandle file;
+  MHDF_Status status;
   unsigned long max_id;
   MHDF_FileDesc* data;
   
