@@ -118,7 +118,7 @@ namespace moab{
    ************************************************************/
 
   ErrorCode NestedRefine::generate_mesh_hierarchy(int num_level, int *level_degrees, std::vector<EntityHandle> &level_sets)
-  { 
+  {
     assert(num_level > 0);
     nlevels = num_level;
 
@@ -466,7 +466,7 @@ namespace moab{
     Range::iterator set_it;
     for (set_it = sets.begin(); set_it != sets.end(); ++set_it) {
         // Get the entities in the set, recursively
-        rval = mb->get_entities_by_handle(*set_it, set_ents, true);MB_CHK_ERR(rval);
+        error = mbImpl->get_entities_by_handle(*set_it, set_ents, true);MB_CHK_ERR(error);
 
         for (Range::iterator sit = set_ents.begin(); sit != set_ents.end(); sit++)
           {
@@ -474,7 +474,7 @@ namespace moab{
               {
                 childs.clear();
                 error = parent_to_child(*sit, 0, l+1, childs);MB_CHK_ERR(error);
-                error = mbImpl->add_entities(set_ents, &childs[0], childs.size());MB_CHK_ERR(error);
+                error = mbImpl->add_entities(*set_it, &childs[0], childs.size());MB_CHK_ERR(error);
               }
           }
       }
@@ -1053,7 +1053,7 @@ namespace moab{
 
     //Step 1: Create the subentities via refinement of the previous mesh
     for (int fid = 0; fid < nents_prev; fid++)
-      {        
+      {
         conn.clear();
         cur_conn.clear();
         for (int i=0; i<vtotal; i++)
@@ -1102,7 +1102,7 @@ namespace moab{
           }
 
         //Step 2: Create the subentities using the template and the vbuffer
-        int idx;       
+        int idx;
         for (int i = 0; i < etotal; i++)
           {
             for (int k = 0; k < nepf; k++)
@@ -1352,7 +1352,7 @@ namespace moab{
             id1 = intFacEdg[ftype - 2][d].ieconn[i][0];
             id2 = intFacEdg[ftype - 2][d].ieconn[i][1];
             level_mesh[cur_level].edge_conn[2 * (ecount)] = vbuffer[id1];
-            level_mesh[cur_level].edge_conn[2 * (ecount) + 1] = vbuffer[id2];      
+            level_mesh[cur_level].edge_conn[2 * (ecount) + 1] = vbuffer[id2];
             ecount += 1;
           }
       }
@@ -2040,7 +2040,7 @@ ErrorCode NestedRefine::update_global_ahf_1D(int cur_level, int deg)
          vid = _inverts[i];
        EntityHandle cur_vid = level_mesh[cur_level].start_vertex + i;
 
-       //Get the incident half-vert in the previous mesh     
+       //Get the incident half-vert in the previous mesh
        error = ahf->get_incident_map(MBEDGE, vid, inci_ent, inci_lid);  MB_CHK_ERR(error);
 
        // Obtain the corresponding incident child in the current mesh
