@@ -34,19 +34,13 @@ using namespace moab;
 
 static void print_usage( const char* name, std::ostream& stream )
 {
-  stream << "Usage: " << name << " <input_file> <output_file>" << std::endl;
-  stream << "This creates a textfile with material id followed by mesh/geom ratio for each material" << std::endl;
+  stream << "Usage (Cubit file): " << name << " <input .cub file> <output mesh file with meshtogeom tag on material sets> <output text meshtogeom file>" << std::endl;
+  stream << "\nUsage (OCC file): " << name << " <input OCC geometry file> <input mesh file> <output mesh file with meshtogeom tag on material sets> <output text meshtogeom file>" << std::endl;
 }
 
 
 int main( int argc, char* argv[] )
 {
-  if (argc!=3)
-    {
-      print_usage(argv[0], std::cerr);
-      return 1;
-    }
-
   int result;
   ErrorCode error = MB_SUCCESS;
   moab::Core *mb = new moab::Core();
@@ -56,22 +50,32 @@ int main( int argc, char* argv[] )
   char * out_file=NULL;
   std::ofstream ofile;
 
-  if (argc==4)
-    {
-      std::cout<<" write verbose output to a CSV file " << argv[2] << "\n";
-      out_file = argv[3];
-      ofile.open (out_file);
-    }
-
   // Select engine based on CGM build with option
-  std::string engine_opt = ";engine=ACIS";
+  std::string engine_opt;
+#ifdef HAVE_OCC
+  if (argc !=5){
+    print_usage(argv[0], std::cerr);
+    exit(0);
+  }
+  engine_opt = ";engine=OCC";
+  out_file = argv[4];
+  ofile.open (out_file);
+  error = mb->load_file(argv[2], 0 ); MB_CHK_ERR(error);
+#else
+  if (argc !=4){
+    print_usage(argv[0], std::cerr);
+     exit(0);
+  }
+  engine_opt = ";engine=ACIS";
+  out_file = argv[3];
+  ofile.open (out_file);
+  error = mb->load_file(argv[1], 0 ); MB_CHK_ERR(error);
+#endif
   iGeom_newGeom( engine_opt.c_str(), &geom, &result, engine_opt.length() );
   if (iBase_SUCCESS != result) {
       printf("ERROR : can not instantiate engine\n");
       return 0;
     }
-  error = mb->load_file(argv[1], 0 ); MB_CHK_ERR(error);
-
   iGeom_load(geom, argv[1], 0, &result, strlen(argv[1]), 0);
   if (iBase_SUCCESS != result) {
       printf("ERROR : can not load a geometry\n");
@@ -117,6 +121,7 @@ int main( int argc, char* argv[] )
       const char *tag1 = "GLOBAL_ID";
       int namelen = strlen(tag1);
       iGeom_getTagHandle(geom, tag1, &igeom_gidtag, &result, namelen);
+      if(result!=0){std::cerr << "iGeom failure " << result << std::endl; exit(1);}
 
       for(unsigned int volid = 0; volid < geomsets_for_gid.size(); volid++){
           // get the gid of this volume
@@ -131,6 +136,7 @@ int main( int argc, char* argv[] )
           int myvol_alloc, myvol_size;
           if(ent2 != NULL){
               iGeom_measure(geom, &ent2, 1, &myvol, &myvol_alloc, &myvol_size, &result);
+              if(result!=0){std::cerr << "iGeom failure " << result << std::endl; exit(1);}
               volume+=*myvol;
             }
           else {
@@ -153,19 +159,29 @@ int main( int argc, char* argv[] )
         }
 
       double meshtogeom = mtot/volume;
-      std::cout << material_id << " has volume " << mtot << std::endl;
+      std::cout << material_id << " has mesh volume " << mtot << " geometric volume " << volume << " ratio is " << meshtogeom << std::endl;
+      ofile << "Material Id: "<<  material_id << " has mesh volume " << mtot << " geometric volume " << volume << " MESHTOGEOM ratio is " << meshtogeom << std::endl;
 
       moab::Tag mtog_tag;
       // now set the meshtogeom tag on this set
       error = mb->tag_get_handle( "MESHTOGEOM", 1, MB_TYPE_DOUBLE,
-                          mtog_tag, MB_TAG_SPARSE|MB_TAG_CREAT ); MB_CHK_ERR(error);
+                                  mtog_tag, MB_TAG_SPARSE|MB_TAG_CREAT ); MB_CHK_ERR(error);
       error = mb->tag_set_data(mtog_tag, &(*set_it), 1, &meshtogeom); MB_CHK_ERR(error);
 
       elems.clear();
       mtot = 0.0;
+      volume = 0.0;
     }
+#ifdef HAVE_OCC
+  error = mb->write_mesh(argv[3]); MB_CHK_ERR(error);
+  std::cout << "wrote mesh file: " << argv[3] << " and meshtogeomfile: " << argv[4] << std::endl;
+#else
   error = mb->write_mesh(argv[2]); MB_CHK_ERR(error);
+  std::cout << "wrote mesh file: " << argv[2] << " and meshtogeomfile: " << argv[3] << std::endl;
+#endif
+
   delete mb;
+  ofile.close();
   return 0;
 }
 
