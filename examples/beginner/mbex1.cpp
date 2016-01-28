@@ -30,7 +30,6 @@ int main()
   // MOAB functionality is accessed through an instance of the
   // moab::Interface class:
   moab::Core mbcore;
-  moab::Interface& mbint = mbcore;
 
   // ***************************
   // *   Create the vertexes   *
@@ -70,7 +69,7 @@ int main()
   // can also be stored in vectors or arrays, but ranges are much more
   // memory efficient, so use them when possible!
   moab::Range vertex_handles;
-  moab::ErrorCode rval = mbint.create_vertices( vertex_coords, NUMVTX, vertex_handles );
+  moab::ErrorCode rval = mbcore.create_vertices( vertex_coords, NUMVTX, vertex_handles );
   MBERR("create_vertices", rval);
 
   // You can print out a range to see what elements it contains:
@@ -119,7 +118,7 @@ int main()
   moab::Range hexahedron_handles;
   moab::EntityHandle element;
   for (unsigned i = 0; i < NUMHEX; ++i) {
-    rval = mbint.create_element( moab::MBHEX, conn[i], 8, element );
+    rval = mbcore.create_element( moab::MBHEX, conn[i], 8, element );
     MBERR("create_element", rval);
 
     hexahedron_handles.insert(element);
@@ -142,7 +141,7 @@ int main()
   // because it is text based and will work whether or not you've got
   // HDF5, NETCDF, etc... installed and is a fairly standard file
   // format so a lot of tools work with it out of the box. 
-  rval = mbint.write_file("moabuse1.vtk");
+  rval = mbcore.write_file("moabuse1.vtk");
   MBERR("write_file(moabuse1.vtk)", rval);
 
   return 0;

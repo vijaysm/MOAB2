@@ -4,10 +4,7 @@
 # a simple application makefile, just comment out the next 3 lines and
 # substitute your own value for $(MOAB_LIB_DIR), or set an environment
 # variable pointing to the right place.
-exec_prefix = @exec_prefix@
-prefix = @prefix@
-libdir = @libdir@
-MOAB_LIB_DIR = $(libdir)
+MOAB_LIB_DIR = @libdir@
 
 include $(MOAB_LIB_DIR)/moab.make
 
@@ -22,29 +19,18 @@ all: moabuse1 moabuse2 moabuse3 moabuse4
 moabuse1: moabuse1.o
 	$(CXX) -o $@ $< $(MOAB_LIBS_LINK)
 
-moabuse1.o : moabuse1.cpp
-	$(CXX) -c $(MOAB_INCLUDES) $<
-
 moabuse2: moabuse2.o
 	$(CXX) -o $@ $< $(MOAB_LIBS_LINK)
-
-moabuse2.o : moabuse2.cpp
-	$(CXX) -c $(MOAB_INCLUDES) $<
 
 moabuse3: moabuse3.o
 	$(CXX) -o $@ $< $(MOAB_LIBS_LINK)
 
-moabuse3.o : moabuse3.cpp
-	$(CXX) -c $(MOAB_INCLUDES) $<
-
 moabuse4: moabuse4.o
 	$(CXX) -o $@ $< $(MOAB_LIBS_LINK)
 
-moabuse4.o : moabuse4.cpp
+%.o : %.cpp
 	$(CXX) -c $(MOAB_INCLUDES) $<
 
 clean:
-	rm -rf moabuse1 moabuse1.o moabuse1.vtk moabuse1.h5m
-	rm -rf moabuse2 moabuse2.o moabuse2.vtk moabuse2.h5m
-	rm -rf moabuse3 moabuse3.o moabuse3.vtk moabuse3.h5m
-	rm -rf moabuse4 moabuse4.o moabuse4.vtk moabuse4.h5m
+	rm -rf *.o *.vtk *.h5m moabuse1 moabuse2 moabuse3 moabuse4
+
