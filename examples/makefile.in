@@ -19,7 +19,7 @@ default: all
 # MESH_DIR is the directory containing mesh files that come with MOAB source
 MESH_DIR="@abs_top_srcdir@/MeshFiles/unittest"
 
-EXAMPLES = HelloMOAB GetEntities SetsNTags LoadPartial StructuredMesh StructuredMeshSimple DirectAccessWithHoles DirectAccessNoHoles PointInElementSearch GenLargeMesh UniformRefinement
+EXAMPLES = HelloMOAB GetEntities SetsNTags LoadPartial StructuredMesh StructuredMeshSimple DirectAccessWithHoles DirectAccessNoHoles PointInElementSearch GenLargeMesh UniformRefinement ExtrudePoly
 PAREXAMPLES = HelloParMOAB ReduceExchangeTags LloydRelaxation CrystalRouterExample ReadWriteTest
 EXOIIEXAMPLES = TestExodusII VisTags
 F90EXAMPLES = DirectAccessNoHolesF90
@@ -57,6 +57,12 @@ HelloMOAB: HelloMOAB.o ${MOAB_LIBDIR}/libMOAB.la
 
 run-HelloMOAB: HelloMOAB
 	${RUNSERIAL} ./HelloMOAB
+
+ExtrudePoly: ExtrudePoly.o ${MOAB_LIBDIR}/libMOAB.la
+	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
+
+run-ExtrudePoly: ExtrudePoly
+	${RUNSERIAL} ./ExtrudePoly
 
 GetEntities: GetEntities.o ${MOAB_LIBDIR}/libMOAB.la
 	${MOAB_CXX} -o $@ $< ${MOAB_LIBS_LINK}
