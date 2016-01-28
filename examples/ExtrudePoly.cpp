@@ -86,7 +86,7 @@ int main(int argc, char **argv)
   ReadUtilIface *read_iface;
   rval = mb->query_interface(read_iface);MB_CHK_SET_ERR(rval, "Error in query_interface");
 
-  EntityHandle start_vert, start_elem, *connect;
+  EntityHandle start_elem, *connect;
        // Create quads
   rval = read_iface->get_element_connect(nquads, 4, MBQUAD, 0, start_elem, connect);MB_CHK_SET_ERR(rval, "Error in get_element_connect");
   int nedges = (int)edges.size();
@@ -121,6 +121,7 @@ int main(int argc, char **argv)
   // vertices are parallel to the base vertices
   int indexVerts[MAXEDGES] = {0}; // polygons with at most MAXEDGES edges
   EntityHandle newConn[MAXEDGES] = {0};
+  EntityHandle polyhedronConn[MAXEDGES+2] = {0};
 
   // edges will be used to determine the lateral faces of polyhedra (prisms)
   int indexEdges[MAXEDGES] = {0}; // index of edges in base polygon
@@ -133,7 +134,19 @@ int main(int argc, char **argv)
     rval = mb->get_connectivity( polyg, connp, num_nodes) ; MB_CHK_ERR(rval);
 
     for (int i=0; i<num_nodes; i++)
+    {
       indexVerts[i] = verts.index(connp[i]);
+      int i1 =(i+1)%num_nodes;
+      EntityHandle edgeVerts[2]={connp[i], connp[i1]};
+      // get edge adjacent to these vertices
+      Range adjEdges;
+      rval = mb->get_adjacencies(edgeVerts, 2, 1, false, adjEdges); MB_CHK_ERR(rval);
+      if (adjEdges.size()<1)
+        MB_CHK_SET_ERR(MB_FAILURE, " did not find edge ");
+      indexEdges[i]=edges.index(adjEdges[0]);
+      if (indexEdges[i]<0)
+        MB_CHK_SET_ERR(MB_FAILURE, "did not find edge in range");
+    }
 
     for  (int ii=0; ii<layers; ii++)
     {
@@ -144,6 +157,21 @@ int main(int argc, char **argv)
       rval = mb->create_element(MBPOLYGON, newConn, num_nodes, allPolygons[nfaces*(ii+1)+j] ); MB_CHK_ERR(rval);
 
       // now create a polyhedra with top, bottom and lateral swept faces
+      // first face is the bottom
+      polyhedronConn[0] = allPolygons[nfaces*ii+j];
+      // second face is the top
+      polyhedronConn[1] =allPolygons[nfaces*(ii+1)+j];
+      // next add lateral quads, in order of edges, using the start_elem
+      // first layer of quads has EntityHandle from start_elem to start_elem+nedges-1
+      // second layer of quads has EntityHandle from start_elem + nedges to start_elem+2*nedges-1 ,etc
+      for (int i=0; i<num_nodes; i++)
+      {
+        polyhedronConn[2+i] = start_elem + ii*layers + indexEdges[i];
+      }
+      // Create polyhedron
+      EntityHandle polyhedron;
+      rval = mb->create_element( MBPOLYHEDRON, polyhedronConn, 2+num_nodes, polyhedron); MB_CHK_ERR(rval);
+
     }
   }
   rval = mb->write_file(output.c_str());MB_CHK_ERR(rval);
